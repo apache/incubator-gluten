@@ -1155,18 +1155,12 @@ def run_test_suites(categories):
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "log4j2.properties")
     )
 
-    suite_list = []
+    suites_to_run = set()
     for category in categories:
         if FUNCTION_SUITES[category]:
-            suite_list.append(
-                ",".join(
-                    [
-                        FUNCTION_SUITE_PACKAGE + name
-                        for name in FUNCTION_SUITES[category]
-                    ]
-                )
-            )
-    suites = ",".join(suite_list)
+            for name in FUNCTION_SUITES[category]:
+                suites_to_run.add(FUNCTION_SUITE_PACKAGE + name)
+    suites = ",".join(suites_to_run)
 
     if not suites:
         logging.log(logging.WARNING, "No test suites to run.")
@@ -1183,6 +1177,8 @@ def run_test_suites(categories):
         "-Dtest=none",
         "-Dsurefire.failIfNoSpecifiedTests=false",
     ]
+
+    logging.log(logging.WARNING, f"{command}")
 
     subprocess.Popen(command, cwd=gluten_home).wait()
 

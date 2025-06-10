@@ -21,7 +21,10 @@ import org.apache.gluten.config._
 import org.apache.spark.network.util.{ByteUnit, JavaUtils}
 
 object GlutenConfigUtil {
-  private def getConfString(configProvider: ConfigProvider, key: String, value: String): String = {
+  private def getConfString(
+      configProvider: GlutenConfigProvider,
+      key: String,
+      value: String): String = {
     Option(ConfigEntry.findEntry(key))
       .map {
         _.readFrom(configProvider) match {

@@ -351,7 +351,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       // is limited to partitioned tables. Therefore, we should add this condition restriction.
       // After velox supports bucketed non-partitioned tables, we can remove the restriction on
       // partitioned tables.
-      if (bucketSpec.isEmpty || (isHiveCompatibleBucketTable && isPartitionedTable)) {
+      if (bucketSpec.isEmpty || isHiveCompatibleBucketTable) {
         None
       } else {
         Some("Unsupported native write: non-compatible hive bucket write is not supported.")
@@ -561,4 +561,5 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportIcebergEqualityDeleteRead(): Boolean = false
 
+  override def reorderColumnsForPartitionWrite(): Boolean = true
 }

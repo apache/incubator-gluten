@@ -14,17 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.internal
+package org.apache.gluten.extension.columnar
 
-/** A source of configuration values. */
-trait ConfigProvider {
-  def get(key: String): Option[String]
-}
+import org.apache.spark.sql.catalyst.expressions.GetTimestamp
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 
-class SQLConfProvider(conf: SQLConf) extends ConfigProvider {
-  override def get(key: String): Option[String] = Option(conf.settings.get(key))
-}
+/**
+ * When there is a format parameter, to_date and to_timestamp will be replaced by GetTimestamp. If
+ * the date type of GetTimestamp is the same as its left, then GetTimestamp is redundant. Velox does
+ * not support GetTimestamp(Timestamp, format). In this case, it needs to be removed.
+ */
+object EliminateRedundantGetTimestamp extends Rule[SparkPlan] {
 
-class MapProvider(conf: Map[String, String]) extends ConfigProvider {
-  override def get(key: String): Option[String] = conf.get(key)
+  override def apply(plan: SparkPlan): SparkPlan = {
+    plan.transformExpressions {
+      case getTimestamp: GetTimestamp if getTimestamp.left.dataType == getTimestamp.dataType =>
+        getTimestamp.left
+    }
+  }
 }

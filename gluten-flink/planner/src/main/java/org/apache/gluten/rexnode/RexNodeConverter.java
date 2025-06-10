@@ -58,8 +58,7 @@ public class RexNodeConverter {
       return new ConstantTypedExpr(toType(literal.getType()), toVariant(literal), null);
     } else if (rexNode instanceof RexCall) {
       RexCall rexCall = (RexCall) rexNode;
-      String operatorName = rexCall.getOperator().getName();
-      RexCallConverter converter = RexCallConverterFactory.getConverter(operatorName);
+      RexCallConverter converter = RexCallConverterFactory.getConverter(rexCall, context);
       return converter.toTypedExpr(rexCall, context);
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef inputRef = (RexInputRef) rexNode;
@@ -102,8 +101,12 @@ public class RexNodeConverter {
         return new DoubleValue(Double.valueOf(literal.getValue().toString()));
       case VARCHAR:
         return new VarCharValue(literal.getValue().toString());
+      case CHAR:
+        // For CHAR, we convert it to VARCHAR
+        return new VarCharValue(literal.getValueAs(String.class));
       case BINARY:
-        return VarBinaryValue.create(literal.getValue().toString().getBytes(StandardCharsets.UTF_8));
+        return VarBinaryValue.create(
+            literal.getValue().toString().getBytes(StandardCharsets.UTF_8));
       case DECIMAL:
       case INTERVAL_SECOND:
         // interval is used as decimal.

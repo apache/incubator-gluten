@@ -18,7 +18,7 @@ package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
-import org.apache.gluten.rexnode.Utils;
+import org.apache.gluten.rexnode.TypeUtils;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
@@ -42,6 +42,13 @@ abstract class BaseRexCallConverter implements RexCallConverter {
   protected Type getResultType(RexCall callNode) {
     return RexNodeConverter.toType(callNode.getType());
   }
+
+  @Override
+  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+    // Default implementation assumes all RexCall nodes are supported.
+    // Subclasses can override this method to provide specific support checks.
+    return true;
+  }
 }
 
 class DefaultRexCallConverter extends BaseRexCallConverter {
@@ -57,15 +64,22 @@ class DefaultRexCallConverter extends BaseRexCallConverter {
   }
 }
 
-class AlignInputsTypeRexCallConverter extends BaseRexCallConverter {
-  public AlignInputsTypeRexCallConverter(String functionName) {
+class BasicArithmeticOperatorRexCallConverter extends BaseRexCallConverter {
+  public BasicArithmeticOperatorRexCallConverter(String functionName) {
     super(functionName);
+  }
+
+  @Override
+  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+    return callNode.getOperands().stream()
+        .allMatch(param -> TypeUtils.isNumericType(RexNodeConverter.toType(param.getType())));
   }
 
   @Override
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
-    List<TypedExpr> alignedParams = Utils.promoteTypeForArithmeticExpressions(params);
+    // If types are different, align them
+    List<TypedExpr> alignedParams = TypeUtils.promoteTypeForArithmeticExpressions(params);
     Type resultType = getResultType(callNode);
     return new CallTypedExpr(resultType, alignedParams, functionName);
   }

@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.ui
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.GlutenConfig.GLUTEN_UI_ENABLED
 import org.apache.gluten.events.GlutenEvent
 
 import org.apache.spark.SparkContext
@@ -33,7 +32,9 @@ object GlutenUIUtils {
     val glutenTabEnabled = if (glutenConfig.isDefined) {
       glutenConfig.get.glutenUiEnabled
     } else {
-      sc.getConf.getBoolean(GLUTEN_UI_ENABLED.key, GLUTEN_UI_ENABLED.defaultValue.get)
+      sc.getConf.getBoolean(
+        GlutenConfig.GLUTEN_UI_ENABLED.key,
+        GlutenConfig.GLUTEN_UI_ENABLED.defaultValue.get)
     }
     sc.ui.isDefined && glutenTabEnabled
   }

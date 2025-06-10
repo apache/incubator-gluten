@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.hive.execution
 
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.{DebugFilesystem, SparkConf}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -25,8 +27,8 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
   override def sparkConf: SparkConf = {
     defaultSparkConf
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
-      .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.native.writer.enabled", "true")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")

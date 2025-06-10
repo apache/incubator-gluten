@@ -18,19 +18,73 @@ package org.apache.gluten.vectorized;
 
 import io.github.zhztheplayer.velox4j.type.*;
 
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.*;
+import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public abstract class ArrowVectorWriter {
+  private interface WriterBuilder {
+    ArrowVectorWriter build(Type fieldType, BufferAllocator allocator, FieldVector vector);
+  };
+
+  // Exact class matches
+  private static Map<Class<? extends Type>, WriterBuilder> writerBuilders =
+      Map.ofEntries(
+          Map.entry(
+              IntegerType.class,
+              (fieldType, allocator, vector) -> new IntVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              BooleanType.class,
+              (fieldType, allocator, vector) ->
+                  new BooleanVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              BigIntType.class,
+              (fieldType, allocator, vector) ->
+                  new BigIntVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              DoubleType.class,
+              (fieldType, allocator, vector) ->
+                  new Float8VectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              VarCharType.class,
+              (fieldType, allocator, vector) ->
+                  new VarCharVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              TimestampType.class,
+              (fieldType, allocator, vector) ->
+                  new TimestampVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              DateType.class,
+              (fieldType, allocator, vector) ->
+                  new DateDayVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              RowType.class,
+              (fieldType, allocator, vector) ->
+                  new StructVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              ArrayType.class,
+              (fieldType, allocator, vector) ->
+                  new ArrayVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              MapType.class,
+              (fieldType, allocator, vector) -> new MapVectorWriter(fieldType, allocator, vector)));
+
   public static ArrowVectorWriter create(
       String fieldName, Type fieldType, BufferAllocator allocator) {
     return create(fieldName, fieldType, allocator, null);
@@ -42,33 +96,12 @@ public abstract class ArrowVectorWriter {
       // Build an empty vector
       vector = FieldVectorCreator.create(fieldName, fieldType, false, allocator, null);
     }
-    if (fieldType instanceof IntegerType) {
-      return new IntVectorWriter(fieldType, allocator, vector);
-    } else if (fieldType instanceof BooleanType) {
-      return new BooleanVectorWriter(fieldType, allocator, vector);
-    } else if (fieldType instanceof BigIntType) {
-      return new BigIntVectorWriter(fieldType, allocator, vector);
-    } else if (fieldType instanceof DoubleType) {
-      return new Float8VectorWriter(fieldType, allocator, vector);
-    } else if (fieldType instanceof VarCharType) {
-      return new VarCharVectorWriter(fieldType, allocator, vector);
-    } else if (fieldType instanceof TimestampType) {
-      return new TimestampVectorWriter(fieldType, allocator, vector);
-    } else if (fieldType instanceof RowType) {
-      return new StructVectorWriter(fieldType, allocator, vector);
-    } else {
-      throw new UnsupportedOperationException("ArrowVectorWriter. Unsupported type: " + fieldType);
+    WriterBuilder builder = writerBuilders.get(fieldType.getClass());
+    if (builder == null) {
+      throw new UnsupportedOperationException(
+          "ArrowVectorWriter. Unsupported type: " + fieldType.getClass().getName());
     }
-  }
-
-  public void write(int fieldIndex, RowData rowData) {
-    throw new UnsupportedOperationException("assign is not supported");
-  }
-
-  public void write(int fieldIndex, List<RowData> rowData) {
-    for (RowData row : rowData) {
-      write(fieldIndex, row);
-    }
+    return builder.build(fieldType, allocator, vector);
   }
 
   protected FieldVector vector = null;
@@ -76,6 +109,18 @@ public abstract class ArrowVectorWriter {
 
   ArrowVectorWriter(FieldVector vector) {
     this.vector = vector;
+  }
+
+  public void write(int fieldIndex, RowData rowData) {
+    throw new UnsupportedOperationException("assign is not supported");
+  }
+
+  public void writeArray(ArrayData arrayData) {
+    throw new UnsupportedOperationException("writeArray is not supported");
+  }
+
+  int getValueCount() {
+    return valueCount;
   }
 
   FieldVector getVector() {
@@ -86,6 +131,7 @@ public abstract class ArrowVectorWriter {
     vector.setValueCount(valueCount);
   }
 }
+
 // Build FieldVector from Type.
 class FieldVectorCreator {
   public static FieldVector create(
@@ -94,34 +140,61 @@ class FieldVectorCreator {
     return field.createVector(allocator);
   }
 
+  private interface ArrowTypeConverter {
+    ArrowType convert(Type dataType, String timeZoneId);
+  }
+
+  // Exact class matches
+  private static Map<Class<? extends Type>, ArrowTypeConverter> arrowTypeConverters =
+      Map.ofEntries(
+          Map.entry(BooleanType.class, (dataType, timeZoneId) -> ArrowType.Bool.INSTANCE),
+          Map.entry(IntegerType.class, (dataType, timeZoneId) -> new ArrowType.Int(8 * 4, true)),
+          Map.entry(BigIntType.class, (dataType, timeZoneId) -> new ArrowType.Int(8 * 8, true)),
+          Map.entry(
+              DoubleType.class,
+              (dataType, timeZoneId) -> new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+          Map.entry(VarCharType.class, (dataType, timeZoneId) -> ArrowType.Utf8.INSTANCE),
+          Map.entry(
+              TimestampType.class,
+              (dataType, timeZoneId) ->
+                  new ArrowType.Timestamp(
+                      TimeUnit.MILLISECOND, timeZoneId == null ? "UTC" : timeZoneId)),
+          Map.entry(DateType.class, (dataType, timeZoneId) -> new ArrowType.Date(DateUnit.DAY)));
+
   private static ArrowType toArrowType(Type dataType, String timeZoneId) {
-    if (dataType instanceof BooleanType) {
-      return ArrowType.Bool.INSTANCE;
-    } else if (dataType instanceof IntegerType) {
-      return new ArrowType.Int(8 * 4, true);
-    } else if (dataType instanceof BigIntType) {
-      return new ArrowType.Int(8 * 8, true);
-    } else if (dataType instanceof DoubleType) {
-      return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
-    } else if (dataType instanceof VarCharType) {
-      return ArrowType.Utf8.INSTANCE;
-    } else if (dataType instanceof TimestampType) {
-      if (timeZoneId == null) {
-        return new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
-      } else {
-        return new ArrowType.Timestamp(TimeUnit.MILLISECOND, timeZoneId);
-      }
-    } else {
-      throw new UnsupportedOperationException("Unsupported type: " + dataType);
+    ArrowTypeConverter converter = arrowTypeConverters.get(dataType.getClass());
+    if (converter == null) {
+      throw new UnsupportedOperationException("Unsupported type: " + dataType.getClass().getName());
     }
+    return converter.convert(dataType, timeZoneId);
   }
 
   private static Field toArrowField(
       String name, Type dataType, boolean nullable, String timeZoneId) {
     if (dataType instanceof ArrayType) {
-      throw new UnsupportedOperationException("ArrayType is not supported");
+      List<Type> elementTypes = ((ArrayType) dataType).getChildren();
+      if (elementTypes.size() != 1) {
+        throw new UnsupportedOperationException("ArrayType should have exactly one element type");
+      }
+
+      FieldType fieldType = new FieldType(nullable, ArrowType.List.INSTANCE, null);
+      List<Field> elementFields = new ArrayList<>();
+      elementFields.add(toArrowField("element", elementTypes.get(0), nullable, timeZoneId));
+
+      return new Field(name, fieldType, elementFields);
+
     } else if (dataType instanceof MapType) {
-      throw new UnsupportedOperationException("MapType is not supported");
+      MapType mapType = (MapType) dataType;
+      FieldType mapFieldType = new FieldType(nullable, new ArrowType.Map(false), null);
+
+      List<String> fieldNames = Arrays.asList(MapVector.KEY_NAME, MapVector.VALUE_NAME);
+      List<Type> fieldTypes = mapType.getChildren();
+      RowType structType = new RowType(fieldNames, fieldTypes);
+      Field structField =
+          toArrowField(MapVector.DATA_VECTOR_NAME, structType, nullable, timeZoneId);
+
+      return new Field(name, mapFieldType, Arrays.asList(structField));
+
     } else if (dataType instanceof RowType) {
       RowType structType = (RowType) dataType;
       List<String> fieldNames = structType.getNames();
@@ -141,136 +214,331 @@ class FieldVectorCreator {
   }
 }
 
-class IntVectorWriter extends ArrowVectorWriter {
-  private final IntVector intVector;
+abstract class BaseVectorWriter<T extends FieldVector, V> extends ArrowVectorWriter {
+  protected final T typedVector;
 
+  protected BaseVectorWriter(FieldVector vector) {
+    super(vector);
+    this.typedVector = (T) vector;
+  }
+
+  protected abstract V getValue(RowData rowData, int fieldIndex);
+
+  protected abstract V getValue(ArrayData arrayData, int index);
+
+  protected abstract void setValue(int index, V value);
+
+  @Override
+  public void write(int fieldIndex, RowData rowData) {
+    if (rowData.isNullAt(fieldIndex)) {
+      this.typedVector.setNull(valueCount);
+    } else {
+      setValue(valueCount, getValue(rowData, fieldIndex));
+    }
+    valueCount++;
+  }
+
+  @Override
+  public void writeArray(ArrayData arrayData) {
+    for (int i = 0; i < arrayData.size(); i++) {
+      if (arrayData.isNullAt(i)) {
+        this.typedVector.setNull(valueCount);
+      } else {
+        setValue(valueCount, getValue(arrayData, i));
+      }
+      valueCount++;
+    }
+  }
+}
+
+class IntVectorWriter extends BaseVectorWriter<IntVector, Integer> {
   public IntVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
     super(vector);
-    this.intVector = (IntVector) vector;
   }
 
   @Override
-  public void write(int fieldIndex, RowData rowData) {
-    intVector.setSafe(valueCount, rowData.getInt(fieldIndex));
-    valueCount++;
+  protected Integer getValue(RowData rowData, int fieldIndex) {
+    return rowData.getInt(fieldIndex);
+  }
+
+  @Override
+  protected Integer getValue(ArrayData arrayData, int index) {
+    return arrayData.getInt(index);
+  }
+
+  @Override
+  protected void setValue(int index, Integer value) {
+    this.typedVector.setSafe(index, value);
   }
 }
 
-class BooleanVectorWriter extends ArrowVectorWriter {
-  private final BitVector bitVector;
-
+class BooleanVectorWriter extends BaseVectorWriter<BitVector, Boolean> {
   public BooleanVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
     super(vector);
-    this.bitVector = (BitVector) vector;
   }
 
   @Override
-  public void write(int fieldIndex, RowData rowData) {
-    bitVector.setSafe(valueCount, rowData.getBoolean(fieldIndex) ? 1 : 0);
-    valueCount++;
+  protected Boolean getValue(RowData rowData, int fieldIndex) {
+    return rowData.getBoolean(fieldIndex);
+  }
+
+  @Override
+  protected Boolean getValue(ArrayData arrayData, int index) {
+    return arrayData.getBoolean(index);
+  }
+
+  @Override
+  protected void setValue(int index, Boolean value) {
+    this.typedVector.setSafe(index, value ? 1 : 0);
   }
 }
 
-class BigIntVectorWriter extends ArrowVectorWriter {
-  private final BigIntVector bigIntvector;
+class BigIntVectorWriter extends BaseVectorWriter<BigIntVector, Long> {
 
   public BigIntVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
     super(vector);
-    this.bigIntvector = (BigIntVector) vector;
   }
 
   @Override
-  public void write(int fieldIndex, RowData rowData) {
-    bigIntvector.setSafe(valueCount, rowData.getLong(fieldIndex));
-    valueCount++;
+  protected Long getValue(RowData rowData, int fieldIndex) {
+    return rowData.getLong(fieldIndex);
+  }
+
+  @Override
+  protected Long getValue(ArrayData arrayData, int index) {
+    return arrayData.getLong(index);
+  }
+
+  @Override
+  protected void setValue(int index, Long value) {
+    this.typedVector.setSafe(index, value);
   }
 }
 
-class Float8VectorWriter extends ArrowVectorWriter {
-  private final Float8Vector float8Vector;
+class Float8VectorWriter extends BaseVectorWriter<Float8Vector, Double> {
 
   public Float8VectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
     super(vector);
-    this.float8Vector = (Float8Vector) vector;
   }
 
   @Override
-  public void write(int fieldIndex, RowData rowData) {
-    float8Vector.setSafe(valueCount, rowData.getDouble(fieldIndex));
-    valueCount++;
+  protected Double getValue(RowData rowData, int fieldIndex) {
+    return rowData.getDouble(fieldIndex);
+  }
+
+  @Override
+  protected Double getValue(ArrayData arrayData, int index) {
+    return arrayData.getDouble(index);
+  }
+
+  @Override
+  protected void setValue(int index, Double value) {
+    this.typedVector.setSafe(index, value);
   }
 }
 
-class VarCharVectorWriter extends ArrowVectorWriter {
-  private final VarCharVector varCharVector;
+class VarCharVectorWriter extends BaseVectorWriter<VarCharVector, byte[]> {
 
   public VarCharVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
     super(vector);
-    this.varCharVector = (VarCharVector) vector;
   }
 
   @Override
-  public void write(int fieldIndex, RowData rowData) {
-    varCharVector.setSafe(valueCount, rowData.getString(fieldIndex).toBytes());
-    valueCount++;
+  protected byte[] getValue(RowData rowData, int fieldIndex) {
+    return rowData.getString(fieldIndex).toBytes();
+  }
+
+  @Override
+  protected byte[] getValue(ArrayData arrayData, int index) {
+    return arrayData.getString(index).toBytes();
+  }
+
+  @Override
+  protected void setValue(int index, byte[] value) {
+    this.typedVector.setSafe(index, value);
   }
 }
 
-class TimestampVectorWriter extends ArrowVectorWriter {
-  private final TimeStampMilliVector tsVector;
+class TimestampVectorWriter extends BaseVectorWriter<TimeStampMilliVector, Long> {
+  private final int precision = 3; // Millisecond precision
 
   public TimestampVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
     super(vector);
-    this.tsVector = (TimeStampMilliVector) vector;
   }
 
   @Override
-  public void write(int fieldIndex, RowData rowData) {
-    // TODO: support precision
-    tsVector.setSafe(valueCount, rowData.getTimestamp(fieldIndex, 3).getMillisecond());
-    valueCount++;
+  protected Long getValue(RowData rowData, int fieldIndex) {
+    return rowData.getTimestamp(fieldIndex, precision).getMillisecond();
+  }
+
+  @Override
+  protected Long getValue(ArrayData arrayData, int index) {
+    return arrayData.getTimestamp(index, precision).getMillisecond();
+  }
+
+  @Override
+  protected void setValue(int index, Long value) {
+    this.typedVector.setSafe(index, value);
   }
 }
 
-class StructVectorWriter extends ArrowVectorWriter {
-  private int fieldCounts = 0;
-  BufferAllocator allocator;
-  private List<ArrowVectorWriter> subFieldWriters;
-  private StructVector strctVector;
-
-  public StructVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
+class DateDayVectorWriter extends BaseVectorWriter<DateDayVector, Integer> {
+  public DateDayVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
     super(vector);
-    this.strctVector = (StructVector) vector;
-    RowType rowType = (RowType) fieldType;
-    List<String> subFieldNames = rowType.getNames();
-    subFieldWriters = new ArrayList<>();
-    for (int i = 0; i < subFieldNames.size(); ++i) {
-      subFieldWriters.add(
-          ArrowVectorWriter.create(
-              subFieldNames.get(i),
-              rowType.getChildren().get(i),
-              allocator,
-              (FieldVector) (this.strctVector.getChildByOrdinal(i))));
-    }
-    fieldCounts = subFieldNames.size();
   }
 
   @Override
-  public void write(int fieldIndex, RowData rowData) {
-    // TODO: support nullable
-    RowData subRowData = rowData.getRow(fieldIndex, fieldCounts);
-    strctVector.setIndexDefined(valueCount);
-    for (int i = 0; i < fieldCounts; i++) {
-      subFieldWriters.get(i).write(i, subRowData);
+  protected Integer getValue(RowData rowData, int fieldIndex) {
+    return rowData.getInt(fieldIndex);
+  }
+
+  @Override
+  protected Integer getValue(ArrayData arrayData, int index) {
+    return arrayData.getInt(index);
+  }
+
+  @Override
+  protected void setValue(int index, Integer value) {
+    this.typedVector.setSafe(index, value);
+  }
+}
+
+class StructVectorWriter extends BaseVectorWriter<StructVector, RowData> {
+  private final int fieldCount;
+  private BufferAllocator allocator;
+  private final List<ArrowVectorWriter> fieldWriters;
+
+  public StructVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
+    super(vector);
+    RowType rowType = (RowType) fieldType;
+    List<String> fieldNames = rowType.getNames();
+    fieldCount = fieldNames.size();
+    fieldWriters = new ArrayList<>();
+    for (int i = 0; i < fieldCount; ++i) {
+      fieldWriters.add(
+          ArrowVectorWriter.create(
+              fieldNames.get(i),
+              rowType.getChildren().get(i),
+              allocator,
+              (FieldVector) (this.typedVector.getChildByOrdinal(i))));
     }
-    valueCount++;
+  }
+
+  @Override
+  protected RowData getValue(RowData rowData, int fieldIndex) {
+    return rowData.getRow(fieldIndex, fieldCount);
+  }
+
+  @Override
+  protected RowData getValue(ArrayData arrayData, int index) {
+    return arrayData.getRow(index, fieldCount);
+  }
+
+  @Override
+  protected void setValue(int index, RowData value) {
+    this.typedVector.setIndexDefined(index);
+    for (int i = 0; i < fieldCount; ++i) {
+      fieldWriters.get(i).write(i, value);
+    }
   }
 
   @Override
   public void finish() {
-    strctVector.setValueCount(valueCount);
-    for (int i = 0; i < fieldCounts; i++) {
-      subFieldWriters.get(i).finish();
+    this.typedVector.setValueCount(valueCount);
+    for (int i = 0; i < fieldCount; ++i) {
+      fieldWriters.get(i).finish();
     }
+  }
+}
+
+class ArrayVectorWriter extends BaseVectorWriter<ListVector, ArrayData> {
+  private final ArrowVectorWriter elementWriter;
+
+  public ArrayVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
+    super(vector);
+
+    FieldVector elementVector = (FieldVector) this.typedVector.getDataVector();
+    List<Type> elementTypes = ((ArrayType) fieldType).getChildren();
+    if (elementTypes.size() != 1) {
+      throw new UnsupportedOperationException("ArrayType should have exactly one element type");
+    }
+    Type elementType = elementTypes.get(0);
+    this.elementWriter = ArrowVectorWriter.create("element", elementType, allocator, elementVector);
+  }
+
+  @Override
+  protected ArrayData getValue(RowData rowData, int fieldIndex) {
+    return rowData.getArray(fieldIndex);
+  }
+
+  @Override
+  protected ArrayData getValue(ArrayData arrayData, int index) {
+    return arrayData.getArray(index);
+  }
+
+  @Override
+  protected void setValue(int index, ArrayData value) {
+    this.typedVector.startNewValue(valueCount);
+    elementWriter.writeArray(value);
+    this.typedVector.endValue(valueCount, value.size());
+  }
+
+  @Override
+  public void finish() {
+    this.typedVector.setValueCount(valueCount);
+    elementWriter.finish();
+  }
+}
+
+class MapVectorWriter extends BaseVectorWriter<MapVector, MapData> {
+  private final ArrowVectorWriter keyWriter;
+  private final ArrowVectorWriter valueWriter;
+  private final StructVector entriesVector;
+
+  public MapVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
+    super(vector);
+
+    entriesVector = (StructVector) this.typedVector.getDataVector();
+
+    FieldVector keyVector = (FieldVector) entriesVector.getChild(MapVector.KEY_NAME);
+    FieldVector valueVector = (FieldVector) entriesVector.getChild(MapVector.VALUE_NAME);
+
+    MapType mapType = (MapType) fieldType;
+    this.keyWriter =
+        ArrowVectorWriter.create(
+            MapVector.KEY_NAME, mapType.getChildren().get(0), allocator, keyVector);
+    this.valueWriter =
+        ArrowVectorWriter.create(
+            MapVector.VALUE_NAME, mapType.getChildren().get(1), allocator, valueVector);
+  }
+
+  @Override
+  protected MapData getValue(RowData rowData, int fieldIndex) {
+    return rowData.getMap(fieldIndex);
+  }
+
+  @Override
+  protected MapData getValue(ArrayData arrayData, int index) {
+    return arrayData.getMap(index);
+  }
+
+  @Override
+  protected void setValue(int index, MapData value) {
+    this.typedVector.startNewValue(valueCount);
+    int arrayValueCount = keyWriter.getValueCount();
+    for (int i = 0; i < value.size(); i++) {
+      entriesVector.setIndexDefined(arrayValueCount + i);
+    }
+    keyWriter.writeArray(value.keyArray());
+    valueWriter.writeArray(value.valueArray());
+    this.typedVector.endValue(valueCount, value.size());
+  }
+
+  @Override
+  public void finish() {
+    this.typedVector.setValueCount(valueCount);
+    entriesVector.setValueCount(keyWriter.getValueCount());
+    keyWriter.finish();
+    valueWriter.finish();
   }
 }

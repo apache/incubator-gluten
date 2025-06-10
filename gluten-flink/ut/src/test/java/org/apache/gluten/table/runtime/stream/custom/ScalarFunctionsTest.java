@@ -32,67 +32,98 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
   @BeforeEach
   public void before() throws Exception {
     super.before();
-    List<Row> rows =
-        Arrays.asList(
-            Row.of(1, 1L, "1", 100, 10L), Row.of(2, 2L, "2", 3, 11L), Row.of(3, 3L, "3", 5, 12L));
-    createSimpleBoundedValuesTable("t1", "a int, b bigint, c string, d int, e bigint", rows);
-
-    List<Row> rows2 =
-        Arrays.asList(Row.of(1, 2L, 3.0, "12"), Row.of(2, 3L, 4.0, "13"), Row.of(3, 4L, 5.0, "14"));
-    createSimpleBoundedValuesTable("t2", "a int, b bigint, c double, d string", rows2);
   }
 
   @Test
   void testAdd() {
-    String query1 = "select a + b as x from t1 where a > 0";
+    List<Row> rows = Arrays.asList(Row.of(1, 1L), Row.of(2, 2L), Row.of(3, 3L));
+    createSimpleBoundedValuesTable("tblAdd", "a int, b bigint", rows);
+
+    String query1 = "select a + b as x from tblAdd where a > 0";
     runAndCheck(query1, Arrays.asList("+I[2]", "+I[4]", "+I[6]"));
 
-    String query2 = "select a + 1 as x from t1 where a > 0";
+    String query2 = "select a + 1 as x from tblAdd where a > 0";
     runAndCheck(query2, Arrays.asList("+I[2]", "+I[3]", "+I[4]"));
   }
 
   @Test
   void testSubtract() {
-    String query1 = "select a - b as x from t1 where a > 0";
+    List<Row> rows = Arrays.asList(Row.of(1, 1L), Row.of(2, 2L), Row.of(3, 3L));
+    createSimpleBoundedValuesTable("tblSub", "a int, b bigint", rows);
+    String query1 = "select a - b as x from tblSub where a > 0";
     runAndCheck(query1, Arrays.asList("+I[0]", "+I[0]", "+I[0]"));
 
-    String query2 = "select a - 1 as x from t1 where a > 0";
+    String query2 = "select a - 1 as x from tblSub where a > 0";
     runAndCheck(query2, Arrays.asList("+I[0]", "+I[1]", "+I[2]"));
   }
 
   @Test
   void testMod() {
-    String query1 = "select d % a as x from t1 where a > 0";
+    List<Row> rows = Arrays.asList(Row.of(1, 100), Row.of(2, 3), Row.of(3, 5));
+    createSimpleBoundedValuesTable("tblMod", "a int, d int", rows);
+    String query1 = "select d % a as x from tblMod where a > 0";
     runAndCheck(query1, Arrays.asList("+I[0]", "+I[1]", "+I[2]"));
 
-    String query2 = "select d % 3 as x from t1 where a > 0";
+    String query2 = "select d % 3 as x from tblMod where a > 0";
     runAndCheck(query2, Arrays.asList("+I[1]", "+I[0]", "+I[2]"));
   }
 
   @Test
   void testLargerThen() {
-    String query1 = "select a > 1 as x from t1 where a > 0";
+    List<Row> rows =
+        Arrays.asList(Row.of(1, 1L, "2", "1"), Row.of(2, 2L, "2", "2"), Row.of(3, 3L, "2", "1"));
+    createSimpleBoundedValuesTable("tblLarger", "a int, b bigint, c string, d string", rows);
+    String query1 = "select a > 1 as x from tblLarger where a > 0";
     runAndCheck(query1, Arrays.asList("+I[false]", "+I[true]", "+I[true]"));
 
-    String query2 = "select b > 1 as x from t1 where a > 0";
+    String query2 = "select b > 1 as x from tblLarger where a > 0";
     runAndCheck(query2, Arrays.asList("+I[false]", "+I[true]", "+I[true]"));
+
+    String query3 = "select a > c as x from tblLarger where a > 0";
+    runAndCheck(query3, Arrays.asList("+I[false]", "+I[false]", "+I[true]"));
+
+    String query4 = "select c > d as x from tblLarger where a > 0";
+    runAndCheck(query4, Arrays.asList("+I[true]", "+I[false]", "+I[true]"));
   }
 
   @Test
   void testLessThen() {
-    String query1 = "select a < 2 as x from t1 where a > 0";
+    List<Row> rows =
+        Arrays.asList(Row.of(1, 1L, "2", "1"), Row.of(2, 2L, "2", "2"), Row.of(3, 3L, "2", "1"));
+    createSimpleBoundedValuesTable("tblLess", "a int, b bigint, c string, d string", rows);
+
+    String query1 = "select a < 2 as x from tblLess where a > 0";
     runAndCheck(query1, Arrays.asList("+I[true]", "+I[false]", "+I[false]"));
 
-    String query2 = "select b < 2 as x from t1 where a > 0";
+    String query2 = "select b < 2 as x from tblLess where a > 0";
     runAndCheck(query2, Arrays.asList("+I[true]", "+I[false]", "+I[false]"));
+
+    String query3 = "select a < c as x from tblLess where a > 0";
+    runAndCheck(query3, Arrays.asList("+I[true]", "+I[false]", "+I[false]"));
+
+    String query4 = "select c < d as x from tblLess where a > 0";
+    runAndCheck(query4, Arrays.asList("+I[false]", "+I[false]", "+I[false]"));
+
+    String query5 = "select c > '123' from tblLess where a > 0";
+    runAndCheck(query5, Arrays.asList("+I[true]", "+I[true]", "+I[true]"));
   }
 
   @Test
   void testEqual() {
-    String query1 = "select a = 1 as x from t1 where a > 0";
+    List<Row> rows =
+        Arrays.asList(Row.of(1, 1L, "2", "1"), Row.of(2, 2L, "2", "2"), Row.of(3, 3L, "2", "1"));
+    createSimpleBoundedValuesTable("tblEqual", "a int, b bigint, c string, d string", rows);
+
+    String query1 = "select a = 1 as x from tblEqual where a > 0";
     runAndCheck(query1, Arrays.asList("+I[true]", "+I[false]", "+I[false]"));
 
-    String query2 = "select b = 1 as x from t1 where a > 0";
+    String query2 = "select b = 1 as x from tblEqual where a > 0";
     runAndCheck(query2, Arrays.asList("+I[true]", "+I[false]", "+I[false]"));
+
+    String query3 = "select a, c, a = c as x from tblEqual where a > 0";
+    runAndCheck(query3, Arrays.asList("+I[1, 2, false]", "+I[2, 2, true]", "+I[3, 2, false]"));
+
+    String query4 = "select c = d as x from tblEqual where a > 0";
+    runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
   }
 }

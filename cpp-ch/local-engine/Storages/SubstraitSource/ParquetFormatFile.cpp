@@ -154,6 +154,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const Block & he
     Block read_header = DeltaVirtualMeta::removeMetaColumns(removeMetaColumns(header));
 
     ParquetMetaBuilder metaBuilder{
+        .format_settings = format_settings,
         .collectPageIndex = usePageIndexReader || readRowIndex,
         .collectSkipRowGroup = !usePageIndexReader,
         .case_insensitive = format_settings.parquet.case_insensitive_column_matching,

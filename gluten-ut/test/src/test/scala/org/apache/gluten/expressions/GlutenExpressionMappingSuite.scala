@@ -39,10 +39,10 @@ class GlutenExpressionMappingSuite
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.ui.enabled", "false")
-      .set("spark.gluten.ui.enabled", "false")
+      .set(GlutenConfig.GLUTEN_UI_ENABLED.key, "false")
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
-        .set("spark.gluten.sql.enable.native.validation", "false")
+        .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
     }
     conf
   }
