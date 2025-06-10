@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.python
 
-import org.apache.gluten.execution.FileSourceScanExecTransformer
+import org.apache.gluten.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer}
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.execution.SparkPlan
@@ -103,8 +103,10 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
             val pythonEvalNodes = collectBatchExec(query.queryExecution.executedPlan)
             assert(pythonEvalNodes.length == 1)
 
+            print(query.queryExecution.executedPlan.toString())
+
             val scanNodes = query.queryExecution.executedPlan.collect {
-              case scan: BatchScanExec => scan
+              case scan: BatchScanExecTransformer => scan
             }
             assert(scanNodes.length == 1)
             assert(scanNodes.head.output.map(_.name) == Seq("a"))
@@ -116,7 +118,7 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
             assert(pythonEvalNodes.length == 1)
 
             val scanNodes = query.queryExecution.executedPlan.collect {
-              case scan: BatchScanExec => scan
+              case scan: BatchScanExecTransformer => scan
             }
             assert(scanNodes.length == 1)
             // $"a" is not null and $"a" > 1
