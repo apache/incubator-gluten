@@ -101,7 +101,7 @@ class CHListenerApi extends ListenerApi with Logging {
     }
 
     // add memory limit for external sort
-    if (conf.get(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT) < 0) {
+    if (conf.get(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT) <= 0) {
       if (conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, defaultValue = false)) {
         val memSize = conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, 0)
         if (memSize > 0L) {
