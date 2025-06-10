@@ -913,8 +913,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     JNIEnv* env,
     jobject wrapper,
     jlong shuffleWriterHandle,
-    jlong size,
-    jboolean callBySelf) {
+    jlong size) {
   JNI_METHOD_START
   auto shuffleWriter = ObjectStore::retrieve<ShuffleWriter>(shuffleWriterHandle);
   if (!shuffleWriter) {
@@ -923,7 +922,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   }
   int64_t evictedSize;
   arrowAssertOkOrThrow(shuffleWriter->reclaimFixedSize(size, &evictedSize), "(shuffle) nativeEvict: evict failed");
-  return (jlong)evictedSize;
+  return evictedSize;
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
