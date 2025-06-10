@@ -40,4 +40,9 @@ public class I16TypeNode implements TypeNode, Serializable {
     builder.setI16(i16Builder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }
