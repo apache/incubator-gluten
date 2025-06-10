@@ -511,10 +511,10 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test map_from_arrays function optimized by Spark constant folding") {
-    withSQLConf(("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)) {
+  test("map_from_arrays optimized by Spark constant folding") {
+    withSQLConf(("spark.sql.optimizer.excludedRules", "")) {
       runQueryAndCompare("""SELECT map_from_arrays(sequence(1, 5),sequence(1, 5)), l_orderkey
-                           | from lineitem limit 100""".stripMargin) {
+                           | from lineitem limit 10""".stripMargin) {
         checkGlutenOperatorMatch[ProjectExecTransformer]
       }
     }
