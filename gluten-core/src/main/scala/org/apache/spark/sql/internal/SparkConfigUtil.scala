@@ -62,6 +62,10 @@ object SparkConfigUtil {
   }
 
   def set[T](conf: SparkConf, entry: ConfigEntry[T], value: T): SparkConf = {
-    conf.set(entry.key, value.toString)
+    value match {
+      case Some(v) => conf.set(entry.key, v.toString)
+      case None | null => conf.set(entry.key, null)
+      case _ => conf.set(entry.key, value.toString)
+    }
   }
 }
