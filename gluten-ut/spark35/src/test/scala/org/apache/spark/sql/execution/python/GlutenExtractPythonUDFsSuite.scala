@@ -36,7 +36,7 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
   def collectColumnarArrowExec(plan: SparkPlan): Seq[EvalPythonExec] = plan.collect {
     // To check for ColumnarArrowEvalPythonExec
     case b: EvalPythonExec
-      if !b.isInstanceOf[ArrowEvalPythonExec] && !b.isInstanceOf[BatchEvalPythonExec] =>
+        if !b.isInstanceOf[ArrowEvalPythonExec] && !b.isInstanceOf[BatchEvalPythonExec] =>
       b
   }
 
