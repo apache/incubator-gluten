@@ -150,7 +150,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
           }
           logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
           // fixme pass true when being called by self
-          val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+          val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size)
           logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
           pushed
         }

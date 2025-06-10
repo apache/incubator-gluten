@@ -40,14 +40,14 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
   /**
    * Construct native shuffle writer for shuffled RecordBatch over
    *
-   * @param bufferSize size of native buffers held by each partition writer
-   * @param mergeBufferSize maximum size of the merged buffer
-   * @param mergeThreshold threshold to control whether native partition buffer need to be merged
-   * @param codec compression codec
-   * @param codecBackend HW backend for offloading compression
-   * @param dataFile acquired from spark IndexShuffleBlockResolver
+   * @param bufferSize         size of native buffers held by each partition writer
+   * @param mergeBufferSize    maximum size of the merged buffer
+   * @param mergeThreshold     threshold to control whether native partition buffer need to be merged
+   * @param codec              compression codec
+   * @param codecBackend       HW backend for offloading compression
+   * @param dataFile           acquired from spark IndexShuffleBlockResolver
    * @param subDirsPerLocalDir SparkConf spark.diskStore.subDirectories
-   * @param localDirs configured local directories where Spark can write files
+   * @param localDirs          configured local directories where Spark can write files
    * @return native shuffle writer instance handle if created successfully.
    */
   public long make(
@@ -106,7 +106,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    * Construct RSS native shuffle writer for shuffled RecordBatch over
    *
    * @param bufferSize size of native buffers hold by partition writer
-   * @param codec compression codec
+   * @param codec      compression codec
    * @return native shuffle writer instance handle if created successfully.
    */
   public long makeForRSS(
@@ -191,12 +191,10 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    * Evict partition data.
    *
    * @param shuffleWriterHandle shuffle writer instance handle
-   * @param size expected size to Evict (in bytes)
-   * @param callBySelf whether the caller is the shuffle writer itself, true when running out of
-   *     off-heap memory due to allocations from the evaluator itself
+   * @param size                expected size to Evict (in bytes)
    * @return actual spilled size
    */
-  public native long nativeEvict(long shuffleWriterHandle, long size, boolean callBySelf)
+  public native long nativeEvict(long shuffleWriterHandle, long size)
       throws RuntimeException;
 
   /**
@@ -204,10 +202,10 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    * split according to the first column as partition id.
    *
    * @param shuffleWriterHandle shuffle writer instance handle
-   * @param numRows Rows per batch
-   * @param handler handler of Velox Vector
-   * @param memLimit memory usage limit for the split operation FIXME setting a cap to pool /
-   *     allocator instead
+   * @param numRows             Rows per batch
+   * @param handler             handler of Velox Vector
+   * @param memLimit            memory usage limit for the split operation FIXME setting a cap to pool /
+   *                            allocator instead
    * @return batch bytes.
    */
   public native long write(long shuffleWriterHandle, int numRows, long handler, long memLimit);

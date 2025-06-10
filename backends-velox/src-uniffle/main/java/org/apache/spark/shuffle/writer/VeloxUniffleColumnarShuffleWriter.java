@@ -183,7 +183,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                         return 0L;
                       }
                       LOG.info("Gluten shuffle writer: Trying to push {} bytes of data", size);
-                      long pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false);
+                      long pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size);
                       LOG.info("Gluten shuffle writer: Pushed {} / {} bytes of data", pushed, size);
                       return pushed;
                     }
