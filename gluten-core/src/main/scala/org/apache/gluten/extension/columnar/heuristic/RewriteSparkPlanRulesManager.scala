@@ -47,7 +47,7 @@ class RewriteSparkPlanRulesManager private (
   extends Rule[SparkPlan] {
 
   private def mayNeedRewrite(plan: SparkPlan): Boolean = {
-    FallbackTags.maybeOffloadable(plan) && rewriteRules.forall(_.isRewritable(plan))
+    FallbackTags.maybeOffloadable(plan) && rewriteRules.exists(_.isRewritable(plan))
   }
 
   private def getFallbackTagBack(rewrittenPlan: SparkPlan): Option[FallbackTag] = {
