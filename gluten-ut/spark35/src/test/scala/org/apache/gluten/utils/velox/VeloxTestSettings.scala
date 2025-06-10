@@ -950,6 +950,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Python UDF: no push down on non-deterministic")
     .exclude("Python UDF: push down on deterministic predicates after the first non-deterministic")
   enableSuite[GlutenStreamingQuerySuite]
+    // requires test resources that don't exist in Gluten repo
+    .exclude("detect escaped path and report the migration guide")
+    .exclude("ignore the escaped path check when the flag is off")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

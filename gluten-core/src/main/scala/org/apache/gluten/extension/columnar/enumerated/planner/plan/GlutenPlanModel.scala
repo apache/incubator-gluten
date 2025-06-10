@@ -20,7 +20,7 @@ import org.apache.gluten.ras.PlanModel
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{ColumnarToRowExec, RDDScanExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, FileSourceScanExec, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.task.{SparkTaskUtil, TaskResources}
 
@@ -76,12 +76,13 @@ object GlutenPlanModel {
     }
 
     private def withEqualityWrapper(node: SparkPlan): AnyRef = node match {
-      case scan: RDDScanExec =>
-        // Override RDDScanExec operator's equality implementation to include the Spark plan id.
+      case scan if scan.isInstanceOf[RDDScanExec] || scan.isInstanceOf[FileSourceScanExec] =>
+        // Override RDDScanExec and FileSourceScanExec operators' equality implementation to
+        // include the Spark plan id.
         //
-        // In Spark, two RDDScanExec objects could be "equivalent" even though they serve different
-        // purposes - this might be a design oversight of Spark, but it seems not an issue for
-        // Spark.
+        // In Spark, two RDDScanExec (or other scan) objects could be "equivalent" even though
+        // they serve different purposes - this might be a design oversight of Spark, but it
+        // seems not an issue for Spark.
         // In Gluten RAS, however, equality checks are heavily used to avoid inserting duplicates
         // to the plan enumeration search space. Using the ordinary equality check of RDDScanExec
         // could lead to replacement of two different RDD objects with the same RDD object when a
@@ -92,9 +93,10 @@ object GlutenPlanModel {
         // The worst possible consequence for an over-strict equality check is acceptable
         // (bigger search space), and since these are leaf operators, there would usually
         // not be any true duplicates to begin with.
-        RDDScanExecEqualityWrapper(scan, scan.id)
+        // Same treatment applies to RangeExec.
+        SparkScanExecEqualityWrapper(scan, scan.id)
       case scan: DataSourceV2ScanExecBase =>
-        // DataSourceV2ScanExec has the same problem as v1's RDDScanExec, as explained above.
+        // DataSourceV2ScanExec has the same problem as v1's scan exec, as explained above.
         // In addition, override V2 scan operators' equality implementation to include output
         // attributes.
         //
@@ -106,7 +108,7 @@ object GlutenPlanModel {
         ScanV2ExecEqualityWrapper(scan, scan.output, scan.id)
       case other => other
     }
-    private case class RDDScanExecEqualityWrapper(scan: SparkPlan, id: Int)
+    private case class SparkScanExecEqualityWrapper(scan: SparkPlan, id: Int)
     private case class ScanV2ExecEqualityWrapper(
         scan: DataSourceV2ScanExecBase,
         output: Seq[Attribute],
