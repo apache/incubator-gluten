@@ -1275,7 +1275,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
-  cudf-test-centos9:
+  build-cudf-centos-9:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-9-jdk8-cudf
     steps:
