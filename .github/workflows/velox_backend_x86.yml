@@ -1274,3 +1274,21 @@ jobs:
         with:
           name: ${{ github.job }}-test-log
           path: "**/target/*.log"
+
+  cudf-test-centos9:
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-9-jdk8-cudf
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos9-release-shared-${{runner.arch}}-${{github.sha}}
+          restore-keys: |
+            ccache-centos9-release-shared-${{runner.arch}}
+      - name: Build Gluten native libraries
+        run: |
+          df -a
+          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --enable_gpu=ON
+          ccache -s
