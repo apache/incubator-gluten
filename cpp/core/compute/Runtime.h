@@ -129,9 +129,9 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   }
 
   virtual std::shared_ptr<ShuffleWriter> createShuffleWriter(
-      int numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options) {
+      int32_t numPartitions,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options) {
     throw GlutenException("Not implemented");
   }
 

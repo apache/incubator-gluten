@@ -205,14 +205,11 @@ std::unique_ptr<PartitionWriter> createPartitionWriter(
 
 std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
     Runtime* runtime,
-    std::unique_ptr<PartitionWriter> partitionWriter) {
+    std::unique_ptr<PartitionWriter> partitionWriter,
+    ShuffleWriterType shuffleWriterType) {
   auto options = ShuffleWriterOptions{};
   options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
-  if (FLAGS_rss || FLAGS_shuffle_writer == "rss_sort") {
-    options.shuffleWriterType = gluten::ShuffleWriterType::kRssSortShuffle;
-  } else if (FLAGS_shuffle_writer == "sort") {
-    options.shuffleWriterType = gluten::ShuffleWriterType::kSortShuffle;
-  }
+  options.shuffleWriterType = shuffleWriterType;
   auto shuffleWriter =
       runtime->createShuffleWriter(FLAGS_shuffle_partitions, std::move(partitionWriter), std::move(options));
 
@@ -259,7 +256,13 @@ void runShuffle(
 
   auto partitionWriterOptions = createPartitionWriterOptions();
   auto partitionWriter = createPartitionWriter(runtime, partitionWriterOptions, dataFile, localDirs);
-  auto shuffleWriter = createShuffleWriter(runtime, std::move(partitionWriter));
+  ShuffleWriterType shuffleWriterType = ShuffleWriterType::kHashShuffle;
+  if (FLAGS_rss || FLAGS_shuffle_writer == "rss_sort") {
+    shuffleWriterType = ShuffleWriterType::kRssSortShuffle;
+  } else if (FLAGS_shuffle_writer == "sort") {
+    shuffleWriterType = ShuffleWriterType::kSortShuffle;
+  }
+  auto shuffleWriter = createShuffleWriter(runtime, std::move(partitionWriter), shuffleWriterType);
   listener->setShuffleWriter(shuffleWriter.get());
 
   int64_t totalTime = 0;
@@ -280,7 +283,7 @@ void runShuffle(
 
   if (readAfterWrite && cSchema) {
     auto readerOptions = ShuffleReaderOptions{};
-    readerOptions.shuffleWriterType = shuffleWriter->options().shuffleWriterType;
+    readerOptions.shuffleWriterType = shuffleWriterType,
     readerOptions.compressionType = partitionWriterOptions.compressionType;
     readerOptions.codecBackend = partitionWriterOptions.codecBackend;
 

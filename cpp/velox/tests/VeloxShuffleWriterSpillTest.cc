@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include <duckdb/common/enums/compression_type.hpp>
+
 #include "config/GlutenConfig.h"
 #include "shuffle/VeloxHashShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
@@ -49,14 +51,29 @@ class VeloxHashShuffleWriterSpillTest : public VeloxShuffleWriterTestBase, publi
     setUpTestData();
   }
 
-  std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) override {
-    auto partitionWriter = createPartitionWriter(
-        PartitionWriterType::kLocal, numPartitions, dataFile_, localDirs_, partitionWriterOptions_);
+  std::shared_ptr<VeloxShuffleWriter> createHashShuffleWriter(
+      uint32_t numPartitions,
+      const std::shared_ptr<HashShuffleWriterOptions>& shuffleWriterOptions,
+      std::shared_ptr<LocalPartitionWriterOptions> partitionWriterOptions = nullptr,
+      arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME) {
+    if (partitionWriterOptions == nullptr) {
+      partitionWriterOptions = std::make_shared<LocalPartitionWriterOptions>();
+    }
+
+    std::unique_ptr<arrow::util::Codec> codec;
+    if (compressionType == arrow::Compression::type::UNCOMPRESSED) {
+      codec = nullptr;
+    } else {
+      GLUTEN_ASSIGN_OR_THROW(codec, arrow::util::Codec::Create(compressionType));
+    }
+
+    auto partitionWriter = std::make_shared<LocalPartitionWriter>(
+        numPartitions, std::move(codec), getDefaultMemoryManager(), partitionWriterOptions, dataFile_, localDirs_);
 
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxHashShuffleWriter::create(
-            numPartitions, std::move(partitionWriter), shuffleWriterOptions_, getDefaultMemoryManager()));
+            numPartitions, partitionWriter, shuffleWriterOptions, getDefaultMemoryManager()));
 
     return shuffleWriter;
   }
@@ -81,9 +98,9 @@ class VeloxHashShuffleWriterSpillTest : public VeloxShuffleWriterTestBase, publi
 };
 
 TEST_F(VeloxHashShuffleWriterSpillTest, memoryLeak) {
-  shuffleWriterOptions_.bufferSize = 4;
-
-  auto shuffleWriter = createShuffleWriter(2);
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
+  shuffleWriterOptions->splitBufferSize = 4;
+  auto shuffleWriter = createHashShuffleWriter(2, shuffleWriterOptions);
 
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector2_));
@@ -100,9 +117,9 @@ TEST_F(VeloxHashShuffleWriterSpillTest, memoryLeak) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, spillFailWithOutOfMemory) {
-  shuffleWriterOptions_.bufferSize = 4;
-
-  auto shuffleWriter = createShuffleWriter(2);
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
+  shuffleWriterOptions->splitBufferSize = 4;
+  auto shuffleWriter = createHashShuffleWriter(2, shuffleWriterOptions);
 
   listener_->updateLimit(0L);
   listener_->setShuffleWriter(shuffleWriter.get());
@@ -116,10 +133,9 @@ TEST_F(VeloxHashShuffleWriterSpillTest, spillFailWithOutOfMemory) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, kInit) {
-  shuffleWriterOptions_.bufferSize = 4;
-
-  const int32_t numPartitions = 2;
-  auto shuffleWriter = createShuffleWriter(numPartitions);
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
+  shuffleWriterOptions->splitBufferSize = 4;
+  auto shuffleWriter = createHashShuffleWriter(2, shuffleWriterOptions);
 
   // Test spill all partition buffers.
   {
@@ -163,7 +179,7 @@ TEST_F(VeloxHashShuffleWriterSpillTest, kInit) {
     ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
 
     // Clear buffers then the size after shrink will be 0.
-    for (auto pid = 0; pid < numPartitions; ++pid) {
+    for (auto pid = 0; pid < shuffleWriter->numPartitions(); ++pid) {
       ASSERT_NOT_OK(shuffleWriter->evictPartitionBuffers(pid, true));
     }
 
@@ -187,10 +203,10 @@ TEST_F(VeloxHashShuffleWriterSpillTest, kInit) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, kInitSingle) {
-  shuffleWriterOptions_.partitioning = Partitioning::kSingle;
-  shuffleWriterOptions_.bufferSize = 4;
-
-  auto shuffleWriter = createShuffleWriter(2);
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
+  shuffleWriterOptions->partitioning = Partitioning::kSingle;
+  shuffleWriterOptions->splitBufferSize = 4;
+  auto shuffleWriter = createHashShuffleWriter(1, shuffleWriterOptions);
 
   {
     ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
@@ -209,9 +225,9 @@ TEST_F(VeloxHashShuffleWriterSpillTest, kInitSingle) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, kSplit) {
-  shuffleWriterOptions_.bufferSize = 4;
-
-  auto shuffleWriter = createShuffleWriter(2);
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
+  shuffleWriterOptions->splitBufferSize = 4;
+  auto shuffleWriter = createHashShuffleWriter(2, shuffleWriterOptions);
 
   listener_->setShuffleWriter(shuffleWriter.get());
 
@@ -234,9 +250,10 @@ TEST_F(VeloxHashShuffleWriterSpillTest, kSplit) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, kSplitSingle) {
-  shuffleWriterOptions_.partitioning = Partitioning::kSingle;
-
-  auto shuffleWriter = createShuffleWriter(1);
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
+  shuffleWriterOptions->partitioning = Partitioning::kSingle;
+  shuffleWriterOptions->splitBufferSize = 4;
+  auto shuffleWriter = createHashShuffleWriter(1, shuffleWriterOptions);
 
   listener_->setShuffleWriter(shuffleWriter.get());
 
@@ -253,12 +270,13 @@ TEST_F(VeloxHashShuffleWriterSpillTest, kSplitSingle) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, kStop) {
-  shuffleWriterOptions_.bufferSize = 4096;
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
   // Force compression.
-  partitionWriterOptions_.compressionThreshold = 0;
-  partitionWriterOptions_.mergeThreshold = 0;
+  auto partitionWriterOptions = std::make_shared<LocalPartitionWriterOptions>();
+  partitionWriterOptions->compressionThreshold = 0;
+  partitionWriterOptions->mergeThreshold = 0;
 
-  auto shuffleWriter = createShuffleWriter(2);
+  auto shuffleWriter = createHashShuffleWriter(2, shuffleWriterOptions, partitionWriterOptions);
 
   for (int i = 0; i < 10; ++i) {
     ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
@@ -278,13 +296,13 @@ TEST_F(VeloxHashShuffleWriterSpillTest, kStop) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, kStopComplex) {
-  shuffleWriterOptions_.bufferSize = 4096;
-
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
   // Force compression.
-  partitionWriterOptions_.compressionThreshold = 0;
-  partitionWriterOptions_.mergeThreshold = 0;
+  auto partitionWriterOptions = std::make_shared<LocalPartitionWriterOptions>();
+  partitionWriterOptions->compressionThreshold = 0;
+  partitionWriterOptions->mergeThreshold = 0;
 
-  auto shuffleWriter = createShuffleWriter(2);
+  auto shuffleWriter = createHashShuffleWriter(2, shuffleWriterOptions, partitionWriterOptions);
 
   for (int i = 0; i < 3; ++i) {
     ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVectorComplex_));
@@ -311,9 +329,9 @@ TEST_F(VeloxHashShuffleWriterSpillTest, kStopComplex) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, evictPartitionBuffers) {
-  shuffleWriterOptions_.bufferSize = 4;
-
-  auto shuffleWriter = createShuffleWriter(2);
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
+  shuffleWriterOptions->splitBufferSize = 4;
+  auto shuffleWriter = createHashShuffleWriter(2, shuffleWriterOptions);
 
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
 
@@ -329,9 +347,9 @@ TEST_F(VeloxHashShuffleWriterSpillTest, evictPartitionBuffers) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, kUnevictableSingle) {
-  shuffleWriterOptions_.partitioning = Partitioning::kSingle;
-
-  auto shuffleWriter = createShuffleWriter(1);
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
+  shuffleWriterOptions->partitioning = Partitioning::kSingle;
+  auto shuffleWriter = createHashShuffleWriter(1, shuffleWriterOptions);
 
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
 
@@ -348,10 +366,13 @@ TEST_F(VeloxHashShuffleWriterSpillTest, kUnevictableSingle) {
 }
 
 TEST_F(VeloxHashShuffleWriterSpillTest, resizeBinaryBufferTriggerSpill) {
-  shuffleWriterOptions_.bufferReallocThreshold = 1;
-  partitionWriterOptions_.compressionType = arrow::Compression::type::UNCOMPRESSED;
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>();
+  shuffleWriterOptions->splitBufferReallocThreshold = 1;
 
-  auto shuffleWriter = createShuffleWriter(1);
+  auto partitionWriterOptions = std::make_shared<LocalPartitionWriterOptions>();
+
+  auto shuffleWriter =
+      createHashShuffleWriter(1, shuffleWriterOptions, partitionWriterOptions, arrow::Compression::type::UNCOMPRESSED);
 
   // Split first input vector. Large average string length.
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVectorLargeBinary1_));
