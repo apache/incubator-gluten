@@ -999,7 +999,7 @@ void BackendFinalizerUtil::finalizeGlobally()
 {
     // Make sure client caches release before ClientCacheRegistry
     ReadBufferBuilderFactory::instance().clean();
-    StorageMergeTreeFactory::clear();
+    StorageMergeTreeFactory::clear_cache_map();
     QueryContext::resetGlobal();
     std::lock_guard lock(paths_mutex);
     std::ranges::for_each(
