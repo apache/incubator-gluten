@@ -14,14 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.sql;
+package org.apache.gluten.spark34.extensions;
 
-import org.apache.iceberg.spark.sql.TestPartitionedWritesToBranch;
+import org.apache.iceberg.spark.extensions.TestStoragePartitionedJoinsInRowLevelOperations;
 
 import java.util.Map;
 
-public class GlutenTestPartitionedWritesToBranch extends TestPartitionedWritesToBranch {
-  public GlutenTestPartitionedWritesToBranch(
+public class TestGlutenStoragePartitionedJoinsInRowLevelOperations
+    extends TestStoragePartitionedJoinsInRowLevelOperations {
+  public TestGlutenStoragePartitionedJoinsInRowLevelOperations(
       String catalogName, String implementation, Map<String, String> config) {
     super(catalogName, implementation, config);
   }

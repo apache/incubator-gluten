@@ -23,8 +23,8 @@ import org.junit.Test;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-public class GlutenTestCopyOnWriteDelete extends TestCopyOnWriteDelete {
-  public GlutenTestCopyOnWriteDelete(
+public class TestGlutenCopyOnWriteDelete extends TestCopyOnWriteDelete {
+  public TestGlutenCopyOnWriteDelete(
       String catalogName,
       String implementation,
       Map<String, String> config,

@@ -14,14 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.source;
+package org.apache.gluten.spark34.sql;
 
-import org.apache.iceberg.PlanningMode;
-import org.apache.iceberg.spark.source.TestIdentityPartitionData;
+import org.apache.iceberg.spark.sql.TestPartitionedWritesAsSelect;
 
-public class GlutenTestIdentityPartitionData extends TestIdentityPartitionData {
-  public GlutenTestIdentityPartitionData(
-      String format, boolean vectorized, PlanningMode planningMode) {
-    super(format, vectorized, planningMode);
-  }
-}
+public class TestGlutenPartitionedWritesAsSelect extends TestPartitionedWritesAsSelect {}

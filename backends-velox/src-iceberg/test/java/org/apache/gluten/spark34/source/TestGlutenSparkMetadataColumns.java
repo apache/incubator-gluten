@@ -14,8 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.sql;
+package org.apache.gluten.spark34.source;
 
-import org.apache.iceberg.spark.sql.TestPartitionedWritesAsSelect;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.spark.source.TestSparkMetadataColumns;
 
-public class GlutenTestPartitionedWritesAsSelect extends TestPartitionedWritesAsSelect {}
+public class TestGlutenSparkMetadataColumns extends TestSparkMetadataColumns {
+  public TestGlutenSparkMetadataColumns(
+      FileFormat fileFormat, boolean vectorized, int formatVersion) {
+    super(fileFormat, vectorized, formatVersion);
+  }
+}
