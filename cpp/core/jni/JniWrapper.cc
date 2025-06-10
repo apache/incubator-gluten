@@ -780,136 +780,219 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-// Shuffle
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_nativeMake( // NOLINT
+JNIEXPORT jlong JNICALL
+Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartitionWriter( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jstring partitioningNameJstr,
     jint numPartitions,
-    jint bufferSize,
-    jint mergeBufferSize,
-    jdouble mergeThreshold,
     jstring codecJstr,
     jstring codecBackendJstr,
     jint compressionLevel,
     jint compressionBufferSize,
-    jint diskWriteBufferSize,
     jint compressionThreshold,
-    jstring compressionModeJstr,
-    jint initialSortBufferSize,
-    jboolean useRadixSort,
-    jstring dataFileJstr,
+    jint mergeBufferSize,
+    jdouble mergeThreshold,
     jint numSubDirs,
-    jstring localDirsJstr,
-    jdouble reallocThreshold,
-    jlong firstBatchHandle,
-    jlong taskAttemptId,
-    jint startPartitionId,
-    jint pushBufferMaxSize,
-    jlong sortBufferMaxSize,
-    jobject partitionPusher,
-    jstring partitionWriterTypeJstr,
-    jstring shuffleWriterTypeJstr) {
+    jint shuffleFileBufferSize,
+    jstring dataFileJstr,
+    jstring localDirsJstr) {
   JNI_METHOD_START
-  auto ctx = getRuntime(env, wrapper);
-  if (partitioningNameJstr == nullptr) {
-    throw GlutenException(std::string("Short partitioning name can't be null"));
-  }
 
-  // Build ShuffleWriterOptions.
-  auto shuffleWriterOptions = ShuffleWriterOptions{
-      .bufferSize = bufferSize,
-      .bufferReallocThreshold = reallocThreshold,
-      .partitioning = toPartitioning(jStringToCString(env, partitioningNameJstr)),
-      .taskAttemptId = static_cast<int64_t>(taskAttemptId),
-      .startPartitionId = startPartitionId,
-      .shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr)),
-      .initialSortBufferSize = initialSortBufferSize,
-      .diskWriteBufferSize = diskWriteBufferSize,
-      .useRadixSort = static_cast<bool>(useRadixSort)};
+  const auto ctx = getRuntime(env, wrapper);
 
-  // Build PartitionWriterOptions.
-  auto partitionWriterOptions = PartitionWriterOptions{
-      .mergeBufferSize = mergeBufferSize,
-      .mergeThreshold = mergeThreshold,
-      .compressionBufferSize = compressionBufferSize,
-      .compressionThreshold = compressionThreshold,
-      .compressionType = getCompressionType(env, codecJstr),
-      .compressionLevel = compressionLevel,
-      .numSubDirs = numSubDirs,
-      .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
-      .sortBufferMaxSize = sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold};
-  if (codecJstr != NULL) {
-    partitionWriterOptions.codecBackend = getCodecBackend(env, codecBackendJstr);
-    partitionWriterOptions.compressionMode = getCompressionMode(env, compressionModeJstr);
-  }
-  const auto& conf = ctx->getConfMap();
-  {
-    auto it = conf.find(kShuffleFileBufferSize);
-    if (it != conf.end()) {
-      partitionWriterOptions.shuffleFileBufferSize = static_cast<int64_t>(stoi(it->second));
-    }
-  }
+  auto dataFile = jStringToCString(env, dataFileJstr);
+  auto localDirs = splitPaths(jStringToCString(env, localDirsJstr));
 
-  std::unique_ptr<PartitionWriter> partitionWriter;
+  auto partitionWriterOptions = std::make_shared<LocalPartitionWriterOptions>(
+      shuffleFileBufferSize, compressionBufferSize, compressionThreshold, mergeBufferSize, mergeThreshold, numSubDirs);
 
-  auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
-  auto partitionWriterType = std::string(partitionWriterTypeC);
-  env->ReleaseStringUTFChars(partitionWriterTypeJstr, partitionWriterTypeC);
+  auto partitionWriter = std::make_shared<LocalPartitionWriter>(
+      numPartitions,
+      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      ctx->memoryManager(),
+      partitionWriterOptions,
+      dataFile,
+      std::move(localDirs));
 
-  if (partitionWriterType == "local") {
-    if (dataFileJstr == NULL) {
-      throw GlutenException(std::string("Shuffle DataFile can't be null"));
-    }
-    if (localDirsJstr == NULL) {
-      throw GlutenException(std::string("Shuffle DataFile can't be null"));
-    }
-    auto dataFileC = env->GetStringUTFChars(dataFileJstr, JNI_FALSE);
-    auto dataFile = std::string(dataFileC);
-    env->ReleaseStringUTFChars(dataFileJstr, dataFileC);
-
-    auto localDirsC = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
-    auto configuredDirs = splitPaths(std::string(localDirsC));
-    env->ReleaseStringUTFChars(localDirsJstr, localDirsC);
-
-    partitionWriter = std::make_unique<LocalPartitionWriter>(
-        numPartitions, std::move(partitionWriterOptions), ctx->memoryManager(), dataFile, configuredDirs);
-  } else if (partitionWriterType == "celeborn") {
-    jclass celebornPartitionPusherClass =
-        createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
-    jmethodID celebornPushPartitionDataMethod =
-        getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[BI)I");
-    JavaVM* vm;
-    if (env->GetJavaVM(&vm) != JNI_OK) {
-      throw GlutenException("Unable to get JavaVM instance");
-    }
-    std::shared_ptr<JavaRssClient> celebornClient =
-        std::make_shared<JavaRssClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
-    partitionWriter = std::make_unique<RssPartitionWriter>(
-        numPartitions, std::move(partitionWriterOptions), ctx->memoryManager(), std::move(celebornClient));
-  } else if (partitionWriterType == "uniffle") {
-    jclass unifflePartitionPusherClass =
-        createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/writer/PartitionPusher;");
-    jmethodID unifflePushPartitionDataMethod =
-        getMethodIdOrError(env, unifflePartitionPusherClass, "pushPartitionData", "(I[BI)I");
-    JavaVM* vm;
-    if (env->GetJavaVM(&vm) != JNI_OK) {
-      throw GlutenException("Unable to get JavaVM instance");
-    }
-    std::shared_ptr<JavaRssClient> uniffleClient =
-        std::make_shared<JavaRssClient>(vm, partitionPusher, unifflePushPartitionDataMethod);
-    partitionWriter = std::make_unique<RssPartitionWriter>(
-        numPartitions, std::move(partitionWriterOptions), ctx->memoryManager(), std::move(uniffleClient));
-  } else {
-    throw GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
-  }
-
-  return ctx->saveObject(
-      ctx->createShuffleWriter(numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions)));
+  return ctx->saveObject(partitionWriter);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_nativeEvict( // NOLINT
+JNIEXPORT jlong JNICALL
+Java_org_apache_gluten_vectorized_CelebornPartitionWriterJniWrapper_createPartitionWriter( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring codecJstr,
+    jstring codecBackendJstr,
+    jint compressionLevel,
+    jint compressionBufferSize,
+    jint pushBufferMaxSize,
+    jlong sortBufferMaxSize,
+    jobject partitionPusher) {
+  JNI_METHOD_START
+  JavaVM* vm;
+  if (env->GetJavaVM(&vm) != JNI_OK) {
+    throw GlutenException("Unable to get JavaVM instance");
+  }
+
+  const auto ctx = getRuntime(env, wrapper);
+
+  jclass celebornPartitionPusherClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
+  jmethodID celebornPushPartitionDataMethod =
+      getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[BI)I");
+  std::shared_ptr<JavaRssClient> celebornClient =
+      std::make_shared<JavaRssClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
+
+  auto partitionWriterOptions = std::make_shared<RssPartitionWriterOptions>(
+      compressionBufferSize,
+      pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
+      sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold);
+
+  auto partitionWriter = std::make_shared<RssPartitionWriter>(
+      numPartitions,
+      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      ctx->memoryManager(),
+      partitionWriterOptions,
+      celebornClient);
+
+  return ctx->saveObject(partitionWriter);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL
+Java_org_apache_gluten_vectorized_UnifflePartitionWriterJniWrapper_createPartitionWriter( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring codecJstr,
+    jstring codecBackendJstr,
+    jint compressionLevel,
+    jint compressionBufferSize,
+    jint pushBufferMaxSize,
+    jlong sortBufferMaxSize,
+    jobject partitionPusher) {
+  JNI_METHOD_START
+  JavaVM* vm;
+  if (env->GetJavaVM(&vm) != JNI_OK) {
+    throw GlutenException("Unable to get JavaVM instance");
+  }
+
+  const auto ctx = getRuntime(env, wrapper);
+
+  jclass unifflePartitionPusherClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/writer/PartitionPusher;");
+  jmethodID unifflePushPartitionDataMethod =
+      getMethodIdOrError(env, unifflePartitionPusherClass, "pushPartitionData", "(I[BI)I");
+  std::shared_ptr<JavaRssClient> uniffleClient =
+      std::make_shared<JavaRssClient>(vm, partitionPusher, unifflePushPartitionDataMethod);
+
+  auto partitionWriterOptions = std::make_shared<RssPartitionWriterOptions>(
+      compressionBufferSize,
+      pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
+      sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold);
+
+  auto partitionWriter = std::make_shared<RssPartitionWriter>(
+      numPartitions,
+      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      ctx->memoryManager(),
+      partitionWriterOptions,
+      uniffleClient);
+
+  return ctx->saveObject(partitionWriter);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_createHashShuffleWriter(
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring partitioningNameJstr,
+    jint startPartitionId,
+    jint splitBufferSize,
+    jdouble splitBufferReallocThreshold,
+    jlong partitionWriterHandle) {
+  JNI_METHOD_START
+  const auto ctx = getRuntime(env, wrapper);
+
+  auto partitionWriter = ObjectStore::retrieve<PartitionWriter>(partitionWriterHandle);
+  if (partitionWriter == nullptr) {
+    throw GlutenException("Partition writer handle is invalid: " + std::to_string(partitionWriterHandle));
+  }
+  ObjectStore::release(partitionWriterHandle);
+
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>(
+      toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      startPartitionId,
+      splitBufferSize,
+      splitBufferReallocThreshold);
+
+  return ctx->saveObject(ctx->createShuffleWriter(numPartitions, partitionWriter, shuffleWriterOptions));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_createSortShuffleWriter(
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring partitioningNameJstr,
+    jint startPartitionId,
+    jint diskWriteBufferSize,
+    jint initialSortBufferSize,
+    jboolean useRadixSort,
+    jlong partitionWriterHandle) {
+  JNI_METHOD_START
+  const auto ctx = getRuntime(env, wrapper);
+
+  auto partitionWriter = ObjectStore::retrieve<PartitionWriter>(partitionWriterHandle);
+  if (partitionWriter == nullptr) {
+    throw GlutenException("Partition writer handle is invalid: " + std::to_string(partitionWriterHandle));
+  }
+  ObjectStore::release(partitionWriterHandle);
+
+  auto shuffleWriterOptions = std::make_shared<SortShuffleWriterOptions>(
+      toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      startPartitionId,
+      initialSortBufferSize,
+      diskWriteBufferSize,
+      static_cast<bool>(useRadixSort));
+
+  return ctx->saveObject(ctx->createShuffleWriter(numPartitions, partitionWriter, shuffleWriterOptions));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_createRssSortShuffleWriter(
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring partitioningNameJstr,
+    jint startPartitionId,
+    jint splitBufferSize,
+    jlong sortBufferMaxSize,
+    jstring codecJstr,
+    jlong partitionWriterHandle) {
+  JNI_METHOD_START
+  const auto ctx = getRuntime(env, wrapper);
+
+  auto partitionWriter = ObjectStore::retrieve<PartitionWriter>(partitionWriterHandle);
+  if (partitionWriter == nullptr) {
+    throw GlutenException("Partition writer handle is invalid: " + std::to_string(partitionWriterHandle));
+  }
+  ObjectStore::release(partitionWriterHandle);
+
+  auto shuffleWriterOptions = std::make_shared<RssSortShuffleWriterOptions>(
+      toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      startPartitionId,
+      splitBufferSize,
+      sortBufferMaxSize,
+      getCompressionType(env, codecJstr));
+
+  return ctx->saveObject(ctx->createShuffleWriter(numPartitions, partitionWriter, shuffleWriterOptions));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_reclaim( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong shuffleWriterHandle,
