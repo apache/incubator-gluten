@@ -36,10 +36,10 @@ CREATE TABLE kafka (
         END
 ) WITH (
     'connector' = 'kafka',
-    'topic' = 'test_in_1',
-    'properties.bootstrap.servers' = '10.152.38.33:9098',
-    'properties.group.id' = 'nexmark',
-    'scan.startup.mode' = 'latest-offset',
+    'topic' = '***',
+    'properties.bootstrap.servers' = '***',
+    'properties.group.id' = '***',
+    'scan.startup.mode' = 'earliest-offset',
     'sink.partitioner' = 'round-robin',
     'format' = 'json'
 );
