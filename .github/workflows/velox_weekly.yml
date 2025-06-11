@@ -24,6 +24,7 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  SETUP: 'bash .github/workflows/util/setup_helper.sh'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -67,11 +68,7 @@ jobs:
           yum install -y java-1.8.0-openjdk-devel patch wget git perl
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           export PATH=$JAVA_HOME/bin:$PATH
-          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-          mv apache-maven-3.8.8 /usr/lib/maven && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
+          $SETUP install_maven
           git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
           ./dev/package.sh
 

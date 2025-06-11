@@ -94,8 +94,6 @@ jobs:
       - name: Build package for Spark
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
           mvn clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
           mvn clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
@@ -146,8 +144,6 @@ jobs:
       - name: Build package for Spark
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
           mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
