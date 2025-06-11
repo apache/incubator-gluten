@@ -82,15 +82,6 @@ function install_conda {
   popd
 }
 
-function install_openssl {
-  cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl
-  cd openssl
-  ./config no-shared
-  make depend
-  make
-  $SUDO make install
-}
 
 function install_gflags {
   cd "${DEPENDENCY_DIR}"
@@ -211,7 +202,6 @@ function install_prerequisites {
   run_and_time install_boost
   run_and_time install_re2
   run_and_time install_flex
-  run_and_time install_openssl
   run_and_time install_gflags
   run_and_time install_glog
   run_and_time install_snappy
