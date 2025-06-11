@@ -30,7 +30,7 @@ export CXXFLAGS=$CFLAGS  # Used by boost.
 export CPPFLAGS=$CFLAGS  # Used by LZO.
 export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
 FB_OS_VERSION="v2024.07.01.00"
-GEOS_VERSION="3.10.2"
+GEOS_VERSION="3.10.7"
 
 # shellcheck disable=SC2037
 SUDO="sudo -E"
@@ -82,15 +82,6 @@ function install_conda {
   popd
 }
 
-function install_openssl {
-  cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl
-  cd openssl
-  ./config no-shared
-  make depend
-  make
-  $SUDO make install
-}
 
 function install_gflags {
   cd "${DEPENDENCY_DIR}"
@@ -211,7 +202,6 @@ function install_prerequisites {
   run_and_time install_boost
   run_and_time install_re2
   run_and_time install_flex
-  run_and_time install_openssl
   run_and_time install_gflags
   run_and_time install_glog
   run_and_time install_snappy
