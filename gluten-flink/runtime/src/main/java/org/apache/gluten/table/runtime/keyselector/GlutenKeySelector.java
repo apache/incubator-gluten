@@ -14,20 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.streaming.api.operators;
+package org.apache.gluten.table.runtime.keyselector;
 
-import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
-import io.github.zhztheplayer.velox4j.type.RowType;
+import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
 
-import java.util.Map;
+import org.apache.flink.api.java.functions.KeySelector;
 
-/** Interface for all gluten operators. */
-public interface GlutenOperator {
-  public StatefulPlanNode getPlanNode();
+/** A KeySelector which will extract key from RowVector. The key type is RowVector. */
+public class GlutenKeySelector implements KeySelector<StatefulRecord, Integer> {
 
-  public RowType getInputType();
+  private static final long serialVersionUID = -1L;
 
-  public Map<String, RowType> getOutputTypes();
+  public GlutenKeySelector() {}
 
-  public String getId();
+  @Override
+  public Integer getKey(StatefulRecord value) throws Exception {
+    // TODO: calculate the key hash in velox, and get it here.
+    return value.getKey();
+  }
 }

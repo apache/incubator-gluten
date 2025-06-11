@@ -17,12 +17,14 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
-import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
+import org.apache.gluten.table.runtime.operators.GlutenVectorSourceFunction;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import io.github.zhztheplayer.velox4j.connector.NexmarkConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.NexmarkTableHandle;
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
@@ -41,6 +43,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -87,13 +90,14 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
               LogicalTypeConverter.toVLType(
                   ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
       String id = PlanNodeIdGenerator.newId();
+      PlanNode tableScan =
+          new TableScanNode(id, outputType, new NexmarkTableHandle("connector-nexmark"), List.of());
       StreamOperatorFactory<OUT> operatorFactory =
           SimpleOperatorFactory.of(
               new GlutenStreamSource(
-                  new GlutenSourceFunction(
-                      new TableScanNode(
-                          id, outputType, new NexmarkTableHandle("connector-nexmark"), List.of()),
-                      outputType,
+                  new GlutenVectorSourceFunction(
+                      new StatefulPlanNode(tableScan.getId(), tableScan),
+                      Map.of(id, outputType),
                       id,
                       // TODO: should use config to get parameters
                       new NexmarkConnectorSplit("connector-nexmark", 100000000))));
