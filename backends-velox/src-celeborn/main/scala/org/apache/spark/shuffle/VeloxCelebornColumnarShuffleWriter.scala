@@ -24,7 +24,6 @@ import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
 
 import org.apache.spark._
-import org.apache.spark.internal.config.{SHUFFLE_DISK_WRITE_BUFFER_SIZE, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle

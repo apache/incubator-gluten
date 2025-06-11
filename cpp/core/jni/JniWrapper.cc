@@ -992,7 +992,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_nativeEvict( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_reclaim( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong shuffleWriterHandle,

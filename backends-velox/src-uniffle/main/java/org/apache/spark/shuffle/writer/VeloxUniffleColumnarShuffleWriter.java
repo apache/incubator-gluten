@@ -69,7 +69,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private String codecBackend;
   private int compressionLevel;
   private int compressionBufferSize;
-  private int diskWriteBufferSize;
+  private final int diskWriteBufferSize;
   private final int partitionId;
 
   private final Runtime runtime =
@@ -127,14 +127,17 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
             sparkConf.getSizeAsBytes(
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.key(),
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.defaultValue().get());
+    this.diskWriteBufferSize =
+        (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_DISK_WRITE_BUFFER_SIZE());
     if ((boolean) sparkConf.get(package$.MODULE$.SHUFFLE_COMPRESS())) {
       compressionCodec = GlutenShuffleUtils.getCompressionCodec(sparkConf);
-      codecBackend = GlutenConfig.get().columnarShuffleCodecBackend().getOrElse(null);
       compressionLevel = GlutenShuffleUtils.getCompressionLevel(sparkConf, compressionCodec);
       compressionBufferSize =
           GlutenShuffleUtils.getCompressionBufferSize(sparkConf, compressionCodec);
-      diskWriteBufferSize =
-          (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_DISK_WRITE_BUFFER_SIZE());
+      Option<String> codecBackend = GlutenConfig.get().columnarShuffleCodecBackend();
+      if (codecBackend.isDefined()) {
+        this.codecBackend = codecBackend.get();
+      }
     }
   }
 
