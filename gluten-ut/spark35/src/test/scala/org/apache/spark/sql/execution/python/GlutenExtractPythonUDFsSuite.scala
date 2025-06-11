@@ -102,8 +102,6 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
             val pythonEvalNodes = collectBatchExec(query.queryExecution.executedPlan)
             assert(pythonEvalNodes.length == 1)
 
-            print(query.queryExecution.executedPlan.toString())
-
             val scanNodes = query.queryExecution.executedPlan.collect {
               case scan: BatchScanExecTransformer => scan
             }
