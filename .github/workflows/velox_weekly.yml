@@ -48,7 +48,6 @@ jobs:
         run: |
           docker pull centos:7
           docker run -v $GITHUB_WORKSPACE:/work -w /work centos:7 bash -c "
-          export PATH=${PATH}:/usr/lib/maven/bin
           sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
           sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
           yum update -y
@@ -70,6 +69,8 @@ jobs:
           mv apache-maven-3.8.8 /usr/lib/maven && \
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
+          echo PATH=${PATH}:/usr/lib/maven/bin:/usr/lib/jvm/java-1.8.0-openjdk/bin >> /root/.bashrc
+          
           cd /work
           ./dev/package.sh
           "
