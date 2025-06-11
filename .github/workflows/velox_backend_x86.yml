@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend Github Runner
+name: Velox backend Github Runner (x86)
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/velox_backend.yml'
+      - '.github/workflows/velox_backend_x86.yml'
       - 'pom.xml'
       - 'backends-velox/**'
       - 'gluten-uniffle/**'
@@ -34,10 +34,7 @@ on:
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
-      - 'cpp/*'
-      - 'cpp/CMake/**'
-      - 'cpp/velox/**'
-      - 'cpp/core/**'
+      - 'cpp/**'
       - 'dev/**'
 
 env:
@@ -119,7 +116,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu:22.04" ]
+        os: [ "ubuntu:20.04", "ubuntu:22.04" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
@@ -636,7 +633,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.2.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -725,7 +722,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.3.1 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -824,7 +821,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.4.4 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.4.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -926,7 +923,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -982,7 +979,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1074,7 +1071,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1164,7 +1161,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1241,20 +1238,14 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos8-release-default-${{github.sha}}
+          key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
           restore-keys: |
-            ccache-centos8-release-default
+            ccache-centos8-release-shared-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
-      # - name: "Save ccache"
-      #   uses: actions/cache/save@v4
-      #   id: ccache
-      #   with:
-      #     path: '${{ env.CCACHE_DIR }}'
-      #     key: ccache-centos8-release-default-${{github.sha}}
       - name: Run CPP unit test
         run: |
           cd ./cpp/build && ctest -V

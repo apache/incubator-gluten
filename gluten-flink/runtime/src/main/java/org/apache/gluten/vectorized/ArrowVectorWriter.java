@@ -24,9 +24,11 @@ import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.*;
+import org.apache.arrow.vector.DateDayVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.*;
@@ -67,6 +69,10 @@ public abstract class ArrowVectorWriter {
               TimestampType.class,
               (fieldType, allocator, vector) ->
                   new TimestampVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              DateType.class,
+              (fieldType, allocator, vector) ->
+                  new DateDayVectorWriter(fieldType, allocator, vector)),
           Map.entry(
               RowType.class,
               (fieldType, allocator, vector) ->
@@ -152,7 +158,8 @@ class FieldVectorCreator {
               TimestampType.class,
               (dataType, timeZoneId) ->
                   new ArrowType.Timestamp(
-                      TimeUnit.MILLISECOND, timeZoneId == null ? "UTC" : timeZoneId)));
+                      TimeUnit.MILLISECOND, timeZoneId == null ? "UTC" : timeZoneId)),
+          Map.entry(DateType.class, (dataType, timeZoneId) -> new ArrowType.Date(DateUnit.DAY)));
 
   private static ArrowType toArrowType(Type dataType, String timeZoneId) {
     ArrowTypeConverter converter = arrowTypeConverters.get(dataType.getClass());
@@ -371,6 +378,27 @@ class TimestampVectorWriter extends BaseVectorWriter<TimeStampMilliVector, Long>
 
   @Override
   protected void setValue(int index, Long value) {
+    this.typedVector.setSafe(index, value);
+  }
+}
+
+class DateDayVectorWriter extends BaseVectorWriter<DateDayVector, Integer> {
+  public DateDayVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
+    super(vector);
+  }
+
+  @Override
+  protected Integer getValue(RowData rowData, int fieldIndex) {
+    return rowData.getInt(fieldIndex);
+  }
+
+  @Override
+  protected Integer getValue(ArrayData arrayData, int index) {
+    return arrayData.getInt(index);
+  }
+
+  @Override
+  protected void setValue(int index, Integer value) {
     this.typedVector.setSafe(index, value);
   }
 }

@@ -1,0 +1,210 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Velox backend Github Runner (ARM)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/velox_backend_arm.yml'
+      - 'pom.xml'
+      - 'backends-velox/**'
+      - 'gluten-uniffle/**'
+      - 'gluten-celeborn/**'
+      - 'gluten-ras/**'
+      - 'gluten-core/**'
+      - 'gluten-substrait/**'
+      - 'gluten-arrow/**'
+      - 'gluten-delta/**'
+      - 'gluten-iceberg/**'
+      - 'gluten-hudi/**'
+      - 'gluten-ut/**'
+      - 'shims/**'
+      - 'tools/gluten-it/**'
+      - 'ep/build-velox/**'
+      - 'cpp/**'
+      - 'dev/**'
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  MVN_CMD: 'mvn -ntp'
+  WGET_CMD: 'wget -nv'
+  SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  # for JDK17 unit tests
+  EXTRA_FLAGS:  "-XX:+IgnoreUnrecognizedVMOptions 
+                --add-opens=java.base/java.lang=ALL-UNNAMED
+                --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+                --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+                --add-opens=java.base/java.io=ALL-UNNAMED
+                --add-opens=java.base/java.net=ALL-UNNAMED
+                --add-opens=java.base/java.nio=ALL-UNNAMED
+                --add-opens=java.base/java.util=ALL-UNNAMED
+                --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+                --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
+                --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+                --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+                --add-opens=java.base/sun.security.action=ALL-UNNAMED
+                --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+                -Djdk.reflect.useDirectMethodHandle=false
+                -Dio.netty.tryReflectionSetAccessible=true"
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build-native-lib-centos-8:
+    runs-on: ubuntu-24.04-arm
+    container: apache/gluten:vcpkg-centos-8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-default-${{runner.arch}}-${{github.sha}}
+          restore-keys: |
+            ccache-centos8-release-default-${{runner.arch}}
+      - name: Build Gluten native libraries
+        run: |
+          df -a
+          bash dev/ci-velox-buildstatic-centos-8.sh
+          ccache -s
+          mkdir -p $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
+          cp -r /root/.m2/repository/org/apache/arrow/* $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
+      - name: "Save ccache"
+        uses: actions/cache/save@v4
+        id: ccache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-default-${{runner.arch}}-${{github.sha}}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: .m2/repository/org/apache/arrow/
+          if-no-files-found: error
+
+  tpc-test-centos8:
+    needs: build-native-lib-centos-8
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "centos:8" ]
+        spark: [ "spark-3.5" ]
+        java: [ "java-8" ]
+    runs-on: ubuntu-24.04-arm
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Native Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup java and maven
+        run: |
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
+          $SETUP install_maven
+      - name: Set environment variables
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
+      - name: Build gluten-it
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+      - name: Run TPC-H / TPC-DS
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+      - name: Run TPC-H / TPC-DS with RAS
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+            --extra-conf=spark.gluten.ras.enabled=true \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+            --extra-conf=spark.gluten.ras.enabled=true 
+
+  cpp-test-udf-test:
+    runs-on: ubuntu-24.04-arm
+    container: apache/gluten:centos-8-jdk8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
+          restore-keys: |
+            ccache-centos8-release-shared-${{runner.arch}}
+      - name: Build Gluten native libraries
+        run: |
+          df -a
+          bash dev/ci-velox-buildshared-centos-8.sh
+          ccache -s
+      - name: Run CPP unit test
+        run: |
+          cd ./cpp/build && ctest -V
+      - name: Run CPP benchmark test
+        run: |
+          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -pl backends-velox -am \
+          -DtagsToInclude="org.apache.gluten.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Dexec.skip
+          # This test depends on files generated by the above mvn test.
+          ./cpp/build/velox/benchmarks/generic_benchmark --with-shuffle --partitioning hash --threads 1 --iterations 1 \
+          --conf $(realpath backends-velox/generated-native-benchmark/conf_12_0_*.ini) \
+          --plan $(realpath backends-velox/generated-native-benchmark/plan_12_0_*.json) \
+          --data $(realpath backends-velox/generated-native-benchmark/data_12_0_*_0.parquet),$(realpath backends-velox/generated-native-benchmark/data_12_0_*_1.parquet)
+      - name: Run UDF test
+        run: |
+          # Depends on --build_example=ON.
+          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None \
+          -DtagsToInclude=org.apache.gluten.tags.UDFTest
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-report
+          path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-test-log
+          path: "**/target/*.log"

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{ProjectExecTransformer, TransformSupport, WholeStageTransformerSuite}
 import org.apache.gluten.utils.BackendTestUtils
 
@@ -40,10 +41,10 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.ui.enabled", "false")
-      .set("spark.gluten.ui.enabled", "false")
+      .set(GlutenConfig.GLUTEN_UI_ENABLED.key, "false")
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
-        .set("spark.gluten.sql.enable.native.validation", "false")
+        .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
     }
     conf
   }

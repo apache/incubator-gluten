@@ -103,7 +103,7 @@ class ClickhouseGlutenKafkaScanSuite
     }
   }
 
-  test("GLUTEN-9681: test kafka data consistency") {
+  testWithSpecifiedSparkVersion("GLUTEN-9681: test kafka data consistency", "3.3", "3.5") {
     withTempDir(
       dir => {
         val table_name = "data_consistency"

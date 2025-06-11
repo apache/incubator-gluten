@@ -14,22 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.adaptive
+package org.apache.spark.sql.internal
 
-import org.apache.gluten.config.GlutenConfig
+/** A source of configuration values. */
+trait GlutenConfigProvider {
+  def get(key: String): Option[String]
+}
 
-import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.internal.SQLConf
+class SQLConfProvider(conf: SQLConf) extends GlutenConfigProvider {
+  override def get(key: String): Option[String] = Option(conf.settings.get(key))
+}
 
-/** This [[CostEvaluator]] is to force use the new physical plan when cost is equal. */
-case class GlutenCostEvaluator() extends CostEvaluator with SQLConfHelper {
-  override def evaluateCost(plan: SparkPlan): Cost = {
-    val forceOptimizeSkewedJoin = conf.getConf(SQLConf.ADAPTIVE_FORCE_OPTIMIZE_SKEWED_JOIN)
-    if (GlutenConfig.get.enableGluten) {
-      new GlutenCost(SimpleCostEvaluator(forceOptimizeSkewedJoin), plan)
-    } else {
-      SimpleCostEvaluator(forceOptimizeSkewedJoin).evaluateCost(plan)
-    }
-  }
+class MapProvider(conf: Map[String, String]) extends GlutenConfigProvider {
+  override def get(key: String): Option[String] = conf.get(key)
 }
