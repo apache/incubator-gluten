@@ -19,7 +19,7 @@ package org.apache.spark.sql.internal
 import org.apache.gluten.config.ConfigEntry
 
 import org.apache.spark.SparkConf
-import org.apache.spark.internal.config.{ConfigEntry => SparkConfigEntry}
+import org.apache.spark.internal.config.{ConfigEntry => SparkConfigEntry, OptionalConfigEntry}
 
 object SparkConfigUtil {
 
@@ -33,6 +33,10 @@ object SparkConfigUtil {
     }
 
     def set[T](entry: SparkConfigEntry[T], value: T): SparkConf = {
+      SparkConfigUtil.set(conf, entry, value)
+    }
+
+    def set[T](entry: OptionalConfigEntry[T], value: T): SparkConf = {
       SparkConfigUtil.set(conf, entry, value)
     }
 
@@ -58,6 +62,10 @@ object SparkConfigUtil {
   }
 
   def set[T](conf: SparkConf, entry: SparkConfigEntry[T], value: T): SparkConf = {
+    conf.set(entry, value)
+  }
+
+  def set[T](conf: SparkConf, entry: OptionalConfigEntry[T], value: T): SparkConf = {
     conf.set(entry, value)
   }
 
