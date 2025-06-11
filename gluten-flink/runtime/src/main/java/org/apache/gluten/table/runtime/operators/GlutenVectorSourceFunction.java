@@ -16,13 +16,10 @@
  */
 package org.apache.gluten.table.runtime.operators;
 
-import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
-
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
 import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
-import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
@@ -35,19 +32,20 @@ import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
-/** Gluten legacy source function, call velox plan to execute. */
-public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
-  private static final Logger LOG = LoggerFactory.getLogger(GlutenSourceFunction.class);
+/**
+ * Gluten legacy source function, call velox plan to execute. It sends RowVector to downstream
+ * instead of RowData to avoid data convert.
+ */
+public class GlutenVectorSourceFunction extends RichParallelSourceFunction<StatefulElement> {
+  private static final Logger LOG = LoggerFactory.getLogger(GlutenVectorSourceFunction.class);
 
   private final StatefulPlanNode planNode;
   private final Map<String, RowType> outputTypes;
@@ -60,7 +58,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   BufferAllocator allocator;
   private MemoryManager memoryManager;
 
-  public GlutenSourceFunction(
+  public GlutenVectorSourceFunction(
       StatefulPlanNode planNode,
       Map<String, RowType> outputTypes,
       String id,
@@ -69,6 +67,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     this.outputTypes = outputTypes;
     this.id = id;
     this.split = split;
+    LOG.debug("GlutenSourceFunction {}", outputTypes);
   }
 
   public StatefulPlanNode getPlanNode() {
@@ -88,7 +87,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   }
 
   @Override
-  public void run(SourceContext<RowData> sourceContext) throws Exception {
+  public void run(SourceContext<StatefulElement> sourceContext) throws Exception {
     LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
     memoryManager = MemoryManager.create(AllocationListener.NOOP);
     session = Velox4j.newSession(memoryManager);
@@ -102,14 +101,8 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
         final StatefulElement element = task.statefulGet();
-        final RowVector outRv = element.asRecord().getRowVector();
-        List<RowData> rows =
-            FlinkRowToVLVectorConvertor.toRowData(
-                outRv, allocator, outputTypes.values().iterator().next());
-        for (RowData row : rows) {
-          sourceContext.collect(row);
-        }
-        outRv.close();
+        sourceContext.collect(element);
+        element.close();
       } else if (state == UpIterator.State.BLOCKED) {
         LOG.debug("Get empty row");
       } else {

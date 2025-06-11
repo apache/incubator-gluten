@@ -48,7 +48,7 @@ import java.util.Map;
 public abstract class ArrowVectorAccessor {
   private interface AccessorBuilder {
     ArrowVectorAccessor build(FieldVector vector);
-  };
+  }
 
   // Exact class matches
   private static final Map<Class<? extends FieldVector>, AccessorBuilder> accessorBuilders =
