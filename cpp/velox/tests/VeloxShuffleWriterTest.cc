@@ -164,7 +164,7 @@ std::shared_ptr<PartitionWriter> createPartitionWriter(
     case PartitionWriterType::kRss: {
       auto options = std::make_shared<RssPartitionWriterOptions>();
       auto rssClient = std::make_unique<LocalRssClient>(dataFile);
-      return std::make_unique<RssPartitionWriter>(
+      return std::make_shared<RssPartitionWriter>(
           numPartitions, std::move(codec), getDefaultMemoryManager(), options, std::move(rssClient));
     }
     default:
