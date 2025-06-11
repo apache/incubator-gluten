@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
-import org.apache.gluten.velox.VeloxSinkBuilder;
+import org.apache.gluten.velox.VeloxSourceSinkFactory;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.dag.Transformation;
@@ -470,7 +470,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         Transformation sinkTransformation =
             createSinkFunctionTransformation(
                 sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkMeta, sinkParallelism);
-        return VeloxSinkBuilder.build(env.getConfiguration(), sinkTransformation);
+        return VeloxSourceSinkFactory.getFactory(sinkTransformation)
+            .buildSink(env.getConfiguration(), sinkTransformation);
         // --- End Gluten-specific code changes ---
       } else if (runtimeProvider instanceof OutputFormatProvider) {
         OutputFormat<RowData> outputFormat =
