@@ -68,24 +68,24 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    * and may trigger a spill if needed.
    *
    * @param shuffleWriterHandle shuffle writer instance handle
-   * @param size                expected size to reclaim (in bytes)
+   * @param size expected size to reclaim (in bytes)
    * @return actual spilled size
    */
-  public native long reclaim(long shuffleWriterHandle, long size)
-      throws RuntimeException;
+  public native long reclaim(long shuffleWriterHandle, long size) throws RuntimeException;
 
   /**
    * Split one record batch represented by bufAddrs and bufSizes into several batches. The batch is
    * split according to the first column as partition id.
    *
    * @param shuffleWriterHandle shuffle writer instance handle
-   * @param numRows             Rows per batch
+   * @param numRows Rows per batch
    * @param columnarBatchHandle handle of Velox Vector
-   * @param memLimit            memory usage limit for the split operation FIXME setting a cap to pool /
-   *                            allocator instead
+   * @param memLimit memory usage limit for the split operation FIXME setting a cap to pool /
+   *     allocator instead
    * @return batch bytes.
    */
-  public native long write(long shuffleWriterHandle, int numRows, long columnarBatchHandle, long memLimit);
+  public native long write(
+      long shuffleWriterHandle, int numRows, long columnarBatchHandle, long memLimit);
 
   /**
    * Write the data remained in the buffers hold by native shuffle writer to each partition's

@@ -149,7 +149,7 @@ set(VELOX_SRCS
     operators/writer/VeloxColumnarBatchWriter.cc
     operators/writer/VeloxParquetDataSource.cc
     shuffle/VeloxHashShuffleWriter.cc
-        shuffle/VeloxRssSortShuffleWriter.cc
+    shuffle/VeloxRssSortShuffleWriter.cc
     shuffle/VeloxShuffleReader.cc
     shuffle/VeloxShuffleWriter.cc
     shuffle/VeloxSortShuffleWriter.cc
