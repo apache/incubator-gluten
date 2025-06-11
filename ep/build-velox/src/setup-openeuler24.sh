@@ -94,6 +94,7 @@ function install_lzo {
   (
     cd ${DEPENDENCY_DIR}/lzo
     ./configure --prefix=${INSTALL_PREFIX} --enable-shared --disable-static --docdir=/usr/share/doc/lzo-2.10
+    cat config.log
     make "-j${NPROC}"
     make install
   )

@@ -24,6 +24,8 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  MVN_CMD: 'mvn -ntp'
+  SETUP: 'bash .github/workflows/util/setup_helper.sh'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -84,7 +86,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: build
         run: |
           # To avoid the prompt for region selection during installing tzdata.
@@ -100,3 +102,105 @@ jobs:
           sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+
+  build-on-openeuler:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "openeuler/openeuler:24.03" ]
+    #if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ubuntu-24.04-arm
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: build
+        run: |
+          dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
+          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
+          mv apache-maven-3.8.8 /usr/lib/maven
+          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+          export MAVEN_HOME=/usr/lib/maven
+          export PATH=${PATH}:${MAVEN_HOME}/bin:${JAVA_HOME}/bin
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+
+  build-on-openeuler-vcpkg:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "openeuler/openeuler:24.03" ]
+    #if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ubuntu-24.04-arm
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: build
+        run: |
+          dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
+          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
+          mv apache-maven-3.8.8 /usr/lib/maven
+          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+          export MAVEN_HOME=/usr/lib/maven
+          export PATH=${PATH}:${MAVEN_HOME}/bin:${JAVA_HOME}/bin
+          export VCPKG_PATH=/var/cache/vcpkg
+          export VCPKG_BINARY_SOURCES="clear;files,${VCPKG_PATH},readwrite"
+          cd $GITHUB_WORKSPACE/ 
+          ./dev/vcpkg/setup-build-depends.sh
+          mkdir -p ${VCPKG_PATH}
+          sed -i 's/--build_arrow=OFF/--build_arrow=ON/' dev/package-vcpkg.sh && ./dev/package-vcpkg.sh
+          mkdir -p $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
+          cp -r /root/.m2/repository/org/apache/arrow/* $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: velox-native-lib-openeuler-24-${{github.sha}}
+          path: ./cpp/build/releases/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arrow-jars-openeuler-24-${{github.sha}}
+          path: .m2/repository/org/apache/arrow/
+          if-no-files-found: error
+
+  tpc-test-openeuler:
+    needs: build-on-openeuler-vcpkg
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "openeuler/openeuler:24.03" ]
+        spark: [ "spark-3.5" ]
+        java: [ "java-8" ]
+    runs-on: ubuntu-24.04-arm
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download All Native Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: velox-native-lib-openeuler-24-${{github.sha}}
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: arrow-jars-openeuler-24-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Setup java and maven
+        run: |
+          dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
+          $SETUP install_maven
+      - name: Set environment variables
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
+      - name: Build gluten-it
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+      - name: Run TPC-H
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1

@@ -83,8 +83,8 @@ elif [ "$LINUX_OS" == "centos" ]; then
   elif [ "$VERSION" == "7" ]; then
     process_setup_centos_7
   fi
-elif [ "$LINUX_OS" == "openeuler" ]; then
-  if [ "${VERSION:0:1}" == "24.03" ]; then
+elif [ "$LINUX_OS" == "openEuler" ]; then
+  if [ "${VERSION}" == "24.03" ]; then
     process_setup_openeuler_24
   fi
 elif [ "$LINUX_OS" == "alinux" ]; then
