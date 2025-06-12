@@ -124,7 +124,7 @@ jobs:
       - name: Build Gluten shared libraries
         run: |
           df -a
-          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --enable_gpu=ON
+          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_gpu=ON
           ccache -s
       - name: Save Ccache
         uses: actions/cache/save@v3
