@@ -61,6 +61,7 @@ jobs:
           yum install -y devtoolset-11
           source /opt/rh/devtoolset-11/enable
           yum install -y java-1.8.0-openjdk-devel patch wget git perl
+          pip install cmake==3.30.4
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           export PATH=$JAVA_HOME/bin:$PATH
           wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
@@ -148,6 +149,7 @@ jobs:
           fi
           sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+          pip install cmake==3.30.4
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
 
   build-on-openeuler:
