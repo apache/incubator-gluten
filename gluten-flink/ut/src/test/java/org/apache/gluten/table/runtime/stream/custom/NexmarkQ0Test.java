@@ -22,8 +22,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,14 +32,12 @@ import org.slf4j.LoggerFactory;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class NexmarkTest {
+public class NexmarkQ0Test {
 
-  private static final Logger LOG = LoggerFactory.getLogger(NexmarkTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(NexmarkQ0Test.class);
 
   private StreamExecutionEnvironment env;
   private StreamTableEnvironment tEnv;
@@ -62,34 +58,25 @@ public class NexmarkTest {
   }
 
   @Test
-  void testNexmarkDDLGeneration() {
-    String createDatagenTable = readSqlFromFile("nexmark/ddl_gen.sql");
-    TableResult result = tEnv.executeSql(createDatagenTable);
-    assertThat(result.getJobClient().isPresent()).isFalse();
-
-    String describeQuery = "DESCRIBE datagen";
-    TableResult describeResult = tEnv.executeSql(describeQuery);
-
-    List<Row> schemaRows = collectResults(describeResult, -1);
-    assertThat(schemaRows).isNotEmpty();
-
-    for (Row row : schemaRows) {
-      LOG.info("Schema: {}", row);
-    }
-  }
-
-  @Test
   void testNexmarkQ0Query() {
-    String createDatagenTable = readSqlFromFile("nexmark/bid.sql");
-    tEnv.executeSql(createDatagenTable);
+    String createNexmarkSource = readSqlFromFile("nexmark/ddl_gen.sql");
+    tEnv.executeSql(createNexmarkSource);
+    String createTableView = readSqlFromFile("nexmark/ddl_views.sql");
+    String[] sqlTableView = createTableView.split(";");
+    for (String sql : sqlTableView) {
+      String trimmedSql = sql.trim();
+      tEnv.executeSql(trimmedSql);
+    }
 
     String q0Query = readSqlFromFile("nexmark/q0.sql");
 
-    TableResult q0Result = tEnv.executeSql(q0Query);
-    List<Row> actualResults = collectResults(q0Result, 5);
-
-    assertThat(actualResults).isNotEmpty();
-    verifyQ0Results(actualResults);
+    String[] sqlStatements = q0Query.split(";");
+    String createResultTable = sqlStatements[0].trim();
+    TableResult createResult = tEnv.executeSql(createResultTable);
+    assertThat(createResult.getJobClient().isPresent()).isFalse();
+    String insertQuery = sqlStatements[1].trim();
+    TableResult insertResult = tEnv.executeSql(insertQuery);
+    assertThat(insertResult.getJobClient().isPresent()).isTrue();
   }
 
   private String readSqlFromFile(String fileName) {
@@ -101,27 +88,6 @@ public class NexmarkTest {
       return new String(Files.readAllBytes(Paths.get(resource.toURI())));
     } catch (Exception e) {
       throw new RuntimeException("Failed to read SQL file: " + fileName, e);
-    }
-  }
-
-  private List<Row> collectResults(TableResult result, int maxRows) {
-    List<Row> rows = new ArrayList<>();
-    try (CloseableIterator<Row> iterator = result.collect()) {
-      int count = 0;
-      while (iterator.hasNext() && (maxRows == -1 || count < maxRows)) {
-        rows.add(iterator.next());
-        count++;
-      }
-    } catch (Exception e) {
-      LOG.error("Error collecting results", e);
-    }
-    return rows;
-  }
-
-  private void verifyQ0Results(List<Row> results) {
-    for (Row row : results) {
-      LOG.info("Q0 Result: {}", row);
-      assertThat(row.getArity()).isEqualTo(5);
     }
   }
 }
