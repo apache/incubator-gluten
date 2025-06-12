@@ -42,11 +42,10 @@ jobs:
       fail-fast: false
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
+    container: centos:7
     steps:
-      - uses: actions/checkout@v4
       - name: Build Gluten native libraries and package
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work centos:7 bash -c "
           sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
           sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
           yum update -y
@@ -71,9 +70,9 @@ jobs:
           ln -s /usr/lib/maven/bin /usr/bin/mvn
           ls -l /usr/bin/mvn
           
-          cd /work
+          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
           ./dev/package.sh
-          "
+          
 
   build-on-centos:
     strategy:
@@ -113,12 +112,12 @@ jobs:
           yum install -y java-1.8.0-openjdk-devel patch wget git perl
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           export PATH=$JAVA_HOME/bin:$PATH
-          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
+          
           $SETUP install_maven
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin
 
-          ./dev/package.sh
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
 
   build-on-ubuntu:
     strategy:
