@@ -26,7 +26,7 @@ import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.catalog.{BucketSpec, ClusterBySpec}
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
@@ -35,6 +35,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.catalog.functions.Reducer
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.{CollectLimitExec, FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
@@ -92,7 +93,8 @@ trait SparkShims {
 
   def runtimeReplaceableExpressionMappings: Seq[Sig]
 
-  def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec])
+  def convertPartitionTransforms(
+      partitions: Seq[Transform]): (Seq[String], Option[BucketSpec], Option[ClusterBySpec])
 
   def generateFileScanRDD(
       sparkSession: SparkSession,
@@ -253,7 +255,10 @@ trait SparkShims {
       outputPartitioning: Partitioning,
       commonPartitionValues: Option[Seq[(InternalRow, Int)]],
       applyPartialClustering: Boolean,
-      replicatePartitions: Boolean): Seq[Seq[InputPartition]] = filteredPartitions
+      replicatePartitions: Boolean,
+      joinKeyPositions: Option[Seq[Int]] = None,
+      reducers: Option[Seq[Option[Reducer[_, _]]]] = None): Seq[Seq[InputPartition]] =
+    filteredPartitions
 
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
     Option.empty

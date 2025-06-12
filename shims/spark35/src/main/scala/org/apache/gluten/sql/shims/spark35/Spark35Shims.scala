@@ -30,6 +30,7 @@ import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.{ExtendedAnalysisException, InternalRow}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.connector.catalog.functions.Reducer
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -472,7 +473,9 @@ class Spark35Shims extends SparkShims {
       outputPartitioning: Partitioning,
       commonPartitionValues: Option[Seq[(InternalRow, Int)]],
       applyPartialClustering: Boolean,
-      replicatePartitions: Boolean): Seq[Seq[InputPartition]] = {
+      replicatePartitions: Boolean,
+      joinKeyPositions: Option[Seq[Int]] = None,
+      reducers: Option[Seq[Option[Reducer[_, _]]]] = None): Seq[Seq[InputPartition]] = {
     scan match {
       case _ if keyGroupedPartitioning.isDefined =>
         var finalPartitions = filteredPartitions
