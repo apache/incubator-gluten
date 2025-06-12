@@ -33,7 +33,8 @@ import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.softaffinity.SoftAffinityListener
 import org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator
 import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusListener, GlutenUIUtils}
-import org.apache.spark.sql.internal.{SparkConfigUtil, SQLConf}
+import org.apache.spark.sql.internal.SparkConfigUtil._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.SparkResourceUtil
@@ -62,11 +63,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
     // Register Gluten listeners
     GlutenSQLAppStatusListener.register(sc)
-    if (
-      conf.getBoolean(
-        GLUTEN_SOFT_AFFINITY_ENABLED.key,
-        GLUTEN_SOFT_AFFINITY_ENABLED.defaultValue.get)
-    ) {
+    if (conf.get(GLUTEN_SOFT_AFFINITY_ENABLED)) {
       SoftAffinityListener.register(sc)
     }
 
@@ -137,19 +134,13 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
   }
 
   private def checkOffHeapSettings(conf: SparkConf): Unit = {
-    if (
-      conf.getBoolean(
-        DYNAMIC_OFFHEAP_SIZING_ENABLED.key,
-        DYNAMIC_OFFHEAP_SIZING_ENABLED.defaultValue.get)
-    ) {
+    if (conf.get(DYNAMIC_OFFHEAP_SIZING_ENABLED)) {
       // When dynamic off-heap sizing is enabled, off-heap mode is not strictly required to be
       // enabled. Skip the check.
       return
     }
 
-    if (
-      conf.getBoolean(COLUMNAR_MEMORY_UNTRACKED.key, COLUMNAR_MEMORY_UNTRACKED.defaultValue.get)
-    ) {
+    if (conf.get(COLUMNAR_MEMORY_UNTRACKED)) {
       // When untracked memory mode is enabled, off-heap mode is not strictly required to be
       // enabled. Skip the check.
       return
@@ -169,22 +160,17 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
   private def setPredefinedConfigs(conf: SparkConf): Unit = {
     // Spark SQL extensions
-    val extensionSeq =
-      SparkConfigUtil.getEntryValue(conf, SPARK_SESSION_EXTENSIONS).getOrElse(Seq.empty)
+    val extensionSeq = conf.get(SPARK_SESSION_EXTENSIONS).getOrElse(Seq.empty)
     if (!extensionSeq.toSet.contains(GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME)) {
       conf.set(
-        SPARK_SESSION_EXTENSIONS.key,
-        (extensionSeq :+ GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME).mkString(","))
+        SPARK_SESSION_EXTENSIONS,
+        extensionSeq :+ GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME)
     }
 
     // adaptive custom cost evaluator class
-    val enableGlutenCostEvaluator = conf.getBoolean(
-      GlutenConfig.COST_EVALUATOR_ENABLED.key,
-      GlutenConfig.COST_EVALUATOR_ENABLED.defaultValue.get)
+    val enableGlutenCostEvaluator = conf.get(GlutenConfig.COST_EVALUATOR_ENABLED)
     if (enableGlutenCostEvaluator) {
-      conf.set(
-        SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key,
-        classOf[GlutenCostEvaluator].getName)
+      conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS, classOf[GlutenCostEvaluator].getName)
     }
 
     // check memory off-heap enabled and size.
@@ -194,39 +180,33 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     val offHeapSize = conf.getSizeAsBytes(SPARK_OFFHEAP_SIZE_KEY)
 
     // Set off-heap size in bytes.
-    conf.set(COLUMNAR_OFFHEAP_SIZE_IN_BYTES.key, offHeapSize.toString)
+    conf.set(COLUMNAR_OFFHEAP_SIZE_IN_BYTES, offHeapSize)
 
     // Set off-heap size in bytes per task.
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)
-    conf.set(NUM_TASK_SLOTS_PER_EXECUTOR.key, taskSlots.toString)
+    conf.set(NUM_TASK_SLOTS_PER_EXECUTOR, taskSlots)
     val offHeapPerTask = offHeapSize / taskSlots
-    conf.set(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key, offHeapPerTask.toString)
+    conf.set(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES, offHeapPerTask)
 
     // Pessimistic off-heap sizes, with the assumption that all non-borrowable storage memory
     // determined by spark.memory.storageFraction was used.
     val fraction = 1.0d - conf.getDouble("spark.memory.storageFraction", 0.5d)
     val conservativeOffHeapPerTask = (offHeapSize * fraction).toLong / taskSlots
-    conf.set(
-      COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES.key,
-      conservativeOffHeapPerTask.toString)
+    conf.set(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES, conservativeOffHeapPerTask)
 
     // Disable vanilla columnar readers, to prevent columnar-to-columnar conversions.
     // FIXME: Do we still need this trick since
     //  https://github.com/apache/incubator-gluten/pull/1931 was merged?
-    if (
-      !conf.getBoolean(
-        VANILLA_VECTORIZED_READERS_ENABLED.key,
-        VANILLA_VECTORIZED_READERS_ENABLED.defaultValue.get)
-    ) {
+    if (!conf.get(VANILLA_VECTORIZED_READERS_ENABLED)) {
       // FIXME Hongze 22/12/06
       //  BatchScan.scala in shim was not always loaded by class loader.
       //  The file should be removed and the "ClassCastException" issue caused by
       //  spark.sql.<format>.enableVectorizedReader=true should be fixed in another way.
       //  Before the issue is fixed we force the use of vanilla row reader by using
       //  the following statement.
-      conf.set(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key, "false")
-      conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, "false")
-      conf.set(SQLConf.CACHE_VECTORIZED_READER_ENABLED.key, "false")
+      conf.set(SQLConf.PARQUET_VECTORIZED_READER_ENABLED, false)
+      conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED, false)
+      conf.set(SQLConf.CACHE_VECTORIZED_READER_ENABLED, false)
     }
   }
 }

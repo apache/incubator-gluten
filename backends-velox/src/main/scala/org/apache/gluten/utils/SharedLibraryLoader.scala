@@ -21,6 +21,7 @@ import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.jni.JniLibLoader
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SparkConfigUtil._
 
 import scala.sys.process._
 
@@ -30,9 +31,7 @@ trait SharedLibraryLoader {
 
 object SharedLibraryLoader {
   def load(conf: SparkConf, jni: JniLibLoader): Unit = {
-    val shouldLoad = conf.getBoolean(
-      GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR.key,
-      GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR.defaultValue.get)
+    val shouldLoad = conf.get(GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR)
     if (!shouldLoad) {
       return
     }
@@ -54,9 +53,9 @@ object SharedLibraryLoader {
   }
 
   private def find(conf: SparkConf): SharedLibraryLoader = {
-    val systemName = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS.key)
+    val systemName = conf.get(GlutenConfig.GLUTEN_LOAD_LIB_OS)
     val loader = if (systemName.isDefined) {
-      val systemVersion = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION.key)
+      val systemVersion = conf.get(GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION)
       if (systemVersion.isEmpty) {
         throw new GlutenException(
           s"${GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION.key} must be specified when specifies the " +
