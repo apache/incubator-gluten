@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.ListenerApi
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, GlutenCoreConfig}
 import org.apache.gluten.execution.CHBroadcastBuildSideCache
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
@@ -102,8 +102,8 @@ class CHListenerApi extends ListenerApi with Logging {
 
     // add memory limit for external sort
     if (conf.get(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT) <= 0) {
-      if (conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, defaultValue = false)) {
-        val memSize = conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, 0)
+      if (conf.getBoolean(GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY, defaultValue = false)) {
+        val memSize = conf.getSizeAsBytes(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY, 0)
         if (memSize > 0L) {
           val cores = conf.getInt("spark.executor.cores", 1).toLong
           val sortMemLimit = ((memSize / cores) * 0.8).toLong
