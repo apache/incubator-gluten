@@ -165,7 +165,11 @@ void VeloxBackend::init(
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
     velox::cudf_velox::registerCudf();
   }
+#endif
 
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURE
+  // Set the environment and the scala code will read the environment.
+  VELOX_CHECK_EQ(setenv("GLUTEN_ENABLE_ENHANCED_FEATURE", "true", 1), 0);
 #endif
 
   initJolFilesystem();
