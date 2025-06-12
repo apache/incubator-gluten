@@ -99,7 +99,8 @@ private object GlutenDriverPlugin extends Logging {
     ) {
       throw new GlutenException(
         s"Must set '${GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY}' to true " +
-          s"and set '${GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY}' to be greater than $minOffHeapSize")
+          s"and set '${GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY}' to be greater " +
+          s"than $minOffHeapSize")
     }
   }
 
