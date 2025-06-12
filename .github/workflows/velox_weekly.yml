@@ -134,7 +134,7 @@ jobs:
           sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
           # To avoid the prompt for region selection during installing tzdata.
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update && apt-get install -y sudo maven wget git
+          apt-get update && apt-get install -y sudo maven wget git curl
           if [ "${{ matrix.os }}" = "ubuntu:20.04" ]; then
             sudo apt install -y software-properties-common
             sudo add-apt-repository ppa:ubuntu-toolchain-r/test
