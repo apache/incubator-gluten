@@ -114,9 +114,7 @@ jobs:
       - name: build
         run: |
           dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
-          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-          mv apache-maven-3.8.8 /usr/lib/maven
+          $SETUP install_maven
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
           export MAVEN_HOME=/usr/lib/maven
           export PATH=${PATH}:${MAVEN_HOME}/bin:${JAVA_HOME}/bin
@@ -135,9 +133,7 @@ jobs:
       - name: build
         run: |
           dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
-          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-          mv apache-maven-3.8.8 /usr/lib/maven
+          $SETUP install_maven
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
           export MAVEN_HOME=/usr/lib/maven
           export PATH=${PATH}:${MAVEN_HOME}/bin:${JAVA_HOME}/bin
