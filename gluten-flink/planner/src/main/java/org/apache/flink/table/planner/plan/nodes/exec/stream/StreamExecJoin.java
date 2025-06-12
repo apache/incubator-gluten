@@ -250,7 +250,6 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             (io.github.zhztheplayer.velox4j.type.RowType)
                 LogicalTypeConverter.toVLType(getOutputType());
         rightInputType = Utils.substituteSameName(leftInputType, rightInputType, outputType);
-        List<String> inNames = Utils.getNamesFromRowType(leftInputEdge.getOutputType());
         List<FieldAccessTypedExpr> leftKeys =
             Utils.analyzeJoinKeys(leftInputType, leftJoinKey, leftUpsertKeys);
         List<FieldAccessTypedExpr> rightKeys =
@@ -258,7 +257,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         TypedExpr joinCondition = Utils.generateJoinEqualCondition(leftKeys, rightKeys);
         RexNode condition = joinSpec.getNonEquiCondition().orElse(null);
         if (condition != null) {
-          RexConversionContext conversionContext = new RexConversionContext(inNames);
+          RexConversionContext conversionContext = new RexConversionContext(outputType.getNames());
           TypedExpr nonEqual = RexNodeConverter.toTypedExpr(condition, conversionContext);
           joinCondition =
               joinCondition == null
@@ -291,8 +290,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 PlanNodeIdGenerator.newId(),
                 Utils.toVLJoinType(joinType),
                 joinCondition,
-                new EmptyNode(leftInputType),
                 new EmptyNode(rightInputType),
+                new EmptyNode(leftInputType),
                 outputType);
         PlanNode join =
             new StreamJoinNode(
