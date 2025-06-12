@@ -77,6 +77,11 @@ public class NexmarkQ0Test {
     String insertQuery = sqlStatements[1].trim();
     TableResult insertResult = tEnv.executeSql(insertQuery);
     assertThat(insertResult.getJobClient().isPresent()).isTrue();
+    try {
+      Thread.sleep(100000);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   private String readSqlFromFile(String fileName) {
