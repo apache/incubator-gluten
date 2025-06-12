@@ -179,15 +179,20 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
               ? "json"
               : "raw";
       Map<String, String> kafkaTableParameters = new HashMap<String, String>();
+      for (String key : properties.stringPropertyNames()) {
+        kafkaTableParameters.put(key, properties.getProperty(key));
+      }
       kafkaTableParameters.put("topic", topic);
       kafkaTableParameters.put("format", format);
       kafkaTableParameters.put("scan.startup.mode", startupMode);
       kafkaTableParameters.put(
+          "enable.auto.commit",
+          context.getStreamGraph().getCheckpointConfig().isCheckpointingEnabled()
+              ? "false"
+              : "true");
+      kafkaTableParameters.put(
           "client.id",
-          properties.getProperty("client.id.prefix", "connector-kafka-") + UUID.randomUUID());
-      for (String key : properties.stringPropertyNames()) {
-        kafkaTableParameters.put(key, properties.getProperty(key));
-      }
+          properties.getProperty("client.id.prefix", "connector-kafka") + "-" + UUID.randomUUID());
       KafkaTableHandle kafkaTableHandle =
           new KafkaTableHandle(
               connectorId,
