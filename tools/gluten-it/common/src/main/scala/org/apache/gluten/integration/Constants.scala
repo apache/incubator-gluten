@@ -167,6 +167,7 @@ object Constants {
       override def modValue(from: Any): Any = {
         from match {
           case v: java.math.BigDecimal => v.doubleValue()
+          case v: scala.math.BigDecimal => v.doubleValue()
         }
       }
     }
