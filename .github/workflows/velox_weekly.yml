@@ -106,6 +106,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "openeuler/openeuler:24.03" ]
+        spark: [ "spark-3.5" ]
+        java: [ "java-8" ]
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-24.04-arm
     container: ${{ matrix.os }}
@@ -137,6 +139,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "openeuler/openeuler:24.03" ]
+        spark: [ "spark-3.5" ]
+        java: [ "java-8" ]
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-24.04-arm
     container: ${{ matrix.os }}
