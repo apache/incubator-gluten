@@ -14,8 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.source;
+package org.apache.gluten.spark34.sql;
 
-import org.apache.iceberg.spark.source.TestDataFrameWriterV2;
+import org.apache.iceberg.spark.sql.TestTimestampWithoutZone;
 
-public class GlutenTestDataFrameWriterV2 extends TestDataFrameWriterV2 {}
+import java.util.Map;
+
+public class TestGlutenTimestampWithoutZone extends TestTimestampWithoutZone {
+  public TestGlutenTimestampWithoutZone(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
+}

@@ -14,14 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.sql;
-
-import org.apache.iceberg.spark.sql.TestPartitionedWritesToWapBranch;
+package org.apache.gluten.spark34.extensions;
 
 import java.util.Map;
 
-public class GlutenTestPartitionedWritesToWapBranch extends TestPartitionedWritesToWapBranch {
-  public GlutenTestPartitionedWritesToWapBranch(
+public class TestGlutenSystemFunctionPushDownInRowLevelOperations
+    extends TestGlutenSystemFunctionPushDownDQL {
+  public TestGlutenSystemFunctionPushDownInRowLevelOperations(
       String catalogName, String implementation, Map<String, String> config) {
     super(catalogName, implementation, config);
   }

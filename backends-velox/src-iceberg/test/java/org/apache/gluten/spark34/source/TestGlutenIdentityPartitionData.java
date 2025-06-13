@@ -16,11 +16,12 @@
  */
 package org.apache.gluten.spark34.source;
 
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.spark.source.TestDataFrameWriterV2Coercion;
+import org.apache.iceberg.PlanningMode;
+import org.apache.iceberg.spark.source.TestIdentityPartitionData;
 
-public class GlutenTestDataFrameWriterV2Coercion extends TestDataFrameWriterV2Coercion {
-  public GlutenTestDataFrameWriterV2Coercion(FileFormat format, String dataType) {
-    super(format, dataType);
+public class TestGlutenIdentityPartitionData extends TestIdentityPartitionData {
+  public TestGlutenIdentityPartitionData(
+      String format, boolean vectorized, PlanningMode planningMode) {
+    super(format, vectorized, planningMode);
   }
 }

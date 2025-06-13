@@ -14,13 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.source;
+package org.apache.gluten.spark34.sql;
 
-import org.apache.iceberg.PlanningMode;
-import org.apache.iceberg.spark.source.TestRuntimeFiltering;
+import org.apache.iceberg.spark.sql.TestSelect;
 
-public class GlutenTestRuntimeFiltering extends TestRuntimeFiltering {
-  public GlutenTestRuntimeFiltering(PlanningMode planningMode) {
-    super(planningMode);
+import java.util.Map;
+
+public class TestGlutenSelect extends TestSelect {
+  public TestGlutenSelect(String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
   }
 }

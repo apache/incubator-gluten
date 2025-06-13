@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.sql;
+package org.apache.gluten.spark34.source;
 
-import org.apache.iceberg.spark.sql.TestDeleteFrom;
+import org.apache.iceberg.spark.source.TestSparkStagedScan;
 
 import java.util.Map;
 
-public class GlutenTestDeleteFrom extends TestDeleteFrom {
-  public GlutenTestDeleteFrom(
+public class TestGlutenSparkStagedScan extends TestSparkStagedScan {
+  public TestGlutenSparkStagedScan(
       String catalogName, String implementation, Map<String, String> config) {
     super(catalogName, implementation, config);
   }

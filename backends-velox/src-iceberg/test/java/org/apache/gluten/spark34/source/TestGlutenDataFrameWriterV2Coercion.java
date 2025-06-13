@@ -16,7 +16,11 @@
  */
 package org.apache.gluten.spark34.source;
 
-import org.apache.iceberg.spark.source.TestIcebergSourceHiveTables;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.spark.source.TestDataFrameWriterV2Coercion;
 
-// Fallback all the table scan because source table is metadata table with format avro.
-public class GlutenTestIcebergSourceHiveTables extends TestIcebergSourceHiveTables {}
+public class TestGlutenDataFrameWriterV2Coercion extends TestDataFrameWriterV2Coercion {
+  public TestGlutenDataFrameWriterV2Coercion(FileFormat format, String dataType) {
+    super(format, dataType);
+  }
+}

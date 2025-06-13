@@ -17,14 +17,13 @@
 package org.apache.gluten.spark34.extensions;
 
 import org.apache.iceberg.PlanningMode;
-import org.apache.iceberg.spark.extensions.TestMergeOnReadUpdate;
+import org.apache.iceberg.spark.extensions.TestMergeOnReadMerge;
 import org.junit.Test;
 
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
-public class GlutenTestMergeOnReadUpdate extends TestMergeOnReadUpdate {
-  public GlutenTestMergeOnReadUpdate(
+public class TestGlutenMergeOnReadMerge extends TestMergeOnReadMerge {
+  public TestGlutenMergeOnReadMerge(
       String catalogName,
       String implementation,
       Map<String, String> config,
@@ -47,17 +46,17 @@ public class GlutenTestMergeOnReadUpdate extends TestMergeOnReadUpdate {
   }
 
   @Test
-  public synchronized void testUpdateWithConcurrentTableRefresh() {
+  public synchronized void testMergeWithConcurrentTableRefresh() {
     System.out.println("Run timeout");
   }
 
   @Test
-  public synchronized void testUpdateWithSerializableIsolation() {
+  public synchronized void testMergeWithSerializableIsolation() {
     System.out.println("Run timeout");
   }
 
   @Test
-  public synchronized void testUpdateWithSnapshotIsolation() throws ExecutionException {
+  public synchronized void testMergeWithSnapshotIsolation() {
     System.out.println("Run timeout");
   }
 }

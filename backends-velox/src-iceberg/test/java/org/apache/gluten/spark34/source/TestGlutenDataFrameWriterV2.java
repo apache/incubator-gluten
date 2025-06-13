@@ -16,6 +16,6 @@
  */
 package org.apache.gluten.spark34.source;
 
-import org.apache.iceberg.spark.source.TestDataSourceOptions;
+import org.apache.iceberg.spark.source.TestDataFrameWriterV2;
 
-public class GlutenTestDataSourceOptions extends TestDataSourceOptions {}
+public class TestGlutenDataFrameWriterV2 extends TestDataFrameWriterV2 {}
