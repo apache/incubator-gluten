@@ -117,8 +117,20 @@ jobs:
           $SETUP install_maven
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
           export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin:${JAVA_HOME}/bin
+          export PATH=${MAVEN_HOME}/bin:${JAVA_HOME}/bin:${PATH}
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+      - name: Build gluten-it
+        run: |
+          cd $GITHUB_WORKSPACE/
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+      - name: Run TPC-H
+        run: |
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+            --extra-conf=spark.gluten.loadLibFromJar=true
 
   build-on-openeuler-vcpkg:
     strategy:
@@ -136,56 +148,13 @@ jobs:
           $SETUP install_maven
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
           export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin:${JAVA_HOME}/bin
+          export PATH=${MAVEN_HOME}/bin:${JAVA_HOME}/bin:${PATH}
           export VCPKG_PATH=/var/cache/vcpkg
           export VCPKG_BINARY_SOURCES="clear;files,${VCPKG_PATH},readwrite"
           cd $GITHUB_WORKSPACE/ 
           ./dev/vcpkg/setup-build-depends.sh
           mkdir -p ${VCPKG_PATH}
           sed -i 's/--build_arrow=OFF/--build_arrow=ON/' dev/package-vcpkg.sh && ./dev/package-vcpkg.sh
-          mkdir -p $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
-          cp -r /root/.m2/repository/org/apache/arrow/* $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: velox-native-lib-openeuler-24-${{github.sha}}
-          path: ./cpp/build/releases/
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: arrow-jars-openeuler-24-${{github.sha}}
-          path: .m2/repository/org/apache/arrow/
-          if-no-files-found: error
-
-  tpc-test-openeuler:
-    needs: build-on-openeuler-vcpkg
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ "openeuler/openeuler:24.03" ]
-        spark: [ "spark-3.5" ]
-        java: [ "java-8" ]
-    if: ${{ startsWith(github.repository, 'apache/') }}
-    runs-on: ubuntu-24.04-arm
-    container: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download All Native Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: velox-native-lib-openeuler-24-${{github.sha}}
-          path: ./cpp/build/releases/
-      - name: Download All Arrow Jar Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-openeuler-24-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
-        run: |
-          dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
-          $SETUP install_maven
-      - name: Set environment variables
-        run: |
-          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
       - name: Build gluten-it
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
