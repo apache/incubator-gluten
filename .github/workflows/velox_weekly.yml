@@ -121,14 +121,19 @@ jobs:
           export MAVEN_HOME=/usr/lib/maven
           export PATH=${MAVEN_HOME}/bin:${JAVA_HOME}/bin:${PATH}
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+      - name: Set environment variables
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
       - name: Build gluten-it
         run: |
+          echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H
         run: |
+          echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -159,6 +164,9 @@ jobs:
           ./dev/vcpkg/setup-build-depends.sh
           mkdir -p ${VCPKG_PATH}
           sed -i 's/--build_arrow=OFF/--build_arrow=ON/' dev/package-vcpkg.sh && ./dev/package-vcpkg.sh
+      - name: Set environment variables
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
       - name: Build gluten-it
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
