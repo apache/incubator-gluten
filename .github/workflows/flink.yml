@@ -46,6 +46,10 @@ jobs:
           cd velox4j && git reset --hard c069ca63aa3a200b49199f7dfa285f011ce6fda5
           git apply $GITHUB_WORKSPACE/gluten-flink/patches/fix-velox4j.patch
           mvn clean install -DskipTests -Dspotless.skip=true
+          cd ..
+          git clone https://github.com/nexmark/nexmark.git
+          cd nexmark
+          mvn clean install -DskipTests
       - name: Build Gluten Flink
         run: |
           cd $GITHUB_WORKSPACE/gluten-flink
