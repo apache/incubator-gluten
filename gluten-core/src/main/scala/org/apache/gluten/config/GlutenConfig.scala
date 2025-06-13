@@ -117,6 +117,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableExtendedColumnPruning: Boolean =
     getConf(ENABLE_EXTENDED_COLUMN_PRUNING)
 
+  def enableEnhancedFeature(): Boolean =
+    System.getenv().getOrDefault("GLUTEN_ENABLE_ENHANCED_FEATURE", "false").toBoolean
+
   def forceOrcCharTypeScanFallbackEnabled: Boolean =
     getConf(VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
 

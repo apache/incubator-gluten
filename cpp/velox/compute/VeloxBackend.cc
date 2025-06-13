@@ -165,7 +165,6 @@ void VeloxBackend::init(
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
     velox::cudf_velox::registerCudf();
   }
-
 #endif
 
   initJolFilesystem();

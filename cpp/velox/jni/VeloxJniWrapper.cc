@@ -495,6 +495,16 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_stop( 
   JNI_METHOD_END()
 }
 
+JNIEXPORT jboolean JNICALL Java_org_apache_gluten_jni_ConfigJniWrapper_isEnhancedFeatureEnabled( // NOLINT
+      JNIEnv* env,
+      jclass) {
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURE
+  return true;
+#else
+  return false;
+#endif
+}
+
 #ifdef __cplusplus
 }
 #endif
