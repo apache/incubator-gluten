@@ -137,7 +137,8 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.loadLibFromJar=true
+            --extra-conf=spark.gluten.loadLibFromJar=true \
+            --extra-conf=spark.gluten.loadLibOS=openEuler --extra-conf=spark.gluten.loadLibOSVersion=24.03
 
   build-on-openeuler-vcpkg:
     strategy:

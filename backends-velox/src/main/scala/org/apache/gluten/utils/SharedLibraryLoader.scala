@@ -126,7 +126,7 @@ object SharedLibraryLoader {
     } else {
       throw new GlutenException(
         s"Found unsupported OS($systemName, $systemVersion)! Currently, Gluten's Velox backend" +
-          " only supports Ubuntu 20.04/22.04, CentOS 7/8, Oracle 7/8" +
+          " only supports Ubuntu 20.04/22.04, CentOS 7/8, Oracle 7/8, openEuler 24.03 " +
           "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 2.4/3.2, RedHat 7/8, " +
           "Debian 11/12.")
     }
