@@ -957,6 +957,19 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Independent Batched Python UDFs and Scalar Pandas UDFs should be combined separately")
     .exclude("Dependent Batched Python UDFs and Scalar Pandas UDFs should not be combined")
     .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V2")
+  enableSuite[GlutenExplainSuite]
+    // Rewritten for native plans
+    .exclude("SPARK-33853: explain codegen - check presence of subquery")
+    .exclude("explain formatted - check presence of subquery in case of DPP")
+    .exclude("Support ExplainMode in Dataset.explain")
+    .exclude("SPARK-31504: Output fields in formatted Explain should have determined order")
+  enableSuite[GlutenExplainSuiteAE]
+    // Rewritten for native plans
+    .exclude("SPARK-35884: Explain Formatted")
+    .exclude("SPARK-35884: Explain formatted with subquery")
+    .exclude("SPARK-38232: Explain formatted does not collect subqueries under query stage in AQE")
+    .exclude("SPARK-38322: Support query stage show runtime statistics in formatted explain mode")
+    .exclude("SPARK-36795: Node IDs should not be duplicated when InMemoryRelation present")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
