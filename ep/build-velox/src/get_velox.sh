@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/wecharyu/velox.git
-VELOX_BRANCH=support_to_json
+VELOX_BRANCH=oap_to_json
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
 
