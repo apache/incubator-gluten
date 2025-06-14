@@ -179,12 +179,17 @@ class LocalPartitionWriter::LocalSpiller {
 
 class LocalPartitionWriter::PayloadMerger {
  public:
-  PayloadMerger(const PartitionWriterOptions& options, arrow::MemoryPool* pool, arrow::util::Codec* codec)
+  PayloadMerger(
+      arrow::MemoryPool* pool,
+      arrow::util::Codec* codec,
+      int32_t compressionThreshold,
+      int32_t mergeBufferSize,
+      int32_t mergeBufferMinSize)
       : pool_(pool),
         codec_(codec),
-        compressionThreshold_(options.compressionThreshold),
-        mergeBufferSize_(options.mergeBufferSize),
-        mergeBufferMinSize_(options.mergeBufferSize * options.mergeThreshold) {}
+        compressionThreshold_(compressionThreshold),
+        mergeBufferSize_(mergeBufferSize),
+        mergeBufferMinSize_(mergeBufferMinSize) {}
 
   arrow::Result<std::vector<std::unique_ptr<InMemoryPayload>>>
   merge(uint32_t partitionId, std::unique_ptr<InMemoryPayload> append, bool reuseBuffers) {
@@ -413,17 +418,21 @@ class LocalPartitionWriter::PayloadCache {
 
 LocalPartitionWriter::LocalPartitionWriter(
     uint32_t numPartitions,
-    PartitionWriterOptions options,
+    std::unique_ptr<arrow::util::Codec> codec,
     MemoryManager* memoryManager,
+    const std::shared_ptr<LocalPartitionWriterOptions>& options,
     const std::string& dataFile,
-    const std::vector<std::string>& localDirs)
-    : PartitionWriter(numPartitions, std::move(options), memoryManager), dataFile_(dataFile), localDirs_(localDirs) {
+    std::vector<std::string> localDirs)
+    : PartitionWriter(numPartitions, std::move(codec), memoryManager),
+      options_(options),
+      dataFile_(dataFile),
+      localDirs_(std::move(localDirs)) {
   init();
 }
 
 std::string LocalPartitionWriter::nextSpilledFileDir() {
   auto spilledFileDir = getShuffleSpillDir(localDirs_[dirSelection_], subDirSelection_[dirSelection_]);
-  subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % options_.numSubDirs;
+  subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % options_->numSubDirs;
   dirSelection_ = (dirSelection_ + 1) % localDirs_.size();
   return spilledFileDir;
 }
@@ -436,6 +445,9 @@ arrow::Status LocalPartitionWriter::clearResource() {
 }
 
 void LocalPartitionWriter::init() {
+  GLUTEN_CHECK(!dataFile_.empty(), "Shuffle data file path is not configured.");
+  GLUTEN_CHECK(!localDirs_.empty(), "Shuffle local directories can not be empty.");
+
   partitionLengths_.resize(numPartitions_, 0);
   rawPartitionLengths_.resize(numPartitions_, 0);
 
@@ -454,7 +466,7 @@ arrow::Result<int64_t> LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
   for (const auto& spill : spills_) {
     ARROW_ASSIGN_OR_RAISE(auto startPos, dataFileOs_->Tell());
 
-    spill->openForRead(options_.shuffleFileBufferSize);
+    spill->openForRead(options_->shuffleFileBufferSize);
 
     // Read if partition exists in the spilled file. Then write to the final data file.
     while (auto payload = spill->nextPayload(partitionId)) {
@@ -509,7 +521,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
         if (maybeMerged.has_value()) {
           if (!payloadCache_) {
             payloadCache_ = std::make_shared<PayloadCache>(
-                numPartitions_, codec_.get(), options_.compressionThreshold, payloadPool_.get());
+                numPartitions_, codec_.get(), options_->compressionThreshold, payloadPool_.get());
           }
           // Spill can be triggered by compressing or building dictionaries.
           RETURN_NOT_OK(payloadCache_->cache(pid, std::move(maybeMerged.value())));
@@ -519,7 +531,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
       merger_.reset();
     }
 
-    ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_.shuffleFileBufferSize));
+    ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_->shuffleFileBufferSize));
 
     int64_t endInFinalFile = 0;
     DLOG(INFO) << "LocalPartitionWriter stopped. Total spills: " << spills_.size();
@@ -570,16 +582,16 @@ arrow::Status LocalPartitionWriter::requestSpill(bool isFinal) {
     std::shared_ptr<arrow::io::OutputStream> os;
     if (isFinal) {
       // If `spill()` is requested after `stop()`, open the final data file for writing.
-      ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_.shuffleFileBufferSize));
+      ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_->shuffleFileBufferSize));
       spillFile = dataFile_;
       os = dataFileOs_;
       useSpillFileAsDataFile_ = true;
     } else {
       ARROW_ASSIGN_OR_RAISE(spillFile, createTempShuffleFile(nextSpilledFileDir()));
-      ARROW_ASSIGN_OR_RAISE(os, openFile(spillFile, options_.shuffleFileBufferSize));
+      ARROW_ASSIGN_OR_RAISE(os, openFile(spillFile, options_->shuffleFileBufferSize));
     }
     spiller_ = std::make_unique<LocalSpiller>(
-        isFinal, os, std::move(spillFile), options_.compressionBufferSize, payloadPool_.get(), codec_.get());
+        isFinal, os, std::move(spillFile), options_->compressionBufferSize, payloadPool_.get(), codec_.get());
   }
   return arrow::Status::OK();
 }
@@ -603,7 +615,7 @@ arrow::Status LocalPartitionWriter::hashEvict(
   if (evictType == Evict::kSpill) {
     RETURN_NOT_OK(requestSpill(false));
 
-    auto shouldCompress = codec_ != nullptr && inMemoryPayload->numRows() >= options_.compressionThreshold;
+    auto shouldCompress = codec_ != nullptr && inMemoryPayload->numRows() >= options_->compressionThreshold;
     ARROW_ASSIGN_OR_RAISE(
         auto payload,
         inMemoryPayload->toBlockPayload(
@@ -614,13 +626,18 @@ arrow::Status LocalPartitionWriter::hashEvict(
   }
 
   if (!merger_) {
-    merger_ = std::make_shared<PayloadMerger>(options_, payloadPool_.get(), codec_.get());
+    merger_ = std::make_shared<PayloadMerger>(
+        payloadPool_.get(),
+        codec_.get(),
+        options_->compressionThreshold,
+        options_->mergeBufferSize,
+        options_->mergeBufferSize * options_->mergeThreshold);
   }
   ARROW_ASSIGN_OR_RAISE(auto merged, merger_->merge(partitionId, std::move(inMemoryPayload), reuseBuffers));
   if (!merged.empty()) {
     if (UNLIKELY(!payloadCache_)) {
       payloadCache_ = std::make_shared<PayloadCache>(
-          numPartitions_, codec_.get(), options_.compressionThreshold, payloadPool_.get());
+          numPartitions_, codec_.get(), options_->compressionThreshold, payloadPool_.get());
     }
     for (auto& payload : merged) {
       RETURN_NOT_OK(payloadCache_->cache(partitionId, std::move(payload)));
@@ -674,7 +691,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
     ARROW_ASSIGN_OR_RAISE(
         spills_.back(),
         payloadCache_->spill(
-            spillFile, payloadPool_.get(), codec_.get(), options_.shuffleFileBufferSize, totalBytesToEvict_));
+            spillFile, payloadPool_.get(), codec_.get(), options_->shuffleFileBufferSize, totalBytesToEvict_));
 
     reclaimed += beforeSpill - payloadPool_->bytes_allocated();
 
@@ -697,7 +714,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
 
         RETURN_NOT_OK(requestSpill(false));
 
-        bool shouldCompress = codec_ != nullptr && merged->numRows() >= options_.compressionThreshold;
+        bool shouldCompress = codec_ != nullptr && merged->numRows() >= options_->compressionThreshold;
         ARROW_ASSIGN_OR_RAISE(
             auto payload,
             merged->toBlockPayload(

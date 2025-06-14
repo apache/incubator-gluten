@@ -79,9 +79,9 @@ class DummyRuntime final : public Runtime {
     throw GlutenException("Not yet implemented");
   }
   std::shared_ptr<ShuffleWriter> createShuffleWriter(
-      int numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions) override {
+      int32_t numPartitions,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>&) override {
     throw GlutenException("Not yet implemented");
   }
   Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
