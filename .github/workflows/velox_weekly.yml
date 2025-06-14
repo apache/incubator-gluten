@@ -121,6 +121,7 @@ jobs:
           export MAVEN_HOME=/usr/lib/maven
           export PATH=${MAVEN_HOME}/bin:${JAVA_HOME}/bin:${PATH}
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+          cp package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar /root/
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
@@ -135,6 +136,7 @@ jobs:
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
+          cp /root/gluten-thirdparty-lib-*.jar package/target/lib/
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
             --extra-conf=spark.gluten.loadLibFromJar=true \
