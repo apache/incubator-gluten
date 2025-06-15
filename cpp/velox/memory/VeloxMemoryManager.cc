@@ -24,6 +24,7 @@
 
 #include "velox/common/memory/MallocAllocator.h"
 #include "velox/common/memory/MemoryPool.h"
+#include "velox/common/process/StackTrace.h"
 #include "velox/exec/MemoryReclaimer.h"
 
 #include "config/VeloxConfig.h"
@@ -171,6 +172,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     try {
       listener_->allocationChanged(neededBytes);
     } catch (const std::exception&) {
+       VLOG(2) << "ListenableArbitrator growCapacityInternal failed, stacktrace: "
+               << velox::process::StackTrace().toString();
       // if allocationChanged failed, we need to free the reclaimed bytes
       listener_->allocationChanged(-reclaimedFreeBytes);
       std::rethrow_exception(std::current_exception());
