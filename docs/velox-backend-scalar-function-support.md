@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 240 functions and partially supports 19 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 270 functions and partially supports 11 functions.**
 
 ## Array Functions
 
@@ -26,7 +26,7 @@
 | arrays_zip        | ArraysZip           | S        |                |
 | flatten           | Flatten             | S        |                |
 | get               | Get                 | S        |                |
-| sequence          | Sequence            |          |                |
+| sequence          | Sequence            | S        |                |
 | shuffle           | Shuffle             | S        |                |
 | slice             | Slice               | S        |                |
 | sort_array        | SortArray           | S        |                |
@@ -41,7 +41,7 @@
 | bit_get            | BitwiseGet          | S        |                |
 | getbit             | BitwiseGet          | S        |                |
 | shiftright         | ShiftRight          | S        |                |
-| shiftrightunsigned | ShiftRightUnsigned  |          |                |
+| shiftrightunsigned | ShiftRightUnsigned  | S        |                |
 | &#124;             | BitwiseOr           | S        |                |
 | ~                  | BitwiseNot          | S        |                |
 
@@ -133,7 +133,7 @@
 | make_ym_interval    | MakeYMInterval                       | S        |                |
 | minute              | Minute                               | S        |                |
 | month               | Month                                | S        |                |
-| months_between      | MonthsBetween                        |          |                |
+| months_between      | MonthsBetween                        | S        |                |
 | next_day            | NextDay                              | S        |                |
 | now                 | Now                                  |          |                |
 | quarter             | Quarter                              | S        |                |
@@ -141,14 +141,14 @@
 | session_window      | SessionWindow                        |          |                |
 | timestamp_micros    | MicrosToTimestamp                    | S        |                |
 | timestamp_millis    | MillisToTimestamp                    | S        |                |
-| timestamp_seconds   | SecondsToTimestamp                   |          |                |
+| timestamp_seconds   | SecondsToTimestamp                   | S        |                |
 | to_date             | ParseToDate                          |          |                |
 | to_timestamp        | ParseToTimestamp                     |          |                |
 | to_timestamp_ltz    | ParseToTimestampLTZExpressionBuilder |          |                |
 | to_timestamp_ntz    | ParseToTimestampNTZExpressionBuilder |          |                |
-| to_unix_timestamp   | ToUnixTimestamp                      | PS       |                |
+| to_unix_timestamp   | ToUnixTimestamp                      | S        |                |
 | to_utc_timestamp    | ToUTCTimestamp                       | S        |                |
-| trunc               | TruncDate                            |          |                |
+| trunc               | TruncDate                            | S        |                |
 | try_to_timestamp    | TryToTimestampExpressionBuilder      |          |                |
 | unix_date           | UnixDate                             | S        |                |
 | unix_micros         | UnixMicros                           | S        |                |
@@ -183,7 +183,7 @@
 | json_object_keys  | JsonObjectKeys      | S        |                |
 | json_tuple        | JsonTuple           | S        |                |
 | schema_of_json    | SchemaOfJson        |          |                |
-| to_json           | StructsToJson       |          |                |
+| to_json           | StructsToJson       | S        |                |
 
 ## Lambda Functions
 
@@ -207,11 +207,11 @@
 | Spark Functions   | Spark Expressions   | Status   | Restrictions   |
 |-------------------|---------------------|----------|----------------|
 | element_at        | ElementAt           | S        |                |
-| map               | CreateMap           | PS       |                |
-| map_concat        | MapConcat           | PS       |                |
+| map               | CreateMap           | S        |                |
+| map_concat        | MapConcat           | S        |                |
 | map_contains_key  | MapContainsKey      | S        |                |
 | map_entries       | MapEntries          | S        |                |
-| map_from_arrays   | MapFromArrays       |          |                |
+| map_from_arrays   | MapFromArrays       | S        |                |
 | map_from_entries  | MapFromEntries      |          |                |
 | map_keys          | MapKeys             | S        |                |
 | map_values        | MapValues           | S        |                |
@@ -236,10 +236,10 @@
 | atan2             | Atan2                  | S        |                |
 | atanh             | Atanh                  | S        |                |
 | bin               | Bin                    | S        |                |
-| bround            | BRound                 |          |                |
+| bround            | BRound                 | S        |                |
 | cbrt              | Cbrt                   | S        |                |
-| ceil              | CeilExpressionBuilder  | PS       |                |
-| ceiling           | CeilExpressionBuilder  | PS       |                |
+| ceil              | CeilExpressionBuilder  |          |                |
+| ceiling           | CeilExpressionBuilder  |          |                |
 | conv              | Conv                   | S        |                |
 | cos               | Cos                    | S        |                |
 | cosh              | Cosh                   | S        |                |
@@ -251,12 +251,12 @@
 | exp               | Exp                    | S        |                |
 | expm1             | Expm1                  | S        |                |
 | factorial         | Factorial              | S        |                |
-| floor             | FloorExpressionBuilder | PS       |                |
+| floor             | FloorExpressionBuilder | S        |                |
 | greatest          | Greatest               | S        |                |
 | hex               | Hex                    | S        |                |
 | hypot             | Hypot                  | S        |                |
 | least             | Least                  | S        |                |
-| ln                | Log                    |          |                |
+| ln                | Log                    | S        |                |
 | log               | Logarithm              | S        |                |
 | log10             | Log10                  | S        |                |
 | log1p             | Log1p                  | S        |                |
@@ -268,7 +268,7 @@
 | positive          | UnaryPositive          | S        |                |
 | pow               | Pow                    | S        |                |
 | power             | Pow                    | S        |                |
-| radians           | ToRadians              |          |                |
+| radians           | ToRadians              | S        |                |
 | rand              | Rand                   | S        |                |
 | randn             | Randn                  |          |                |
 | random            | Rand                   | S        |                |
@@ -278,12 +278,12 @@
 | shiftleft         | ShiftLeft              | S        |                |
 | sign              | Signum                 | S        |                |
 | signum            | Signum                 | S        |                |
-| sin               | Sin                    |          |                |
+| sin               | Sin                    | S        |                |
 | sinh              | Sinh                   | S        |                |
 | sqrt              | Sqrt                   | S        |                |
-| tan               | Tan                    |          |                |
-| tanh              | Tanh                   |          |                |
-| try_add           | TryAdd                 | PS       |                |
+| tan               | Tan                    | S        |                |
+| tanh              | Tanh                   | S        |                |
+| try_add           | TryAdd                 |          |                |
 | try_divide        | TryDivide              |          |                |
 | try_multiply      | TryMultiply            |          |                |
 | try_subtract      | TrySubtract            |          |                |
@@ -339,7 +339,7 @@
 | between           |                     | S        |                        |
 | case              |                     | S        |                        |
 | ilike             | ILike               | S        |                        |
-| in                | In                  | PS       |                        |
+| in                | In                  | S        |                        |
 | isnan             | IsNaN               | S        |                        |
 | isnotnull         | IsNotNull           | S        |                        |
 | isnull            | IsNull              | S        |                        |
@@ -364,14 +364,14 @@
 | chr                | Chr                         | S        |                        |
 | concat_ws          | ConcatWs                    | S        |                        |
 | contains           | ContainsExpressionBuilder   | PS       | BinaryType unsupported |
-| decode             | Decode                      |          |                        |
-| elt                | Elt                         |          |                        |
-| encode             | Encode                      |          |                        |
+| decode             | Decode                      | S        |                        |
+| elt                | Elt                         | S        |                        |
+| encode             | Encode                      | S        |                        |
 | endswith           | EndsWithExpressionBuilder   | PS       | BinaryType unsupported |
 | find_in_set        | FindInSet                   | S        |                        |
 | format_number      | FormatNumber                |          |                        |
-| format_string      | FormatString                |          |                        |
-| initcap            | InitCap                     |          |                        |
+| format_string      | FormatString                | S        |                        |
+| initcap            | InitCap                     | S        |                        |
 | instr              | StringInstr                 | S        |                        |
 | lcase              | Lower                       | S        |                        |
 | left               | Left                        | S        |                        |
@@ -384,10 +384,10 @@
 | ltrim              | StringTrimLeft              | S        |                        |
 | luhn_check         | Luhncheck                   | S        |                        |
 | mask               | MaskExpressionBuilder       | S        |                        |
-| octet_length       | OctetLength                 |          |                        |
+| octet_length       | OctetLength                 | S        |                        |
 | overlay            | Overlay                     | S        |                        |
 | position           | StringLocate                | S        |                        |
-| printf             | FormatString                |          |                        |
+| printf             | FormatString                | S        |                        |
 | regexp_count       | RegExpCount                 |          |                        |
 | regexp_extract     | RegExpExtract               | PS       | Lookaround unsupported |
 | regexp_extract_all | RegExpExtractAll            | PS       | Lookaround unsupported |
@@ -401,12 +401,12 @@
 | rtrim              | StringTrimRight             | S        |                        |
 | sentences          | Sentences                   |          |                        |
 | soundex            | SoundEx                     | S        |                        |
-| space              | StringSpace                 |          |                        |
+| space              | StringSpace                 | S        |                        |
 | split              | StringSplit                 | S        |                        |
 | split_part         | SplitPart                   | S        |                        |
 | startswith         | StartsWithExpressionBuilder | PS       | BinaryType unsupported |
-| substr             | Substring                   | PS       |                        |
-| substring          | Substring                   | PS       |                        |
+| substr             | Substring                   | S        |                        |
+| substring          | Substring                   | S        |                        |
 | substring_index    | SubstringIndex              | S        |                        |
 | to_binary          | ToBinary                    |          |                        |
 | to_char            | ToCharacter                 |          |                        |
@@ -417,7 +417,7 @@
 | try_to_binary      | TryToBinary                 |          |                        |
 | try_to_number      | TryToNumber                 |          |                        |
 | ucase              | Upper                       | S        |                        |
-| unbase64           | UnBase64                    |          |                        |
+| unbase64           | UnBase64                    | S        |                        |
 | upper              | Upper                       | S        |                        |
 
 ## Struct Functions
@@ -431,7 +431,7 @@
 
 | Spark Functions   | Spark Expressions   | Status   | Restrictions   |
 |-------------------|---------------------|----------|----------------|
-| parse_url         | ParseUrl            |          |                |
+| parse_url         | ParseUrl            | S        |                |
 | url_decode        | UrlDecode           | S        |                |
 | url_encode        | UrlEncode           | S        |                |
 
