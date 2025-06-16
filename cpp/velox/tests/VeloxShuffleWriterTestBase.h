@@ -51,20 +51,6 @@ std::string makeString(uint32_t length) {
   }
   return res;
 }
-
-std::unique_ptr<PartitionWriter> createPartitionWriter(
-    PartitionWriterType partitionWriterType,
-    uint32_t numPartitions,
-    const std::string& dataFile,
-    const std::vector<std::string>& localDirs,
-    const PartitionWriterOptions& options) {
-  if (partitionWriterType == PartitionWriterType::kRss) {
-    auto rssClient = std::make_unique<LocalRssClient>(dataFile);
-    return std::make_unique<RssPartitionWriter>(
-        numPartitions, options, getDefaultMemoryManager(), std::move(rssClient));
-  }
-  return std::make_unique<LocalPartitionWriter>(numPartitions, options, getDefaultMemoryManager(), dataFile, localDirs);
-}
 } // namespace
 
 class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase {
@@ -235,12 +221,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
     return arrow::Status::OK();
   }
 
-  virtual std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) = 0;
-
   inline static TestAllocationListener* listener_{nullptr};
-
-  ShuffleWriterOptions shuffleWriterOptions_{};
-  PartitionWriterOptions partitionWriterOptions_{};
 
   std::vector<std::unique_ptr<arrow::internal::TemporaryDir>> tmpDirs_;
   std::string dataFile_;

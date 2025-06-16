@@ -106,9 +106,6 @@ abstract class CelebornColumnarShuffleWriter[K, V](
       .getOrElse(0)
   }
 
-  protected val bufferCompressThreshold: Int =
-    GlutenConfig.get.columnarShuffleCompressionThreshold
-
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
   // and then call stop() with success = false if they get an exception, we want to make sure
   // we don't try deleting files, etc twice.

@@ -55,10 +55,6 @@ int32_t ShuffleWriter::numPartitions() const {
   return numPartitions_;
 }
 
-ShuffleWriterOptions& ShuffleWriter::options() {
-  return options_;
-}
-
 int64_t ShuffleWriter::totalBytesWritten() const {
   return metrics_.totalBytesWritten;
 }
@@ -99,6 +95,6 @@ const std::vector<int64_t>& ShuffleWriter::rawPartitionLengths() const {
   return metrics_.rawPartitionLengths;
 }
 
-ShuffleWriter::ShuffleWriter(int32_t numPartitions, ShuffleWriterOptions options)
-    : numPartitions_(numPartitions), options_(std::move(options)) {}
+ShuffleWriter::ShuffleWriter(int32_t numPartitions, Partitioning partitioning)
+    : numPartitions_(numPartitions), partitioning_(partitioning) {}
 } // namespace gluten

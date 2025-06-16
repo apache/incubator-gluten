@@ -44,17 +44,18 @@
 #include "shuffle/Utils.h"
 
 #include "utils/Print.h"
+#include "utils/VeloxArrowUtils.h"
 
 namespace gluten {
 
-enum SortState { kSortInit, kSort, kSortStop };
+enum RssSortState { kSortInit, kSort, kSortStop };
 
 class VeloxRssSortShuffleWriter final : public VeloxShuffleWriter {
  public:
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options,
       MemoryManager* memoryManager);
 
   arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
@@ -68,22 +69,29 @@ class VeloxRssSortShuffleWriter final : public VeloxShuffleWriter {
  private:
   VeloxRssSortShuffleWriter(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<RssSortShuffleWriterOptions>& options,
       MemoryManager* memoryManager)
-      : VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), memoryManager) {}
+      : VeloxShuffleWriter(numPartitions, partitionWriter, options, memoryManager),
+        splitBufferSize_(options->splitBufferSize),
+        sortBufferMaxSize_(options->sortBufferMaxSize),
+        compressionKind_(arrowCompressionTypeToVelox(options->compressionType)) {}
 
   arrow::Status init();
 
   arrow::Status initFromRowVector(const facebook::velox::RowVector& rv);
 
-  void setSortState(SortState state);
+  void setSortState(RssSortState state);
 
   arrow::Status doSort(facebook::velox::RowVectorPtr rv, int64_t /* memLimit */);
 
   arrow::Status evictBatch(uint32_t partitionId);
 
   void stat() const;
+
+  int32_t splitBufferSize_;
+  int64_t sortBufferMaxSize_;
+  facebook::velox::common::CompressionKind compressionKind_;
 
   facebook::velox::RowTypePtr rowType_;
 
@@ -99,7 +107,7 @@ class VeloxRssSortShuffleWriter final : public VeloxShuffleWriter {
 
   uint32_t currentInputColumnBytes_ = 0;
 
-  SortState sortState_{kSortInit};
+  RssSortState sortState_{kSortInit};
   bool stopped_{false};
 }; // class VeloxSortBasedShuffleWriter
 

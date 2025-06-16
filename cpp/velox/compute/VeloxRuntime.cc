@@ -214,17 +214,12 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
 }
 
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
-    int numPartitions,
-    std::unique_ptr<PartitionWriter> partitionWriter,
-    ShuffleWriterOptions options) {
+    int32_t numPartitions,
+    const std::shared_ptr<PartitionWriter>& partitionWriter,
+    const std::shared_ptr<ShuffleWriterOptions>& options) {
   GLUTEN_ASSIGN_OR_THROW(
       std::shared_ptr<ShuffleWriter> shuffleWriter,
-      VeloxShuffleWriter::create(
-          options.shuffleWriterType,
-          numPartitions,
-          std::move(partitionWriter),
-          std::move(options),
-          memoryManager()));
+      VeloxShuffleWriter::create(options->shuffleWriterType, numPartitions, partitionWriter, options, memoryManager()));
   return shuffleWriter;
 }
 
