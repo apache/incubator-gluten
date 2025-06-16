@@ -102,8 +102,8 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
       Object generatorConfig =
           ReflectUtils.getObjectField(
               nexmarkSourceSplit.getClass(), nexmarkSourceSplit, "generatorConfig");
-      Integer maxEvents =
-          (Integer)
+      Long maxEvents =
+          (Long)
               ReflectUtils.getObjectField(generatorConfig.getClass(), generatorConfig, "maxEvents");
       StreamOperatorFactory<OUT> operatorFactory =
           SimpleOperatorFactory.of(
@@ -113,7 +113,11 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                           id, outputType, new NexmarkTableHandle("connector-nexmark"), List.of()),
                       outputType,
                       id,
-                      new NexmarkConnectorSplit("connector-nexmark", maxEvents))));
+                      new NexmarkConnectorSplit(
+                          "connector-nexmark",
+                          maxEvents > Integer.MAX_VALUE
+                              ? Integer.MAX_VALUE
+                              : maxEvents.intValue()))));
       streamGraph.addLegacySource(
           transformationId,
           slotSharingGroup,
