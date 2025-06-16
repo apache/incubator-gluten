@@ -107,6 +107,12 @@ case class IcebergScanTransformer(
       }
     }
 
+    val isSchemaReAdd = GlutenIcebergSourceUtil.isSchemaReAdd(scan)
+
+    if (isSchemaReAdd) {
+      return ValidationResult.failed("Contains re-added schema")
+    }
+
     ValidationResult.succeeded
   }
 
