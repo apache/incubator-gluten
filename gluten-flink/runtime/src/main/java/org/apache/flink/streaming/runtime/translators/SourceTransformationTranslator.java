@@ -20,6 +20,7 @@ import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
 import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
+import org.apache.gluten.util.ReflectUtils;
 
 import io.github.zhztheplayer.velox4j.connector.NexmarkConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.NexmarkTableHandle;
@@ -81,12 +82,17 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
     final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
     // --- Begin Gluten-specific code changes ---
-    if (transformation.getSource().getClass().getSimpleName().equals("NexmarkSource")) {
+    Class<?> sourceClazz = transformation.getSource().getClass();
+    if (sourceClazz.getSimpleName().equals("NexmarkSource")) {
       RowType outputType =
           (RowType)
               LogicalTypeConverter.toVLType(
                   ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
       String id = PlanNodeIdGenerator.newId();
+      Object nexmarkSource = transformation.getSource();
+      Object generatorConfig = ReflectUtils.getObjectField(sourceClazz, nexmarkSource, "config");
+      Object nexmarkConfig = ReflectUtils.getObjectField(generatorConfig.getClass(), generatorConfig, "configuration");
+      Integer numEvents = (Integer) ReflectUtils.getObjectField(nexmarkConfig.getClass(), nexmarkConfig, "numEvents");
       StreamOperatorFactory<OUT> operatorFactory =
           SimpleOperatorFactory.of(
               new GlutenStreamSource(
@@ -95,8 +101,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                           id, outputType, new NexmarkTableHandle("connector-nexmark"), List.of()),
                       outputType,
                       id,
-                      // TODO: should use config to get parameters
-                      new NexmarkConnectorSplit("connector-nexmark", 100000000))));
+                      new NexmarkConnectorSplit("connector-nexmark", numEvents))));
       streamGraph.addLegacySource(
           transformationId,
           slotSharingGroup,
