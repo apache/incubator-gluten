@@ -106,8 +106,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "openeuler/openeuler:24.03" ]
-        spark: [ "spark-3.5" ]
-        java: [ "java-8" ]
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-24.04-arm
     container: ${{ matrix.os }}
@@ -117,21 +115,16 @@ jobs:
         run: |
           dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
           $SETUP install_maven
-          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${MAVEN_HOME}/bin:${JAVA_HOME}/bin:${PATH}
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
           cp package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar /root/
-      - name: Set environment variables
-        run: |
-          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
       - name: Build gluten-it
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          $MVN_CMD clean install -Pspark-3.5 -Pjava-8 -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          $MVN_CMD clean install -Pspark-3.5 -Pjava-8
       - name: Run TPC-H
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
@@ -147,8 +140,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "openeuler/openeuler:24.03" ]
-        spark: [ "spark-3.5" ]
-        java: [ "java-8" ]
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-24.04-arm
     container: ${{ matrix.os }}
@@ -158,25 +149,20 @@ jobs:
         run: |
           dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
           $SETUP install_maven
-          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${MAVEN_HOME}/bin:${JAVA_HOME}/bin:${PATH}
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
           export VCPKG_PATH=/var/cache/vcpkg
           export VCPKG_BINARY_SOURCES="clear;files,${VCPKG_PATH},readwrite"
-          cd $GITHUB_WORKSPACE/ 
+          cd $GITHUB_WORKSPACE/
           ./dev/vcpkg/setup-build-depends.sh
           mkdir -p ${VCPKG_PATH}
-          sed -i 's/--build_arrow=OFF/--build_arrow=ON/' dev/package-vcpkg.sh && ./dev/package-vcpkg.sh
-      - name: Set environment variables
-        run: |
-          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
+          ./dev/package-vcpkg.sh --build_arrow=ON
       - name: Build gluten-it
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          $MVN_CMD clean install -Pspark-3.5 -Pjava-8 -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          $MVN_CMD clean install -Pspark-3.5 -Pjava-8
       - name: Run TPC-H
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
