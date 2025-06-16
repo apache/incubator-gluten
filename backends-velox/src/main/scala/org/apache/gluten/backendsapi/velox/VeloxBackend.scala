@@ -467,6 +467,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     allSupported
   }
 
+  // scalastyle:off classforname
   override def supportColumnarShuffleExec(): Boolean = {
     val conf = GlutenConfig.get
     conf.enableColumnarShuffle && (
@@ -475,6 +476,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
           Class.forName(SQLConf.get.getConfString("spark.shuffle.manager")))
     )
   }
+  // scalastyle:on classforname
 
   override def enableJoinKeysRewrite(): Boolean = false
 
