@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.adaptive
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.execution.SparkPlan
@@ -29,7 +29,7 @@ import org.apache.spark.util.{SparkVersionUtil, Utils}
  */
 case class GlutenCostEvaluator() extends CostEvaluator with SQLConfHelper {
   private val ltSpark33: Boolean = {
-    SparkVersionUtil.compareMajorMinorVersion(SparkVersionUtil.majorMinorVersion(), (3, 3)) < 0
+    SparkVersionUtil.compareMajorMinorVersion((3, 3)) < 0
   }
 
   private val vanillaCostEvaluator: CostEvaluator = {
@@ -46,7 +46,7 @@ case class GlutenCostEvaluator() extends CostEvaluator with SQLConfHelper {
   }
 
   override def evaluateCost(plan: SparkPlan): Cost = {
-    if (GlutenConfig.get.enableGluten) {
+    if (GlutenCoreConfig.get.enableGluten) {
       new GlutenCost(vanillaCostEvaluator, plan)
     } else {
       vanillaCostEvaluator.evaluateCost(plan)
