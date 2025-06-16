@@ -901,6 +901,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenInjectRuntimeFilterSuite]
     // FIXME: yan
     .includeCH("Merge runtime bloom filters")
+    .excludeGlutenTest("GLUTEN-9849: bloom filter applied to partition filter")
   enableSuite[GlutenInnerJoinSuiteForceShjOff]
     .excludeCH(
       "inner join, one match per row using ShuffledHashJoin (build=left) (whole-stage-codegen off)")
