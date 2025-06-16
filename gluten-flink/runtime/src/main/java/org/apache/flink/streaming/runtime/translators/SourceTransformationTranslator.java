@@ -96,7 +96,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                   sourceClazz,
                   nexmarkSource,
                   "getSplits",
-                  new Class<?>[] {Integer.class},
+                  new Class<?>[] {int.class},
                   new Object[] {transformation.getParallelism()});
       Object nexmarkSourceSplit = nexmarkSourceSplits.get(0);
       Object generatorConfig =
