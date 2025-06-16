@@ -126,8 +126,7 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* arrowPool);
+      MemoryManager* memoryManager);
 
   arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
 
@@ -194,9 +193,8 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* pool)
-      : VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), std::move(veloxPool), pool) {}
+      MemoryManager* memoryManager)
+      : VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), memoryManager) {}
 
   arrow::Status init();
 
@@ -302,21 +300,6 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
   bool isExtremelyLargeBatch(facebook::velox::RowVectorPtr& rv) const;
 
   arrow::Status partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit);
-
-  class PartitionBufferGuard {
-   public:
-    PartitionBufferGuard(std::optional<uint32_t>& partitionInUse, uint32_t partitionId)
-        : partitionBufferInUse_(partitionInUse) {
-      partitionBufferInUse_ = partitionId;
-    }
-
-    ~PartitionBufferGuard() {
-      partitionBufferInUse_ = std::nullopt;
-    }
-
-   private:
-    std::optional<uint32_t>& partitionBufferInUse_;
-  };
 
   std::shared_ptr<arrow::Schema> schema_;
 

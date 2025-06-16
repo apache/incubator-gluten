@@ -40,4 +40,9 @@ public class FP32TypeNode implements TypeNode, Serializable {
     builder.setFp32(doubleBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

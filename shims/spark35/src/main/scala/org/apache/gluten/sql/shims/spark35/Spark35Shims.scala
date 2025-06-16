@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.sql.shims.spark35
 
+import org.apache.gluten.execution.PartitionedFileUtilShim
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.SparkShims
 import org.apache.gluten.utils.ExceptionUtils
@@ -43,7 +44,6 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
@@ -65,7 +65,7 @@ import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap, Properties}
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -164,7 +164,7 @@ class Spark35Shims extends SparkShims {
   override def filesGroupedToBuckets(
       selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]] = {
     selectedPartitions
-      .flatMap(p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, p.values)))
+      .flatMap(p => p.files.map(f => PartitionedFileUtilShim.getPartitionedFile(f, p.values)))
       .groupBy {
         f =>
           BucketingUtils
@@ -351,10 +351,6 @@ class Spark35Shims extends SparkShims {
 
   override def enableNativeWriteFilesByDefault(): Boolean = true
 
-  override def createTestTaskContext(properties: Properties): TaskContext = {
-    TaskContextUtils.createTestTaskContext(properties)
-  }
-
   override def broadcastInternal[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
     SparkContextUtils.broadcastInternal(sc, value)
   }
@@ -430,7 +426,7 @@ class Spark35Shims extends SparkShims {
       maxSplitBytes: Long,
       partitionValues: InternalRow,
       metadata: Map[String, Any] = Map.empty): Seq[PartitionedFile] = {
-    PartitionedFileUtil.splitFiles(
+    PartitionedFileUtilShim.splitFiles(
       sparkSession,
       FileStatusWithMetadata(file, metadata),
       isSplitable,
@@ -578,8 +574,6 @@ class Spark35Shims extends SparkShims {
     }
   }
 
-  override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
-
   override def withTryEvalMode(expr: Expression): Boolean = {
     expr match {
       case a: Add => a.evalMode == EvalMode.TRY
@@ -607,10 +601,6 @@ class Spark35Shims extends SparkShims {
     csvOptions.dateFormatInRead == default.dateFormatInRead &&
     csvOptions.timestampFormatInRead == default.timestampFormatInRead &&
     csvOptions.timestampNTZFormatInRead == default.timestampNTZFormatInRead
-  }
-
-  override def isPlannedV1Write(write: DataWritingCommandExec): Boolean = {
-    write.cmd.isInstanceOf[V1WriteCommand] && SQLConf.get.plannedWriteEnabled
   }
 
   override def createParquetFilters(

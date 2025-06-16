@@ -61,7 +61,7 @@ DEFINE_bool(rss, false, "Mocking rss.");
 DEFINE_string(
     compression,
     "lz4",
-    "Specify the compression codec. Valid options are lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
+    "Specify the compression codec. Valid options are none, lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
 
 DEFINE_string(plan, "", "Path to input json file of the substrait plan.");
@@ -165,15 +165,13 @@ void cleanupLocalDirs(const std::vector<std::string>& localDirs) {
 
 PartitionWriterOptions createPartitionWriterOptions() {
   PartitionWriterOptions partitionWriterOptions{};
-  // Disable writer's merge.
-  partitionWriterOptions.mergeThreshold = 0;
 
   // Configure compression.
-  if (FLAGS_compression == "lz4") {
-    partitionWriterOptions.codecBackend = CodecBackend::NONE;
+  if (FLAGS_compression == "none") {
+    partitionWriterOptions.compressionType = arrow::Compression::UNCOMPRESSED;
+  } else if (FLAGS_compression == "lz4") {
     partitionWriterOptions.compressionType = arrow::Compression::LZ4_FRAME;
   } else if (FLAGS_compression == "zstd") {
-    partitionWriterOptions.codecBackend = CodecBackend::NONE;
     partitionWriterOptions.compressionType = arrow::Compression::ZSTD;
   } else if (FLAGS_compression == "qat_gzip") {
     partitionWriterOptions.codecBackend = CodecBackend::QAT;
@@ -197,17 +195,10 @@ std::unique_ptr<PartitionWriter> createPartitionWriter(
   if (FLAGS_rss) {
     auto rssClient = std::make_unique<LocalRssClient>(dataFile);
     partitionWriter = std::make_unique<RssPartitionWriter>(
-        FLAGS_shuffle_partitions,
-        std::move(options),
-        runtime->memoryManager()->getArrowMemoryPool(),
-        std::move(rssClient));
+        FLAGS_shuffle_partitions, std::move(options), runtime->memoryManager(), std::move(rssClient));
   } else {
     partitionWriter = std::make_unique<LocalPartitionWriter>(
-        FLAGS_shuffle_partitions,
-        std::move(options),
-        runtime->memoryManager()->getArrowMemoryPool(),
-        dataFile,
-        localDirs);
+        FLAGS_shuffle_partitions, std::move(options), runtime->memoryManager(), dataFile, localDirs);
   }
   return partitionWriter;
 }

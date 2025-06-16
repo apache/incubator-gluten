@@ -18,7 +18,6 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.backendsapi._
-import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.WriteFilesExecTransformer
@@ -72,15 +71,15 @@ object CHBackend {
   private class ConvFunc() extends ConventionFunc.Override {
     override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
       case a: AdaptiveSparkPlanExec if a.supportsColumnar =>
-        CHBatch
+        CHBatchType
     }
   }
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
-  override def primaryBatchType: Convention.BatchType = CHBatch
+  override def primaryBatchType: Convention.BatchType = CHBatchType
 
-  private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
+  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
 
   // experimental: when the files count per partition exceeds this threshold,

@@ -16,49 +16,15 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.logging.LogLevelUtil
-import org.apache.gluten.metrics.GlutenTimeMetric
-
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.{Rule, RuleExecutor}
-import org.apache.spark.sql.catalyst.util.sideBySide
 import org.apache.spark.sql.execution.SparkPlan
 
 class ColumnarRuleExecutor(phase: String, rules: Seq[Rule[SparkPlan]])
   extends RuleExecutor[SparkPlan] {
-  import ColumnarRuleExecutor._
-  private val batch: Batch =
-    Batch(s"Columnar (Phase [$phase])", Once, rules.map(r => new LoggedRule(r)): _*)
+  private val batch: Batch = Batch(s"Columnar (Phase [$phase])", Once, rules: _*)
 
   // TODO: Remove this exclusion then manage to pass Spark's idempotence check.
   override protected val excludedOnceBatches: Set[String] = Set(batch.name)
 
   override protected def batches: Seq[Batch] = Seq(batch)
-}
-
-object ColumnarRuleExecutor {
-  private class LoggedRule(delegate: Rule[SparkPlan])
-    extends Rule[SparkPlan]
-    with Logging
-    with LogLevelUtil {
-
-    override val ruleName: String = delegate.ruleName
-
-    private def message(oldPlan: SparkPlan, newPlan: SparkPlan, millisTime: Long): String =
-      if (!oldPlan.fastEquals(newPlan)) {
-        s"""
-           |=== Applying Rule $ruleName took $millisTime ms ===
-           |${sideBySide(oldPlan.treeString, newPlan.treeString).mkString("\n")}
-           """.stripMargin
-      } else {
-        s"Rule $ruleName has no effect, took $millisTime ms."
-      }
-
-    override def apply(plan: SparkPlan): SparkPlan = {
-      val (out, millisTime) = GlutenTimeMetric.recordMillisTime(delegate.apply(plan))
-      logOnLevel(GlutenConfig.get.transformPlanLogLevel, message(plan, out, millisTime))
-      out
-    }
-  }
 }

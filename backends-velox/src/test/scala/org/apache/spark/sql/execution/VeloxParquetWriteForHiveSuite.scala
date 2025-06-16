@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.UI.UI_ENABLED
@@ -23,7 +25,6 @@ import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
-import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.test.SQLTestUtils
@@ -100,7 +101,7 @@ class VeloxParquetWriteForHiveSuite
           nativeUsed = if (isSparkVersionGE("3.4")) {
             qe.executedPlan.find(_.isInstanceOf[ColumnarWriteFilesExec]).isDefined
           } else {
-            qe.executedPlan.find(_.isInstanceOf[FakeRowAdaptor]).isDefined
+            qe.executedPlan.find(_.isInstanceOf[VeloxColumnarToCarrierRowExec]).isDefined
           }
         }
       }
@@ -270,7 +271,7 @@ class VeloxParquetWriteForHiveSuite
     }
   }
 
-  test("bucket writer with non-dynamic partition should fallback") {
+  test("bucket writer with non-dynamic partition") {
     if (isSparkVersionGE("3.4")) {
       Seq("true", "false").foreach {
         enableConvertMetastore =>
@@ -292,7 +293,7 @@ class VeloxParquetWriteForHiveSuite
               // hive relation convert always use dynamic, so it will offload to native.
               checkNativeWrite(
                 s"INSERT INTO $target PARTITION(k='0') SELECT i, j FROM $source",
-                checkNative = enableConvertMetastore.toBoolean)
+                checkNative = true)
               val files = tableDir(target)
                 .listFiles()
                 .filterNot(f => f.getName.startsWith(".") || f.getName.startsWith("_"))
@@ -304,7 +305,7 @@ class VeloxParquetWriteForHiveSuite
     }
   }
 
-  test("bucket writer with non-partition table should fallback") {
+  test("bucket writer with non-partition table") {
     if (isSparkVersionGE("3.4")) {
       Seq("true", "false").foreach {
         enableConvertMetastore =>
@@ -322,7 +323,7 @@ class VeloxParquetWriteForHiveSuite
                 (0 until 50).map(i => (i % 13, i.toString)).toDF("i", "j")
               df.write.mode(SaveMode.Overwrite).saveAsTable(source)
 
-              checkNativeWrite(s"INSERT INTO $target SELECT i, j FROM $source", checkNative = false)
+              checkNativeWrite(s"INSERT INTO $target SELECT i, j FROM $source", checkNative = true)
 
               checkAnswer(spark.table(target), df)
             }

@@ -420,6 +420,13 @@ int64_t gluten::getBufferSize(const std::vector<std::shared_ptr<arrow::Buffer>>&
       });
 }
 
+int64_t gluten::getBufferCapacity(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
+  return std::accumulate(
+      std::cbegin(buffers), std::cend(buffers), 0LL, [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {
+        return buf == nullptr ? sum : sum + buf->capacity();
+      });
+}
+
 int64_t gluten::getMaxCompressedBufferSize(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     arrow::util::Codec* codec) {

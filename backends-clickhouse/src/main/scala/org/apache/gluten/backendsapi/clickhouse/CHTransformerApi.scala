@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.TransformerApi
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.execution.{CHHashAggregateExecTransformer, WriteFilesExecTransformer}
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.SubstraitContext
@@ -37,6 +38,7 @@ import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v1.Write
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
+import org.apache.spark.sql.internal.SparkConfigUtil
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
@@ -96,11 +98,10 @@ class CHTransformerApi extends TransformerApi with Logging {
       backendPrefix: String): Unit = {
 
     require(backendPrefix == CHConfig.CONF_PREFIX)
-    if (nativeConfMap.getOrDefault("spark.memory.offHeap.enabled", "false").toBoolean) {
-      val offHeapSize =
-        nativeConfMap.getOrDefault("spark.gluten.memory.offHeap.size.in.bytes", "0").toLong
+    if (nativeConfMap.getOrDefault(GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY, "false").toBoolean) {
+      val offHeapSize: Long =
+        SparkConfigUtil.get(nativeConfMap, GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
       if (offHeapSize > 0) {
-
         // Only set default max_bytes_before_external_group_by for CH when it is not set explicitly.
         val groupBySpillKey = CHConfig.runtimeSettings("max_bytes_before_external_group_by")
         if (!nativeConfMap.containsKey(groupBySpillKey)) {

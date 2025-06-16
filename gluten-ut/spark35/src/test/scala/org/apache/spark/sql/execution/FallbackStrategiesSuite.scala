@@ -37,7 +37,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   import FallbackStrategiesSuite._
 
   testGluten("Fall back the whole query if one unsupported") {
-    withSQLConf(("spark.gluten.sql.columnar.query.fallback.threshold", "1")) {
+    withSQLConf((GlutenConfig.COLUMNAR_QUERY_FALLBACK_THRESHOLD.key, "1")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = newRuleApplier(
         spark,
@@ -54,7 +54,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   }
 
   testGluten("Fall back the whole plan if meeting the configured threshold") {
-    withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "1")) {
+    withSQLConf((GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key, "1")) {
       CallerInfo.withLocalValue(isAqe = true, isCache = false) {
         val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
         val rule = newRuleApplier(
@@ -73,7 +73,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   }
 
   testGluten("Don't fall back the whole plan if NOT meeting the configured threshold") {
-    withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "4")) {
+    withSQLConf((GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key, "4")) {
       CallerInfo.withLocalValue(isAqe = true, isCache = false) {
         val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
         val rule = newRuleApplier(
@@ -94,7 +94,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   testGluten(
     "Fall back the whole plan if meeting the configured threshold (leaf node is" +
       " transformable)") {
-    withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "2")) {
+    withSQLConf((GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key, "2")) {
       CallerInfo.withLocalValue(isAqe = true, isCache = false) {
         val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
         val rule = newRuleApplier(
@@ -115,7 +115,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   testGluten(
     "Don't Fall back the whole plan if NOT meeting the configured threshold (" +
       "leaf node is transformable)") {
-    withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "3")) {
+    withSQLConf((GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key, "3")) {
       CallerInfo.withLocalValue(isAqe = true, isCache = false) {
         val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
         val rule = newRuleApplier(
@@ -190,7 +190,8 @@ private object FallbackStrategiesSuite {
         c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()),
         _ => ColumnarCollapseTransformStages(GlutenConfig.get)
       ),
-      List(_ => RemoveFallbackTagRule())
+      List(_ => RemoveFallbackTagRule()),
+      Nil
     )
   }
 

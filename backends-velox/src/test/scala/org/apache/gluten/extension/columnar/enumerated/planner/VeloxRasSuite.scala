@@ -22,8 +22,6 @@ import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
 import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.ras.Ras
-import org.apache.gluten.ras.RasSuiteBase._
-import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
@@ -78,9 +76,13 @@ class VeloxRasSuite extends SharedSparkSession {
         ColumnarUnary(RowToColumnarExec(
           RowUnary(RowUnary(ColumnarToRowExec(ColumnarUnary(RowToColumnarExec(RowUnary(RowUnary(
             ColumnarToRowExec(ColumnarUnary(RowToColumnarExec(RowLeaf(TRIVIAL_SCHEMA)))))))))))))))
-    val paths = planner.newState().memoState().collectAllPaths(RasPath.INF_DEPTH).toList
-    val pathCount = paths.size
-    assert(pathCount == 165)
+    val memoState = planner.newState().memoState()
+    val numClusters = memoState.allClusters().size
+    val numGroups = memoState.allGroups().size
+    val numNodes = memoState.allClusters().flatMap(_.nodes()).size
+    assert(numClusters == 8)
+    assert(numGroups == 22)
+    assert(numNodes == 39)
   }
 
   test("C2R, R2C - Row unary convertible to Columnar") {
@@ -103,9 +105,13 @@ class VeloxRasSuite extends SharedSparkSession {
     val out = planner.plan()
     assert(out == ColumnarToRowExec(ColumnarUnary(ColumnarUnary(ColumnarUnary(ColumnarUnary(
       ColumnarUnary(ColumnarUnary(ColumnarUnary(RowToColumnarExec(RowLeaf(TRIVIAL_SCHEMA)))))))))))
-    val paths = planner.newState().memoState().collectAllPaths(RasPath.INF_DEPTH).toList
-    val pathCount = paths.size
-    assert(pathCount == 1094)
+    val memoState = planner.newState().memoState()
+    val numClusters = memoState.allClusters().size
+    val numGroups = memoState.allGroups().size
+    val numNodes = memoState.allClusters().flatMap(_.nodes()).size
+    assert(numClusters == 8)
+    assert(numGroups == 28)
+    assert(numNodes == 55)
   }
 
   test("C2R, R2C - empty schema") {

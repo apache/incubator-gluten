@@ -38,7 +38,7 @@ object PathFinder {
   }
 
   class Builder[T <: AnyRef] private (ras: Ras[T], memoStore: MemoStore[T]) {
-    private val filterWizards = mutable.ListBuffer[FilterWizard[T]](FilterWizards.omitCycles())
+    private val filterWizards = mutable.ListBuffer[FilterWizard[T]](FilterWizards.omitNodeCycles())
     private val outputWizards = mutable.ListBuffer[OutputWizard[T]]()
 
     def depth(depth: Int): Builder[T] = {

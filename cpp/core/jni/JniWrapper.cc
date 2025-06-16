@@ -144,8 +144,12 @@ class InternalMemoryManager : public MemoryManager {
  public:
   InternalMemoryManager(const std::string& kind) : MemoryManager(kind) {}
 
-  arrow::MemoryPool* getArrowMemoryPool() override {
+  arrow::MemoryPool* defaultArrowMemoryPool() override {
     throw GlutenException("Not implemented");
+  }
+
+  std::shared_ptr<arrow::MemoryPool> createArrowMemoryPool(const std::string& name) override {
+    throw GlutenException("Not yet implemented");
   }
 
   const MemoryUsageStats collectMemoryUsageStats() const override {
@@ -832,7 +836,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .compressionThreshold = compressionThreshold,
       .compressionType = getCompressionType(env, codecJstr),
       .compressionLevel = compressionLevel,
-      .bufferedWrite = true,
       .numSubDirs = numSubDirs,
       .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
       .sortBufferMaxSize = sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold};
@@ -870,11 +873,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     env->ReleaseStringUTFChars(localDirsJstr, localDirsC);
 
     partitionWriter = std::make_unique<LocalPartitionWriter>(
-        numPartitions,
-        std::move(partitionWriterOptions),
-        ctx->memoryManager()->getArrowMemoryPool(),
-        dataFile,
-        configuredDirs);
+        numPartitions, std::move(partitionWriterOptions), ctx->memoryManager(), dataFile, configuredDirs);
   } else if (partitionWriterType == "celeborn") {
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
@@ -887,10 +886,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     std::shared_ptr<JavaRssClient> celebornClient =
         std::make_shared<JavaRssClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
     partitionWriter = std::make_unique<RssPartitionWriter>(
-        numPartitions,
-        std::move(partitionWriterOptions),
-        ctx->memoryManager()->getArrowMemoryPool(),
-        std::move(celebornClient));
+        numPartitions, std::move(partitionWriterOptions), ctx->memoryManager(), std::move(celebornClient));
   } else if (partitionWriterType == "uniffle") {
     jclass unifflePartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/writer/PartitionPusher;");
@@ -903,10 +899,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     std::shared_ptr<JavaRssClient> uniffleClient =
         std::make_shared<JavaRssClient>(vm, partitionPusher, unifflePushPartitionDataMethod);
     partitionWriter = std::make_unique<RssPartitionWriter>(
-        numPartitions,
-        std::move(partitionWriterOptions),
-        ctx->memoryManager()->getArrowMemoryPool(),
-        std::move(uniffleClient));
+        numPartitions, std::move(partitionWriterOptions), ctx->memoryManager(), std::move(uniffleClient));
   } else {
     throw GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
   }

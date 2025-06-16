@@ -177,9 +177,7 @@ function setup_linux {
   elif [[ "$LINUX_DISTRIBUTION" == "openEuler" ]]; then
     case "$LINUX_VERSION_ID" in
       24.03)
-        $GLUTEN_VELOX_SCRIPT_HOME/setup-openeuler24.sh
-        export re2_SOURCE=BUNDLED
-        ;;
+        $GLUTEN_VELOX_SCRIPT_HOME/setup-openeuler24.sh ;;
       *)
         echo "Unsupported openEuler version: $LINUX_VERSION_ID"
         exit 1
@@ -212,6 +210,15 @@ function setup_linux {
     3.2) $GLUTEN_VELOX_SCRIPT_HOME/setup-centos8.sh ;;
     *)
       echo "Unsupported tencentos version: $LINUX_VERSION_ID"
+      exit 1
+      ;;
+    esac
+  elif [[ "$LINUX_DISTRIBUTION" == "rhel" ]]; then
+    case "$LINUX_VERSION_ID" in
+    9.6)
+       $GLUTEN_VELOX_SCRIPT_HOME/setup-rhel.sh ;;
+    *)
+      echo "Unsupported rhel version: $LINUX_VERSION_ID"
       exit 1
       ;;
     esac

@@ -34,11 +34,8 @@ static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
 static constexpr int32_t kDefaultCompressionBufferSize = 32 * 1024;
 static constexpr int32_t kDefaultDiskWriteBufferSize = 1024 * 1024;
-static const std::string kDefaultCompressionTypeStr = "lz4";
-static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
 static constexpr double kDefaultMergeBufferThreshold = 0.25;
-static constexpr bool kEnableBufferedWrite = true;
 static constexpr bool kDefaultUseRadixSort = true;
 static constexpr int32_t kDefaultSortBufferSize = 4096;
 static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
@@ -92,8 +89,6 @@ struct PartitionWriterOptions {
   CodecBackend codecBackend = CodecBackend::NONE;
   int32_t compressionLevel = arrow::util::kUseDefaultCompressionLevel;
   CompressionMode compressionMode = CompressionMode::BUFFER;
-
-  bool bufferedWrite = kEnableBufferedWrite;
 
   int32_t numSubDirs = kDefaultNumSubDirs;
 

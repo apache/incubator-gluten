@@ -17,8 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.ListenerApi
-import org.apache.gluten.columnarbatch.CHBatch
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, GlutenCoreConfig}
 import org.apache.gluten.execution.CHBroadcastBuildSideCache
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
@@ -31,10 +30,10 @@ import org.apache.spark.{SPARK_VERSION, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.listener.CHGlutenSQLAppStatusListener
-import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.v1._
+import org.apache.spark.sql.internal.SparkConfigUtil._
 import org.apache.spark.sql.utils.ExpressionUtil
 import org.apache.spark.util.{SparkDirectoryUtil, SparkShutdownManagerUtil}
 
@@ -50,7 +49,7 @@ class CHListenerApi extends ListenerApi with Logging {
     initialize(pc.conf, isDriver = true)
 
     val expressionExtensionTransformer = ExpressionUtil.extendedExpressionTransformer(
-      pc.conf.get(GlutenConfig.EXTENDED_EXPRESSION_TRAN_CONF.key, "")
+      pc.conf.get(GlutenConfig.EXTENDED_EXPRESSION_TRAN_CONF)
     )
     if (expressionExtensionTransformer != null) {
       ExpressionExtensionTrait.registerExpressionExtension(expressionExtensionTransformer)
@@ -73,10 +72,10 @@ class CHListenerApi extends ListenerApi with Logging {
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
-    CHBatch.ensureRegistered()
+    CHBatchType.ensureRegistered()
+    CHCarrierRowType.ensureRegistered()
     SparkDirectoryUtil.init(conf)
-    val libPath =
-      conf.get(GlutenConfig.GLUTEN_LIB_PATH.key, GlutenConfig.GLUTEN_LIB_PATH.defaultValueString)
+    val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH)
     if (StringUtils.isBlank(libPath)) {
       throw new IllegalArgumentException(
         "Please set spark.gluten.sql.columnar.libpath to enable clickhouse backend")
@@ -102,14 +101,14 @@ class CHListenerApi extends ListenerApi with Logging {
     }
 
     // add memory limit for external sort
-    if (conf.getLong(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT.key, -1) < 0) {
-      if (conf.getBoolean("spark.memory.offHeap.enabled", defaultValue = false)) {
-        val memSize = JavaUtils.byteStringAsBytes(conf.get("spark.memory.offHeap.size"))
+    if (conf.get(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT) <= 0) {
+      if (conf.getBoolean(GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY, defaultValue = false)) {
+        val memSize = conf.getSizeAsBytes(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY, 0)
         if (memSize > 0L) {
           val cores = conf.getInt("spark.executor.cores", 1).toLong
           val sortMemLimit = ((memSize / cores) * 0.8).toLong
           logDebug(s"max memory for sorting: $sortMemLimit")
-          conf.set(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT.key, sortMemLimit.toString)
+          conf.set(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT, sortMemLimit)
         }
       }
     }

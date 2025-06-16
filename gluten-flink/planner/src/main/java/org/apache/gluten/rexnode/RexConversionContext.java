@@ -14,19 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.rexnode;
 
 import java.util.List;
 
 // In case more information is needed in the future, we can add more fields to this class.
 public class RexConversionContext {
-    private final List<String> inputAttributeNames;
+  private final List<String> inputAttributeNames;
 
-    public RexConversionContext(List<String> inputAttributeNames) {
-        this.inputAttributeNames = inputAttributeNames;
-    }
-    public List<String> getInputAttributeNames() {
-        return inputAttributeNames;
-    }
+  public RexConversionContext(List<String> inputAttributeNames) {
+    this.inputAttributeNames = inputAttributeNames;
+  }
+
+  public List<String> getInputAttributeNames() {
+    return inputAttributeNames;
+  }
 }

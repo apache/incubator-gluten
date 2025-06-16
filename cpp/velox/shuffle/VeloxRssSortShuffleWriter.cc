@@ -33,10 +33,9 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxRssSortShuffleWriter::cr
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* arrowPool) {
-  std::shared_ptr<VeloxRssSortShuffleWriter> res(new VeloxRssSortShuffleWriter(
-      numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
+    MemoryManager* memoryManager) {
+  std::shared_ptr<VeloxRssSortShuffleWriter> res(
+      new VeloxRssSortShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), memoryManager));
   RETURN_NOT_OK(res->init());
   return res;
 } // namespace gluten
@@ -122,8 +121,7 @@ arrow::Status VeloxRssSortShuffleWriter::evictBatch(uint32_t partitionId) {
   auto buffer = bufferOutputStream_->getBuffer();
   auto arrowBuffer = std::make_shared<arrow::Buffer>(buffer->as<uint8_t>(), buffer->size());
   ARROW_ASSIGN_OR_RAISE(
-      auto payload,
-      BlockPayload::fromBuffers(Payload::kRaw, 0, {std::move(arrowBuffer)}, nullptr, nullptr, nullptr, nullptr));
+      auto payload, BlockPayload::fromBuffers(Payload::kRaw, 0, {std::move(arrowBuffer)}, nullptr, nullptr, nullptr));
   RETURN_NOT_OK(partitionWriter_->evict(partitionId, std::move(payload), stopped_));
   batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get(), serde_.get());
   batch_->createStreamTree(rowType_, options_.bufferSize, &serdeOptions_);
