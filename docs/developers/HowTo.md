@@ -125,9 +125,7 @@ To run a Scala/Java test class, you can use the below mvn command (take Velox ba
 mvn test -Pspark-3.5 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/path/to/spark/source/code/home/" -DwildcardSuites=xxx
 ```
 
-Please set `wildcardSuites` with a fully qualified class name.
-
-The `spark.test.home` arg is optional to set. It is only required for some test suites which use Spark resources.
+Please set `wildcardSuites` with a fully qualified class name. `spark.test.home` is optional to set. It is only required for some test suites to use Spark resources.
 If you are specifying the `spark.test.home` arg, it should be set to either:
 * The path a directory containing Spark source code, which has already been built
 * Or, the install directory of a pre-built Spark package, with the `spark/sql/core/src/test/resource` files copied
