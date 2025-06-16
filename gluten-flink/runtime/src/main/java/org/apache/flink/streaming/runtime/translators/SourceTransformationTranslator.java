@@ -90,12 +90,21 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                   ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
       String id = PlanNodeIdGenerator.newId();
       Object nexmarkSource = transformation.getSource();
-      Object generatorConfig = ReflectUtils.getObjectField(sourceClazz, nexmarkSource, "config");
-      Object nexmarkConfig =
-          ReflectUtils.getObjectField(generatorConfig.getClass(), generatorConfig, "configuration");
-      Integer numEvents =
+      List<?> nexmarkSourceSplits =
+          (List<?>)
+              ReflectUtils.invokeObjectMethod(
+                  sourceClazz,
+                  nexmarkSource,
+                  "getSplits",
+                  new Class<?>[] {Integer.class},
+                  new Object[] {transformation.getParallelism()});
+      Object nexmarkSourceSplit = nexmarkSourceSplits.get(0);
+      Object generatorConfig =
+          ReflectUtils.getObjectField(
+              nexmarkSourceSplit.getClass(), nexmarkSourceSplit, "generatorConfig");
+      Integer maxEvents =
           (Integer)
-              ReflectUtils.getObjectField(nexmarkConfig.getClass(), nexmarkConfig, "numEvents");
+              ReflectUtils.getObjectField(generatorConfig.getClass(), generatorConfig, "maxEvents");
       StreamOperatorFactory<OUT> operatorFactory =
           SimpleOperatorFactory.of(
               new GlutenStreamSource(
@@ -104,7 +113,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                           id, outputType, new NexmarkTableHandle("connector-nexmark"), List.of()),
                       outputType,
                       id,
-                      new NexmarkConnectorSplit("connector-nexmark", numEvents))));
+                      new NexmarkConnectorSplit("connector-nexmark", maxEvents))));
       streamGraph.addLegacySource(
           transformationId,
           slotSharingGroup,

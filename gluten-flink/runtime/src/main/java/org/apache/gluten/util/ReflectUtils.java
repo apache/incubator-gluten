@@ -17,6 +17,7 @@
 package org.apache.gluten.util;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 public class ReflectUtils {
 
@@ -25,6 +26,17 @@ public class ReflectUtils {
       Field f = clazz.getDeclaredField(fieldName);
       f.setAccessible(true);
       return f.get(obj);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Object invokeObjectMethod(
+      Class<?> clazz, Object obj, String methodName, Class<?>[] paramTypes, Object[] paramValues) {
+    try {
+      Method m = clazz.getDeclaredMethod(methodName, paramTypes);
+      m.setAccessible(true);
+      return m.invoke(obj, paramValues);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
