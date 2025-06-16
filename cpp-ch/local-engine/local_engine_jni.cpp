@@ -21,7 +21,7 @@
 #include <Builder/SerializedPlanBuilder.h>
 #include <Compression/CompressedReadBuffer.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <Join/BroadCastJoinBuilder.h>
+#include <Join/BroadcastJoinBuilder.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/LocalExecutor.h>
 #include <Parser/ParserContext.h>
@@ -160,7 +160,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::SparkRowToCHColumn::spark_row_iterator_nextBatch = local_engine::GetMethodID(
         env, local_engine::SparkRowToCHColumn::spark_row_interator_class, "nextBatch", "()Ljava/nio/ByteBuffer;");
 
-    local_engine::BroadCastJoinBuilder::init(env);
+    local_engine::BroadcastJoinBuilder::init(env);
     local_engine::CacheManager::initJNI(env);
     local_engine::SparkMergeTreeWriterJNI::init(env);
     local_engine::SparkRowInfoJNI::init(env);
@@ -202,7 +202,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     local_engine::BackendFinalizerUtil::finalizeGlobally();
 
     local_engine::JniErrorsGlobalState::instance().destroy(env);
-    local_engine::BroadCastJoinBuilder::destroy(env);
+    local_engine::BroadcastJoinBuilder::destroy(env);
     local_engine::SparkMergeTreeWriterJNI::destroy(env);
     local_engine::SparkRowInfoJNI::destroy(env);
 
@@ -1104,11 +1104,12 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild(
     JNIEnv * env,
     jclass,
-    jstring key,
+    jint hash_table_id,
     jbyteArray in,
     jlong row_count_,
     jstring join_key_,
     jint join_type_,
+    jboolean is_bhj,
     jboolean has_mixed_join_condition,
     jboolean is_existence_join,
     jbyteArray named_struct,
@@ -1116,7 +1117,6 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     jboolean has_null_key_values)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    const auto hash_table_id = jstring2string(env, key);
     const auto join_key = jstring2string(env, join_key_);
     const auto named_struct_a = local_engine::getByteArrayElementsSafe(env, named_struct);
     const std::string::size_type struct_size = named_struct_a.length();
@@ -1125,12 +1125,13 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     local_engine::ReadBufferFromByteArray read_buffer_from_java_array(in, length);
     DB::CompressedReadBuffer input(read_buffer_from_java_array);
     local_engine::configureCompressedReadBuffer(input);
-    const auto * obj = make_wrapper(local_engine::BroadCastJoinBuilder::buildJoin(
-        hash_table_id,
+    const auto * obj = make_wrapper(local_engine::BroadcastJoinBuilder::buildJoin(
+        std::to_string(hash_table_id),
         input,
         row_count_,
         join_key,
         join_type_,
+        is_bhj,
         has_mixed_join_condition,
         is_existence_join,
         struct_string,
@@ -1150,11 +1151,10 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeClone
 }
 
 JNIEXPORT void
-Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeCleanBuildHashTable(JNIEnv * env, jclass, jstring hash_table_id_, jlong instance)
+Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeCleanBuildHashTable(JNIEnv * env, jclass, jint hash_table_id_, jlong instance)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    auto hash_table_id = jstring2string(env, hash_table_id_);
-    local_engine::BroadCastJoinBuilder::cleanBuildHashTable(hash_table_id, instance);
+    local_engine::BroadcastJoinBuilder::cleanBuildHashTable((int)hash_table_id, instance);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 

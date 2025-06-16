@@ -22,7 +22,7 @@
 #include <Interpreters/GraceHashJoin.h>
 #include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
-#include <Join/BroadCastJoinBuilder.h>
+#include <Join/BroadcastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/ExpressionParser.h>
@@ -141,7 +141,7 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
     optimization_info.ParseFromString(join.advanced_extension().optimization().value());
     auto join_opt_info = JoinOptimizationInfo::parse(optimization_info.value());
     const auto & storage_join_key = join_opt_info.storage_join_key;
-    auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(storage_join_key) : nullptr;
+    auto storage_join = join_opt_info.is_broadcast ? BroadcastJoinBuilder::getJoin(storage_join_key) : nullptr;
     if (storage_join)
         renamePlanColumns(*left, *right, *storage_join);
     auto table_join = createCrossTableJoin(join.type());
