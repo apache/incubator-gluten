@@ -262,7 +262,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       .protectInvocationFlow()
       .recycleIterator {
         updateNativeMetrics(itrMetrics.fetch(resIter))
-        updateInputMetrics(TaskContext.get().taskMetrics().inputMetrics)
+        updateInputMetrics(context.taskMetrics().inputMetrics)
         resIter.close()
       }
       .recyclePayload(batch => batch.close())
