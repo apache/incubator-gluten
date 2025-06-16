@@ -19,23 +19,6 @@
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>${sparkshim.artifactId}</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>spark-sql-columnar-shims-common</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-ui</artifactId>
-      <version>${project.version}</version>
-    </dependency>
     <!-- Prevent our dummy JAR from being included in Spark distributions or uploaded to YARN -->
     <dependency>
       <groupId>org.apache.spark</groupId>
