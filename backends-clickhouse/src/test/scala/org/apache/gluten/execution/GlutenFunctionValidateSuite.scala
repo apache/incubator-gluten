@@ -1366,7 +1366,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   }
 
   test("Test map with nullable key") {
-    val sql = "select map(string_field, int_field) from json_test where string_field is not null"
+    val sql = "select map(string_field1, int_field1) from json_test where string_field1 is not null"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }
