@@ -150,14 +150,11 @@ jobs:
           dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
           $SETUP install_maven
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
-          echo "VCPKG_PATH=/var/cache/vcpkg" >> $GITHUB_ENV
-          echo "VCPKG_BINARY_SOURCES=\"clear;files,${VCPKG_PATH},readwrite\"" >> $GITHUB_ENV
       - name: Build
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
           ./dev/vcpkg/setup-build-depends.sh
-          mkdir -p ${VCPKG_PATH}
           ./dev/package-vcpkg.sh --build_arrow=ON
           $MVN_CMD clean install -Pspark-3.5 -Pjava-8 -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
