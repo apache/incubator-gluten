@@ -26,6 +26,7 @@ import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster, RoughCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
+import org.apache.gluten.shuffle.SupportsColumnarShuffle
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -468,10 +469,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportColumnarShuffleExec(): Boolean = {
     val conf = GlutenConfig.get
-    conf.enableColumnarShuffle && (conf.isUseGlutenShuffleManager
-      || conf.isUseColumnarShuffleManager
-      || conf.isUseCelebornShuffleManager
-      || conf.isUseUniffleShuffleManager)
+    conf.enableColumnarShuffle && (
+      conf.isUseGlutenShuffleManager
+        || classOf[SupportsColumnarShuffle].isAssignableFrom(
+          Class.forName(SQLConf.get.getConfString("spark.shuffle.manager")))
+    )
   }
 
   override def enableJoinKeysRewrite(): Boolean = false

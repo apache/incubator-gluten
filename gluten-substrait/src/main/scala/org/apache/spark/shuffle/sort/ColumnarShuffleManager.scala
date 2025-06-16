@@ -16,6 +16,8 @@
  */
 package org.apache.spark.shuffle.sort
 
+import org.apache.gluten.shuffle.SupportsColumnarShuffle
+
 import org.apache.spark.{ShuffleDependency, SparkConf, SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializerManager
@@ -30,7 +32,10 @@ import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
-class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
+class ColumnarShuffleManager(conf: SparkConf)
+  extends ShuffleManager
+  with SupportsColumnarShuffle
+  with Logging {
 
   import ColumnarShuffleManager._
 
