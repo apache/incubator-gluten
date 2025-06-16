@@ -91,8 +91,11 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
       String id = PlanNodeIdGenerator.newId();
       Object nexmarkSource = transformation.getSource();
       Object generatorConfig = ReflectUtils.getObjectField(sourceClazz, nexmarkSource, "config");
-      Object nexmarkConfig = ReflectUtils.getObjectField(generatorConfig.getClass(), generatorConfig, "configuration");
-      Integer numEvents = (Integer) ReflectUtils.getObjectField(nexmarkConfig.getClass(), nexmarkConfig, "numEvents");
+      Object nexmarkConfig =
+          ReflectUtils.getObjectField(generatorConfig.getClass(), generatorConfig, "configuration");
+      Integer numEvents =
+          (Integer)
+              ReflectUtils.getObjectField(nexmarkConfig.getClass(), nexmarkConfig, "numEvents");
       StreamOperatorFactory<OUT> operatorFactory =
           SimpleOperatorFactory.of(
               new GlutenStreamSource(
