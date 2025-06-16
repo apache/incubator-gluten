@@ -111,17 +111,17 @@ jobs:
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: build
+      - name: Install dependencies
         run: |
           dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
           $SETUP install_maven
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
-          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
-          cp package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar /root/
-      - name: Build gluten-it
+      - name: Build
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
+          ./dev/package.sh
+          cp package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar /root/
           $MVN_CMD clean install -Pspark-3.5 -Pjava-8 -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -Pspark-3.5 -Pjava-8
@@ -145,21 +145,20 @@ jobs:
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: build
+      - name: Install dependencies
         run: |
           dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
           $SETUP install_maven
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
-          export VCPKG_PATH=/var/cache/vcpkg
-          export VCPKG_BINARY_SOURCES="clear;files,${VCPKG_PATH},readwrite"
+          echo "VCPKG_PATH=/var/cache/vcpkg" >> $GITHUB_ENV
+          echo "VCPKG_BINARY_SOURCES=\"clear;files,${VCPKG_PATH},readwrite\"" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
           ./dev/vcpkg/setup-build-depends.sh
           mkdir -p ${VCPKG_PATH}
           ./dev/package-vcpkg.sh --build_arrow=ON
-      - name: Build gluten-it
-        run: |
-          echo "JAVA_HOME: $JAVA_HOME"
-          cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -Pspark-3.5 -Pjava-8 -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -Pspark-3.5 -Pjava-8
