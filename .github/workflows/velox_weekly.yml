@@ -123,9 +123,9 @@ jobs:
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
           ./dev/package.sh --spark_version=3.5
-          cp package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar package/target/lib/
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -Pspark-3.5
+          cp $GITHUB_WORKSPACE/package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar $GITHUB_WORKSPACE/package/target/lib/
       - name: Run TPC-H
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
