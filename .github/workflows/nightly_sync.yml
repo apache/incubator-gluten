@@ -26,6 +26,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
+      - name: build doc
+        uses: actions/jekyll-build-pages@v1
       - name: rsync
         uses: burnett01/rsync-deployments@5.2
         with:
