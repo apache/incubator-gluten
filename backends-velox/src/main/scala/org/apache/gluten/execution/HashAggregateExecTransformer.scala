@@ -716,8 +716,6 @@ case class RegularHashAggregateExecTransformer(
     ignoreNullKeys
   ) {
 
-  override def isOffloadedSortExec: Boolean = false
-
   override protected def allowFlush: Boolean = false
 
   override def simpleString(maxFields: Int): String =
@@ -732,9 +730,7 @@ case class RegularHashAggregateExecTransformer(
 }
 
 // Hash aggregation that is offloaded from sort aggregation.
-// Is identical to RegularHashAggregateExecTransformer but with a
-// different value of isOffloadedSortExec.
-case class OffloadedSortHashAggregateExecTransformer(
+case class HashFromSortAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
@@ -754,9 +750,15 @@ case class OffloadedSortHashAggregateExecTransformer(
     ignoreNullKeys
   ) {
 
-  override def isOffloadedSortExec: Boolean = true
-
   override protected def allowFlush: Boolean = false
+
+  override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
+    groupingExpressions.map(SortOrder(_, Ascending)) :: Nil
+  }
+
+  override protected def orderingExpressions: Seq[SortOrder] = {
+    groupingExpressions.map(SortOrder(_, Ascending))
+  }
 
   override def simpleString(maxFields: Int): String =
     s"${super.simpleString(maxFields)}"

@@ -1197,7 +1197,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
             assert(
               getExecutedPlan(df).count(
                 plan => {
-                  plan.isInstanceOf[OffloadedSortHashAggregateExecTransformer]
+                  plan.isInstanceOf[HashFromSortAggregateExecTransformer]
                 }) == 2)
           }
       }

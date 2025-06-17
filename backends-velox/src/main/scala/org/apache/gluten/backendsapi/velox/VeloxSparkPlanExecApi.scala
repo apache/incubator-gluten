@@ -338,7 +338,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan,
       offloadedSortExec: Boolean = false): HashAggregateExecBaseTransformer =
     if (offloadedSortExec) {
-      OffloadedSortHashAggregateExecTransformer(
+      HashFromSortAggregateExecTransformer(
         requiredChildDistributionExpressions,
         groupingExpressions,
         aggregateExpressions,
