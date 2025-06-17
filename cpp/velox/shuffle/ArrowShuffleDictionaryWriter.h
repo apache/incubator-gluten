@@ -18,7 +18,6 @@
 #pragma once
 
 #include "shuffle/Dictionary.h"
-#include "shuffle/ShuffleMemoryPool.h"
 
 #include "velox/type/Type.h"
 
@@ -31,8 +30,9 @@ namespace gluten {
 
 class ArrowShuffleDictionaryWriter final : public ShuffleDictionaryWriter {
  public:
-  ArrowShuffleDictionaryWriter(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {
-    dictionaryPool_ = std::make_unique<ShuffleMemoryPool>(pool);
+  ArrowShuffleDictionaryWriter(MemoryManager* memoryManager, arrow::util::Codec* codec)
+      : memoryManager_(memoryManager), codec_(codec) {
+    dictionaryPool_ = memoryManager->getOrCreateArrowMemoryPool("ArrowShuffleDictionaryWriter.dictionary");
   }
 
   arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> updateAndGet(
@@ -53,11 +53,11 @@ class ArrowShuffleDictionaryWriter final : public ShuffleDictionaryWriter {
 
   arrow::Status blackList(int32_t fieldId);
 
-  arrow::MemoryPool* pool_;
-  arrow::util::Codec* codec_;
-
+  MemoryManager* memoryManager_;
   // Used to count the memory allocation for dictionary data.
-  std::unique_ptr<ShuffleMemoryPool> dictionaryPool_;
+  std::shared_ptr<arrow::MemoryPool> dictionaryPool_;
+
+  arrow::util::Codec* codec_;
 
   std::shared_ptr<arrow::Schema> schema_{nullptr};
   facebook::velox::TypePtr rowType_{nullptr};

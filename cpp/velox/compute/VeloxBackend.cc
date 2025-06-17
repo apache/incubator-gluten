@@ -214,7 +214,7 @@ void VeloxBackend::init(
   initCache();
 
   registerShuffleDictionaryWriterFactory([](MemoryManager* memoryManager, arrow::util::Codec* codec) {
-    return std::make_unique<ArrowShuffleDictionaryWriter>(memoryManager->getArrowMemoryPool(), codec);
+    return std::make_unique<ArrowShuffleDictionaryWriter>(memoryManager, codec);
   });
 }
 
