@@ -28,6 +28,9 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
 import java.lang.reflect.Field
+import java.util.UUID
+
+import scala.collection.mutable
 
 /**
  * A wrapper for [[HadoopMapReduceCommitProtocol]]. This class only affects the task side commit
@@ -74,6 +77,8 @@ class SparkWriteFilesCommitProtocol(
 
   def getJobId: String = jobId.toString
 
+  private var fileNames: mutable.Set[String] = mutable.Set[String]()
+
   def newTaskAttemptTempPath(): String = {
     assert(internalCommitter != null)
     val stagingDir: Path = internalCommitter match {
@@ -83,7 +88,11 @@ class SparkWriteFilesCommitProtocol(
       case _ =>
         new Path(description.path)
     }
-    stagingDir.toString
+
+    val uuidStr = UUID.randomUUID().toString
+    fileNames += uuidStr
+
+    stagingDir.toString + "/" + uuidStr
   }
 
   def commitTask(): Unit = {
@@ -99,9 +108,19 @@ class SparkWriteFilesCommitProtocol(
 
   def abortTask(writePath: String): Unit = {
     committer.abortTask(taskAttemptContext)
+    deleteMatchingFiles(writePath)
+  }
 
-    val tmpPath = new Path(writePath)
-    tmpPath.getFileSystem(taskAttemptContext.getConfiguration).delete(tmpPath, true)
+  def deleteMatchingFiles(writePath: String): Unit = {
+    val fileSystem = new Path(writePath).getFileSystem(taskAttemptContext.getConfiguration)
+    val files = fileSystem.listStatus(new Path(writePath))
+
+    // Only delete the files created by this task.
+    files
+      .filter(
+        file =>
+          file.isFile && fileNames.exists(fileName => file.getPath.toString.contains(fileName)))
+      .foreach(file => fileSystem.delete(file.getPath, false))
   }
 
   // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version

@@ -121,6 +121,7 @@ class VeloxColumnarWriteFilesRDD(
 
       // part1=1/part2=1
       val partitionFragment = metrics.name
+
       // Write a partitioned table
       if (partitionFragment != "") {
         updatedPartitions += partitionFragment
