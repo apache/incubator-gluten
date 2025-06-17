@@ -16,7 +16,7 @@
 name: Upload docs to apache nightly
 
 on:
-  pull_request:
+  push:
     paths:
       - 'docs/**'
       - '.github/workflows/nightly_sync.yml'
