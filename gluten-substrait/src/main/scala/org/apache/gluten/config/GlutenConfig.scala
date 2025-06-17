@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.config
 
+import org.apache.gluten.shuffle.SupportsColumnarShuffle
+
 import org.apache.spark.network.util.{ByteUnit, JavaUtils}
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf}
 
@@ -136,6 +138,13 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
     conf
       .getConfString("spark.shuffle.manager", "sort")
       .contains("UniffleShuffleManager")
+
+  // scalastyle:off classforname
+  def shuffleManagerSupportsColumnarShuffle: Boolean = {
+    classOf[SupportsColumnarShuffle].isAssignableFrom(Class.forName(SQLConf.get
+      .getConfString("spark.shuffle.manager", "org.apache.spark.shuffle.sort.SortShuffleManager")))
+  }
+  // scalastyle:on classforname
 
   def celebornShuffleWriterType: String =
     conf
