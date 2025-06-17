@@ -29,10 +29,11 @@ class LocalPartitionWriter : public PartitionWriter {
  public:
   explicit LocalPartitionWriter(
       uint32_t numPartitions,
-      PartitionWriterOptions options,
+      std::unique_ptr<arrow::util::Codec> codec,
       MemoryManager* memoryManager,
+      const std::shared_ptr<LocalPartitionWriterOptions>& options,
       const std::string& dataFile,
-      const std::vector<std::string>& localDirs);
+      std::vector<std::string> localDirs);
 
   arrow::Status hashEvict(
       uint32_t partitionId,
@@ -100,6 +101,7 @@ class LocalPartitionWriter : public PartitionWriter {
 
   arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
 
+  std::shared_ptr<LocalPartitionWriterOptions> options_;
   std::string dataFile_;
   std::vector<std::string> localDirs_;
 
