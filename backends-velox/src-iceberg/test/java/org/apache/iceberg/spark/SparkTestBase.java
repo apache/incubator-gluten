@@ -16,8 +16,8 @@
  */
 package org.apache.iceberg.spark;
 
+import org.apache.gluten.TestConfUtil;
 import org.apache.gluten.config.GlutenConfig;
-import org.apache.gluten.spark34.TestConfUtil;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.CatalogUtil;

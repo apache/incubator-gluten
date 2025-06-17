@@ -16,7 +16,7 @@
  */
 package org.apache.iceberg.spark.source;
 
-import org.apache.gluten.spark34.TestConfUtil;
+import org.apache.gluten.TestConfUtil;
 
 import org.apache.iceberg.*;
 import org.apache.iceberg.data.GenericAppenderFactory;
