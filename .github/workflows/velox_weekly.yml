@@ -26,6 +26,8 @@ env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   MVN_CMD: 'mvn -ntp'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  TPCH_TEST: 'GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -120,19 +122,15 @@ jobs:
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
-          ./dev/package.sh
-          cp package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar /root/
-          $MVN_CMD clean install -Pspark-3.5 -Pjava-8 -Pbackends-velox -DskipTests
+          ./dev/package.sh --spark_version=3.5
+          cp package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar package/target/lib/
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -Pspark-3.5 -Pjava-8
+          $MVN_CMD clean install -Pspark-3.5
       - name: Run TPC-H
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          cp /root/gluten-thirdparty-lib-*.jar package/target/lib/
-          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.loadLibFromJar=true \
+          $TPCH_TEST --extra-conf=spark.gluten.loadLibFromJar=true \
             --extra-conf=spark.gluten.loadLibOS=openEuler --extra-conf=spark.gluten.loadLibOSVersion=24.03
 
   build-on-openeuler-vcpkg:
@@ -155,13 +153,11 @@ jobs:
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
           ./dev/vcpkg/setup-build-depends.sh
-          ./dev/package-vcpkg.sh --build_arrow=ON
-          $MVN_CMD clean install -Pspark-3.5 -Pjava-8 -Pbackends-velox -DskipTests
+          ./dev/package-vcpkg.sh --build_arrow=ON --spark_version=3.5
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -Pspark-3.5 -Pjava-8
+          $MVN_CMD clean install -Pspark-3.5
       - name: Run TPC-H
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+          $TPCH_TEST
