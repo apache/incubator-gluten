@@ -806,17 +806,17 @@
               <include>src/test/scala/**/*.scala</include>
               <include>src-delta/main/scala/**/*.scala</include>
               <include>src-delta/test/scala/**/*.scala</include>
-              <include>src-delta-${delta.binary.version}/main/scala/**/*.scala</include>
-              <include>src-delta-${delta.binary.version}/test/scala/**/*.scala</include>
+              <include>src-delta${delta.binary.version}/main/scala/**/*.scala</include>
+              <include>src-delta${delta.binary.version}/test/scala/**/*.scala</include>
             </includes>
             <excludes>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/*.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/merge/*.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/stats/*.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/DeltaLog.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/Snapshot.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/ClickhouseOptimisticTransaction.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/PreprocessTableWithDVs.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/*.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/merge/*.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/stats/*.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/DeltaLog.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/Snapshot.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/ClickhouseOptimisticTransaction.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/PreprocessTableWithDVs.scala</exclude>
             </excludes>
           </scala>
         </configuration>
