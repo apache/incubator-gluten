@@ -79,7 +79,7 @@ object CHBackend {
 object CHBackendSettings extends BackendSettingsApi with Logging {
   override def primaryBatchType: Convention.BatchType = CHBatchType
 
-  private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
+  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
 
   // experimental: when the files count per partition exceeds this threshold,

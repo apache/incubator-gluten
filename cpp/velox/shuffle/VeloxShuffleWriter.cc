@@ -27,19 +27,18 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* arrowPool) {
+    MemoryManager* memoryManager) {
   std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
   switch (type) {
     case ShuffleWriterType::kHashShuffle:
       return VeloxHashShuffleWriter::create(
-          numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
+          numPartitions, std::move(partitionWriter), std::move(options), memoryManager);
     case ShuffleWriterType::kSortShuffle:
       return VeloxSortShuffleWriter::create(
-          numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
+          numPartitions, std::move(partitionWriter), std::move(options), memoryManager);
     case ShuffleWriterType::kRssSortShuffle:
       return VeloxRssSortShuffleWriter::create(
-          numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
+          numPartitions, std::move(partitionWriter), std::move(options), memoryManager);
     default:
       return arrow::Status::Invalid("Unsupported shuffle writer type: ", typeToString(type));
   }

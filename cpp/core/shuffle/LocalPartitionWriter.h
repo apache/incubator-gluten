@@ -75,22 +75,26 @@ class LocalPartitionWriter : public PartitionWriter {
   // 3. After stop() called,
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
+ protected:
   class LocalSpiller;
 
   class PayloadMerger;
 
   class PayloadCache;
 
- private:
   void init();
 
   arrow::Status requestSpill(bool isFinal);
 
   arrow::Status finishSpill();
 
+  arrow::Status finishMerger();
+
   std::string nextSpilledFileDir();
 
-  arrow::Result<int64_t> mergeSpills(uint32_t partitionId);
+  arrow::Result<int64_t> mergeSpills(uint32_t partitionId, arrow::io::OutputStream* os);
+
+  arrow::Status writeCachedPayloads(uint32_t partitionId, arrow::io::OutputStream* os) const;
 
   arrow::Status clearResource();
 
@@ -109,10 +113,11 @@ class LocalPartitionWriter : public PartitionWriter {
   // configured local dirs for spilled file
   int32_t dirSelection_{0};
   std::vector<int32_t> subDirSelection_;
-  std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
+  std::shared_ptr<arrow::io::OutputStream> dataFileOs_{nullptr};
 
   int64_t totalBytesToEvict_{0};
   int64_t totalBytesEvicted_{0};
+  int64_t totalBytesWritten_{0};
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
 

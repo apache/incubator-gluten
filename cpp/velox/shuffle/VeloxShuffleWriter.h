@@ -54,8 +54,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* arrowPool);
+      MemoryManager* memoryManager);
 
   facebook::velox::RowVectorPtr getStrippedRowVector(const facebook::velox::RowVector& rv) {
     // get new row type
@@ -121,11 +120,10 @@ class VeloxShuffleWriter : public ShuffleWriter {
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* pool)
-      : ShuffleWriter(numPartitions, std::move(options), pool),
-        partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(pool)),
-        veloxPool_(std::move(veloxPool)),
+      MemoryManager* memoryManager)
+      : ShuffleWriter(numPartitions, std::move(options)),
+        partitionBufferPool_(memoryManager->createArrowMemoryPool("VeloxShuffleWriter.partitionBufferPool")),
+        veloxPool_(dynamic_cast<VeloxMemoryManager*>(memoryManager)->getLeafMemoryPool()),
         partitionWriter_(std::move(partitionWriter)) {
     partitioner_ = Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId);
     arenas_.resize(numPartitions);
@@ -136,7 +134,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   // Memory Pool used to track memory usage of partition buffers.
   // The actual allocation is delegated to options_.memoryPool.
-  std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
+  std::shared_ptr<arrow::MemoryPool> partitionBufferPool_;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 
