@@ -36,7 +36,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # action/checkout does not work centos7 anymore, so we checkout on ubuntu firstly and then run in centos 7 docker
+  # action/checkout does not work centos7 anymore, so we clone the main branch instead
   build-on-centos-7:
     strategy:
       fail-fast: false
