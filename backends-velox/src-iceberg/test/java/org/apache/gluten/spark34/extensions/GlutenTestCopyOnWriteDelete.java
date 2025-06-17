@@ -53,7 +53,7 @@ public class GlutenTestCopyOnWriteDelete extends TestCopyOnWriteDelete {
 
   @Test
   public synchronized void testDeleteWithSerializableIsolation() {
-    System.out.println("Run timeout");
+    throw new RuntimeException("The run is failed");
   }
 
   @Test
