@@ -30,7 +30,7 @@ class DummyMemoryManager final : public MemoryManager {
   arrow::MemoryPool* defaultArrowMemoryPool() override {
     throw GlutenException("Not yet implemented");
   }
-  std::shared_ptr<arrow::MemoryPool> createArrowMemoryPool(const std::string& name) override {
+  std::shared_ptr<arrow::MemoryPool> getOrCreateArrowMemoryPool(const std::string& name) override {
     throw GlutenException("Not yet implemented");
   }
   const MemoryUsageStats collectMemoryUsageStats() const override {

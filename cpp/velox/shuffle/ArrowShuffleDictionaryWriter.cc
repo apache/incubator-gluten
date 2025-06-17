@@ -288,7 +288,7 @@ class ValueUpdater {
     }
 
     ARROW_ASSIGN_OR_RAISE(
-        auto indices, updateDictionary<ArrowType>(numRows, nulls, values, binaryValues, dictionary, writer->pool_));
+        auto indices, updateDictionary<ArrowType>(numRows, nulls, values, binaryValues, dictionary, pool));
 
     results.push_back(nulls);
 
@@ -322,6 +322,7 @@ class ValueUpdater {
   }
 
   ArrowShuffleDictionaryWriter* writer;
+  arrow::MemoryPool* pool;
   int32_t fieldIdx;
   int32_t numRows;
   std::shared_ptr<arrow::Buffer> nulls{nullptr};
@@ -363,6 +364,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> ArrowShuffleDictionar
         bool isDictionaryCreated = false;
         ValueUpdater valueUpdater{
             this,
+            memoryManager_->defaultArrowMemoryPool(),
             i,
             numRows,
             buffers[bufferIdx++],
