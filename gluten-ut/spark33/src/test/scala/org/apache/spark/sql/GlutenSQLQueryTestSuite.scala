@@ -199,6 +199,7 @@ class GlutenSQLQueryTestSuite
         .set("spark.unsafe.exceptionOnMemoryLeak", "true")
     } else {
       conf.set("spark.unsafe.exceptionOnMemoryLeak", "true")
+      conf.set(GlutenConfig.ENABLE_COMMON_SUBEXPRESSION_ELIMINATE, "false")
     }
     conf
   }

@@ -181,9 +181,9 @@ Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 (30) RegularHashAggregateExecTransformer
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Keys [1]: [ps_partkey#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))), DecimalType(23,2), true))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))), DecimalType(23,2), true))#X]
-Results [2]: [ps_partkey#X, sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))), DecimalType(23,2), true))#X AS value#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))#X), DecimalType(23,2), true))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))#X), DecimalType(23,2), true))#X]
+Results [2]: [ps_partkey#X, sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))#X), DecimalType(23,2), true))#X AS value#X]
 
 (31) FilterExecTransformer
 Input [2]: [ps_partkey#X, value#X]
@@ -282,13 +282,13 @@ Right keys [1]: [n_nationkey#X]
 Join condition: None
 
 (53) Project
-Output [3]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X]
+Output [3]: [ps_partkey#X, ps_supplycost#X, promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2))) AS promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))#X]
 Input [5]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_nationkey#X]
 
 (54) HashAggregate
-Input [3]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X]
+Input [3]: [ps_partkey#X, ps_supplycost#X, promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))#X]
 Keys [1]: [ps_partkey#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))), DecimalType(23,2), true))]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))#X), DecimalType(23,2), true))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [ps_partkey#X, sum#X, isEmpty#X]
 
@@ -299,9 +299,9 @@ Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 (56) HashAggregate
 Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Keys [1]: [ps_partkey#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))), DecimalType(23,2), true))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))), DecimalType(23,2), true))#X]
-Results [2]: [ps_partkey#X, sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))), DecimalType(23,2), true))#X AS value#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))#X), DecimalType(23,2), true))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))#X), DecimalType(23,2), true))#X]
+Results [2]: [ps_partkey#X, sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(cast(ps_availqty#X as decimal(10,0)) as decimal(12,2)))#X), DecimalType(23,2), true))#X AS value#X]
 
 (57) Filter
 Input [2]: [ps_partkey#X, value#X]
