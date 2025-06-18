@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.execution.iceberg;
 
-import java.util.Map;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.catalog.Namespace;
@@ -31,6 +29,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runners.Parameterized;
+
+import java.util.Map;
 
 public class TestPositionDeletesTableGluten extends TestPositionDeletesTable {
   private static final Map<String, String> CATALOG_PROPS =

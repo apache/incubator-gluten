@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.execution.iceberg;
 
-import java.util.Map;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ParameterizedTestExtension;
@@ -33,6 +31,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
+
+import java.util.Map;
 
 @ExtendWith({ParameterizedTestExtension.class})
 public class TestPositionDeletesTableGluten extends TestPositionDeletesTable {
