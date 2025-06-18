@@ -231,13 +231,13 @@ Input [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X
 (40) RegularHashAggregateExecTransformer
 Input [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
 Keys [7]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X]
-Results [8]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))#X]
+Results [8]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))#X]
 
 (41) ProjectExecTransformer
-Output [8]: [c_custkey#X, c_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X AS revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
-Input [8]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X]
+Output [8]: [c_custkey#X, c_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))#X AS revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
+Input [8]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))#X]
 
 (42) WholeStageCodegenTransformer (X)
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
@@ -338,13 +338,13 @@ Right keys [1]: [n_nationkey#X]
 Join condition: None
 
 (63) Project
-Output [9]: [c_custkey#X, c_name#X, c_address#X, c_phone#X, c_acctbal#X, c_comment#X, l_extendedprice#X, l_discount#X, n_name#X]
+Output [9]: [c_custkey#X, c_name#X, c_address#X, c_phone#X, c_acctbal#X, c_comment#X, n_name#X, promote_precision(cast(l_extendedprice#X as decimal(13,2))) AS promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X, promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true)) AS promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X]
 Input [11]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X, l_extendedprice#X, l_discount#X, n_nationkey#X, n_name#X]
 
 (64) HashAggregate
-Input [9]: [c_custkey#X, c_name#X, c_address#X, c_phone#X, c_acctbal#X, c_comment#X, l_extendedprice#X, l_discount#X, n_name#X]
+Input [9]: [c_custkey#X, c_name#X, c_address#X, c_phone#X, c_acctbal#X, c_comment#X, n_name#X, promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X, promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X]
 Keys [7]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X]
-Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))]
+Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
 
@@ -355,9 +355,9 @@ Arguments: hashpartitioning(c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_nam
 (66) HashAggregate
 Input [9]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum#X, isEmpty#X]
 Keys [7]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X]
-Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))]
-Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X]
-Results [8]: [c_custkey#X, c_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X AS revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
+Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))]
+Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))#X]
+Results [8]: [c_custkey#X, c_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))#X AS revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 
 (67) TakeOrderedAndProject
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
