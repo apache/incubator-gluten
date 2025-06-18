@@ -117,7 +117,7 @@
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <resources>
       <resource>
-        <directory>src/main/resources</directory>
+        <directory>${project.basedir}/src/main/resources</directory>
       </resource>
       <resource>
         <directory>${project.build.directory}/generated-resources</directory>

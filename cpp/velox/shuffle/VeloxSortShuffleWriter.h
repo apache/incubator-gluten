@@ -33,8 +33,8 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options,
       MemoryManager* memoryManager);
 
   arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
@@ -52,8 +52,8 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
  private:
   VeloxSortShuffleWriter(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<SortShuffleWriterOptions>& options,
       MemoryManager* memoryManager);
 
   arrow::Status init();
@@ -92,6 +92,10 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   void allocateMinimalArray();
 
   void updateSpillMetrics(const std::unique_ptr<InMemoryPayload>& payload);
+
+  bool useRadixSort_;
+  int32_t initialSortBufferSize_;
+  int32_t diskWriteBufferSize_;
 
   // Stores compact row id -> row
   facebook::velox::BufferPtr array_;

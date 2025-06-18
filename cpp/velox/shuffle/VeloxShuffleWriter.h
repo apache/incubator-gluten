@@ -30,9 +30,7 @@
 #include "velox/vector/VectorStream.h"
 
 #include <arrow/array/util.h>
-#include <arrow/ipc/writer.h>
 #include <arrow/memory_pool.h>
-#include <arrow/record_batch.h>
 #include <arrow/result.h>
 #include <arrow/type.h>
 
@@ -52,8 +50,8 @@ class VeloxShuffleWriter : public ShuffleWriter {
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       ShuffleWriterType type,
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options,
       MemoryManager* memoryManager);
 
   facebook::velox::RowVectorPtr getStrippedRowVector(const facebook::velox::RowVector& rv) {
@@ -118,14 +116,14 @@ class VeloxShuffleWriter : public ShuffleWriter {
  protected:
   VeloxShuffleWriter(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options,
       MemoryManager* memoryManager)
-      : ShuffleWriter(numPartitions, std::move(options)),
+      : ShuffleWriter(numPartitions, options->partitioning),
         partitionBufferPool_(memoryManager->createArrowMemoryPool("VeloxShuffleWriter.partitionBufferPool")),
         veloxPool_(dynamic_cast<VeloxMemoryManager*>(memoryManager)->getLeafMemoryPool()),
-        partitionWriter_(std::move(partitionWriter)) {
-    partitioner_ = Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId);
+        partitionWriter_(partitionWriter) {
+    partitioner_ = Partitioner::make(options->partitioning, numPartitions_, options->startPartitionId);
     arenas_.resize(numPartitions);
     serdeOptions_.useLosslessTimestamp = true;
   }
@@ -140,7 +138,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   // PartitionWriter must destruct before partitionBufferPool_, as it may hold buffers allocated by
   // partitionBufferPool_.
-  std::unique_ptr<PartitionWriter> partitionWriter_;
+  std::shared_ptr<PartitionWriter> partitionWriter_;
 
   std::shared_ptr<Partitioner> partitioner_;
 

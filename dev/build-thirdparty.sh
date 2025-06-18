@@ -63,6 +63,12 @@ function process_setup_debian_12 {
   cp /usr/local/lib/{libprotobuf.so.32,libboost_context.so.1.84.0,libboost_regex.so.1.84.0} $THIRDPARTY_LIB/
 }
 
+function process_setup_openeuler_24 {
+  cp /usr/lib64/{libre2.so.11,libdouble-conversion.so.3,libevent-2.1.so.7,libdwarf.so.0,libgsasl.so.7,libicudata.so.74,libicui18n.so.74,libicuuc.so.74,libidn.so.12,libntlm.so.0,libsodium.so.26} $THIRDPARTY_LIB/
+  cp /usr/local/lib/{libboost_context.so.1.84.0,libboost_filesystem.so.1.84.0,libboost_program_options.so.1.84.0,libboost_regex.so.1.84.0,libboost_system.so.1.84.0,libboost_thread.so.1.84.0,libboost_atomic.so.1.84.0,libprotobuf.so.32} $THIRDPARTY_LIB/
+  cp /usr/local/lib64/{libgflags.so.2.2,libglog.so.1} $THIRDPARTY_LIB/
+}
+
 if [[ "$LINUX_OS" == "ubuntu" || "$LINUX_OS" == "pop" ]]; then
   if [ "$VERSION" == "20.04" ]; then
     process_setup_ubuntu_2004
@@ -76,6 +82,10 @@ elif [ "$LINUX_OS" == "centos" ]; then
     process_setup_centos_8
   elif [ "$VERSION" == "7" ]; then
     process_setup_centos_7
+  fi
+elif [ "$LINUX_OS" == "openEuler" ]; then
+  if [ "${VERSION}" == "24.03" ]; then
+    process_setup_openeuler_24
   fi
 elif [ "$LINUX_OS" == "alinux" ]; then
   if [ "${VERSION:0:1}" == "3" ]; then
