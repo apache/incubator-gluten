@@ -19,7 +19,6 @@ set -exu
 VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=2025_06_18
 VELOX_HOME=""
-RUN_SETUP_SCRIPT=ON
 
 OS=`uname -s`
 
@@ -35,10 +34,6 @@ for arg in "$@"; do
     ;;
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --run_setup_script=*)
-    RUN_SETUP_SCRIPT=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -233,29 +228,19 @@ function setup_linux {
         exit 1
       ;;
     esac
-  elif [[ "$LINUX_DISTRIBUTION" == "rhel" ]]; then
-    case "$LINUX_VERSION_ID" in
-      9.6) ;;
-      *)
-        echo "Unsupported openEuler version: $LINUX_VERSION_ID"
-        exit 1
-      ;;
-    esac
   else
     echo "Unsupported linux distribution: $LINUX_DISTRIBUTION"
     exit 1
   fi
 }
 
-if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
-  if [ $OS == 'Linux' ]; then
-    setup_linux
-  elif [ $OS == 'Darwin' ]; then
-    :
-  else
-    echo "Unsupported kernel: $OS"
-    exit 1
-  fi
+if [ $OS == 'Linux' ]; then
+  setup_linux
+elif [ $OS == 'Darwin' ]; then
+  :
+else
+  echo "Unsupported kernel: $OS"
+  exit 1
 fi
 
 apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
