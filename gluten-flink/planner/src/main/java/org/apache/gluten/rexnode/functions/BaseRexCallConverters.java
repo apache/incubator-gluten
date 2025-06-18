@@ -62,6 +62,14 @@ class DefaultRexCallConverter extends BaseRexCallConverter {
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
     Type resultType = getResultType(callNode);
+    // TODO: cast don't support input and result has same type. Refine it.
+    if (functionName.equals("cast")
+        && resultType
+            .getClass()
+            .getName()
+            .equals(params.get(0).getReturnType().getClass().getName())) {
+      return params.get(0);
+    }
     return new CallTypedExpr(resultType, params, functionName);
   }
 }

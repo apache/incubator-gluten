@@ -17,6 +17,9 @@
 package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.rexnode.RexNodeConverter;
+
+import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
 
@@ -62,7 +65,21 @@ public class RexCallConverterFactory {
           Map.entry("CAST", Arrays.asList(() -> new DefaultRexCallConverter("cast"))),
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
           Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
-          Map.entry("SEARCH", Arrays.asList(() -> new DefaultRexCallConverter("in"))));
+          Map.entry("SEARCH", Arrays.asList(() -> new DefaultRexCallConverter("in"))),
+          Map.entry(
+              ">=",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("greaterthanorequal"),
+                  () -> new StringCompareRexCallConverter("greaterthanorequal"),
+                  () -> new StringNumberCompareRexCallConverter("greaterthanorequal"),
+                  () -> new TimeStampIntervalRexCallConverter("greaterthanorequal"))),
+          Map.entry(
+              "<=",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("lessthanorequal"),
+                  () -> new StringCompareRexCallConverter("lessthanorequal"),
+                  () -> new StringNumberCompareRexCallConverter("lessthanorequal"),
+                  () -> new TimeStampIntervalRexCallConverter("lessthanorequal"))));
 
   public static RexCallConverter getConverter(RexCall callNode, RexConversionContext context) {
     String operatorName = callNode.getOperator().getName();
@@ -80,7 +97,12 @@ public class RexCallConverterFactory {
     if (converterList.size() > 1) {
       throw new RuntimeException("Multiple converters found for: " + operatorName);
     } else if (converterList.isEmpty()) {
-      throw new RuntimeException("No suitable converter found for: " + operatorName);
+      List<Type> paramTypes =
+          callNode.getOperands().stream()
+              .map(param -> RexNodeConverter.toType(param.getType()))
+              .collect(Collectors.toList());
+      throw new RuntimeException(
+          "No suitable converter found for: " + operatorName + " with " + paramTypes);
     }
 
     return converterList.get(0);
