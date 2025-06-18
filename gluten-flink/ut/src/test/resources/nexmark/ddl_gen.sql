@@ -36,5 +36,11 @@ CREATE TABLE datagen (
         END,
     WATERMARK FOR `dateTime` AS `dateTime` - INTERVAL '4' SECOND
 ) WITH (
-    'connector' = 'nexmark'
-)
+    'connector' = 'nexmark',
+    'first-event.rate' = '${TPS}',
+    'next-event.rate' = '${TPS}',
+    'events.num' = '${EVENTS_NUM}',
+    'person.proportion' = '${PERSON_PROPORTION}',
+    'auction.proportion' = '${AUCTION_PROPORTION}',
+    'bid.proportion' = '${BID_PROPORTION}'
+);
