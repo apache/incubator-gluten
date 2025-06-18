@@ -48,9 +48,9 @@ install_gcc11_from_source() {
             gcc_install_dir=/usr/local/${gcc_version}
             cd /tmp
             if [ ! -d $gcc_version ]; then
-                if ! wget https://ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz; then
-                    wget https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
-                fi
+                GCC_URL1=https://ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                GCC_URL2=https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                wget ${GCC_URL1} || wget ${GCC_URL2}
                 tar -xvf ${gcc_version}.tar.gz
             fi
             cd ${gcc_version}
@@ -120,9 +120,7 @@ install_centos_7() {
         mkdir -p /tmp/automake
         AUTOMAKE_URL1="https://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
         AUTOMAKE_URL2="https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
-        if ! wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL1"; then
-            wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL2"
-        fi
+        wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL1" || wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL2"
         tar -xf /tmp/automake.tar.xz -C /tmp/automake --strip-components=1
         rm -f /tmp/automake.tar.xz
         cd /tmp/automake
