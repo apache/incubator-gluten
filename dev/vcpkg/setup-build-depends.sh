@@ -178,6 +178,19 @@ install_ubuntu_20.04() {
 
 install_ubuntu_22.04() { install_ubuntu_20.04; }
 
+install_openeuler_24.03() {
+    dnf -y update
+    dnf -y install dnf-plugins-core
+    dnf -y update
+    dnf -y install wget curl tar zip unzip git which bison flex \
+        gcc g++ cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
+        java-1.8.0-openjdk java-1.8.0-openjdk-devel python3-devel python3-pip libstdc++-static
+
+    pip install cmake==3.28.3
+
+    install_maven_from_source
+}
+
 install_alinux_3() {
     yum -y groupinstall "Development Tools"
     yum -y install \
@@ -258,7 +271,7 @@ eval "$(sed -En "/^(VERSION_|)ID=/s/^/OS_/p" /etc/os-release)"
 
 [ -n "$OS_ID" -a -n "$OS_VERSION_ID" ] || log_fatal "Failed to detect os: ID or VERSION_ID is empty"
 
-INSTALL_FUNC="install_${OS_ID}_${OS_VERSION_ID}"
+INSTALL_FUNC="install_$(echo "$OS_ID" | tr 'A-Z' 'a-z')_${OS_VERSION_ID}"
 [ "$(type -t "$INSTALL_FUNC")" == function ] || log_fatal "Unsupport OS: ${OS_ID} ${OS_VERSION_ID}"
 
 set -x

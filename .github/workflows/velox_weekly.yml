@@ -24,7 +24,10 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  MVN_CMD: 'mvn -ntp'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  TPCH_TEST: "env GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare 
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -83,7 +86,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: build
         run: |
           # To avoid the prompt for region selection during installing tzdata.
@@ -99,3 +102,62 @@ jobs:
           sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+
+  build-on-openeuler:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "openeuler/openeuler:24.03" ]
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ubuntu-24.04-arm
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
+          $SETUP install_maven
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/
+          ./dev/package.sh --spark_version=3.5
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $MVN_CMD clean install -Pspark-3.5
+          cp $GITHUB_WORKSPACE/package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar package/target/lib/
+      - name: Run TPC-H
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $TPCH_TEST --extra-conf=spark.gluten.loadLibFromJar=true \
+            --extra-conf=spark.gluten.loadLibOS=openEuler --extra-conf=spark.gluten.loadLibOSVersion=24.03
+
+  build-on-openeuler-vcpkg:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "openeuler/openeuler:24.03" ]
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ubuntu-24.04-arm
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch wget git perl
+          $SETUP install_maven
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/
+          ./dev/vcpkg/setup-build-depends.sh
+          ./dev/package-vcpkg.sh --build_arrow=ON --spark_version=3.5
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $MVN_CMD clean install -Pspark-3.5
+      - name: Run TPC-H
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $TPCH_TEST
