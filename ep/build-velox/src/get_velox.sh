@@ -20,6 +20,9 @@ VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=2025_06_17
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
+VELOX_ENHANCED_REPO=https://github.com/oap-project/velox.git
+VELOX_ENHANCED_BRANCH=2025_06_10
+ENABLE_ENHANCED_FEATURES=OFF
 
 OS=`uname -s`
 
@@ -27,10 +30,12 @@ for arg in "$@"; do
   case $arg in
   --velox_repo=*)
     VELOX_REPO=("${arg#*=}")
+    VELOX_ENHANCED_REPO=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --velox_branch=*)
     VELOX_BRANCH=("${arg#*=}")
+    VELOX_ENHANCED_BRANCH=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --velox_home=*)
@@ -39,6 +44,12 @@ for arg in "$@"; do
     ;;
   --run_setup_script=*)
     RUN_SETUP_SCRIPT=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_enhanced_features=*)
+    ENABLE_ENHANCED_FEATURES=("${arg#*=}")
+    VELOX_REPO=$VELOX_ENHANCED_REPO
+    VELOX_BRANCH=$VELOX_ENHANCED_BRANCH
     shift # Remove argument name from processing
     ;;
   *)
