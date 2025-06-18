@@ -144,7 +144,7 @@ public class Utils {
     return new CallTypedExpr(new BooleanType(), equals, "and");
   }
 
-  public static List<FieldAccessTypedExpr> generateFieldAccesses(
+  public static List<FieldAccessTypedExpr> generateGroupingKeys(
       io.github.zhztheplayer.velox4j.type.RowType inputType, int[] groupings) {
     List<FieldAccessTypedExpr> groupingKeys = new ArrayList<>(groupings.length);
     for (int grouping : groupings) {

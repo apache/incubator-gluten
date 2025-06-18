@@ -53,7 +53,11 @@ class TimeStampIntervalRexCallConverter extends BaseRexCallConverter {
   @Override
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
-    Type resultType = new BigIntType(); // getResultType(callNode);
+    Type resultType = getResultType(callNode);
+    // TODO: for comparison, should return boolean. Refine it.
+    if (!resultType.getClass().getSimpleName().equals("BooleanType")) {
+      resultType = new BigIntType();
+    }
     return new CallTypedExpr(
         resultType,
         List.of(
