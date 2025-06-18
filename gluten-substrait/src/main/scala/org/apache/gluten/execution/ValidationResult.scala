@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension
+package org.apache.gluten.execution
 
 import org.apache.gluten.extension.columnar.FallbackTag
 import org.apache.gluten.extension.columnar.FallbackTag.{Appendable, Converter}

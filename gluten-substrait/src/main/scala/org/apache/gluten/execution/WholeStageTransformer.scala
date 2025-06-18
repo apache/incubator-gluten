@@ -19,8 +19,8 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.{GlutenConfig, GlutenNumaBindingInfo}
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics.{GlutenTimeMetric, MetricsUpdater}
@@ -53,83 +53,6 @@ import scala.collection.mutable.ArrayBuffer
 case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 
 case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null)
-
-/**
- * Base interface for a Gluten query plan that is also open to validation calls.
- *
- * Since https://github.com/apache/incubator-gluten/pull/2185.
- */
-trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
-  protected def glutenConf: GlutenConfig = GlutenConfig.get
-
-  protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
-
-  protected lazy val validationFailFast = glutenConf.validationFailFast
-
-  // Wraps a validation function f that can also throw a GlutenNotSupportException.
-  // Returns ValidationResult.failed if f throws a GlutenNotSupportException,
-  // otherwise returns the result of f.
-  protected def failValidationWithException(f: => ValidationResult)(
-      finallyBlock: => Unit = ()): ValidationResult = {
-    try {
-      f
-    } catch {
-      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-        if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
-        }
-        val message = s"Validation failed with exception from: $nodeName, reason: ${e.getMessage}"
-        if (glutenConf.printStackOnValidationFailure) {
-          logOnLevel(glutenConf.validationLogLevel, message, e)
-        }
-        ValidationResult.failed(message)
-      case t: Throwable =>
-        throw t
-    } finally {
-      finallyBlock
-    }
-  }
-
-  /**
-   * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
-   */
-  final def doValidate(): ValidationResult = {
-    val schemaValidationResult = BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason =>
-          ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
-      }
-      .getOrElse(ValidationResult.succeeded)
-    if (!schemaValidationResult.ok()) {
-      TestStats.addFallBackClassName(this.getClass.toString)
-      if (validationFailFast) {
-        return schemaValidationResult
-      }
-    }
-    val validationResult = failValidationWithException {
-      TransformerState.enterValidation
-      doValidateInternal()
-    } {
-      TransformerState.finishValidation
-    }
-    if (!validationResult.ok()) {
-      TestStats.addFallBackClassName(this.getClass.toString)
-    }
-    if (validationFailFast) validationResult
-    else ValidationResult.merge(schemaValidationResult, validationResult)
-  }
-
-  protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
-
-  private def logValidationMessage(msg: => String, e: Throwable): Unit = {
-    if (glutenConf.printStackOnValidationFailure) {
-      logOnLevel(glutenConf.validationLogLevel, msg, e)
-    } else {
-      logOnLevel(glutenConf.validationLogLevel, msg)
-    }
-  }
-}
 
 /** Base interface for a query plan that can be interpreted to Substrait representation. */
 trait TransformSupport extends ValidatablePlan {
