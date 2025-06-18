@@ -18,17 +18,14 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.{GlutenConfig, GlutenNumaBindingInfo}
-import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
-import org.apache.gluten.execution.ValidationResult
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics.{GlutenTimeMetric, MetricsUpdater}
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.{PlanBuilder, PlanNode}
 import org.apache.gluten.substrait.rel.{LocalFilesNode, RelNode, SplitInfo}
-import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark._
