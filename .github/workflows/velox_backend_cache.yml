@@ -125,7 +125,7 @@ jobs:
         run: |
           df -a
           source /opt/rh/gcc-toolset-11/enable
-          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_enhanced_feature=ON
+          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_enhanced_features=ON
           ccache -s
       - name: Save Ccache
         uses: actions/cache/save@v3
