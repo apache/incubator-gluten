@@ -23,6 +23,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,8 +48,21 @@ public class NexmarkTest {
   private static final Logger LOG = LoggerFactory.getLogger(NexmarkTest.class);
   private static final String NEXMARK_RESOURCE_DIR = "nexmark";
 
-  @Test
-  void testAllNexmarkQueries() {
+  private static final Map<String, String> NEXMARK_VARIABLES =
+      new HashMap<String, String>() {
+        {
+          put("TPS", "10");
+          put("EVENTS_NUM", "100");
+          put("PERSON_PROPORTION", "1");
+          put("AUCTION_PROPORTION", "3");
+          put("BID_PROPORTION", "46");
+        }
+      };
+
+  private static StreamTableEnvironment tEnv;
+
+  @BeforeAll
+  static void setup() {
     LOG.info("NexmarkTest setup");
     Velox4jEnvironment.initializeOnce();
 
@@ -56,25 +70,27 @@ public class NexmarkTest {
     env.setParallelism(1);
 
     EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
-    StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
+    tEnv = StreamTableEnvironment.create(env, settings);
 
     setupNexmarkEnvironment(tEnv);
+  }
 
-    List<String> queryFiles = discoverQueryFiles();
+  @Test
+  void testAllNexmarkQueries() {
+    List<String> queryFiles = getQueries();
     assertThat(queryFiles).isNotEmpty();
 
     LOG.info("Found {} Nexmark query files: {}", queryFiles.size(), queryFiles);
 
     for (String queryFile : queryFiles) {
       LOG.info("Executing query from file: {}", queryFile);
-      executeNexmarkQuery(tEnv, queryFile);
+      executeQuery(tEnv, queryFile);
     }
   }
 
-  private void setupNexmarkEnvironment(StreamTableEnvironment tEnv) {
-    Map<String, String> variables = createNexmarkVariables();
+  private static void setupNexmarkEnvironment(StreamTableEnvironment tEnv) {
     String createNexmarkSource = readSqlFromFile(NEXMARK_RESOURCE_DIR + "/ddl_gen.sql");
-    createNexmarkSource = replaceVariables(createNexmarkSource, variables);
+    createNexmarkSource = replaceVariables(createNexmarkSource, NEXMARK_VARIABLES);
     tEnv.executeSql(createNexmarkSource);
 
     String createTableView = readSqlFromFile(NEXMARK_RESOURCE_DIR + "/ddl_views.sql");
@@ -87,17 +103,7 @@ public class NexmarkTest {
     }
   }
 
-  private Map<String, String> createNexmarkVariables() {
-    Map<String, String> variables = new HashMap<>();
-    variables.put("TPS", "10");
-    variables.put("EVENTS_NUM", "100");
-    variables.put("PERSON_PROPORTION", "1");
-    variables.put("AUCTION_PROPORTION", "3");
-    variables.put("BID_PROPORTION", "46");
-    return variables;
-  }
-
-  private String replaceVariables(String sql, Map<String, String> variables) {
+  private static String replaceVariables(String sql, Map<String, String> variables) {
     String result = sql;
     for (Map.Entry<String, String> entry : variables.entrySet()) {
       result = result.replace("${" + entry.getKey() + "}", entry.getValue());
@@ -105,7 +111,7 @@ public class NexmarkTest {
     return result;
   }
 
-  private void executeNexmarkQuery(StreamTableEnvironment tEnv, String queryFileName) {
+  private void executeQuery(StreamTableEnvironment tEnv, String queryFileName) {
     String queryContent = readSqlFromFile(NEXMARK_RESOURCE_DIR + "/" + queryFileName);
 
     String[] sqlStatements = queryContent.split(";");
@@ -124,7 +130,7 @@ public class NexmarkTest {
     }
   }
 
-  private List<String> discoverQueryFiles() {
+  private List<String> getQueries() {
     URL resourceUrl = getClass().getClassLoader().getResource(NEXMARK_RESOURCE_DIR);
 
     try {
@@ -144,9 +150,9 @@ public class NexmarkTest {
     }
   }
 
-  private String readSqlFromFile(String fileName) {
+  private static String readSqlFromFile(String fileName) {
     try {
-      URL resource = getClass().getClassLoader().getResource(fileName);
+      URL resource = NexmarkTest.class.getClassLoader().getResource(fileName);
       if (resource == null) {
         throw new RuntimeException("SQL file not found: " + fileName);
       }

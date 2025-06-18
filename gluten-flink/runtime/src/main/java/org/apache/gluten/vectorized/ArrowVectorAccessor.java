@@ -256,8 +256,7 @@ class TimeStampMicroVectorAccessor extends BaseArrowVectorAccessor<TimeStampMicr
 
   @Override
   public Object getImpl(int rowIndex) {
-    long microseconds = typedVector.get(rowIndex);
-    long milliseconds = microseconds / 1000;
+    long milliseconds = typedVector.get(rowIndex) / 1000;
     return TimestampData.fromEpochMillis(milliseconds);
   }
 }
