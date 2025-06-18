@@ -39,11 +39,19 @@ public class AggregateCallConverter {
 
   public static Aggregate toAggregate(
       AggregateCall aggregateCall, io.github.zhztheplayer.velox4j.type.RowType inputType) {
+    List<TypedExpr> args = new ArrayList<>();
     List<Type> rawTypes = new ArrayList<>();
     for (int arg : aggregateCall.getArgList()) {
+      args.add(
+          FieldAccessTypedExpr.create(
+              inputType.getChildren().get(arg), inputType.getNames().get(arg)));
       rawTypes.add(inputType.getChildren().get(arg));
     }
-    CallTypedExpr call = toCall(aggregateCall, inputType);
+    CallTypedExpr call =
+        convertAggregation(
+            aggregateCall.getAggregation().getName(),
+            args,
+            RexNodeConverter.toType(aggregateCall.getType()));
     return new Aggregate(call, rawTypes, null, List.of(), List.of(), aggregateCall.isDistinct());
   }
 
