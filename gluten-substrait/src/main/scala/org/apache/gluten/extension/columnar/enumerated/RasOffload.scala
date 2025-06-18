@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.execution.{GlutenPlan, ValidatablePlan}
+import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
 import org.apache.gluten.extension.columnar.validator.Validator
@@ -87,7 +88,9 @@ object RasOffload {
         validator.validate(node) match {
           case Validator.Passed =>
           case Validator.Failed(reason) =>
-            // TODO: Tag the original plan with fallback reason.
+            if (FallbackTags.maybeOffloadable(node)) {
+              FallbackTags.add(node, reason)
+            }
             return List.empty
         }
 
@@ -131,6 +134,9 @@ object RasOffload {
                   // TODO: Tag the original plan with fallback reason. This is a non-trivial work
                   //  in RAS as the query plan we got here may be a copy so may not propagate tags
                   //  to original plan.
+                  if (FallbackTags.maybeOffloadable(from)) {
+                    outComes.foreach(FallbackTags.add(from, _))
+                  }
                   from
                 } else {
                   offloadSucceeded = true
@@ -140,6 +146,9 @@ object RasOffload {
                 // TODO: Tag the original plan with fallback reason. This is a non-trivial work
                 //  in RAS as the query plan we got here may be a copy so may not propagate tags
                 //  to original plan.
+                if (FallbackTags.maybeOffloadable(from)) {
+                  FallbackTags.add(from, reason)
+                }
                 from
             }
         }
