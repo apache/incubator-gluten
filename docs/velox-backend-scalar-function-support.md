@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 233 functions and partially supports 20 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 241 functions and partially supports 19 functions.**
 
 ## Array Functions
 
@@ -8,7 +8,7 @@
 |-------------------|---------------------|----------|----------------|
 | array             | CreateArray         | S        |                |
 | array_append      | ArrayAppend         | S        |                |
-| array_compact     | ArrayCompact        |          |                |
+| array_compact     | ArrayCompact        | S        |                |
 | array_contains    | ArrayContains       | S        |                |
 | array_distinct    | ArrayDistinct       | S        |                |
 | array_except      | ArrayExcept         | S        |                |
@@ -51,7 +51,7 @@
 |-------------------|---------------------|----------|----------------|
 | array_size        | ArraySize           | S        |                |
 | cardinality       | Size                | S        |                |
-| concat            | Concat              | PS       |                |
+| concat            | Concat              | S        |                |
 | reverse           | Reverse             | S        |                |
 | size              | Size                | S        |                |
 
@@ -110,7 +110,7 @@
 | date_from_unix_date | DateFromUnixDate                     | S        |                |
 | date_part           | DatePartExpressionBuilder            |          |                |
 | date_sub            | DateSub                              | S        |                |
-| date_trunc          | TruncTimestamp                       |          |                |
+| date_trunc          | TruncTimestamp                       | S        |                |
 | dateadd             | DateAdd                              | S        |                |
 | datediff            | DateDiff                             | S        |                |
 | datepart            | DatePartExpressionBuilder            |          |                |
@@ -148,7 +148,7 @@
 | to_timestamp_ntz    | ParseToTimestampNTZExpressionBuilder |          |                |
 | to_unix_timestamp   | ToUnixTimestamp                      | PS       |                |
 | to_utc_timestamp    | ToUTCTimestamp                       | S        |                |
-| trunc               | TruncDate                            |          |                |
+| trunc               | TruncDate                            | S        |                |
 | try_to_timestamp    | TryToTimestampExpressionBuilder      |          |                |
 | unix_date           | UnixDate                             | S        |                |
 | unix_micros         | UnixMicros                           | S        |                |
@@ -237,7 +237,7 @@
 | atanh             | Atanh                  | S        |                |
 | bin               | Bin                    | S        |                |
 | bround            | BRound                 |          |                |
-| cbrt              | Cbrt                   |          |                |
+| cbrt              | Cbrt                   | S        |                |
 | ceil              | CeilExpressionBuilder  | PS       |                |
 | ceiling           | CeilExpressionBuilder  | PS       |                |
 | conv              | Conv                   | S        |                |
@@ -250,7 +250,7 @@
 | e                 | EulerNumber            | S        |                |
 | exp               | Exp                    | S        |                |
 | expm1             | Expm1                  | S        |                |
-| factorial         | Factorial              |          |                |
+| factorial         | Factorial              | S        |                |
 | floor             | FloorExpressionBuilder | PS       |                |
 | greatest          | Greatest               | S        |                |
 | hex               | Hex                    | S        |                |
@@ -280,7 +280,7 @@
 | signum            | Signum                 | S        |                |
 | sin               | Sin                    |          |                |
 | sinh              | Sinh                   | S        |                |
-| sqrt              | Sqrt                   |          |                |
+| sqrt              | Sqrt                   | S        |                |
 | tan               | Tan                    |          |                |
 | tanh              | Tanh                   |          |                |
 | try_add           | TryAdd                 | PS       |                |
@@ -382,7 +382,7 @@
 | lower              | Lower                       | S        |                        |
 | lpad               | LPadExpressionBuilder       | PS       | BinaryType unsupported |
 | ltrim              | StringTrimLeft              | S        |                        |
-| luhn_check         | Luhncheck                   |          |                        |
+| luhn_check         | Luhncheck                   | S        |                        |
 | mask               | MaskExpressionBuilder       | S        |                        |
 | octet_length       | OctetLength                 |          |                        |
 | overlay            | Overlay                     | S        |                        |

@@ -14,21 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.task
+package org.apache.gluten.vectorized;
 
-import org.apache.spark.TaskContext
-import org.apache.spark.memory.TaskMemoryManager
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.RuntimeAware;
 
-object SparkTaskUtil {
-  def setTaskContext(taskContext: TaskContext): Unit = {
-    TaskContext.setTaskContext(taskContext)
+public class CelebornPartitionWriterJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
+
+  private CelebornPartitionWriterJniWrapper(org.apache.gluten.runtime.Runtime runtime) {
+    this.runtime = runtime;
   }
 
-  def unsetTaskContext(): Unit = {
-    TaskContext.unset()
+  public static CelebornPartitionWriterJniWrapper create(Runtime runtime) {
+    return new CelebornPartitionWriterJniWrapper(runtime);
   }
 
-  def getTaskMemoryManager(taskContext: TaskContext): TaskMemoryManager = {
-    taskContext.taskMemoryManager()
+  @Override
+  public long rtHandle() {
+    return runtime.getHandle();
   }
+
+  public native long createPartitionWriter(
+      int numPartitions,
+      String codec,
+      String codecBackend,
+      int compressionLevel,
+      int compressionBufferSize,
+      int pushBufferMaxSize,
+      long sortBufferMaxSize,
+      Object pusher);
 }

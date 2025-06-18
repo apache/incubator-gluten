@@ -17,6 +17,7 @@
 package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.velox.VeloxBackend
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{OffloadDeltaFilter, OffloadDeltaProject, OffloadDeltaScan}
 import org.apache.gluten.extension.DeltaPostTransformRules
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
@@ -38,7 +39,9 @@ class VeloxDeltaComponent extends Component {
       c =>
         val offload = Seq(OffloadDeltaScan(), OffloadDeltaProject(), OffloadDeltaFilter())
           .map(_.toStrcitRule())
-        HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
+        HeuristicTransform.Simple(
+          Validators.newValidator(new GlutenConfig(c.sqlConf), offload),
+          offload)
     }
     val offloads: Seq[RasOffload] = Seq(
       RasOffload.from[FileSourceScanExec](OffloadDeltaScan()),
@@ -48,7 +51,7 @@ class VeloxDeltaComponent extends Component {
     offloads.foreach(
       offload =>
         ras.injectRasRule(
-          c => RasOffload.Rule(offload, Validators.newValidator(c.glutenConf), Nil)))
+          c => RasOffload.Rule(offload, Validators.newValidator(new GlutenConfig(c.sqlConf)), Nil)))
     DeltaPostTransformRules.rules.foreach {
       r =>
         legacy.injectPostTransform(_ => r)

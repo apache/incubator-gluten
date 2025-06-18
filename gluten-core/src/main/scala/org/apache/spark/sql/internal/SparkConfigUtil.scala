@@ -16,11 +16,64 @@
  */
 package org.apache.spark.sql.internal
 
+import org.apache.gluten.config.ConfigEntry
+
 import org.apache.spark.SparkConf
-import org.apache.spark.internal.config.ConfigEntry
+import org.apache.spark.internal.config.{ConfigEntry => SparkConfigEntry, OptionalConfigEntry}
 
 object SparkConfigUtil {
-  def getEntryValue[T](conf: SparkConf, entry: ConfigEntry[T]): T = {
+
+  implicit class RichSparkConf(val conf: SparkConf) {
+    def get[T](entry: SparkConfigEntry[T]): T = {
+      SparkConfigUtil.get(conf, entry)
+    }
+
+    def get[T](entry: ConfigEntry[T]): T = {
+      SparkConfigUtil.get(conf, entry)
+    }
+
+    def set[T](entry: SparkConfigEntry[T], value: T): SparkConf = {
+      SparkConfigUtil.set(conf, entry, value)
+    }
+
+    def set[T](entry: OptionalConfigEntry[T], value: T): SparkConf = {
+      SparkConfigUtil.set(conf, entry, value)
+    }
+
+    def set[T](entry: ConfigEntry[T], value: T): SparkConf = {
+      SparkConfigUtil.set(conf, entry, value)
+    }
+  }
+
+  def get[T](conf: SparkConf, entry: SparkConfigEntry[T]): T = {
     conf.get(entry)
+  }
+
+  def get[T](conf: SparkConf, entry: ConfigEntry[T]): T = {
+    entry.valueConverter(conf.get(entry.key, entry.defaultValueString))
+  }
+
+  def get[T](conf: java.util.Map[String, String], entry: SparkConfigEntry[T]): T = {
+    entry.valueConverter(conf.getOrDefault(entry.key, entry.defaultValueString))
+  }
+
+  def get[T](conf: java.util.Map[String, String], entry: ConfigEntry[T]): T = {
+    entry.valueConverter(conf.getOrDefault(entry.key, entry.defaultValueString))
+  }
+
+  def set[T](conf: SparkConf, entry: SparkConfigEntry[T], value: T): SparkConf = {
+    conf.set(entry, value)
+  }
+
+  def set[T](conf: SparkConf, entry: OptionalConfigEntry[T], value: T): SparkConf = {
+    conf.set(entry, value)
+  }
+
+  def set[T](conf: SparkConf, entry: ConfigEntry[T], value: T): SparkConf = {
+    value match {
+      case Some(v) => conf.set(entry.key, v.toString)
+      case None | null => conf.set(entry.key, null)
+      case _ => conf.set(entry.key, value.toString)
+    }
   }
 }
