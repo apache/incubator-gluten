@@ -48,7 +48,7 @@ public class TestGlutenCopyOnWriteDelete extends TestCopyOnWriteDelete {
 
   @Test
   public synchronized void testDeleteWithConcurrentTableRefresh() {
-    System.out.println("Run timeout");
+    throw new RuntimeException("The run is failed");
   }
 
   @Test
