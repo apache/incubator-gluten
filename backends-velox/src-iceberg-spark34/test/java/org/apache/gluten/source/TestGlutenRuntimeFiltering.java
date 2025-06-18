@@ -16,7 +16,11 @@
  */
 package org.apache.gluten.source;
 
-import org.apache.iceberg.spark.source.TestIcebergSourceHiveTables;
+import org.apache.iceberg.PlanningMode;
+import org.apache.iceberg.spark.source.TestRuntimeFiltering;
 
-// Fallback all the table scan because source table is metadata table with format avro.
-public class GlutenTestIcebergSourceHiveTables extends TestIcebergSourceHiveTables {}
+public class TestGlutenRuntimeFiltering extends TestRuntimeFiltering {
+  public TestGlutenRuntimeFiltering(PlanningMode planningMode) {
+    super(planningMode);
+  }
+}

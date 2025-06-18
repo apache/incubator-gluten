@@ -17,18 +17,19 @@
 package org.apache.gluten.extensions;
 
 import org.apache.iceberg.PlanningMode;
-import org.apache.iceberg.spark.extensions.TestMergeOnReadMerge;
+import org.apache.iceberg.spark.extensions.TestMergeOnReadDelete;
 import org.junit.Test;
 
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
-public class GlutenTestMergeOnReadMerge extends TestMergeOnReadMerge {
-  public GlutenTestMergeOnReadMerge(
+public class TestGlutenMergeOnReadDelete extends TestMergeOnReadDelete {
+  public TestGlutenMergeOnReadDelete(
       String catalogName,
       String implementation,
       Map<String, String> config,
       String fileFormat,
-      boolean vectorized,
+      Boolean vectorized,
       String distributionMode,
       boolean fanoutEnabled,
       String branch,
@@ -46,17 +47,17 @@ public class GlutenTestMergeOnReadMerge extends TestMergeOnReadMerge {
   }
 
   @Test
-  public synchronized void testMergeWithConcurrentTableRefresh() {
+  public synchronized void testDeleteWithConcurrentTableRefresh() {
     System.out.println("Run timeout");
   }
 
   @Test
-  public synchronized void testMergeWithSerializableIsolation() {
+  public synchronized void testDeleteWithSerializableIsolation() {
     System.out.println("Run timeout");
   }
 
   @Test
-  public synchronized void testMergeWithSnapshotIsolation() {
+  public synchronized void testDeleteWithSnapshotIsolation() throws ExecutionException {
     System.out.println("Run timeout");
   }
 }

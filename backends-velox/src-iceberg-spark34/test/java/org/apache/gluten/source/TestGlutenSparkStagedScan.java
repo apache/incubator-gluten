@@ -14,8 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql;
+package org.apache.gluten.source;
 
-import org.apache.iceberg.spark.sql.TestPartitionedWritesAsSelect;
+import org.apache.iceberg.spark.source.TestSparkStagedScan;
 
-public class GlutenTestPartitionedWritesAsSelect extends TestPartitionedWritesAsSelect {}
+import java.util.Map;
+
+public class TestGlutenSparkStagedScan extends TestSparkStagedScan {
+  public TestGlutenSparkStagedScan(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
+}
