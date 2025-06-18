@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.sql;
 
-import org.apache.iceberg.spark.sql.TestTimestampWithoutZone;
+import org.apache.iceberg.spark.sql.TestPartitionedWritesToWapBranch;
 
 import java.util.Map;
 
-public class GlutenTestTimestampWithoutZone extends TestTimestampWithoutZone {
-  public GlutenTestTimestampWithoutZone(
+public class TestGlutenPartitionedWritesToWapBranch extends TestPartitionedWritesToWapBranch {
+  public TestGlutenPartitionedWritesToWapBranch(
       String catalogName, String implementation, Map<String, String> config) {
     super(catalogName, implementation, config);
   }

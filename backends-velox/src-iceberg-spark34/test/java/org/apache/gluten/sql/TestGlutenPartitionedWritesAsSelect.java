@@ -14,8 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.source;
+package org.apache.gluten.sql;
 
-import org.apache.iceberg.spark.source.TestDataSourceOptions;
+import org.apache.iceberg.spark.sql.TestPartitionedWritesAsSelect;
 
-public class GlutenTestDataSourceOptions extends TestDataSourceOptions {}
+public class TestGlutenPartitionedWritesAsSelect extends TestPartitionedWritesAsSelect {}

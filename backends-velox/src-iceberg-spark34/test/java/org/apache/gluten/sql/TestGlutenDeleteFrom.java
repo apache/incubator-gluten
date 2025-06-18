@@ -14,8 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.source;
+package org.apache.gluten.sql;
 
-import org.apache.iceberg.spark.source.TestDataFrameWriterV2;
+import org.apache.iceberg.spark.sql.TestDeleteFrom;
 
-public class GlutenTestDataFrameWriterV2 extends TestDataFrameWriterV2 {}
+import java.util.Map;
+
+public class TestGlutenDeleteFrom extends TestDeleteFrom {
+  public TestGlutenDeleteFrom(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
+}

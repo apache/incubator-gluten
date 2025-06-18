@@ -14,15 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql;
+package org.apache.gluten.source;
 
-import org.apache.iceberg.spark.sql.TestPartitionedWritesToBranch;
+import org.apache.iceberg.spark.source.TestIcebergSourceHiveTables;
 
-import java.util.Map;
-
-public class GlutenTestPartitionedWritesToBranch extends TestPartitionedWritesToBranch {
-  public GlutenTestPartitionedWritesToBranch(
-      String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
-  }
-}
+// Fallback all the table scan because source table is metadata table with format avro.
+public class TestGlutenIcebergSourceHiveTables extends TestIcebergSourceHiveTables {}
