@@ -317,7 +317,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.logging.log4j</groupId>
-          <artifactId>log4j-core</artifactId>
+          <artifactId>log4j</artifactId>
           <version>${log4j.version}</version>
           <scope>provided</scope>
         </dependency>
