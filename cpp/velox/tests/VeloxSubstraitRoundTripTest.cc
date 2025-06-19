@@ -68,9 +68,10 @@ class VeloxSubstraitRoundTripTest : public OperatorTestBase {
     // Convert Velox Plan to Substrait Plan.
     google::protobuf::Arena arena;
     auto substraitPlan = veloxConvertor_->toSubstrait(arena, plan);
-    std::unordered_map<std::string, std::string> sessionConf = {};
+    auto veloxCfg =
+        std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>());
     std::shared_ptr<SubstraitToVeloxPlanConverter> substraitConverter_ =
-        std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), sessionConf, std::nullopt, true);
+        std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), veloxCfg.get(), std::nullopt, true);
 
     // Convert Substrait Plan to the same Velox Plan.
     auto samePlan = substraitConverter_->toVeloxPlan(substraitPlan);
@@ -88,9 +89,10 @@ class VeloxSubstraitRoundTripTest : public OperatorTestBase {
       // Convert Velox Plan to Substrait Plan.
       google::protobuf::Arena arena;
       auto substraitPlan = veloxConvertor_->toSubstrait(arena, plan);
-      std::unordered_map<std::string, std::string> sessionConf = {};
+      auto veloxCfg =
+          std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>());
       std::shared_ptr<SubstraitToVeloxPlanConverter> substraitConverter_ =
-          std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), sessionConf, std::nullopt, true);
+          std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), veloxCfg.get(), std::nullopt, true);
       // Convert Substrait Plan to the same Velox Plan.
       auto samePlan = substraitConverter_->toVeloxPlan(substraitPlan);
 
