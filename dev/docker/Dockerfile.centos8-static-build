@@ -38,6 +38,7 @@ RUN set -ex; \
     wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.9/binaries/apache-maven-3.8.9-bin.tar.gz; \
     tar -xvf apache-maven-3.8.9-bin.tar.gz; \
     mv apache-maven-3.8.9 /usr/lib/maven; \
+    rm -rf apache-maven-3.8.9-bin.tar.gz; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
     cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh; \
     mkdir -p ${VCPKG_PATH}; \
