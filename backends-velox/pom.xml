@@ -114,7 +114,7 @@
           <exclusions>
             <exclusion>
               <groupId>org.apache.arrow</groupId>
-              <artifactId>arrow-memory-core</artifactId>
+              <artifactId>arrow-memory-netty</artifactId>
             </exclusion>
             <exclusion>
               <groupId>org.apache.arrow</groupId>
