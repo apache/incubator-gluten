@@ -38,7 +38,7 @@ import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
 
-import java.io.File
+import java.io.{File, FileNotFoundException}
 import java.net.URI
 import java.util.Locale
 
@@ -780,16 +780,21 @@ class GlutenSQLQueryTestSuite
   }
 
   // ==== Start of modifications for Gluten. ====
-  // ===- End of modifications for Gluten. ====
 
   /** Returns all the files (not directories) in a directory, recursively. */
   protected def listFilesRecursively(path: File): Seq[File] = {
-    val (dirs, files) = path.listFiles().partition(_.isDirectory)
-    // Filter out test files with invalid extensions such as temp files created
-    // by vi (.swp), Mac (.DS_Store) etc.
-    val filteredFiles = files.filter(_.getName.endsWith(validFileExtensions))
-    filteredFiles ++ dirs.flatMap(listFilesRecursively)
+    if (path.exists) {
+      val (dirs, files) = path.listFiles().partition(_.isDirectory)
+      // Filter out test files with invalid extensions such as temp files created
+      // by vi (.swp), Mac (.DS_Store) etc.
+      val filteredFiles = files.filter(_.getName.endsWith(validFileExtensions))
+      filteredFiles ++ dirs.flatMap(listFilesRecursively)
+    } else {
+      throw new FileNotFoundException(s"Directory does not exist: ${path.getAbsolutePath}")
+    }
   }
+
+  // === End of modifications for Gluten. ====
 
   /** Load built-in test tables into the SparkSession. */
   private def createTestTables(session: SparkSession): Unit = {
