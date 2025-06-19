@@ -36,6 +36,7 @@ RUN set -ex; \
     wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.9/binaries/apache-maven-3.8.9-bin.tar.gz; \
     tar -xvf apache-maven-3.8.9-bin.tar.gz; \
     mv apache-maven-3.8.9 /usr/lib/maven; \
+    rm -rf apache-maven-3.8.9-bin.tar.gz; \
     wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.4.3/apache-celeborn-0.4.3-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.5.4/apache-celeborn-0.5.4-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/incubator/uniffle/0.9.2/apache-uniffle-0.9.2-incubating-bin.tar.gz -P /opt/; \
