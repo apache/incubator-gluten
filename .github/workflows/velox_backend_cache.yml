@@ -106,6 +106,34 @@ jobs:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
 
+  cache-enhanced-shared-lib-centos-8:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-22.04 ]
+    container: apache/gluten:centos-8-jdk8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-enhanced-centos8-release-shared-${{runner.arch}}-${{github.sha}}
+          restore-keys: |
+            ccache-enhanced-centos8-release-shared-${{runner.arch}}
+      - name: Build Gluten
+        run: |
+          df -a
+          source /opt/rh/gcc-toolset-11/enable
+          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_enhanced_features=ON
+          ccache -s
+      - name: Save Ccache
+        uses: actions/cache/save@v3
+        id: ccache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-enhanced-centos8-release-shared-${{runner.arch}}-${{github.sha}}
+
   cache-shared-lib-centos-9:
     runs-on: ${{ matrix.os }}
     strategy:
