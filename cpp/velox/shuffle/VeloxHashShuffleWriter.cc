@@ -1372,6 +1372,7 @@ arrow::Result<int64_t> VeloxHashShuffleWriter::evictPartitionBuffersMinSize(int6
     }
     pidToSize.emplace_back(pid, partitionBufferSize_[pid]);
   }
+  std::sort(pidToSize.begin(), pidToSize.end(), [&](const auto& a, const auto& b) { return a.second > b.second; });
   if (!pidToSize.empty()) {
     for (auto& item : pidToSize) {
       auto pid = item.first;
