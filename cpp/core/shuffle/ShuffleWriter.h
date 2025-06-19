@@ -41,8 +41,6 @@ class ShuffleWriter : public Reclaimable {
 
   int32_t numPartitions() const;
 
-  ShuffleWriterOptions& options();
-
   int64_t totalBytesWritten() const;
 
   int64_t totalBytesEvicted() const;
@@ -55,7 +53,7 @@ class ShuffleWriter : public Reclaimable {
 
   int64_t totalCompressTime() const;
 
-  virtual int64_t peakBytesAllocated() const;
+  virtual int64_t peakBytesAllocated() const = 0;
 
   virtual int64_t totalSortTime() const;
 
@@ -66,15 +64,12 @@ class ShuffleWriter : public Reclaimable {
   const std::vector<int64_t>& rawPartitionLengths() const;
 
  protected:
-  ShuffleWriter(int32_t numPartitions, ShuffleWriterOptions options, arrow::MemoryPool* pool);
+  ShuffleWriter(int32_t numPartitions, Partitioning partitioning);
 
   ~ShuffleWriter() override = default;
 
   int32_t numPartitions_;
-
-  ShuffleWriterOptions options_;
-
-  arrow::MemoryPool* pool_;
+  Partitioning partitioning_;
 
   ShuffleWriterMetrics metrics_{};
 };

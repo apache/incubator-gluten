@@ -214,20 +214,12 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
 }
 
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
-    int numPartitions,
-    std::unique_ptr<PartitionWriter> partitionWriter,
-    ShuffleWriterOptions options) {
-  auto veloxPool = memoryManager()->getLeafMemoryPool();
-  auto arrowPool = memoryManager()->getArrowMemoryPool();
+    int32_t numPartitions,
+    const std::shared_ptr<PartitionWriter>& partitionWriter,
+    const std::shared_ptr<ShuffleWriterOptions>& options) {
   GLUTEN_ASSIGN_OR_THROW(
       std::shared_ptr<ShuffleWriter> shuffleWriter,
-      VeloxShuffleWriter::create(
-          options.shuffleWriterType,
-          numPartitions,
-          std::move(partitionWriter),
-          std::move(options),
-          veloxPool,
-          arrowPool));
+      VeloxShuffleWriter::create(options->shuffleWriterType, numPartitions, partitionWriter, options, memoryManager()));
   return shuffleWriter;
 }
 
@@ -287,7 +279,7 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
       options.batchSize,
       options.readerBufferSize,
       options.deserializerBufferSize,
-      memoryManager()->getArrowMemoryPool(),
+      memoryManager()->defaultArrowMemoryPool(),
       memoryManager()->getLeafMemoryPool(),
       options.shuffleWriterType);
 
@@ -295,7 +287,7 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
 }
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(struct ArrowSchema* cSchema) {
-  auto arrowPool = memoryManager()->getArrowMemoryPool();
+  auto arrowPool = memoryManager()->defaultArrowMemoryPool();
   auto veloxPool = memoryManager()->getLeafMemoryPool();
   return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
 }

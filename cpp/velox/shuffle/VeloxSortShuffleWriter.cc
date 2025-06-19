@@ -49,23 +49,27 @@ std::pair<uint32_t, uint32_t> extractPageNumberAndOffset(uint64_t compactRowId) 
 
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxSortShuffleWriter::create(
     uint32_t numPartitions,
-    std::unique_ptr<PartitionWriter> partitionWriter,
-    ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* arrowPool) {
-  std::shared_ptr<VeloxSortShuffleWriter> writer(new VeloxSortShuffleWriter(
-      numPartitions, std::move(partitionWriter), std::move(options), std::move(veloxPool), arrowPool));
-  RETURN_NOT_OK(writer->init());
-  return writer;
+    const std::shared_ptr<PartitionWriter>& partitionWriter,
+    const std::shared_ptr<ShuffleWriterOptions>& options,
+    MemoryManager* memoryManager) {
+  if (auto sortOptions = std::dynamic_pointer_cast<SortShuffleWriterOptions>(options)) {
+    std::shared_ptr<VeloxSortShuffleWriter> writer(
+        new VeloxSortShuffleWriter(numPartitions, partitionWriter, sortOptions, memoryManager));
+    RETURN_NOT_OK(writer->init());
+    return writer;
+  }
+  return arrow::Status::Invalid("Error casting ShuffleWriterOptions to SortShuffleWriterOptions.");
 }
 
 VeloxSortShuffleWriter::VeloxSortShuffleWriter(
     uint32_t numPartitions,
-    std::unique_ptr<PartitionWriter> partitionWriter,
-    ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* pool)
-    : VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), std::move(veloxPool), pool) {}
+    const std::shared_ptr<PartitionWriter>& partitionWriter,
+    const std::shared_ptr<SortShuffleWriterOptions>& options,
+    MemoryManager* memoryManager)
+    : VeloxShuffleWriter(numPartitions, partitionWriter, options, memoryManager),
+      useRadixSort_(options->useRadixSort),
+      initialSortBufferSize_(options->initialSortBufferSize),
+      diskWriteBufferSize_(options->diskWriteBufferSize) {}
 
 arrow::Status VeloxSortShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
   ARROW_ASSIGN_OR_RAISE(auto rv, getPeeledRowVector(cb));
@@ -102,13 +106,12 @@ arrow::Status VeloxSortShuffleWriter::reclaimFixedSize(int64_t size, int64_t* ac
 
 arrow::Status VeloxSortShuffleWriter::init() {
   ARROW_RETURN_IF(
-      options_.partitioning == Partitioning::kSingle,
+      partitioning_ == Partitioning::kSingle,
       arrow::Status::Invalid("VeloxSortShuffleWriter doesn't support single partition."));
   allocateMinimalArray();
   // In Spark, sortedBuffer_ memory and compressionBuffer_ memory are pre-allocated and counted into executor
   // memory overhead. To align with Spark, we use arrow::default_memory_pool() to avoid counting these memory in Gluten.
-  ARROW_ASSIGN_OR_RAISE(
-      sortedBuffer_, arrow::AllocateBuffer(options_.diskWriteBufferSize, arrow::default_memory_pool()));
+  ARROW_ASSIGN_OR_RAISE(sortedBuffer_, arrow::AllocateBuffer(diskWriteBufferSize_, arrow::default_memory_pool()));
   sortedBufferPtr_ = sortedBuffer_->mutable_data();
   return arrow::Status::OK();
 }
@@ -122,7 +125,7 @@ void VeloxSortShuffleWriter::initRowType(const facebook::velox::RowVectorPtr& rv
 
 arrow::Result<facebook::velox::RowVectorPtr> VeloxSortShuffleWriter::getPeeledRowVector(
     const std::shared_ptr<ColumnarBatch>& cb) {
-  if (options_.partitioning == Partitioning::kRange) {
+  if (partitioning_ == Partitioning::kRange) {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
     const int32_t numColumns = veloxColumnBatch->numColumns();
@@ -229,7 +232,7 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
   int32_t begin = 0;
   {
     ScopedTimer timer(&sortTime_);
-    if (options_.useRadixSort) {
+    if (useRadixSort_) {
       begin = RadixSort::sort(arrayPtr_, arraySize_, numRecords, kPartitionIdStartByteIndex, kPartitionIdEndByteIndex);
     } else {
       std::sort(arrayPtr_, arrayPtr_ + numRecords);
@@ -286,20 +289,20 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
     auto pageIndex = extractPageNumberAndOffset(arrayPtr_[index]);
     addr = pageAddresses_[pageIndex.first] + pageIndex.second;
     recordSize = *(reinterpret_cast<RowSizeType*>(addr)) + sizeof(RowSizeType);
-    if (offset + recordSize > options_.diskWriteBufferSize && offset > 0) {
+    if (offset + recordSize > diskWriteBufferSize_ && offset > 0) {
       sortTime.stop();
       RETURN_NOT_OK(evictPartitionInternal(partitionId, sortedBufferPtr_, offset));
       sortTime.start();
       begin = index;
       offset = 0;
     }
-    if (recordSize > static_cast<uint32_t>(options_.diskWriteBufferSize)) {
+    if (recordSize > static_cast<uint32_t>(diskWriteBufferSize_)) {
       // Split large rows.
       sortTime.stop();
       RowSizeType bytes = 0;
       auto* buffer = reinterpret_cast<uint8_t*>(addr);
       while (bytes < recordSize) {
-        auto rawLength = std::min<RowSizeType>((uint32_t)options_.diskWriteBufferSize, recordSize - bytes);
+        auto rawLength = std::min<RowSizeType>(static_cast<uint32_t>(diskWriteBufferSize_), recordSize - bytes);
         // Use numRows = 0 to represent a part of row.
         RETURN_NOT_OK(evictPartitionInternal(partitionId, buffer + bytes, rawLength));
         bytes += rawLength;
@@ -402,10 +405,10 @@ void VeloxSortShuffleWriter::growArrayIfNecessary(uint32_t rows) {
 
 uint32_t VeloxSortShuffleWriter::newArraySize(uint32_t rows) {
   auto newSize = arraySize_;
-  auto usableCapacity = options_.useRadixSort ? newSize / 2 : newSize;
+  auto usableCapacity = useRadixSort_ ? newSize / 2 : newSize;
   while (offset_ + rows > usableCapacity) {
     newSize <<= 1;
-    usableCapacity = options_.useRadixSort ? newSize / 2 : newSize;
+    usableCapacity = useRadixSort_ ? newSize / 2 : newSize;
   }
   return newSize;
 }
@@ -433,8 +436,8 @@ int64_t VeloxSortShuffleWriter::totalC2RTime() const {
 }
 
 void VeloxSortShuffleWriter::allocateMinimalArray() {
-  auto array = facebook::velox::AlignedBuffer::allocate<char>(
-      options_.initialSortBufferSize * sizeof(uint64_t), veloxPool_.get());
+  auto array =
+      facebook::velox::AlignedBuffer::allocate<char>(initialSortBufferSize_ * sizeof(uint64_t), veloxPool_.get());
   setUpArray(std::move(array));
 }
 

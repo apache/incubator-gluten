@@ -104,7 +104,8 @@ object CHRuleApi {
     injector.injectTransform(
       c =>
         intercept(
-          HeuristicTransform.WithRewrites(validatorBuilder(c.glutenConf), rewrites, offloads)))
+          HeuristicTransform
+            .WithRewrites(validatorBuilder(new GlutenConfig(c.sqlConf)), rewrites, offloads)))
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => PruneNestedColumnsInHiveTableScan)
@@ -120,8 +121,8 @@ object CHRuleApi {
     injector.injectPostTransform(
       c =>
         intercept(
-          SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
-            c.session)))
+          SparkPlanRules.extendedColumnarRule(
+            new GlutenConfig(c.sqlConf).extendedColumnarTransformRules)(c.session)))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(_ => CollectTailTransformerRule())
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatchType))
@@ -140,16 +141,17 @@ object CHRuleApi {
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => intercept(each(c.session))))
-    injector.injectPost(c => ColumnarCollapseTransformStages(c.glutenConf))
+    injector.injectPost(c => ColumnarCollapseTransformStages(new GlutenConfig(c.sqlConf)))
     injector.injectPost(
       c =>
         intercept(
-          SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarPostRules)(c.session)))
+          SparkPlanRules.extendedColumnarRule(
+            new GlutenConfig(c.sqlConf).extendedColumnarPostRules)(c.session)))
     injector.injectPost(c => GlutenNoopWriterRule.apply(c.session))
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.injectFinal(c => GlutenFallbackReporter(c.glutenConf, c.session))
+    injector.injectFinal(c => GlutenFallbackReporter(new GlutenConfig(c.sqlConf), c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 

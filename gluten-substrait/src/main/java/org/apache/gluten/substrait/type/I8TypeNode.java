@@ -40,4 +40,9 @@ public class I8TypeNode implements TypeNode, Serializable {
     builder.setI8(i8Builder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

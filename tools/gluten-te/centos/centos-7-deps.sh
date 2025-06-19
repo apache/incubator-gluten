@@ -74,10 +74,9 @@ if [ "$(semver "$installed_automake_version")" -lt "$(semver 1.14)" ]; then
   mkdir -p /tmp/automake
   AUTOMAKE_URL1="https://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
   AUTOMAKE_URL2="https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
-  wget -O - "$AUTOMAKE_URL1" | tar -x --xz -C /tmp/automake --strip-components=1
-  if [ $? -ne 0 ]; then
-    wget -O - "$AUTOMAKE_URL2" | tar -x --xz -C /tmp/automake --strip-components=1
-  fi
+  wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL1" || wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL2"
+  tar -xf /tmp/automake.tar.xz -C /tmp/automake --strip-components=1
+  rm -f /tmp/automake.tar.xz
   cd /tmp/automake
   ./configure
   make install -j

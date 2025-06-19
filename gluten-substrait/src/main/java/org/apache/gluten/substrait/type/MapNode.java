@@ -61,4 +61,9 @@ public class MapNode implements TypeNode, Serializable {
     builder.setMap(mapBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

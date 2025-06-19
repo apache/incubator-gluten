@@ -48,70 +48,6 @@
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-spark33-sources</id>
-                <phase>generate-sources</phase>
-                <goals>
-                  <goal>add-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src-spark33/main/scala</source>
-                    <source>${project.basedir}/src-spark33/main/java</source>
-                  </sources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-spark33-resources</id>
-                <phase>generate-resources</phase>
-                <goals>
-                  <goal>add-resource</goal>
-                </goals>
-                <configuration>
-                  <resources>
-                    <resource>
-                      <directory>${project.basedir}/src-spark33/main/resources</directory>
-                    </resource>
-                  </resources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-spark33-test-sources</id>
-                <phase>generate-test-sources</phase>
-                <goals>
-                  <goal>add-test-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src-spark33/test/scala</source>
-                    <source>${project.basedir}/src-iceberg/test/java-spark33</source>
-                  </sources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-spark33-test-resources</id>
-                <phase>generate-test-resources</phase>
-                <goals>
-                  <goal>add-test-resource</goal>
-                </goals>
-                <configuration>
-                  <resources>
-                    <resource>
-                      <directory>${project.basedir}/src-spark33/test/resources</directory>
-                    </resource>
-                  </resources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
     <profile>
       <id>spark-3.5</id>
@@ -154,70 +90,6 @@
           </exclusions>
         </dependency>
       </dependencies>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-spark35-sources</id>
-                <phase>generate-sources</phase>
-                <goals>
-                  <goal>add-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src-spark35/main/scala</source>
-                    <source>${project.basedir}/src-spark35/main/java</source>
-                  </sources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-spark35-resources</id>
-                <phase>generate-resources</phase>
-                <goals>
-                  <goal>add-resource</goal>
-                </goals>
-                <configuration>
-                  <resources>
-                    <resource>
-                      <directory>${project.basedir}/src-spark35/main/resources</directory>
-                    </resource>
-                  </resources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-spark35-test-sources</id>
-                <phase>generate-test-sources</phase>
-                <goals>
-                  <goal>add-test-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src-spark35/test/scala</source>
-                    <source>${project.basedir}/src-iceberg/test/java-spark35</source>
-                  </sources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-spark35-test-resources</id>
-                <phase>generate-test-resources</phase>
-                <goals>
-                  <goal>add-test-resource</goal>
-                </goals>
-                <configuration>
-                  <resources>
-                    <resource>
-                      <directory>${project.basedir}/src-spark35/test/resources</directory>
-                    </resource>
-                  </resources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
     <profile>
       <id>iceberg</id>
@@ -806,17 +678,17 @@
               <include>src/test/scala/**/*.scala</include>
               <include>src-delta/main/scala/**/*.scala</include>
               <include>src-delta/test/scala/**/*.scala</include>
-              <include>src-delta-${delta.binary.version}/main/scala/**/*.scala</include>
-              <include>src-delta-${delta.binary.version}/test/scala/**/*.scala</include>
+              <include>src-delta${delta.binary.version}/main/scala/**/*.scala</include>
+              <include>src-delta${delta.binary.version}/test/scala/**/*.scala</include>
             </includes>
             <excludes>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/*.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/merge/*.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/stats/*.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/DeltaLog.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/Snapshot.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/ClickhouseOptimisticTransaction.scala</exclude>
-              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/PreprocessTableWithDVs.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/*.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/merge/*.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/stats/*.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/DeltaLog.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/Snapshot.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/ClickhouseOptimisticTransaction.scala</exclude>
+              <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/PreprocessTableWithDVs.scala</exclude>
             </excludes>
           </scala>
         </configuration>
