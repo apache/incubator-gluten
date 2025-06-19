@@ -73,6 +73,9 @@ jobs:
           brew install wget pkgconfig
           brew install --cask zulu@8
           echo 'export JAVA_HOME=`/usr/libexec/java_home -v 1.8`' >> ~/.zshrc
+          mkdir -p ~/velox/deps-install
+          echo 'export INSTALL_PREFIX=$HOME/velox/deps-install' >> ~/.zshrc
+          . ~/.zshrc
           echo "$(echo $USERNAME) ALL=(ALL:ALL) NOPASSWD:ALL" | EDITOR='tee -a' sudo visudo
 
       - name: Cache ccache
