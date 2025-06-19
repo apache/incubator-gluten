@@ -36,16 +36,20 @@ abstract class ColumnarAppendDataExec(query: SparkPlan, refreshCache: () => Unit
   extends V2ExistingTableWriteExec
   with ValidatablePlan {
 
-  def writingTaskBatch: WritingColumnarBatchSparkTask[_] = DataWritingColumnarBatchSparkTask
+  protected def createFactory(schema: StructType): ColumnarBatchDataWriterFactory
 
   override def doExecute(): RDD[InternalRow] = {
     result
     sparkContext.parallelize(Nil, 1)
   }
 
-  def createFactory(schema: StructType): ColumnarBatchDataWriterFactory
+  override def batchType(): Convention.BatchType = Convention.BatchType.None
 
-  protected def writeColumnarBatchWithV2(batchWrite: BatchWrite): Unit = {
+  override def rowType0(): Convention.RowType = RowType.VanillaRowType
+
+  private def writingTaskBatch: WritingColumnarBatchSparkTask[_] = DataWritingColumnarBatchSparkTask
+
+  private def writeColumnarBatchWithV2(batchWrite: BatchWrite): Unit = {
     val rdd: RDD[ColumnarBatch] = {
       val tempRdd = query.executeColumnar()
       // SPARK-23271 If we are attempting to write a zero partition rdd, create a dummy single
@@ -104,16 +108,12 @@ abstract class ColumnarAppendDataExec(query: SparkPlan, refreshCache: () => Unit
 
   }
 
-  protected def runColumnarBatch(): Seq[ColumnarBatch] = {
+  private def runColumnarBatch(): Seq[ColumnarBatch] = {
     writeColumnarBatchWithV2(write.toBatch)
     refreshCache()
     Seq.empty[ColumnarBatch]
   }
 
   private lazy val result: Seq[ColumnarBatch] = runColumnarBatch()
-
-  override def batchType(): Convention.BatchType = Convention.BatchType.None
-
-  override def rowType0(): Convention.RowType = RowType.VanillaRow
 
 }

@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
-
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.AppendDataExec
 
@@ -40,7 +40,7 @@ object OffloadIcebergWrite {
       c =>
         val offload = Seq(OffloadIcebergWrite())
         HeuristicTransform.Simple(
-          Validators.newValidator(c.glutenConf, offload),
+          Validators.newValidator(new GlutenConfig(c.sqlConf), offload),
           offload
         )
     }
@@ -50,7 +50,7 @@ object OffloadIcebergWrite {
       c =>
         RasOffload.Rule(
           RasOffload.from[AppendDataExec](OffloadIcebergWrite()),
-          Validators.newValidator(c.glutenConf),
+          Validators.newValidator(new GlutenConfig(c.sqlConf)),
           Nil)
     }
   }

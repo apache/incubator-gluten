@@ -14,19 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.connector.write;
+package org.apache.gluten.tags;
 
-import org.apache.spark.sql.connector.write.BatchWrite;
-import org.apache.spark.sql.connector.write.DataWriterFactory;
-import org.apache.spark.sql.connector.write.PhysicalWriteInfo;
+import org.scalatest.TagAnnotation;
 
-public abstract class ColumnarBatchWrite implements BatchWrite {
-  @Override
-  public DataWriterFactory createBatchWriterFactory(PhysicalWriteInfo info) {
-    throw new UnsupportedOperationException();
-  }
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-  public ColumnarDataWriterFactory createColumnarBatchWriterFactory(PhysicalWriteInfo info) {
-    throw new UnsupportedOperationException();
-  }
-}
+@TagAnnotation
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD, ElementType.TYPE})
+public @interface EnhancedFeaturesTest {}

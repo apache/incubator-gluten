@@ -19,7 +19,7 @@
 
 #include "WholeStageResultIterator.h"
 #include "compute/Runtime.h"
-#ifdef GLUTEN_ENABLE_ICEBERG_WRITE
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
 #include "iceberg/IcebergWriter.h"
 #endif
 #include "memory/VeloxMemoryManager.h"
@@ -65,7 +65,7 @@ class VeloxRuntime final : public Runtime {
 
   std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(struct ArrowSchema* cSchema) override;
 
-#ifdef GLUTEN_ENABLE_ICEBERG_WRITE
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
   std::shared_ptr<IcebergWriter> createIcebergWriter(
       ArrowSchema* cSchema,
       int32_t format,

@@ -140,6 +140,14 @@ abstract class GlutenQueryTest extends PlanTest {
     }
   }
 
+  def testEnhancedFeatures(testName: String)(testFun: => Any): Unit = {
+    if (BackendsApiManager.getSettings.enableEnhancedFeatures()) {
+      test(testName) {
+        testFun
+      }
+    }
+  }
+
   /** Runs the plan and makes sure the answer contains all of the keywords. */
   def checkKeywordsExist(df: DataFrame, keywords: String*): Unit = {
     val outputs = df.collect().map(_.mkString).mkString

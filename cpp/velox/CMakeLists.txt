@@ -176,7 +176,7 @@ if(ENABLE_S3)
   find_package(ZLIB)
 endif()
 
-if(ENABLE_ICEBERG_WRITE)
+if(ENABLE_ENHANCED_FEATURES)
   list(APPEND VELOX_SRCS compute/iceberg/IcebergFormat.cc
        compute/iceberg/IcebergWriter.cc)
 endif()

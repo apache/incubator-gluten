@@ -562,4 +562,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def reorderColumnsForPartitionWrite(): Boolean = true
 
   override def enableEnhancedFeatures(): Boolean = VeloxConfig.get.enableEnhancedFeatures()
+
+  override def supportAppendDataExec(): Boolean = GlutenConfig.get.enableAppendData
 }

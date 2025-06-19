@@ -213,7 +213,7 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 
-#ifdef GLUTEN_ENABLE_ICEBERG_WRITE
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
 std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
     ArrowSchema* cSchema,
     int32_t format,
