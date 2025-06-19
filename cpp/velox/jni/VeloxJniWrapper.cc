@@ -580,6 +580,16 @@ Java_org_apache_gluten_vectorized_UnifflePartitionWriterJniWrapper_createPartiti
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
+JNIEXPORT jboolean JNICALL Java_org_apache_gluten_config_ConfigJniWrapper_isEnhancedFeaturesEnabled( // NOLINT
+      JNIEnv* env,
+      jclass) {
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+  return true;
+#else
+  return false;
+#endif
+}
+
 #ifdef __cplusplus
 }
 #endif
