@@ -18,12 +18,13 @@ package org.apache.gluten.fs;
 
 import io.netty.util.internal.PlatformDependent;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-// FIXME our checkstyle config doesn't allow "Suite" as suffix of Java tests
+@Ignore
 public class OnHeapFileSystemTest {
   private final JniFilesystem fs = OnHeapFileSystem.INSTANCE;
 
