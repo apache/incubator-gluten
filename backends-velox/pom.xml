@@ -111,16 +111,6 @@
           <version>${iceberg.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>org.apache.arrow</groupId>
-              <artifactId>arrow-memory-netty</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>org.apache.arrow</groupId>
-              <artifactId>arrow-vector</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
