@@ -89,6 +89,8 @@ object RasOffload {
           case Validator.Passed =>
           case Validator.Failed(reason) =>
             if (FallbackTags.maybeOffloadable(node)) {
+              // FIXME: This is a solution that is not completely verified for all cases, however
+              // it's no harm anyway so we temporarily apply this practice.
               FallbackTags.add(node, reason)
             }
             return List.empty
@@ -135,6 +137,8 @@ object RasOffload {
                   //  in RAS as the query plan we got here may be a copy so may not propagate tags
                   //  to original plan.
                   if (FallbackTags.maybeOffloadable(from)) {
+                    // FIXME: This is a solution that is not completely verified for all cases,
+                    // however it's no harm anyway so we temporarily apply this practice.
                     outComes.foreach(FallbackTags.add(from, _))
                   }
                   from
@@ -147,6 +151,8 @@ object RasOffload {
                 //  in RAS as the query plan we got here may be a copy so may not propagate tags
                 //  to original plan.
                 if (FallbackTags.maybeOffloadable(from)) {
+                  // FIXME: This is a solution that is not completely verified for all cases,
+                  // however it's no harm anyway so we temporarily apply this practice.
                   FallbackTags.add(from, reason)
                 }
                 from
