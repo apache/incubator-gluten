@@ -14,16 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extensions;
+package org.apache.gluten.source;
 
-import org.apache.iceberg.spark.extensions.TestStoragePartitionedJoinsInRowLevelOperations;
+import org.apache.iceberg.PlanningMode;
+import org.apache.iceberg.spark.source.TestIdentityPartitionData;
 
-import java.util.Map;
-
-public class GlutenTestStoragePartitionedJoinsInRowLevelOperations
-    extends TestStoragePartitionedJoinsInRowLevelOperations {
-  public GlutenTestStoragePartitionedJoinsInRowLevelOperations(
-      String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
+public class TestGlutenIdentityPartitionData extends TestIdentityPartitionData {
+  public TestGlutenIdentityPartitionData(
+      String format, boolean vectorized, PlanningMode planningMode) {
+    super(format, vectorized, planningMode);
   }
 }

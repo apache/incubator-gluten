@@ -14,16 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.source;
-
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.spark.source.TestPositionDeletesTable;
+package org.apache.gluten.extensions;
 
 import java.util.Map;
 
-public class GlutenTestPositionDeletesTable extends TestPositionDeletesTable {
-  public GlutenTestPositionDeletesTable(
-      String catalogName, String implementation, Map<String, String> config, FileFormat format) {
-    super(catalogName, implementation, config, format);
+public class TestGlutenSystemFunctionPushDownInRowLevelOperations
+    extends TestGlutenSystemFunctionPushDownDQL {
+  public TestGlutenSystemFunctionPushDownInRowLevelOperations(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
   }
 }

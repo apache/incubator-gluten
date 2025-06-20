@@ -16,12 +16,6 @@
  */
 package org.apache.gluten.source;
 
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.spark.source.TestSparkMetadataColumns;
+import org.apache.iceberg.spark.source.TestDataFrameWriterV2;
 
-public class GlutenTestSparkMetadataColumns extends TestSparkMetadataColumns {
-  public GlutenTestSparkMetadataColumns(
-      FileFormat fileFormat, boolean vectorized, int formatVersion) {
-    super(fileFormat, vectorized, formatVersion);
-  }
-}
+public class TestGlutenDataFrameWriterV2 extends TestDataFrameWriterV2 {}
