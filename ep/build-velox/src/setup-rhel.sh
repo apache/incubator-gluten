@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script documents setting up a Centos8 host for Velox
+# This script documents setting up a rhel host for Velox
 # development.  Running it should make you ready to compile.
 #
 #
@@ -38,6 +38,7 @@ export CFLAGS=${CXXFLAGS//"-std=c++17"/} # Used by LZO.
 CMAKE_BUILD_TYPE="${BUILD_TYPE:-Release}"
 VELOX_BUILD_SHARED=${VELOX_BUILD_SHARED:-"OFF"} #Build folly and gflags shared for use in libvelox.so.
 BUILD_DUCKDB="${BUILD_DUCKDB:-true}"
+BUILD_GEOS="${BUILD_GEOS:-true}"
 USE_CLANG="${USE_CLANG:-false}"
 export INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
 DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)/deps-download}
@@ -61,6 +62,7 @@ DWARF_VERSION="0.11.1"
 BISON_VERSION="bison-3.8.2"
 RAPIDJSON_VERSION="v1.1.0"
 RE2_VERSION="2023-03-01"
+GEOS_VERSION="3.10.7"
 
 function dnf_install {
   dnf install -y -q --setopt=install_weak_deps=False "$@"
@@ -76,7 +78,7 @@ function install_build_prerequisites {
   dnf_install dnf-plugins-core
   dnf_install ninja-build cmake gcc-toolset-12 git wget which bzip2
   dnf_install autoconf automake python3-devel pip libtool 
-  dnf install libxml2-devel
+  dnf_install libxml2-devel
 
   pip install cmake==3.28.3
 
@@ -321,6 +323,13 @@ function install_cuda {
   dnf install -y cuda-nvcc-$dashed cuda-cudart-devel-$dashed cuda-nvrtc-devel-$dashed cuda-driver-devel-$dashed
 }
 
+function install_geos {
+  if [[ "$BUILD_GEOS" == "true" ]]; then
+    wget_and_untar https://github.com/libgeos/geos/archive/${GEOS_VERSION}.tar.gz geos
+    cmake_install_dir geos -DBUILD_TESTING=OFF
+  fi
+}
+
 function install_velox_deps {
   run_and_time install_velox_deps_from_dnf
   run_and_time install_conda
@@ -349,6 +358,7 @@ function install_velox_deps {
   run_and_time install_duckdb
   run_and_time install_stemmer
   run_and_time install_thrift
+  run_and_time install_geos
 }
 
 (return 2> /dev/null) && return # If script was sourced, don't run commands.
