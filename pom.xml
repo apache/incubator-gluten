@@ -1430,7 +1430,7 @@
           <version>3.3.0</version>
           <configuration>
             <argLine>${argLine} ${extraJavaTestArgs}</argLine>
-            <failIfNoSpecifiedTests></failIfNoSpecifiedTests>
+            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
           </configuration>
         </plugin>
         <plugin>
