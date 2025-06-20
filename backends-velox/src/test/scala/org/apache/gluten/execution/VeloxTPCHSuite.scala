@@ -110,6 +110,9 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
       val actualFile = new File(FileUtils.getTempDirectory, file)
       new File(actualFile.getParent).mkdirs()
       FileUtils.writeStringToFile(actualFile, actual, StandardCharsets.UTF_8)
+      // scalastyle:off println
+      println(getGoldenFile(actualFile.getAbsolutePath))
+      // scalastyle:on println line=113 column=6
       org.scalatest.Assertions.fail(
         s"Mismatch for query $id\n" +
           s"Actual Plan path: ${actualFile.getAbsolutePath}\n" +
