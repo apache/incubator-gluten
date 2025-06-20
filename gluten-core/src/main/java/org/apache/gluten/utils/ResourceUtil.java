@@ -16,9 +16,8 @@
  */
 package org.apache.gluten.utils;
 
-import org.apache.gluten.exception.GlutenException;
-
 import com.google.common.base.Preconditions;
+import org.apache.gluten.exception.GlutenException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
