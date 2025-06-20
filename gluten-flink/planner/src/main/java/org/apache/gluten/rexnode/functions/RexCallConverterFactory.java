@@ -60,6 +60,7 @@ public class RexCallConverterFactory {
               "-", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("subtract"))),
           Map.entry("+", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("add"))),
           Map.entry("MOD", Arrays.asList(() -> new ModRexCallConverter())),
+          Map.entry("Reinterpret", Arrays.asList(() -> new ReinterpretRexCallConverter())),
           Map.entry("CAST", Arrays.asList(() -> new DefaultRexCallConverter("cast"))),
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
           Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))));
