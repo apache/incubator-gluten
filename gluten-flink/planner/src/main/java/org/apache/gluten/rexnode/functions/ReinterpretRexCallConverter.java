@@ -30,7 +30,6 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,7 +121,7 @@ public class ReinterpretRexCallConverter extends BaseRexCallConverter {
     }
   }
 
-  private List<String> getRexNodeInputNames(RexNode node) {
+  private List<String> getRexNodeInputNames(RexNode node, List<String> fieldNames) {
     final List<String> inputNames = new ArrayList<>();
 
     Consumer<List<String>> updateInputNames =
@@ -141,31 +140,29 @@ public class ReinterpretRexCallConverter extends BaseRexCallConverter {
 
     if (node instanceof RexFieldAccess) {
       RexFieldAccess fieldAccess = (RexFieldAccess) node;
-      List<String> refExprInputNames = getRexNodeInputNames(fieldAccess.getReferenceExpr());
+      List<String> refExprInputNames =
+          getRexNodeInputNames(fieldAccess.getReferenceExpr(), fieldNames);
       updateInputNames.accept(refExprInputNames);
     } else if (node instanceof RexCall) {
       RexCall rexCall = (RexCall) node;
       List<RexNode> rexNodes = rexCall.getOperands();
       for (RexNode rexNode : rexNodes) {
-        List<String> rexNodeInputNames = getRexNodeInputNames(rexNode);
+        List<String> rexNodeInputNames = getRexNodeInputNames(rexNode, fieldNames);
         updateInputNames.accept(rexNodeInputNames);
       }
     } else if (node instanceof RexInputRef) {
       RexInputRef inputRef = (RexInputRef) node;
       String[] inputRefNames = new String[inputRef.getIndex() + 1];
-      inputRefNames[inputRef.getIndex()] = inputRef.getName();
+      inputRefNames[inputRef.getIndex()] = fieldNames.get(inputRef.getIndex());
       updateInputNames.accept(Arrays.asList(inputRefNames));
-    } else if (node instanceof RexLiteral) {
-
     }
-    LOG.info("inputNames: {}", inputNames);
     return inputNames;
   }
 
-  private TypedExpr convertRexCallToTypeExpr(RexCall call) {
-    RexConversionContext subContext = new RexConversionContext(getRexNodeInputNames(call));
+  private TypedExpr convertRexCallToTypeExpr(RexCall call, RexConversionContext context) {
+    RexConversionContext subContext =
+        new RexConversionContext(getRexNodeInputNames(call, context.getInputAttributeNames()));
     RexCallConverter converter = RexCallConverterFactory.getConverter((RexCall) call, subContext);
-    LOG.info("toconvert call:" + call.toString());
     return converter.toTypedExpr((RexCall) call, subContext);
   }
 
@@ -176,7 +173,8 @@ public class ReinterpretRexCallConverter extends BaseRexCallConverter {
     LogicalType targetType = FlinkTypeFactory.toLogicalType(callNode.getType());
     if (PlannerTypeUtils.isInteroperable(resultType, targetType)) {
       if (operand instanceof RexCall) {
-        CallTypedExpr operandExpr = (CallTypedExpr) convertRexCallToTypeExpr((RexCall) operand);
+        CallTypedExpr operandExpr =
+            (CallTypedExpr) convertRexCallToTypeExpr((RexCall) operand, context);
         return new CallTypedExpr(
             LogicalTypeConverter.toVLType(targetType),
             operandExpr.getInputs(),
@@ -186,7 +184,7 @@ public class ReinterpretRexCallConverter extends BaseRexCallConverter {
       }
     } else if (resultType.equals(targetType)) {
       if (operand instanceof RexCall) {
-        return convertRexCallToTypeExpr((RexCall) operand);
+        return convertRexCallToTypeExpr((RexCall) operand, context);
       } else {
         throw new RuntimeException("Not implemented for type equals when operand is not RexCall.");
       }
