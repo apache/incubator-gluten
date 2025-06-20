@@ -16,19 +16,21 @@
  */
 package org.apache.gluten.streaming.api.operators;
 
-import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
+import org.apache.gluten.table.runtime.operators.GlutenVectorSourceFunction;
 
 import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.streaming.api.operators.StreamSource;
 
+import java.util.Map;
+
 /** Legacy stream source operator in gluten, which will call Velox to run. */
 public class GlutenStreamSource extends StreamSource implements GlutenOperator {
-  private final GlutenSourceFunction sourceFunction;
+  private final GlutenVectorSourceFunction sourceFunction;
 
-  public GlutenStreamSource(GlutenSourceFunction function) {
+  public GlutenStreamSource(GlutenVectorSourceFunction function) {
     super(function);
     sourceFunction = function;
   }
@@ -39,7 +41,7 @@ public class GlutenStreamSource extends StreamSource implements GlutenOperator {
   }
 
   @Override
-  public PlanNode getPlanNode() {
+  public StatefulPlanNode getPlanNode() {
     return sourceFunction.getPlanNode();
   }
 
@@ -49,8 +51,8 @@ public class GlutenStreamSource extends StreamSource implements GlutenOperator {
   }
 
   @Override
-  public RowType getOutputType() {
-    return sourceFunction.getOutputType();
+  public Map<String, RowType> getOutputTypes() {
+    return sourceFunction.getOutputTypes();
   }
 
   @Override
