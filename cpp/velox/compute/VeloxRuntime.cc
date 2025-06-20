@@ -26,7 +26,6 @@
 #include "compute/VeloxPlanConverter.h"
 #include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
-#include "operators/writer/VeloxColumnarBatchWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
@@ -139,7 +138,7 @@ void VeloxRuntime::getInfoAndIds(
 std::string VeloxRuntime::planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) {
   std::vector<std::shared_ptr<ResultIterator>> inputs;
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
-  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), sessionConf, std::nullopt, true);
+  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), veloxCfg_.get(), std::nullopt, true);
   auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_, localFiles_);
   return veloxPlan->toString(details, true);
 }
@@ -157,7 +156,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
   VeloxPlanConverter veloxPlanConverter(
-      inputs, memoryManager()->getLeafMemoryPool().get(), sessionConf, *localWriteFilesTempPath());
+      inputs, memoryManager()->getLeafMemoryPool().get(), veloxCfg_.get(), *localWriteFilesTempPath());
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_, std::move(localFiles_));
   LOG_IF(INFO, debugModeEnabled_ && taskInfo_.has_value())
       << "############### Velox plan for task " << taskInfo_.value() << " ###############" << std::endl

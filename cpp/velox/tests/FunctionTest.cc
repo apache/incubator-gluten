@@ -41,8 +41,10 @@ class FunctionTest : public ::testing::Test, public test::VectorTestBase {
     memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 
+  std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_ =
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>());
   std::shared_ptr<gluten::SubstraitToVeloxPlanConverter> planConverter_ =
-      std::make_shared<gluten::SubstraitToVeloxPlanConverter>(pool());
+      std::make_shared<gluten::SubstraitToVeloxPlanConverter>(pool(), veloxCfg_.get());
 };
 
 TEST_F(FunctionTest, makeNames) {
