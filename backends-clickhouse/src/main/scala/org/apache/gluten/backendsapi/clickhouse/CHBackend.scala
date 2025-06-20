@@ -20,9 +20,9 @@ import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.substrait.rel.LocalFilesNode

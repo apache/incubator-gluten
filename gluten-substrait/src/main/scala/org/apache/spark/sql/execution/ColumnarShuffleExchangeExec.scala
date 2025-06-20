@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.ReservedKeys
 import org.apache.gluten.execution.ValidatablePlan
-import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
 
