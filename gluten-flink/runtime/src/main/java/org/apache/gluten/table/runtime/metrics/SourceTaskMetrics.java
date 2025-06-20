@@ -64,7 +64,7 @@ public class SourceTaskMetrics {
           sourceBytesOut = planStats.get(keyInputBytes).asInt();
         }
       } catch (Exception e) {
-
+        return false;
       }
     }
     lastUpdateTime = currentTime;
