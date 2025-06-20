@@ -20,23 +20,25 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.IcebergScanTransformer.{containsMetadataColumn, containsUuidOrFixedType}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.{LocalFilesNode, SplitInfo}
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.StructType
+
 import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
 import org.apache.iceberg.avro.AvroSchemaUtil
-import org.apache.iceberg.spark.source.metrics.NumSplits
 import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkInputPartition, SparkTable}
+import org.apache.iceberg.spark.source.metrics.NumSplits
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
 import org.apache.iceberg.types.Types.{ListType, MapType, NestedField}
-import org.apache.spark.sql.execution.metric.SQLMetrics
 
 case class IcebergScanTransformer(
     override val output: Seq[AttributeReference],
@@ -109,6 +111,10 @@ case class IcebergScanTransformer(
       if (containsEqualityDelete) {
         return ValidationResult.failed("Contains equality delete files")
       }
+
+      if (hasRenamedColumn) {
+        return ValidationResult.failed("The column is renamed, cannot read it.")
+      }
     }
 
     ValidationResult.succeeded
@@ -165,6 +171,29 @@ case class IcebergScanTransformer(
   private[execution] def getKeyGroupPartitioning: Option[Seq[Expression]] = keyGroupedPartitioning
 
   override def nodeName: String = "Iceberg" + super.nodeName
+
+  private def hasRenamedColumn: Boolean = {
+    scan
+      .readSchema()
+      .fieldNames
+      .exists(
+        name => {
+          table match {
+            case t: SparkTable =>
+              t.table() match {
+                case t: BaseTable =>
+                  val id = t.operations().current().schema().findField(name).fieldId()
+                  t.operations()
+                    .current()
+                    .schemas()
+                    .stream()
+                    .anyMatch(s => s.findField(id).name() != name)
+                case _ => false
+              }
+            case _ => false
+          }
+        })
+  }
 }
 
 object IcebergScanTransformer {
@@ -201,4 +230,5 @@ object IcebergScanTransformer {
       case _ => field.fieldId() >= (Integer.MAX_VALUE - 200)
     }
   }
+
 }
