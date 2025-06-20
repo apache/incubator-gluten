@@ -21,8 +21,6 @@ import io.github.zhztheplayer.velox4j.query.SerialTask;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.util.List;
-
 public class SourceTaskMetrics {
 
   private final String keyOperatorType = "operatorType";
@@ -50,22 +48,20 @@ public class SourceTaskMetrics {
     return sourceBytesOut;
   }
 
-  public boolean updateMetrics(SerialTask task, List<String> planIds) {
+  public boolean updateMetrics(SerialTask task, String planId) {
     long currentTime = System.currentTimeMillis();
     if (currentTime - lastUpdateTime < metricUpdateInterval) {
       return false;
     }
-    for (String planId : planIds) {
-      try {
-        ObjectNode planStats = task.collectStats().planStats(planId);
-        JsonNode jsonNode = planStats.get(keyOperatorType);
-        if (jsonNode.asText().equals(sourceOperatorName)) {
-          sourceRecordsOut = planStats.get(keyInputRows).asInt();
-          sourceBytesOut = planStats.get(keyInputBytes).asInt();
-        }
-      } catch (Exception e) {
-        return false;
+    try {
+      ObjectNode planStats = task.collectStats().planStats(planId);
+      JsonNode jsonNode = planStats.get(keyOperatorType);
+      if (jsonNode.asText().equals(sourceOperatorName)) {
+        sourceRecordsOut = planStats.get(keyInputRows).asInt();
+        sourceBytesOut = planStats.get(keyInputBytes).asInt();
       }
+    } catch (Exception e) {
+      return false;
     }
     lastUpdateTime = currentTime;
     return true;

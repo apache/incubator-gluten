@@ -98,7 +98,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   }
 
   private void updateSourceMetrics(SerialTask task) {
-    if (sourceTaskMetrics.updateMetrics(task, List.of(id))) {
+    if (sourceTaskMetrics.updateMetrics(task, id)) {
       long numRecordsOut = sourceTaskMetrics.getSourceRecordsOut();
       long numBytesOut = sourceTaskMetrics.getSourceBytesOut();
       sourceNumRecordsOut.inc(numRecordsOut - sourceNumRecordsOut.getCount());
