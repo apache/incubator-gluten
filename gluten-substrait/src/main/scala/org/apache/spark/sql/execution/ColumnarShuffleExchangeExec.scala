@@ -121,6 +121,8 @@ case class ColumnarShuffleExchangeExec(
     Statistics(dataSize, Some(rowCount))
   }
 
+  override def shuffleId: Int = columnarShuffleDependency.shuffleId
+
   override def getShuffleRDD(partitionSpecs: Array[ShufflePartitionSpec]): RDD[ColumnarBatch] = {
     new ShuffledColumnarBatchRDD(columnarShuffleDependency, readMetrics, partitionSpecs)
   }

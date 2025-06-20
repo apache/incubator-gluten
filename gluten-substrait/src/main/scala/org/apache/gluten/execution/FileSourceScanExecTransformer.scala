@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -113,11 +114,18 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def outputAttributes(): Seq[Attribute] = output
 
+  private def isDynamicPruningFilter(e: Expression): Boolean =
+    e.exists(_.isInstanceOf[PlanExpression[_]])
+
   override def getPartitions: Seq[InputPartition] = {
+    val staticDataFilters = dataFilters.filterNot(isDynamicPruningFilter)
+    val staticPartitionFilters = partitionFilters.filterNot(isDynamicPruningFilter)
+    val partitionDirectories =
+      relation.location.listFiles(staticPartitionFilters, staticDataFilters)
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
       requiredSchema,
-      dynamicallySelectedPartitions,
+      partitionDirectories.toArray,
       output,
       bucketedScan,
       optionalBucketSet,
@@ -201,6 +209,12 @@ abstract class FileSourceScanExecTransformerBase(
     redact(
       s"$nodeNamePrefix$nodeName${truncatedString(output, "[", ",", "]", maxFields)}$metadataStr" +
         s" $nativeFiltersString")
+  }
+
+  override def getStream: Option[SparkDataStream] = {
+    throw new UnsupportedOperationException(
+      "not supported on streaming"
+    )
   }
 }
 

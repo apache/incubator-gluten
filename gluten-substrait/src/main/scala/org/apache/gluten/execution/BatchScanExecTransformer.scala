@@ -87,7 +87,9 @@ abstract class BatchScanExecTransformerBase(
     keyGroupedPartitioning,
     ordering,
     table,
+    None,
     commonPartitionValues,
+    None,
     applyPartialClustering,
     replicatePartitions)
   with BasicScanExecTransformer {
