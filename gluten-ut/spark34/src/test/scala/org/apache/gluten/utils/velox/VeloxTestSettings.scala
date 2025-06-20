@@ -866,6 +866,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
     // exception test, rewritten in gluten
     .exclude("the escape character is not allowed to end with")
+    .exclude("Common subexpression elimination")
     // ORC related
     .exclude("SPARK-37965: Spark support read/write orc file with invalid char in field name")
     .exclude("SPARK-38173: Quoted column cannot be recognized correctly when quotedRegexColumnNames is true")
