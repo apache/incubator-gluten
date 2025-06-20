@@ -31,8 +31,6 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,7 +47,6 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_
 
 public class ReinterpretRexCallConverter extends BaseRexCallConverter {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ReinterpretRexCallConverter.class);
   private static final String FUNCTION_NAME = "cast";
 
   public ReinterpretRexCallConverter() {
@@ -180,7 +177,8 @@ public class ReinterpretRexCallConverter extends BaseRexCallConverter {
             operandExpr.getInputs(),
             operandExpr.getFunctionName());
       } else {
-        throw new RuntimeException("Not implemented for types interoperable");
+        throw new RuntimeException(
+            "Not implemented for types interoperable when operand is not RexCall.");
       }
     } else if (resultType.equals(targetType)) {
       if (operand instanceof RexCall) {
