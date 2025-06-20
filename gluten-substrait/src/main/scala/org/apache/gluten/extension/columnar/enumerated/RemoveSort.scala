@@ -37,15 +37,19 @@ object RemoveSort extends RasRule[SparkPlan] {
 
   override def shift(node: SparkPlan): Iterable[SparkPlan] = {
     assert(node.isInstanceOf[GlutenPlan])
-    val newChildren = node.requiredChildOrdering.zip(node.children).map {
-      case (Nil, sort: SortExecTransformer) =>
-        // Parent doesn't ask for sorted input from this child but a sort op was somehow added.
-        // Remove it.
-        sort.child
-      case (req, child) =>
-        // Parent asks for sorted input from this child. Do nothing but an assertion.
-        assert(SortOrder.orderingSatisfies(child.outputOrdering, req))
-        child
+    val newChildren = node match {
+      case h: HashAggregateExecBaseTransformer =>
+        node.requiredChildOrdering.zip(node.children).map {
+          case (Nil, sort: SortExecTransformer) =>
+            // Parent doesn't ask for sorted input from this child but a sort op was somehow added.
+            // Remove it.
+            sort.child
+          case (req, child) =>
+            // Parent asks for sorted input from this child. Do nothing but an assertion.
+            assert(SortOrder.orderingSatisfies(child.outputOrdering, req))
+            child
+        }
+      case _ => return List(node) // Return the node as is if no match occurs
     }
     val out = List(node.withNewChildren(newChildren))
     out

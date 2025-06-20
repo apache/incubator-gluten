@@ -47,7 +47,7 @@ abstract class HashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
     ignoreNullKeys: Boolean)
@@ -701,7 +701,7 @@ case class RegularHashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    override val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
     ignoreNullKeys: Boolean = false)
@@ -729,6 +729,48 @@ case class RegularHashAggregateExecTransformer(
   }
 }
 
+// Hash aggregation that is offloaded from sort aggregation.
+case class HashFromSortAggregateExecTransformer(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    override val initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan,
+    ignoreNullKeys: Boolean = false)
+  extends HashAggregateExecTransformer(
+    requiredChildDistributionExpressions,
+    groupingExpressions,
+    aggregateExpressions,
+    aggregateAttributes,
+    initialInputBufferOffset,
+    resultExpressions,
+    child,
+    ignoreNullKeys
+  ) {
+
+  override protected def allowFlush: Boolean = false
+
+  override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
+    groupingExpressions.map(SortOrder(_, Ascending)) :: Nil
+  }
+
+  override protected def orderingExpressions: Seq[SortOrder] = {
+    groupingExpressions.map(SortOrder(_, Ascending))
+  }
+
+  override def simpleString(maxFields: Int): String =
+    s"${super.simpleString(maxFields)}"
+
+  override def verboseString(maxFields: Int): String =
+    s"${super.verboseString(maxFields)}"
+
+  override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
+    copy(child = newChild)
+  }
+}
+
 // Hash aggregation that emits pre-aggregated data which allows duplications on grouping keys
 // among its output rows.
 case class FlushableHashAggregateExecTransformer(
@@ -736,7 +778,7 @@ case class FlushableHashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    override val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
     ignoreNullKeys: Boolean = false)
