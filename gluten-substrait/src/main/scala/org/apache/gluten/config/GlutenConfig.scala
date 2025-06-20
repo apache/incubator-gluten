@@ -196,6 +196,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def columnarSortShuffleDeserializerBufferSize: Long =
     getConf(COLUMNAR_SORT_SHUFFLE_DESERIALIZER_BUFFER_SIZE)
 
+  def columnarShuffleEnableDictionary: Boolean =
+    getConf(SHUFFLE_ENABLE_DICTIONARY)
+
   def maxBatchSize: Int = getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def shuffleWriterBufferSize: Int = getConf(SHUFFLE_WRITER_BUFFER_SIZE)
@@ -1036,6 +1039,13 @@ object GlutenConfig {
         "columnar batch.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
+
+  val SHUFFLE_ENABLE_DICTIONARY =
+    buildConf("spark.gluten.sql.columnar.shuffle.dictionary.enabled")
+      .internal()
+      .doc("Enable dictionary in hash-based shuffle.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf("spark.gluten.sql.columnar.maxBatchSize")

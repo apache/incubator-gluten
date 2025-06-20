@@ -50,13 +50,10 @@ T* advance(uint8_t** dst) {
   return ptr;
 }
 
-arrow::Result<uint8_t> readType(arrow::io::InputStream* inputStream) {
+arrow::Result<uint8_t> readPayloadType(arrow::io::InputStream* is) {
   uint8_t type;
-  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream->Read(sizeof(Payload::Type), &type));
-  if (bytes == 0) {
-    // Reach EOS.
-    return 0;
-  }
+  ARROW_ASSIGN_OR_RAISE(auto bytes, is->Read(sizeof(Payload::Type), &type));
+  ARROW_RETURN_IF(bytes == 0, arrow::Status::IOError("Failed to read bytes. Reached EOS."));
   return type;
 }
 
@@ -298,12 +295,8 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
     int64_t& deserializeTime,
     int64_t& decompressTime) {
   auto timer = std::make_unique<ScopedTimer>(&deserializeTime);
-  static const std::vector<std::shared_ptr<arrow::Buffer>> kEmptyBuffers{};
-  ARROW_ASSIGN_OR_RAISE(auto type, readType(inputStream));
-  if (type == 0) {
-    numRows = 0;
-    return kEmptyBuffers;
-  }
+  ARROW_ASSIGN_OR_RAISE(auto type, readPayloadType(inputStream));
+
   RETURN_NOT_OK(inputStream->Read(sizeof(uint32_t), &numRows));
   uint32_t numBuffers;
   RETURN_NOT_OK(inputStream->Read(sizeof(uint32_t), &numBuffers));
@@ -481,6 +474,11 @@ std::shared_ptr<arrow::Schema> InMemoryPayload::schema() const {
   return schema_;
 }
 
+arrow::Status InMemoryPayload::createDictionaries(const std::shared_ptr<ShuffleDictionaryWriter>& dictionaryWriter) {
+  ARROW_ASSIGN_OR_RAISE(buffers_, dictionaryWriter->updateAndGet(schema_, numRows_, buffers_));
+  return arrow::Status::OK();
+}
+
 UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(
     Type type,
     uint32_t numRows,
@@ -512,11 +510,17 @@ arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* o
 
   GLUTEN_CHECK(codec_ != nullptr, "Codec is null when serializing Payload::kToBeCompressed.");
 
+  uint8_t blockType;
+  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream_->Read(sizeof(blockType), &blockType));
+  ARROW_RETURN_IF(bytes == 0, arrow::Status::Invalid("Cannot serialize payload. Reached EOS."));
+
+  RETURN_NOT_OK(outputStream->Write(&blockType, sizeof(blockType)));
+
   RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(kCompressedType)));
   RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
 
   uint32_t numBuffers = 0;
-  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream_->Read(sizeof(uint32_t), &numBuffers));
+  ARROW_ASSIGN_OR_RAISE(bytes, inputStream_->Read(sizeof(uint32_t), &numBuffers));
   ARROW_RETURN_IF(bytes == 0 || numBuffers == 0, arrow::Status::Invalid("Cannot serialize payload with 0 buffers."));
 
   RETURN_NOT_OK(outputStream->Write(&numBuffers, sizeof(uint32_t)));
@@ -524,7 +528,7 @@ arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* o
   ARROW_ASSIGN_OR_RAISE(auto start, inputStream_->Tell());
 
   auto pos = start;
-  auto rawBufferSize = rawSize_ - sizeof(numBuffers);
+  auto rawBufferSize = rawSize_ - sizeof(blockType) - sizeof(numBuffers);
 
   while (pos - start < rawBufferSize) {
     ARROW_ASSIGN_OR_RAISE(auto uncompressed, readUncompressedBuffer());
