@@ -405,7 +405,15 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOrcV1FilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
+    .exclude("Spark vectorized reader - without partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-40033: Schema pruning support through element_at")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
+    .exclude("Spark vectorized reader - without partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-40033: Schema pruning support through element_at")
   enableSuite[GlutenParquetColumnIndexSuite]
     // Rewrite by just removing test timestamp.
     .exclude("test reading unaligned pages - test all types")
@@ -492,7 +500,15 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   enableSuite[GlutenParquetV1SchemaPruningSuite]
+    .exclude("Spark vectorized reader - without partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-40033: Schema pruning support through element_at")
   enableSuite[GlutenParquetV2SchemaPruningSuite]
+    .exclude("Spark vectorized reader - without partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Spark vectorized reader - with partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Non-vectorized reader - without partition data column - SPARK-40033: Schema pruning support through element_at")
+    .exclude("Non-vectorized reader - with partition data column - SPARK-40033: Schema pruning support through element_at")
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
     // Velox doesn't write file metadata into parquet file.
     .excludeByPrefix("SPARK-33163, SPARK-37705: write the metadata keys")
