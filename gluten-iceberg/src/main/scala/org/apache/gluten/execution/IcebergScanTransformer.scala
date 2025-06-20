@@ -21,8 +21,7 @@ import org.apache.gluten.execution.IcebergScanTransformer.{containsMetadataColum
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
-import org.apache.gluten.substrait.rel.SplitInfo
-
+import org.apache.gluten.substrait.rel.{LocalFilesNode, SplitInfo}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -30,13 +29,14 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
-
 import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
 import org.apache.iceberg.avro.AvroSchemaUtil
-import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
+import org.apache.iceberg.spark.source.metrics.NumSplits
+import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkInputPartition, SparkTable}
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
 import org.apache.iceberg.types.Types.{ListType, MapType, NestedField}
+import org.apache.spark.sql.execution.metric.SQLMetrics
 
 case class IcebergScanTransformer(
     override val output: Seq[AttributeReference],
@@ -53,6 +53,10 @@ case class IcebergScanTransformer(
     keyGroupedPartitioning = keyGroupedPartitioning,
     commonPartitionValues = commonPartitionValues
   ) {
+
+  // PartitionReader reports the metric by currentMetricsValues, but the implementation is different.
+  // So use Metric to get NumSplits, NumDeletes is not reported by native metric
+  private val numSplits = SQLMetrics.createMetric(sparkContext, new NumSplits().description())
 
   protected[this] def supportsBatchScan(scan: Scan): Boolean = {
     IcebergScanTransformer.supportsBatchScan(scan)
@@ -121,10 +125,12 @@ case class IcebergScanTransformer(
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
   override def getSplitInfosWithIndex: Seq[SplitInfo] = {
-    getPartitionsWithIndex.zipWithIndex.map {
+    val splitInfos = getPartitionsWithIndex.zipWithIndex.map {
       case (partitions, index) =>
         GlutenIcebergSourceUtil.genSplitInfo(partitions, index, getPartitionSchema)
     }
+    numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
+    splitInfos
   }
 
   override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
@@ -139,10 +145,12 @@ case class IcebergScanTransformer(
         applyPartialClustering,
         replicatePartitions)
       .flatten
-    groupedPartitions.zipWithIndex.map {
+    val splitInfos = groupedPartitions.zipWithIndex.map {
       case (p, index) =>
         GlutenIcebergSourceUtil.genSplitInfoForPartition(p, index, getPartitionSchema)
     }
+    numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
+    splitInfos
   }
 
   override def doCanonicalize(): IcebergScanTransformer = {
