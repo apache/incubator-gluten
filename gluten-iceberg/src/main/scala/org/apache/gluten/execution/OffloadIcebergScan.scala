@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
@@ -40,7 +41,7 @@ object OffloadIcebergScan {
       c =>
         val offload = Seq(OffloadIcebergScan())
         HeuristicTransform.Simple(
-          Validators.newValidator(c.glutenConf, offload),
+          Validators.newValidator(new GlutenConfig(c.sqlConf), offload),
           offload
         )
     }
@@ -50,7 +51,7 @@ object OffloadIcebergScan {
       c =>
         RasOffload.Rule(
           RasOffload.from[BatchScanExec](OffloadIcebergScan()),
-          Validators.newValidator(c.glutenConf),
+          Validators.newValidator(new GlutenConfig(c.sqlConf)),
           Nil)
     }
   }

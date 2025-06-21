@@ -48,7 +48,7 @@ FB_OS_VERSION="v2024.07.01.00"
 FMT_VERSION="10.1.1"
 BOOST_VERSION="boost-1.84.0"
 DUCKDB_VERSION="v0.8.1"
-GEOS_VERSION="3.10.2"
+GEOS_VERSION="3.10.7"
 
 function dnf_install {
   dnf install -y -q --setopt=install_weak_deps=False "$@"
@@ -61,6 +61,7 @@ function install_build_prerequisites {
   dnf update -y
   dnf_install ninja-build cmake ccache gcc g++ git wget which patch
   dnf_install autoconf automake python3-devel python3-pip libtool
+  dnf_install libxml2-devel libgsasl-devel libuuid-devel
 
   pip install cmake==3.28.3
 }

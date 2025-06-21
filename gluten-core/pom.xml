@@ -19,23 +19,6 @@
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>${sparkshim.artifactId}</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>spark-sql-columnar-shims-common</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-ui</artifactId>
-      <version>${project.version}</version>
-    </dependency>
     <!-- Prevent our dummy JAR from being included in Spark distributions or uploaded to YARN -->
     <dependency>
       <groupId>org.apache.spark</groupId>
@@ -55,6 +38,24 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-hive_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-kvstore_${scala.binary.version}</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-network-common_${scala.binary.version}</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-network-shuffle_${scala.binary.version}</artifactId>
+      <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -134,7 +135,7 @@
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <resources>
       <resource>
-        <directory>src/main/resources</directory>
+        <directory>${project.basedir}/src/main/resources</directory>
       </resource>
       <resource>
         <directory>${project.build.directory}/generated-resources</directory>

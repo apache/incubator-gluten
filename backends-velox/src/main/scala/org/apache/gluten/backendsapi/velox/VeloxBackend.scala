@@ -21,9 +21,9 @@ import org.apache.gluten.backendsapi._
 import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster, RoughCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -468,10 +468,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportColumnarShuffleExec(): Boolean = {
     val conf = GlutenConfig.get
-    conf.enableColumnarShuffle && (conf.isUseGlutenShuffleManager
-      || conf.isUseColumnarShuffleManager
-      || conf.isUseCelebornShuffleManager
-      || conf.isUseUniffleShuffleManager)
+    conf.enableColumnarShuffle &&
+    (conf.isUseGlutenShuffleManager || conf.shuffleManagerSupportsColumnarShuffle)
   }
 
   override def enableJoinKeysRewrite(): Boolean = false
@@ -562,4 +560,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def supportIcebergEqualityDeleteRead(): Boolean = false
 
   override def reorderColumnsForPartitionWrite(): Boolean = true
+
+  override def enableEnhancedFeatures(): Boolean = VeloxConfig.get.enableEnhancedFeatures()
 }

@@ -172,6 +172,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+    // Ensure that current_thread is valid before initializing resource.
+    DB::ThreadStatus thread_status;
+
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
     const std::string::size_type plan_buf_size = conf_plan_a.length();
     local_engine::SparkConfigs::update(
@@ -191,7 +194,11 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeDestroyNative(JNIEnv * env, jclass)
 {
-    LOG_INFO(&Poco::Logger::get("jni"), "start destroy native");
+    LOCAL_ENGINE_JNI_METHOD_START
+    // Ensure that current_thread is valid before destroying resource to avoid
+    // any future calls to CurrentThread::get() in parts of the code.
+    // For example, see `MergeTreeData::getInMemoryMetadataPtr()`
+    DB::ThreadStatus thread_status;
     local_engine::BackendFinalizerUtil::finalizeGlobally();
 
     local_engine::JniErrorsGlobalState::instance().destroy(env);
@@ -207,6 +214,8 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
     env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
     env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
+
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
 /// Set settings for the current query. It assumes that all parameters are started with `CH_RUNTIME_SETTINGS_PREFIX` prefix,
@@ -980,6 +989,9 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     JNIEnv * env, jclass, jbyteArray plan_, jbyteArray read_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+    // Ensure that current_thread is valid, even if this function is called on Driver.
+    DB::ThreadStatus thread_status;
+
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan_);
     auto plan_pb = local_engine::BinaryToMessage<substrait::Plan>(
         {reinterpret_cast<const char *>(plan_a.elems()), static_cast<size_t>(plan_a.length())});

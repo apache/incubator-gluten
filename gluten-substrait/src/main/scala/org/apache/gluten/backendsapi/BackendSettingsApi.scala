@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -157,4 +157,6 @@ trait BackendSettingsApi {
   def supportIcebergEqualityDeleteRead(): Boolean = true
 
   def reorderColumnsForPartitionWrite(): Boolean = false
+
+  def enableEnhancedFeatures(): Boolean = false
 }

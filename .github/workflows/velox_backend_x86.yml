@@ -313,8 +313,7 @@ jobs:
             pip3 install tzdata
             cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
             
-            wget -nv https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-            tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
+            $SETUP install_maven
             export PATH=${PATH}:/usr/lib/maven/bin
 
             # Set environment variables
@@ -1274,3 +1273,40 @@ jobs:
         with:
           name: ${{ github.job }}-test-log
           path: "**/target/*.log"
+
+  build-enhanced-feature-centos-8:
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-enhanced-centos8-release-shared-${{runner.arch}}-${{github.sha}}
+          restore-keys: |
+            ccache-enhanced-centos8-release-shared-${{runner.arch}}
+      - name: Build Gluten
+        run: |
+          df -a
+          source /opt/rh/gcc-toolset-11/enable
+          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_enhanced_features=ON
+          ccache -s
+
+  build-cudf-centos-9:
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-9-jdk8-cudf
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos9-release-shared-${{runner.arch}}-${{github.sha}}
+          restore-keys: |
+            ccache-centos9-release-shared-${{runner.arch}}
+      - name: Build Gluten native libraries
+        run: |
+          df -a
+          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_gpu=ON
+          ccache -s

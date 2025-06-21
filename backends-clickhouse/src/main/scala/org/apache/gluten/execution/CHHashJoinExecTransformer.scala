@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.utils.{BroadcastHashJoinStrategy, CHJoinValidateUtil, ShuffleHashJoinStrategy}
 
 import org.apache.spark.{broadcast, SparkContext}
