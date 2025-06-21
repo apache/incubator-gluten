@@ -20,7 +20,7 @@ import org.apache.gluten.ras.PlanModel
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{ColumnarToRowExec, FileSourceScanExec, RDDScanExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.task.{SparkTaskUtil, TaskResources}
 
@@ -76,42 +76,24 @@ object GlutenPlanModel {
     }
 
     private def withEqualityWrapper(node: SparkPlan): AnyRef = node match {
-      case scan if scan.isInstanceOf[RDDScanExec] || scan.isInstanceOf[FileSourceScanExec] =>
-        // Override RDDScanExec and FileSourceScanExec operators' equality implementation to
-        // include the Spark plan id.
-        //
-        // In Spark, two RDDScanExec (or other scan) objects could be "equivalent" even though
-        // they serve different purposes - this might be a design oversight of Spark, but it
-        // seems not an issue for Spark.
-        // In Gluten RAS, however, equality checks are heavily used to avoid inserting duplicates
-        // to the plan enumeration search space. Using the ordinary equality check of RDDScanExec
-        // could lead to replacement of two different RDD objects with the same RDD object when a
-        // single RDD is scanned multiple times (common in self-join, self-union, etc.).
-        // Consequently, the execution metrics might miscount
-        // (see https://github.com/apache/incubator-gluten/issues/9901).
-        // To overcome this issue, we explicitly add Spark plan's ID into equality check.
-        // The worst possible consequence for an over-strict equality check is acceptable
-        // (bigger search space), and since these are leaf operators, there would usually
-        // not be any true duplicates to begin with.
-        // Same treatment applies to RangeExec.
-        SparkScanExecEqualityWrapper(scan, scan.id)
       case scan: DataSourceV2ScanExecBase =>
-        // DataSourceV2ScanExec has the same problem as v1's scan exec, as explained above.
-        // In addition, override V2 scan operators' equality implementation to include output
-        // attributes.
+        // Override V2 scan operators' equality implementation to include output attributes.
         //
         // Spark's V2 scans don't incorporate out attributes in equality so E.g.,
         // BatchScan[date#1] can be considered equal to BatchScan[date#2], which is unexpected
+        // in RAS planner because it strictly relies on plan equalities for sanity.
+        //
+        // Related UT: `VeloxOrcDataTypeValidationSuite#Date type`
+        // Related Spark PRs:
         // https://github.com/apache/spark/pull/23086
         // https://github.com/apache/spark/pull/23619
         // https://github.com/apache/spark/pull/23430
-        ScanV2ExecEqualityWrapper(scan, scan.output, scan.id)
+        ScanV2ExecEqualityWrapper(scan, scan.output)
       case other => other
     }
-    private case class SparkScanExecEqualityWrapper(scan: SparkPlan, id: Int)
+
     private case class ScanV2ExecEqualityWrapper(
         scan: DataSourceV2ScanExecBase,
-        output: Seq[Attribute],
-        id: Int)
+        output: Seq[Attribute])
   }
 }

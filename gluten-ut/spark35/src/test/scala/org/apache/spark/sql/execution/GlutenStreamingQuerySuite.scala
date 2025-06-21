@@ -16,14 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.config.GlutenConfig
-
-import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.streaming._
 
-class GlutenStreamingQuerySuite extends StreamingQuerySuite with GlutenSQLTestsTrait {
-  override def sparkConf: SparkConf =
-    super.sparkConf
-      .set(GlutenConfig.RAS_ENABLED.key, "true")
-}
+class GlutenStreamingQuerySuite extends StreamingQuerySuite with GlutenSQLTestsTrait {}
