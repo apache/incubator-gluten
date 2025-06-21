@@ -58,6 +58,7 @@ object VeloxRuleApi {
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
     injector.injectOptimizerRule(CollapseGetJsonObjectExpressionRule.apply)
+    injector.injectOptimizerRule(spark => CommonSubexpressionEliminateRule(spark))
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
   }
 
