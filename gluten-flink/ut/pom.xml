@@ -91,6 +91,12 @@
             <version>${flink.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.github.nexmark</groupId>
+            <artifactId>nexmark-flink</artifactId>
+            <version>0.3-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.github.zhztheplayer</groupId>
             <artifactId>velox4j</artifactId>
             <version>${velox4j.version}</version>

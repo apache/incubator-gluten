@@ -64,9 +64,21 @@ git clone https://github.com/apache/incubator-gluten.git
 
 ```
 cd /path/to/gluten/gluten-flink
-mvn clean package 
+mvn clean package -Dmaven.test.skip=true
 ```
 
+# Run Unit Tests
+**Get Nexmark**
+```shell
+git clone https://github.com/nexmark/nexmark.git
+cd nexmark
+mvn clean install -DskipTests
+```
+**Run Tests**
+```shell
+cd /path/to/gluten/gluten-flink
+mvn test
+```
 ## Dependency library deployment
 
 You need to get the Velox4j packages and used them with gluten.
