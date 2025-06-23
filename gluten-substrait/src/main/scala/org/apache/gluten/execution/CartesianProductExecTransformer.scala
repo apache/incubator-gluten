@@ -68,7 +68,7 @@ case class CartesianProductExecTransformer(
   override def rightKeys: Seq[Expression] = Nil
 
   protected lazy val substraitJoinType: CrossRel.JoinType =
-    SubstraitUtil.toCrossRelSubstrait(joinType)
+    SubstraitUtil.toCrossRelSubstrait(joinType, false)
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =

@@ -51,15 +51,26 @@ object SubstraitUtil {
       JoinRel.JoinType.UNRECOGNIZED
   }
 
-  def toCrossRelSubstrait(sparkJoin: JoinType): CrossRel.JoinType = sparkJoin match {
+  def toCrossRelSubstrait(sparkJoin: JoinType, needSwitchChildren: Boolean): CrossRel.JoinType =
+  sparkJoin match {
     case _: InnerLike =>
       CrossRel.JoinType.JOIN_TYPE_INNER
-    case LeftOuter | RightOuter =>
+    case LeftOuter =>
       // since we always assume build right side in substrait,
       // the left and right relations are exchanged and the
       // join type is reverted.
-      CrossRel.JoinType.JOIN_TYPE_LEFT
-    case LeftSemi | ExistenceJoin(_) =>
+      if (needSwitchChildren) {
+        CrossRel.JoinType.JOIN_TYPE_RIGHT
+      } else {
+        CrossRel.JoinType.JOIN_TYPE_LEFT
+      }
+    case RightOuter =>
+      if (needSwitchChildren) {
+        CrossRel.JoinType.JOIN_TYPE_LEFT
+      } else {
+        CrossRel.JoinType.JOIN_TYPE_RIGHT
+      }
+    case LeftSemi =>
       CrossRel.JoinType.JOIN_TYPE_LEFT_SEMI
     case FullOuter =>
       CrossRel.JoinType.JOIN_TYPE_OUTER

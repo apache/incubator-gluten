@@ -1104,6 +1104,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT_SEMI:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_RIGHT:
       break;
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
       if (crossRel.has_expression()) {

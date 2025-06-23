@@ -78,7 +78,7 @@ public class StorageJoinBuilder {
 
     int joinType;
     if (broadCastContext.buildHashTableId().startsWith("BuiltBNLJBroadcastTable-")) {
-      joinType = SubstraitUtil.toCrossRelSubstrait(broadCastContext.joinType()).ordinal();
+      joinType = SubstraitUtil.toCrossRelSubstrait(broadCastContext.joinType(), false).ordinal();
     } else {
       boolean buildRight = broadCastContext.buildRight();
       joinType =
