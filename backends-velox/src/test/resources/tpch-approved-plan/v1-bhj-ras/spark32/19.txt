@@ -164,11 +164,11 @@ Right keys [1]: [p_partkey#X]
 Join condition: (((((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (l_quantity#X >= 1.00)) AND (l_quantity#X <= 11.00)) AND (p_size#X <= 5)) OR (((((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (l_quantity#X >= 10.00)) AND (l_quantity#X <= 20.00)) AND (p_size#X <= 10))) OR (((((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (l_quantity#X >= 20.00)) AND (l_quantity#X <= 30.00)) AND (p_size#X <= 15)))
 
 (30) Project
-Output [2]: [promote_precision(cast(l_extendedprice#X as decimal(13,2))) AS promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X, promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true)) AS promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X]
+Output [2]: [promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true)) AS promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X, promote_precision(cast(l_extendedprice#X as decimal(13,2))) AS promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X]
 Input [8]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_brand#X, p_size#X, p_container#X]
 
 (31) HashAggregate
-Input [2]: [promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X, promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X]
+Input [2]: [promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X, promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X]
 Keys: []
 Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]

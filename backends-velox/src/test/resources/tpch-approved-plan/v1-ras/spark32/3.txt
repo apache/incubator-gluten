@@ -321,11 +321,11 @@ Right keys [1]: [l_orderkey#X]
 Join condition: None
 
 (62) Project
-Output [5]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, promote_precision(cast(l_extendedprice#X as decimal(13,2))) AS promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X, promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true)) AS promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X]
+Output [5]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true)) AS promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X, promote_precision(cast(l_extendedprice#X as decimal(13,2))) AS promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X]
 Input [6]: [o_orderkey#X, o_orderdate#X, o_shippriority#X, l_orderkey#X, l_extendedprice#X, l_discount#X]
 
 (63) HashAggregate
-Input [5]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X, promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X]
+Input [5]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X, promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X]
 Keys [3]: [l_orderkey#X, o_orderdate#X, o_shippriority#X]
 Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2)))#X * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))#X), DecimalType(26,4), true))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]

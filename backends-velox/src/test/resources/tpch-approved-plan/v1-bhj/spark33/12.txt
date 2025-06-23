@@ -91,12 +91,12 @@ Right keys [1]: [l_orderkey#X]
 Join condition: None
 
 (12) ProjectExecTransformer
-Output [3]: [l_shipmode#X, (o_orderpriority#X = 2-HIGH) AS (o_orderpriority#X = 2-HIGH)#X, (o_orderpriority#X = 1-URGENT) AS (o_orderpriority#X = 1-URGENT)#X]
+Output [3]: [l_shipmode#X, (o_orderpriority#X = 1-URGENT) AS (o_orderpriority#X = 1-URGENT)#X, (o_orderpriority#X = 2-HIGH) AS (o_orderpriority#X = 2-HIGH)#X]
 Input [4]: [o_orderkey#X, o_orderpriority#X, l_orderkey#X, l_shipmode#X]
 
 (13) ProjectExecTransformer
 Output [3]: [l_shipmode#X, CASE WHEN ((o_orderpriority#X = 1-URGENT)#X OR (o_orderpriority#X = 2-HIGH)#X) THEN 1 ELSE 0 END AS _pre_X#X, CASE WHEN (NOT (o_orderpriority#X = 1-URGENT)#X AND NOT (o_orderpriority#X = 2-HIGH)#X) THEN 1 ELSE 0 END AS _pre_X#X]
-Input [3]: [l_shipmode#X, (o_orderpriority#X = 2-HIGH)#X, (o_orderpriority#X = 1-URGENT)#X]
+Input [3]: [l_shipmode#X, (o_orderpriority#X = 1-URGENT)#X, (o_orderpriority#X = 2-HIGH)#X]
 
 (14) FlushableHashAggregateExecTransformer
 Input [3]: [l_shipmode#X, _pre_X#X, _pre_X#X]
@@ -207,11 +207,11 @@ Right keys [1]: [l_orderkey#X]
 Join condition: None
 
 (39) Project
-Output [3]: [l_shipmode#X, (o_orderpriority#X = 2-HIGH) AS (o_orderpriority#X = 2-HIGH)#X, (o_orderpriority#X = 1-URGENT) AS (o_orderpriority#X = 1-URGENT)#X]
+Output [3]: [l_shipmode#X, (o_orderpriority#X = 1-URGENT) AS (o_orderpriority#X = 1-URGENT)#X, (o_orderpriority#X = 2-HIGH) AS (o_orderpriority#X = 2-HIGH)#X]
 Input [4]: [o_orderkey#X, o_orderpriority#X, l_orderkey#X, l_shipmode#X]
 
 (40) HashAggregate
-Input [3]: [l_shipmode#X, (o_orderpriority#X = 2-HIGH)#X, (o_orderpriority#X = 1-URGENT)#X]
+Input [3]: [l_shipmode#X, (o_orderpriority#X = 1-URGENT)#X, (o_orderpriority#X = 2-HIGH)#X]
 Keys [1]: [l_shipmode#X]
 Functions [2]: [partial_sum(CASE WHEN ((o_orderpriority#X = 1-URGENT)#X OR (o_orderpriority#X = 2-HIGH)#X) THEN 1 ELSE 0 END), partial_sum(CASE WHEN (NOT (o_orderpriority#X = 1-URGENT)#X AND NOT (o_orderpriority#X = 2-HIGH)#X) THEN 1 ELSE 0 END)]
 Aggregate Attributes [2]: [sum#X, sum#X]
