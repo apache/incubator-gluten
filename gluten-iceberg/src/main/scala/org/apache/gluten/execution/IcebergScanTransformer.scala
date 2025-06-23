@@ -29,13 +29,13 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{ArrayType, DataType, StructType}
 
-import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
+import org.apache.iceberg.{BaseTable, MetadataColumns, Schema, SnapshotSummary}
 import org.apache.iceberg.avro.AvroSchemaUtil
 import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
 import org.apache.iceberg.spark.source.metrics.NumSplits
-import org.apache.iceberg.types.Type
+import org.apache.iceberg.types.{Type, Types}
 import org.apache.iceberg.types.Type.TypeID
 import org.apache.iceberg.types.Types.{ListType, MapType, NestedField}
 
@@ -113,6 +113,7 @@ case class IcebergScanTransformer(
       }
 
       if (hasRenamedColumn) {
+        print("has rename column")
         return ValidationResult.failed("The column is renamed, cannot read it.")
       }
     }
@@ -173,26 +174,79 @@ case class IcebergScanTransformer(
   override def nodeName: String = "Iceberg" + super.nodeName
 
   private def hasRenamedColumn: Boolean = {
-    scan
-      .readSchema()
-      .fieldNames
-      .exists(
-        name => {
-          table match {
-            case t: SparkTable =>
-              t.table() match {
-                case t: BaseTable =>
-                  val id = t.operations().current().schema().findField(name).fieldId()
-                  t.operations()
-                    .current()
-                    .schemas()
-                    .stream()
-                    .anyMatch(s => s.findField(id).name() != name)
-                case _ => false
-              }
-            case _ => false
-          }
-        })
+    val icebergTable = table match {
+      case t: SparkTable =>
+        t.table() match {
+          case t: BaseTable => t
+          case _ => null
+        }
+      case _ => null
+    }
+    if (icebergTable == null) {
+      return false
+    }
+
+    // The read fields always should be found in current schema,
+    // but may have different id in history schemas
+    val ops = icebergTable.operations().current()
+    val currentSchema = ops.schema()
+    val oldSchemas = icebergTable.operations().current().schemas()
+    !oldSchemas
+      .stream()
+      .filter(s => s.schemaId() != ops.currentSchemaId())
+      .anyMatch(s => typesMatch(s.asStruct(), currentSchema.asStruct(), scan.readSchema()))
+  }
+
+  private def typesMatch(icebergType: Type, currentType: Type, sparkType: DataType): Boolean = {
+    if (icebergType.isPrimitiveType) {
+      if (!currentType.isPrimitiveType) {
+        return false
+      }
+      sparkType match {
+        case _: StructType => return false
+        case _: ArrayType => return false
+        case _: org.apache.spark.sql.types.MapType => return false
+        case _ => return true
+      }
+    }
+    (icebergType, currentType, sparkType) match {
+      case (iceberg: Types.StructType, currentType: Types.StructType, sparkStruct: StructType) =>
+        sparkStruct.fields.forall {
+          f =>
+            val currentField = new Schema(currentType.fields()).findField(f.name)
+            val field = new Schema(iceberg.fields()).findField(currentField.fieldId())
+
+            // Find not exists column
+            if (currentField == null) {
+              return true
+              // The field does not exist in old schema, add column case
+            } else if (field == null) {
+              return true
+            } else {
+              // Maybe rename column
+              return field.name() == f.name &&
+                typesMatch(field.`type`(), currentField.`type`(), f.dataType)
+            }
+        }
+
+      // Array types
+      case (iceberg: Types.ListType, current: Types.ListType, spark: ArrayType) =>
+        iceberg.elementId() == current.elementId() &&
+        typesMatch(iceberg.elementType(), current.elementType(), spark.elementType)
+
+      // Map types, TODO: if key type and value type may be struct
+      case (
+            iceberg: Types.MapType,
+            current: Types.MapType,
+            spark: org.apache.spark.sql.types.MapType) =>
+        iceberg.keyId() == current.keyId() && iceberg.valueId() == current.valueId() &&
+        typesMatch(iceberg.keyType(), current.keyType(), spark.keyType) && typesMatch(
+          iceberg.valueType(),
+          current.valueType(),
+          spark.valueType)
+
+      case _ => false
+    }
   }
 }
 

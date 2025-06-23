@@ -129,7 +129,8 @@ public class TestGlutenMergeOnReadMerge extends TestMergeOnReadMerge {
           SparkPlan sparkPlan = executeAndKeepPlan(() -> sql(query));
           String planAsString = sparkPlan.toString().replaceAll("#(\\d+L?)", "");
 
-          assertThat(planAsString).as("Join should match").contains(join + "\n");
+          // Remove "\n" because gluten prints BuildRight or BuildLeft in the end.
+          assertThat(planAsString).as("Join should match").contains(join);
 
           assertThat(planAsString)
               .as("Pushed filters must match")
