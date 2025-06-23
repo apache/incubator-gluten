@@ -165,6 +165,9 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val preProject = ProjectExec(
         eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
         agg.child)
+      if (agg.child.logicalLink.isDefined) {
+        preProject.setLogicalLink(agg.child.logicalLink.get)
+      }
       newAgg.withNewChildren(Seq(preProject))
 
     case window: WindowExec if needsPreProject(window) =>
