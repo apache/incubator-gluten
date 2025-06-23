@@ -33,7 +33,7 @@ import org.apache.spark.sql.types.StructType
 
 import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
 import org.apache.iceberg.avro.AvroSchemaUtil
-import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkInputPartition, SparkTable}
+import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
 import org.apache.iceberg.spark.source.metrics.NumSplits
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
@@ -55,7 +55,8 @@ case class IcebergScanTransformer(
     commonPartitionValues = commonPartitionValues
   ) {
 
-  // PartitionReader reports the metric by currentMetricsValues, but the implementation is different.
+  // PartitionReader reports the metric by currentMetricsValues,
+  // but the implementation is different.
   // So use Metric to get NumSplits, NumDeletes is not reported by native metric
   private val numSplits = SQLMetrics.createMetric(sparkContext, new NumSplits().description())
 
@@ -229,5 +230,4 @@ object IcebergScanTransformer {
       case _ => field.fieldId() >= (Integer.MAX_VALUE - 200)
     }
   }
-
 }
