@@ -52,13 +52,15 @@ class GlutenCommonSubexpressionEliminateSuite extends GlutenSQLTestsTrait {
       checkOperatorCount[ProjectExecTransformer](2)(dfProject)
 
       // CSE in window
-      val dfWindow = spark.sql("SELECT id, AVG(id) OVER (PARTITION BY id % 2 ORDER BY id) as avg_id, " +
-        "SUM(id) OVER (PARTITION BY id % 2 ORDER BY id) as sum_id FROM range(3)")
+      val dfWindow = spark.sql(
+        s"""SELECT id, AVG(id) OVER (PARTITION BY id % 2 ORDER BY id) as avg_id
+           |SUM(id) OVER (PARTITION BY id % 2 ORDER BY id) as sum_id FROM range(3)
+           |""".stripMargin)
 
       checkAnswer(
         dfWindow,
         Seq(
-          Row(0, 0.0,0),
+          Row(0, 0.0, 0),
           Row(2, 1.0, 2),
           Row(1, 1.0, 1)))
 
@@ -76,7 +78,8 @@ class GlutenCommonSubexpressionEliminateSuite extends GlutenSQLTestsTrait {
 
       checkOperatorCount[ProjectExecTransformer](2)(dfAggregate)
 
-      dfAggregate = spark.sql("select id % 10, sum(id +100) + max(id+100) from range(100) group by id % 10")
+      dfAggregate = spark.sql("select id % 10, sum(id +100) + max(id+100)" +
+        "from range(100) group by id % 10")
 
       checkAnswer(
         dfAggregate,
@@ -120,21 +123,21 @@ class GlutenCommonSubexpressionEliminateSuite extends GlutenSQLTestsTrait {
 
       checkOperatorCount[ProjectExecTransformer](3)(dfSort)
 
-      dfSort = spark.sql(s"""
-                            |SELECT 'test' AS test
-                            |  , Sum(CASE
-                            |    WHEN name = '2' THEN 0
-                            |      ELSE id
-                            |    END) AS c1
-                            |  , Sum(CASE
-                            |    WHEN name = '2' THEN id
-                            |      ELSE 0
-                            |    END) AS c2
-                            | , CASE WHEN name = '2' THEN Sum(id) ELSE 0
-                            |   END AS c3
-                            |FROM (select id, cast(id as string) name from range(3))
-                            |GROUP BY name
-                            |""".stripMargin)
+      dfSort = spark.sql(
+        s"""|SELECT 'test' AS test
+            |  , Sum(CASE
+            |    WHEN name = '2' THEN 0
+            |      ELSE id
+            |    END) AS c1
+            |  , Sum(CASE
+            |    WHEN name = '2' THEN id
+            |      ELSE 0
+            |    END) AS c2
+            | , CASE WHEN name = '2' THEN Sum(id) ELSE 0
+            |   END AS c3
+            |FROM (select id, cast(id as string) name from range(3))
+            |GROUP BY name
+            |""".stripMargin)
 
       checkAnswer(
         dfSort,
@@ -145,7 +148,8 @@ class GlutenCommonSubexpressionEliminateSuite extends GlutenSQLTestsTrait {
 
       checkOperatorCount[ProjectExecTransformer](5)(dfSort)
 
-      val df = spark.sql("select id % 2, max(hash(id)), min(hash(id)) from range(10) group by id % 2")
+      val df = spark.sql("select id % 2, max(hash(id)), min(hash(id))" +
+        "from range(10) group by id % 2")
       df.queryExecution.optimizedPlan.collect {
         case Aggregate(_, aggregateExpressions, _) =>
           val result =
