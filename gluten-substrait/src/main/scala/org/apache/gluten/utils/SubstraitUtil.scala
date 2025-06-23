@@ -52,31 +52,31 @@ object SubstraitUtil {
   }
 
   def toCrossRelSubstrait(sparkJoin: JoinType, needSwitchChildren: Boolean): CrossRel.JoinType =
-  sparkJoin match {
-    case _: InnerLike =>
-      CrossRel.JoinType.JOIN_TYPE_INNER
-    case LeftOuter =>
-      // since we always assume build right side in substrait,
-      // the left and right relations are exchanged and the
-      // join type is reverted.
-      if (needSwitchChildren) {
-        CrossRel.JoinType.JOIN_TYPE_RIGHT
-      } else {
-        CrossRel.JoinType.JOIN_TYPE_LEFT
-      }
-    case RightOuter =>
-      if (needSwitchChildren) {
-        CrossRel.JoinType.JOIN_TYPE_LEFT
-      } else {
-        CrossRel.JoinType.JOIN_TYPE_RIGHT
-      }
-    case LeftSemi =>
-      CrossRel.JoinType.JOIN_TYPE_LEFT_SEMI
-    case FullOuter =>
-      CrossRel.JoinType.JOIN_TYPE_OUTER
-    case _ =>
-      CrossRel.JoinType.UNRECOGNIZED
-  }
+    sparkJoin match {
+      case _: InnerLike =>
+        CrossRel.JoinType.JOIN_TYPE_INNER
+      case LeftOuter =>
+        // since we always assume build right side in substrait,
+        // the left and right relations are exchanged and the
+        // join type is reverted.
+        if (needSwitchChildren) {
+          CrossRel.JoinType.JOIN_TYPE_RIGHT
+        } else {
+          CrossRel.JoinType.JOIN_TYPE_LEFT
+        }
+      case RightOuter =>
+        if (needSwitchChildren) {
+          CrossRel.JoinType.JOIN_TYPE_LEFT
+        } else {
+          CrossRel.JoinType.JOIN_TYPE_RIGHT
+        }
+      case LeftSemi =>
+        CrossRel.JoinType.JOIN_TYPE_LEFT_SEMI
+      case FullOuter =>
+        CrossRel.JoinType.JOIN_TYPE_OUTER
+      case _ =>
+        CrossRel.JoinType.UNRECOGNIZED
+    }
 
   def createEnhancement(output: Seq[Attribute]): com.google.protobuf.Any = {
     val inputTypeNodes = output.map {
