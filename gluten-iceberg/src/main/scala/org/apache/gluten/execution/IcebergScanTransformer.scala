@@ -98,12 +98,18 @@ case class IcebergScanTransformer(
         case t: SparkTable =>
           t.table() match {
             case t: BaseTable =>
-              t.operations()
+              val snapshot = t
+                .operations()
                 .current()
                 .currentSnapshot()
-                .summary()
-                .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0")
-                .toInt > 0
+              if (snapshot == null) {
+                false
+              } else {
+                snapshot
+                  .summary()
+                  .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0")
+                  .toInt > 0
+              }
             case _ => false
           }
         case _ => false
@@ -225,7 +231,7 @@ case class IcebergScanTransformer(
             } else {
               // Maybe rename column
               field.name() == f.name &&
-                typesMatch(field.`type`(), currentField.`type`(), f.dataType)
+              typesMatch(field.`type`(), currentField.`type`(), f.dataType)
             }
         }
 
