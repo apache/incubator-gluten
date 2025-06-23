@@ -113,8 +113,8 @@ case class IcebergScanTransformer(
       }
 
       if (hasRenamedColumn) {
-        print("has rename column")
-        return ValidationResult.failed("The column is renamed, cannot read it.")
+        return ValidationResult.failed(
+          "The column is renamed or data type mismatch, cannot read it.")
       }
     }
 
@@ -191,10 +191,10 @@ case class IcebergScanTransformer(
     val ops = icebergTable.operations().current()
     val currentSchema = ops.schema()
     val oldSchemas = icebergTable.operations().current().schemas()
-    !oldSchemas
+    oldSchemas
       .stream()
       .filter(s => s.schemaId() != ops.currentSchemaId())
-      .anyMatch(s => typesMatch(s.asStruct(), currentSchema.asStruct(), scan.readSchema()))
+      .anyMatch(s => !typesMatch(s.asStruct(), currentSchema.asStruct(), scan.readSchema()))
   }
 
   private def typesMatch(icebergType: Type, currentType: Type, sparkType: DataType): Boolean = {
@@ -218,13 +218,13 @@ case class IcebergScanTransformer(
 
             // Find not exists column
             if (currentField == null) {
-              return true
+              false
               // The field does not exist in old schema, add column case
             } else if (field == null) {
-              return true
+              true
             } else {
               // Maybe rename column
-              return field.name() == f.name &&
+              field.name() == f.name &&
                 typesMatch(field.`type`(), currentField.`type`(), f.dataType)
             }
         }
