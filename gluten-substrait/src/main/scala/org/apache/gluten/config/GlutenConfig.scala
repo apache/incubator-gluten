@@ -1190,7 +1190,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.validation.printStackOnFailure")
       .internal()
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val VALIDATION_FAIL_FAST =
     buildConf("spark.gluten.sql.validation.failFast")
