@@ -547,6 +547,7 @@ class Spark34Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.TRY
       case d: Divide => d.evalMode == EvalMode.TRY
       case m: Multiply => m.evalMode == EvalMode.TRY
+      case c: Cast => c.evalMode == EvalMode.TRY
       case _ => false
     }
   }
