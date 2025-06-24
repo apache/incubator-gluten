@@ -139,9 +139,9 @@ public class ReinterpretRexCallConverter extends BaseRexCallConverter {
 
   /**
    * Get the referenced input field names of the RexNode. In order to convert the RexNode call to
-   * velox function, we also need to covnert the its refernece fields to Velox#FieldAccessTypedExpr,
+   * velox function, we also need to convert the its reference fields to Velox#FieldAccessTypedExpr,
    * and {@link #getRexNodeInputNames} is used to get the referenced field names need to be
-   * converted, and the conversion will be make by {@link RexNodeConverter#toTypedExpr}.
+   * converted, and the conversion will be made by {@link RexNodeConverter#toTypedExpr}.
    */
   private List<String> getRexNodeInputNames(RexNode node, List<String> fieldNames) {
     final List<String> inputNames = new ArrayList<>();
