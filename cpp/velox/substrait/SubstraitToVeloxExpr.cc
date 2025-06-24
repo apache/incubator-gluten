@@ -562,10 +562,8 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     const ::substrait::Expression::Cast& castExpr,
     const RowTypePtr& inputType) {
   auto type = SubstraitParser::parseType(castExpr.type());
-  bool isTryCast = isTryCast(castExpr.failure_behavior());
-
   std::vector<core::TypedExprPtr> inputs{toVeloxExpr(castExpr.input(), inputType)};
-  return std::make_shared<core::CastTypedExpr>(type, inputs, isTryCast);
+  return std::make_shared<core::CastTypedExpr>(type, inputs, isTryCast(castExpr.failure_behavior()));
 }
 
 core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
