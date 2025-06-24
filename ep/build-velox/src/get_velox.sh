@@ -17,12 +17,15 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_06_22
+VELOX_BRANCH=2025_06_23
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
 VELOX_ENHANCED_REPO=https://github.com/oap-project/velox.git
 VELOX_ENHANCED_BRANCH=2025_06_10
 ENABLE_ENHANCED_FEATURES=OFF
+
+# Developer use only for testing Velox PR.
+UPSTREAM_VELOX_PR_ID=""
 
 OS=`uname -s`
 
@@ -189,6 +192,26 @@ fi
 git submodule sync --recursive
 git submodule update --init --recursive
 
+function apply_provided_velox_patch {
+  if [[ -n "$UPSTREAM_VELOX_PR_ID" ]]; then
+     echo "Applying patch for PR #$UPSTREAM_VELOX_PR_ID ..."
+     local velox_home=$1
+     local patch_name="$UPSTREAM_VELOX_PR_ID.patch"
+     pushd $velox_home
+     rm -f $patch_name
+     wget -nv "https://patch-diff.githubusercontent.com/raw/facebookincubator/velox/pull/$UPSTREAM_VELOX_PR_ID.patch" \
+       -O "$patch_name" || {
+       echo "Failed to download the Velox patch from GitHub"
+       exit 1
+     }
+     (git apply --check $patch_name && git apply $patch_name) || {
+       echo "Failed to apply the provided Velox patch"
+       exit 1
+     }
+     popd
+  fi
+}
+
 function apply_compilation_fixes {
   current_dir=$1
   velox_home=$2
@@ -257,6 +280,8 @@ function setup_linux {
     exit 1
   fi
 }
+
+apply_provided_velox_patch $VELOX_SOURCE_DIR
 
 if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
   if [ $OS == 'Linux' ]; then
