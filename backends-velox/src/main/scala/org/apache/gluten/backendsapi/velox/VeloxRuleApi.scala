@@ -184,6 +184,7 @@ object VeloxRuleApi {
           c => RasOffload.Rule(offload, validatorBuilder(new GlutenConfig(c.sqlConf)), rewrites)))
 
     // Gluten RAS: Post rules.
+    injector.injectPostTransform(_ => DistinguishIdenticalScans)
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
     injector.injectPostTransform(_ => RemoveTransitions)
     injector.injectPostTransform(_ => UnionTransformerRule())
