@@ -128,8 +128,7 @@ class GlutenClickHouseWholeStageTransformerSuite
   final protected val resPath: String = this.getClass.getResource("/").getPath
 
   // source parquet data
-  private val testDataPath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
+  private val testDataPath: String = "tpch-data"
   final lazy val testParquetAbsolutePath =
     new File(s"$resPath$testDataPath").getCanonicalPath
 
