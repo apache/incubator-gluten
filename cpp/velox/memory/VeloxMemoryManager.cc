@@ -294,13 +294,13 @@ MemoryUsageStats collectGlutenAllocatorMemoryUsageStats(
   return stats;
 }
 
-void logMemoryUsageStats(MemoryUsageStats stats, const std::string& name, const std::string& logPrefix) {
-  VLOG(2) << logPrefix << "+- " << name
+void logMemoryUsageStats(MemoryUsageStats stats, const std::string& name, const std::string& logPrefix, std::stringstream& ss) {
+  ss << logPrefix << "+- " << name
           << " (used: " << velox::succinctBytes(stats.current())
-          << ", peak: " <<  velox::succinctBytes(stats.peak()) << ")";
+          << ", peak: " <<  velox::succinctBytes(stats.peak()) << ")\n";
   if (stats.children_size() > 0) {
     for (auto it = stats.children().begin(); it != stats.children().end(); ++it) {
-      logMemoryUsageStats(it->second, it->first, logPrefix + "   ");
+      logMemoryUsageStats(it->second, it->first, logPrefix + "   ", ss);
     }
   }
 }
@@ -311,9 +311,11 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
   VLOG(2) << logPrefix << "Trying to shrink " << size << " bytes of data...";
   VLOG(2) << logPrefix << "Pool has reserved " << pool->usedBytes() << "/" << pool->root()->reservedBytes() << "/"
           << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
-  VLOG(2) << logPrefix << "Velox memory usage stats...";
   if (VLOG_IS_ON(2)) {
-    logMemoryUsageStats(collectVeloxMemoryUsageStats(pool), poolName, logPrefix);
+    std::stringstream ss;
+    ss << logPrefix << "Velox memory usage stats:\n";
+    logMemoryUsageStats(collectVeloxMemoryUsageStats(pool), poolName, logPrefix, ss);
+    VLOG(2) << ss.str();
   }
   VLOG(2) << logPrefix << "Shrinking...";
   auto shrunken = mm->arbitrator()->shrinkCapacity(pool, 0);
