@@ -248,14 +248,14 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       // LEFT OUTER JOIN, broadcast left, expect BuildLeft
       assertJoinBuildSide(
         "SELECT /*+ MAPJOIN(t1) */ * FROM t1 LEFT JOIN t2 ON t1.key = t2.key",
-        bl, // or blt, depending on backend
+        bl,
         BuildLeft
       )
 
       // RIGHT OUTER JOIN, broadcast right, expect BuildRight
       assertJoinBuildSide(
         "SELECT /*+ MAPJOIN(t2) */ * FROM t1 RIGHT JOIN t2 ON t1.key = t2.key",
-        bl, // or blt, depending on backend
+        bl,
         BuildRight
       )
     }

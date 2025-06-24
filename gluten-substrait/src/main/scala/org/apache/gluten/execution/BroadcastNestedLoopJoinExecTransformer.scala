@@ -161,6 +161,12 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       case _ =>
         ValidationResult.failed(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
+    (joinType, buildSide) match {
+      case (ExistenceJoin(_), BuildLeft) =>
+        ValidationResult.failed(s"$joinType join is not supported with $buildSide")
+      case _ =>
+        ValidationResult.succeeded
+    }
   }
 
   override protected def doValidateInternal(): ValidationResult = {
