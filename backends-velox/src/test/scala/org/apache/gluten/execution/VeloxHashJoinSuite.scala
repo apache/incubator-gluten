@@ -295,6 +295,7 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
           }
       }
 
+      // Test HashProbe operation when projecting a column multiple times without using an alias.
       val q5 =
         """
           |select tt1.* from
