@@ -220,18 +220,19 @@ case class IcebergScanTransformer(
         sparkStruct.fields.forall {
           f =>
             val currentField = new Schema(currentType.fields()).findField(f.name)
-            val field = new Schema(iceberg.fields()).findField(currentField.fieldId())
-
             // Find not exists column
             if (currentField == null) {
               false
-              // The field does not exist in old schema, add column case
-            } else if (field == null) {
-              true
             } else {
-              // Maybe rename column
-              field.name() == f.name &&
-              typesMatch(field.`type`(), currentField.`type`(), f.dataType)
+              val field = new Schema(iceberg.fields()).findField(currentField.fieldId())
+              // The field does not exist in old schema, add column case
+              if (field == null) {
+                true
+              } else {
+                // Maybe rename column
+                field.name() == f.name &&
+                typesMatch(field.`type`(), currentField.`type`(), f.dataType)
+              }
             }
         }
 
@@ -240,7 +241,7 @@ case class IcebergScanTransformer(
         iceberg.elementId() == current.elementId() &&
         typesMatch(iceberg.elementType(), current.elementType(), spark.elementType)
 
-      // Map types, TODO: if key type and value type may be struct
+      // Map types
       case (
             iceberg: Types.MapType,
             current: Types.MapType,
