@@ -23,29 +23,37 @@ import org.apache.gluten.rexnode.ValidationResult;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.BigIntType;
+import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
-public class ModRexCallConverter extends BaseRexCallConverter {
-  private static final String FUNCTION_NAME = "remainder";
+class SubtractRexCallConverter extends BaseRexCallConverter {
 
-  public ModRexCallConverter() {
-    super(FUNCTION_NAME);
+  public SubtractRexCallConverter() {
+    super("subtract");
   }
 
   @Override
   public ValidationResult doValidate(RexCall callNode, RexConversionContext context) {
-    // Modulus operation is supported for numeric types.
-    boolean typesValidate =
+    // Subtraction operation is supported for numeric types.
+    List<Type> paramTypes =
+        callNode.getOperands().stream()
+            .map(param -> RexNodeConverter.toType(param.getType()))
+            .collect(Collectors.toList());
+    boolean validate =
         callNode.getOperands().size() == 2
-            && TypeUtils.isNumericType(RexNodeConverter.toType(callNode.getType()));
-    if (!typesValidate) {
+            && (paramTypes.stream().allMatch(TypeUtils::isNumericType)
+                || (paramTypes.get(0) instanceof TimestampType
+                    && paramTypes.get(1) instanceof BigIntType));
+    if (!validate) {
       String message =
           String.format(
-              "Modulus operation requires exactly two numeric operands, but found: %s",
+              "Subtraction operation requires exactly two numeric operands or timestamp - numeric, but found: %s",
               getFunctionProtoTypeName(callNode));
       return ValidationResult.failure(message);
     }
@@ -55,9 +63,19 @@ public class ModRexCallConverter extends BaseRexCallConverter {
   @Override
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
+
+    if (params.get(0).getReturnType() instanceof TimestampType
+        && params.get(1).getReturnType() instanceof BigIntType) {
+
+      Type bigIntType = new BigIntType();
+      TypedExpr castExpr = new CallTypedExpr(bigIntType, List.of(params.get(0)), "cast");
+
+      List<TypedExpr> newParams = List.of(castExpr, params.get(1));
+      return new CallTypedExpr(bigIntType, newParams, functionName);
+    }
+
     List<TypedExpr> alignedParams = TypeUtils.promoteTypeForArithmeticExpressions(params);
-    // Use the divisor's type as the result type
-    Type resultType = params.get(1).getReturnType();
-    return new CallTypedExpr(resultType, params, functionName);
+    Type resultType = getResultType(callNode);
+    return new CallTypedExpr(resultType, alignedParams, functionName);
   }
 }
