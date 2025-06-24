@@ -62,12 +62,12 @@ object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
       }
     case bhj: BroadcastHashJoinExecTransformer
         if bhj.streamedPlan.isInstanceOf[ProjectExecTransformer] =>
-      val pullOutAliases = new ArrayBuffer[Alias]()
       val duplicates =
         calculateDuplicates(bhj.streamedPlan.asInstanceOf[ProjectExecTransformer], bhj.references)
       if (duplicates.isEmpty) {
         bhj
       } else {
+        val pullOutAliases = new ArrayBuffer[Alias]()
         val newStreamedPlan = rewriteProject(
           bhj.streamedPlan.asInstanceOf[ProjectExecTransformer],
           bhj.references,
