@@ -111,9 +111,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
             sourceContext.collect(row);
           }
         } finally {
-          if (outRv != null) {
-            outRv.close();
-          }
+          outRv.close();
         }
       } else if (state == UpIterator.State.BLOCKED) {
         LOG.debug("Get empty row");
