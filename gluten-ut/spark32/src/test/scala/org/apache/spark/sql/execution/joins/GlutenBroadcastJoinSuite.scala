@@ -240,6 +240,27 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     }
   }
 
+  testGluten("BroadcastNestedLoopJoin supports LeftOuter+BuildLeft and RightOuter+BuildRight") {
+    withTempView("t1", "t2") {
+      Seq((1, "a"), (2, "b")).toDF("key", "value").createTempView("t1")
+      Seq((1, "x"), (3, "y")).toDF("key", "value").createTempView("t2")
+
+      // LEFT OUTER JOIN, broadcast left, expect BuildLeft
+      assertJoinBuildSide(
+        "SELECT /*+ MAPJOIN(t1) */ * FROM t1 LEFT JOIN t2 ON t1.key = t2.key",
+        bl, // or blt, depending on backend
+        BuildLeft
+      )
+
+      // RIGHT OUTER JOIN, broadcast right, expect BuildRight
+      assertJoinBuildSide(
+        "SELECT /*+ MAPJOIN(t2) */ * FROM t1 RIGHT JOIN t2 ON t1.key = t2.key",
+        bl, // or blt, depending on backend
+        BuildRight
+      )
+    }
+  }
+
   private def assertJoinBuildSide(sqlStr: String, joinMethod: String, buildSide: BuildSide): Any = {
     val executedPlan = stripAQEPlan(sql(sqlStr).queryExecution.executedPlan)
     executedPlan match {

@@ -52,6 +52,9 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   override def leftKeys: Seq[Expression] = Nil
   override def rightKeys: Seq[Expression] = Nil
 
+  private lazy val substraitJoinType: CrossRel.JoinType =
+    SubstraitUtil.toCrossRelSubstrait(joinType, needSwitchChildren)
+
   // Unique ID for builded table
   lazy val buildBroadcastTableId: String = "BuiltBNLJBroadcastTable-" + buildPlan.id
 
@@ -61,9 +64,6 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     case BuildLeft => true
     case BuildRight => false
   }
-
-  private lazy val substraitJoinType: CrossRel.JoinType =
-    SubstraitUtil.toCrossRelSubstrait(joinType, needSwitchChildren)
 
   protected lazy val (buildPlan, streamedPlan) = if (needSwitchChildren) {
     (left, right)
@@ -156,6 +156,8 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
           ValidationResult.failed(
             s"FullOuter join with join condition is not supported with BroadcastNestedLoopJoin")
         }
+      case ExistenceJoin(_) =>
+        ValidationResult.succeeded
       case _ =>
         ValidationResult.failed(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
