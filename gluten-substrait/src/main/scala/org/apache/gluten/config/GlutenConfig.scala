@@ -141,7 +141,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   // scalastyle:off classforname
   def shuffleManagerSupportsColumnarShuffle: Boolean = {
-    classOf[SupportsColumnarShuffle].isAssignableFrom(Class.forName(SQLConf.get
+    classOf[SupportsColumnarShuffle].isAssignableFrom(Class.forName(conf
       .getConfString("spark.shuffle.manager", "org.apache.spark.shuffle.sort.SortShuffleManager")))
   }
   // scalastyle:on classforname
