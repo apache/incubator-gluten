@@ -27,7 +27,7 @@ public class SourceTaskMetrics {
   private final String sourceOperatorName = "TableScan";
   private final String keyInputRows = "rawInputRows";
   private final String keyInputBytes = "rawInputBytes";
-  private final long metricUpdateInterval = 2000;
+  private final long metricUpdateInterval = 10000;
   private long sourceRecordsOut = 0;
   private long sourceBytesOut = 0;
   private long lastUpdateTime = System.currentTimeMillis();
