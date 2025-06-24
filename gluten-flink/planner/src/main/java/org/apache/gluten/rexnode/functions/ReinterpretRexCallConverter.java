@@ -17,6 +17,7 @@
 package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.util.LogicalTypeConverter;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
@@ -46,25 +47,52 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR_MONTH;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE;
 
+/**
+ * Support function `Reinterpret`, it will be used to handle expression field when it refers to
+ * watermark computing. e.g.
+ *
+ * <pre>{@code
+ * create table s(
+ *   a int,
+ *   c string,
+ *   d as case when a = 1 then cast(c as timestamp(3)) else cast(b as timestamp(3)) end,
+ *   WATERMARK FOR d AS d - INTERVAL '4' SECOND
+ * ) with (
+ *   'connector' = 'kafka'
+ * );
+ *
+ * explain select d from s where a = 1;
+ *
+ * The plan show as below:
+ *
+ * Calc(select=[Reinterpret(CASE(=(a, 1), CAST(c AS TIMESTAMP(3)), CAST(b AS TIMESTAMP(3)))) AS d], where=[=(a, 1)])
+ *   +- TableSourceScan(table=[[default_catalog, default_database, s, watermark=[-(CASE(=(a, 1), CAST(c AS TIMESTAMP(3)), CAST(b AS TIMESTAMP(3))), 4000:INTERVAL SECOND)] ....)
+ * }</pre>
+ */
 public class ReinterpretRexCallConverter extends BaseRexCallConverter {
 
   private static final String FUNCTION_NAME = "cast";
-  // internal reinterpretation of temporal types: from Flink
-  // `ScalaOperatorGens#generateReinterpret`
-  // Date -> Integer
-  // Time -> Integer
-  // Timestamp -> Long
-  // Integer -> Date
-  // Integer -> Time
-  // Long -> Timestamp
-  // Integer -> Interval Months
-  // Long -> Interval Millis
-  // Interval Months -> Integer
-  // Interval Millis -> Long
-  // Date -> Long
-  // Time -> Long
-  // Interval Months -> Long
-  // TODO:: support convert between BIGINT and TIMESTMP_WITH_OUT_TIMEZONE.
+  /**
+   * internal reinterpretation of temporal types: from Flink `ScalaOperatorGens#generateReinterpret`
+   *
+   * <pre>{@code
+   * Date -> Integer
+   * Time -> Integer
+   * Timestamp -> Long
+   * Integer -> Date
+   * Integer -> Time
+   * Long -> Timestamp
+   * Integer -> Interval Months
+   * Long -> Interval Millis
+   * Interval Months -> Integer
+   * Interval Millis -> Long
+   * Date -> Long
+   * Time -> Long
+   * Interval Months -> Long
+   * }</pre>
+   *
+   * TODO: support convert between BIGINT and TIMESTMP_WITH_OUT_TIMEZONE.
+   */
   private final Map<LogicalTypeRoot, Set<LogicalTypeRoot>> supportedTypes =
       Map.of(
           DATE, Set.of(INTEGER, BIGINT),
@@ -110,8 +138,10 @@ public class ReinterpretRexCallConverter extends BaseRexCallConverter {
   }
 
   /**
-   * Get the rexnode input field names, in order to construct RexConversionContext, and make the
-   * convert of `RexCall` in {@link #convertRexCallToTypeExpr }
+   * Get the referenced input field names of the RexNode. In order to convert the RexNode call to
+   * velox function, we also need to covnert the its refernece fields to Velox#FieldAccessTypedExpr,
+   * and {@link #getRexNodeInputNames} is used to get the referenced field names need to be
+   * converted, and the conversion will be make by {@link RexNodeConverter#toTypedExpr}.
    */
   private List<String> getRexNodeInputNames(RexNode node, List<String> fieldNames) {
     final List<String> inputNames = new ArrayList<>();
