@@ -74,7 +74,7 @@ Input [3]: [l_partkey#X, l_extendedprice#X, l_discount#X]
 (9) InputIteratorTransformer
 Input [3]: [l_partkey#X, l_extendedprice#X, l_discount#X]
 
-    (10) ScanTransformer parquet
+(10) ScanTransformer parquet
 Output [2]: [p_partkey#X, p_type#X]
 Batched: true
 Location: InMemoryFileIndex [*]

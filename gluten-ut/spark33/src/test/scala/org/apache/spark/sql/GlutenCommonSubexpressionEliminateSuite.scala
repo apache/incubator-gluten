@@ -54,7 +54,7 @@ class GlutenCommonSubexpressionEliminateSuite extends GlutenSQLTestsTrait {
 
       // CSE in window
       val dfWindow =
-        spark.sql(s"""SELECT id, AVG(id) OVER (PARTITION BY id % 2 ORDER BY id) as avg_id
+        spark.sql(s"""SELECT id, AVG(id) OVER (PARTITION BY id % 2 ORDER BY id) as avg_id,
                      |SUM(id) OVER (PARTITION BY id % 2 ORDER BY id) as sum_id FROM range(3)
                      |""".stripMargin)
 
