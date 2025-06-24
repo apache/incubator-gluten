@@ -17,9 +17,11 @@
 package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.rexnode.ValidationResult;
 
 import org.apache.calcite.rex.RexCall;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -71,16 +73,38 @@ public class RexCallConverterFactory {
       throw new RuntimeException("Function not supported: " + operatorName);
     }
 
+    List<String> failureMessages = new ArrayList<>();
     List<RexCallConverter> converterList =
         builders.stream()
             .map(RexCallConverterBuilder::build)
-            .filter(c -> c.isSupported(callNode, context))
+            .filter(
+                c -> {
+                  ValidationResult validationResult = c.doValidate(callNode, context);
+                  if (!validationResult.isOk()) {
+                    failureMessages.add(
+                        c.getClass().getName() + ": " + validationResult.getMessage());
+                    return false;
+                  } else {
+                    return true;
+                  }
+                })
             .collect(Collectors.toList());
 
     if (converterList.size() > 1) {
-      throw new RuntimeException("Multiple converters found for: " + operatorName);
+      String converterClasses =
+          converterList.stream()
+              .map(converter -> converter.getClass().getName())
+              .collect(Collectors.joining(", "));
+      String message =
+          String.format(
+              "Multiple converters found for: %s. Converters: %s.", operatorName, converterClasses);
+      throw new RuntimeException(message);
     } else if (converterList.isEmpty()) {
-      throw new RuntimeException("No suitable converter found for: " + operatorName);
+      String message =
+          String.format(
+              "No suitable converter found for: %s. Reason:\n%s",
+              operatorName, String.join("\n", failureMessages));
+      throw new RuntimeException(message);
     }
 
     return converterList.get(0);
