@@ -296,8 +296,8 @@ MemoryUsageStats collectGlutenAllocatorMemoryUsageStats(
 
 void logMemoryUsageStats(MemoryUsageStats stats, const std::string& name, const std::string& logPrefix, std::stringstream& ss) {
   ss << logPrefix << "+- " << name
-          << " (used: " << velox::succinctBytes(stats.current())
-          << ", peak: " <<  velox::succinctBytes(stats.peak()) << ")\n";
+     << " (used: " << velox::succinctBytes(stats.current())
+     << ", peak: " <<  velox::succinctBytes(stats.peak()) << ")\n";
   if (stats.children_size() > 0) {
     for (auto it = stats.children().begin(); it != stats.children().end(); ++it) {
       logMemoryUsageStats(it->second, it->first, logPrefix + "   ", ss);
