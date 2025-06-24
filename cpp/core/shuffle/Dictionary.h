@@ -49,10 +49,12 @@ class ShuffleDictionaryWriter {
 };
 
 using ShuffleDictionaryWriterFactory =
-    std::function<std::unique_ptr<ShuffleDictionaryWriter>(MemoryManager*, arrow::util::Codec* codec)>;
+    std::function<std::unique_ptr<ShuffleDictionaryWriter>(MemoryManager* memoryManager, arrow::util::Codec* codec)>;
 
 void registerShuffleDictionaryWriterFactory(ShuffleDictionaryWriterFactory factory);
 
-std::unique_ptr<ShuffleDictionaryWriter> createDictionaryWriter(MemoryManager*, arrow::util::Codec* codec);
+std::unique_ptr<ShuffleDictionaryWriter> createDictionaryWriter(
+    MemoryManager* memoryManager,
+    arrow::util::Codec* codec);
 
 } // namespace gluten

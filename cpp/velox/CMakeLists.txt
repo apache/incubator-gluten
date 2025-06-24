@@ -151,7 +151,6 @@ set(VELOX_SRCS
     shuffle/ArrowShuffleDictionaryWriter.cc
     shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxRssSortShuffleWriter.cc
-    shuffle/VeloxShuffleDictionaryWriter.cc
     shuffle/VeloxShuffleReader.cc
     shuffle/VeloxShuffleWriter.cc
     shuffle/VeloxSortShuffleWriter.cc
