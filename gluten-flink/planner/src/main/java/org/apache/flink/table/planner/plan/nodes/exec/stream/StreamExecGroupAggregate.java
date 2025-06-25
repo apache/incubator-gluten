@@ -183,7 +183,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
     // --- Begin Gluten-specific code changes ---
     io.github.zhztheplayer.velox4j.type.RowType inputType =
         (io.github.zhztheplayer.velox4j.type.RowType) LogicalTypeConverter.toVLType(inputRowType);
-    List<FieldAccessTypedExpr> groupingKeys = Utils.generateGroupingKeys(inputType, grouping);
+    List<FieldAccessTypedExpr> groupingKeys = Utils.generateFieldAccesses(inputType, grouping);
     List<Aggregate> aggregates = AggregateCallConverter.toAggregates(aggCalls, inputType);
     io.github.zhztheplayer.velox4j.type.RowType outputType =
         (io.github.zhztheplayer.velox4j.type.RowType)
