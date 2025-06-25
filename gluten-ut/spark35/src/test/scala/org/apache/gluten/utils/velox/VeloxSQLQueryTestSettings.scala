@@ -127,8 +127,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "subquery/in-subquery/in-basic.sql",
     "subquery/in-subquery/in-group-by.sql",
     "subquery/in-subquery/in-having.sql",
-    // TODO: disabled due to SMJ bug
-    // "subquery/in-subquery/in-joins.sql",
+    "subquery/in-subquery/in-joins.sql",
     "subquery/in-subquery/in-limit.sql",
     "subquery/in-subquery/in-multiple-columns.sql",
     "subquery/in-subquery/in-nullability.sql",

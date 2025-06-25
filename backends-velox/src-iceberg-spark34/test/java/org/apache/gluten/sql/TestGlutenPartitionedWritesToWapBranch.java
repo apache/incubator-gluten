@@ -14,13 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.source;
+package org.apache.gluten.sql;
 
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.spark.source.TestDataFrameWriterV2Coercion;
+import org.apache.iceberg.spark.sql.TestPartitionedWritesToWapBranch;
 
-public class GlutenTestDataFrameWriterV2Coercion extends TestDataFrameWriterV2Coercion {
-  public GlutenTestDataFrameWriterV2Coercion(FileFormat format, String dataType) {
-    super(format, dataType);
+import java.util.Map;
+
+public class TestGlutenPartitionedWritesToWapBranch extends TestPartitionedWritesToWapBranch {
+  public TestGlutenPartitionedWritesToWapBranch(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
   }
 }

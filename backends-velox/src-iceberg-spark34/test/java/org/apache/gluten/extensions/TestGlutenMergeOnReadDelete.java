@@ -17,14 +17,14 @@
 package org.apache.gluten.extensions;
 
 import org.apache.iceberg.PlanningMode;
-import org.apache.iceberg.spark.extensions.TestCopyOnWriteDelete;
+import org.apache.iceberg.spark.extensions.TestMergeOnReadDelete;
 import org.junit.Test;
 
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-public class GlutenTestCopyOnWriteDelete extends TestCopyOnWriteDelete {
-  public GlutenTestCopyOnWriteDelete(
+public class TestGlutenMergeOnReadDelete extends TestMergeOnReadDelete {
+  public TestGlutenMergeOnReadDelete(
       String catalogName,
       String implementation,
       Map<String, String> config,

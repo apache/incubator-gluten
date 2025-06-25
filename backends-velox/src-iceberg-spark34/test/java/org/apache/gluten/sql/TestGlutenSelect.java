@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extensions;
+package org.apache.gluten.sql;
 
-import org.apache.iceberg.spark.extensions.TestSystemFunctionPushDownDQL;
+import org.apache.iceberg.spark.sql.TestSelect;
 
 import java.util.Map;
 
-public class GlutenTestSystemFunctionPushDownDQL extends TestSystemFunctionPushDownDQL {
-  public GlutenTestSystemFunctionPushDownDQL(
-      String catalogName, String implementation, Map<String, String> config) {
+public class TestGlutenSelect extends TestSelect {
+  public TestGlutenSelect(String catalogName, String implementation, Map<String, String> config) {
     super(catalogName, implementation, config);
   }
 }
