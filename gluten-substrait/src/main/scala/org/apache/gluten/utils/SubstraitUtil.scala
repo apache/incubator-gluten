@@ -86,7 +86,7 @@ object SubstraitUtil {
         } else {
           CrossRel.JoinType.JOIN_TYPE_RIGHT
         }
-      case LeftSemi =>
+      case LeftSemi | ExistenceJoin(_) =>
         CrossRel.JoinType.JOIN_TYPE_LEFT_SEMI
       case FullOuter =>
         CrossRel.JoinType.JOIN_TYPE_OUTER
