@@ -395,7 +395,12 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   test("map_from_arrays") {
     withTempPath {
       path =>
-        Seq((0, Array("a", "b"), Array(1, 2)))
+        Seq(
+          (0, Array("a", "b"), Array(1, 2)),
+          (1, Array(3.4, 4.5), Array("c", "d")),
+          (2, Array(5, 6), Array(null, "")),
+          (3, Array("e", 7), Array(1.1, 2.2))
+        )
           .toDF("id", "keys", "values")
           .write
           .parquet(path.getCanonicalPath)
