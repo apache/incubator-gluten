@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.proto.{IcebergPartitionField, IcebergPartitionSpec}
+
 import org.apache.iceberg.FileFormat
 import org.apache.iceberg.TableProperties.{ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT, PARQUET_COMPRESSION, PARQUET_COMPRESSION_DEFAULT}
 import org.apache.iceberg.spark.source.IcebergWriteUtil
@@ -24,8 +25,7 @@ import org.apache.iceberg.transforms.IcebergTransformUtil
 
 import java.util.stream.Collectors
 
-trait IcebergAppendDataExec
-  extends ColumnarAppendDataExec {
+trait IcebergAppendDataExec extends ColumnarAppendDataExec {
 
   protected def getFileFormat(format: FileFormat): Int = {
     format match {
@@ -50,7 +50,9 @@ trait IcebergAppendDataExec
 
   protected def getPartitionSpec: IcebergPartitionSpec = {
     val spec = IcebergWriteUtil.getPartitionSpec(write)
-    val fields = spec.fields().stream()
+    val fields = spec
+      .fields()
+      .stream()
       .map[IcebergPartitionField](IcebergTransformUtil.convertPartitionField _)
       .collect(Collectors.toList[IcebergPartitionField])
     IcebergPartitionSpec.newBuilder().setSpecId(spec.specId()).addAllFields(fields).build()

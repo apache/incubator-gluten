@@ -16,12 +16,13 @@
  */
 package org.apache.iceberg.spark.source
 
+import org.apache.spark.sql.connector.write.{BatchWrite, Write, WriterCommitMessage}
+
+import org.apache.iceberg._
 import org.apache.iceberg.spark.source.SparkWrite.TaskCommit
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
 import org.apache.iceberg.types.Types.{ListType, MapType}
-import org.apache.iceberg._
-import org.apache.spark.sql.connector.write.{BatchWrite, Write, WriterCommitMessage}
 
 object IcebergWriteUtil {
   def isBatchAppend(write: BatchWrite): Boolean = {

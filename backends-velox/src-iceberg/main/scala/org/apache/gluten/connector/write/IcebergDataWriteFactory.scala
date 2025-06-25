@@ -19,15 +19,17 @@ package org.apache.gluten.connector.write
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.IcebergWriteJniWrapper
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.proto.IcebergPartitionSpec
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
+
 import org.apache.spark.sql.connector.write.DataWriter
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import org.apache.arrow.c.ArrowSchema
-import org.apache.gluten.proto.IcebergPartitionSpec
 
 case class IcebergDataWriteFactory(
     schema: StructType,
@@ -61,7 +63,8 @@ case class IcebergDataWriteFactory(
     ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
     val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "IcebergWrite#write")
     val jniWrapper = new IcebergWriteJniWrapper(runtime)
-    val writer = jniWrapper.init(cSchema.memoryAddress(), format, directory, codec, partitionSpec.toByteArray)
+    val writer =
+      jniWrapper.init(cSchema.memoryAddress(), format, directory, codec, partitionSpec.toByteArray)
     cSchema.close()
     (writer, jniWrapper)
   }

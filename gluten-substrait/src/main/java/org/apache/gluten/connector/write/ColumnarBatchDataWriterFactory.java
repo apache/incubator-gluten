@@ -23,15 +23,14 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 import java.io.Serializable;
 
 /**
- * A factory of {@link DataWriter}, which is responsible for creating and
- * initializing the actual data writer at executor side.
+ * A factory of {@link DataWriter}, which is responsible for creating and initializing the actual
+ * data writer at executor side.
  *
  * <p>Note that, the writer factory will be serialized and sent to executors, then the data writer
  * will be created on executors and do the actual writing. So this interface must be serializable
  * and {@link DataWriter} doesn't need to be.
  *
- * A companion interface with Spark's row bases {@link DataWriterFactory}
- *
+ * <p>A companion interface with Spark's row bases {@link DataWriterFactory}
  */
 @Evolving
 public interface ColumnarBatchDataWriterFactory extends Serializable {

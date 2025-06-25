@@ -25,10 +25,7 @@ import org.apache.spark.sql.types.StructType
 
 import org.apache.iceberg.spark.source.IcebergWriteUtil
 
-case class VeloxIcebergAppendDataExec(
-    query: SparkPlan,
-    refreshCache: () => Unit,
-    write: Write)
+case class VeloxIcebergAppendDataExec(query: SparkPlan, refreshCache: () => Unit, write: Write)
   extends IcebergAppendDataExec {
 
   override protected def withNewChildInternal(newChild: SparkPlan): IcebergAppendDataExec =

@@ -840,9 +840,9 @@ object GlutenConfig {
   val COLUMNAR_APPEND_DATA_ENABLED =
     buildConf("spark.gluten.sql.columnar.appendData")
       .internal()
-      .doc("Enable or disable columnar v2 command append data. This is an experimental feature")
+      .doc("Enable or disable columnar v2 command append data.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val COLUMNAR_PREFER_STREAMING_AGGREGATE =
     buildConf("spark.gluten.sql.columnar.preferStreamingAggregate")

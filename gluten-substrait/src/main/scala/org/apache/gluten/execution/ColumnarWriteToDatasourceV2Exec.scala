@@ -19,6 +19,8 @@ package org.apache.gluten.execution
 import org.apache.gluten.connector.write.ColumnarBatchDataWriterFactory
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.extension.columnar.transition.Convention.RowType
+
+import org.apache.spark.{SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.write.{BatchWrite, WriterCommitMessage}
@@ -28,11 +30,8 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.LongAccumulator
-import org.apache.spark.{SparkException, TaskContext}
 
-trait ColumnarAppendDataExec
-  extends V2ExistingTableWriteExec
-  with ValidatablePlan {
+trait ColumnarAppendDataExec extends V2ExistingTableWriteExec with ValidatablePlan {
 
   private lazy val result: Seq[ColumnarBatch] = runColumnarBatch()
 
