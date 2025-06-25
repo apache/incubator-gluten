@@ -118,17 +118,9 @@ void VectorizedColumnReader::nextRowGroup()
 void VectorizedColumnReader::setPageReader(std::unique_ptr<parquet::PageReader> reader, const ReadSequence & read_sequence)
 {
     if (read_state_)
-    {
-        read_state_->hasLastSkip().and_then(
-            [&](const int64_t skip) -> std::optional<int64_t>
-            {
-                assert(skip < 0);
-                record_reader_->SkipRecords(-skip);
-                return std::nullopt;
-            });
-    }
+        read_state_->skipLastRecord();
     record_reader_->SetPageReader(std::move(reader));
-    read_state_ = std::make_unique<ParquetReadState>(read_sequence);
+    read_state_ = std::make_unique<ParquetReadState>(*record_reader_, read_sequence);
 }
 
 std::shared_ptr<arrow::ChunkedArray> VectorizedColumnReader::readBatch(int64_t batch_size)
@@ -136,26 +128,13 @@ std::shared_ptr<arrow::ChunkedArray> VectorizedColumnReader::readBatch(int64_t b
     record_reader_->Reset();
     record_reader_->Reserve(batch_size);
 
-    while (read_state_->hasMoreRead() && batch_size > 0)
+    assert(read_state_);
+
+    while (batch_size > 0 && hasMoreRead())
     {
-        const int64_t readNumber = read_state_->currentRead();
-        if (readNumber < 0)
-        {
-            const int64_t records_skipped = record_reader_->SkipRecords(-readNumber);
-            assert(records_skipped == -readNumber);
-            read_state_->skip(records_skipped);
-            assert(hasMoreRead());
-        }
-        else
-        {
-            const int64_t readBatch = std::min(batch_size, readNumber);
-            const int64_t records_read = record_reader_->ReadRecords(readBatch);
-            assert(records_read == readBatch);
-            batch_size -= records_read;
-            read_state_->read(records_read);
-            if (!read_state_->hasMoreRead())
-                nextRowGroup();
-        }
+        batch_size = read_state_->doRead(batch_size);
+        if (batch_size > 0)
+            nextRowGroup();
     }
 
     std::shared_ptr<arrow::ChunkedArray> result;
@@ -173,7 +152,6 @@ parquet::arrow::SchemaManifest VectorizedParquetRecordReader::createSchemaManife
     THROW_ARROW_NOT_OK(parquet::arrow::SchemaManifest::Make(parquet_schema, keyValueMetadata, properties, &manifest));
     return manifest;
 }
-
 
 VectorizedParquetRecordReader::VectorizedParquetRecordReader(const DB::Block & header, const DB::FormatSettings & format_settings)
     : parquet_header_(header)
