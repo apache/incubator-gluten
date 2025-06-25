@@ -17,8 +17,8 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{FileSourceScanExec, RDDScanExec, SparkPlan, SparkPlanReflectionUtil}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
+import org.apache.spark.sql.execution.{FileSourceScanExec, RDDScanExec, SparkPlan, SparkPlanReflectionUtil}
 
 import scala.collection.mutable
 
@@ -45,11 +45,10 @@ object DistinguishIdenticalScans extends Rule[SparkPlan] {
 
       // Then, recursively process children of the (possibly cloned) node
       var childrenChanged = false
-      val newChildren = nodeToProcess.children.map {
-        child =>
-          val (newChild, changed) = traverse(child)
-          if (changed) childrenChanged = true
-          newChild
+      val newChildren = nodeToProcess.children.map { child =>
+        val (newChild, changed) = traverse(child)
+        if (changed) childrenChanged = true
+        newChild
       }
 
       // Create final node with new children if any children changed
@@ -67,8 +66,8 @@ object DistinguishIdenticalScans extends Rule[SparkPlan] {
   }
 
   private def distinguishScan[T <: SparkPlan](
-      scan: T,
-      seenScans: mutable.Set[SparkPlan]): (SparkPlan, Boolean) = {
+                                               scan: T,
+                                               seenScans: mutable.Set[SparkPlan]): (SparkPlan, Boolean) = {
     if (seenScans.contains(scan)) {
       // Scan already seen, clone it to distinguish from the original
       val newScan = cloneScan(scan)
