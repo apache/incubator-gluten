@@ -396,10 +396,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     withTempPath {
       path =>
         Seq(
-          (0, Array("a", "b"), Array(1, 2)),
-          (1, Array(3.4, 4.5), Array("c", "d")),
-          (2, Array(5, 6), Array(null, "")),
-          (3, Array("e", 7), Array(1.1, 2.2))
+          (0, Array(1, 2), Array("a", "b")),
+          (1, Array(3, 4), Array("c", null))
         )
           .toDF("id", "keys", "values")
           .write
