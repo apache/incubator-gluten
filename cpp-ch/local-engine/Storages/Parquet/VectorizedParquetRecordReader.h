@@ -62,6 +62,7 @@ getStream(arrow::io::RandomAccessFile & reader, const std::vector<arrow::io::Rea
 
 class ParquetReadState
 {
+    parquet::internal::RecordReader & record_reader_;
     ReadSequence read_sequence_;
     int index_ = 0;
 
@@ -74,27 +75,10 @@ class ParquetReadState
             ++index_;
     }
 
-public:
-    explicit ParquetReadState(const ReadSequence & read_sequence) : read_sequence_(read_sequence) { }
     int64_t currentRead() const
     {
         assert(hasMoreRead());
         return read_sequence_[index_];
-    }
-
-    std::optional<int64_t> hasLastSkip() const
-    {
-        assert(!hasMoreRead());
-        if (read_sequence_.back() < 0)
-            return read_sequence_.back();
-        return std::nullopt;
-    }
-
-    bool hasMoreRead() const
-    {
-        if (read_sequence_.back() < 0)
-            return index_ < read_sequence_.size() - 1;
-        return index_ < read_sequence_.size();
     }
 
     void skip(const int64_t skip)
@@ -107,6 +91,61 @@ public:
     {
         assert(read > 0);
         advance(read);
+    }
+
+    int64_t SkipRecords(int64_t num_records) const { return record_reader_.SkipRecords(num_records); }
+    int64_t ReadRecords(int64_t num_records) const { return record_reader_.ReadRecords(num_records); }
+
+public:
+    explicit ParquetReadState(parquet::internal::RecordReader & record_reader, const ReadSequence & read_sequence)
+        : record_reader_(record_reader), read_sequence_(read_sequence)
+    {
+    }
+
+    bool hasMoreRead() const
+    {
+        if (read_sequence_.back() < 0)
+            return index_ < read_sequence_.size() - 1;
+        return index_ < read_sequence_.size();
+    }
+
+    void skipLastRecord()
+    {
+        assert(!hasMoreRead());
+        if (read_sequence_.back() < 0)
+        {
+            assert(index_ == read_sequence_.size() - 1);
+            const int64_t skip = read_sequence_.back();
+            record_reader_.SkipRecords(-skip);
+            read_sequence_.back() -= skip;
+            index_++;
+        }
+    }
+
+    int64_t doRead(int64_t batch_size)
+    {
+        while (hasMoreRead() && batch_size > 0)
+        {
+            const int64_t readNumber = currentRead();
+            if (readNumber < 0)
+            {
+                const int64_t records_skipped = SkipRecords(-readNumber);
+                assert(records_skipped == -readNumber);
+                skip(records_skipped);
+                assert(hasMoreRead());
+            }
+            else
+            {
+                const int64_t readBatch = std::min(batch_size, readNumber);
+                const int64_t records_read = ReadRecords(readBatch);
+                assert(records_read == readBatch);
+                batch_size -= records_read;
+                read(records_read);
+                if (!hasMoreRead())
+                    break;
+            }
+        }
+        return batch_size;
     }
 };
 
