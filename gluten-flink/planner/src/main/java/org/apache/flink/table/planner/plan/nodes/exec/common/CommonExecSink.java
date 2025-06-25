@@ -560,7 +560,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             String.format("StreamRecordTimestampInserter(rowtime field: %s)", rowtimeFieldIndex),
             "StreamRecordTimestampInserter",
             config),
-        // TODO: support it
+        // TODO: support it, Map.of() will not be used, hardcode it here.
         new GlutenSingleInputOperator(
             null, PlanNodeIdGenerator.newId(), null, Map.of("1", outputType)),
         inputTransform.getOutputType(),

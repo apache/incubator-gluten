@@ -52,10 +52,6 @@ public class TypeUtils {
     return type instanceof VarCharType;
   }
 
-  public static boolean isTimeInterval(Type type) {
-    return type instanceof IntervalDayTimeType || type instanceof IntervalYearMonthType;
-  }
-
   public static List<TypedExpr> promoteTypeForArithmeticExpressions(List<TypedExpr> expressions) {
     Type targetType =
         expressions.stream()

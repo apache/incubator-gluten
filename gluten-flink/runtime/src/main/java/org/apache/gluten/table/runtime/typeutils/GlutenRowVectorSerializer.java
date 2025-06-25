@@ -57,10 +57,7 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
 
   @Override
   public void serialize(StatefulRecord record, DataOutputView target) throws IOException {
-    // memoryManager = MemoryManager.create(AllocationListener.NOOP);
-    // session = Velox4j.newSession(memoryManager);
-    String vectorStr =
-        record.getRowVector().serialize(); // session.baseVectorOps().serializeOne(row);
+    String vectorStr = record.getRowVector().serialize();
     target.writeInt(vectorStr.getBytes().length);
     target.write(vectorStr.getBytes());
   }

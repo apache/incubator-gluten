@@ -44,6 +44,7 @@ class TimeStampIntervalRexCallConverter extends BaseRexCallConverter {
         callNode.getOperands().stream()
             .map(param -> RexNodeConverter.toType(param.getType()))
             .collect(Collectors.toList());
+    // TODO: this is a trick fix to make nexmark work, should refine it.
     return (operandTypes.get(0) instanceof TimestampType
         // && TypeUtils.isTimeInterval(operandTypes.get(1)))
         || // (TypeUtils.isTimeInterval(operandTypes.get(0)) &&

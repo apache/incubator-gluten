@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import org.slf4j.Logger;
@@ -48,6 +49,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -121,13 +123,14 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
   }
 
   private void buildGlutenChains(StreamConfig taskConfig, Map<Integer, StreamConfig> chainedTasks) {
-    boolean isGlutenOp = isGlutenOperator(taskConfig);
     List<StreamEdge> outEdges = taskConfig.getChainedOutputs(userClassloader);
-    GlutenOperator sourceOperator = isGlutenOp ? getGlutenOperator(taskConfig) : null;
+    Optional<GlutenOperator> sourceOperatorOpt = getGlutenOperator(taskConfig);
+    GlutenOperator sourceOperator = sourceOperatorOpt.orElse(null);
+    boolean isSourceGluten = sourceOperatorOpt.isPresent();
     if (outEdges == null || outEdges.isEmpty()) {
       LOG.debug("{} has no chained task.", taskConfig.getOperatorName());
       // TODO: judge whether can set?
-      if (isGlutenOp && taskConfig.getOperatorName().equals("exchange-hash")) {
+      if (isSourceGluten && taskConfig.getOperatorName().equals("exchange-hash")) {
         taskConfig.setTypeSerializerOut(new GlutenRowVectorSerializer(null));
         taskConfig.serializeAllConfigs();
       }
@@ -138,7 +141,7 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
     Map<String, RowType> nodeToOutTypes = new HashMap<>(outEdges.size());
     List<StreamEdge> chainedOutputs = new ArrayList<>(outEdges.size());
     List<NonChainedOutput> nonChainedOutputs = new ArrayList<>(outEdges.size());
-    StatefulPlanNode sourceNode = isGlutenOp ? sourceOperator.getPlanNode() : null;
+    StatefulPlanNode sourceNode = isSourceGluten ? sourceOperator.getPlanNode() : null;
     boolean allGluten = true;
     LOG.debug("Edge size {}, OP {}", outEdges.size(), sourceOperator);
     for (StreamEdge outEdge : outEdges) {
@@ -149,9 +152,9 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
         break;
       }
       buildGlutenChains(outTask, chainedTasks);
-      if (isGlutenOp && isGlutenOperator(outTask)) {
-        GlutenOperator outOperator = getGlutenOperator(outTask);
-        StatefulPlanNode outNode = outOperator.getPlanNode();
+      Optional<GlutenOperator> outOperator = getGlutenOperator(outTask);
+      if (isSourceGluten && outOperator.isPresent()) {
+        StatefulPlanNode outNode = outOperator.get().getPlanNode();
         if (sourceNode != null) {
           sourceNode.addTarget(outNode);
           LOG.debug("Add {} target {}", sourceNode, outNode);
@@ -171,8 +174,7 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
               .getOperatorNonChainedOutputs(userClassloader)
               .forEach(edge -> nodeToNonChainedOuts.put(edge.getDataSetId(), outNode.getId()));
         }
-        nodeToOutTypes.putAll(outOperator.getOutputTypes());
-        LOG.debug("nodeToOutTypes {}", nodeToOutTypes);
+        nodeToOutTypes.putAll(outOperator.get().getOutputTypes());
         chainedOutputs.addAll(outTask.getChainedOutputs(userClassloader));
         nonChainedOutputs.addAll(outTask.getOperatorNonChainedOutputs(userClassloader));
       } else {
@@ -221,24 +223,17 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
     }
   }
 
-  private boolean isGlutenOperator(StreamConfig taskConfig) {
+  private Optional<GlutenOperator> getGlutenOperator(StreamConfig taskConfig) {
     StreamOperatorFactory operatorFactory = taskConfig.getStreamOperatorFactory(userClassloader);
     if (operatorFactory instanceof SimpleOperatorFactory) {
-      return taskConfig.getStreamOperator(userClassloader) instanceof GlutenOperator;
+      StreamOperator streamOperator = taskConfig.getStreamOperator(userClassloader);
+      if (streamOperator instanceof GlutenOperator) {
+        return Optional.of((GlutenOperator) streamOperator);
+      }
     } else if (operatorFactory instanceof GlutenOneInputOperatorFactory) {
-      return true;
+      return Optional.of(((GlutenOneInputOperatorFactory) operatorFactory).getOperator());
     }
-    return false;
-  }
-
-  private GlutenOperator getGlutenOperator(StreamConfig taskConfig) {
-    StreamOperatorFactory operatorFactory = taskConfig.getStreamOperatorFactory(userClassloader);
-    if (operatorFactory instanceof SimpleOperatorFactory) {
-      return taskConfig.getStreamOperator(userClassloader);
-    } else if (operatorFactory instanceof GlutenOneInputOperatorFactory) {
-      return ((GlutenOneInputOperatorFactory) operatorFactory).getOperator();
-    }
-    return null;
+    return Optional.empty();
   }
   // --- End Gluten-specific code changes ---
 }

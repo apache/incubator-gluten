@@ -24,7 +24,7 @@ import org.apache.flink.util.InstantiationUtil;
 import java.io.IOException;
 import java.util.Map;
 
-/** Generate a unique id for each velox PlanNode */
+/** Utils to add and get some infos to StreamConfig. */
 public class Utils {
 
   public static void setNodeToChainedOutputs(
