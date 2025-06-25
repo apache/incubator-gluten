@@ -14,15 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extensions;
+package org.apache.gluten.source;
 
-import org.apache.iceberg.spark.extensions.TestSystemFunctionPushDownDQL;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.spark.source.TestDataFrameWriterV2Coercion;
 
-import java.util.Map;
-
-public class GlutenTestSystemFunctionPushDownDQL extends TestSystemFunctionPushDownDQL {
-  public GlutenTestSystemFunctionPushDownDQL(
-      String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
+public class TestGlutenDataFrameWriterV2Coercion extends TestDataFrameWriterV2Coercion {
+  public TestGlutenDataFrameWriterV2Coercion(FileFormat format, String dataType) {
+    super(format, dataType);
   }
 }

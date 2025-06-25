@@ -16,11 +16,12 @@
  */
 package org.apache.gluten.source;
 
-import org.apache.iceberg.PlanningMode;
-import org.apache.iceberg.spark.source.TestRuntimeFiltering;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.spark.source.TestSparkMetadataColumns;
 
-public class GlutenTestRuntimeFiltering extends TestRuntimeFiltering {
-  public GlutenTestRuntimeFiltering(PlanningMode planningMode) {
-    super(planningMode);
+public class TestGlutenSparkMetadataColumns extends TestSparkMetadataColumns {
+  public TestGlutenSparkMetadataColumns(
+      FileFormat fileFormat, boolean vectorized, int formatVersion) {
+    super(fileFormat, vectorized, formatVersion);
   }
 }
