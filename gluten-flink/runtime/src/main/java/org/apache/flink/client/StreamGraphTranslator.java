@@ -130,8 +130,15 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
     if (outEdges == null || outEdges.isEmpty()) {
       LOG.debug("{} has no chained task.", taskConfig.getOperatorName());
       // TODO: judge whether can set?
-      if (isSourceGluten && taskConfig.getOperatorName().equals("exchange-hash")) {
-        taskConfig.setTypeSerializerOut(new GlutenRowVectorSerializer(null));
+      if (isSourceGluten) {
+        if (taskConfig.getOperatorName().equals("exchange-hash")) {
+          taskConfig.setTypeSerializerOut(new GlutenRowVectorSerializer(null));
+        }
+        Map<IntermediateDataSetID, String> nodeToNonChainedOuts = new HashMap<>(outEdges.size());
+        taskConfig
+            .getOperatorNonChainedOutputs(userClassloader)
+            .forEach(edge -> nodeToNonChainedOuts.put(edge.getDataSetId(), sourceOperator.getId()));
+        Utils.setNodeToNonChainedOutputs(taskConfig, nodeToNonChainedOuts);
         taskConfig.serializeAllConfigs();
       }
       return;

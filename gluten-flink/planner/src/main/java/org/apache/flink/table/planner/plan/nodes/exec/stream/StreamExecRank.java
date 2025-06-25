@@ -16,37 +16,43 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.gluten.rexnode.AggregateCallConverter;
 import org.apache.gluten.rexnode.Utils;
 import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
-import io.github.zhztheplayer.velox4j.aggregate.Aggregate;
-import io.github.zhztheplayer.velox4j.aggregate.AggregateStep;
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
-import io.github.zhztheplayer.velox4j.plan.AggregationNode;
 import io.github.zhztheplayer.velox4j.plan.EmptyNode;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
+import io.github.zhztheplayer.velox4j.plan.TopNRowNumberNode;
+import io.github.zhztheplayer.velox4j.sort.SortOrder;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.rank.RankRange;
+import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -54,110 +60,120 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.apache.calcite.rel.core.AggregateCall;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
+import javax.swing.*;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Stream {@link ExecNode} for unbounded group aggregate.
- *
- * <p>This node does support un-splittable aggregate function (e.g. STDDEV_POP).
- */
+/** Stream {@link ExecNode} for Rank. */
 @ExecNodeMetadata(
-    name = "stream-exec-group-aggregate",
+    name = "stream-exec-rank",
     version = 1,
-    consumedOptions = {"table.exec.mini-batch.enabled", "table.exec.mini-batch.size"},
-    producedTransformations = StreamExecGroupAggregate.GROUP_AGGREGATE_TRANSFORMATION,
+    consumedOptions = {"table.exec.rank.topn-cache-size"},
+    producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
     minPlanVersion = FlinkVersion.v1_15,
     minStateVersion = FlinkVersion.v1_15)
-public class StreamExecGroupAggregate extends StreamExecAggregateBase {
+public class StreamExecRank extends ExecNodeBase<RowData>
+    implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(StreamExecGroupAggregate.class);
+  public static final String RANK_TRANSFORMATION = "rank";
 
-  public static final String GROUP_AGGREGATE_TRANSFORMATION = "group-aggregate";
+  public static final String FIELD_NAME_RANK_TYPE = "rankType";
+  public static final String FIELD_NAME_PARTITION_SPEC = "partition";
+  public static final String FIELD_NAME_SORT_SPEC = "orderBy";
+  public static final String FIELD_NAME_RANK_RANG = "rankRange";
+  public static final String FIELD_NAME_RANK_STRATEGY = "rankStrategy";
+  public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
+  public static final String FIELD_NAME_OUTPUT_RANK_NUMBER = "outputRowNumber";
 
-  public static final String STATE_NAME = "groupAggregateState";
+  public static final String STATE_NAME = "rankState";
 
-  @JsonProperty(FIELD_NAME_GROUPING)
-  private final int[] grouping;
+  @JsonProperty(FIELD_NAME_RANK_TYPE)
+  private final RankType rankType;
 
-  @JsonProperty(FIELD_NAME_AGG_CALLS)
-  private final AggregateCall[] aggCalls;
+  @JsonProperty(FIELD_NAME_PARTITION_SPEC)
+  private final PartitionSpec partitionSpec;
 
-  /** Each element indicates whether the corresponding agg call needs `retract` method. */
-  @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS)
-  private final boolean[] aggCallNeedRetractions;
+  @JsonProperty(FIELD_NAME_SORT_SPEC)
+  private final SortSpec sortSpec;
 
-  /** Whether this node will generate UPDATE_BEFORE messages. */
+  @JsonProperty(FIELD_NAME_RANK_RANG)
+  private final RankRange rankRange;
+
+  @JsonProperty(FIELD_NAME_RANK_STRATEGY)
+  private final RankProcessStrategy rankStrategy;
+
+  @JsonProperty(FIELD_NAME_OUTPUT_RANK_NUMBER)
+  private final boolean outputRankNumber;
+
   @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
   private final boolean generateUpdateBefore;
-
-  /** Whether this node consumes retraction messages. */
-  @JsonProperty(FIELD_NAME_NEED_RETRACTION)
-  private final boolean needRetraction;
 
   @Nullable
   @JsonProperty(FIELD_NAME_STATE)
   @JsonInclude(JsonInclude.Include.NON_NULL)
   private final List<StateMetadata> stateMetadataList;
 
-  public StreamExecGroupAggregate(
+  public StreamExecRank(
       ReadableConfig tableConfig,
-      int[] grouping,
-      AggregateCall[] aggCalls,
-      boolean[] aggCallNeedRetractions,
+      RankType rankType,
+      PartitionSpec partitionSpec,
+      SortSpec sortSpec,
+      RankRange rankRange,
+      RankProcessStrategy rankStrategy,
+      boolean outputRankNumber,
       boolean generateUpdateBefore,
-      boolean needRetraction,
-      @Nullable Long stateTtlFromHint,
       InputProperty inputProperty,
       RowType outputType,
       String description) {
     this(
         ExecNodeContext.newNodeId(),
-        ExecNodeContext.newContext(StreamExecGroupAggregate.class),
-        ExecNodeContext.newPersistedConfig(StreamExecGroupAggregate.class, tableConfig),
-        grouping,
-        aggCalls,
-        aggCallNeedRetractions,
+        ExecNodeContext.newContext(StreamExecRank.class),
+        ExecNodeContext.newPersistedConfig(StreamExecRank.class, tableConfig),
+        rankType,
+        partitionSpec,
+        sortSpec,
+        rankRange,
+        rankStrategy,
+        outputRankNumber,
         generateUpdateBefore,
-        needRetraction,
-        StateMetadata.getOneInputOperatorDefaultMeta(stateTtlFromHint, tableConfig, STATE_NAME),
+        StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME),
         Collections.singletonList(inputProperty),
         outputType,
         description);
   }
 
   @JsonCreator
-  public StreamExecGroupAggregate(
+  public StreamExecRank(
       @JsonProperty(FIELD_NAME_ID) int id,
       @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
       @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
-      @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
-      @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
-      @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS) boolean[] aggCallNeedRetractions,
+      @JsonProperty(FIELD_NAME_RANK_TYPE) RankType rankType,
+      @JsonProperty(FIELD_NAME_PARTITION_SPEC) PartitionSpec partitionSpec,
+      @JsonProperty(FIELD_NAME_SORT_SPEC) SortSpec sortSpec,
+      @JsonProperty(FIELD_NAME_RANK_RANG) RankRange rankRange,
+      @JsonProperty(FIELD_NAME_RANK_STRATEGY) RankProcessStrategy rankStrategy,
+      @JsonProperty(FIELD_NAME_OUTPUT_RANK_NUMBER) boolean outputRankNumber,
       @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
-      @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
       @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
       @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
       @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
       @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
     super(id, context, persistedConfig, inputProperties, outputType, description);
-    this.grouping = checkNotNull(grouping);
-    this.aggCalls = checkNotNull(aggCalls);
-    this.aggCallNeedRetractions = checkNotNull(aggCallNeedRetractions);
-    checkArgument(aggCalls.length == aggCallNeedRetractions.length);
+    checkArgument(inputProperties.size() == 1);
+    this.rankType = checkNotNull(rankType);
+    this.rankRange = checkNotNull(rankRange);
+    this.rankStrategy = checkNotNull(rankStrategy);
+    this.sortSpec = checkNotNull(sortSpec);
+    this.partitionSpec = checkNotNull(partitionSpec);
+    this.outputRankNumber = outputRankNumber;
     this.generateUpdateBefore = generateUpdateBefore;
-    this.needRetraction = needRetraction;
     this.stateMetadataList = stateMetadataList;
   }
 
@@ -165,75 +181,85 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
   @Override
   protected Transformation<RowData> translateToPlanInternal(
       PlannerBase planner, ExecNodeConfig config) {
-
-    final long stateRetentionTime =
-        StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
-    if (grouping.length > 0 && stateRetentionTime < 0) {
-      LOG.warn(
-          "No state retention interval configured for a query which accumulates state. "
-              + "Please provide a query configuration with valid retention interval to prevent excessive "
-              + "state size. You may specify a retention time of 0 to not clean up the state.");
+    switch (rankType) {
+      case ROW_NUMBER:
+        break;
+      case RANK:
+        throw new TableException("RANK() on streaming table is not supported currently");
+      case DENSE_RANK:
+        throw new TableException("DENSE_RANK() on streaming table is not supported currently");
+      default:
+        throw new TableException(
+            String.format("Streaming tables do not support %s rank function.", rankType));
     }
 
-    final ExecEdge inputEdge = getInputEdges().get(0);
-    final Transformation<RowData> inputTransform =
+    ExecEdge inputEdge = getInputEdges().get(0);
+    Transformation<RowData> inputTransform =
         (Transformation<RowData>) inputEdge.translateToPlan(planner);
-    final RowType inputRowType = (RowType) inputEdge.getOutputType();
+
+    RowType inputRowType = (RowType) inputEdge.getOutputType();
+    InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputRowType);
+    int[] sortFields = sortSpec.getFieldIndices();
 
     // --- Begin Gluten-specific code changes ---
     io.github.zhztheplayer.velox4j.type.RowType inputType =
         (io.github.zhztheplayer.velox4j.type.RowType) LogicalTypeConverter.toVLType(inputRowType);
-    List<FieldAccessTypedExpr> groupingKeys = Utils.generateFieldAccesses(inputType, grouping);
-    List<Aggregate> aggregates = AggregateCallConverter.toAggregates(aggCalls, inputType);
+
+    int[] partitionFields = partitionSpec.getFieldIndices();
+    List<FieldAccessTypedExpr> sortKeys = Utils.generateFieldAccesses(inputType, sortFields);
+    List<FieldAccessTypedExpr> partitionKeys =
+        Utils.generateFieldAccesses(inputType, partitionFields);
+    List<SortOrder> sortOrders = generateSortOrders(sortSpec);
     io.github.zhztheplayer.velox4j.type.RowType outputType =
         (io.github.zhztheplayer.velox4j.type.RowType)
             LogicalTypeConverter.toVLType(getOutputType());
-    checkArgument(outputType.getNames().size() == grouping.length + aggCalls.length);
-    List<String> aggNames =
-        outputType.getNames().stream()
-            .skip(grouping.length)
-            .limit(aggCalls.length)
-            .collect(Collectors.toList());
-    // TODO: velox agg may not equal to flink
-    PlanNode aggregation =
-        new AggregationNode(
+    // TODO: velox RowNumber may not equal to flink
+    int limit = 1;
+    final PlanNode rowNumberNode =
+        new TopNRowNumberNode(
             PlanNodeIdGenerator.newId(),
-            AggregateStep.SINGLE,
-            groupingKeys,
-            groupingKeys,
-            aggNames,
-            aggregates,
-            false,
-            List.of(new EmptyNode(inputType)),
+            partitionKeys,
+            sortKeys,
+            sortOrders,
             null,
-            List.of());
+            limit,
+            List.of(new EmptyNode(inputType)));
     final OneInputStreamOperator operator =
         new GlutenVectorOneInputOperator(
-            new StatefulPlanNode(aggregation.getId(), aggregation),
+            new StatefulPlanNode(rowNumberNode.getId(), rowNumberNode),
             PlanNodeIdGenerator.newId(),
             inputType,
-            Map.of(aggregation.getId(), outputType));
+            Map.of(rowNumberNode.getId(), outputType));
     // --- End Gluten-specific code changes ---
 
-    // partitioned aggregation
-    final OneInputTransformation<RowData, RowData> transform =
+    OneInputTransformation<RowData, RowData> transform =
         ExecNodeUtil.createOneInputTransformation(
             inputTransform,
-            createTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, config),
+            createTransformationMeta(RANK_TRANSFORMATION, config),
             operator,
-            InternalTypeInfo.of(getOutputType()),
+            InternalTypeInfo.of((RowType) getOutputType()),
             inputTransform.getParallelism(),
             false);
 
     // set KeyType and Selector for state
-    final RowDataKeySelector selector =
+    RowDataKeySelector selector =
         KeySelectorUtil.getRowDataSelector(
             planner.getFlinkContext().getClassLoader(),
-            grouping,
-            InternalTypeInfo.of(inputRowType));
+            partitionSpec.getFieldIndices(),
+            inputRowTypeInfo);
     transform.setStateKeySelector(selector);
     transform.setStateKeyType(selector.getProducedType());
-
     return transform;
+  }
+
+  private List<SortOrder> generateSortOrders(SortSpec sortSpec) {
+    final List<SortOrder> sortOrders = new ArrayList<>();
+    boolean[] ascendingOrders = sortSpec.getAscendingOrders();
+    boolean[] nullLasts = sortSpec.getNullsIsLast();
+    checkArgument(ascendingOrders.length == nullLasts.length);
+    for (int i = 0; i < ascendingOrders.length; i++) {
+      sortOrders.add(new SortOrder(ascendingOrders[i], !nullLasts[i]));
+    }
+    return sortOrders;
   }
 }

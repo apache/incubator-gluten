@@ -102,6 +102,7 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<Statefu
     rightInputQueue = session.externalStreamOps().newBlockingQueue();
     LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
     LOG.debug("OutTypes: {}", outputTypes.keySet());
+    LOG.debug("RuntimeContex: {}", getRuntimeContext().getClass().getName());
     query = new Query(glutenPlan, Config.empty(), ConnectorConfig.empty());
     allocator = new RootAllocator(Long.MAX_VALUE);
     task = session.queryOps().execute(query);
