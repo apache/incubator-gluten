@@ -126,4 +126,16 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     String query4 = "select c = d as x from tblEqual where a > 0";
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
   }
+
+  @Test
+  void testSplitIndex() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, 1L, "http://testflink/a/b/c"),
+            Row.of(2, 2L, "http://testflink/a1/b1/c1"),
+            Row.of(3, 3L, "http://testflink/a2/b2/c2"));
+    createSimpleBoundedValuesTable("tblSplitIndex", "a int, b bigint, c string", rows);
+    String query1 = "select split_index(c, '/', 3) from tblSplitIndex";
+    runAndCheck(query1, Arrays.asList("+I[testflink]", "+I[testflink]", "+I[testflink]"));
+  }
 }
