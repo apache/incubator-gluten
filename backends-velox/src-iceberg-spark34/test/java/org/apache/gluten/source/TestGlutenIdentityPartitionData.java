@@ -16,6 +16,12 @@
  */
 package org.apache.gluten.source;
 
-import org.apache.iceberg.spark.source.TestDataSourceOptions;
+import org.apache.iceberg.PlanningMode;
+import org.apache.iceberg.spark.source.TestIdentityPartitionData;
 
-public class GlutenTestDataSourceOptions extends TestDataSourceOptions {}
+public class TestGlutenIdentityPartitionData extends TestIdentityPartitionData {
+  public TestGlutenIdentityPartitionData(
+      String format, boolean vectorized, PlanningMode planningMode) {
+    super(format, vectorized, planningMode);
+  }
+}

@@ -14,14 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.source;
+package org.apache.gluten.sql;
 
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.spark.source.TestSparkMetadataColumns;
+import org.apache.iceberg.spark.sql.TestTimestampWithoutZone;
 
-public class GlutenTestSparkMetadataColumns extends TestSparkMetadataColumns {
-  public GlutenTestSparkMetadataColumns(
-      FileFormat fileFormat, boolean vectorized, int formatVersion) {
-    super(fileFormat, vectorized, formatVersion);
+import java.util.Map;
+
+public class TestGlutenTimestampWithoutZone extends TestTimestampWithoutZone {
+  public TestGlutenTimestampWithoutZone(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
   }
 }

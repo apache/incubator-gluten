@@ -14,13 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.source;
+package org.apache.gluten.sql;
 
-import org.apache.iceberg.PlanningMode;
-import org.apache.iceberg.spark.source.TestRuntimeFiltering;
+import org.apache.iceberg.spark.sql.TestPartitionedWritesToBranch;
 
-public class GlutenTestRuntimeFiltering extends TestRuntimeFiltering {
-  public GlutenTestRuntimeFiltering(PlanningMode planningMode) {
-    super(planningMode);
+import java.util.Map;
+
+public class TestGlutenPartitionedWritesToBranch extends TestPartitionedWritesToBranch {
+  public TestGlutenPartitionedWritesToBranch(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
   }
 }

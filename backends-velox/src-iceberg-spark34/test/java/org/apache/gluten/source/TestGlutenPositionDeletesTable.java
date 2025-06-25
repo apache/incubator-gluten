@@ -16,12 +16,14 @@
  */
 package org.apache.gluten.source;
 
-import org.apache.iceberg.PlanningMode;
-import org.apache.iceberg.spark.source.TestIdentityPartitionData;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.spark.source.TestPositionDeletesTable;
 
-public class GlutenTestIdentityPartitionData extends TestIdentityPartitionData {
-  public GlutenTestIdentityPartitionData(
-      String format, boolean vectorized, PlanningMode planningMode) {
-    super(format, vectorized, planningMode);
+import java.util.Map;
+
+public class TestGlutenPositionDeletesTable extends TestPositionDeletesTable {
+  public TestGlutenPositionDeletesTable(
+      String catalogName, String implementation, Map<String, String> config, FileFormat format) {
+    super(catalogName, implementation, config, format);
   }
 }

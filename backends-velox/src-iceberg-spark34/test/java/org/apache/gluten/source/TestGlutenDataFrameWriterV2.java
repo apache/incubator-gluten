@@ -14,15 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql;
+package org.apache.gluten.source;
 
-import org.apache.iceberg.spark.sql.TestPartitionedWritesToBranch;
+import org.apache.iceberg.spark.source.TestDataFrameWriterV2;
 
-import java.util.Map;
-
-public class GlutenTestPartitionedWritesToBranch extends TestPartitionedWritesToBranch {
-  public GlutenTestPartitionedWritesToBranch(
-      String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
-  }
-}
+public class TestGlutenDataFrameWriterV2 extends TestDataFrameWriterV2 {}

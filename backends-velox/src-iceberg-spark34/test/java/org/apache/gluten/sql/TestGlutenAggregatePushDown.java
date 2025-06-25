@@ -31,8 +31,8 @@ import org.junit.BeforeClass;
 
 import java.util.Map;
 
-public class GlutenTestAggregatePushDown extends TestAggregatePushDown {
-  public GlutenTestAggregatePushDown(
+public class TestGlutenAggregatePushDown extends TestAggregatePushDown {
+  public TestGlutenAggregatePushDown(
       String catalogName, String implementation, Map<String, String> config) {
     super(catalogName, implementation, config);
   }

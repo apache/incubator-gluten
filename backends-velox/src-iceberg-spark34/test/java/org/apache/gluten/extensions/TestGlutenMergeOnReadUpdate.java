@@ -23,8 +23,8 @@ import org.junit.Test;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-public class GlutenTestMergeOnReadUpdate extends TestMergeOnReadUpdate {
-  public GlutenTestMergeOnReadUpdate(
+public class TestGlutenMergeOnReadUpdate extends TestMergeOnReadUpdate {
+  public TestGlutenMergeOnReadUpdate(
       String catalogName,
       String implementation,
       Map<String, String> config,

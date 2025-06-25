@@ -33,7 +33,7 @@ class PartitionWriter : public Reclaimable {
  public:
   PartitionWriter(uint32_t numPartitions, std::unique_ptr<arrow::util::Codec> codec, MemoryManager* memoryManager)
       : numPartitions_(numPartitions), codec_(std::move(codec)), memoryManager_(memoryManager) {
-    payloadPool_ = memoryManager->createArrowMemoryPool("PartitionWriter.cached_payload");
+    payloadPool_ = memoryManager->getOrCreateArrowMemoryPool("PartitionWriter.cached_payload");
   }
 
   static inline std::string typeToString(PartitionWriterType type) {
