@@ -22,6 +22,10 @@ import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.DoubleType;
 import io.github.zhztheplayer.velox4j.type.Type;
+import io.github.zhztheplayer.velox4j.window.BoundType;
+import io.github.zhztheplayer.velox4j.window.Frame;
+import io.github.zhztheplayer.velox4j.window.WindowFunction;
+import io.github.zhztheplayer.velox4j.window.WindowType;
 
 import org.apache.calcite.rel.core.AggregateCall;
 
@@ -35,19 +39,11 @@ public class AggregateCallConverter {
 
   public static Aggregate toAggregate(
       AggregateCall aggregateCall, io.github.zhztheplayer.velox4j.type.RowType inputType) {
-    List<TypedExpr> args = new ArrayList<>();
     List<Type> rawTypes = new ArrayList<>();
     for (int arg : aggregateCall.getArgList()) {
-      args.add(
-          FieldAccessTypedExpr.create(
-              inputType.getChildren().get(arg), inputType.getNames().get(arg)));
       rawTypes.add(inputType.getChildren().get(arg));
     }
-    CallTypedExpr call =
-        convertAggregation(
-            aggregateCall.getAggregation().getName(),
-            args,
-            RexNodeConverter.toType(aggregateCall.getType()));
+    CallTypedExpr call = toCall(aggregateCall, inputType);
     return new Aggregate(call, rawTypes, null, List.of(), List.of(), aggregateCall.isDistinct());
   }
 
@@ -58,6 +54,39 @@ public class AggregateCallConverter {
             .map(aggregateCall -> toAggregate(aggregateCall, inputType))
             .collect(Collectors.toList());
     return aggregates;
+  }
+
+  public static WindowFunction toFunction(
+      AggregateCall aggregateCall, io.github.zhztheplayer.velox4j.type.RowType inputType) {
+    CallTypedExpr call = toCall(aggregateCall, inputType);
+    Frame frame =
+        new Frame(WindowType.KROWS, BoundType.KCURRENTROW, null, BoundType.KCURRENTROW, null);
+    return new WindowFunction(call, frame, false);
+  }
+
+  public static List<WindowFunction> toFunctions(
+      AggregateCall[] aggregateCalls, io.github.zhztheplayer.velox4j.type.RowType inputType) {
+    List<WindowFunction> aggregates =
+        Arrays.stream(aggregateCalls)
+            .map(aggregateCall -> toFunction(aggregateCall, inputType))
+            .collect(Collectors.toList());
+    return aggregates;
+  }
+
+  private static CallTypedExpr toCall(
+      AggregateCall aggregateCall, io.github.zhztheplayer.velox4j.type.RowType inputType) {
+    List<TypedExpr> args = new ArrayList<>();
+    List<Type> rawTypes = new ArrayList<>();
+    for (int arg : aggregateCall.getArgList()) {
+      args.add(
+          FieldAccessTypedExpr.create(
+              inputType.getChildren().get(arg), inputType.getNames().get(arg)));
+      rawTypes.add(inputType.getChildren().get(arg));
+    }
+    return convertAggregation(
+        aggregateCall.getAggregation().getName(),
+        args,
+        RexNodeConverter.toType(aggregateCall.getType()));
   }
 
   private static CallTypedExpr convertAggregation(String name, List<TypedExpr> args, Type outType) {

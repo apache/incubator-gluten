@@ -22,71 +22,71 @@ import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
-import io.github.zhztheplayer.velox4j.aggregate.Aggregate;
-import io.github.zhztheplayer.velox4j.aggregate.AggregateStep;
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
-import io.github.zhztheplayer.velox4j.plan.AggregationNode;
 import io.github.zhztheplayer.velox4j.plan.EmptyNode;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
+import io.github.zhztheplayer.velox4j.plan.WindowNode;
+import io.github.zhztheplayer.velox4j.window.WindowFunction;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
-import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.calcite.tools.RelBuilder;
 
 import javax.annotation.Nullable;
 
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Stream {@link ExecNode} for unbounded group aggregate.
- *
- * <p>This node does support un-splittable aggregate function (e.g. STDDEV_POP).
- */
+/** Stream {@link ExecNode} for window table-valued based local aggregate. */
 @ExecNodeMetadata(
-    name = "stream-exec-group-aggregate",
+    name = "stream-exec-local-window-aggregate",
     version = 1,
-    consumedOptions = {"table.exec.mini-batch.enabled", "table.exec.mini-batch.size"},
-    producedTransformations = StreamExecGroupAggregate.GROUP_AGGREGATE_TRANSFORMATION,
+    consumedOptions = "table.local-time-zone",
+    producedTransformations = StreamExecLocalWindowAggregate.LOCAL_WINDOW_AGGREGATE_TRANSFORMATION,
     minPlanVersion = FlinkVersion.v1_15,
     minStateVersion = FlinkVersion.v1_15)
-public class StreamExecGroupAggregate extends StreamExecAggregateBase {
+public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBase {
 
-  private static final Logger LOG = LoggerFactory.getLogger(StreamExecGroupAggregate.class);
+  public static final String LOCAL_WINDOW_AGGREGATE_TRANSFORMATION = "local-window-aggregate";
 
-  public static final String GROUP_AGGREGATE_TRANSFORMATION = "group-aggregate";
+  private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 
-  public static final String STATE_NAME = "groupAggregateState";
+  public static final String FIELD_NAME_WINDOWING = "windowing";
 
   @JsonProperty(FIELD_NAME_GROUPING)
   private final int[] grouping;
@@ -94,146 +94,134 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
   @JsonProperty(FIELD_NAME_AGG_CALLS)
   private final AggregateCall[] aggCalls;
 
-  /** Each element indicates whether the corresponding agg call needs `retract` method. */
-  @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS)
-  private final boolean[] aggCallNeedRetractions;
+  @JsonProperty(FIELD_NAME_WINDOWING)
+  private final WindowingStrategy windowing;
 
-  /** Whether this node will generate UPDATE_BEFORE messages. */
-  @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
-  private final boolean generateUpdateBefore;
-
-  /** Whether this node consumes retraction messages. */
   @JsonProperty(FIELD_NAME_NEED_RETRACTION)
   private final boolean needRetraction;
 
-  @Nullable
-  @JsonProperty(FIELD_NAME_STATE)
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  private final List<StateMetadata> stateMetadataList;
-
-  public StreamExecGroupAggregate(
+  public StreamExecLocalWindowAggregate(
       ReadableConfig tableConfig,
       int[] grouping,
       AggregateCall[] aggCalls,
-      boolean[] aggCallNeedRetractions,
-      boolean generateUpdateBefore,
-      boolean needRetraction,
-      @Nullable Long stateTtlFromHint,
+      WindowingStrategy windowing,
+      Boolean needRetraction,
       InputProperty inputProperty,
       RowType outputType,
       String description) {
     this(
         ExecNodeContext.newNodeId(),
-        ExecNodeContext.newContext(StreamExecGroupAggregate.class),
-        ExecNodeContext.newPersistedConfig(StreamExecGroupAggregate.class, tableConfig),
+        ExecNodeContext.newContext(StreamExecLocalWindowAggregate.class),
+        ExecNodeContext.newPersistedConfig(StreamExecLocalWindowAggregate.class, tableConfig),
         grouping,
         aggCalls,
-        aggCallNeedRetractions,
-        generateUpdateBefore,
+        windowing,
         needRetraction,
-        StateMetadata.getOneInputOperatorDefaultMeta(stateTtlFromHint, tableConfig, STATE_NAME),
         Collections.singletonList(inputProperty),
         outputType,
         description);
   }
 
   @JsonCreator
-  public StreamExecGroupAggregate(
+  public StreamExecLocalWindowAggregate(
       @JsonProperty(FIELD_NAME_ID) int id,
       @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
       @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
       @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
       @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
-      @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS) boolean[] aggCallNeedRetractions,
-      @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
-      @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
-      @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
+      @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
+      @Nullable @JsonProperty(FIELD_NAME_NEED_RETRACTION) Boolean needRetraction,
       @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
       @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
       @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
     super(id, context, persistedConfig, inputProperties, outputType, description);
     this.grouping = checkNotNull(grouping);
     this.aggCalls = checkNotNull(aggCalls);
-    this.aggCallNeedRetractions = checkNotNull(aggCallNeedRetractions);
-    checkArgument(aggCalls.length == aggCallNeedRetractions.length);
-    this.generateUpdateBefore = generateUpdateBefore;
-    this.needRetraction = needRetraction;
-    this.stateMetadataList = stateMetadataList;
+    this.windowing = checkNotNull(windowing);
+    this.needRetraction = Optional.ofNullable(needRetraction).orElse(false);
   }
 
   @SuppressWarnings("unchecked")
   @Override
   protected Transformation<RowData> translateToPlanInternal(
       PlannerBase planner, ExecNodeConfig config) {
-
-    final long stateRetentionTime =
-        StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
-    if (grouping.length > 0 && stateRetentionTime < 0) {
-      LOG.warn(
-          "No state retention interval configured for a query which accumulates state. "
-              + "Please provide a query configuration with valid retention interval to prevent excessive "
-              + "state size. You may specify a retention time of 0 to not clean up the state.");
-    }
-
     final ExecEdge inputEdge = getInputEdges().get(0);
     final Transformation<RowData> inputTransform =
         (Transformation<RowData>) inputEdge.translateToPlan(planner);
     final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
     // --- Begin Gluten-specific code changes ---
+    // TODO: velox window not equal to flink window.
     io.github.zhztheplayer.velox4j.type.RowType inputType =
         (io.github.zhztheplayer.velox4j.type.RowType) LogicalTypeConverter.toVLType(inputRowType);
-    List<FieldAccessTypedExpr> groupingKeys = Utils.generateFieldAccesses(inputType, grouping);
-    List<Aggregate> aggregates = AggregateCallConverter.toAggregates(aggCalls, inputType);
     io.github.zhztheplayer.velox4j.type.RowType outputType =
         (io.github.zhztheplayer.velox4j.type.RowType)
             LogicalTypeConverter.toVLType(getOutputType());
-    checkArgument(outputType.getNames().size() == grouping.length + aggCalls.length);
-    List<String> aggNames =
+    List<FieldAccessTypedExpr> partitionKeys = Utils.generateFieldAccesses(inputType, grouping);
+    List<WindowFunction> functions = AggregateCallConverter.toFunctions(aggCalls, inputType);
+    checkArgument(outputType.getNames().size() >= grouping.length + aggCalls.length);
+    List<String> colNames =
         outputType.getNames().stream()
             .skip(grouping.length)
             .limit(aggCalls.length)
             .collect(Collectors.toList());
-    // TODO: velox agg may not equal to flink
-    PlanNode aggregation =
-        new AggregationNode(
+    PlanNode window =
+        new WindowNode(
             PlanNodeIdGenerator.newId(),
-            AggregateStep.SINGLE,
-            groupingKeys,
-            groupingKeys,
-            aggNames,
-            aggregates,
+            partitionKeys,
+            List.of(),
+            List.of(),
+            colNames,
+            functions,
             false,
-            List.of(new EmptyNode(inputType)),
-            null,
-            List.of());
-    final OneInputStreamOperator operator =
+            List.of(new EmptyNode(inputType)));
+    final OneInputStreamOperator localAggOperator =
         new GlutenVectorOneInputOperator(
-            new StatefulPlanNode(aggregation.getId(), aggregation),
+            new StatefulPlanNode(window.getId(), window),
             PlanNodeIdGenerator.newId(),
             inputType,
-            Map.of(aggregation.getId(), outputType));
+            Map.of(window.getId(), outputType));
     // --- End Gluten-specific code changes ---
 
-    // partitioned aggregation
-    final OneInputTransformation<RowData, RowData> transform =
-        ExecNodeUtil.createOneInputTransformation(
-            inputTransform,
-            createTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, config),
-            operator,
-            InternalTypeInfo.of(getOutputType()),
-            inputTransform.getParallelism(),
-            false);
+    return ExecNodeUtil.createOneInputTransformation(
+        inputTransform,
+        createTransformationMeta(LOCAL_WINDOW_AGGREGATE_TRANSFORMATION, config),
+        SimpleOperatorFactory.of(localAggOperator),
+        InternalTypeInfo.of(getOutputType()),
+        inputTransform.getParallelism(),
+        // use less memory here to let the chained head operator can have more memory
+        WINDOW_AGG_MEMORY_RATIO / 2,
+        false);
+  }
 
-    // set KeyType and Selector for state
-    final RowDataKeySelector selector =
-        KeySelectorUtil.getRowDataSelector(
-            planner.getFlinkContext().getClassLoader(),
-            grouping,
-            InternalTypeInfo.of(inputRowType));
-    transform.setStateKeySelector(selector);
-    transform.setStateKeyType(selector.getProducedType());
+  private GeneratedNamespaceAggsHandleFunction<Long> createAggsHandler(
+      SliceAssigner sliceAssigner,
+      AggregateInfoList aggInfoList,
+      ExecNodeConfig config,
+      ClassLoader classLoader,
+      RelBuilder relBuilder,
+      List<LogicalType> fieldTypes,
+      ZoneId shiftTimeZone) {
+    final AggsHandlerCodeGenerator generator =
+        new AggsHandlerCodeGenerator(
+                new CodeGeneratorContext(config, classLoader),
+                relBuilder,
+                JavaScalaConversionUtil.toScala(fieldTypes),
+                true) // copyInputField
+            .needAccumulate()
+            .needMerge(0, true, null);
 
-    return transform;
+    if (needRetraction) {
+      generator.needRetract();
+    }
+
+    return generator.generateNamespaceAggsHandler(
+        "LocalWindowAggsHandler",
+        aggInfoList,
+        JavaScalaConversionUtil.toScala(Collections.emptyList()),
+        sliceAssigner,
+        // we use window end timestamp to indicate a slicing window, see SliceAssigner
+        Long.class,
+        shiftTimeZone);
   }
 }
