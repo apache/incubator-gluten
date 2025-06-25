@@ -29,16 +29,10 @@ import io.github.zhztheplayer.velox4j.variant.BigIntValue;
 import io.github.zhztheplayer.velox4j.variant.IntegerValue;
 
 import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 public class SplitIndexRexCallConverter extends BaseRexCallConverter {
-
-  private static final Logger LOG = LoggerFactory.getLogger(SplitIndexRexCallConverter.class);
 
   private static final String FUNCTION_NAME = "split_part";
 
@@ -47,32 +41,9 @@ public class SplitIndexRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public boolean isSupported(RexCall callNode, RexConversionContext context) {
-    if (!TypeUtils.isStringType(RexNodeConverter.toType(callNode.getType()))) {
-      return false;
-    }
-    List<RexNode> operands = callNode.getOperands();
-    if (operands.size() != 3) {
-      return false;
-    }
-    RexNode firstOp = operands.get(0);
-    RexNode secondOp = operands.get(1);
-    RexNode thirdOp = operands.get(2);
-    if (!TypeUtils.isStringType(RexNodeConverter.toType(firstOp.getType()))
-        || !TypeUtils.isStringType(RexNodeConverter.toType(secondOp.getType()))
-        || !TypeUtils.isIntegerType(RexNodeConverter.toType(thirdOp.getType()))) {
-      return false;
-    }
-    if (!(secondOp instanceof RexLiteral) || !(thirdOp instanceof RexLiteral)) {
-      return false;
-    }
-    return true;
-  }
-
-  @Override
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
-    ConstantTypedExpr indexExpr = (ConstantTypedExpr) params.get(2);
+    ConstantTypedExpr indexExpr = (ConstantTypedExpr) params.get(params.size() - 1);
     if (TypeUtils.isIntegerType(indexExpr.getReturnType())) {
       IntegerValue intValue = (IntegerValue) indexExpr.getValue();
       BigIntValue bigintValue = new BigIntValue(intValue.getValue());

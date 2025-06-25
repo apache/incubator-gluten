@@ -137,5 +137,9 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     createSimpleBoundedValuesTable("tblSplitIndex", "a int, b bigint, c string", rows);
     String query1 = "select split_index(c, '/', 3) from tblSplitIndex";
     runAndCheck(query1, Arrays.asList("+I[testflink]", "+I[testflink]", "+I[testflink]"));
+    String query2 = "select split_index(c, '//', 2) from tblSplitIndex";
+    runAndCheck(
+        query2,
+        Arrays.asList("+I[testflink/a/b/c]", "+I[testflink/a1/b1/c1]", "+I[testflink/a2/b2/c2]"));
   }
 }
