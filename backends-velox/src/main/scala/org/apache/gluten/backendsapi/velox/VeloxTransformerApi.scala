@@ -85,7 +85,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       childNode
     } else {
       val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-      ExpressionBuilder.makeCast(typeNode, childNode, !nullOnOverflow)
+      ExpressionBuilder.makeCast(typeNode, childNode, nullOnOverflow)
     }
   }
 
