@@ -597,18 +597,22 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
     jlong cSchema,
     jint format,
     jstring directory,
-    jstring codecJstr) {
+    jstring codecJstr,
+    jbyteArray partition) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
   auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
   auto backendConf = VeloxBackend::get()->getBackendConf()->rawConfigs();
   auto sparkConf = ctx->getConfMap();
   sparkConf.merge(backendConf);
+  auto safeArray = gluten::getByteArrayElementsSafe(env, partition);
+  auto spec = parseIcebergPartitionSpec(safeArray.elems(), safeArray.length());
   return ctx->saveObject(runtime->createIcebergWriter(
       reinterpret_cast<struct ArrowSchema*>(cSchema),
       format,
       jStringToCString(env, directory),
       facebook::velox::common::stringToCompressionKind(jStringToCString(env, codecJstr)),
+      spec,
       sparkConf));
   JNI_METHOD_END(kInvalidObjectHandle)
 }

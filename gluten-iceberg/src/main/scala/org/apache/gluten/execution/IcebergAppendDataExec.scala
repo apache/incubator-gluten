@@ -16,20 +16,16 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.extension.ValidationResult
-
-import org.apache.spark.sql.connector.write.Write
-import org.apache.spark.sql.execution.SparkPlan
-
+import org.apache.gluten.proto.{IcebergPartitionField, IcebergPartitionSpec}
 import org.apache.iceberg.FileFormat
 import org.apache.iceberg.TableProperties.{ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT, PARQUET_COMPRESSION, PARQUET_COMPRESSION_DEFAULT}
 import org.apache.iceberg.spark.source.IcebergWriteUtil
+import org.apache.iceberg.transforms.IcebergTransformUtil
 
-abstract class IcebergAppendDataExec(
-    override val query: SparkPlan,
-    override val refreshCache: () => Unit,
-    override val write: Write)
-  extends ColumnarAppendDataExec(query, refreshCache, write) {
+import java.util.stream.Collectors
+
+trait IcebergAppendDataExec
+  extends ColumnarAppendDataExec {
 
   protected def getFileFormat(format: FileFormat): Int = {
     format match {
@@ -39,7 +35,7 @@ abstract class IcebergAppendDataExec(
     }
   }
 
-  protected def getCodec(): String = {
+  protected def getCodec: String = {
     val config = IcebergWriteUtil.getWriteProperty(write)
     val codec = IcebergWriteUtil.getFileFormat(write) match {
       case FileFormat.PARQUET =>
@@ -50,6 +46,14 @@ abstract class IcebergAppendDataExec(
     if (codec == "UNCOMPRESSED") {
       "none"
     } else codec
+  }
+
+  protected def getPartitionSpec: IcebergPartitionSpec = {
+    val spec = IcebergWriteUtil.getPartitionSpec(write)
+    val fields = spec.fields().stream()
+      .map[IcebergPartitionField](IcebergTransformUtil.convertPartitionField _)
+      .collect(Collectors.toList[IcebergPartitionField])
+    IcebergPartitionSpec.newBuilder().setSpecId(spec.specId()).addAllFields(fields).build()
   }
 
   override def doValidateInternal(): ValidationResult = {
@@ -72,7 +76,7 @@ abstract class IcebergAppendDataExec(
       return ValidationResult.failed("Not support this format " + format)
     }
 
-    val codec = getCodec()
+    val codec = getCodec
     if (Seq("brotli, lzo").contains(codec)) {
       return ValidationResult.failed("Not support this codec " + codec)
     }

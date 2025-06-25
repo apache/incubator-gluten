@@ -21,20 +21,20 @@ import org.apache.gluten.execution.IcebergWriteJniWrapper
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
-
 import org.apache.spark.sql.connector.write.DataWriter
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import org.apache.arrow.c.ArrowSchema
+import org.apache.gluten.proto.IcebergPartitionSpec
 
 case class IcebergDataWriteFactory(
     schema: StructType,
     format: Integer,
     directory: String,
-    codec: String)
+    codec: String,
+    partitionSpec: IcebergPartitionSpec)
   extends ColumnarBatchDataWriterFactory {
 
   /**
@@ -45,7 +45,7 @@ case class IcebergDataWriteFactory(
    * fail and get retried until hitting the maximum retry times.
    */
   override def createWriter(): DataWriter[ColumnarBatch] = {
-    val (writerHandle, jniWrapper) = getJniWrapper(schema, format, directory, codec)
+    val (writerHandle, jniWrapper) = getJniWrapper(schema, format, directory, codec, partitionSpec)
     IcebergColumnarBatchDataWriter(writerHandle, jniWrapper, format)
   }
 
@@ -53,14 +53,15 @@ case class IcebergDataWriteFactory(
       localSchema: StructType,
       format: Int,
       directory: String,
-      codec: String): (Long, IcebergWriteJniWrapper) = {
+      codec: String,
+      partitionSpec: IcebergPartitionSpec): (Long, IcebergWriteJniWrapper) = {
     val schema = SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
     val arrowAlloc = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(arrowAlloc)
     ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
     val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "IcebergWrite#write")
     val jniWrapper = new IcebergWriteJniWrapper(runtime)
-    val writer = jniWrapper.init(cSchema.memoryAddress(), format, directory, codec)
+    val writer = jniWrapper.init(cSchema.memoryAddress(), format, directory, codec, partitionSpec.toByteArray)
     cSchema.close()
     (writer, jniWrapper)
   }

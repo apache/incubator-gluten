@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "compute/iceberg/IcebergFormat.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/connectors/hive/iceberg/IcebergDataSink.h"
 
@@ -30,6 +29,7 @@ class IcebergWriter {
       int32_t format,
       const std::string& outputDirectory,
       facebook::velox::common::CompressionKind compressionKind,
+      std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
       const std::unordered_map<std::string, std::string>& sparkConfs,
       std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool);
@@ -49,4 +49,8 @@ class IcebergWriter {
 
   std::unique_ptr<facebook::velox::connector::hive::iceberg::IcebergDataSink> dataSink_;
 };
+
+std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> parseIcebergPartitionSpec(
+    const uint8_t* data,
+    const int32_t length);
 } // namespace gluten

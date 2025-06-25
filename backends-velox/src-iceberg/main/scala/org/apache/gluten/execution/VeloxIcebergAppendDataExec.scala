@@ -26,10 +26,10 @@ import org.apache.spark.sql.types.StructType
 import org.apache.iceberg.spark.source.IcebergWriteUtil
 
 case class VeloxIcebergAppendDataExec(
-    override val query: SparkPlan,
-    override val refreshCache: () => Unit,
-    override val write: Write)
-  extends IcebergAppendDataExec(query, refreshCache, write) {
+    query: SparkPlan,
+    refreshCache: () => Unit,
+    write: Write)
+  extends IcebergAppendDataExec {
 
   override protected def withNewChildInternal(newChild: SparkPlan): IcebergAppendDataExec =
     copy(query = newChild)
@@ -39,7 +39,8 @@ case class VeloxIcebergAppendDataExec(
       schema,
       getFileFormat(IcebergWriteUtil.getFileFormat(write)),
       IcebergWriteUtil.getDirectory(write),
-      getCodec())
+      getCodec,
+      getPartitionSpec)
 
 }
 

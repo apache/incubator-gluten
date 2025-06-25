@@ -71,6 +71,7 @@ class VeloxRuntime final : public Runtime {
       int32_t format,
       const std::string& outputDirectory,
       facebook::velox::common::CompressionKind compressionKind,
+      std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
       const std::unordered_map<std::string, std::string>& sparkConfs);
 #endif
 

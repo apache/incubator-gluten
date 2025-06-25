@@ -17,9 +17,7 @@
 package org.apache.gluten.connector.write;
 
 import org.apache.spark.annotation.Evolving;
-import org.apache.spark.sql.connector.write.BatchWrite;
 import org.apache.spark.sql.connector.write.DataWriter;
-import org.apache.spark.sql.connector.write.PhysicalWriteInfo;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.Serializable;
