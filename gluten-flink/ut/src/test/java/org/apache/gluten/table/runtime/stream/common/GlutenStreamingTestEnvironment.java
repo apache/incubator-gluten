@@ -22,29 +22,18 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.ExplainDetail;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.loader.PlannerModule;
 import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-class GlutenStreamingQueryTestBase {
+class GlutenStreamingTestEnvironement {
 
   private static final String EXECUTION_PLAN_PREIFX = "== Physical Execution Plan ==";
 
@@ -121,62 +110,5 @@ class GlutenStreamingQueryTestBase {
   public void after() {
     StreamTestSink.clear();
     TestValuesTableFactory.clearAllData();
-  }
-
-  @Test
-  void demo() {
-    List<Row> rows = Arrays.asList(Row.of(1, 1.0), Row.of(2, 2.0));
-    createSimpleBoundedValuesTable("floatTbl", "a int, b double", rows);
-    String query = "select a, b from floatTbl where a > 0";
-    // The result is "+I[1, 1.0]", "+I[2, 2.0]".
-    compareResultWithFlink(query);
-  }
-
-  protected void createSimpleBoundedValuesTable(String tableName, String schema, List<Row> rows) {
-    String myTableDataId = TestValuesTableFactory.registerData(rows);
-    String table =
-        "CREATE TABLE "
-            + tableName
-            + "(\n"
-            + schema
-            + "\n"
-            + ") WITH (\n"
-            + " 'connector' = 'values',\n"
-            + " 'bounded' = 'true',\n"
-            + String.format(" 'data-id' = '%s',\n", myTableDataId)
-            + " 'nested-projection-supported' = 'true'\n"
-            + ")";
-    glutenTEnv.executeSql(table);
-    flinkTEnv.executeSql(table);
-  }
-
-  protected String explainExecutionPlan(String query, boolean useGluten) {
-    Table table;
-    if (useGluten) {
-      table = glutenTEnv.sqlQuery(query);
-    } else {
-      table = flinkTEnv.sqlQuery(query);
-    }
-    String plainPlans = table.explain(ExplainDetail.JSON_EXECUTION_PLAN);
-    int index = plainPlans.indexOf(EXECUTION_PLAN_PREIFX);
-    if (index != -1) {
-      return plainPlans.substring(index + EXECUTION_PLAN_PREIFX.length());
-    } else {
-      return "";
-    }
-  }
-
-  protected void compareResultWithFlink(String query) {
-    System.err.println("Gluten Execution Plan:\n" + explainExecutionPlan(query, true));
-    System.err.println("Flink Execution Plan:\n" + explainExecutionPlan(query, false));
-    List<String> actual =
-        CollectionUtil.iteratorToList(glutenTEnv.executeSql(query).collect()).stream()
-            .map(Object::toString)
-            .collect(Collectors.toList());
-    List<String> expected =
-        CollectionUtil.iteratorToList(flinkTEnv.executeSql(query).collect()).stream()
-            .map(Object::toString)
-            .collect(Collectors.toList());
-    assertThat(actual).isEqualTo(expected);
   }
 }

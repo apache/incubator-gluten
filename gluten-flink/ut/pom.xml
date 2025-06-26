@@ -139,6 +139,12 @@
             <version>1.4.12</version> 
         </dependency>
 
+        <dependency>
+            <groupId>com.typesafe.play</groupId>
+            <artifactId>play-json_${scala.binary.version}</artifactId> <!-- 或 _2.13，取决于你的 Scala 版本 -->
+            <version>2.10.0-RC5</version>
+        </dependency>
+
     </dependencies>
 
 
