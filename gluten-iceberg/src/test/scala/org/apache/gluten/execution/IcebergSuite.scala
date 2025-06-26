@@ -58,7 +58,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("iceberg insert") {
+  testEnhancedFeatures("iceberg insert") {
     withTable("iceberg_tb2") {
       spark.sql("""
                   |create table if not exists iceberg_tb2(a int) using iceberg
