@@ -761,15 +761,16 @@ TEST(ColumnIndex, Field)
         });
 }
 
+using ColumnReadState = std::pair<local_engine::ReadRanges, local_engine::ReadSequence>;
 struct ReadStatesParam
 {
     ReadStatesParam() = default;
 
-    ReadStatesParam(local_engine::RowRanges ranges, std::shared_ptr<local_engine::ColumnReadState> states)
+    ReadStatesParam(local_engine::RowRanges ranges, std::shared_ptr<ColumnReadState> states)
         : row_ranges(std::move(ranges)), read_states(std::move(states)) { };
 
     local_engine::RowRanges row_ranges;
-    std::shared_ptr<local_engine::ColumnReadState> read_states;
+    std::shared_ptr<ColumnReadState> read_states;
 };
 
 /// for gtest
@@ -876,10 +877,7 @@ struct ColumnReader
         std::shared_ptr<parquet::PageReader> reader,
         std::unique_ptr<local_engine::OffsetIndex> offset_index,
         const local_engine::RowRanges & row_ranges)
-        : reader_(std::move(reader))
-        , offset_index_(std::move(offset_index))
-        , read_state_(row_ranges)
-        , page_index_(0)
+        : reader_(std::move(reader)), offset_index_(std::move(offset_index)), read_state_(row_ranges), page_index_(0)
     {
         reader_->set_data_page_filter([this](const parquet::DataPageStats & stats) { return this->OnNextPage(stats); });
 
@@ -958,11 +956,8 @@ protected:
     }
     void BuildAndVerifyPageReadStates() const
     {
-        const auto [actaul_read_ranges, actaul_read_infos] = buildRead(num_rows_, chunk_range_, page_locations_, param_.row_ranges);
         const auto & expected_read_ranges = param_.read_states->first;
         const auto & expected_read_info = param_.read_states->second;
-        ASSERT_EQ(expected_read_ranges, actaul_read_ranges);
-        ASSERT_EQ(expected_read_info, actaul_read_infos);
 
         /// new algorithm
         local_engine::ReadRanges read_ranges
