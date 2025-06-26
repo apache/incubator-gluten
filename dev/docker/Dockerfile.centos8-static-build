@@ -35,9 +35,6 @@ RUN set -ex; \
     yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y; \
     rpm -qa | grep tzdata; \
     dnf clean all; \
-    wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz; \
-    tar -xvf apache-maven-3.8.8-bin.tar.gz; \
-    mv apache-maven-3.8.8 /usr/lib/maven; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
     cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh; \
     mkdir -p ${VCPKG_PATH}; \

@@ -33,9 +33,14 @@ RUN set -ex; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     yum install -y java-${JAVA_VERSION}-openjdk-devel patch wget git perl; \
     yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y; \
-    wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz; \
-    tar -xvf apache-maven-3.8.8-bin.tar.gz; \
-    mv apache-maven-3.8.8 /usr/lib/maven; \
+    maven_version=3.9.2; \
+    local_binary="apache-maven-${maven_version}-bin.tar.gz"; \
+    mirror_host="https://www.apache.org/dyn/closer.lua"; \
+    url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download"; \
+    wget -nv -O ${local_binary} ${url}; \
+    tar -xvf ${local_binary}; \
+    mv apache-maven-${maven_version} /usr/lib/maven; \
+    rm -rf ${local_binary}; \
     wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.4.3/apache-celeborn-0.4.3-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.5.4/apache-celeborn-0.5.4-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/incubator/uniffle/0.9.2/apache-uniffle-0.9.2-incubating-bin.tar.gz -P /opt/; \
