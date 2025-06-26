@@ -35,7 +35,7 @@ import scala.concurrent.duration.Duration
 
 case class ColumnarSubqueryBroadcastExec(
     name: String,
-    index: Int,
+    indices: Seq[Int],
     buildKeys: Seq[Expression],
     child: SparkPlan)
   extends BaseSubqueryExec
@@ -47,13 +47,16 @@ case class ColumnarSubqueryBroadcastExec(
   // so the exprId doesn't matter here. But it's important to correctly report the output length, so
   // that `InSubqueryExec` can know it's the single-column execution mode, not multi-column.
   override def output: Seq[Attribute] = {
-    val key = buildKeys(index)
-    val name = key match {
-      case n: NamedExpression => n.name
-      case Cast(n: NamedExpression, _, _, _) => n.name
-      case _ => "key"
+    indices.map {
+      idx =>
+        val key = buildKeys(idx)
+        val name = key match {
+          case n: NamedExpression => n.name
+          case Cast(n: NamedExpression, _, _, _) => n.name
+          case _ => s"key_$idx"
+        }
+        AttributeReference(name, key.dataType, key.nullable)()
     }
-    Seq(AttributeReference(name, key.dataType, key.nullable)())
   }
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -86,6 +89,7 @@ case class ColumnarSubqueryBroadcastExec(
             val relation = child.executeBroadcast[Any]().value
             relation match {
               case b: BuildSideRelation =>
+                val index = indices(0) // TODO(): fixme
                 // Transform columnar broadcast value to Array[InternalRow] by key.
                 if (canRewriteAsLongType(buildKeys)) {
                   b.transform(HashJoin.extractKeyExprAt(buildKeys, index)).distinct
@@ -95,14 +99,17 @@ case class ColumnarSubqueryBroadcastExec(
                     .distinct
                 }
               case h: HashedRelation =>
-                val (iter, expr) = if (h.isInstanceOf[LongHashedRelation]) {
-                  (h.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
+                val (iter, exprs) = if (h.isInstanceOf[LongHashedRelation]) {
+                  (h.keys(), indices.map(idx => HashJoin.extractKeyExprAt(buildKeys, idx)))
                 } else {
                   (
                     h.keys(),
-                    BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+                    indices.map {
+                      idx => BoundReference(idx, buildKeys(idx).dataType, buildKeys(idx).nullable)
+                    }
+                  )
                 }
-                val proj = UnsafeProjection.create(expr)
+                val proj = UnsafeProjection.create(exprs)
                 val keyIter = iter.map(proj).map(_.copy())
                 keyIter.toArray[InternalRow].distinct
               case other =>
