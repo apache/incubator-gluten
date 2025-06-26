@@ -122,6 +122,19 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
+  testWithMinSparkVersion("mode", "3.4") {
+    val df = runQueryAndCompare("select mode(l_partkey) from lineitem where l_partkey < 100") {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
+
+    runQueryAndCompare("select mode(l_quantity), count(distinct l_partkey) from lineitem") {
+      df =>
+        assert(
+          getExecutedPlan(df).count(plan => plan.isInstanceOf[HashAggregateExecTransformer]) == 4
+        )
+    }
+  }
+
   test("sum") {
     runQueryAndCompare("select sum(l_partkey) from lineitem where l_partkey < 2000") {
       checkGlutenOperatorMatch[HashAggregateExecTransformer]
