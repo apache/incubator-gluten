@@ -59,6 +59,9 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
   }
 
   override def doValidateInternal(): ValidationResult = {
+    if (!IcebergWriteUtil.isDataWrite(write)) {
+      return ValidationResult.failed(s"Not support the write ${write.getClass.getSimpleName}")
+    }
     if (IcebergWriteUtil.hasUnsupportedDataType(write)) {
       return ValidationResult.failed("Contains unsupported data type")
     }

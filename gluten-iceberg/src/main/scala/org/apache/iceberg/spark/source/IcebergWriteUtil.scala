@@ -29,6 +29,10 @@ object IcebergWriteUtil {
     write.getClass.getSimpleName.equals("BatchAppend")
   }
 
+  def isDataWrite(write: Write): Boolean = {
+    write.isInstanceOf[SparkWrite]
+  }
+
   def hasUnsupportedDataType(write: Write): Boolean = {
     getWriteSchema(write).columns().stream().anyMatch(d => containsUuidOrFixedType(d.`type`()))
   }
@@ -45,6 +49,7 @@ object IcebergWriteUtil {
   }
 
   private def getWriteSchema(write: Write): Schema = {
+    assert(write.isInstanceOf[SparkWrite])
     val field = classOf[SparkWrite].getDeclaredField("writeSchema")
     field.setAccessible(true)
     field.get(write).asInstanceOf[Schema]
