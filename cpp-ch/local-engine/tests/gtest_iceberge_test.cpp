@@ -328,7 +328,7 @@ protected:
         ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context_);
         auto format_file = FormatFileUtil::createFile(context_, read_buffer_builder, file_info);
 
-        return BaseReader::create(format_file, sampleBlock, sampleBlock, nullptr, nullptr);
+        return BaseReader::create(format_file, sampleBlock, sampleBlock, nullptr);
     }
 
     std::unique_ptr<BaseReader> makeIcebergSplit(

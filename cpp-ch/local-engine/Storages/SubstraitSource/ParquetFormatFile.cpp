@@ -32,12 +32,6 @@
 
 namespace DB
 {
-namespace Setting
-{
-extern const SettingsMaxThreads max_download_threads;
-extern const SettingsMaxThreads max_parsing_threads;
-}
-
 namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
@@ -205,14 +199,9 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const Block & he
             // We need to disable fiter push down and read all row groups, so that we can get correct row index.
             format_settings.parquet.filter_push_down = false;
         }
-
-        auto input = std::make_shared<ParquetBlockInputFormat>(
-            *read_buffer_,
-            read_header,
-            format_settings,
-            settings[Setting::max_parsing_threads],
-            settings[Setting::max_download_threads],
-            8192);
+        //TODO: support filter push down
+        auto parser_group = std::make_shared<FormatParserGroup>(context->getSettingsRef(), 1, nullptr, context);
+        auto input = std::make_shared<ParquetBlockInputFormat>(*read_buffer_, read_header, format_settings, parser_group, 8192);
         return std::make_shared<ParquetInputFormat>(
             std::move(read_buffer_), input, std::move(provider), std::move(read_header), std::move(output_header));
     };
