@@ -32,6 +32,9 @@ import org.apache.spark.task.TaskResources
  * Velox's bloom-filter implementation uses different algorithms internally comparing to vanilla
  * Spark so produces different intermediate aggregate data. Thus we use different filter function /
  * agg function types for Velox's version to distinguish from vanilla Spark's implementation.
+ *
+ * FIXME: Remove GlutenTaskOnlyExpression after the VeloxBloomFilter expr is made compatible with
+ * spark. See: https://github.com/apache/incubator-gluten/pull/9850#issuecomment-3007448538
  */
 case class VeloxBloomFilterMightContain(
     bloomFilterExpression: Expression,
