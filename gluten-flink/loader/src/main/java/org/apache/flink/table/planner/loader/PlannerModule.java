@@ -43,7 +43,7 @@ import java.util.stream.Stream;
  * This class will overwrite the PlannerModule in Flink to load gluten-flink-planner.jar. So that it
  * will load the classes in gluten code first.
  */
-class PlannerModule {
+public class PlannerModule {
 
   /**
    * The name of the table planner dependency jar, bundled with flink-table-planner-loader module
@@ -76,6 +76,17 @@ class PlannerModule {
 
   private static final Map<String, String> KNOWN_MODULE_ASSOCIATIONS = new HashMap<>();
 
+  /**
+   * Currently, enableGluten is used for testing purpose. It controls whether to load
+   * gluten-flink-planner.jar or not. In production, it should always be true. It determines whether
+   * to offload the execution to native or not.
+   */
+  private static boolean enableGluten = true;
+
+  public static void setEnableGluten(boolean enableGluten) {
+    PlannerModule.enableGluten = enableGluten;
+  }
+
   static {
     KNOWN_MODULE_ASSOCIATIONS.put("org.apache.gluten.table.runtime", "gluten-flink-runtime");
     KNOWN_MODULE_ASSOCIATIONS.put("org.apache.flink.table.runtime", "flink-table-runtime");
@@ -89,7 +100,7 @@ class PlannerModule {
 
   private final PlannerComponentClassLoader submoduleClassLoader;
 
-  private PlannerModule() {
+  private PlannerModule(boolean enableGluten_) {
     try {
       final ClassLoader flinkClassLoader = PlannerModule.class.getClassLoader();
 
@@ -120,9 +131,17 @@ class PlannerModule {
       tempFile.toFile().deleteOnExit();
       glutenFile.toFile().deleteOnExit();
 
+      URL[] jarUrls;
+      if (enableGluten_) {
+        // if gluten is enabled, we will load gluten-flink-planner.jar first
+        jarUrls = new URL[] {glutenFile.toUri().toURL(), tempFile.toUri().toURL()};
+      } else {
+        // if gluten is not enabled, we will load flink-table-planner.jar only
+        jarUrls = new URL[] {tempFile.toUri().toURL()};
+      }
       this.submoduleClassLoader =
           new PlannerComponentClassLoader(
-              new URL[] {glutenFile.toUri().toURL(), tempFile.toUri().toURL()},
+              jarUrls,
               flinkClassLoader,
               OWNER_CLASSPATH,
               COMPONENT_CLASSPATH,
@@ -140,11 +159,15 @@ class PlannerModule {
   // Singleton lazy initialization
 
   private static class PlannerComponentsHolder {
-    private static final PlannerModule INSTANCE = new PlannerModule();
+    private static final PlannerModule FLINK_INSTANCE = new PlannerModule(false);
+    private static final PlannerModule GLUTEN_INSTANCE = new PlannerModule(true);
   }
 
   public static PlannerModule getInstance() {
-    return PlannerComponentsHolder.INSTANCE;
+    if (enableGluten) {
+      return PlannerComponentsHolder.GLUTEN_INSTANCE;
+    }
+    return PlannerComponentsHolder.FLINK_INSTANCE;
   }
 
   // load methods for various components provided by the planner
