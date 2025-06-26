@@ -45,18 +45,11 @@ namespace local_engine
 class RowRanges;
 using ReadRanges = std::vector<arrow::io::ReadRange>;
 using ReadSequence = std::vector<int64_t>;
-using ColumnReadState = std::pair<ReadRanges, ReadSequence>;
 using ColumnChunkPageRead = std::pair<std::unique_ptr<parquet::PageReader>, ReadSequence>;
 
 class VectorizedParquetBlockInputFormat;
 class ColumnIndexRowRangesProvider;
 
-ColumnReadState buildAllRead(int64_t rg_count, const arrow::io::ReadRange & chunk_range);
-ColumnReadState buildRead(
-    int64_t rg_count,
-    const arrow::io::ReadRange & chunk_range,
-    const std::vector<parquet::PageLocation> & page_locations,
-    const RowRanges & row_ranges);
 std::shared_ptr<parquet::ArrowInputStream>
 getStream(arrow::io::RandomAccessFile & reader, const std::vector<arrow::io::ReadRange> & ranges);
 
@@ -149,8 +142,6 @@ public:
     }
 };
 
-using BuildRead = std::function<ColumnReadState(const arrow::io::ReadRange & col_range)>;
-
 class ParquetFileReaderExt
 {
     /// Members
@@ -160,8 +151,8 @@ class ParquetFileReaderExt
     const DB::FormatSettings & format_settings_;
     const ColumnIndexRowRangesProvider & row_ranges_provider_;
 
-    ColumnChunkPageRead
-    readColumnChunkPageBase(const parquet::RowGroupMetaData & rg, Int32 column_index, const BuildRead & build_read) const;
+    std::unique_ptr<parquet::PageReader> createPageReader(
+        const parquet::ColumnChunkMetaData & column_metadata, const std::shared_ptr<parquet::ArrowInputStream> & input_stream) const;
 
 public:
     ParquetFileReaderExt(

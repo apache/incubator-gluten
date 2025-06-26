@@ -23,8 +23,8 @@
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ArrowFieldIndexUtil.h>
 #include <Storages/Parquet/ArrowUtils.h>
-#include <Storages/Parquet/ParquetMeta.h>
 #include <Storages/Parquet/ColumnIndexFilterUtils.h>
+#include <Storages/Parquet/ParquetMeta.h>
 #include <arrow/io/memory.h>
 #include <arrow/util/int_util_overflow.h>
 #include <parquet/column_reader.h>
@@ -239,38 +239,45 @@ ParquetFileReaderExt::nextRowGroup(int32_t row_group_index, int32_t column_index
         .transform(
             [&](const RowRanges & row_ranges)
             {
-                const auto rg = fileMeta()->RowGroup(row_group_index);
+                const auto & file_metadata = *fileMeta();
+
+                const auto rg = file_metadata.RowGroup(row_group_index);
+                const auto column_metadata = rg->ColumnChunk(column_index);
                 const auto rg_count = rg->num_rows();
-                const BuildRead readAll = [&](const arrow::io::ReadRange & col_range) { return buildAllRead(rg_count, col_range); };
-                const BuildRead read = row_ranges.rowCount() == rg_count ? readAll : [&](const arrow::io::ReadRange & col_range)
+                const auto col_range = computeColumnChunkRange(file_metadata, *column_metadata, source_size_);
+
+                ReadRanges read_ranges;
+                ReadSequence read_sequence;
+                if (rg_count == row_ranges.rowCount())
+                {
+                    read_ranges.emplace_back(col_range);
+                    read_sequence.emplace_back(rg_count);
+                }
+                else
                 {
                     const ColumnIndexStore & column_index_store = row_ranges_provider_.getColumnIndexStore(row_group_index);
                     const ColumnIndex & index = *column_index_store.find(lowerColumnNameIfNeed(column_name, format_settings_))->second;
-                    return buildRead(rg_count, col_range, index.offsetIndex().page_locations(), row_ranges);
-                };
-
-                return readColumnChunkPageBase(*rg, column_index, read);
+                    const std::vector<parquet::PageLocation> & page_locations = index.offsetIndex().page_locations();
+                    auto offset_index = ColumnIndexFilterUtils::filterOffsetIndex(page_locations, row_ranges, rg_count);
+                    read_ranges = ColumnIndexFilterUtils::calculateReadRanges(*offset_index, col_range, page_locations[0].offset);
+                    read_sequence = ColumnIndexFilterUtils::calculateReadSequence(*offset_index, row_ranges);
+                }
+                const auto input_stream = getStream(*source_, read_ranges);
+                return std::make_pair(createPageReader(*column_metadata, input_stream), read_sequence);
             });
 }
 
-ColumnChunkPageRead ParquetFileReaderExt::readColumnChunkPageBase(
-    const parquet::RowGroupMetaData & rg, const Int32 column_index, const BuildRead & build_read) const
+std::unique_ptr<parquet::PageReader> ParquetFileReaderExt::createPageReader(
+    const parquet::ColumnChunkMetaData & column_metadata, const std::shared_ptr<parquet::ArrowInputStream> & input_stream) const
 {
-    const auto file_metadata = file_reader_->metadata();
+    const auto & file_metadata = *fileMeta();
 
+    const parquet::ReaderProperties properties;
     // Prior to Arrow 3.0.0, is_compressed was always set to false in column headers,
     // even if compression was used. See ARROW-17100.
-    const bool always_compressed
-        = file_metadata->writer_version().VersionLt(parquet::ApplicationVersion::PARQUET_CPP_10353_FIXED_VERSION());
-    const auto column_metadata = rg.ColumnChunk(column_index);
-    const auto col_range = computeColumnChunkRange(*file_metadata, *column_metadata, source_size_);
-    const parquet::ReaderProperties properties;
-    auto [read_ranges, read_sequence] = build_read(col_range);
-    const auto input_stream = getStream(*source_, read_ranges);
-    return std::make_pair(
-        parquet::PageReader::Open(
-            input_stream, column_metadata->num_values(), column_metadata->compression(), properties, always_compressed),
-        read_sequence);
+    const bool always_compressed = file_metadata.writer_version().VersionLt(parquet::ApplicationVersion::PARQUET_CPP_10353_FIXED_VERSION());
+    return parquet::PageReader::Open(
+        input_stream, column_metadata.num_values(), column_metadata.compression(), properties, always_compressed);
 }
 
 /// input format
@@ -303,103 +310,6 @@ DB::Chunk VectorizedParquetBlockInputFormat::read()
             return {};
     }
     return record_reader_.nextBatch();
-}
-
-ColumnReadState buildAllRead(const int64_t rg_count, const arrow::io::ReadRange & chunk_range)
-{
-    return std::make_pair(ReadRanges{chunk_range}, ReadSequence{rg_count});
-}
-
-ReadSequence buildReadSequence(
-    const RowRanges & row_ranges,
-    const OffsetIndex & offset_index)
-{
-    assert(offset_index.getPageCount());
-
-    ReadSequence read_sequence;
-
-    auto skip = [](ReadSequence & read_sequence, const int64_t number) -> void
-    {
-        assert(number > 0);
-        if (read_sequence.empty() || read_sequence.back() > 0)
-            read_sequence.push_back(-number);
-        else
-            read_sequence.back() -= number;
-    };
-
-    auto read = [](ReadSequence & read_sequence, const int64_t number) -> void
-    {
-        assert(number > 0);
-        if (read_sequence.empty() || read_sequence.back() < 0)
-            read_sequence.push_back(number);
-        else
-            read_sequence.back() += number;
-    };
-
-    std::vector<Range> page_row_ranges;
-    const size_t pageSize = offset_index.getPageCount();
-    for (size_t pageIndex = 0; pageIndex < pageSize; ++pageIndex)
-    {
-        page_row_ranges.emplace_back(offset_index.getFirstRowIndex(pageIndex), offset_index.getLastRowIndex(pageIndex));
-    }
-    
-    auto row_range_begin = row_ranges.getRanges().begin();
-    const auto row_range_end = row_ranges.getRanges().end();
-    size_t rowIndex = row_range_begin->from;
-
-    for (size_t i = 0; i < page_row_ranges.size() && row_range_begin != row_range_end; ++i)
-    {
-        const size_t lastRowIndexInPage = page_row_ranges[i].to;
-        size_t readRowIndexInPage = page_row_ranges[i].from;
-
-        /// [readRowIndexInPage, rowIndex-1] - [rowIndex, rowIndex+readNumber-1] - [rowIndex+readNumber, lastRowIndexInPage]
-        if (rowIndex <= lastRowIndexInPage)
-        {
-            assert(rowIndex >= readRowIndexInPage);
-            do
-            {
-                if (rowIndex > readRowIndexInPage)
-                    skip(read_sequence, rowIndex - readRowIndexInPage);
-                const size_t readNumber = std::min(row_range_begin->to, lastRowIndexInPage) - rowIndex + 1;
-                read(read_sequence, readNumber);
-                rowIndex += readNumber;
-                readRowIndexInPage = rowIndex;
-
-                /// we already read current page, so we need to read next page.
-                if (row_range_begin->to > lastRowIndexInPage)
-                {
-                    assert(readRowIndexInPage > lastRowIndexInPage);
-                    break;
-                }
-
-                /// we already read current range so we need read next range
-                ++row_range_begin;
-                if (row_range_begin != row_range_end)
-                    rowIndex = row_range_begin->from;
-            } while (row_range_begin != row_range_end && rowIndex <= lastRowIndexInPage);
-
-            /// skip read remain records in current page.
-            if (readRowIndexInPage <= lastRowIndexInPage)
-                skip(read_sequence, lastRowIndexInPage - readRowIndexInPage + 1);
-        }
-        assert(!read_sequence.empty());
-    }
-    return read_sequence;
-}
-
-ColumnReadState buildRead(
-    const int64_t rg_count,
-    const arrow::io::ReadRange & chunk_range,
-    const std::vector<parquet::PageLocation> & page_locations,
-    const RowRanges & row_ranges)
-{
-    if (rg_count == row_ranges.rowCount())
-        return buildAllRead(rg_count, chunk_range);
-
-    auto offset_index = ColumnIndexFilterUtils::filterOffsetIndex(page_locations, row_ranges, rg_count);
-    return {
-        ColumnIndexFilterUtils::calculateReadRanges(*offset_index, chunk_range, page_locations[0].offset),
-        ColumnIndexFilterUtils::calculateReadSequence(*offset_index, row_ranges)};
 }
 
 std::shared_ptr<parquet::ArrowInputStream> getStream(arrow::io::RandomAccessFile & reader, const ReadRanges & ranges)
