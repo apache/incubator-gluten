@@ -30,6 +30,7 @@
 
 namespace DB
 {
+class KeyCondition;
 namespace ErrorCodes
 {
 extern const int NOT_IMPLEMENTED;
