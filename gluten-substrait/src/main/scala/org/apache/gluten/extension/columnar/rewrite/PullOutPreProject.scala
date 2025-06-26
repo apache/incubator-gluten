@@ -136,18 +136,14 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val preProject = ProjectExec(
         eliminateProjectList(sort.child.outputSet, expressionMap.values.toSeq),
         sort.child)
-      if (sort.child.logicalLink.isDefined) {
-        preProject.setLogicalLink(sort.child.logicalLink.get)
-      }
+      sort.child.logicalLink.foreach(preProject.setLogicalLink)
       val newSort = sort.copy(sortOrder = newSortOrder, child = preProject)
       newSort.copyTagsFrom(sort)
       // The pre-project and post-project of SortExec always appear together, so it's more
       // convenient to handle them together. Therefore, SortExec's post-project will no longer
       // be pulled out separately.
       val newProject = ProjectExec(sort.child.output, newSort)
-      if (newSort.logicalLink.isDefined) {
-        newProject.setLogicalLink(newSort.logicalLink.get)
-      }
+      newSort.logicalLink.foreach(newProject.setLogicalLink)
       newProject
 
     case topK: TakeOrderedAndProjectExec if needsPreProject(topK) =>
@@ -156,9 +152,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val preProject = ProjectExec(
         eliminateProjectList(topK.child.outputSet, expressionMap.values.toSeq),
         topK.child)
-      if (topK.child.logicalLink.isDefined) {
-        preProject.setLogicalLink(topK.child.logicalLink.get)
-      }
+      topK.child.logicalLink.foreach(preProject.setLogicalLink)
       val newTopK = topK.copy(sortOrder = newSortOrder, child = preProject)
       newTopK.copyTagsFrom(topK)
       newTopK
@@ -180,9 +174,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val preProject = ProjectExec(
         eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
         agg.child)
-      if (agg.child.logicalLink.isDefined) {
-        preProject.setLogicalLink(agg.child.logicalLink.get)
-      }
+      agg.child.logicalLink.foreach(preProject.setLogicalLink)
       newAgg.withNewChildren(Seq(preProject))
 
     case window: WindowExec if needsPreProject(window) =>
@@ -206,9 +198,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val newChild = ProjectExec(
         eliminateProjectList(window.child.outputSet, expressionMap.values.toSeq),
         window.child)
-      if (window.child.logicalLink.isDefined) {
-        newChild.setLogicalLink(window.child.logicalLink.get)
-      }
+      window.child.logicalLink.foreach(newChild.setLogicalLink)
 
       val newWindow = window.copy(
         orderSpec = newOrderSpec,
@@ -219,9 +209,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       newWindow.copyTagsFrom(window)
 
       val newProject = ProjectExec(window.output, newWindow)
-      if (newWindow.logicalLink.isDefined) {
-        newProject.setLogicalLink(newWindow.logicalLink.get)
-      }
+      newWindow.logicalLink.foreach(newProject.setLogicalLink)
       newProject
 
     case plan
@@ -240,9 +228,8 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val newChild = ProjectExec(
         eliminateProjectList(windowLimit.child.outputSet, expressionMap.values.toSeq),
         windowLimit.child)
-      if (windowLimit.child.logicalLink.isDefined) {
-        newChild.setLogicalLink(windowLimit.child.logicalLink.get)
-      }
+      windowLimit.child.logicalLink.foreach(newChild.setLogicalLink)
+
       val newWindowLimitShim = windowLimit.copy(
         orderSpec = newOrderSpec,
         partitionSpec = newPartitionSpec,
@@ -255,9 +242,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       newWindowLimit.copyTagsFrom(newWindowLimitShim)
 
       val newProject = ProjectExec(plan.output, newWindowLimit)
-      if (newWindowLimit.logicalLink.isDefined) {
-        newProject.setLogicalLink(newWindowLimit.logicalLink.get)
-      }
+      newWindowLimit.logicalLink.foreach(newProject.setLogicalLink)
       newProject
 
     case expand: ExpandExec if needsPreProject(expand) =>
@@ -273,9 +258,8 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val newProject = ProjectExec(
         eliminateProjectList(expand.child.outputSet, expressionMap.values.toSeq),
         expand.child)
-      if (expand.child.logicalLink.isDefined) {
-        newProject.setLogicalLink(expand.child.logicalLink.get)
-      }
+      expand.child.logicalLink.foreach(newProject.setLogicalLink)
+
       val newExpand = expand.copy(projections = newProjections, child = newProject)
       newExpand.copyTagsFrom(expand)
       newExpand
