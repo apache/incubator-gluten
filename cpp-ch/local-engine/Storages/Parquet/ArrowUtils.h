@@ -16,7 +16,6 @@
  */
 #pragma once
 #include <arrow/type_fwd.h>
-#include <parquet/level_conversion.h>
 #include <Common/Exception.h>
 namespace DB
 {

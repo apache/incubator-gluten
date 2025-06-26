@@ -24,6 +24,7 @@
 #include <Processors/Formats/Impl/ArrowFieldIndexUtil.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ParquetMeta.h>
+#include <Storages/Parquet/ColumnIndexFilterUtils.h>
 #include <arrow/io/memory.h>
 #include <arrow/util/int_util_overflow.h>
 #include <parquet/column_reader.h>
@@ -32,20 +33,6 @@
 
 namespace
 {
-bool extend(arrow::io::ReadRange & read_range, const int64_t offset, const int64_t length)
-{
-    if (read_range.offset + read_range.length == offset)
-    {
-        read_range.length += length;
-        return true;
-    }
-    return false;
-}
-void emplaceReadRange(local_engine::ReadRanges & read_ranges, const int64_t offset, const int64_t length)
-{
-    if (read_ranges.empty() || !extend(read_ranges.back(), offset, length))
-        read_ranges.emplace_back(arrow::io::ReadRange{offset, length});
-}
 
 /// Compute the section of the file that should be read for the given
 /// row group and column chunk.
@@ -317,19 +304,19 @@ DB::Chunk VectorizedParquetBlockInputFormat::read()
     }
     return record_reader_.nextBatch();
 }
+
 ColumnReadState buildAllRead(const int64_t rg_count, const arrow::io::ReadRange & chunk_range)
 {
     return std::make_pair(ReadRanges{chunk_range}, ReadSequence{rg_count});
 }
 
-ColumnReadState buildRead(
-    const int64_t rg_count,
-    const arrow::io::ReadRange & chunk_range,
-    const std::vector<parquet::PageLocation> & page_locations,
-    const RowRanges & row_ranges)
+ReadSequence buildReadSequence(
+    const RowRanges & row_ranges,
+    const OffsetIndex & offset_index)
 {
-    if (rg_count == row_ranges.rowCount())
-        return buildAllRead(rg_count, chunk_range);
+    assert(offset_index.getPageCount());
+
+    ReadSequence read_sequence;
 
     auto skip = [](ReadSequence & read_sequence, const int64_t number) -> void
     {
@@ -349,30 +336,13 @@ ColumnReadState buildRead(
             read_sequence.back() += number;
     };
 
-    ColumnReadState result;
-    const RowRangesBuilder rg_builder{rg_count, page_locations};
-    ReadRanges & read_ranges = result.first;
-
-    // Add a range for dictionary page if required
-    if (chunk_range.offset < page_locations[0].offset)
-        emplaceReadRange(read_ranges, chunk_range.offset, page_locations[0].offset - chunk_range.offset);
-
     std::vector<Range> page_row_ranges;
-    const size_t pageSize = page_locations.size();
+    const size_t pageSize = offset_index.getPageCount();
     for (size_t pageIndex = 0; pageIndex < pageSize; ++pageIndex)
     {
-        size_t from = rg_builder.firstRowIndex(pageIndex);
-        size_t to = rg_builder.lastRowIndex(pageIndex);
-        if (row_ranges.isOverlapping(from, to))
-        {
-            emplaceReadRange(read_ranges, page_locations[pageIndex].offset, page_locations[pageIndex].compressed_page_size);
-            page_row_ranges.push_back({from, to});
-        }
+        page_row_ranges.emplace_back(offset_index.getFirstRowIndex(pageIndex), offset_index.getLastRowIndex(pageIndex));
     }
-
-    result.second.resize(1);
-    std::vector<int64_t> & read_sequence = result.second;
-
+    
     auto row_range_begin = row_ranges.getRanges().begin();
     const auto row_range_end = row_ranges.getRanges().end();
     size_t rowIndex = row_range_begin->from;
@@ -414,7 +384,22 @@ ColumnReadState buildRead(
         }
         assert(!read_sequence.empty());
     }
-    return result;
+    return read_sequence;
+}
+
+ColumnReadState buildRead(
+    const int64_t rg_count,
+    const arrow::io::ReadRange & chunk_range,
+    const std::vector<parquet::PageLocation> & page_locations,
+    const RowRanges & row_ranges)
+{
+    if (rg_count == row_ranges.rowCount())
+        return buildAllRead(rg_count, chunk_range);
+
+    auto offset_index = ColumnIndexFilterUtils::filterOffsetIndex(page_locations, row_ranges, rg_count);
+    return {
+        ColumnIndexFilterUtils::calculateReadRanges(*offset_index, chunk_range, page_locations[0].offset),
+        ColumnIndexFilterUtils::calculateReadSequence(*offset_index, row_ranges)};
 }
 
 std::shared_ptr<parquet::ArrowInputStream> getStream(arrow::io::RandomAccessFile & reader, const ReadRanges & ranges)
