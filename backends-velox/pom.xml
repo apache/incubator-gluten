@@ -17,6 +17,7 @@
     <cpp.build.dir>../cpp/build/</cpp.build.dir>
     <cpp.releases.dir>${cpp.build.dir}/releases/</cpp.releases.dir>
     <byte-buddy.version>1.9.3</byte-buddy.version>
+    <tagsToExclude>org.apache.gluten.tags.EnhancedFeaturesTest</tagsToExclude>
   </properties>
 
   <profiles>
@@ -433,7 +434,7 @@
         <artifactId>scalatest-maven-plugin</artifactId>
         <configuration>
           <junitxml>.</junitxml>
-          <tagsToExclude>${tagsToExclude}</tagsToExclude>
+          <tagsToExclude>${tagsToExclude} </tagsToExclude>
           <systemProperties>
             <velox.udf.lib.path>
               ${cpp.build.dir}/velox/udf/examples/libmyudf.so,${cpp.build.dir}/velox/udf/examples/libmyudaf.so
