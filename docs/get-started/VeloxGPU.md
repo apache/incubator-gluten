@@ -77,4 +77,4 @@ Single Operator: Hash Agg shows 5x speedup
 
 ## **9. Relevant Resources**
 1. [CUDF Docs](https://docs.rapids.ai/api/cudf/stable/libcudf_docs/) - GPU operator APIs.
-2. [Gluten GPU Issue #9098](https://github.com/apache/incubator-gluten/issues/9098) - Development tracker.
+2. [Gluten GPU Issue #9098](https://github.com/apache/incubator-gluten/issues/8851) - Development tracker.
