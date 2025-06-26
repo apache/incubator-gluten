@@ -17,69 +17,63 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
 import org.apache.spark.sql.execution.{FileSourceScanExec, RDDScanExec, SparkPlan, SparkPlanReflectionUtil}
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
 
 import scala.collection.mutable
 
 object DistinguishIdenticalScans extends Rule[SparkPlan] {
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    // Set to track seen scan objects
     val seenScans = mutable.Set[SparkPlan]()
 
-    // Custom traversal to avoid transformUp's fastEquals optimization
     def traverse(node: SparkPlan): (SparkPlan, Boolean) = {
-      // First, check if this node is a scan and handle scan distinction logic
-      val (nodeToProcess, scanChanged) = node match {
-        case scan: FileSourceScanExec =>
-          distinguishScan(scan, seenScans)
-        case scan: BatchScanExec =>
-          distinguishScan(scan, seenScans)
-        case scan: DataSourceV2ScanExecBase =>
-          distinguishScan(scan, seenScans)
-        case scan: RDDScanExec =>
-          distinguishScan(scan, seenScans)
+      // 1. Recursively traverse children first (bottom-up).
+      var childrenChanged = false
+      val newChildren = node.children.map {
+        child =>
+          val (newChild, childChanged) = traverse(child)
+          if (childChanged) {
+            childrenChanged = true
+          }
+          newChild
+      }
+
+      // 2. Rebuild the parent node ONLY if a child was changed.
+      val nodeWithNewChildren = if (childrenChanged) {
+        SparkPlanReflectionUtil.withNewChildrenInternal(node, newChildren.toIndexedSeq)
+      } else {
+        node
+      }
+
+      // 3. Process the current node (after its children are finalized).
+      val (finalNode, currentNodeChanged) = nodeWithNewChildren match {
+        case scan: FileSourceScanExec => distinguish(scan)
+        case scan: BatchScanExec => distinguish(scan)
+        case scan: DataSourceV2ScanExecBase => distinguish(scan)
+        case scan: RDDScanExec => distinguish(scan)
+        // If it's not a scan, it doesn't change at this step.
         case other => (other, false)
       }
 
-      // Then, recursively process children of the (possibly cloned) node
-      var childrenChanged = false
-      val newChildren = nodeToProcess.children.map { child =>
-        val (newChild, changed) = traverse(child)
-        if (changed) childrenChanged = true
-        newChild
-      }
+      // 4. The final 'changed' status is true if EITHER the children changed OR
+      // the current node changed.
+      val overallChanged = childrenChanged || currentNodeChanged
+      (finalNode, overallChanged)
+    }
 
-      // Create final node with new children if any children changed
-      val finalNode = if (childrenChanged) {
-        SparkPlanReflectionUtil.withNewChildrenInternal(nodeToProcess, newChildren.toIndexedSeq)
+    def distinguish[T <: SparkPlan](scan: T): (T, Boolean) = {
+      if (seenScans.contains(scan)) {
+        // A clone was made, so return the new object and 'true'.
+        (scan.clone().asInstanceOf[T], true)
       } else {
-        nodeToProcess
+        // First time seeing this scan. Add it to the set and signal no change.
+        seenScans.add(scan)
+        (scan, false)
       }
-
-      (finalNode, scanChanged || childrenChanged)
     }
 
     val (newPlan, _) = traverse(plan)
     newPlan
-  }
-
-  private def distinguishScan[T <: SparkPlan](
-                                               scan: T,
-                                               seenScans: mutable.Set[SparkPlan]): (SparkPlan, Boolean) = {
-    if (seenScans.contains(scan)) {
-      // Scan already seen, clone it to distinguish from the original
-      val newScan = cloneScan(scan)
-      (newScan, true)
-    } else {
-      // First time seeing this scan
-      seenScans.add(scan)
-      (scan, false)
-    }
-  }
-
-  private def cloneScan(scan: SparkPlan): SparkPlan = {
-    scan.clone()
   }
 }
