@@ -25,6 +25,7 @@ import org.apache.spark.util.Utils
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
+import org.apache.hadoop.mapreduce.lib.output.committer.manifest.ManifestCommitter
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
 import java.lang.reflect.Field
@@ -79,6 +80,8 @@ class SparkWriteFilesCommitProtocol(
     val stagingDir: Path = internalCommitter match {
       // For FileOutputCommitter it has its own staging path called "work path".
       case f: FileOutputCommitter =>
+        new Path(Option(f.getWorkPath).map(_.toString).getOrElse(description.path))
+      case m: ManifestCommitter =>
         new Path(Option(f.getWorkPath).map(_.toString).getOrElse(description.path))
       case _ =>
         new Path(description.path)
