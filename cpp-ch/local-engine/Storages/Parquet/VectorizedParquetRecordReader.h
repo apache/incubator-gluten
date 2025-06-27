@@ -45,19 +45,28 @@ namespace local_engine
 class RowRanges;
 using ReadRanges = std::vector<arrow::io::ReadRange>;
 using ReadSequence = std::vector<int64_t>;
-using ColumnChunkPageRead = std::pair<std::unique_ptr<parquet::PageReader>, ReadSequence>;
-
+using PageReaderPtr = std::unique_ptr<parquet::PageReader>;
 class VectorizedParquetBlockInputFormat;
 class ColumnIndexRowRangesProvider;
+class ParquetReadState;
+using ParquetReadStatePtr = std::unique_ptr<ParquetReadState>;
+using ColumnChunkPageRead = std::pair<PageReaderPtr, ParquetReadStatePtr>;
+
 
 std::shared_ptr<parquet::ArrowInputStream>
 getStream(arrow::io::RandomAccessFile & reader, const std::vector<arrow::io::ReadRange> & ranges);
 
 class ParquetReadState
 {
-    parquet::internal::RecordReader & record_reader_;
+public:
+    using SkipFunc = std::function<int64_t(int64_t)>;
+    using ReadFunc = std::function<int64_t(int64_t)>;
+
+private:
     ReadSequence read_sequence_;
     int index_ = 0;
+    ReadFunc read_func_;
+    SkipFunc skip_func_;
 
     void advance(const int64_t read_or_skip)
     {
@@ -86,14 +95,25 @@ class ParquetReadState
         advance(read);
     }
 
-    int64_t SkipRecords(int64_t num_records) const { return record_reader_.SkipRecords(num_records); }
-    int64_t ReadRecords(int64_t num_records) const { return record_reader_.ReadRecords(num_records); }
+    int64_t SkipRecords(int64_t num_records) const
+    {
+        chassert(skip_func_);
+        chassert(num_records > 0);
+        return skip_func_(num_records);
+    }
+
+    int64_t ReadRecords(int64_t num_records) const
+    {
+        chassert(read_func_);
+        chassert(num_records > 0);
+        return read_func_(num_records);
+    }
 
 public:
-    explicit ParquetReadState(parquet::internal::RecordReader & record_reader, const ReadSequence & read_sequence)
-        : record_reader_(record_reader), read_sequence_(read_sequence)
-    {
-    }
+    explicit ParquetReadState(const ReadSequence & read_sequence) : read_sequence_(read_sequence) { }
+
+    void setReadFunc(ReadFunc read_func) { read_func_ = std::move(read_func); }
+    void setSkipFunc(SkipFunc skip_func) { skip_func_ = std::move(skip_func); }
 
     bool hasMoreRead() const
     {
@@ -109,7 +129,8 @@ public:
         {
             assert(index_ == read_sequence_.size() - 1);
             const int64_t skip = read_sequence_.back();
-            record_reader_.SkipRecords(-skip);
+            [[maybe_unused]] const int64_t records_skipped = SkipRecords(-skip);
+            assert(records_skipped == -skip);
             read_sequence_.back() -= skip;
             index_++;
         }
@@ -151,7 +172,7 @@ class ParquetFileReaderExt
     const DB::FormatSettings & format_settings_;
     const ColumnIndexRowRangesProvider & row_ranges_provider_;
 
-    std::unique_ptr<parquet::PageReader> createPageReader(
+    PageReaderPtr createPageReader(
         const parquet::ColumnChunkMetaData & column_metadata, const std::shared_ptr<parquet::ArrowInputStream> & input_stream) const;
 
 public:
@@ -167,11 +188,11 @@ public:
 
 class PageIterator final : public parquet::arrow::FileColumnIterator
 {
-    ParquetFileReaderExt * reader_ext_;
+    ParquetFileReaderExt & reader_ext_;
 
 public:
-    PageIterator(const int column_index, ParquetFileReaderExt * reader_ext, const std::vector<Int32> & row_groups)
-        : FileColumnIterator(column_index, reader_ext->fileReader(), row_groups), reader_ext_(reader_ext)
+    PageIterator(const int column_index, ParquetFileReaderExt & reader_ext, const std::vector<Int32> & row_groups)
+        : FileColumnIterator(column_index, reader_ext.fileReader(), row_groups), reader_ext_(reader_ext)
     {
     }
 
@@ -185,13 +206,13 @@ class VectorizedColumnReader
     std::shared_ptr<arrow::Field> arrow_field_;
     PageIterator input_;
     std::shared_ptr<parquet::internal::RecordReader> record_reader_;
-    std::unique_ptr<ParquetReadState> read_state_;
+    ParquetReadStatePtr read_state_;
 
     void nextRowGroup();
-    void setPageReader(std::unique_ptr<parquet::PageReader> reader, const ReadSequence & read_sequence);
+    void setPageReader(PageReaderPtr reader, ParquetReadStatePtr read_state);
 
 public:
-    VectorizedColumnReader(const parquet::arrow::SchemaField & field, ParquetFileReaderExt * reader, const std::vector<Int32> & row_groups);
+    VectorizedColumnReader(const parquet::arrow::SchemaField & field, ParquetFileReaderExt & reader, const std::vector<Int32> & row_groups);
     const std::string & columnName() const { return arrow_field_->name(); }
     std::shared_ptr<arrow::Field> arrowField() const { return arrow_field_; }
     bool hasMoreRead() const { return read_state_ && read_state_->hasMoreRead(); }

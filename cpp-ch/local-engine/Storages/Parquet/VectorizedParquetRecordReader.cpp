@@ -83,7 +83,7 @@ namespace local_engine
 using namespace ParquetVirtualMeta;
 
 VectorizedColumnReader::VectorizedColumnReader(
-    const parquet::arrow::SchemaField & field, ParquetFileReaderExt * reader, const std::vector<Int32> & row_groups)
+    const parquet::arrow::SchemaField & field, ParquetFileReaderExt & reader, const std::vector<Int32> & row_groups)
     : arrow_field_(field.field)
     , input_(field.column_index, reader, row_groups)
     , record_reader_(parquet::internal::RecordReader::Make(
@@ -97,17 +97,19 @@ void VectorizedColumnReader::nextRowGroup()
     input_.nextRowGroup().and_then(
         [&](ColumnChunkPageRead && read) -> std::optional<int64_t>
         {
-            setPageReader(std::move(read.first), read.second);
+            setPageReader(std::move(read.first), std::move(read.second));
             return std::nullopt;
         });
 }
 
-void VectorizedColumnReader::setPageReader(std::unique_ptr<parquet::PageReader> reader, const ReadSequence & read_sequence)
+void VectorizedColumnReader::setPageReader(PageReaderPtr reader, ParquetReadStatePtr read_state)
 {
     if (read_state_)
         read_state_->skipLastRecord();
     record_reader_->SetPageReader(std::move(reader));
-    read_state_ = std::make_unique<ParquetReadState>(*record_reader_, read_sequence);
+    read_state_ = std::move(read_state);
+    read_state_->setReadFunc([&](int64_t count) -> int64_t { return record_reader_->ReadRecords(count); });
+    read_state_->setSkipFunc([&](int64_t count) -> int64_t { return record_reader_->SkipRecords(count); });
 }
 
 std::shared_ptr<arrow::ChunkedArray> VectorizedColumnReader::readBatch(int64_t batch_size)
@@ -180,7 +182,7 @@ bool VectorizedParquetRecordReader::initialize(
         auto const & field = manifest.schema_fields[column_index];
         assert(field.column_index >= 0);
         assert(column_index == field.column_index);
-        column_readers_.emplace_back(field, file_reader_.get(), row_groups);
+        column_readers_.emplace_back(field, *file_reader_, row_groups);
         if (!column_readers_.back().hasMoreRead())
         {
             assert(column_readers_.size() == 1);
@@ -224,7 +226,7 @@ std::optional<ColumnChunkPageRead> PageIterator::nextRowGroup()
     while (!row_groups_.empty())
     {
         const Int32 row_group_index = row_groups_.front();
-        auto result = reader_ext_->nextRowGroup(row_group_index, column_index_, descr()->name());
+        auto result = reader_ext_.nextRowGroup(row_group_index, column_index_, descr()->name());
         row_groups_.pop_front();
         if (result)
             return result;
@@ -263,11 +265,11 @@ ParquetFileReaderExt::nextRowGroup(int32_t row_group_index, int32_t column_index
                     read_sequence = ColumnIndexFilterUtils::calculateReadSequence(*offset_index, row_ranges);
                 }
                 const auto input_stream = getStream(*source_, read_ranges);
-                return std::make_pair(createPageReader(*column_metadata, input_stream), read_sequence);
+                return std::make_pair(createPageReader(*column_metadata, input_stream), std::make_unique<ParquetReadState>(read_sequence));
             });
 }
 
-std::unique_ptr<parquet::PageReader> ParquetFileReaderExt::createPageReader(
+PageReaderPtr ParquetFileReaderExt::createPageReader(
     const parquet::ColumnChunkMetaData & column_metadata, const std::shared_ptr<parquet::ArrowInputStream> & input_stream) const
 {
     const auto & file_metadata = *fileMeta();

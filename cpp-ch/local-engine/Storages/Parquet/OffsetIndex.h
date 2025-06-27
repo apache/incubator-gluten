@@ -78,6 +78,8 @@ public:
         chassert(false && "Not implemented");
         return std::nullopt;
     }
+
+    int64_t getPageRowCount(int32_t pageIndex) const { return getLastRowIndex(pageIndex) - getFirstRowIndex(pageIndex) + 1; }
 };
 
 class OffsetIndexImpl final : public OffsetIndex
@@ -87,8 +89,9 @@ class OffsetIndexImpl final : public OffsetIndex
 
 public:
     explicit OffsetIndexImpl(const std::vector<parquet::PageLocation> & page_locations, int64_t rowGroupRowCount)
-        : page_locations_(page_locations)
-        , rowGroupRowCount_(rowGroupRowCount) {}
+        : page_locations_(page_locations), rowGroupRowCount_(rowGroupRowCount)
+    {
+    }
 
     int32_t getPageCount() const override { return page_locations_.size(); }
 
