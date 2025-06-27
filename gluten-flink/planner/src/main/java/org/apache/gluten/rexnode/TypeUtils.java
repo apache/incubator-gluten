@@ -52,6 +52,10 @@ public class TypeUtils {
     return type instanceof VarCharType;
   }
 
+  public static boolean isIntegerType(Type type) {
+    return type instanceof IntegerType;
+  }
+
   public static List<TypedExpr> promoteTypeForArithmeticExpressions(List<TypedExpr> expressions) {
     Type targetType =
         expressions.stream()
