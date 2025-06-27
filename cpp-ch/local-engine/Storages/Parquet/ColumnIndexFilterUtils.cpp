@@ -16,8 +16,8 @@
  */
 
 #include "ColumnIndexFilterUtils.h"
-#include <Storages/Parquet/RowRanges.h>
 #include <Storages/Parquet/ParquetReadState.h>
+#include <Storages/Parquet/RowRanges.h>
 
 struct FilteredOffsetIndex final : local_engine::OffsetIndex
 {
@@ -37,8 +37,7 @@ struct FilteredOffsetIndex final : local_engine::OffsetIndex
 
     int64_t getFirstRowIndex(int32_t pageIndex) const override { return offset_index_->getFirstRowIndex(index_map_[pageIndex]); }
 
-    int64_t getLastRowIndex(int32_t pageIndex) const override { return offset_index_->getLastRowIndex(index_map_[pageIndex]);}
-
+    int64_t getLastRowIndex(int32_t pageIndex) const override { return offset_index_->getLastRowIndex(index_map_[pageIndex]); }
 };
 
 namespace local_engine
@@ -79,7 +78,7 @@ ReadRanges ColumnIndexFilterUtils::calculateReadRanges(
     if (ranges.empty())
     {
         ranges.emplace_back(offset_index.getOffset(pageIndex), offset_index.getCompressedPageSize(pageIndex));
-        pageIndex +=1;
+        pageIndex += 1;
     }
 
     auto extend = [](arrow::io::ReadRange & read_range, const int64_t offset, const int64_t length)
@@ -110,14 +109,15 @@ ReadSequence ColumnIndexFilterUtils::calculateReadSequence(const OffsetIndex & o
     ParquetReadState2 read_state(rowRanges);
     ReadSequence read_sequence;
 
-    read_state.setSkipFunc([& read_sequence](int64_t number)
-    {
-        assert(number > 0);
-        if (read_sequence.empty() || read_sequence.back() > 0)
-            read_sequence.push_back(-number);
-        else
-            read_sequence.back() -= number;
-    });
+    read_state.setSkipFunc(
+        [&read_sequence](int64_t number)
+        {
+            assert(number > 0);
+            if (read_sequence.empty() || read_sequence.back() > 0)
+                read_sequence.push_back(-number);
+            else
+                read_sequence.back() -= number;
+        });
 
     read_state.setReadFunc(
         [&read_sequence](int64_t number)
@@ -132,11 +132,9 @@ ReadSequence ColumnIndexFilterUtils::calculateReadSequence(const OffsetIndex & o
     read_state.resetForNewBatch(std::numeric_limits<int32_t>::max());
     for (int32_t pageIndex = 0; pageIndex < offset_index.getPageCount(); ++pageIndex)
     {
-        read_state.resetForNewPage(offset_index.getLastRowIndex(pageIndex) - offset_index.getFirstRowIndex(pageIndex) + 1,
-                                   offset_index.getFirstRowIndex(pageIndex));
+        read_state.resetForNewPage(offset_index.getPageRowCount(pageIndex), offset_index.getFirstRowIndex(pageIndex));
         read_state.read();
     }
-
     assert(!read_sequence.empty());
     return read_sequence;
 }
