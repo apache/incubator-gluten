@@ -146,7 +146,6 @@ jobs:
           ls -l $SPARK_HOME
           $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest \
-          -DtagsToInclude=org.apache.spark.tags.EnhancedFeaturesTest \
           -DargLine="-Dspark.test.home=$SPARK_HOME ${EXTRA_FLAGS}"
       - name: Upload test report
         if: always()
