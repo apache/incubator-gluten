@@ -14,7 +14,7 @@ parent: Getting-Started
 ## **1. Overview**
 - **Purpose**: Accelerate Velox operators via CUDF APIs, replacing CPU execution when enabled.
 - **Status**: Experimental (TPC-H SF1 validated). Integrates RAPIDS ecosystem with Apache Spark via Gluten .
-- **Key Benefit**: Some queries is up to **8.1x speedup** on x86 vs. Spark Java engine .
+- **Key Benefit**: Some queries achieved up to **8.1x speedup** on x86 vs. Spark Java engine .
 
 ---
 
@@ -55,7 +55,7 @@ If building in the docker image, no need to set up script and build arrow.
 ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --enable_cudf=ON
 ```
 
-## **7. GPU Operator Support Status**
+## **6. GPU Operator Support Status**
 | **Operator**    | **Status**      | **Notes**                |  
 |-----------------|-----------------|--------------------------|
 | **Scan**        |  ❌ Not supported| In Development           |  
@@ -68,13 +68,13 @@ If building in the docker image, no need to set up script and build arrow.
 
 ---
 
-## **8. Performance Validation**
+## **7. Performance Validation**
 
 GPU performs better on operator HashJoin and HashAggregation.
-Single Operator: Hash Agg shows 5x speedup
+Single Operator like Hash Agg shows 5x speedup.
 
 ---
 
-## **9. Relevant Resources**
+## **8. Relevant Resources**
 1. [CUDF Docs](https://docs.rapids.ai/api/cudf/stable/libcudf_docs/) - GPU operator APIs.
 2. [Gluten GPU Issue #9098](https://github.com/apache/incubator-gluten/issues/8851) - Development tracker.
