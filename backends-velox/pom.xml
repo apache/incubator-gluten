@@ -21,12 +21,12 @@
 
   <profiles>
     <profile>
-      <id>udf</id>
+      <id>exclude-tests</id>
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
-        <tagsToExclude>org.apache.gluten.tags.UDFTest</tagsToExclude>
+        <tagsToExclude>org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.spark.tags.SkipTest</tagsToExclude>
       </properties>
     </profile>
     <profile>
