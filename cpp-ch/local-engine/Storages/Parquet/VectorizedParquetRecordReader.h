@@ -48,7 +48,8 @@ using ReadSequence = std::vector<int64_t>;
 using PageReaderPtr = std::unique_ptr<parquet::PageReader>;
 class VectorizedParquetBlockInputFormat;
 class ColumnIndexRowRangesProvider;
-class ParquetReadState;
+class ParquetReadState1;
+using ParquetReadState = ParquetReadState1;
 using ParquetReadStatePtr = std::unique_ptr<ParquetReadState>;
 using ColumnChunkPageRead = std::pair<PageReaderPtr, ParquetReadStatePtr>;
 
@@ -56,7 +57,7 @@ using ColumnChunkPageRead = std::pair<PageReaderPtr, ParquetReadStatePtr>;
 std::shared_ptr<parquet::ArrowInputStream>
 getStream(arrow::io::RandomAccessFile & reader, const std::vector<arrow::io::ReadRange> & ranges);
 
-class ParquetReadState
+class ParquetReadState1
 {
 public:
     using SkipFunc = std::function<int64_t(int64_t)>;
@@ -110,7 +111,7 @@ private:
     }
 
 public:
-    explicit ParquetReadState(const ReadSequence & read_sequence) : read_sequence_(read_sequence) { }
+    explicit ParquetReadState1(const ReadSequence & read_sequence) : read_sequence_(read_sequence) { }
 
     void setReadFunc(ReadFunc read_func) { read_func_ = std::move(read_func); }
     void setSkipFunc(SkipFunc skip_func) { skip_func_ = std::move(skip_func); }
