@@ -14,15 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql;
+package org.apache.gluten.source;
 
-import org.apache.iceberg.spark.sql.TestTimestampWithoutZone;
+import org.apache.iceberg.PlanningMode;
+import org.apache.iceberg.spark.source.TestRuntimeFiltering;
 
-import java.util.Map;
-
-public class GlutenTestTimestampWithoutZone extends TestTimestampWithoutZone {
-  public GlutenTestTimestampWithoutZone(
-      String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
+public class TestGlutenRuntimeFiltering extends TestRuntimeFiltering {
+  public TestGlutenRuntimeFiltering(PlanningMode planningMode) {
+    super(planningMode);
   }
 }

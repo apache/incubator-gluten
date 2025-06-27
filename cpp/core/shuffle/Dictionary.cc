@@ -14,8 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql;
 
-import org.apache.iceberg.spark.sql.TestPartitionedWritesAsSelect;
+#include "shuffle/Dictionary.h"
+#include "utils/Exception.h"
 
-public class GlutenTestPartitionedWritesAsSelect extends TestPartitionedWritesAsSelect {}
+namespace gluten {
+
+static ShuffleDictionaryWriterFactory dictionaryWriterFactory;
+
+void registerShuffleDictionaryWriterFactory(ShuffleDictionaryWriterFactory factory) {
+  if (dictionaryWriterFactory) {
+    throw GlutenException("DictionaryWriter factory already registered.");
+  }
+  dictionaryWriterFactory = std::move(factory);
+}
+
+std::unique_ptr<ShuffleDictionaryWriter> createDictionaryWriter(
+    MemoryManager* memoryManager,
+    arrow::util::Codec* codec) {
+  if (!dictionaryWriterFactory) {
+    throw GlutenException("DictionaryWriter factory not registered.");
+  }
+  return dictionaryWriterFactory(memoryManager, codec);
+}
+
+} // namespace gluten

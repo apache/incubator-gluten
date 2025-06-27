@@ -16,13 +16,11 @@
  */
 package org.apache.gluten.extensions;
 
-import org.apache.iceberg.spark.extensions.TestStoragePartitionedJoinsInRowLevelOperations;
-
 import java.util.Map;
 
-public class GlutenTestStoragePartitionedJoinsInRowLevelOperations
-    extends TestStoragePartitionedJoinsInRowLevelOperations {
-  public GlutenTestStoragePartitionedJoinsInRowLevelOperations(
+public class TestGlutenSystemFunctionPushDownInRowLevelOperations
+    extends TestGlutenSystemFunctionPushDownDQL {
+  public TestGlutenSystemFunctionPushDownInRowLevelOperations(
       String catalogName, String implementation, Map<String, String> config) {
     super(catalogName, implementation, config);
   }

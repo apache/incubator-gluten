@@ -14,14 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql;
+package org.apache.gluten.extensions;
 
-import org.apache.iceberg.spark.sql.TestDeleteFrom;
+import org.apache.iceberg.spark.extensions.TestStoragePartitionedJoinsInRowLevelOperations;
 
 import java.util.Map;
 
-public class GlutenTestDeleteFrom extends TestDeleteFrom {
-  public GlutenTestDeleteFrom(
+public class TestGlutenStoragePartitionedJoinsInRowLevelOperations
+    extends TestStoragePartitionedJoinsInRowLevelOperations {
+  public TestGlutenStoragePartitionedJoinsInRowLevelOperations(
       String catalogName, String implementation, Map<String, String> config) {
     super(catalogName, implementation, config);
   }
