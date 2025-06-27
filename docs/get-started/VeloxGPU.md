@@ -55,6 +55,8 @@ If building in the docker image, no need to set up script and build arrow.
 ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --enable_cudf=ON
 ```
 
+---
+
 ## **6. GPU Operator Support Status**
 | **Operator**    | **Status**      | **Notes**                |  
 |-----------------|-----------------|--------------------------|
