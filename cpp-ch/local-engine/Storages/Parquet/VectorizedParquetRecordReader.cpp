@@ -24,6 +24,7 @@
 #include <Processors/Formats/Impl/ArrowFieldIndexUtil.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilterUtils.h>
+#include <Storages/Parquet/ParquetReadState.h>
 #include <Storages/Parquet/ParquetMeta.h>
 #include <arrow/io/memory.h>
 #include <arrow/util/int_util_overflow.h>
