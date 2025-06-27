@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -133,17 +134,13 @@ public class Utils {
   public static TypedExpr generateJoinEqualCondition(
       List<FieldAccessTypedExpr> leftKeys, List<FieldAccessTypedExpr> rightKeys) {
     checkArgument(leftKeys.size() == rightKeys.size());
-    TypedExpr result = null;
-    for (int i = 0; i < leftKeys.size(); i++) {
-      TypedExpr equal =
-          new CallTypedExpr(
-              new BooleanType(), List.of(leftKeys.get(i), rightKeys.get(i)), "equalto");
-      if (i > 0) {
-        result = new CallTypedExpr(new BooleanType(), List.of(result, equal), "and");
-      } else {
-        result = equal;
-      }
-    }
-    return result;
+    List<TypedExpr> equals =
+        IntStream.range(0, leftKeys.size())
+            .mapToObj(
+                i ->
+                    new CallTypedExpr(
+                        new BooleanType(), List.of(leftKeys.get(i), rightKeys.get(i)), "equalto"))
+            .collect(Collectors.toList());
+    return new CallTypedExpr(new BooleanType(), equals, "and");
   }
 }
