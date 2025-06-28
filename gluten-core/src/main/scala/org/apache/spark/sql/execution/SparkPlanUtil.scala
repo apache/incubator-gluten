@@ -23,7 +23,7 @@ import java.lang.reflect.Method
 /**
  * This is a hack to access withNewChildrenInternal method of TreeNode, which is a protected method
  */
-object SparkPlanReflectionUtil {
+object SparkPlanUtil {
   def withNewChildrenInternal(plan: SparkPlan, children: IndexedSeq[SparkPlan]): SparkPlan = {
     // 1. Get the Method object for the protected method
     val method: Method =

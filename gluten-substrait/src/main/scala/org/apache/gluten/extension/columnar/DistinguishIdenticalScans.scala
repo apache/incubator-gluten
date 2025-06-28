@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{FileSourceScanExec, RDDScanExec, SparkPlan, SparkPlanReflectionUtil}
+import org.apache.spark.sql.execution.{FileSourceScanExec, RDDScanExec, SparkPlan, SparkPlanUtil}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
 
 import scala.collection.mutable
@@ -41,7 +41,7 @@ object DistinguishIdenticalScans extends Rule[SparkPlan] {
 
       // 2. Rebuild the parent node ONLY if a child was changed.
       val nodeWithNewChildren = if (childrenChanged) {
-        SparkPlanReflectionUtil.withNewChildrenInternal(node, newChildren.toIndexedSeq)
+        SparkPlanUtil.withNewChildrenInternal(node, newChildren.toIndexedSeq)
       } else {
         node
       }
