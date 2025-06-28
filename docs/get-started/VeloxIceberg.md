@@ -91,6 +91,12 @@ Not support avro format.
 ## SQL
 Only support SELECT.
 
+## Schema evolution
+PartialOffload
+
+Gluten uses column name to match the parquet file, so if the column is renamed or
+the added column name is same to the deleted column, the scan will fall back.
+
 ## Configuration
 ### Catalogs
 Supports all the catalog options, which is not used in native engine.
