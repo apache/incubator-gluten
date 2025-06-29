@@ -63,9 +63,11 @@ SubstraitFileSource::SubstraitFileSource(
 
 SubstraitFileSource::~SubstraitFileSource() = default;
 
-void SubstraitFileSource::setKeyCondition(const DB::ActionsDAG & filter_actions_dag, DB::ContextPtr context_)
+void SubstraitFileSource::setKeyCondition(const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag_, DB::ContextPtr context_)
 {
-    column_index_filter = std::make_shared<ColumnIndexFilter>(filter_actions_dag, context_);
+    assert(filter_actions_dag_);
+    filter_actions_dag = filter_actions_dag_;
+    column_index_filter = std::make_shared<ColumnIndexFilter>(*filter_actions_dag, context_);
 }
 
 DB::Chunk SubstraitFileSource::generate()
@@ -103,7 +105,7 @@ bool SubstraitFileSource::tryPrepareReader()
         if (!current_file->supportSplit() && current_file->getStartOffset())
             continue;
 
-        file_reader = BaseReader::create(current_file, readHeader, outputHeader, column_index_filter);
+        file_reader = BaseReader::create(current_file, readHeader, outputHeader, filter_actions_dag, column_index_filter);
         if (file_reader)
             return true;
     }

@@ -274,11 +274,12 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
     const FormatFilePtr & file,
     const DB::Block & to_read_header_,
     const DB::Block & output_header_,
+    const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag = nullptr,
     const ColumnIndexFilterPtr & column_index_filter = nullptr)
 {
     file->initialize(column_index_filter);
-    auto createInputFormat
-        = [&](const DB::Block & new_read_header_) -> FormatFile::InputFormatPtr { return file->createInputFormat(new_read_header_); };
+    auto createInputFormat = [&](const DB::Block & new_read_header_) -> FormatFile::InputFormatPtr
+    { return file->createInputFormat(new_read_header_, filter_actions_dag); };
 
     if (file->getFileInfo().has_iceberg())
         return iceberg::IcebergReader::create(file, to_read_header_, output_header_, createInputFormat);
@@ -310,10 +311,13 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
     return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
 }
 }
+
+/// TODO Remove ColumnIndexFilterPtr
 std::unique_ptr<BaseReader> BaseReader::create(
     const FormatFilePtr & current_file,
     const DB::Block & readHeader,
     const DB::Block & outputHeader,
+    const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag,
     const ColumnIndexFilterPtr & column_index_filter)
 {
     if (!readHeader)
@@ -328,7 +332,7 @@ std::unique_ptr<BaseReader> BaseReader::create(
         }
     }
 
-    return createNormalFileReader(current_file, readHeader, outputHeader, column_index_filter);
+    return createNormalFileReader(current_file, readHeader, outputHeader, filter_actions_dag, column_index_filter);
 }
 
 

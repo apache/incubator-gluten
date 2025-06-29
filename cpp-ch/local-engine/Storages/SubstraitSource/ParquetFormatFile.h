@@ -35,7 +35,8 @@ public:
         bool use_local_format_);
     ~ParquetFormatFile() override = default;
 
-    InputFormatPtr createInputFormat(const DB::Block & header) override;
+    InputFormatPtr
+    createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag = nullptr) override;
 
     std::optional<size_t> getTotalRows() override;
 

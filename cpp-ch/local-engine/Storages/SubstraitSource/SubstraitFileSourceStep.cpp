@@ -65,16 +65,12 @@ void SubstraitFileSourceStep::initializePipeline(DB::QueryPipelineBuilder & pipe
 
 void SubstraitFileSourceStep::applyFilters(const DB::ActionDAGNodes added_filter_nodes)
 {
-    if (auto dag = DB::ActionsDAG::buildFilterActionsDAG(added_filter_nodes.nodes))
+    SourceStepWithFilter::applyFilters(std::move(added_filter_nodes));
+    if (filter_actions_dag)
     {
-        filter_actions_dag = std::make_shared<const DB::ActionsDAG>(std::move(*dag));
         for (const auto & processor : pipe.getProcessors())
             if (auto * source = dynamic_cast<SubstraitFileSource *>(processor.get()))
-                source->setKeyCondition(*filter_actions_dag, context);
-    }
-    else
-    {
-        filter_actions_dag = nullptr;
+                source->setKeyCondition(filter_actions_dag, context);
     }
 }
 }

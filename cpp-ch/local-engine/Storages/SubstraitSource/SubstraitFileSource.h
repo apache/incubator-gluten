@@ -43,7 +43,7 @@ public:
 
     String getName() const override { return "SubstraitFileSource"; }
 
-    void setKeyCondition(const DB::ActionsDAG & filter_actions_dag, DB::ContextPtr context_);
+    void setKeyCondition(const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag_, DB::ContextPtr context_);
 
 protected:
     DB::Chunk generate() override;
@@ -60,5 +60,6 @@ private:
 
     std::unique_ptr<BaseReader> file_reader;
     ColumnIndexFilterPtr column_index_filter;
+    std::shared_ptr<const DB::ActionsDAG> filter_actions_dag;
 };
 }
