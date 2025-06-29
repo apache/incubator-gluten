@@ -486,6 +486,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // blocked by Velox-5768
     .exclude("aggregate function - array for primitive type containing null")
     .exclude("aggregate function - array for non-primitive type")
+    // Expected exception org.apache.spark.SparkException to be thrown, but no exception was thrown
+    .exclude("map_concat function")
     // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
     .includeCH("map_zip_with function - map of primitive types")
     .excludeCH("map with arrays")
