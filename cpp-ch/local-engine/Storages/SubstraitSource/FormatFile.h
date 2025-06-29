@@ -30,6 +30,7 @@
 
 namespace DB
 {
+class ActionsDAG;
 namespace ErrorCodes
 {
 extern const int NOT_IMPLEMENTED;
@@ -115,7 +116,9 @@ public:
     virtual ~FormatFile() = default;
 
     /// Create a new input format for reading this file
-    virtual InputFormatPtr createInputFormat(const DB::Block & header) = 0;
+    virtual InputFormatPtr
+    createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag = nullptr)
+        = 0;
 
     /// Spark would split a large file into small segements and read in different tasks
     /// If this file doesn't support the split feacture, only the task with offset 0 will generate data.
@@ -149,7 +152,6 @@ protected:
     std::map<String, String> partition_values;
     /// partition keys are normalized to lower cases for partition column case-insensitive matching
     std::map<String, String> normalized_partition_values;
-    std::shared_ptr<const DB::KeyCondition> key_condition;
     const FileMetaColumns meta_columns;
 
     /// Currently, it is used to read an iceberg format, and initialized in the constructor of child class
