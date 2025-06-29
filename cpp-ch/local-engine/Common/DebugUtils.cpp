@@ -361,7 +361,7 @@ void dumpMessage(const google::protobuf::Message & message, const char * type, b
 
     if (!force && !logger->debug())
         return;
-    pb_util::JsonOptions options;
+    pb_util::JsonPrintOptions options;
     std::string json;
     if (auto s = MessageToJsonString(message, &json, options); !s.ok())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
