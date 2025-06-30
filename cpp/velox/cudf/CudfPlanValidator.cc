@@ -34,7 +34,7 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
   std::unordered_map<std::string, std::string> configValues;
   std::vector<std::shared_ptr<ResultIterator>> inputs;
   std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg =
-      std::make_shared<facebook::velox::config::ConfigBase>(configValues);
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>());
   VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), veloxCfg.get(), std::nullopt, true);
   auto planNode = veloxPlanConverter.toVeloxPlan(substraitPlan, localFiles);
   std::unordered_set<velox::core::PlanNodeId> emptySet;
