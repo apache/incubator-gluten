@@ -34,7 +34,12 @@ import scala.collection.mutable.ArrayBuffer
  */
 object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
   override def isRewritable(plan: SparkPlan): Boolean = {
-    RewriteEligibility.isRewritable(plan)
+    plan match {
+      case _: BaseAggregateExec => true
+      case _: WindowExec => true
+      case _: GenerateExec => true
+      case _ => false
+    }
   }
 
   private def needsPostProjection(plan: SparkPlan): Boolean = {
