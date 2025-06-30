@@ -27,11 +27,13 @@ import io.github.zhztheplayer.velox4j.connector.NexmarkTableHandle;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.ProjectNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.plan.WatermarkAssignerNode;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -55,6 +57,7 @@ import org.apache.calcite.rex.RexNode;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -125,6 +128,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
     // --- Begin Gluten-specific code changes ---
     final long idleTimeout =
         config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT).toMillis();
+    final long watermarkInterval = config.get(PipelineOptions.AUTO_WATERMARK_INTERVAL).toMillis();
 
     io.github.zhztheplayer.velox4j.type.RowType inputType =
         (io.github.zhztheplayer.velox4j.type.RowType)
@@ -150,10 +154,18 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
             List.of(watermarkExprs));
     PlanNode watermark =
         new WatermarkAssignerNode(
-            PlanNodeIdGenerator.newId(), null, project, idleTimeout, rowtimeFieldIndex);
+            PlanNodeIdGenerator.newId(),
+            null,
+            project,
+            idleTimeout,
+            rowtimeFieldIndex,
+            watermarkInterval);
     final GlutenSingleInputOperator watermarkOperator =
         new GlutenSingleInputOperator(
-            watermark, PlanNodeIdGenerator.newId(), inputType, outputType);
+            new StatefulPlanNode(watermark.getId(), watermark),
+            PlanNodeIdGenerator.newId(),
+            inputType,
+            Map.of(watermark.getId(), outputType));
 
     return ExecNodeUtil.createOneInputTransformation(
         inputTransform,

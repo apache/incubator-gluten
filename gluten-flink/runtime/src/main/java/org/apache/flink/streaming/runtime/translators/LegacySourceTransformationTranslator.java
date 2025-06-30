@@ -17,12 +17,14 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
-import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
+import org.apache.gluten.table.runtime.operators.GlutenVectorSourceFunction;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import io.github.zhztheplayer.velox4j.connector.FuzzerConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.FuzzerTableHandle;
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
@@ -42,6 +44,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -87,16 +90,15 @@ public class LegacySourceTransformationTranslator<OUT>
               LogicalTypeConverter.toVLType(
                   ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
       String id = PlanNodeIdGenerator.newId();
+      PlanNode tableScan =
+          new TableScanNode(
+              id, outputType, new FuzzerTableHandle("connector-fuzzer", 12367), List.of());
       operatorFactory =
           SimpleOperatorFactory.of(
               new GlutenStreamSource(
-                  new GlutenSourceFunction(
-                      new TableScanNode(
-                          id,
-                          outputType,
-                          new FuzzerTableHandle("connector-fuzzer", 12367),
-                          List.of()),
-                      outputType,
+                  new GlutenVectorSourceFunction(
+                      new StatefulPlanNode(id, tableScan),
+                      Map.of(id, outputType),
                       id,
                       new FuzzerConnectorSplit("connector-fuzzer", 1000))));
       namePrefix = "Gluten ";
