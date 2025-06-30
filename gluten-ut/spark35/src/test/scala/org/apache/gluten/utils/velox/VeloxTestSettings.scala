@@ -957,6 +957,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Independent Batched Python UDFs and Scalar Pandas UDFs should be combined separately")
     .exclude("Dependent Batched Python UDFs and Scalar Pandas UDFs should not be combined")
     .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V2")
+  enableSuite[GlutenStreamingQuerySuite]
+    // requires test resources that don't exist in Gluten repo
+    .exclude("detect escaped path and report the migration guide")
+    .exclude("ignore the escaped path check when the flag is off")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
