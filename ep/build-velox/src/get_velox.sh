@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_06_30
+VELOX_REPO=https://github.com/JkSelf/velox.git
+VELOX_BRANCH=smj-full-test
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
 VELOX_ENHANCED_REPO=https://github.com/oap-project/velox.git
