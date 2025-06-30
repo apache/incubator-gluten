@@ -575,7 +575,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
 #ifdef GLUTEN_ENABLE_GPU
     if (veloxCfg_->get<bool>(kCudfEnabled, false)) {
-      configs[cudf_velox::kCudfEnabled] = "false";
+      // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
+      // configs[cudf_velox::kCudfEnabled] = "false";
     }
 #endif
 

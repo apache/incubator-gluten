@@ -60,9 +60,10 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
     if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
       continue;
     }
-    if (cudf_velox::isCudfOperator(op)) {
-      continue;
-    }
+    // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
+    // if (cudf_velox::isCudfOperator(op)) {
+    //   continue;
+    // }
     if (dynamic_cast<const ValueStream*>(op) != nullptr) {
       continue;
     }
