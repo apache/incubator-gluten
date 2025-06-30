@@ -106,6 +106,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableCountDistinctWithoutExpand: Boolean =
     getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
 
+  def enableColumnarCudf: Boolean = getConf(COLUMNAR_CUDF_ENABLED)
+
   def enableExtendedColumnPruning: Boolean =
     getConf(ENABLE_EXTENDED_COLUMN_PRUNING)
 
