@@ -30,7 +30,6 @@ import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.operators.StreamFilterTest;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
@@ -47,14 +46,11 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.jupiter.api.*;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -62,138 +58,153 @@ import java.util.Queue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class GlutenStreamFilterTest extends StreamFilterTest {
+public class GlutenStreamFilterTest {
 
-  private static final Logger LOG = LoggerFactory.getLogger(GlutenStreamFilterTest.class);
   private static FlinkTypeFactory typeFactory;
   private static RexBuilder rexBuilder;
+  private static RowType flinkRowType;
+  private static TypeInformation<RowData> typeInfo;
+  private static List<RowData> testInputData;
 
   @BeforeAll
   public static void setupAll() {
-    LOG.info("GlutenStreamFilterTest setup");
     Velox4jEnvironment.initializeOnce();
     typeFactory =
         new FlinkTypeFactory(
             Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
     rexBuilder = new FlinkRexBuilder(typeFactory);
-  }
 
-  @Override
-  @Test
-  public void testFilter() throws Exception {
-    RowType flinkRowType =
+    flinkRowType =
         RowType.of(
             new LogicalType[] {
               new IntType(), new VarCharType(VarCharType.MAX_LENGTH), new IntType()
             },
             new String[] {"id", "name", "age"});
-    List<String> inNames = Utils.getNamesFromRowType(flinkRowType);
 
-    RexNode ageFieldRef =
-        rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.INTEGER), 2);
-    RexNode literal18 =
-        rexBuilder.makeLiteral(
-            new BigDecimal(18), typeFactory.createSqlType(SqlTypeName.INTEGER), false);
-    RexNode filterConditionFlink =
-        rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, ageFieldRef, literal18);
+    typeInfo = InternalTypeInfo.of(flinkRowType);
 
-    RexConversionContext conversionContext = new RexConversionContext(inNames);
-    TypedExpr veloxFilterCondition =
-        RexNodeConverter.toTypedExpr(filterConditionFlink, conversionContext);
-
-    io.github.zhztheplayer.velox4j.type.RowType veloxType =
-        (io.github.zhztheplayer.velox4j.type.RowType)
-            org.apache.gluten.util.LogicalTypeConverter.toVLType(flinkRowType);
-
-    PlanNode veloxPlan =
-        new FilterNode(PlanNodeIdGenerator.newId(), List.of(), veloxFilterCondition);
-    TypeInformation<RowData> typeInfo = InternalTypeInfo.of(flinkRowType);
-
-    GlutenSingleInputOperator operator =
-        new GlutenSingleInputOperator(veloxPlan, PlanNodeIdGenerator.newId(), veloxType, veloxType);
-
-    TypeSerializer<RowData> serializer = typeInfo.createSerializer(new SerializerConfigImpl());
-    OneInputStreamOperatorTestHarness<RowData, RowData> harness =
-        new OneInputStreamOperatorTestHarness<>(operator, serializer);
-
-    harness.setup(typeInfo.createSerializer(new SerializerConfigImpl()));
-    harness.open();
-
-    List<RowData> inputData =
+    testInputData =
         Arrays.asList(
             GenericRowData.of(1, StringData.fromString("Alice"), 20),
             GenericRowData.of(2, StringData.fromString("Bob"), 17),
             GenericRowData.of(3, StringData.fromString("Charlie"), 25),
             GenericRowData.of(4, StringData.fromString("David"), 15));
+  }
 
-    long timestamp = 0L;
-    for (RowData row : inputData) {
-      harness.processElement(new StreamRecord<>(row, timestamp++));
-    }
-
-    Queue<Object> outputQueue = harness.getOutput();
-    List<RowData> actualOutput = new ArrayList<>();
-    while (!outputQueue.isEmpty()) {
-      Object record = outputQueue.poll();
-      if (record instanceof StreamRecord) {
-        actualOutput.add(((StreamRecord<RowData>) record).getValue());
-      }
-    }
-
+  @Test
+  public void testGreaterThanFilter() throws Exception {
     List<RowData> expectedOutput =
         Arrays.asList(
             GenericRowData.of(1, StringData.fromString("Alice"), 20),
             GenericRowData.of(3, StringData.fromString("Charlie"), 25));
 
-    assertThat(actualOutput).hasSize(expectedOutput.size());
-    for (int i = 0; i < expectedOutput.size(); i++) {
-      RowData expectedRow = expectedOutput.get(i);
-      RowData actualRow = actualOutput.get(i);
-      assertThat(actualRow.getInt(0)).isEqualTo(expectedRow.getInt(0));
-      assertThat(actualRow.getString(1).toString()).isEqualTo(expectedRow.getString(1).toString());
-      assertThat(actualRow.getInt(2)).isEqualTo(expectedRow.getInt(2));
-    }
-
-    harness.close();
+    testComparisonFilter(SqlStdOperatorTable.GREATER_THAN, 18, expectedOutput);
   }
 
-  @Override
+  @Test
+  public void testLessThanFilter() throws Exception {
+    List<RowData> expectedOutput =
+        Arrays.asList(
+            GenericRowData.of(2, StringData.fromString("Bob"), 17),
+            GenericRowData.of(4, StringData.fromString("David"), 15));
+
+    testComparisonFilter(SqlStdOperatorTable.LESS_THAN, 20, expectedOutput);
+  }
+
+  @Test
+  public void testEqualToFilter() throws Exception {
+    List<RowData> expectedOutput =
+        Arrays.asList(GenericRowData.of(1, StringData.fromString("Alice"), 20));
+
+    testComparisonFilter(SqlStdOperatorTable.EQUALS, 20, expectedOutput);
+  }
+
+  @Test
+  @Disabled
+  public void testGreaterThanOrEqualFilter() throws Exception {
+    List<RowData> expectedOutput =
+        Arrays.asList(
+            GenericRowData.of(1, StringData.fromString("Alice"), 20),
+            GenericRowData.of(3, StringData.fromString("Charlie"), 25));
+
+    testComparisonFilter(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, 20, expectedOutput);
+  }
+
+  @Test
+  @Disabled
+  public void testLessThanOrEqualFilter() throws Exception {
+    List<RowData> expectedOutput =
+        Arrays.asList(
+            GenericRowData.of(1, StringData.fromString("Alice"), 20),
+            GenericRowData.of(2, StringData.fromString("Bob"), 17),
+            GenericRowData.of(4, StringData.fromString("David"), 15));
+
+    testComparisonFilter(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, 20, expectedOutput);
+  }
+
+  @Test
+  @Disabled
+  public void testNotEqualFilter() throws Exception {
+    List<RowData> expectedOutput =
+        Arrays.asList(
+            GenericRowData.of(2, StringData.fromString("Bob"), 17),
+            GenericRowData.of(3, StringData.fromString("Charlie"), 25),
+            GenericRowData.of(4, StringData.fromString("David"), 15));
+
+    testComparisonFilter(SqlStdOperatorTable.NOT_EQUALS, 20, expectedOutput);
+  }
+
+  @Test
+  public void testStringEqualFilter() throws Exception {
+
+    RexNode nameFieldRef =
+        rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.VARCHAR), 1);
+    RexNode name =
+        rexBuilder.makeLiteral("Alice", typeFactory.createSqlType(SqlTypeName.VARCHAR), false);
+    RexNode flinkFilterCondition =
+        rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, nameFieldRef, name);
+
+    List<RowData> expectedOutput =
+        Arrays.asList(GenericRowData.of(1, StringData.fromString("Alice"), 20));
+
+    testFilterWithCondition(flinkFilterCondition, expectedOutput);
+  }
+
   @Test
   public void testOpenClose() throws Exception {
-    RowType flinkRowType = RowType.of(new LogicalType[] {new IntType()}, new String[] {"id"});
-    List<String> inNames = Utils.getNamesFromRowType(flinkRowType);
+    RowType simpleRowType = RowType.of(new LogicalType[] {new IntType()}, new String[] {"id"});
+    List<String> inNames = Utils.getNamesFromRowType(simpleRowType);
 
     RexNode idFieldRef = rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.INTEGER), 0);
-    RexNode literal0 =
-        rexBuilder.makeLiteral(
-            new BigDecimal(0), typeFactory.createSqlType(SqlTypeName.INTEGER), false);
-    RexNode filterConditionFlink =
-        rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, idFieldRef, literal0);
+    RexNode id = rexBuilder.makeLiteral(0, typeFactory.createSqlType(SqlTypeName.INTEGER), false);
+    RexNode flinkFilterCondition =
+        rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, idFieldRef, id);
 
     RexConversionContext conversionContext = new RexConversionContext(inNames);
     TypedExpr veloxFilterCondition =
-        RexNodeConverter.toTypedExpr(filterConditionFlink, conversionContext);
+        RexNodeConverter.toTypedExpr(flinkFilterCondition, conversionContext);
 
     io.github.zhztheplayer.velox4j.type.RowType veloxType =
         (io.github.zhztheplayer.velox4j.type.RowType)
-            org.apache.gluten.util.LogicalTypeConverter.toVLType(flinkRowType);
+            org.apache.gluten.util.LogicalTypeConverter.toVLType(simpleRowType);
 
     PlanNode veloxPlan =
         new FilterNode(PlanNodeIdGenerator.newId(), List.of(), veloxFilterCondition);
-    TypeInformation<RowData> typeInfo = InternalTypeInfo.of(flinkRowType);
 
     TestableGlutenSingleInputOperator operator =
         new TestableGlutenSingleInputOperator(
             veloxPlan, PlanNodeIdGenerator.newId(), veloxType, veloxType);
 
-    TypeSerializer<RowData> serializer = typeInfo.createSerializer(new SerializerConfigImpl());
+    TypeInformation<RowData> simpleTypeInfo = InternalTypeInfo.of(simpleRowType);
+    TypeSerializer<RowData> serializer =
+        simpleTypeInfo.createSerializer(new SerializerConfigImpl());
     OneInputStreamOperatorTestHarness<RowData, RowData> harness =
         new OneInputStreamOperatorTestHarness<>(operator, serializer);
 
     assertThat(operator.isOpened()).isFalse();
     assertThat(operator.isClosed()).isFalse();
 
-    harness.setup(typeInfo.createSerializer(new SerializerConfigImpl()));
+    harness.setup(simpleTypeInfo.createSerializer(new SerializerConfigImpl()));
     harness.open();
 
     assertThat(operator.isOpened()).isTrue();
@@ -207,6 +218,80 @@ public class GlutenStreamFilterTest extends StreamFilterTest {
 
     assertThat(operator.isOpened()).isTrue();
     assertThat(operator.isClosed()).isTrue();
+  }
+
+  private void testComparisonFilter(
+      SqlOperator operator, int compareValue, List<RowData> expectedOutput) throws Exception {
+
+    RexNode ageFieldRef =
+        rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.INTEGER), 2);
+    RexNode literal =
+        rexBuilder.makeLiteral(compareValue, typeFactory.createSqlType(SqlTypeName.INTEGER), false);
+    RexNode flinkFilterCondition = rexBuilder.makeCall(operator, ageFieldRef, literal);
+
+    testFilterWithCondition(flinkFilterCondition, expectedOutput);
+  }
+
+  private void testFilterWithCondition(RexNode filterCondition, List<RowData> expectedOutput)
+      throws Exception {
+    List<String> inNames = Utils.getNamesFromRowType(flinkRowType);
+
+    RexConversionContext conversionContext = new RexConversionContext(inNames);
+    TypedExpr veloxFilterCondition =
+        RexNodeConverter.toTypedExpr(filterCondition, conversionContext);
+
+    io.github.zhztheplayer.velox4j.type.RowType veloxType =
+        (io.github.zhztheplayer.velox4j.type.RowType)
+            org.apache.gluten.util.LogicalTypeConverter.toVLType(flinkRowType);
+
+    PlanNode veloxPlan =
+        new FilterNode(PlanNodeIdGenerator.newId(), List.of(), veloxFilterCondition);
+
+    GlutenSingleInputOperator operator =
+        new GlutenSingleInputOperator(veloxPlan, PlanNodeIdGenerator.newId(), veloxType, veloxType);
+
+    TypeSerializer<RowData> serializer = typeInfo.createSerializer(new SerializerConfigImpl());
+    OneInputStreamOperatorTestHarness<RowData, RowData> harness =
+        new OneInputStreamOperatorTestHarness<>(operator, serializer);
+
+    harness.setup(typeInfo.createSerializer(new SerializerConfigImpl()));
+    harness.open();
+
+    long timestamp = 0L;
+    for (RowData row : testInputData) {
+      harness.processElement(new StreamRecord<>(row, timestamp++));
+    }
+
+    List<RowData> actualOutput = extractOutputFromHarness(harness);
+    assertRowDataListEquals(actualOutput, expectedOutput);
+
+    harness.close();
+  }
+
+  private List<RowData> extractOutputFromHarness(
+      OneInputStreamOperatorTestHarness<RowData, RowData> harness) {
+    Queue<Object> outputQueue = harness.getOutput();
+    List<RowData> actualOutput = new ArrayList<>();
+    while (!outputQueue.isEmpty()) {
+      Object record = outputQueue.poll();
+      if (record instanceof StreamRecord) {
+        actualOutput.add(((StreamRecord<RowData>) record).getValue());
+      }
+    }
+    return actualOutput;
+  }
+
+  private void assertRowDataListEquals(List<RowData> actual, List<RowData> expected) {
+    assertThat(actual).hasSize(expected.size());
+    for (int i = 0; i < expected.size(); i++) {
+      assertRowDataEquals(actual.get(i), expected.get(i));
+    }
+  }
+
+  private void assertRowDataEquals(RowData actual, RowData expected) {
+    assertThat(actual.getInt(0)).isEqualTo(expected.getInt(0));
+    assertThat(actual.getString(1).toString()).isEqualTo(expected.getString(1).toString());
+    assertThat(actual.getInt(2)).isEqualTo(expected.getInt(2));
   }
 
   private static class TestableGlutenSingleInputOperator extends GlutenSingleInputOperator {
@@ -228,7 +313,6 @@ public class GlutenStreamFilterTest extends StreamFilterTest {
       }
       super.open();
       opened = true;
-      LOG.debug("GlutenSingleInputOperator opened successfully");
     }
 
     @Override
@@ -238,7 +322,6 @@ public class GlutenStreamFilterTest extends StreamFilterTest {
       }
       super.close();
       closed = true;
-      LOG.debug("GlutenSingleInputOperator closed successfully");
     }
 
     public boolean isOpened() {

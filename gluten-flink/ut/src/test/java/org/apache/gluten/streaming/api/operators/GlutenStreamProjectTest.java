@@ -30,7 +30,6 @@ import io.github.zhztheplayer.velox4j.plan.ProjectNode;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.operators.StreamProjectTest;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
@@ -51,10 +50,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -62,14 +58,12 @@ import java.util.Queue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class GlutenStreamProjectTest extends StreamProjectTest {
-  private static final Logger LOG = LoggerFactory.getLogger(GlutenStreamProjectTest.class);
+public class GlutenStreamProjectTest {
   private static FlinkTypeFactory typeFactory;
   private static RexBuilder rexBuilder;
 
   @BeforeAll
   public static void setupAll() {
-    LOG.info("GlutenStreamProjectTest setup");
     Velox4jEnvironment.initializeOnce();
     typeFactory =
         new FlinkTypeFactory(
@@ -77,7 +71,6 @@ public class GlutenStreamProjectTest extends StreamProjectTest {
     rexBuilder = new FlinkRexBuilder(typeFactory);
   }
 
-  @Override
   @Test
   public void testProject() throws Exception {
     RowType flinkInputRowType =
@@ -99,8 +92,7 @@ public class GlutenStreamProjectTest extends StreamProjectTest {
     RexNode ageFieldRef =
         rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.INTEGER), 2);
     RexNode literal2 =
-        rexBuilder.makeLiteral(
-            new BigDecimal(2), typeFactory.createSqlType(SqlTypeName.INTEGER), false);
+        rexBuilder.makeLiteral(2, typeFactory.createSqlType(SqlTypeName.INTEGER), false);
     RexNode ageMultipliedExpr =
         rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, ageFieldRef, literal2);
 
