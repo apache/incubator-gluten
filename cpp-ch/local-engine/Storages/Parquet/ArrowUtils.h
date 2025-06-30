@@ -16,7 +16,6 @@
  */
 #pragma once
 #include <arrow/type_fwd.h>
-#include <parquet/level_conversion.h>
 #include <Common/Exception.h>
 namespace DB
 {
@@ -60,7 +59,6 @@ T throwORReturnResult(::arrow::Result<T> && result)
         } \
     } while (false)
 
-parquet::internal::LevelInfo computeLevelInfo(const parquet::ColumnDescriptor * descr);
 
 /// \brief Get Arrow default memory pool.
 inline arrow::MemoryPool * defaultArrowPool()
