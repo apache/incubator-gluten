@@ -859,17 +859,11 @@ struct ColumnReader
     std::shared_ptr<parquet::PageReader> reader_;
     std::unique_ptr<local_engine::OffsetIndex> offset_index_;
     local_engine::ParquetReadState2 read_state_;
-    int32_t page_index_;
-
     local_engine::ReadSequence read_sequence_;
 
     bool OnNextPage(const parquet::DataPageStats & /*stats*/)
     {
-        chassert(page_index_ >= 0 && page_index_ < offset_index_->getPageCount());
-        auto firstRowIndex = offset_index_->getFirstRowIndex(page_index_);
-        auto lastRowIndex = offset_index_->getLastRowIndex(page_index_);
-        read_state_.resetForNewPage(lastRowIndex - firstRowIndex + 1, firstRowIndex);
-        page_index_ += 1;
+        read_state_.resetForNewPage();
         return false;
     }
 
@@ -877,13 +871,13 @@ struct ColumnReader
         std::shared_ptr<parquet::PageReader> reader,
         std::unique_ptr<local_engine::OffsetIndex> offset_index,
         const local_engine::RowRanges & row_ranges)
-        : reader_(std::move(reader)), offset_index_(std::move(offset_index)), read_state_(row_ranges), page_index_(0)
+        : reader_(std::move(reader)), read_state_(row_ranges, std::move(offset_index))
     {
         reader_->set_data_page_filter([this](const parquet::DataPageStats & stats) { return this->OnNextPage(stats); });
 
-        read_state_.setSkipFunc([this](int64_t count) { this->skipRecord(count); });
+        read_state_.setSkipFunc([this](int64_t count) { return this->skipRecord(count); });
 
-        read_state_.setReadFunc([this](int64_t count) { this->readRecord(count); });
+        read_state_.setReadFunc([this](int64_t count) { return this->readRecord(count); });
     }
 
     void readBatch(int64_t batch_size)
@@ -906,28 +900,29 @@ struct ColumnReader
         return remained_page_row_count_ > 0;
     }
 
-    void doRead(size_t count)
+    int64_t doRead(size_t count)
     {
         chassert(remained_page_row_count_ >= count);
         remained_page_row_count_ -= count;
+        return count;
     }
-    void skipRecord(int64_t count)
+    int64_t skipRecord(int64_t count)
     {
         assert(count > 0);
         if (read_sequence_.empty() || read_sequence_.back() > 0)
             read_sequence_.emplace_back(-count);
         else
             read_sequence_.back() -= count;
-        doRead(count);
+        return doRead(count);
     }
-    void readRecord(int64_t count)
+    int64_t readRecord(int64_t count)
     {
         assert(count > 0);
         if (read_sequence_.empty() || read_sequence_.back() < 0)
             read_sequence_.push_back(count);
         else
             read_sequence_.back() += count;
-        doRead(count);
+        return doRead(count);
     }
 };
 
