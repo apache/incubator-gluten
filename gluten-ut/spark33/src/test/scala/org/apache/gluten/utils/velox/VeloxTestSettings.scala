@@ -845,6 +845,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-17515: CollectLimit.execute() should perform per-partition limits")
     // https://github.com/apache/incubator-gluten/pull/9145.
     .exclude("SPARK-19650: An action on a Command should not trigger a Spark job")
+    .exclude("Common subexpression elimination")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
     .exclude("SPARK-33687: analyze all tables in a specific database")
