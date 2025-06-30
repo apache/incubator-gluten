@@ -177,6 +177,9 @@ if(ENABLE_S3)
   find_package(ZLIB)
 endif()
 
+if(ENABLE_GPU)
+  list(APPEND VELOX_SRCS cudf/CudfPlanValidator.cc)
+endif()
 add_library(velox SHARED ${VELOX_SRCS})
 
 if(ENABLE_GLUTEN_VCPKG AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
