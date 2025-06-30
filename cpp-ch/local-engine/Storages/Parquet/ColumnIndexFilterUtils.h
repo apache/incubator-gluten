@@ -33,7 +33,7 @@ filterOffsetIndex(const std::vector<parquet::PageLocation> & page_locations, con
 /// chunk_range: see computeColumnChunkRange
 ReadRanges calculateReadRanges(const OffsetIndex & offset_index, const arrow::io::ReadRange & chunk_range, int64_t firstPageOffset);
 
-ReadSequence calculateReadSequence(const OffsetIndex & offset_index, const RowRanges & rowRanges);
+ReadSequence calculateReadSequence(std::unique_ptr<OffsetIndex> offset_index, const RowRanges & rowRanges);
 
 /// Used in UTs
 ReadRanges calculateReadRanges(
@@ -42,10 +42,8 @@ ReadRanges calculateReadRanges(
     const std::vector<parquet::PageLocation> & page_locations,
     const RowRanges & rowRanges);
 
-ReadSequence calculateReadSequence(
-    int64_t rowGroupRowCount,
-    const std::vector<parquet::PageLocation> & page_locations,
-    const RowRanges & rowRanges);
+ReadSequence
+calculateReadSequence(int64_t rowGroupRowCount, const std::vector<parquet::PageLocation> & page_locations, const RowRanges & rowRanges);
 
 }
 }

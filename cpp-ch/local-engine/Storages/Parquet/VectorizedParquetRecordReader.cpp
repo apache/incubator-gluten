@@ -24,8 +24,8 @@
 #include <Processors/Formats/Impl/ArrowFieldIndexUtil.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilterUtils.h>
-#include <Storages/Parquet/ParquetReadState.h>
 #include <Storages/Parquet/ParquetMeta.h>
+#include <Storages/Parquet/ParquetReadState.h>
 #include <arrow/io/memory.h>
 #include <arrow/util/int_util_overflow.h>
 #include <parquet/column_reader.h>
@@ -263,7 +263,7 @@ ParquetFileReaderExt::nextRowGroup(int32_t row_group_index, int32_t column_index
                     const std::vector<parquet::PageLocation> & page_locations = index.offsetIndex().page_locations();
                     auto offset_index = ColumnIndexFilterUtils::filterOffsetIndex(page_locations, row_ranges, rg_count);
                     read_ranges = ColumnIndexFilterUtils::calculateReadRanges(*offset_index, col_range, page_locations[0].offset);
-                    read_sequence = ColumnIndexFilterUtils::calculateReadSequence(*offset_index, row_ranges);
+                    read_sequence = ColumnIndexFilterUtils::calculateReadSequence(std::move(offset_index), row_ranges);
                 }
                 const auto input_stream = getStream(*source_, read_ranges);
                 return std::make_pair(createPageReader(*column_metadata, input_stream), std::make_unique<ParquetReadState>(read_sequence));

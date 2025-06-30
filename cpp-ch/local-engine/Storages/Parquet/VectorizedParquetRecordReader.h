@@ -49,6 +49,7 @@ using PageReaderPtr = std::unique_ptr<parquet::PageReader>;
 class VectorizedParquetBlockInputFormat;
 class ColumnIndexRowRangesProvider;
 class ParquetReadState1;
+class ParquetReadState2;
 using ParquetReadState = ParquetReadState1;
 using ParquetReadStatePtr = std::unique_ptr<ParquetReadState>;
 using ColumnChunkPageRead = std::pair<PageReaderPtr, ParquetReadStatePtr>;

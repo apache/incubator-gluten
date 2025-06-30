@@ -104,9 +104,9 @@ ReadRanges ColumnIndexFilterUtils::calculateReadRanges(
     }
     return ranges;
 }
-ReadSequence ColumnIndexFilterUtils::calculateReadSequence(const OffsetIndex & offset_index, const RowRanges & rowRanges)
+ReadSequence ColumnIndexFilterUtils::calculateReadSequence(std::unique_ptr<OffsetIndex> offset_index, const RowRanges & rowRanges)
 {
-    ParquetReadState2 read_state(rowRanges);
+    ParquetReadState2 read_state(rowRanges, std::move(offset_index));
     ReadSequence read_sequence;
 
     read_state.setSkipFunc(
@@ -117,6 +117,7 @@ ReadSequence ColumnIndexFilterUtils::calculateReadSequence(const OffsetIndex & o
                 read_sequence.push_back(-number);
             else
                 read_sequence.back() -= number;
+            return number;
         });
 
     read_state.setReadFunc(
@@ -127,14 +128,16 @@ ReadSequence ColumnIndexFilterUtils::calculateReadSequence(const OffsetIndex & o
                 read_sequence.push_back(number);
             else
                 read_sequence.back() += number;
+            return number;
         });
 
     read_state.resetForNewBatch(std::numeric_limits<int32_t>::max());
-    for (int32_t pageIndex = 0; pageIndex < offset_index.getPageCount(); ++pageIndex)
+    while (read_state.hasMoreRead())
     {
-        read_state.resetForNewPage(offset_index.getPageRowCount(pageIndex), offset_index.getFirstRowIndex(pageIndex));
+        read_state.resetForNewPage();
         read_state.read();
     }
+
     assert(!read_sequence.empty());
     return read_sequence;
 }
@@ -161,7 +164,7 @@ ReadSequence ColumnIndexFilterUtils::calculateReadSequence(
         return {rowGroupRowCount};
 
     auto offset_index = filterOffsetIndex(page_locations, rowRanges, rowGroupRowCount);
-    return calculateReadSequence(*offset_index, rowRanges);
+    return calculateReadSequence(std::move(offset_index), rowRanges);
 }
 
 }

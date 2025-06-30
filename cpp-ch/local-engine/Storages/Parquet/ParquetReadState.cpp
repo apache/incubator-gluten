@@ -35,9 +35,25 @@ void ParquetReadState2::read()
     reading = true;
 #endif
     chassert(rowsToReadInBatch >= 0);
-    chassert(valuesToReadInPage >= 0);
+    chassert(valuesToReadInPage > 0);
 
     doReadInPage();
+}
+int64_t ParquetReadState2::doRead(int64_t batch_size)
+{
+    resetForNewBatch(batch_size);
+#ifndef NDEBUG
+    SCOPE_EXIT({
+        chassert(reading);
+        reading = false;
+    });
+
+    reading = true;
+#endif
+    chassert(rowsToReadInBatch >= 0);
+    chassert(valuesToReadInPage > 0);
+    doReadInPage();
+    return rowsToReadInBatch;
 }
 void ParquetReadState2::doReadInPage()
 {
@@ -53,7 +69,8 @@ void ParquetReadState2::doReadInPage()
 
         if (rowId + n < rangeStart)
         {
-            skipRecord(n);
+            [[maybe_unused]] const int64_t skipped = skipRecord(n);
+            chassert(skipped == n);
             rowId += n;
             leftInPage -= n;
         }
@@ -70,14 +87,16 @@ void ParquetReadState2::doReadInPage()
             // Skip the part [rowId, start)
             if (int64_t toSkip = start - rowId; toSkip > 0)
             {
-                skipRecord(toSkip);
+                [[maybe_unused]] const int64_t skipped = skipRecord(toSkip);
+                chassert(skipped == toSkip);
+
                 rowId += toSkip;
                 leftInPage -= toSkip;
             }
 
             // Read the part [start, end]
             n = end - start + 1;
-            readRecord(n);
+            already_read_ += readRecord(n);
             leftInBatch -= n;
             rowId += n;
             leftInPage -= n;

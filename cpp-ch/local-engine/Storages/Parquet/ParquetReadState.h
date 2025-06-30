@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 #pragma once
-
 #include <functional>
 #include <optional>
 #include <vector>
+#include <Storages/Parquet/OffsetIndex.h>
 #include <Storages/Parquet/RowRanges.h>
 #include <base/defines.h>
 
@@ -30,8 +30,8 @@ namespace local_engine
 class ParquetReadState2
 {
 public:
-    using SkipFunc = std::function<void(int64_t)>;
-    using ReadFunc = std::function<void(int64_t)>;
+    using SkipFunc = std::function<int64_t(int64_t)>;
+    using ReadFunc = std::function<int64_t(int64_t)>;
 
 private:
     /** A special row range used when there is no row indexes (hence all rows must be included) */
@@ -65,12 +65,25 @@ private:
     ReadFunc read_func_;
     SkipFunc skip_func_;
 
+    std::unique_ptr<OffsetIndex> offset_index_;
+    int32_t page_index_;
+
+    const int64_t total_read_;
+    int64_t already_read_;
+
 #ifndef NDEBUG
     bool reading{false}; // Used to detect re-entrance in debug builds
 #endif
 
 public:
     int32_t getRowsToReadInBatch() const { return rowsToReadInBatch; }
+
+    bool hasMoreRead() const { return already_read_ < total_read_; }
+
+    void skipLastRecord()
+    {
+        // do nothing
+    }
 
 protected:
     const Range * getNextRange()
@@ -92,16 +105,21 @@ protected:
     }
 
 public:
-    explicit ParquetReadState2(const std::optional<RowRanges> & row_ranges)
+    explicit ParquetReadState2(const std::optional<RowRanges> & row_ranges, std::unique_ptr<OffsetIndex> offset_index)
         : row_ranges_(row_ranges)
         , row_ranges_it_(getRowRangesIt())
         , current_row_range_(getNextRange())
         , rowId_(0)
-        , valuesToReadInPage(-1)
+        , valuesToReadInPage(0)
         , rowsToReadInBatch(-1)
-        , skip_func_(nullptr)
         , read_func_(nullptr)
+        , skip_func_(nullptr)
+        , offset_index_(std::move(offset_index))
+        , page_index_(0)
+        , total_read_(row_ranges.transform([](const RowRanges & ranges) { return ranges.rowCount(); }).value_or(0))
+        , already_read_(0)
     {
+        chassert(row_ranges_.has_value());
         chassert(currentRangeStart() >= rowId_);
     }
 
@@ -118,13 +136,20 @@ public:
     /**
      * Must be called at the beginning of reading a new page.
      */
-    void resetForNewPage(int32_t totalValuesInPage, int64_t pageFirstRowIndex)
+    void resetForNewPage()
     {
+        chassert(valuesToReadInPage == 0);
+        chassert(page_index_ >= 0 && page_index_ < offset_index_->getPageCount());
+        if (page_index_ >= offset_index_->getPageCount())
+            throw std::runtime_error("Invalid page index"); // TODO: use DB::Exception
 #ifndef NDEBUG
         chassert(!reading);
 #endif
-        rowId_ = pageFirstRowIndex;
-        valuesToReadInPage = totalValuesInPage;
+
+        rowId_ = offset_index_->getFirstRowIndex(page_index_);
+        valuesToReadInPage = offset_index_->getPageRowCount(page_index_);
+
+        page_index_ += 1;
     }
 
     /**
@@ -138,20 +163,21 @@ public:
     size_t currentRangeEnd() const { return current_row_range_->to; }
 
     void read();
+    int64_t doRead(int64_t batch_size);
 
 private:
     void doReadInPage();
 
-    void skipRecord(size_t count) const
+    int64_t skipRecord(size_t count) const
     {
         chassert(skip_func_);
-        skip_func_(count);
+        return skip_func_(count);
     }
 
-    void readRecord(size_t count) const
+    int64_t readRecord(size_t count) const
     {
         chassert(read_func_);
-        read_func_(count);
+        return read_func_(count);
     }
 };
 }
