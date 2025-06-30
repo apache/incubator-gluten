@@ -34,6 +34,7 @@ object ProjectColumnPruning extends RewriteSingleNode {
 
       if (unusedAttribute.nonEmpty) {
         val newProject = project.copy(projectList = project.projectList.diff(unusedAttribute.toSeq))
+        newProject.copyTagsFrom(project)
         parent.withNewChildren(Seq(newProject))
       } else {
         parent

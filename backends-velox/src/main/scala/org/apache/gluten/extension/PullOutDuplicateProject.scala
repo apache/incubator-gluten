@@ -125,11 +125,13 @@ object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
       case _ => true
     } ++ duplicates.filter(!project.outputSet.contains(_)).toSeq
     val newProject = project.copy(projectList = newProjectList)
+    newProject.copyTagsFrom(project)
     // If the output of the new project is the same as the child, delete it to simplify the plan.
     if (newProject.outputSet.equals(project.child.outputSet)) {
       project.child
     } else {
       newProject
+
     }
   }
 }

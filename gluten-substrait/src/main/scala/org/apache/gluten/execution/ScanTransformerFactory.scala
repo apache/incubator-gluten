@@ -25,11 +25,17 @@ object ScanTransformerFactory {
 
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec): FileSourceScanExecTransformerBase = {
+    // Partition filters will be evaluated in driver side, so we can remove
+    // GlutenTaskOnlyExpressions
+    val partitionFilters = scanExec.partitionFilters.filter {
+      case _: GlutenTaskOnlyExpression => false
+      case _ => true
+    }
     FileSourceScanExecTransformer(
       scanExec.relation,
       scanExec.output,
       scanExec.requiredSchema,
-      scanExec.partitionFilters,
+      partitionFilters,
       scanExec.optionalBucketSet,
       scanExec.optionalNumCoalescedBuckets,
       scanExec.dataFilters,

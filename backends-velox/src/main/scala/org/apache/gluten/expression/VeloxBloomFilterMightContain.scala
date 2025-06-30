@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.execution.GlutenTaskOnlyExpression
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.VeloxBloomFilter
 
@@ -31,11 +32,15 @@ import org.apache.spark.task.TaskResources
  * Velox's bloom-filter implementation uses different algorithms internally comparing to vanilla
  * Spark so produces different intermediate aggregate data. Thus we use different filter function /
  * agg function types for Velox's version to distinguish from vanilla Spark's implementation.
+ *
+ * FIXME: Remove GlutenTaskOnlyExpression after the VeloxBloomFilter expr is made compatible with
+ * spark. See: https://github.com/apache/incubator-gluten/pull/9850#issuecomment-3007448538
  */
 case class VeloxBloomFilterMightContain(
     bloomFilterExpression: Expression,
     valueExpression: Expression)
-  extends BinaryExpression {
+  extends BinaryExpression
+  with GlutenTaskOnlyExpression {
 
   private val delegate =
     SparkShimLoader.getSparkShims.newMightContain(bloomFilterExpression, valueExpression)
@@ -89,6 +94,7 @@ case class VeloxBloomFilterMightContain(
     val valueEval = valueExpression.genCode(ctx)
     val code =
       code"""
+      org.apache.gluten.expression.VeloxBloomFilterMightContain.checkInSparkTask();
       ${valueEval.code}
       boolean ${ev.isNull} = ${valueEval.isNull};
       ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
@@ -96,5 +102,13 @@ case class VeloxBloomFilterMightContain(
         ${ev.value} = $bf.mightContainLong((Long)${valueEval.value});
       }"""
     ev.copy(code = code)
+  }
+}
+
+object VeloxBloomFilterMightContain {
+  def checkInSparkTask(): Unit = {
+    if (!TaskResources.inSparkTask()) {
+      throw new UnsupportedOperationException("velox_might_contain is not evaluable on Driver")
+    }
   }
 }
