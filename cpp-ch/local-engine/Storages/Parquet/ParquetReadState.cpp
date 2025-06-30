@@ -18,6 +18,7 @@
 #include "ParquetReadState.h"
 
 #include <base/scope_guard.h>
+#include <llvm/TargetParser/ARMTargetParser.h>
 
 namespace local_engine
 {
@@ -26,37 +27,41 @@ const Range ParquetReadState2::END_ROW_RANGE{std::numeric_limits<size_t>::max(),
 
 void ParquetReadState2::read()
 {
-#ifndef NDEBUG
-    SCOPE_EXIT({
-        chassert(reading);
-        reading = false;
-    });
-
-    reading = true;
-#endif
-    chassert(rowsToReadInBatch >= 0);
+    chassert(rowsToReadInBatch > 0);
     chassert(valuesToReadInPage > 0);
-
     doReadInPage();
 }
-int64_t ParquetReadState2::doRead(int64_t batch_size)
-{
-    resetForNewBatch(batch_size);
-#ifndef NDEBUG
-    SCOPE_EXIT({
-        chassert(reading);
-        reading = false;
-    });
 
-    reading = true;
-#endif
-    chassert(rowsToReadInBatch >= 0);
-    chassert(valuesToReadInPage > 0);
-    doReadInPage();
+int64_t ParquetReadState2::doRead(int64_t batch_size, const ReadPageFunc & readPage)
+{
+    /// If there is no offset index, we read the whole batch in one go.
+    if (offset_index_ == nullptr)
+    {
+        int64_t read = readRecord(batch_size);
+        already_read_ += read;
+        return read;
+    }
+
+    resetForNewBatch(batch_size);
+    while (hasMoreRead() && rowsToReadInBatch > 0)
+    {
+        readPage();
+        chassert(rowsToReadInBatch > 0);
+        chassert(valuesToReadInPage > 0);
+        doReadInPage();
+    }
     return rowsToReadInBatch;
 }
 void ParquetReadState2::doReadInPage()
 {
+#ifndef NDEBUG
+    SCOPE_EXIT({
+        chassert(reading);
+        reading = false;
+    });
+
+    reading = true;
+#endif
     size_t rowId = rowId_;
     int32_t leftInBatch = rowsToReadInBatch;
     int32_t leftInPage = valuesToReadInPage;

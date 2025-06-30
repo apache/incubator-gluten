@@ -33,6 +33,8 @@ public:
     using SkipFunc = std::function<int64_t(int64_t)>;
     using ReadFunc = std::function<int64_t(int64_t)>;
 
+    using ReadPageFunc = std::function<void()>;
+
 private:
     /** A special row range used when there is no row indexes (hence all rows must be included) */
     static const Range MAX_ROW_RANGE;
@@ -75,17 +77,6 @@ private:
     bool reading{false}; // Used to detect re-entrance in debug builds
 #endif
 
-public:
-    int32_t getRowsToReadInBatch() const { return rowsToReadInBatch; }
-
-    bool hasMoreRead() const { return already_read_ < total_read_; }
-
-    void skipLastRecord()
-    {
-        // do nothing
-    }
-
-protected:
     const Range * getNextRange()
     {
         if (row_ranges_)
@@ -97,6 +88,7 @@ protected:
         }
         return &MAX_ROW_RANGE;
     }
+
     std::vector<Range>::iterator getRowRangesIt()
     {
         if (row_ranges_)
@@ -105,6 +97,10 @@ protected:
     }
 
 public:
+    bool hasMoreRead() const { return already_read_ < total_read_; }
+    bool needSetPageFilter() const { return offset_index_ != nullptr; }
+    void skipLastRecord() { /* do nothing */ }
+
     explicit ParquetReadState2(const std::optional<RowRanges> & row_ranges, std::unique_ptr<OffsetIndex> offset_index)
         : row_ranges_(row_ranges)
         , row_ranges_it_(getRowRangesIt())
@@ -138,6 +134,7 @@ public:
      */
     void resetForNewPage()
     {
+        chassert(offset_index_);
         chassert(valuesToReadInPage == 0);
         chassert(page_index_ >= 0 && page_index_ < offset_index_->getPageCount());
         if (page_index_ >= offset_index_->getPageCount())
@@ -163,7 +160,7 @@ public:
     size_t currentRangeEnd() const { return current_row_range_->to; }
 
     void read();
-    int64_t doRead(int64_t batch_size);
+    int64_t doRead(int64_t batch_size, const ReadPageFunc & readPage);
 
 private:
     void doReadInPage();
@@ -179,5 +176,9 @@ private:
         chassert(read_func_);
         return read_func_(count);
     }
+
+public:
+    ///Used in UT
+    int32_t getRowsToReadInBatch() const { return rowsToReadInBatch; }
 };
 }
