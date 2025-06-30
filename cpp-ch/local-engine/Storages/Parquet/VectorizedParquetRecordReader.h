@@ -16,6 +16,9 @@
  */
 #pragma once
 
+#include "Common/assert_cast.h"
+
+
 #include <config.h>
 
 #if USE_PARQUET
@@ -23,6 +26,7 @@
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#include <Storages/Parquet/ParquetReadState.h>
 #include <parquet/arrow/reader_internal.h>
 #include <parquet/arrow/schema.h>
 
@@ -50,7 +54,7 @@ class VectorizedParquetBlockInputFormat;
 class ColumnIndexRowRangesProvider;
 class ParquetReadState1;
 class ParquetReadState2;
-using ParquetReadState = ParquetReadState1;
+using ParquetReadState = ParquetReadState2;
 using ParquetReadStatePtr = std::unique_ptr<ParquetReadState>;
 using ColumnChunkPageRead = std::pair<PageReaderPtr, ParquetReadStatePtr>;
 
@@ -212,6 +216,14 @@ class VectorizedColumnReader
 
     void nextRowGroup();
     void setPageReader(PageReaderPtr reader, ParquetReadStatePtr read_state);
+
+    parquet::ColumnReader & columnReader() const
+    {
+        chassert(record_reader_);
+        parquet::ColumnReader * col_reader = dynamic_cast<parquet::ColumnReader *>(record_reader_.get());
+        chassert(col_reader);
+        return *col_reader;
+    }
 
 public:
     VectorizedColumnReader(const parquet::arrow::SchemaField & field, ParquetFileReaderExt & reader, const std::vector<Int32> & row_groups);
