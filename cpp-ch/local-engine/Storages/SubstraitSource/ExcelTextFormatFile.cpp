@@ -62,7 +62,8 @@ bool ExcelTextFormatFile::useThis(const DB::ContextPtr & context)
     return settingsEqual(context->getSettingsRef(), USE_EXCEL_PARSER, "true");
 }
 
-FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr
+ExcelTextFormatFile::createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & /*filter_actions_dag*/)
 {
     auto read_buffer = read_buffer_builder->build(file_info);
 
