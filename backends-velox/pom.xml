@@ -21,12 +21,12 @@
 
   <profiles>
     <profile>
-      <id>udf</id>
+      <id>exclude-tests</id>
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
-        <tagsToExclude>org.apache.gluten.tags.UDFTest</tagsToExclude>
+        <tagsToExclude>org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.spark.tags.SkipTest</tagsToExclude>
       </properties>
     </profile>
     <profile>
@@ -451,6 +451,28 @@
             <goals>
               <goal>test-jar</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- compile proto buffer files using copied protoc binary -->
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>compile-gluten-proto</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>compile</goal>
+              <goal>test-compile</goal>
+            </goals>
+            <configuration>
+              <protocArtifact>
+                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+              </protocArtifact>
+              <protoSourceRoot>src/main/resources/org/apache/gluten/proto</protoSourceRoot>
+              <clearOutputDirectory>false</clearOutputDirectory>
+            </configuration>
           </execution>
         </executions>
       </plugin>
