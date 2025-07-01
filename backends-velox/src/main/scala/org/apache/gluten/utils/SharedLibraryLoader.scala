@@ -53,9 +53,9 @@ object SharedLibraryLoader {
   }
 
   private def find(conf: SparkConf): SharedLibraryLoader = {
-    val systemName = conf.get(GlutenConfig.GLUTEN_LOAD_LIB_OS)
+    val systemName = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS.key)
     val loader = if (systemName.isDefined) {
-      val systemVersion = conf.get(GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION)
+      val systemVersion = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION.key)
       if (systemVersion.isEmpty) {
         throw new GlutenException(
           s"${GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION.key} must be specified when specifies the " +
