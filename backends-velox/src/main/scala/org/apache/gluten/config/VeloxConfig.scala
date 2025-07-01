@@ -68,11 +68,11 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
 
   def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
-
-  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled
 }
 
 object VeloxConfig {
+
+  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled
 
   def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
