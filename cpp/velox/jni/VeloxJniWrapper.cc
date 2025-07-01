@@ -681,6 +681,63 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_cudf_VeloxCudfPlanValidatorJni
 }
 #endif
 
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_init( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong cSchema,
+    jint format,
+    jstring directory,
+    jstring codecJstr,
+    jbyteArray partition) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
+  auto backendConf = VeloxBackend::get()->getBackendConf()->rawConfigs();
+  auto sparkConf = ctx->getConfMap();
+  sparkConf.merge(backendConf);
+  auto safeArray = gluten::getByteArrayElementsSafe(env, partition);
+  auto spec = parseIcebergPartitionSpec(safeArray.elems(), safeArray.length());
+  return ctx->saveObject(runtime->createIcebergWriter(
+      reinterpret_cast<struct ArrowSchema*>(cSchema),
+      format,
+      jStringToCString(env, directory),
+      facebook::velox::common::stringToCompressionKind(jStringToCString(env, codecJstr)),
+      spec,
+      sparkConf));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_write( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong writerHandle,
+    jlong batchHandle) {
+  JNI_METHOD_START
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+  auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
+  writer->write(*(std::dynamic_pointer_cast<VeloxColumnarBatch>(batch)));
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jobjectArray JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_commit( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong writerHandle) {
+  JNI_METHOD_START
+  auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
+  auto commitMessages = writer->commit();
+  jobjectArray ret =
+      env->NewObjectArray(commitMessages.size(), env->FindClass("java/lang/String"), env->NewStringUTF(""));
+  for (auto i = 0; i < commitMessages.size(); i++) {
+    env->SetObjectArrayElement(ret, i, env->NewStringUTF(commitMessages[i].data()));
+  }
+  return ret;
+
+  JNI_METHOD_END(nullptr)
+}
+#endif
+
 #ifdef __cplusplus
 }
 #endif

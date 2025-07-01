@@ -1,0 +1,170 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Velox backend Github Runner (Enhanced Features)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/velox_backend_enhanced_features.yml'
+      - 'pom.xml'
+      - 'backends-velox/**'
+      - 'gluten-uniffle/**'
+      - 'gluten-celeborn/**'
+      - 'gluten-ras/**'
+      - 'gluten-core/**'
+      - 'gluten-substrait/**'
+      - 'gluten-arrow/**'
+      - 'gluten-delta/**'
+      - 'gluten-iceberg/**'
+      - 'gluten-hudi/**'
+      - 'gluten-ut/**'
+      - 'shims/**'
+      - 'tools/gluten-it/**'
+      - 'ep/build-velox/**'
+      - 'cpp/**'
+      - 'dev/**'
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  MVN_CMD: 'mvn -ntp'
+  WGET_CMD: 'wget -nv'
+  SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  # for JDK17 unit tests
+  EXTRA_FLAGS:  "-XX:+IgnoreUnrecognizedVMOptions 
+                --add-opens=java.base/java.lang=ALL-UNNAMED
+                --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+                --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+                --add-opens=java.base/java.io=ALL-UNNAMED
+                --add-opens=java.base/java.net=ALL-UNNAMED
+                --add-opens=java.base/java.nio=ALL-UNNAMED
+                --add-opens=java.base/java.util=ALL-UNNAMED
+                --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+                --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
+                --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+                --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+                --add-opens=java.base/sun.security.action=ALL-UNNAMED
+                --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+                -Djdk.reflect.useDirectMethodHandle=false
+                -Dio.netty.tryReflectionSetAccessible=true"
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build-native-lib-centos-7:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-enhanced-centos7-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-enhanced-centos7-release-default
+      - name: Build Gluten native libraries
+        run: |
+          docker pull apache/gluten:vcpkg-centos-7
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            set -e
+            yum install tzdata -y
+            df -a
+            cd /work
+            export CCACHE_DIR=/work/.ccache
+            mkdir -p /work/.ccache
+            bash dev/ci-velox-buildstatic-centos-7-enhanced-features.sh
+            ccache -s
+            mkdir -p /work/.m2/repository/org/apache/arrow/
+            cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
+          "
+
+      - name: "Save ccache"
+        uses: actions/cache/save@v4
+        id: ccache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-enhanced-centos7-release-default-${{github.sha}}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: velox-native-lib-enhanced-centos-7-${{github.sha}}
+          path: ./cpp/build/releases/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arrow-jars-enhanced-centos-7-${{github.sha}}
+          path: .m2/repository/org/apache/arrow/
+          if-no-files-found: error
+
+  spark-test-spark34:
+    needs: build-native-lib-centos-7
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: velox-native-lib-enhanced-centos-7-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v4
+        with:
+          name: arrow-jars-enhanced-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Prepare spark.test.home for Spark 3.4.4 (other tests)
+        run: |
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools==77.0.3 && \
+          pip3 install pyspark==3.4.4 cython && \
+          pip3 install pandas==2.2.3 pyarrow
+      - name: Build and Run unit test for Spark 3.4.4 (other tests)
+        run: |
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
+          yum install -y java-17-openjdk-devel
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
+          export SPARK_HOME=/opt/shims/spark34/spark_home/
+          ls -l $SPARK_HOME
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi \
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest \
+          -DargLine="-Dspark.test.home=$SPARK_HOME ${EXTRA_FLAGS}"
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-report
+          path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-test-log
+          path: |
+            **/target/*.log
+            **/gluten-ut/**/hs_err_*.log
+            **/gluten-ut/**/core.*
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-golden-files
+          path: /tmp/tpch-approved-plan/**

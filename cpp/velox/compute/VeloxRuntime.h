@@ -19,6 +19,9 @@
 
 #include "WholeStageResultIterator.h"
 #include "compute/Runtime.h"
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+#include "iceberg/IcebergWriter.h"
+#endif
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
@@ -61,6 +64,16 @@ class VeloxRuntime final : public Runtime {
       override;
 
   std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(struct ArrowSchema* cSchema) override;
+
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+  std::shared_ptr<IcebergWriter> createIcebergWriter(
+      ArrowSchema* cSchema,
+      int32_t format,
+      const std::string& outputDirectory,
+      facebook::velox::common::CompressionKind compressionKind,
+      std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
+      const std::unordered_map<std::string, std::string>& sparkConfs);
+#endif
 
   std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,

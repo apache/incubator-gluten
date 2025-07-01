@@ -14,18 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.component
-import org.apache.gluten.backendsapi.velox.VeloxBackend
-import org.apache.gluten.execution.{OffloadIcebergScan, OffloadIcebergWrite}
-import org.apache.gluten.extension.injector.Injector
+#include "IcebergFormat.h"
 
-class VeloxIcebergComponent extends Component {
-  override def name(): String = "velox-iceberg"
-  override def buildInfo(): Component.BuildInfo =
-    Component.BuildInfo("VeloxIceberg", "N/A", "N/A", "N/A")
-  override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
-  override def injectRules(injector: Injector): Unit = {
-    OffloadIcebergScan.inject(injector)
-    OffloadIcebergWrite.inject(injector)
+using namespace facebook::velox::dwio::common;
+namespace gluten {
+
+// static
+FileFormat icebergFormatToVelox(int32_t format) {
+  auto icebergFormat = static_cast<IcebergFileFormat>(format);
+  switch (icebergFormat) {
+    case IcebergFileFormat::ORC:
+      return FileFormat::ORC;
+    case IcebergFileFormat::PARQUET:
+      return FileFormat::PARQUET;
+    default:
+      throw std::invalid_argument("Not support file format " + std::to_string(format));
   }
 }
+} // namespace gluten

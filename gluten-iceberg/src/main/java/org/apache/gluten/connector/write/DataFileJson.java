@@ -14,18 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.component
-import org.apache.gluten.backendsapi.velox.VeloxBackend
-import org.apache.gluten.execution.{OffloadIcebergScan, OffloadIcebergWrite}
-import org.apache.gluten.extension.injector.Injector
+package org.apache.gluten.connector.write;
 
-class VeloxIcebergComponent extends Component {
-  override def name(): String = "velox-iceberg"
-  override def buildInfo(): Component.BuildInfo =
-    Component.BuildInfo("VeloxIceberg", "N/A", "N/A", "N/A")
-  override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
-  override def injectRules(injector: Injector): Unit = {
-    OffloadIcebergScan.inject(injector)
-    OffloadIcebergWrite.inject(injector)
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public class DataFileJson {
+  @JsonProperty public String path;
+
+  @JsonProperty public MetricsJson metrics;
+
+  @JsonProperty int partitionSpecId;
+
+  @JsonProperty String content;
+
+  @JsonProperty String referencedDataFile;
+
+  @JsonProperty String partitionDataJson;
+
+  @JsonProperty public long fileSizeInBytes = -1L;
+
+  public static class MetricsJson {
+    @JsonProperty public long recordCount = -1L;
   }
 }

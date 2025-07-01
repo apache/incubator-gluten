@@ -71,6 +71,10 @@ if(NOT DEFINED VELOX_BUILD_PATH)
   endif()
 endif()
 
+set(VELOX_PROTO_SRC_DIR
+    ${GLUTEN_HOME}/backends-velox/src/main/resources/org/apache/gluten/proto)
+message(STATUS "Set Gluten Proto Directory in ${VELOX_PROTO_SRC_DIR}")
+
 function(import_library TARGET_NAME LIB_PATH)
   if(NOT EXISTS ${LIB_PATH})
     message(FATAL_ERROR "Library does not exist: ${LIB_PATH}")
@@ -125,8 +129,26 @@ macro(find_azure)
   find_package(azure-identity-cpp CONFIG REQUIRED)
 endmacro()
 
+# Set up Proto
+set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
+
+# List Gluten Proto compiled files
+file(GLOB VELOX_PROTO_FILES ${VELOX_PROTO_SRC_DIR}/*.proto)
+foreach(PROTO ${VELOX_PROTO_FILES})
+  file(RELATIVE_PATH REL_PROTO ${VELOX_PROTO_SRC_DIR} ${PROTO})
+  string(REGEX REPLACE "\\.proto" "" PROTO_NAME ${REL_PROTO})
+  list(APPEND VELOX_PROTO_SRCS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.cc")
+  list(APPEND VELOX_PROTO_HDRS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.h")
+endforeach()
+set(VELOX_PROTO_OUTPUT_FILES ${VELOX_PROTO_HDRS} ${VELOX_PROTO_SRCS})
+set_source_files_properties(${VELOX_PROTO_OUTPUT_FILES} PROPERTIES GENERATED
+                                                                    TRUE)
+get_filename_component(VELOX_PROTO_DIR ${VELOX_PROTO_SRC_DIR}/ DIRECTORY)
+
 # Build Velox backend.
 set(VELOX_SRCS
+    ${VELOX_PROTO_SRCS}
     compute/VeloxBackend.cc
     compute/VeloxRuntime.cc
     compute/VeloxPlanConverter.cc
@@ -180,6 +202,12 @@ endif()
 if(ENABLE_GPU)
   list(APPEND VELOX_SRCS cudf/CudfPlanValidator.cc)
 endif()
+
+if(ENABLE_ENHANCED_FEATURES)
+  list(APPEND VELOX_SRCS compute/iceberg/IcebergFormat.cc
+       compute/iceberg/IcebergWriter.cc)
+endif()
+
 add_library(velox SHARED ${VELOX_SRCS})
 
 if(ENABLE_GLUTEN_VCPKG AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
@@ -188,9 +216,26 @@ if(ENABLE_GLUTEN_VCPKG AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
     velox PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 endif()
 
+find_protobuf()
+message(STATUS "Found Protobuf: ${PROTOBUF_LIBRARY}")
+
+add_custom_command(
+  OUTPUT ${VELOX_PROTO_OUTPUT_FILES}
+  COMMAND ${PROTOC_BIN} --proto_path ${VELOX_PROTO_SRC_DIR}/ --cpp_out
+          ${PROTO_OUTPUT_DIR} ${VELOX_PROTO_FILES}
+  DEPENDS ${VELOX_PROTO_DIR}
+  COMMENT "Running Gluten Velox PROTO compiler"
+  VERBATIM)
+
+add_custom_target(velox_jni_proto ALL DEPENDS ${SUBSTRAIT_PROTO_OUTPUT_FILES}
+                                        ${VELOX_PROTO_OUTPUT_FILES})
+add_dependencies(velox_jni_proto protobuf::libprotobuf)
+
+add_dependencies(velox velox_jni_proto)
+
 target_include_directories(
   velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
-               ${VELOX_BUILD_PATH} ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME})
+               ${VELOX_BUILD_PATH} ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
 
 if(BUILD_TESTS)
   target_include_directories(velox PUBLIC ${VELOX_BUILD_PATH})
