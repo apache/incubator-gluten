@@ -39,6 +39,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -127,6 +130,26 @@ public class NexmarkTest {
     if (!insertQuery.isEmpty()) {
       TableResult insertResult = tEnv.executeSql(insertQuery);
       assertThat(insertResult.getJobClient().isPresent()).isTrue();
+      try {
+        waitForJobCompletion(insertResult, 30000);
+      } catch (Exception e) {
+        throw new RuntimeException("Query execution failed: " + queryFileName, e);
+      }
+    }
+  }
+
+  private void waitForJobCompletion(TableResult result, long timeoutMs) {
+    if (result.getJobClient().isPresent()) {
+      var jobClint = result.getJobClient().get();
+      try {
+        jobClint.getJobExecutionResult().get(timeoutMs, TimeUnit.MILLISECONDS);
+      } catch (ExecutionException e) {
+        throw new RuntimeException("Job timeout after ", e);
+      } catch (TimeoutException e) {
+        throw new RuntimeException("Job execution failed ", e);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
