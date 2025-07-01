@@ -44,10 +44,8 @@ jobs:
     runs-on: ubuntu-22.04
     container: centos:7
     steps:
-      - uses: actions/checkout@v4
       - name: Build Gluten native libraries and package
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work centos:7 bash -c "
           sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
           sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
           yum update -y
@@ -72,9 +70,8 @@ jobs:
           ln -s /usr/lib/maven/bin /usr/bin/mvn
           ls -l /usr/bin/mvn
           
-          cd /work
+          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
           ./dev/package.sh
-          "
           
 
   build-on-centos:
