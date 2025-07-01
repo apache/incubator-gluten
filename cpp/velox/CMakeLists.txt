@@ -143,7 +143,7 @@ foreach(PROTO ${VELOX_PROTO_FILES})
 endforeach()
 set(VELOX_PROTO_OUTPUT_FILES ${VELOX_PROTO_HDRS} ${VELOX_PROTO_SRCS})
 set_source_files_properties(${VELOX_PROTO_OUTPUT_FILES} PROPERTIES GENERATED
-                                                                    TRUE)
+                                                                   TRUE)
 get_filename_component(VELOX_PROTO_DIR ${VELOX_PROTO_SRC_DIR}/ DIRECTORY)
 
 # Build Velox backend.
@@ -228,14 +228,20 @@ add_custom_command(
   VERBATIM)
 
 add_custom_target(velox_jni_proto ALL DEPENDS ${SUBSTRAIT_PROTO_OUTPUT_FILES}
-                                        ${VELOX_PROTO_OUTPUT_FILES})
+                                              ${VELOX_PROTO_OUTPUT_FILES})
 add_dependencies(velox_jni_proto protobuf::libprotobuf)
 
 add_dependencies(velox velox_jni_proto)
 
 target_include_directories(
-  velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
-               ${VELOX_BUILD_PATH} ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
+  velox
+  PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH}
+         ${JNI_INCLUDE_DIRS}
+         ${VELOX_BUILD_PATH}
+         ${CMAKE_CURRENT_SOURCE_DIR}
+         ${VELOX_HOME}
+         ${PROTO_OUTPUT_DIR}
+         ${PROTOBUF_INCLUDE})
 
 if(BUILD_TESTS)
   target_include_directories(velox PUBLIC ${VELOX_BUILD_PATH})
