@@ -61,6 +61,7 @@ object ExpressionMappings {
     Sig[IsNaN](IS_NAN),
     Sig[NaNvl](NANVL),
     Sig[TryEval](TRY_EVAL),
+    Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
 
     // SparkSQL String functions
     Sig[Ascii](ASCII),

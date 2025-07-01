@@ -1177,4 +1177,10 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("monotonically_increasing_id") {
+    runQueryAndCompare("SELECT monotonically_increasing_id()") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }
