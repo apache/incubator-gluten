@@ -625,6 +625,11 @@ object GlutenConfig {
       .filter(_._1.startsWith(HADOOP_PREFIX + ABFS_PREFIX))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
+    // support short circult config for azure
+    conf
+      .filter(_._1.startsWith(ABFS_PREFIX))
+      .foreach(entry => nativeConfMap.put(HADOOP_PREFIX + entry._1, entry._2))
+
     // put in all GCS configs
     conf
       .filter(_._1.startsWith(HADOOP_PREFIX + GCS_PREFIX))
