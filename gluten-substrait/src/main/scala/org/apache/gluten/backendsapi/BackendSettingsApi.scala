@@ -159,4 +159,6 @@ trait BackendSettingsApi {
   def reorderColumnsForPartitionWrite(): Boolean = false
 
   def enableEnhancedFeatures(): Boolean = false
+
+  def supportAppendDataExec(): Boolean = false
 }
