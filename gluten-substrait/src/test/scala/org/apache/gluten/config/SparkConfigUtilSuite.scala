@@ -31,5 +31,6 @@ class SparkConfigUtilSuite extends AnyFunSuiteLike {
     assert(conf.get(GlutenConfig.GLUTEN_UI_ENABLED) === true)
     assert(conf.get(GlutenConfig.TEXT_INPUT_ROW_MAX_BLOCK_SIZE) === 8L * 1024)
     assert(conf.get(GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE) === Some(1024 * 1024))
+    assert(conf.get(GlutenConfig.GLUTEN_LOAD_LIB_OS).isEmpty)
   }
 }
