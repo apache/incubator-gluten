@@ -85,7 +85,7 @@ static void BM_CHColumnToSparkRow_Lineitem(benchmark::State & state)
     };
 
     const Block header = std::move(getLineitemHeader(name_types));
-    const String file = "/data1/liyang/cppproject/gluten/gluten-core/src/test/resources/tpch-data/lineitem/"
+    const String file = "/data1/liyang/cppproject/gluten/backends-clickhouse/src/test/resources/tpch-data/lineitem/"
                         "part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet";
     Block block;
     readParquetFile(header, file, block);
@@ -121,7 +121,7 @@ static void BM_SparkRowToCHColumn_Lineitem(benchmark::State & state)
     };
 
     const Block header = std::move(getLineitemHeader(name_types));
-    const String file = "/data1/liyang/cppproject/gluten/gluten-core/src/test/resources/tpch-data/lineitem/"
+    const String file = "/data1/liyang/cppproject/gluten/backends-clickhouse/src/test/resources/tpch-data/lineitem/"
                         "part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet";
     Block in_block;
     readParquetFile(header, file, in_block);
