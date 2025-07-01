@@ -145,6 +145,9 @@ jobs:
             tar xf v0.8.1.tar.gz
             cd xxHash-0.8.1/
             make && make install
+            wget http://archive.ubuntu.com/ubuntu/pool/universe/g/googletest/libgtest-dev_1.11.0-3_amd64.deb
+            wget http://archive.ubuntu.com/ubuntu/pool/universe/g/googletest/googletest_1.11.0-3_all.deb
+            dpkg -i googletest_1.11.0-3_all.deb libgtest-dev_1.11.0-3_amd64.deb
           fi
           sudo apt-get install -y openjdk-8-jdk python3-pip cmake
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
