@@ -42,6 +42,7 @@ jobs:
       fail-fast: false
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
+    container: centos:7
     steps:
       - uses: actions/checkout@v4
       - name: Build Gluten native libraries and package
