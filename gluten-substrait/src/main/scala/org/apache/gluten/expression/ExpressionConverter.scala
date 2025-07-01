@@ -128,9 +128,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       attributeSeq: Seq[Attribute],
       expressionsMap: Map[Class[_], String]): DecimalArithmeticExpressionTransformer = {
     val rescaleBinary = DecimalArithmeticUtil.rescaleLiteral(b)
-    val (left, right) = DecimalArithmeticUtil.rescaleCastForDecimal(
-      DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.left),
-      DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.right))
+    val (left, right) =
+      DecimalArithmeticUtil.rescaleCastForDecimal(rescaleBinary.left, rescaleBinary.right)
     val resultType = DecimalArithmeticUtil.getResultType(
       b,
       left.dataType.asInstanceOf[DecimalType],

@@ -2133,4 +2133,28 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       })
   }
+
+  test("Fix precision loss with multiple decimal casts") {
+    withTable("t") {
+      withSQLConf("spark.gluten.sql.substrait.plan.logLevel" -> "WARN") {
+        withTempPath {
+          path =>
+            Seq(19812.3456, 9999.1234)
+              .toDF("price0")
+              .withColumn("price", $"price0".cast(DecimalType(38, 6)))
+              .write
+              .parquet(path.getCanonicalPath)
+            spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+            runQueryAndCompare(
+              """
+                |select cast(cast(price / 100 as decimal(20, 4)) * 100 as decimal(20, 4))
+                |from t
+                |""".stripMargin
+            ) {
+              checkGlutenOperatorMatch[ProjectExecTransformer]
+            }
+        }
+      }
+    }
+  }
 }
