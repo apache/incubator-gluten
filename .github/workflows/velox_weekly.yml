@@ -70,7 +70,7 @@ jobs:
           ln -s /usr/lib/maven/bin /usr/bin/mvn
           ls -l /usr/bin/mvn
           
-          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
+          git clone -b wip_ci_setup_script_cleanup --depth=1 https://github.com/zhouyuan/gluten.git && cd gluten/
           ./dev/package.sh
           
 
