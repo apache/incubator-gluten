@@ -17,6 +17,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import org.apache.flink.api.common.io.OutputFormat;
@@ -85,6 +86,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -547,6 +549,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
       return inputTransform;
     }
     // --- Begin Gluten-specific code changes ---
+    io.github.zhztheplayer.velox4j.type.RowType outputType =
+        (io.github.zhztheplayer.velox4j.type.RowType)
+            LogicalTypeConverter.toVLType(
+                ((InternalTypeInfo) inputTransform.getOutputType()).toLogicalType());
     return ExecNodeUtil.createOneInputTransformation(
         inputTransform,
         createTransformationMeta(
@@ -554,8 +560,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             String.format("StreamRecordTimestampInserter(rowtime field: %s)", rowtimeFieldIndex),
             "StreamRecordTimestampInserter",
             config),
-        // TODO: support it
-        new GlutenSingleInputOperator(null, PlanNodeIdGenerator.newId(), null, null),
+        // TODO: support it, Map.of() will not be used, hardcode it here.
+        new GlutenSingleInputOperator(
+            null, PlanNodeIdGenerator.newId(), null, Map.of("1", outputType)),
         inputTransform.getOutputType(),
         sinkParallelism,
         sinkParallelismConfigured);
