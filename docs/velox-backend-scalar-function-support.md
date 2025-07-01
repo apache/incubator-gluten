@@ -311,7 +311,7 @@
 | input_file_block_start      | InputFileBlockStart       |          |                |
 | input_file_name             | InputFileName             |          |                |
 | java_method                 | CallMethodViaReflection   |          |                |
-| monotonically_increasing_id | MonotonicallyIncreasingID |          |                |
+| monotonically_increasing_id | MonotonicallyIncreasingID | S        |                |
 | reflect                     | CallMethodViaReflection   |          |                |
 | spark_partition_id          | SparkPartitionID          | S        |                |
 | try_aes_decrypt             | TryAesDecrypt             |          |                |
