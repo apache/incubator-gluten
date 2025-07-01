@@ -52,7 +52,7 @@ public class TypeUtils {
     return type instanceof VarCharType;
   }
 
-  public static boolean isTimeInterval(Type type) {
+  public static boolean isIntervalType(Type type) {
     return type instanceof IntervalDayTimeType || type instanceof IntervalYearMonthType;
   }
 
