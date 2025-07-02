@@ -131,7 +131,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: build
         run: |
-          sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
+          # sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
           # To avoid the prompt for region selection during installing tzdata.
           export DEBIAN_FRONTEND=noninteractive
           apt-get update && apt-get install -y sudo maven wget git curl
