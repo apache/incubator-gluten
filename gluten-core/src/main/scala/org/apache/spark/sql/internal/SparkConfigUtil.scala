@@ -50,15 +50,22 @@ object SparkConfigUtil {
   }
 
   def get[T](conf: SparkConf, entry: ConfigEntry[T]): T = {
-    entry.valueConverter(checkUndefined(conf.get(entry.key, entry.defaultValueString)))
+    entry.valueConverter(
+      conf
+        .getOption(entry.key)
+        .getOrElse(checkUndefined(entry.defaultValueString)))
   }
 
   def get[T](conf: java.util.Map[String, String], entry: SparkConfigEntry[T]): T = {
-    entry.valueConverter(checkUndefined(conf.getOrDefault(entry.key, entry.defaultValueString)))
+    entry.valueConverter(
+      Option(conf.get(entry.key))
+        .getOrElse(checkUndefined(entry.defaultValueString)))
   }
 
   def get[T](conf: java.util.Map[String, String], entry: ConfigEntry[T]): T = {
-    entry.valueConverter(checkUndefined(conf.getOrDefault(entry.key, entry.defaultValueString)))
+    entry.valueConverter(
+      Option(conf.get(entry.key))
+        .getOrElse(checkUndefined(entry.defaultValueString)))
   }
 
   def set[T](conf: SparkConf, entry: SparkConfigEntry[T], value: T): SparkConf = {
