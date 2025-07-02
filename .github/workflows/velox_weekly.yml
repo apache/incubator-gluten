@@ -148,6 +148,7 @@ jobs:
             cd /tmp
             wget https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz
             tar xf v1.13.0.tar.gz && cd googletest-1.13.0/
+            echo 'set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")' >> CMakeLists.txt
             cmake . && make install -j
           fi
           sudo apt-get install -y openjdk-8-jdk python3-pip cmake
