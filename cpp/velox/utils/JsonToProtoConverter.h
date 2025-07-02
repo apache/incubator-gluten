@@ -22,7 +22,5 @@
 class JsonToProtoConverter {
  public:
   /// Reconstruct Protobuf message from Json file.
-  static void readFromFile(
-      const std::string& msgPath,
-      google::protobuf::Message& msg);
+  static void readFromFile(const std::string& msgPath, google::protobuf::Message& msg);
 };
