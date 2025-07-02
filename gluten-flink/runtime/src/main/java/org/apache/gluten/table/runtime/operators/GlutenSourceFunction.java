@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.table.runtime.operators;
 
+import org.apache.gluten.table.runtime.metrics.SourceTaskMetrics;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
@@ -34,6 +35,8 @@ import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.table.data.RowData;
 
@@ -59,6 +62,9 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   private Query query;
   BufferAllocator allocator;
   private MemoryManager memoryManager;
+  private Counter sourceNumRecordsOut;
+  private Counter sourceNumBytesOut;
+  private SourceTaskMetrics sourceTaskMetrics;
 
   public GlutenSourceFunction(
       StatefulPlanNode planNode,
@@ -85,6 +91,24 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
 
   public ConnectorSplit getConnectorSplit() {
     return split;
+  }
+
+  @Override
+  public void open(Configuration parameters) throws Exception {
+    sourceNumRecordsOut =
+        getRuntimeContext().getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
+    sourceNumBytesOut =
+        getRuntimeContext().getMetricGroup().getIOMetricGroup().getNumBytesOutCounter();
+    sourceTaskMetrics = SourceTaskMetrics.getInstance();
+  }
+
+  private void updateSourceMetrics(SerialTask task) {
+    if (sourceTaskMetrics.updateMetrics(task, id)) {
+      long numRecordsOut = sourceTaskMetrics.getSourceRecordsOut();
+      long numBytesOut = sourceTaskMetrics.getSourceBytesOut();
+      sourceNumRecordsOut.inc(numRecordsOut - sourceNumRecordsOut.getCount());
+      sourceNumBytesOut.inc(numBytesOut - sourceNumBytesOut.getCount());
+    }
   }
 
   @Override
@@ -116,6 +140,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
         LOG.info("Velox task finished");
         break;
       }
+      updateSourceMetrics(task);
     }
 
     task.close();
