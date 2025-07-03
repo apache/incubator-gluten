@@ -130,12 +130,14 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
       .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
   // Whether to use CelebornShuffleManager.
+  // TODO: Deprecate the API: https://github.com/apache/incubator-gluten/issues/10107.
   def isUseCelebornShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
       .contains("celeborn")
 
   // Whether to use UniffleShuffleManager.
+  // TODO: Deprecate the API: https://github.com/apache/incubator-gluten/issues/10107.
   def isUseUniffleShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
