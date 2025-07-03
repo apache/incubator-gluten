@@ -41,6 +41,7 @@ namespace DB
 namespace Setting
 {
 extern const SettingsUInt64 max_block_size;
+extern const SettingsUInt64 min_joined_block_size_rows;
 extern const SettingsUInt64 min_joined_block_size_bytes;
 }
 namespace ErrorCodes
@@ -201,6 +202,7 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
             right->getCurrentHeader(),
             hash_join,
             context->getSettingsRef()[Setting::max_block_size],
+            context->getSettingsRef()[Setting::min_joined_block_size_rows],
             context->getSettingsRef()[Setting::min_joined_block_size_bytes],
             1,
             /* required_output_ = */ NameSet{},
