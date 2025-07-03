@@ -14,23 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.table.runtime.keyselector;
 
-#include "utils//JsonToProtoConverter.h"
-#include <fstream>
-#include <sstream>
-#include "velox/common/base/Exceptions.h"
+import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
 
-void JsonToProtoConverter::readFromFile(const std::string& msgPath, google::protobuf::Message& msg) {
-  // Read json file and resume the Substrait plan.
-  std::ifstream msgJson(msgPath);
-  VELOX_CHECK(!msgJson.fail(), "Failed to open file: {}. {}", msgPath, strerror(errno));
-  std::stringstream buffer;
-  buffer << msgJson.rdbuf();
-  std::string msgData = buffer.str();
-  auto status = google::protobuf::util::JsonStringToMessage(msgData, &msg);
-  VELOX_CHECK(
-      status.ok(),
-      "Failed to parse Substrait JSON: {} {}",
-      static_cast<int8_t>(status.code()),
-      status.message().ToString());
+import org.apache.flink.api.java.functions.KeySelector;
+
+/** A KeySelector which will extract key from RowVector. The key type is RowVector. */
+public class GlutenKeySelector implements KeySelector<StatefulRecord, Integer> {
+
+  private static final long serialVersionUID = -1L;
+
+  public GlutenKeySelector() {}
+
+  @Override
+  public Integer getKey(StatefulRecord value) throws Exception {
+    // TODO: calculate the key hash in velox, and get it here.
+    return value.getKey();
+  }
 }

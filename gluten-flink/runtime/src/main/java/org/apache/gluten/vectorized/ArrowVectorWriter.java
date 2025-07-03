@@ -41,7 +41,7 @@ import java.util.Map;
 public abstract class ArrowVectorWriter {
   private interface WriterBuilder {
     ArrowVectorWriter build(Type fieldType, BufferAllocator allocator, FieldVector vector);
-  };
+  }
 
   // Exact class matches
   private static Map<Class<? extends Type>, WriterBuilder> writerBuilders =

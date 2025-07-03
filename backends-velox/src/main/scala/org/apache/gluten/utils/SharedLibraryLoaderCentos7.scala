@@ -31,11 +31,10 @@ class SharedLibraryLoaderCentos7 extends SharedLibraryLoader {
     loader.loadAndCreateLink("libevent-2.0.so.5", "libevent-2.0.so")
     loader.loadAndCreateLink("libgflags.so.2.2", "libgflags.so")
     loader.loadAndCreateLink("libglog.so.0", "libglog.so")
-    loader.loadAndCreateLink("libntlm.so.0", "libntlm.so")
-    loader.loadAndCreateLink("libgsasl.so.7", "libgsasl.so")
     loader.loadAndCreateLink("libprotobuf.so.32", "libprotobuf.so")
     loader.loadAndCreateLink("libre2.so.10", "libre2.so")
     loader.loadAndCreateLink("libzstd.so.1", "libzstd.so")
     loader.loadAndCreateLink("liblz4.so.1", "liblz4.so")
+    loader.loadAndCreateLink("libgeos.so.3.10.7", "libgeos.so")
   }
 }

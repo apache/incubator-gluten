@@ -29,12 +29,13 @@ import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.query.Query;
 import io.github.zhztheplayer.velox4j.query.SerialTask;
 import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.session.Session;
+import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -48,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 
 /** Calculate operator in gluten, which will call Velox to run. */
 public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
@@ -55,10 +57,10 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
 
   private static final Logger LOG = LoggerFactory.getLogger(GlutenSingleInputOperator.class);
 
-  private final PlanNode glutenPlan;
+  private final StatefulPlanNode glutenPlan;
   private final String id;
   private final RowType inputType;
-  private final RowType outputType;
+  private final Map<String, RowType> outputTypes;
 
   private StreamRecord<RowData> outElement = null;
 
@@ -70,11 +72,11 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
   private SerialTask task;
 
   public GlutenSingleInputOperator(
-      PlanNode plan, String id, RowType inputType, RowType outputType) {
+      StatefulPlanNode plan, String id, RowType inputType, Map<String, RowType> outputTypes) {
     this.glutenPlan = plan;
     this.id = id;
     this.inputType = inputType;
-    this.outputType = outputType;
+    this.outputTypes = outputTypes;
   }
 
   @Override
@@ -86,12 +88,18 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
 
     inputQueue = session.externalStreamOps().newBlockingQueue();
     // add a mock input as velox not allow the source is empty.
-    PlanNode mockInput =
-        new TableScanNode(
-            id, inputType, new ExternalStreamTableHandle("connector-external-stream"), List.of());
-    glutenPlan.setSources(List.of(mockInput));
-    LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
-    query = new Query(glutenPlan, Config.empty(), ConnectorConfig.empty());
+    StatefulPlanNode mockInput =
+        new StatefulPlanNode(
+            id,
+            new TableScanNode(
+                id,
+                inputType,
+                new ExternalStreamTableHandle("connector-external-stream"),
+                List.of()));
+    mockInput.addTarget(glutenPlan);
+    LOG.debug("Gluten Plan: {}", Serde.toJson(mockInput));
+    LOG.debug("OutTypes: {}", outputTypes.keySet());
+    query = new Query(mockInput, Config.empty(), ConnectorConfig.empty());
     allocator = new RootAllocator(Long.MAX_VALUE);
     task = session.queryOps().execute(query);
     ExternalStreamConnectorSplit split =
@@ -111,11 +119,15 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
       inputQueue.put(inRv);
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
-        outRv = task.get();
-        List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(outRv, allocator, outputType);
+        final StatefulElement statefulElement = task.statefulGet();
+        outRv = statefulElement.asRecord().getRowVector();
+        List<RowData> rows =
+            FlinkRowToVLVectorConvertor.toRowData(
+                outRv, allocator, outputTypes.values().iterator().next());
         for (RowData row : rows) {
           output.collect(outElement.replace(row));
         }
+        outRv.close();
       }
     } finally {
       /// The RowVector should be closed in `finally`, to avoid it may not be closed when exceptions
@@ -140,7 +152,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
   }
 
   @Override
-  public PlanNode getPlanNode() {
+  public StatefulPlanNode getPlanNode() {
     return glutenPlan;
   }
 
@@ -150,8 +162,8 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
   }
 
   @Override
-  public RowType getOutputType() {
-    return outputType;
+  public Map<String, RowType> getOutputTypes() {
+    return outputTypes;
   }
 
   @Override

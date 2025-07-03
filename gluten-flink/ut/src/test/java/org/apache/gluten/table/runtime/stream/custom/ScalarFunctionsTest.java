@@ -21,11 +21,13 @@ import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
+@Disabled("Gluten has not supported part of job run in native")
 class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
   @Override
