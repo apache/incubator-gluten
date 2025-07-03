@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.config.VeloxConfig
 
 import org.apache.spark.SparkConf
@@ -260,7 +261,7 @@ class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
     super.sparkConf
       .set("spark.memory.offHeap.size", "50m")
       // to trigger distinct spill early
-      .set(GlutenConfig.COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO.key, "0.9")
+      .set(GlutenCoreConfig.COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO.key, "0.9")
       .set(GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key, "8k")
   }
 
