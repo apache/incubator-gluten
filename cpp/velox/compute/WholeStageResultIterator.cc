@@ -344,6 +344,7 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
+  // Save and print the plan with stats if debug mode is enabled or showTaskMetricsWhenFinished is true.
   if (veloxCfg_->get<bool>(kDebugModeEnabled, false) ||
       veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
     auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
@@ -444,6 +445,15 @@ void WholeStageResultIterator::collectMetrics() {
 
       metricIndex += 1;
     }
+  }
+
+  // Populate the metrics with task stats for long running tasks.
+  if (const int64_t collectTaskStatsThreshold =
+          veloxCfg_->get<int64_t>(kTaskMetricsToEventLogThreshold, kTaskMetricsToEventLogThresholdDefault);
+      collectTaskStatsThreshold >= 0 &&
+      static_cast<int64_t>(taskStats.terminationTimeMs - taskStats.executionStartTimeMs) > collectTaskStatsThreshold) {
+    auto jsonStats = velox::exec::toPlanStatsJson(taskStats);
+    metrics_->stats = folly::toJson(jsonStats);
   }
 }
 
