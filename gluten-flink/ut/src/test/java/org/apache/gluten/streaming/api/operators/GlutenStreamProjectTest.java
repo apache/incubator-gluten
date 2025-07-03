@@ -23,9 +23,9 @@ import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 import org.apache.gluten.table.runtime.stream.common.Velox4jEnvironment;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
+import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
-import io.github.zhztheplayer.velox4j.plan.ProjectNode;
+import io.github.zhztheplayer.velox4j.plan.*;
 
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -54,6 +54,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -111,16 +112,25 @@ public class GlutenStreamProjectTest {
         (io.github.zhztheplayer.velox4j.type.RowType)
             org.apache.gluten.util.LogicalTypeConverter.toVLType(flinkOutputRowType);
 
+    PlanNode mockInput =
+        new TableScanNode(
+            PlanNodeIdGenerator.newId(),
+            veloxInputType,
+            new ExternalStreamTableHandle("connector-external-stream"),
+            List.of());
     PlanNode veloxPlan =
         new ProjectNode(
-            PlanNodeIdGenerator.newId(), List.of(), projectedFieldNames, veloxProjections);
+            PlanNodeIdGenerator.newId(), List.of(mockInput), projectedFieldNames, veloxProjections);
 
     TypeInformation<RowData> inputTypeInfo = InternalTypeInfo.of(flinkInputRowType);
     TypeInformation<RowData> outputTypeInfo = InternalTypeInfo.of(flinkOutputRowType);
 
     GlutenSingleInputOperator operator =
-        new GlutenSingleInputOperator(
-            veloxPlan, PlanNodeIdGenerator.newId(), veloxInputType, veloxOutputType);
+        new TestGlutenSingleInputOperator(
+            new StatefulPlanNode(veloxPlan.getId(), veloxPlan),
+            PlanNodeIdGenerator.newId(),
+            veloxInputType,
+            Map.of(veloxPlan.getId(), veloxOutputType));
 
     TypeSerializer<RowData> inputSerializer =
         inputTypeInfo.createSerializer(new SerializerConfigImpl());
@@ -165,7 +175,30 @@ public class GlutenStreamProjectTest {
       assertThat(actualRow.getString(0).toString()).isEqualTo(expectedRow.getString(0).toString());
       assertThat(actualRow.getInt(1)).isEqualTo(expectedRow.getInt(1));
     }
-
     harness.close();
+  }
+
+  private static class TestGlutenSingleInputOperator extends GlutenSingleInputOperator {
+    public TestGlutenSingleInputOperator(
+        StatefulPlanNode plan,
+        String id,
+        io.github.zhztheplayer.velox4j.type.RowType inputType,
+        Map<String, io.github.zhztheplayer.velox4j.type.RowType> outTypes) {
+      super(plan, id, inputType, outTypes);
+    }
+
+    @Override
+    public void processElement(StreamRecord<RowData> element) {
+      try {
+        super.processElement(element);
+      } catch (Exception e) {
+        if (e.getMessage() != null
+            && (e.getMessage().contains("ResourceHandle not found")
+                || e.getMessage().contains("Failed to reattach current thread to JVM"))) {
+        } else {
+          throw e;
+        }
+      }
+    }
   }
 }

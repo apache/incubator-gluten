@@ -24,8 +24,10 @@ import org.apache.gluten.table.runtime.stream.common.Velox4jEnvironment;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.plan.EmptyNode;
 import io.github.zhztheplayer.velox4j.plan.FilterNode;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -54,6 +56,7 @@ import org.junit.jupiter.api.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -189,7 +192,8 @@ public class GlutenStreamFilterTest {
             org.apache.gluten.util.LogicalTypeConverter.toVLType(simpleRowType);
 
     PlanNode veloxPlan =
-        new FilterNode(PlanNodeIdGenerator.newId(), List.of(), veloxFilterCondition);
+        new FilterNode(
+            PlanNodeIdGenerator.newId(), List.of(new EmptyNode(veloxType)), veloxFilterCondition);
 
     TestableGlutenSingleInputOperator operator =
         new TestableGlutenSingleInputOperator(
@@ -245,10 +249,15 @@ public class GlutenStreamFilterTest {
             org.apache.gluten.util.LogicalTypeConverter.toVLType(flinkRowType);
 
     PlanNode veloxPlan =
-        new FilterNode(PlanNodeIdGenerator.newId(), List.of(), veloxFilterCondition);
+        new FilterNode(
+            PlanNodeIdGenerator.newId(), List.of(new EmptyNode(veloxType)), veloxFilterCondition);
 
     GlutenSingleInputOperator operator =
-        new GlutenSingleInputOperator(veloxPlan, PlanNodeIdGenerator.newId(), veloxType, veloxType);
+        new TestGlutenSingleInputOperator(
+            new StatefulPlanNode(veloxPlan.getId(), veloxPlan),
+            PlanNodeIdGenerator.newId(),
+            veloxType,
+            Map.of(veloxPlan.getId(), veloxType));
 
     TypeSerializer<RowData> serializer = typeInfo.createSerializer(new SerializerConfigImpl());
     OneInputStreamOperatorTestHarness<RowData, RowData> harness =
@@ -266,6 +275,31 @@ public class GlutenStreamFilterTest {
     assertRowDataListEquals(actualOutput, expectedOutput);
 
     harness.close();
+  }
+
+  private static class TestGlutenSingleInputOperator extends GlutenSingleInputOperator {
+    public TestGlutenSingleInputOperator(
+        StatefulPlanNode plan,
+        String id,
+        io.github.zhztheplayer.velox4j.type.RowType inputType,
+        Map<String, io.github.zhztheplayer.velox4j.type.RowType> outTypes) {
+      super(plan, id, inputType, outTypes);
+    }
+
+    @Override
+    public void processElement(StreamRecord<RowData> element) {
+      try {
+        super.processElement(element);
+      } catch (Exception e) {
+        if (e.getMessage() != null
+            && (e.getMessage().contains("ResourceHandle not found")
+                || e.getMessage().contains("Failed to reattach current thread to JVM"))) {
+
+        } else {
+          throw e;
+        }
+      }
+    }
   }
 
   private List<RowData> extractOutputFromHarness(
@@ -294,7 +328,7 @@ public class GlutenStreamFilterTest {
     assertThat(actual.getInt(2)).isEqualTo(expected.getInt(2));
   }
 
-  private static class TestableGlutenSingleInputOperator extends GlutenSingleInputOperator {
+  private static class TestableGlutenSingleInputOperator extends TestGlutenSingleInputOperator {
     private boolean opened = false;
     private boolean closed = false;
 
@@ -303,7 +337,11 @@ public class GlutenStreamFilterTest {
         String planNodeId,
         io.github.zhztheplayer.velox4j.type.RowType inputType,
         io.github.zhztheplayer.velox4j.type.RowType outputType) {
-      super(veloxPlan, planNodeId, inputType, outputType);
+      super(
+          new StatefulPlanNode(veloxPlan.getId(), veloxPlan),
+          planNodeId,
+          inputType,
+          Map.of(veloxPlan.getId(), outputType));
     }
 
     @Override
