@@ -50,22 +50,22 @@ object SparkConfigUtil {
   }
 
   def get[T](conf: SparkConf, entry: ConfigEntry[T]): T = {
-    entry.valueConverter(
-      conf
-        .getOption(entry.key)
-        .getOrElse(checkUndefined(entry.defaultValueString)))
+    conf
+      .getOption(entry.key)
+      .map(entry.valueConverter)
+      .getOrElse(entry.defaultValue.getOrElse(None).asInstanceOf[T])
   }
 
   def get[T](conf: java.util.Map[String, String], entry: SparkConfigEntry[T]): T = {
-    entry.valueConverter(
-      Option(conf.get(entry.key))
-        .getOrElse(checkUndefined(entry.defaultValueString)))
+    Option(conf.get(entry.key))
+      .map(entry.valueConverter)
+      .getOrElse(entry.defaultValue.getOrElse(None).asInstanceOf[T])
   }
 
   def get[T](conf: java.util.Map[String, String], entry: ConfigEntry[T]): T = {
-    entry.valueConverter(
-      Option(conf.get(entry.key))
-        .getOrElse(checkUndefined(entry.defaultValueString)))
+    Option(conf.get(entry.key))
+      .map(entry.valueConverter)
+      .getOrElse(entry.defaultValue.getOrElse(None).asInstanceOf[T])
   }
 
   def set[T](conf: SparkConf, entry: SparkConfigEntry[T], value: T): SparkConf = {
@@ -83,9 +83,4 @@ object SparkConfigUtil {
       case _ => conf.set(entry.key, value.toString)
     }
   }
-
-  private def checkUndefined(value: String): String =
-    Option(value)
-      .filterNot(_ == ConfigEntry.UNDEFINED)
-      .orNull
 }
