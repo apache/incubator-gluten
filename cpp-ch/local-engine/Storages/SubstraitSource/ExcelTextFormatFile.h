@@ -47,8 +47,7 @@ public:
 
     ~ExcelTextFormatFile() override = default;
 
-    FormatFile::InputFormatPtr
-    createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag = nullptr) override;
+    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 
     bool supportSplit() const override { return true; }
     String getFileFormat() const override { return "ExcelText"; }
