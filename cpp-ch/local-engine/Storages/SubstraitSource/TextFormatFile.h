@@ -32,8 +32,7 @@ public:
         DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
     ~TextFormatFile() override = default;
 
-    FormatFile::InputFormatPtr
-    createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag = nullptr) override;
+    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 
     DB::NamesAndTypesList getSchema() const
     {
