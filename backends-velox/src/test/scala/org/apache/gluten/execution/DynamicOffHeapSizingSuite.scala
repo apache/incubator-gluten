@@ -18,6 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.benchmarks.RandomParquetDataGenerator
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.tags.SkipTest
 
 import org.apache.spark.SparkConf
@@ -41,8 +42,8 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.executor.memory", "6GB")
-      .set(GlutenConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION.key, "0.8")
-      .set(GlutenConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, "true")
+      .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION.key, "0.8")
+      .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, "true")
   }
 
   def getRootCause(e: Throwable): Throwable = {
