@@ -25,12 +25,15 @@ import org.apache.gluten.utils.DebugUtil;
 import org.apache.gluten.validate.NativePlanValidationInfo;
 
 import org.apache.spark.TaskContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NativePlanEvaluator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(NativePlanEvaluator.class);
   private static final AtomicInteger id = new AtomicInteger(0);
 
   private final Runtime runtime;
@@ -86,7 +89,13 @@ public class NativePlanEvaluator {
                 if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
                   return 0L;
                 }
-                return out.spill(size);
+                long spilled = out.spill(size);
+                LOGGER.info(
+                    "NativePlanEvaluator-{}: Spilled {} / {} bytes of data.",
+                    id.get(),
+                    spilled,
+                    size);
+                return spilled;
               }
             });
     return out;
