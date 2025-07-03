@@ -17,14 +17,8 @@
 #pragma once
 
 #include <memory>
-#include <Interpreters/Context_fwd.h>
-#include <Processors/ISource.h>
+#include <Processors/SourceWithKeyCondition.h>
 #include <substrait/algebra.pb.h>
-
-namespace DB
-{
-class ActionsDAG;
-}
 
 namespace local_engine
 {
@@ -35,7 +29,7 @@ class FormatFile;
 using FormatFilePtr = std::shared_ptr<FormatFile>;
 using FormatFiles = std::vector<FormatFilePtr>;
 
-class SubstraitFileSource : public DB::ISource
+class SubstraitFileSource : public DB::SourceWithKeyCondition
 {
 public:
     SubstraitFileSource(const DB::ContextPtr & context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos);
@@ -43,7 +37,7 @@ public:
 
     String getName() const override { return "SubstraitFileSource"; }
 
-    void setKeyCondition(const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag_, DB::ContextPtr context_);
+    void setKeyCondition(const std::optional<DB::ActionsDAG> & filter_actions_dag, DB::ContextPtr context_) override;
 
 protected:
     DB::Chunk generate() override;
@@ -60,6 +54,5 @@ private:
 
     std::unique_ptr<BaseReader> file_reader;
     ColumnIndexFilterPtr column_index_filter;
-    std::shared_ptr<const DB::ActionsDAG> filter_actions_dag;
 };
 }
