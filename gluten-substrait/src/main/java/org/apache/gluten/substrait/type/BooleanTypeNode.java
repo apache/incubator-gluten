@@ -40,4 +40,9 @@ public class BooleanTypeNode implements TypeNode, Serializable {
     builder.setBool(booleanBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

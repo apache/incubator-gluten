@@ -24,7 +24,6 @@
 #include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/HiveDataSink.h"
 #include "velox/exec/TableWriter.h"
-#include "velox/type/Filter.h"
 #include "velox/type/Type.h"
 
 #include "utils/ConfigExtractor.h"
@@ -32,7 +31,6 @@
 #include "config.pb.h"
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
-#include "operators/plannodes/RowVectorStream.h"
 #include "operators/writer/VeloxParquetDataSource.h"
 
 namespace gluten {
@@ -986,7 +984,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     windowColumnNames.push_back(windowFunction.column_name());
 
     windowNodeFunctions.push_back(
-        {std::move(windowCall), std::move(createWindowFrame(lowerBound, upperBound, type, inputType)), ignoreNulls});
+        {std::move(windowCall), createWindowFrame(lowerBound, upperBound, type, inputType), ignoreNulls});
   }
 
   // Construct partitionKeys
@@ -1262,7 +1260,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto streamIdx = getStreamIndex(readRel);
   if (streamIdx >= 0) {
     // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
-    if (LIKELY(confMap_[kQueryTraceEnabled] != "true")) {
+    if (LIKELY(!veloxCfg_->get<bool>(kQueryTraceEnabled, false))) {
       return constructValueStreamNode(readRel, streamIdx);
     } else {
       return constructValuesNode(readRel, streamIdx);
@@ -1281,9 +1279,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<TypePtr> veloxTypeList;
   std::vector<ColumnType> columnTypes;
   // Convert field names into lower case when not case-sensitive.
-  std::unique_ptr<facebook::velox::config::ConfigBase> veloxCfg =
-      std::make_unique<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap_));
-  bool asLowerCase = !veloxCfg->get<bool>(kCaseSensitive, false);
+  bool asLowerCase = !veloxCfg_->get<bool>(kCaseSensitive, false);
   if (readRel.has_base_schema()) {
     const auto& baseSchema = readRel.base_schema();
     colNameList.reserve(baseSchema.names().size());
@@ -1323,7 +1319,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Get assignments and out names.
   std::vector<std::string> outNames;
   outNames.reserve(colNameList.size());
-  std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
+  connector::ColumnHandleMap assignments;
   for (int idx = 0; idx < colNameList.size(); idx++) {
     auto outName = SubstraitParser::makeNodeName(planNodeId_, idx);
     auto columnType = columnTypes[idx];
@@ -1337,7 +1333,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(readRel, outputType);
   } else {
     auto tableScanNode = std::make_shared<core::TableScanNode>(
-        nextPlanNodeId(), std::move(outputType), std::move(tableHandle), std::move(assignments));
+        nextPlanNodeId(), std::move(outputType), std::move(tableHandle), assignments);
     // Set split info map.
     splitInfoMap_[tableScanNode->id()] = splitInfo;
     return tableScanNode;

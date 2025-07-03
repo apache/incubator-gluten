@@ -19,9 +19,9 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.optimizer.BuildSide
-import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, JoinType}
+import org.apache.spark.sql.catalyst.expressions.{Expression, SortOrder}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, InnerLike, JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -48,6 +48,13 @@ case class VeloxBroadcastNestedLoopJoinExecTransformer(
     val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
     // FIXME: Do we have to make build side a RDD?
     streamedRDD :+ broadcastRDD
+  }
+
+  override def outputOrdering: Seq[SortOrder] = (joinType, buildSide) match {
+    case (_: InnerLike, _) | (LeftOuter, BuildRight) | (RightOuter, BuildLeft) |
+        (ExistenceJoin(_), BuildRight) =>
+      streamedPlan.outputOrdering
+    case _ => Nil
   }
 
   override protected def withNewChildrenInternal(

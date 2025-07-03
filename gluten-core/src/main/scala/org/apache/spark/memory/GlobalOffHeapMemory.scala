@@ -16,7 +16,7 @@
  */
 package org.apache.spark.memory
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.memtarget.{MemoryTarget, NoopMemoryTarget}
 
@@ -30,7 +30,7 @@ import org.apache.gluten.memory.memtarget.{MemoryTarget, NoopMemoryTarget}
  * BlockId to be extended by user, TestBlockId is chosen for the storage memory reservations.
  */
 object GlobalOffHeapMemory {
-  private val target: MemoryTarget = if (GlutenConfig.get.memoryUntracked) {
+  private val target: MemoryTarget = if (GlutenCoreConfig.get.memoryUntracked) {
     new NoopMemoryTarget()
   } else {
     new GlobalOffHeapMemoryTarget()

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
+import org.apache.gluten.config.{GlutenConfig, GlutenCoreConfig, VeloxConfig}
 import org.apache.gluten.expression.VeloxDummyExpression
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -2011,11 +2011,11 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("test 'spark.gluten.enabled'") {
-    withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "true") {
+    withSQLConf(GlutenCoreConfig.GLUTEN_ENABLED.key -> "true") {
       runQueryAndCompare("select * from lineitem limit 1") {
         checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+      withSQLConf(GlutenCoreConfig.GLUTEN_ENABLED.key -> "false") {
         runQueryAndCompare("select * from lineitem limit 1") {
           checkSparkOperatorMatch[FileSourceScanExec]
         }

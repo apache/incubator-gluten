@@ -126,6 +126,19 @@ mvn test -Pspark-3.5 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/p
 ```
 
 Please set `wildcardSuites` with a fully qualified class name. `spark.test.home` is optional to set. It is only required for some test suites to use Spark resources.
+If you are specifying the `spark.test.home` arg, it should be set to either:
+* The path a directory containing Spark source code, which has already been built
+* Or use the `install_spark_resources.sh` script to get a directory with the necessary resource files:
+  ```
+  # Define a directory to use for the Spark files and the Spark version
+  export spark_dir=/tmp/spark
+  export spark_version=3.5
+
+  # Run the install_spark_resources.sh script
+  .github/workflows/util/install_spark_resources.sh ${spark_version} ${spark_dir}
+  ```
+  After running the `install_spark_resources.sh`, define the `spark.test.home` directory like:
+  `-DargLine="-Dspark.test.home=${spark_dir}/shims/spark35/spark_home"` when running unit tests.
 
 For most cases, please make sure Gluten native build is done before running a Scala/Java test.
 

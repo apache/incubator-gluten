@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "ShuffleMemoryPool.h"
 #include "memory/MemoryManager.h"
 #include "memory/Reclaimable.h"
 #include "shuffle/Options.h"
@@ -32,10 +31,9 @@ struct Evict {
 
 class PartitionWriter : public Reclaimable {
  public:
-  PartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, MemoryManager* memoryManager)
-      : numPartitions_(numPartitions), options_(std::move(options)), memoryManager_(memoryManager) {
-    payloadPool_ = std::make_unique<ShuffleMemoryPool>(memoryManager->getArrowMemoryPool());
-    codec_ = createArrowIpcCodec(options_.compressionType, options_.codecBackend, options_.compressionLevel);
+  PartitionWriter(uint32_t numPartitions, std::unique_ptr<arrow::util::Codec> codec, MemoryManager* memoryManager)
+      : numPartitions_(numPartitions), codec_(std::move(codec)), memoryManager_(memoryManager) {
+    payloadPool_ = memoryManager->getOrCreateArrowMemoryPool("PartitionWriter.cached_payload");
   }
 
   static inline std::string typeToString(PartitionWriterType type) {
@@ -68,20 +66,14 @@ class PartitionWriter : public Reclaimable {
     return payloadPool_->bytes_allocated();
   }
 
-  PartitionWriterOptions& options() {
-    return options_;
-  }
-
  protected:
   uint32_t numPartitions_;
-  PartitionWriterOptions options_;
+  std::unique_ptr<arrow::util::Codec> codec_;
   MemoryManager* memoryManager_;
 
   // Memory Pool used to track memory allocation of partition payloads.
   // The actual allocation is delegated to options_.memoryPool.
-  std::unique_ptr<ShuffleMemoryPool> payloadPool_;
-
-  std::unique_ptr<arrow::util::Codec> codec_;
+  std::shared_ptr<arrow::MemoryPool> payloadPool_;
 
   int64_t compressTime_{0};
   int64_t spillTime_{0};

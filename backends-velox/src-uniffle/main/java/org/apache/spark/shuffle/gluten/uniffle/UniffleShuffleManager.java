@@ -16,6 +16,8 @@
  */
 package org.apache.spark.shuffle.gluten.uniffle;
 
+import org.apache.gluten.shuffle.SupportsColumnarShuffle;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.executor.ShuffleWriteMetrics;
@@ -31,7 +33,7 @@ import org.apache.uniffle.common.exception.RssException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UniffleShuffleManager extends RssShuffleManager {
+public class UniffleShuffleManager extends RssShuffleManager implements SupportsColumnarShuffle {
   private static final Logger LOG = LoggerFactory.getLogger(UniffleShuffleManager.class);
 
   public UniffleShuffleManager(SparkConf conf, boolean isDriver) {

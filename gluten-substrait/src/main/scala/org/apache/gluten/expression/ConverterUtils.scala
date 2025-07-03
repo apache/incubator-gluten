@@ -254,6 +254,56 @@ object ConverterUtils extends Logging {
     }
   }
 
+  def parseFromTypeNode(typeNode: TypeNode): DataType = {
+    typeNode match {
+      case _: BooleanTypeNode =>
+        BooleanType
+      case _: FP32TypeNode =>
+        FloatType
+      case _: FP64TypeNode =>
+        DoubleType
+      case _: I64TypeNode =>
+        LongType
+      case _: I32TypeNode =>
+        IntegerType
+      case _: I16TypeNode =>
+        ShortType
+      case _: I8TypeNode =>
+        ByteType
+      case _: StringTypeNode =>
+        StringType
+      case _: BinaryTypeNode =>
+        BinaryType
+      case _: DateTypeNode =>
+        DateType
+      case _: IntervalYearTypeNode =>
+        YearMonthIntervalType.DEFAULT
+      case d: DecimalTypeNode =>
+        DecimalType(d.precision, d.scale)
+      case _: TimestampTypeNode =>
+        TimestampType
+      case m: MapNode =>
+        val keyType = parseFromTypeNode(m.getKeyType)
+        val valueType = parseFromTypeNode(m.getValueType)
+        val valueContainsNull = m.getValueType.nullable()
+        MapType(keyType, valueType, valueContainsNull)
+      case a: ListNode =>
+        val elementType = parseFromTypeNode(a.getNestedType)
+        ArrayType(elementType, a.getNestedType.nullable())
+      case s: StructNode =>
+        val fields = s.getFieldTypes.asScala.map({
+          typ =>
+            val field = parseFromTypeNode(typ)
+            StructField("", field, typ.nullable())
+        })
+        StructType(fields.toSeq)
+      case _: NothingNode =>
+        NullType
+      case unknown =>
+        throw new GlutenNotSupportException(s"Type $unknown not supported.")
+    }
+  }
+
   def parseFromBytes(bytes: Array[Byte]): ExpressionType = {
     val input = CodedInputStream.newInstance(bytes)
     val parsed = io.substrait.proto.Type.parseFrom(input)

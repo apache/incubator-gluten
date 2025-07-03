@@ -34,13 +34,14 @@ static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
 static constexpr int32_t kDefaultCompressionBufferSize = 32 * 1024;
 static constexpr int32_t kDefaultDiskWriteBufferSize = 1024 * 1024;
-static constexpr double kDefaultBufferReallocThreshold = 0.25;
+static constexpr double kDefaultSplitBufferReallocThreshold = 0.25;
 static constexpr double kDefaultMergeBufferThreshold = 0.25;
 static constexpr bool kDefaultUseRadixSort = true;
 static constexpr int32_t kDefaultSortBufferSize = 4096;
 static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
 static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
+static constexpr bool kDefaultEnableDictionary = false;
 
 enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
 
@@ -64,39 +65,116 @@ struct ShuffleReaderOptions {
 };
 
 struct ShuffleWriterOptions {
-  int32_t bufferSize = kDefaultShuffleWriterBufferSize;
-  double bufferReallocThreshold = kDefaultBufferReallocThreshold;
-  int64_t pushMemoryThreshold = kDefaultPushMemoryThreshold;
+  ShuffleWriterType shuffleWriterType;
   Partitioning partitioning = Partitioning::kRoundRobin;
-  int64_t taskAttemptId = -1;
   int32_t startPartitionId = 0;
-  int64_t threadId = -1;
-  ShuffleWriterType shuffleWriterType = ShuffleWriterType::kHashShuffle;
 
-  // Sort shuffle writer.
+  ShuffleWriterOptions(ShuffleWriterType shuffleWriterType) : shuffleWriterType(shuffleWriterType) {}
+
+  ShuffleWriterOptions(ShuffleWriterType shuffleWriterType, Partitioning partitioning, int32_t startPartitionId)
+      : shuffleWriterType(shuffleWriterType), partitioning(partitioning), startPartitionId(startPartitionId) {}
+
+  virtual ~ShuffleWriterOptions() = default;
+};
+
+struct HashShuffleWriterOptions : ShuffleWriterOptions {
+  int32_t splitBufferSize = kDefaultShuffleWriterBufferSize;
+  double splitBufferReallocThreshold = kDefaultSplitBufferReallocThreshold;
+
+  HashShuffleWriterOptions() : ShuffleWriterOptions(ShuffleWriterType::kHashShuffle) {}
+
+  HashShuffleWriterOptions(
+      Partitioning partitioning,
+      int32_t startPartitionId,
+      int32_t partitionBufferSize,
+      double partitionBufferReallocThreshold)
+      : ShuffleWriterOptions(ShuffleWriterType::kHashShuffle, partitioning, startPartitionId),
+        splitBufferSize(partitionBufferSize),
+        splitBufferReallocThreshold(partitionBufferReallocThreshold) {}
+};
+
+struct SortShuffleWriterOptions : ShuffleWriterOptions {
   int32_t initialSortBufferSize = kDefaultSortBufferSize; // spark.shuffle.sort.initialBufferSize
   int32_t diskWriteBufferSize = kDefaultDiskWriteBufferSize; // spark.shuffle.spill.diskWriteBufferSize
   bool useRadixSort = kDefaultUseRadixSort; // spark.shuffle.sort.useRadixSort
+
+  SortShuffleWriterOptions() : ShuffleWriterOptions(ShuffleWriterType::kSortShuffle) {}
+
+  SortShuffleWriterOptions(
+      Partitioning partitioning,
+      int32_t startPartitionId,
+      int32_t initialSortBufferSize,
+      int32_t diskWriteBufferSize,
+      bool useRadixSort)
+      : ShuffleWriterOptions(ShuffleWriterType::kSortShuffle, partitioning, startPartitionId),
+        initialSortBufferSize(initialSortBufferSize),
+        diskWriteBufferSize(diskWriteBufferSize),
+        useRadixSort(useRadixSort) {}
 };
 
-struct PartitionWriterOptions {
-  int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
-  double mergeThreshold = kDefaultMergeBufferThreshold;
+struct RssSortShuffleWriterOptions : ShuffleWriterOptions {
+  int32_t splitBufferSize = kDefaultShuffleWriterBufferSize;
+  int64_t sortBufferMaxSize = kDefaultSortBufferThreshold;
+  arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME;
+
+  RssSortShuffleWriterOptions() : ShuffleWriterOptions(ShuffleWriterType::kRssSortShuffle) {}
+
+  RssSortShuffleWriterOptions(
+      Partitioning partitioning,
+      int32_t startPartitionId,
+      int32_t splitBufferSize,
+      int64_t sortBufferMaxSize,
+      arrow::Compression::type compressionType)
+      : ShuffleWriterOptions(ShuffleWriterType::kRssSortShuffle, partitioning, startPartitionId),
+        splitBufferSize(splitBufferSize),
+        sortBufferMaxSize(sortBufferMaxSize),
+        compressionType(compressionType) {}
+};
+
+struct LocalPartitionWriterOptions {
+  int64_t shuffleFileBufferSize = kDefaultShuffleFileBufferSize; // spark.shuffle.file.buffer
   int32_t compressionBufferSize =
       kDefaultCompressionBufferSize; // spark.io.compression.lz4.blockSize,spark.io.compression.zstd.bufferSize
+
   int32_t compressionThreshold = kDefaultCompressionThreshold;
-  arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
-  CodecBackend codecBackend = CodecBackend::NONE;
-  int32_t compressionLevel = arrow::util::kUseDefaultCompressionLevel;
-  CompressionMode compressionMode = CompressionMode::BUFFER;
+  int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
+  double mergeThreshold = kDefaultMergeBufferThreshold;
 
-  int32_t numSubDirs = kDefaultNumSubDirs;
+  int32_t numSubDirs = kDefaultNumSubDirs; // spark.diskStore.subDirectories
 
+  bool enableDictionary = kDefaultEnableDictionary;
+
+  LocalPartitionWriterOptions() = default;
+
+  LocalPartitionWriterOptions(
+      int64_t shuffleFileBufferSize,
+      int32_t compressionBufferSize,
+      int64_t compressionThreshold,
+      int32_t mergeBufferSize,
+      double mergeThreshold,
+      int32_t numSubDirs,
+      bool enableDictionary)
+      : shuffleFileBufferSize(shuffleFileBufferSize),
+        compressionBufferSize(compressionBufferSize),
+        compressionThreshold(compressionThreshold),
+        mergeBufferSize(mergeBufferSize),
+        mergeThreshold(mergeThreshold),
+        numSubDirs(numSubDirs),
+        enableDictionary(enableDictionary) {}
+};
+
+struct RssPartitionWriterOptions {
+  int32_t compressionBufferSize =
+      kDefaultCompressionBufferSize; // spark.io.compression.lz4.blockSize,spark.io.compression.zstd.bufferSize
   int64_t pushBufferMaxSize = kDefaultPushMemoryThreshold;
-
   int64_t sortBufferMaxSize = kDefaultSortBufferThreshold;
 
-  int64_t shuffleFileBufferSize = kDefaultShuffleFileBufferSize;
+  RssPartitionWriterOptions() = default;
+
+  RssPartitionWriterOptions(int32_t compressionBufferSize, int64_t pushBufferMaxSize, int64_t sortBufferMaxSize)
+      : compressionBufferSize(compressionBufferSize),
+        pushBufferMaxSize(pushBufferMaxSize),
+        sortBufferMaxSize(sortBufferMaxSize) {}
 };
 
 struct ShuffleWriterMetrics {
@@ -106,6 +184,8 @@ struct ShuffleWriterMetrics {
   int64_t totalWriteTime{0};
   int64_t totalEvictTime{0};
   int64_t totalCompressTime{0};
+  double avgDictionaryFields{0};
+  int64_t dictionarySize{0};
   std::vector<int64_t> partitionLengths{};
   std::vector<int64_t> rawPartitionLengths{}; // Uncompressed size.
 };

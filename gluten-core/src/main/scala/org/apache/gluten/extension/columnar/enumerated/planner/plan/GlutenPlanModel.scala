@@ -17,12 +17,12 @@
 package org.apache.gluten.extension.columnar.enumerated.planner.plan
 
 import org.apache.gluten.ras.PlanModel
-import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
-import org.apache.spark.task.{SparkTaskUtil, TaskResources}
+import org.apache.spark.task.TaskResources
+import org.apache.spark.util.SparkTaskUtil
 
 import java.util.{Objects, Properties}
 
@@ -32,7 +32,7 @@ object GlutenPlanModel {
   }
 
   private object PlanModelImpl extends PlanModel[SparkPlan] {
-    private val fakeTc = SparkShimLoader.getSparkShims.createTestTaskContext(new Properties())
+    private val fakeTc = SparkTaskUtil.createTestTaskContext(new Properties())
     private def fakeTc[T](body: => T): T = {
       assert(!TaskResources.inSparkTask())
       SparkTaskUtil.setTaskContext(fakeTc)

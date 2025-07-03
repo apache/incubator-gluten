@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.memtarget.spark;
 
-import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.GlutenCoreConfig;
 import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
@@ -77,7 +77,7 @@ public final class TreeMemoryConsumers {
      * <p>See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
      */
     public TreeMemoryTarget isolatedRoot() {
-      return ofCapacity(GlutenConfig.get().conservativeTaskOffHeapMemorySize());
+      return ofCapacity(GlutenCoreConfig.get().conservativeTaskOffHeapMemorySize());
     }
   }
 }

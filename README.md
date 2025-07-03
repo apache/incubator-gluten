@@ -76,7 +76,8 @@ There are two ways to acquire Gluten jar for the above configuration.
 
 ### Use Released Jar
 Please download a tar package [here](https://downloads.apache.org/incubator/gluten/), then extract out Gluten jar from it.
-It was verified on Centos-7, Centos-8, Ubuntu-20.04 and Ubuntu-22.04.
+Additionally, Gluten offers nightly builds based on the main branch, which are available for early testing. You can find these release jars at this link: [Apache Gluten Nightlies](https://nightlies.apache.org/gluten/).
+It was verified on Centos-7, Centos-8, Centos-9, Ubuntu-20.04 and Ubuntu-22.04.
 
 ### Build From Source
 For **Velox** backend, please refer to [Velox.md](./docs/get-started/Velox.md) and [build-guide.md](./docs/get-started/build-guide.md).

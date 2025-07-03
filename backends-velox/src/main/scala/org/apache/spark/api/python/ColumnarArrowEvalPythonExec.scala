@@ -18,8 +18,7 @@ package org.apache.spark.api.python
 
 import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.ArrowJavaBatchType
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.execution.ValidatablePlan
-import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.execution.{ValidatablePlan, ValidationResult}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
@@ -468,7 +467,9 @@ object PullOutArrowEvalPythonPreProjectHelper extends PullOutProjectHelper {
         eliminateProjectList(arrowEvalPythonExec.child.outputSet, expressionMap.values.toSeq),
         arrowEvalPythonExec.child)
       val newUDFs = arrowEvalPythonExec.udfs.map(f => rewriteUDF(f, expressionMap))
-      arrowEvalPythonExec.copy(udfs = newUDFs, child = preProject)
+      val newArrowEvalPythonExec = arrowEvalPythonExec.copy(udfs = newUDFs, child = preProject)
+      newArrowEvalPythonExec.copyTagsFrom(arrowEvalPythonExec)
+      newArrowEvalPythonExec
     } else {
       arrowEvalPythonExec
     }

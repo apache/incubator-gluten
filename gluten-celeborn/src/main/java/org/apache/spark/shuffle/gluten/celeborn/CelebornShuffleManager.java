@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.gluten.celeborn;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.exception.GlutenException;
+import org.apache.gluten.shuffle.SupportsColumnarShuffle;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
@@ -41,7 +42,7 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-public class CelebornShuffleManager implements ShuffleManager {
+public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarShuffle {
 
   private static final Logger logger = LoggerFactory.getLogger(CelebornShuffleManager.class);
 

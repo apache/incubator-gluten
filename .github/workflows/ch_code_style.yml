@@ -53,6 +53,7 @@ jobs:
           apt update -y
           apt install git python3-pip -y
           pip3 install --user cmake-format
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - uses: actions/checkout@v4
       - name: Check CMake format
         run: |
@@ -60,7 +61,7 @@ jobs:
           cd $GITHUB_WORKSPACE/
           fileList=$(find ./cpp ./cpp-ch -name CMakeLists.txt -o -name *.cmake)
           for file in $fileList; do
-              /github/home/.local/bin/cmake-format --first-comment-is-literal True --in-place $file
+              cmake-format --first-comment-is-literal True --in-place $file
           done
           if [ -n "$(git status --porcelain)" ]; then
              echo "Please use cmake-format to format cmake files or apply the below patch."

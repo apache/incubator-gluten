@@ -25,9 +25,12 @@ namespace gluten {
 
 class DummyMemoryManager final : public MemoryManager {
  public:
-  DummyMemoryManager(const std::string& kind) : MemoryManager(kind){};
+  DummyMemoryManager(const std::string& kind) : MemoryManager(kind) {};
 
-  arrow::MemoryPool* getArrowMemoryPool() override {
+  arrow::MemoryPool* defaultArrowMemoryPool() override {
+    throw GlutenException("Not yet implemented");
+  }
+  std::shared_ptr<arrow::MemoryPool> getOrCreateArrowMemoryPool(const std::string& name) override {
     throw GlutenException("Not yet implemented");
   }
   const MemoryUsageStats collectMemoryUsageStats() const override {
@@ -76,9 +79,9 @@ class DummyRuntime final : public Runtime {
     throw GlutenException("Not yet implemented");
   }
   std::shared_ptr<ShuffleWriter> createShuffleWriter(
-      int numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions) override {
+      int32_t numPartitions,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>&) override {
     throw GlutenException("Not yet implemented");
   }
   Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {

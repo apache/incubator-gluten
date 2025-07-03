@@ -68,8 +68,11 @@
     <caffeine.version>2.9.3</caffeine.version>
     <scala.binary.version>2.12</scala.binary.version>
     <scala.version>2.12.15</scala.version>
+    <scala-xml.version>2.1.0</scala-xml.version>
+    <javax.servlet.version>3.1.0</javax.servlet.version>
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.4</sparkbundle.version>
+    <spark.plain.version>34</spark.plain.version>
     <spark.version>3.4.4</spark.version>
     <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
     <iceberg.version>1.5.0</iceberg.version>
@@ -82,8 +85,6 @@
     <arrow-gluten.version>15.0.0-gluten</arrow-gluten.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>2.7.4</hadoop.version>
-    <slf4j.version>2.0.7</slf4j.version>
-    <log4j.version>2.20.0</log4j.version>
     <antlr4.version>4.9.3</antlr4.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -305,6 +306,7 @@
       <id>spark-3.2</id>
       <properties>
         <sparkbundle.version>3.2</sparkbundle.version>
+        <spark.plain.version>32</spark.plain.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
         <spark.version>3.2.2</spark.version>
         <iceberg.version>1.3.1</iceberg.version>
@@ -313,12 +315,23 @@
         <delta.binary.version>20</delta.binary.version>
         <antlr4.version>4.8</antlr4.version>
         <hudi.version>0.15.0</hudi.version>
+        <slf4j.version>1.7.30</slf4j.version>
+        <log4j.version>1.2.17</log4j.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
+        <spark.plain.version>33</spark.plain.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
         <spark.version>3.3.1</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
@@ -327,12 +340,23 @@
         <delta.binary.version>23</delta.binary.version>
         <antlr4.version>4.8</antlr4.version>
         <hudi.version>0.15.0</hudi.version>
+        <slf4j.version>1.7.32</slf4j.version>
+        <log4j.version>2.17.2</log4j.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-core</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-3.4</id>
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
+        <spark.plain.version>34</spark.plain.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
         <spark.version>3.4.4</spark.version>
         <iceberg.version>1.7.1</iceberg.version>
@@ -341,12 +365,23 @@
         <delta.binary.version>24</delta.binary.version>
         <antlr4.version>4.9.3</antlr4.version>
         <hudi.version>0.15.0</hudi.version>
+        <slf4j.version>2.0.6</slf4j.version>
+        <log4j.version>2.19.0</log4j.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-core</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-3.5</id>
       <properties>
         <sparkbundle.version>3.5</sparkbundle.version>
+        <spark.plain.version>35</spark.plain.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
         <spark.version>3.5.2</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
@@ -357,6 +392,8 @@
         <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
         <antlr4.version>4.9.3</antlr4.version>
+        <slf4j.version>2.0.7</slf4j.version>
+        <log4j.version>2.20.0</log4j.version>
       </properties>
       <dependencies>
         <dependency>
@@ -368,6 +405,12 @@
         <dependency>
           <groupId>org.apache.logging.log4j</groupId>
           <artifactId>log4j-slf4j2-impl</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-core</artifactId>
           <version>${log4j.version}</version>
           <scope>provided</scope>
         </dependency>
@@ -460,6 +503,8 @@
                   <sources>
                     <source>${project.basedir}/src-celeborn/main/scala</source>
                     <source>${project.basedir}/src-celeborn/main/java</source>
+                    <source>${project.basedir}/src-celeborn-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-celeborn-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -474,6 +519,9 @@
                     <resource>
                       <directory>${project.basedir}/src-celeborn/main/resources</directory>
                     </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-celeborn-spark${spark.plain.version}/main/resources</directory>
+                    </resource>
                   </resources>
                 </configuration>
               </execution>
@@ -487,6 +535,8 @@
                   <sources>
                     <source>${project.basedir}/src-celeborn/test/scala</source>
                     <source>${project.basedir}/src-celeborn/test/java</source>
+                    <source>${project.basedir}/src-celeborn-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-celeborn-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -500,6 +550,9 @@
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-celeborn/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-celeborn-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -533,6 +586,8 @@
                   <sources>
                     <source>${project.basedir}/src-uniffle/main/scala</source>
                     <source>${project.basedir}/src-uniffle/main/java</source>
+                    <source>${project.basedir}/src-uniffle-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-uniffle-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -547,6 +602,9 @@
                     <resource>
                       <directory>${project.basedir}/src-uniffle/main/resources</directory>
                     </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-uniffle-spark${spark.plain.version}/main/resources</directory>
+                    </resource>
                   </resources>
                 </configuration>
               </execution>
@@ -560,6 +618,8 @@
                   <sources>
                     <source>${project.basedir}/src-uniffle/test/scala</source>
                     <source>${project.basedir}/src-uniffle/test/java</source>
+                    <source>${project.basedir}/src-uniffle-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-uniffle-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -573,6 +633,9 @@
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-uniffle/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-uniffle-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -606,8 +669,12 @@
                   <sources>
                     <source>${project.basedir}/src-delta/main/scala</source>
                     <source>${project.basedir}/src-delta/main/java</source>
-                    <source>${project.basedir}/src-delta-${delta.binary.version}/main/scala</source>
-                    <source>${project.basedir}/src-delta-${delta.binary.version}/main/java</source>
+                    <source>${project.basedir}/src-delta-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-delta-spark${spark.plain.version}/main/java</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}/main/scala</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}/main/java</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -625,7 +692,13 @@
                       <directory>${project.basedir}/src-delta/main/resources</directory>
                     </resource>
                     <resource>
-                      <directory>${project.basedir}/src-delta-${delta.binary.version}/main/resources</directory>
+                      <directory>${project.basedir}/src-delta-spark${spark.plain.version}/main/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-delta${delta.binary.version}/main/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/main/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -640,8 +713,12 @@
                   <sources>
                     <source>${project.basedir}/src-delta/test/scala</source>
                     <source>${project.basedir}/src-delta/test/java</source>
-                    <source>${project.basedir}/src-delta-${delta.binary.version}/test/scala</source>
-                    <source>${project.basedir}/src-delta-${delta.binary.version}/test/java</source>
+                    <source>${project.basedir}/src-delta-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-delta-spark${spark.plain.version}/test/java</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}/test/scala</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}/test/java</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -657,7 +734,13 @@
                       <directory>${project.basedir}/src-delta/test/resources</directory>
                     </resource>
                     <resource>
-                      <directory>${project.basedir}/src-delta-${delta.binary.version}/test/resources</directory>
+                      <directory>${project.basedir}/src-delta-spark${spark.plain.version}/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-delta${delta.binary.version}/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -691,6 +774,8 @@
                   <sources>
                     <source>${project.basedir}/src-iceberg/main/scala</source>
                     <source>${project.basedir}/src-iceberg/main/java</source>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -705,6 +790,9 @@
                     <resource>
                       <directory>${project.basedir}/src-iceberg/main/resources</directory>
                     </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-iceberg-spark${spark.plain.version}/main/resources</directory>
+                    </resource>
                   </resources>
                 </configuration>
               </execution>
@@ -718,6 +806,9 @@
                   <sources>
                     <source>${project.basedir}/src-iceberg/test/scala</source>
                     <source>${project.basedir}/src-iceberg/test/java</source>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/scala</source>
+                    <!-- // TODO: temporary mark disable to pass CI -->
+                     <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -731,6 +822,9 @@
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-iceberg/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -764,6 +858,8 @@
                   <sources>
                     <source>${project.basedir}/src-hudi/main/scala</source>
                     <source>${project.basedir}/src-hudi/main/java</source>
+                    <source>${project.basedir}/src-hudi-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-hudi-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -778,6 +874,9 @@
                     <resource>
                       <directory>${project.basedir}/src-hudi/main/resources</directory>
                     </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-hudi-spark${spark.plain.version}/main/resources</directory>
+                    </resource>
                   </resources>
                 </configuration>
               </execution>
@@ -791,6 +890,8 @@
                   <sources>
                     <source>${project.basedir}/src-hudi/test/scala</source>
                     <source>${project.basedir}/src-hudi/test/java</source>
+                    <source>${project.basedir}/src-hudi-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-hudi-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -804,6 +905,9 @@
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-hudi/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-hudi-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -1362,6 +1466,10 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>3.3.0</version>
+          <configuration>
+            <argLine>${argLine} ${extraJavaTestArgs}</argLine>
+            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.scalatest</groupId>
@@ -1672,11 +1780,71 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <skipTests>true</skipTests>
-        </configuration>
       </plugin>
-
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>add-common-sources</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.basedir}/src-spark${spark.plain.version}/main/java</source>
+                <source>${project.basedir}/src-spark${spark.plain.version}/main/scala</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-common-resources</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>add-resource</goal>
+            </goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/src-spark${spark.plain.version}/main/resources</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-common-test-sources</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>add-test-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.basedir}/src-spark${spark.plain.version}/test/scala</source>
+                <source>${project.basedir}/src-spark${spark.plain.version}/test/java</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-common-test-resources</id>
+            <phase>generate-test-resources</phase>
+            <goals>
+              <goal>add-test-resource</goal>
+            </goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/src-spark${spark.plain.version}/test/resources</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </project>

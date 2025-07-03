@@ -35,9 +35,8 @@ import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
+import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, TimestampFormatter}
 import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
-import org.apache.spark.sql.catalyst.util.TimestampFormatter
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
@@ -61,7 +60,7 @@ import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap, Properties}
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 class Spark33Shims extends SparkShims {
   override def getDistribution(
@@ -259,10 +258,6 @@ class Spark33Shims extends SparkShims {
     List(session => GlutenFormatFactory.getExtendedColumnarPostRule(session))
   }
 
-  override def createTestTaskContext(properties: Properties): TaskContext = {
-    TaskContextUtils.createTestTaskContext(properties)
-  }
-
   def setJobDescriptionOrTagForBroadcastExchange(
       sc: SparkContext,
       broadcastExchange: BroadcastExchangeLike): Unit = {
@@ -348,8 +343,6 @@ class Spark33Shims extends SparkShims {
       case _ => Option.empty
     }
   }
-
-  override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
 
   override def dateTimestampFormatInReadIsDefaultValue(
       csvOptions: CSVOptions,

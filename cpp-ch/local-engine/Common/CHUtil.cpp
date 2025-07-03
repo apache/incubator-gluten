@@ -188,7 +188,7 @@ BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively,
         if (const DB::DataTypeArray * type_arr = typeid_cast<const DB::DataTypeArray *>(nested_type.get()))
         {
             const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(type_arr->getNestedType().get());
-            if (type_tuple && type_tuple->haveExplicitNames() && (flags & FLAT_NESTED_TABLE))
+            if (type_tuple && type_tuple->hasExplicitNames() && (flags & FLAT_NESTED_TABLE))
             {
                 const DB::DataTypes & element_types = type_tuple->getElements();
                 const DB::Strings & names = type_tuple->getElementNames();
@@ -239,7 +239,7 @@ BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively,
         }
         else if (const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(nested_type.get()))
         {
-            if ((flags & FLAT_STRUCT_FORCE) || (type_tuple->haveExplicitNames() && (flags & FLAT_STRUCT)))
+            if ((flags & FLAT_STRUCT_FORCE) || (type_tuple->hasExplicitNames() && (flags & FLAT_STRUCT)))
             {
                 const DB::DataTypes & element_types = type_tuple->getElements();
                 DB::Strings element_names = type_tuple->getElementNames();
@@ -999,7 +999,7 @@ void BackendFinalizerUtil::finalizeGlobally()
 {
     // Make sure client caches release before ClientCacheRegistry
     ReadBufferBuilderFactory::instance().clean();
-    StorageMergeTreeFactory::clear();
+    StorageMergeTreeFactory::clear_cache_map();
     QueryContext::resetGlobal();
     std::lock_guard lock(paths_mutex);
     std::ranges::for_each(

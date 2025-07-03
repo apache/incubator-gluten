@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, ValidatorApi}
-import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.NativePlanEvaluator

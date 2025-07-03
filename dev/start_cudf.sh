@@ -8,6 +8,12 @@ sudo dnf clean all
 sudo dnf -y install cuda-toolkit-12-8
 sudo dnf -y module install nvidia-driver:open-dkms
 
+sudo dnf install -y kernel-modules-extra
+sudo dnf install -y kernel-devel-$(uname -r) gcc make dkms
+sudo dkms autoinstall
+sudo modprobe nvidia
+sudo nvidia-smi
+
 sudo yum install -y docker
 
 curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | \

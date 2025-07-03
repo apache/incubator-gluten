@@ -321,7 +321,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       )
     } else {
       baseMetrics ++ Map(
-        "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split")
+        "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
+        "avgDictionaryFields" -> SQLMetrics
+          .createAverageMetric(sparkContext, "avg dictionary fields"),
+        "dictionarySize" -> SQLMetrics.createSizeMetric(sparkContext, "dictionary size")
       )
     }
   }

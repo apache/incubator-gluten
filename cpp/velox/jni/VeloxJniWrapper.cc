@@ -30,13 +30,16 @@
 #include "jni/JniFileSystem.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
+#include "shuffle/rss/RssPartitionWriter.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
 #include "utils/ObjectStore.h"
 #include "utils/VeloxBatchResizer.h"
 #include "velox/common/base/BloomFilter.h"
 #include "velox/common/file/FileSystems.h"
 
-#include <iostream>
+#ifdef GLUTEN_ENABLE_GPU
+#include "cudf/CudfPlanValidator.h"
+#endif
 
 using namespace gluten;
 using namespace facebook;
@@ -494,6 +497,118 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_stop( 
 #endif
   JNI_METHOD_END()
 }
+
+JNIEXPORT jlong JNICALL
+Java_org_apache_gluten_vectorized_CelebornPartitionWriterJniWrapper_createPartitionWriter( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring codecJstr,
+    jstring codecBackendJstr,
+    jint compressionLevel,
+    jint compressionBufferSize,
+    jint pushBufferMaxSize,
+    jlong sortBufferMaxSize,
+    jobject partitionPusher) {
+  JNI_METHOD_START
+  JavaVM* vm;
+  if (env->GetJavaVM(&vm) != JNI_OK) {
+    throw GlutenException("Unable to get JavaVM instance");
+  }
+
+  const auto ctx = getRuntime(env, wrapper);
+
+  jclass celebornPartitionPusherClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
+  jmethodID celebornPushPartitionDataMethod =
+      getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[BI)I");
+  std::shared_ptr<JavaRssClient> celebornClient =
+      std::make_shared<JavaRssClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
+
+  auto partitionWriterOptions = std::make_shared<RssPartitionWriterOptions>(
+      compressionBufferSize,
+      pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
+      sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold);
+
+  auto partitionWriter = std::make_shared<RssPartitionWriter>(
+      numPartitions,
+      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      ctx->memoryManager(),
+      partitionWriterOptions,
+      celebornClient);
+
+  return ctx->saveObject(partitionWriter);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL
+Java_org_apache_gluten_vectorized_UnifflePartitionWriterJniWrapper_createPartitionWriter( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring codecJstr,
+    jstring codecBackendJstr,
+    jint compressionLevel,
+    jint compressionBufferSize,
+    jint pushBufferMaxSize,
+    jlong sortBufferMaxSize,
+    jobject partitionPusher) {
+  JNI_METHOD_START
+  JavaVM* vm;
+  if (env->GetJavaVM(&vm) != JNI_OK) {
+    throw GlutenException("Unable to get JavaVM instance");
+  }
+
+  const auto ctx = getRuntime(env, wrapper);
+
+  jclass unifflePartitionPusherClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/writer/PartitionPusher;");
+  jmethodID unifflePushPartitionDataMethod =
+      getMethodIdOrError(env, unifflePartitionPusherClass, "pushPartitionData", "(I[BI)I");
+  std::shared_ptr<JavaRssClient> uniffleClient =
+      std::make_shared<JavaRssClient>(vm, partitionPusher, unifflePushPartitionDataMethod);
+
+  auto partitionWriterOptions = std::make_shared<RssPartitionWriterOptions>(
+      compressionBufferSize,
+      pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
+      sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold);
+
+  auto partitionWriter = std::make_shared<RssPartitionWriter>(
+      numPartitions,
+      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      ctx->memoryManager(),
+      partitionWriterOptions,
+      uniffleClient);
+
+  return ctx->saveObject(partitionWriter);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jboolean JNICALL Java_org_apache_gluten_config_ConfigJniWrapper_isEnhancedFeaturesEnabled( // NOLINT
+      JNIEnv* env,
+      jclass) {
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+  return true;
+#else
+  return false;
+#endif
+}
+
+#ifdef GLUTEN_ENABLE_GPU
+JNIEXPORT jboolean JNICALL Java_org_apache_gluten_cudf_VeloxCudfPlanValidatorJniWrapper_validate( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jbyteArray planArr) {
+  JNI_METHOD_START
+  auto safePlanArray = getByteArrayElementsSafe(env, planArr);
+  auto planSize = env->GetArrayLength(planArr);
+  ::substrait::Plan substraitPlan;
+  parseProtobuf(safePlanArray.elems(), planSize, &substraitPlan);
+  // get the task and driver, validate the plan, if return all operator except table scan is offloaded, validate true.
+  return CudfPlanValidator::validate(substraitPlan);
+  JNI_METHOD_END(false)
+}
+#endif
 
 #ifdef __cplusplus
 }

@@ -354,18 +354,18 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
   return compressionType;
 }
 
-static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJstr) {
-  if (codecJstr == nullptr) {
+static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecBackendJstr) {
+  if (codecBackendJstr == nullptr) {
     return gluten::CodecBackend::NONE;
   }
-  auto codecBackend = jStringToCString(env, codecJstr);
+  auto codecBackend = jStringToCString(env, codecBackendJstr);
   if (codecBackend == "qat") {
     return gluten::CodecBackend::QAT;
-  } else if (codecBackend == "iaa") {
-    return gluten::CodecBackend::IAA;
-  } else {
-    throw std::invalid_argument("Not support this codec backend " + codecBackend);
   }
+  if (codecBackend == "iaa") {
+    return gluten::CodecBackend::IAA;
+  }
+  throw std::invalid_argument("Not support this codec backend " + codecBackend);
 }
 
 static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring compressionModeJstr) {

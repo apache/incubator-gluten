@@ -511,6 +511,15 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("map_from_arrays optimized by Spark constant folding") {
+    withSQLConf(("spark.sql.optimizer.excludedRules", "")) {
+      runQueryAndCompare("""SELECT map_from_arrays(sequence(1, 5),sequence(1, 5)), l_orderkey
+                           | from lineitem limit 10""".stripMargin) {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
   test("raise_error, assert_true") {
     runQueryAndCompare("""SELECT assert_true(l_orderkey >= 1), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
@@ -1062,6 +1071,39 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           }
       }
     }
+    runQueryAndCompare("select try_cast(' 123 ' AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast('2147483648' AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast('12a34' AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast('2023-08-21 ' AS date)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast(' true' AS boolean)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast('null' AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast('on' AS BOOLEAN)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast(128 AS DECIMAL(2, 0))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast(128 AS TINYINT)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast(9223372036854775807 AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select try_cast('123.0' AS INT)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   test("cast") {
@@ -1080,6 +1122,39 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
             checkGlutenOperatorMatch[ProjectExecTransformer]
           }
       }
+    }
+    runQueryAndCompare("select cast(' 123 ' AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast('2147483648' AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast('12a34' AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast('2023-08-21 ' AS date)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(' true' AS boolean)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast('null' AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast('on' AS BOOLEAN)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(128 AS DECIMAL(2, 0))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(128 AS TINYINT)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(9223372036854775807 AS int)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast('123.0' AS INT)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 

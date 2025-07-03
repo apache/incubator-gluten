@@ -146,8 +146,8 @@ TypePtr getScalarType(const ::substrait::Expression::Literal& literal) {
   }
 }
 
-/// Whether null will be returned on cast failure.
-bool isNullOnFailure(::substrait::Expression::Cast::FailureBehavior failureBehavior) {
+/// Whether is try cast.
+bool isTryCast(::substrait::Expression::Cast::FailureBehavior failureBehavior) {
   switch (failureBehavior) {
     case ::substrait::Expression_Cast_FailureBehavior_FAILURE_BEHAVIOR_UNSPECIFIED:
     case ::substrait::Expression_Cast_FailureBehavior_FAILURE_BEHAVIOR_THROW_EXCEPTION:
@@ -562,10 +562,8 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     const ::substrait::Expression::Cast& castExpr,
     const RowTypePtr& inputType) {
   auto type = SubstraitParser::parseType(castExpr.type());
-  bool nullOnFailure = isNullOnFailure(castExpr.failure_behavior());
-
   std::vector<core::TypedExprPtr> inputs{toVeloxExpr(castExpr.input(), inputType)};
-  return std::make_shared<core::CastTypedExpr>(type, inputs, nullOnFailure);
+  return std::make_shared<core::CastTypedExpr>(type, inputs, isTryCast(castExpr.failure_behavior()));
 }
 
 core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(

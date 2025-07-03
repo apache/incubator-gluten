@@ -145,8 +145,10 @@ case class LazyAggregateExpandRule(session: SparkSession) extends Rule[SparkPlan
           )
 
           val newFilter = filter.copy(child = newExpand)
+          newFilter.copyTagsFrom(filter)
 
           val newShuffle = shuffle.copy(child = newFilter)
+          newShuffle.copyTagsFrom(shuffle)
           logDebug(s"xxx new plan: $newShuffle")
           newShuffle
 

@@ -567,6 +567,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V] = {
     ShuffleUtil.genColumnarShuffleWriter(parameters)
   }
+
   override def createColumnarWriteFilesExec(
       child: WriteFilesExecTransformer,
       noop: SparkPlan,

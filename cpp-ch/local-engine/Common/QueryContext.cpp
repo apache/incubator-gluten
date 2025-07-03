@@ -101,7 +101,7 @@ int64_t QueryContext::initializeQuery(const String & task_id)
     // this generated random query id a qualified global queryid for the spark query
     query_context->query_context->setCurrentQueryId(toString(UUIDHelpers::generateV4()) + "_" + task_id);
     auto config = MemoryConfig::loadFromContext(query_context->query_context);
-    query_context->thread_status = std::make_shared<ThreadStatus>(false);
+    query_context->thread_status = std::make_shared<ThreadStatus>();
     query_context->thread_group = std::make_shared<ThreadGroup>(query_context->query_context);
     CurrentThread::attachToGroup(query_context->thread_group);
     auto memory_limit = config.off_heap_per_task;

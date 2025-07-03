@@ -19,7 +19,6 @@ package org.apache.spark.shuffle.writer;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.config.GlutenConfig;
-import org.apache.gluten.config.ReservedKeys;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
@@ -27,6 +26,7 @@ import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.vectorized.GlutenSplitResult;
 import org.apache.gluten.vectorized.ShuffleWriterJniWrapper;
+import org.apache.gluten.vectorized.UnifflePartitionWriterJniWrapper;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
@@ -64,20 +64,24 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private long nativeShuffleWriter = -1L;
 
   private boolean stopping = false;
-  private final int compressThreshold = GlutenConfig.get().columnarShuffleCompressionThreshold();
   private final double reallocThreshold = GlutenConfig.get().columnarShuffleReallocThreshold();
   private String compressionCodec;
+  private String codecBackend;
   private int compressionLevel;
   private int compressionBufferSize;
-  private int diskWriteBufferSize;
+  private final int diskWriteBufferSize;
   private final int partitionId;
 
   private final Runtime runtime =
       Runtimes.contextInstance(BackendsApiManager.getBackendName(), "UniffleShuffleWriter");
-  private final ShuffleWriterJniWrapper jniWrapper = ShuffleWriterJniWrapper.create(runtime);
+  private final UnifflePartitionWriterJniWrapper partitionWriterJniWrapper =
+      UnifflePartitionWriterJniWrapper.create(runtime);
+  private final ShuffleWriterJniWrapper shuffleWriterJniWrapper =
+      ShuffleWriterJniWrapper.create(runtime);
   private final int nativeBufferSize = GlutenConfig.get().maxBatchSize();
   private final int bufferSize;
   private final Boolean isSort;
+  private final int numPartitions;
 
   private final ColumnarShuffleDependency<K, V, V> columnarDep;
   private final SparkConf sparkConf;
@@ -117,18 +121,23 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     this.partitionId = partitionId;
     this.sparkConf = sparkConf;
     this.isSort = isSort;
+    this.numPartitions = columnarDep.nativePartitioning().getNumPartitions();
     bufferSize =
         (int)
             sparkConf.getSizeAsBytes(
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.key(),
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.defaultValue().get());
+    this.diskWriteBufferSize =
+        (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_DISK_WRITE_BUFFER_SIZE());
     if ((boolean) sparkConf.get(package$.MODULE$.SHUFFLE_COMPRESS())) {
       compressionCodec = GlutenShuffleUtils.getCompressionCodec(sparkConf);
       compressionLevel = GlutenShuffleUtils.getCompressionLevel(sparkConf, compressionCodec);
       compressionBufferSize =
           GlutenShuffleUtils.getCompressionBufferSize(sparkConf, compressionCodec);
-      diskWriteBufferSize =
-          (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_DISK_WRITE_BUFFER_SIZE());
+      Option<String> codecBackend = GlutenConfig.get().columnarShuffleCodecBackend();
+      if (codecBackend.isDefined()) {
+        this.codecBackend = codecBackend.get();
+      }
     }
   }
 
@@ -145,34 +154,41 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       if (cb.numRows() == 0 || cb.numCols() == 0) {
         LOG.info("Skip ColumnarBatch of 0 rows or 0 cols");
       } else {
-        long handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), cb);
         if (nativeShuffleWriter == -1) {
-          nativeShuffleWriter =
-              jniWrapper.makeForRSS(
-                  columnarDep.nativePartitioning().getShortName(),
-                  columnarDep.nativePartitioning().getNumPartitions(),
-                  nativeBufferSize,
-                  // use field do this
+          long partitionWriterHandle =
+              partitionWriterJniWrapper.createPartitionWriter(
+                  numPartitions,
                   compressionCodec,
+                  codecBackend,
                   compressionLevel,
                   compressionBufferSize,
-                  diskWriteBufferSize,
-                  compressThreshold,
-                  GlutenConfig.get().columnarShuffleCompressionMode(),
-                  (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_INIT_BUFFER_SIZE()),
-                  (boolean) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_USE_RADIXSORT()),
                   bufferSize,
                   bufferSize,
-                  partitionPusher,
-                  handle,
-                  taskAttemptId,
-                  GlutenShuffleUtils.getStartPartitionId(
-                      columnarDep.nativePartitioning(), partitionId),
-                  "uniffle",
-                  isSort
-                      ? ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER()
-                      : ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER(),
-                  reallocThreshold);
+                  partitionPusher);
+
+          if (isSort) {
+            nativeShuffleWriter =
+                shuffleWriterJniWrapper.createSortShuffleWriter(
+                    numPartitions,
+                    columnarDep.nativePartitioning().getShortName(),
+                    GlutenShuffleUtils.getStartPartitionId(
+                        columnarDep.nativePartitioning(), partitionId),
+                    diskWriteBufferSize,
+                    (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_INIT_BUFFER_SIZE()),
+                    (boolean) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_USE_RADIXSORT()),
+                    partitionWriterHandle);
+          } else {
+            nativeShuffleWriter =
+                shuffleWriterJniWrapper.createHashShuffleWriter(
+                    numPartitions,
+                    columnarDep.nativePartitioning().getShortName(),
+                    GlutenShuffleUtils.getStartPartitionId(
+                        columnarDep.nativePartitioning(), partitionId),
+                    nativeBufferSize,
+                    reallocThreshold,
+                    partitionWriterHandle);
+          }
+
           runtime
               .memoryManager()
               .addSpiller(
@@ -183,15 +199,18 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                         return 0L;
                       }
                       LOG.info("Gluten shuffle writer: Trying to push {} bytes of data", size);
-                      long pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false);
+                      long pushed = shuffleWriterJniWrapper.reclaim(nativeShuffleWriter, size);
                       LOG.info("Gluten shuffle writer: Pushed {} / {} bytes of data", pushed, size);
                       return pushed;
                     }
                   });
         }
         long startTime = System.nanoTime();
+        long columnarBatchHandle =
+            ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), cb);
         long bytes =
-            jniWrapper.write(nativeShuffleWriter, cb.numRows(), handle, availableOffHeapPerTask());
+            shuffleWriterJniWrapper.write(
+                nativeShuffleWriter, cb.numRows(), columnarBatchHandle, availableOffHeapPerTask());
         LOG.debug("jniWrapper.write rows {}, split bytes {}", cb.numRows(), bytes);
         columnarDep.metrics().get("dataSize").get().add(bytes);
         // this metric replace part of uniffle shuffle write time
@@ -211,7 +230,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     long startTime = System.nanoTime();
     GlutenSplitResult splitResult;
     try {
-      splitResult = jniWrapper.stop(nativeShuffleWriter);
+      splitResult = shuffleWriterJniWrapper.stop(nativeShuffleWriter);
     } catch (IOException e) {
       throw new RssException(e);
     }
@@ -226,7 +245,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                 - splitResult.getTotalWriteTime()
                 - splitResult.getTotalCompressTime());
 
-    shuffleWriteMetrics.incBytesWritten(splitResult.getTotalBytesWritten());
+    // bytesWritten is calculated in uniffle side: WriteBufferManager.createShuffleBlock
+    // shuffleWriteMetrics.incBytesWritten(splitResult.getTotalBytesWritten());
     shuffleWriteMetrics.incWriteTime(
         splitResult.getTotalWriteTime() + splitResult.getTotalPushTime());
     // partitionLengths is calculate in uniffle side
@@ -261,7 +281,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
 
   private void closeShuffleWriter() {
     if (nativeShuffleWriter != -1) {
-      jniWrapper.close(nativeShuffleWriter);
+      shuffleWriterJniWrapper.close(nativeShuffleWriter);
       nativeShuffleWriter = -1;
     }
   }

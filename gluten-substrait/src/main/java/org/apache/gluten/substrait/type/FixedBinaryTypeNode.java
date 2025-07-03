@@ -43,4 +43,9 @@ public class FixedBinaryTypeNode implements TypeNode, Serializable {
     builder.setFixedBinary(fixedBinaryBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

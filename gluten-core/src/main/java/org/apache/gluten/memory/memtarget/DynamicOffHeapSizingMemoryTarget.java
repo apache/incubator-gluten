@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.memtarget;
 
-import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.GlutenCoreConfig;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.proto.MemoryUsageStats;
 
@@ -40,7 +40,7 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
 
   static {
     final long maxOnHeapSize = Runtime.getRuntime().maxMemory();
-    final double fractionForSizing = GlutenConfig.get().dynamicOffHeapSizingMemoryFraction();
+    final double fractionForSizing = GlutenCoreConfig.get().dynamicOffHeapSizingMemoryFraction();
     // Since when dynamic off-heap sizing is enabled, we commingle on-heap
     // and off-heap memory, we set the off-heap size to the usable on-heap size. We will
     // size it with a memory fraction, which can be aggressively set, but the default

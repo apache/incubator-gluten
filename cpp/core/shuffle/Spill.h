@@ -67,8 +67,8 @@ class Spill final {
   std::shared_ptr<gluten::MmapFileStream> is_;
   std::list<PartitionPayload> partitionPayloads_{};
   std::string spillFile_;
-  int64_t spillTime_;
-  int64_t compressTime_;
+  int64_t spillTime_{0};
+  int64_t compressTime_{0};
 
   arrow::io::InputStream* rawIs_{nullptr};
 };

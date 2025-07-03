@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.caller.CallerInfo
 
 import org.apache.spark.sql.SparkSession
@@ -31,8 +30,6 @@ object ColumnarRuleApplier {
       val session: SparkSession,
       val caller: CallerInfo,
       val outputsColumnar: Boolean) {
-    val glutenConf: GlutenConfig = {
-      new GlutenConfig(session.sessionState.conf)
-    }
+    val sqlConf = session.sessionState.conf
   }
 }

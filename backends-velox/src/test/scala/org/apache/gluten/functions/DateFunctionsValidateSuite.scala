@@ -329,6 +329,24 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("trunc") {
+    withTempPath {
+      path =>
+        Seq(
+          java.sql.Date.valueOf("2008-02-20"),
+          java.sql.Date.valueOf("2022-01-01")
+        )
+          .toDF("dt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+        runQueryAndCompare("select trunc(dt, 'week') from t") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("unix_date") {
     withTempPath {
       path =>

@@ -36,6 +36,12 @@
       <artifactId>spark-sql_${scala.binary.version}</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-network-shuffle_${scala.binary.version}</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
+    </dependency>
 
     <!-- For test -->
     <dependency>
@@ -119,12 +125,6 @@
             <scalafmt>
               <file>${project.basedir}/../.scalafmt.conf</file>
             </scalafmt>
-            <includes>
-              <include>src/main/scala/**/*.scala</include>
-              <include>src/test/scala/**/*.scala</include>
-              <include>src-delta-${delta.binary.version}/main/scala/**/*.scala</include>
-              <include>src-delta-${delta.binary.version}/test/scala/**/*.scala</include>
-            </includes>
           </scala>
         </configuration>
       </plugin>

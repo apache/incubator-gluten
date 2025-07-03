@@ -72,7 +72,7 @@ private:
     bool is_null_aware_anti_join;
 
     void readAllBlocksFromInput(DB::ReadBuffer & in);
-    void buildJoin(DB::Blocks & data, const DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
+    void buildJoin(const DB::Blocks & data, const DB::Block & header, std::shared_ptr<DB::TableJoin> analyzed_join);
     void collectAllInputs(DB::Blocks & data, const DB::Block header);
     void buildJoinLazily(DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
 };

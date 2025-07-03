@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.memtarget;
 
-import org.apache.gluten.config.GlutenConfig$;
+import org.apache.gluten.config.GlutenCoreConfig$;
 
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.sql.internal.SQLConf;
@@ -62,44 +62,47 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
         .append(
             String.format(
                 "\t%s=%s",
-                GlutenConfig$.MODULE$.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key(),
+                GlutenCoreConfig$.MODULE$.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key(),
                 reformatBytes(
                     SQLConf.get()
                         .getConfString(
-                            GlutenConfig$.MODULE$.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key()))))
+                            GlutenCoreConfig$.MODULE$.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key()))))
         .append(System.lineSeparator())
         .append(
             String.format(
                 "\t%s=%s",
-                GlutenConfig$.MODULE$.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
+                GlutenCoreConfig$.MODULE$.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
                 reformatBytes(
                     SQLConf.get()
                         .getConfString(
-                            GlutenConfig$.MODULE$.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key()))))
+                            GlutenCoreConfig$.MODULE$
+                                .COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES()
+                                .key()))))
         .append(System.lineSeparator())
         .append(
             String.format(
                 "\t%s=%s",
-                GlutenConfig$.MODULE$.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
+                GlutenCoreConfig$.MODULE$.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
                 reformatBytes(
                     SQLConf.get()
                         .getConfString(
-                            GlutenConfig$.MODULE$
+                            GlutenCoreConfig$.MODULE$
                                 .COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES()
                                 .key()))))
         .append(System.lineSeparator())
         .append(
             String.format(
                 "\t%s=%s",
-                GlutenConfig$.MODULE$.SPARK_OFFHEAP_ENABLED(),
-                SQLConf.get().getConfString(GlutenConfig$.MODULE$.SPARK_OFFHEAP_ENABLED())))
+                GlutenCoreConfig$.MODULE$.SPARK_OFFHEAP_ENABLED_KEY(),
+                SQLConf.get().getConfString(GlutenCoreConfig$.MODULE$.SPARK_OFFHEAP_ENABLED_KEY())))
         .append(System.lineSeparator())
         .append(
             String.format(
                 "\t%s=%s",
-                GlutenConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key(),
+                GlutenCoreConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key(),
                 SQLConf.get()
-                    .getConfString(GlutenConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key())))
+                    .getConfString(
+                        GlutenCoreConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key())))
         .append(System.lineSeparator());
     // Dump all consumer usages to exception body
     errorBuilder.append(SparkMemoryUtil.dumpMemoryTargetStats(target));

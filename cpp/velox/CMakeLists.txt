@@ -148,6 +148,7 @@ set(VELOX_SRCS
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxColumnarBatchWriter.cc
     operators/writer/VeloxParquetDataSource.cc
+    shuffle/ArrowShuffleDictionaryWriter.cc
     shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxRssSortShuffleWriter.cc
     shuffle/VeloxShuffleReader.cc
@@ -176,6 +177,9 @@ if(ENABLE_S3)
   find_package(ZLIB)
 endif()
 
+if(ENABLE_GPU)
+  list(APPEND VELOX_SRCS cudf/CudfPlanValidator.cc)
+endif()
 add_library(velox SHARED ${VELOX_SRCS})
 
 if(ENABLE_GLUTEN_VCPKG AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
@@ -352,8 +356,12 @@ if(ENABLE_GPU)
   import_library(
     facebook::velox::velox_cudf_exec
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)
+  import_library(
+    facebook::velox::velox_cudf_vector
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_vector.a)
 
-  target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_exec)
+  target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_exec
+                                     facebook::velox::velox_cudf_vector)
   target_link_libraries(velox
                         PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so)
 endif()

@@ -33,9 +33,12 @@ install_maven_from_source() {
         fi
 
         cd /tmp
-        wget https://archive.apache.org/dist/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
-        tar -xvf apache-maven-$maven_version-bin.tar.gz
-        rm -f apache-maven-$maven_version-bin.tar.gz
+        local_binary="apache-maven-${maven_version}-bin.tar.gz";
+        mirror_host="https://www.apache.org/dyn/closer.lua";
+        url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download";
+        wget -nv -O ${local_binary} ${url};
+        tar -xvf ${local_binary};
+        rm -rf ${local_binary};
         mv apache-maven-$maven_version "${maven_install_dir}"
         ln -s "${maven_install_dir}/bin/mvn" /usr/local/bin/mvn
     fi
@@ -48,10 +51,9 @@ install_gcc11_from_source() {
             gcc_install_dir=/usr/local/${gcc_version}
             cd /tmp
             if [ ! -d $gcc_version ]; then
-                wget https://ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
-                if [ $? -ne 0 ]; then
-                    wget https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
-                fi
+                GCC_URL1=https://ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                GCC_URL2=https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                wget ${GCC_URL1} || wget ${GCC_URL2}
                 tar -xvf ${gcc_version}.tar.gz
             fi
             cd ${gcc_version}
@@ -121,10 +123,9 @@ install_centos_7() {
         mkdir -p /tmp/automake
         AUTOMAKE_URL1="https://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
         AUTOMAKE_URL2="https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
-        wget -O - "$AUTOMAKE_URL1" | tar -x --xz -C /tmp/automake --strip-components=1
-        if [ $? -ne 0 ]; then
-            wget -O - "$AUTOMAKE_URL2" | tar -x --xz -C /tmp/automake --strip-components=1
-        fi
+        wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL1" || wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL2"
+        tar -xf /tmp/automake.tar.xz -C /tmp/automake --strip-components=1
+        rm -f /tmp/automake.tar.xz
         cd /tmp/automake
         ./configure
         make install -j
@@ -177,6 +178,19 @@ install_ubuntu_20.04() {
 }
 
 install_ubuntu_22.04() { install_ubuntu_20.04; }
+
+install_openeuler_24.03() {
+    dnf -y update
+    dnf -y install dnf-plugins-core
+    dnf -y update
+    dnf -y install wget curl tar zip unzip git which bison flex \
+        gcc g++ cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
+        java-1.8.0-openjdk java-1.8.0-openjdk-devel python3-devel python3-pip libstdc++-static
+
+    pip install cmake==3.28.3
+
+    install_maven_from_source
+}
 
 install_alinux_3() {
     yum -y groupinstall "Development Tools"
@@ -258,7 +272,7 @@ eval "$(sed -En "/^(VERSION_|)ID=/s/^/OS_/p" /etc/os-release)"
 
 [ -n "$OS_ID" -a -n "$OS_VERSION_ID" ] || log_fatal "Failed to detect os: ID or VERSION_ID is empty"
 
-INSTALL_FUNC="install_${OS_ID}_${OS_VERSION_ID}"
+INSTALL_FUNC="install_$(echo "$OS_ID" | tr 'A-Z' 'a-z')_${OS_VERSION_ID}"
 [ "$(type -t "$INSTALL_FUNC")" == function ] || log_fatal "Unsupport OS: ${OS_ID} ${OS_VERSION_ID}"
 
 set -x

@@ -31,11 +31,12 @@ class RssPartitionWriterOutputStream;
 class RssPartitionWriter final : public PartitionWriter {
  public:
   RssPartitionWriter(
-      uint32_t numPartitions,
-      PartitionWriterOptions options,
+      const uint32_t numPartitions,
+      std::unique_ptr<arrow::util::Codec> codec,
       MemoryManager* memoryManager,
-      std::shared_ptr<RssClient> rssClient)
-      : PartitionWriter(numPartitions, std::move(options), memoryManager), rssClient_(rssClient) {
+      const std::shared_ptr<RssPartitionWriterOptions>& options,
+      const std::shared_ptr<RssClient>& rssClient)
+      : PartitionWriter(numPartitions, std::move(codec), memoryManager), options_(options), rssClient_(rssClient) {
     init();
   }
 
@@ -59,6 +60,7 @@ class RssPartitionWriter final : public PartitionWriter {
 
   arrow::Status doEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload);
 
+  std::shared_ptr<RssPartitionWriterOptions> options_;
   std::shared_ptr<RssClient> rssClient_;
 
   std::vector<int64_t> bytesEvicted_;

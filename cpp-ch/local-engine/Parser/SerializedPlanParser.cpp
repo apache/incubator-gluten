@@ -300,6 +300,7 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
 {
     const Settings & settings = parser_context->queryContext()->getSettingsRef();
     QueryPriorities priorities;
+    QuerySlotPtr query_slot; // unlimited query
     const auto query_status = std::make_shared<QueryStatus>(
         parser_context->queryContext(),
         "",
@@ -307,6 +308,7 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         parser_context->queryContext()->getClientInfo(),
         priorities.insert(
             settings[Setting::priority], std::chrono::milliseconds(settings[Setting::low_priority_query_wait_time_ms].totalMilliseconds())),
+        std::move(query_slot),
         CurrentThread::getGroup(),
         IAST::QueryKind::Select,
         settings,

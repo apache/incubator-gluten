@@ -43,4 +43,9 @@ public class FixedCharTypeNode implements TypeNode, Serializable {
     builder.setFixedChar(fixedCharBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

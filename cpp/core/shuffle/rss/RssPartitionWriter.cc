@@ -82,13 +82,13 @@ RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayl
     }
 
     rssOs_ =
-        std::make_shared<RssPartitionWriterOutputStream>(partitionId, rssClient_.get(), options_.pushBufferMaxSize);
+        std::make_shared<RssPartitionWriterOutputStream>(partitionId, rssClient_.get(), options_->pushBufferMaxSize);
     RETURN_NOT_OK(rssOs_->init());
     if (codec_ != nullptr) {
       ARROW_ASSIGN_OR_RAISE(
           compressedOs_,
           ShuffleCompressedOutputStream::Make(
-              codec_.get(), options_.compressionBufferSize, rssOs_, arrow::default_memory_pool()));
+              codec_.get(), options_->compressionBufferSize, rssOs_, arrow::default_memory_pool()));
     }
 
     lastEvictedPartitionId_ = partitionId;
@@ -117,7 +117,11 @@ arrow::Status RssPartitionWriter::doEvict(uint32_t partitionId, std::unique_ptr<
   ARROW_ASSIGN_OR_RAISE(
       auto payload, inMemoryPayload->toBlockPayload(payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr));
   // Copy payload to arrow buffered os.
-  ARROW_ASSIGN_OR_RAISE(auto rssBufferOs, arrow::io::BufferOutputStream::Create(options_.pushBufferMaxSize));
+  ARROW_ASSIGN_OR_RAISE(auto rssBufferOs, arrow::io::BufferOutputStream::Create(options_->pushBufferMaxSize));
+
+  static constexpr uint8_t kRssBlock = static_cast<uint8_t>(BlockType::kPlainPayload);
+  RETURN_NOT_OK(rssBufferOs->Write(&kRssBlock, sizeof(kRssBlock)));
+
   RETURN_NOT_OK(payload->serialize(rssBufferOs.get()));
   payload = nullptr; // Invalidate payload immediately.
 

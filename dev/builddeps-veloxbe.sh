@@ -40,6 +40,7 @@ ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 ENABLE_VCPKG=OFF
 ENABLE_GPU=OFF
+ENABLE_ENHANCED_FEATURES=OFF
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
 VELOX_BRANCH=""
@@ -121,6 +122,10 @@ do
         ENABLE_GPU=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --enable_enhanced_features=*)
+        ENABLE_ENHANCED_FEATURES=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
         --run_setup_script=*)
         RUN_SETUP_SCRIPT=("${arg#*=}")
         shift # Remove argument name from processing
@@ -180,8 +185,13 @@ function concat_velox_param {
         VELOX_PARAMETER+="--velox_home=$VELOX_HOME "
     fi
 
+    if [ "$ENABLE_ENHANCED_FEATURES" = "ON" ]; then
+        VELOX_PARAMETER+="--enable_enhanced_features=$ENABLE_ENHANCED_FEATURES "
+    fi
+
     VELOX_PARAMETER+="--run_setup_script=$RUN_SETUP_SCRIPT "
 }
+
 
 if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
@@ -203,7 +213,7 @@ concat_velox_param
 
 function build_arrow {
   cd $GLUTEN_DIR/dev
-  ./build_arrow.sh
+  source ./build_arrow.sh
 }
 
 function build_velox {
@@ -237,7 +247,8 @@ function build_gluten_cpp {
     -DENABLE_S3=$ENABLE_S3 \
     -DENABLE_HDFS=$ENABLE_HDFS \
     -DENABLE_ABFS=$ENABLE_ABFS \
-    -DENABLE_GPU=$ENABLE_GPU"
+    -DENABLE_GPU=$ENABLE_GPU \
+    -DENABLE_ENHANCED_FEATURES=$ENABLE_ENHANCED_FEATURES"
 
   if [ $OS == 'Darwin' ]; then
     if [ -n "$INSTALL_PREFIX" ]; then

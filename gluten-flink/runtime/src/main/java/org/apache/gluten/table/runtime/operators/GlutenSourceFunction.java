@@ -26,11 +26,12 @@ import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.query.Query;
 import io.github.zhztheplayer.velox4j.query.SerialTask;
 import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.session.Session;
+import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -42,13 +43,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 
 /** Gluten legacy source function, call velox plan to execute. */
 public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   private static final Logger LOG = LoggerFactory.getLogger(GlutenSourceFunction.class);
 
-  private final PlanNode planNode;
-  private final RowType outputType;
+  private final StatefulPlanNode planNode;
+  private final Map<String, RowType> outputTypes;
   private final String id;
   private final ConnectorSplit split;
   private volatile boolean isRunning = true;
@@ -59,19 +61,22 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   private MemoryManager memoryManager;
 
   public GlutenSourceFunction(
-      PlanNode planNode, RowType outputType, String id, ConnectorSplit split) {
+      StatefulPlanNode planNode,
+      Map<String, RowType> outputTypes,
+      String id,
+      ConnectorSplit split) {
     this.planNode = planNode;
-    this.outputType = outputType;
+    this.outputTypes = outputTypes;
     this.id = id;
     this.split = split;
   }
 
-  public PlanNode getPlanNode() {
+  public StatefulPlanNode getPlanNode() {
     return planNode;
   }
 
-  public RowType getOutputType() {
-    return outputType;
+  public Map<String, RowType> getOutputTypes() {
+    return outputTypes;
   }
 
   public String getId() {
@@ -96,8 +101,11 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     while (isRunning) {
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
-        final RowVector outRv = task.get();
-        List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(outRv, allocator, outputType);
+        final StatefulElement element = task.statefulGet();
+        final RowVector outRv = element.asRecord().getRowVector();
+        List<RowData> rows =
+            FlinkRowToVLVectorConvertor.toRowData(
+                outRv, allocator, outputTypes.values().iterator().next());
         for (RowData row : rows) {
           sourceContext.collect(row);
         }

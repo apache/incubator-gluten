@@ -24,6 +24,7 @@
 
 #include "velox/common/memory/MallocAllocator.h"
 #include "velox/common/memory/MemoryPool.h"
+#include "velox/common/process/StackTrace.h"
 #include "velox/exec/MemoryReclaimer.h"
 
 #include "config/VeloxConfig.h"
@@ -171,6 +172,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     try {
       listener_->allocationChanged(neededBytes);
     } catch (const std::exception&) {
+      VLOG(2) << "ListenableArbitrator growCapacityInternal failed, stacktrace: "
+              << velox::process::StackTrace().toString();
       // if allocationChanged failed, we need to free the reclaimed bytes
       listener_->allocationChanged(-reclaimedFreeBytes);
       std::rethrow_exception(std::current_exception());
@@ -225,8 +228,9 @@ VeloxMemoryManager::VeloxMemoryManager(
   auto reservationBlockSize =
       backendConf.get<uint64_t>(kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
-  listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
-  arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
+  defaultArrowPool_ = std::make_shared<ArrowMemoryPool>(blockListener_.get());
+  arrowPools_.emplace("default", defaultArrowPool_);
+
   auto checkUsageLeak = backendConf.get<bool>(kCheckUsageLeak, kCheckUsageLeakDefault);
 
   ArbitratorFactoryRegister afr(listener_.get());
@@ -261,11 +265,44 @@ MemoryUsageStats collectVeloxMemoryUsageStats(const velox::memory::MemoryPool* p
   return stats;
 }
 
-MemoryUsageStats collectGlutenAllocatorMemoryUsageStats(const MemoryAllocator* allocator) {
+MemoryUsageStats collectGlutenAllocatorMemoryUsageStats(
+    const std::unordered_map<std::string, std::weak_ptr<ArrowMemoryPool>>& arrowPools) {
   MemoryUsageStats stats;
-  stats.set_current(allocator->getBytes());
-  stats.set_peak(allocator->peakBytes());
+  int64_t totalBytes = 0;
+  int64_t peakBytes = 0;
+
+  for (const auto& [name, ptr] : arrowPools) {
+    auto pool = ptr.lock();
+    if (pool == nullptr) {
+      continue;
+    }
+
+    MemoryUsageStats poolStats;
+    const auto allocated = pool->bytes_allocated();
+    const auto peak = pool->max_memory();
+    poolStats.set_current(allocated);
+    poolStats.set_peak(peak);
+
+    stats.mutable_children()->emplace(name, poolStats);
+
+    totalBytes += allocated;
+    peakBytes = std::max(peakBytes, peak);
+  }
+
+  stats.set_current(totalBytes);
+  stats.set_peak(peakBytes);
   return stats;
+}
+
+void logMemoryUsageStats(MemoryUsageStats stats, const std::string& name, const std::string& logPrefix, std::stringstream& ss) {
+  ss << logPrefix << "+- " << name
+     << " (used: " << velox::succinctBytes(stats.current())
+     << ", peak: " <<  velox::succinctBytes(stats.peak()) << ")\n";
+  if (stats.children_size() > 0) {
+    for (auto it = stats.children().begin(); it != stats.children().end(); ++it) {
+      logMemoryUsageStats(it->second, it->first, logPrefix + "   ", ss);
+    }
+  }
 }
 
 int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::MemoryPool* pool, int64_t size) {
@@ -274,6 +311,12 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
   VLOG(2) << logPrefix << "Trying to shrink " << size << " bytes of data...";
   VLOG(2) << logPrefix << "Pool has reserved " << pool->usedBytes() << "/" << pool->root()->reservedBytes() << "/"
           << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
+  if (VLOG_IS_ON(2)) {
+    std::stringstream ss;
+    ss << logPrefix << "Velox memory usage stats:\n";
+    logMemoryUsageStats(collectVeloxMemoryUsageStats(pool), poolName, logPrefix, ss);
+    VLOG(2) << ss.str();
+  }
   VLOG(2) << logPrefix << "Shrinking...";
   auto shrunken = mm->arbitrator()->shrinkCapacity(pool, 0);
   VLOG(2) << logPrefix << shrunken << " bytes released from shrinking.";
@@ -281,12 +324,30 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
 }
 } // namespace
 
+std::shared_ptr<arrow::MemoryPool> VeloxMemoryManager::getOrCreateArrowMemoryPool(const std::string& name) {
+  std::lock_guard<std::mutex> l(mutex_);
+  if (const auto it = arrowPools_.find(name); it != arrowPools_.end()) {
+    auto pool = it->second.lock();
+    VELOX_CHECK_NOT_NULL(pool, "Arrow memory pool {} has been destructed", name);
+    return pool;
+  }
+  auto pool = std::make_shared<ArrowMemoryPool>(
+      blockListener_.get(), [this, name](arrow::MemoryPool* pool) { this->dropMemoryPool(name); });
+  arrowPools_.emplace(name, pool);
+  return pool;
+}
+
+void VeloxMemoryManager::dropMemoryPool(const std::string& name) {
+  std::lock_guard<std::mutex> l(mutex_);
+  const auto ret = arrowPools_.erase(name);
+  VELOX_CHECK_EQ(ret, 1, "Child memory pool {} doesn't exist", name);
+}
+
 const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   MemoryUsageStats stats;
   stats.set_current(listener_->currentBytes());
   stats.set_peak(listener_->peakBytes());
-  stats.mutable_children()->emplace(
-      "gluten::MemoryAllocator", collectGlutenAllocatorMemoryUsageStats(listenableAlloc_.get()));
+  stats.mutable_children()->emplace("gluten::MemoryAllocator", collectGlutenAllocatorMemoryUsageStats(arrowPools_));
   stats.mutable_children()->emplace(
       veloxAggregatePool_->name(), collectVeloxMemoryUsageStats(veloxAggregatePool_.get()));
   return stats;
@@ -344,7 +405,7 @@ bool VeloxMemoryManager::tryDestructSafe() {
       int32_t spillPoolCount = 0;
       int32_t cachePoolCount = 0;
       int32_t tracePoolCount = 0;
-      veloxMemoryManager_->testingDefaultRoot().visitChildren([&](velox::memory::MemoryPool* child) -> bool {
+      veloxMemoryManager_->deprecatedSysRootPool().visitChildren([&](velox::memory::MemoryPool* child) -> bool {
         if (child == veloxMemoryManager_->spillPool()) {
           spillPoolCount++;
         }
@@ -367,10 +428,17 @@ bool VeloxMemoryManager::tryDestructSafe() {
   veloxMemoryManager_.reset();
 
   // Applies similar rule for Arrow memory pool.
-  if (arrowPool_ && arrowPool_->bytes_allocated() != 0) {
+  if (!arrowPools_.empty() && std::any_of(arrowPools_.begin(), arrowPools_.end(), [&](const auto& entry) {
+        auto pool = entry.second.lock();
+        if (pool == nullptr) {
+          return false;
+        }
+        return pool->bytes_allocated() != 0;
+      })) {
+    VLOG(2) << "Attempt to destruct VeloxMemoryManager failed because there are still outstanding Arrow memory pools.";
     return false;
   }
-  arrowPool_.reset();
+  arrowPools_.clear();
 
   // Successfully destructed.
   return true;

@@ -295,6 +295,16 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
             assert(aliases.size == 1)
           }
       }
+
+      // Test HashProbe operation when projecting a column multiple times without using an alias.
+      val q5 =
+        """
+          |select tt1.* from
+          |(select c1, c2, c2 from t1) tt1
+          |left join t2
+          |on tt1.c1 = t2.c1
+          |""".stripMargin
+      runQueryAndCompare(q5) { _ => }
     }
   }
 }

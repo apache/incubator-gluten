@@ -18,17 +18,14 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.{GlutenConfig, GlutenNumaBindingInfo}
-import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics.{GlutenTimeMetric, MetricsUpdater}
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.{PlanBuilder, PlanNode}
 import org.apache.gluten.substrait.rel.{LocalFilesNode, RelNode, SplitInfo}
-import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark._
@@ -37,6 +34,7 @@ import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -52,87 +50,14 @@ import scala.collection.mutable.ArrayBuffer
 
 case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 
-case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null)
-
-/**
- * Base interface for a Gluten query plan that is also open to validation calls.
- *
- * Since https://github.com/apache/incubator-gluten/pull/2185.
- */
-trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
-  protected def glutenConf: GlutenConfig = GlutenConfig.get
-
-  protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
-
-  protected lazy val validationFailFast = glutenConf.validationFailFast
-
-  // Wraps a validation function f that can also throw a GlutenNotSupportException.
-  // Returns ValidationResult.failed if f throws a GlutenNotSupportException,
-  // otherwise returns the result of f.
-  protected def failValidationWithException(f: => ValidationResult)(
-      finallyBlock: => Unit = ()): ValidationResult = {
-    try {
-      f
-    } catch {
-      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-        if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
-        }
-        val message = s"Validation failed with exception from: $nodeName, reason: ${e.getMessage}"
-        if (glutenConf.printStackOnValidationFailure) {
-          logOnLevel(glutenConf.validationLogLevel, message, e)
-        }
-        ValidationResult.failed(message)
-      case t: Throwable =>
-        throw t
-    } finally {
-      finallyBlock
-    }
-  }
-
-  /**
-   * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
-   */
-  final def doValidate(): ValidationResult = {
-    val schemaValidationResult = BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason =>
-          ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
-      }
-      .getOrElse(ValidationResult.succeeded)
-    if (!schemaValidationResult.ok()) {
-      TestStats.addFallBackClassName(this.getClass.toString)
-      if (validationFailFast) {
-        return schemaValidationResult
-      }
-    }
-    val validationResult = failValidationWithException {
-      TransformerState.enterValidation
-      doValidateInternal()
-    } {
-      TransformerState.finishValidation
-    }
-    if (!validationResult.ok()) {
-      TestStats.addFallBackClassName(this.getClass.toString)
-    }
-    if (validationFailFast) validationResult
-    else ValidationResult.merge(schemaValidationResult, validationResult)
-  }
-
-  protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
-
-  private def logValidationMessage(msg: => String, e: Throwable): Unit = {
-    if (glutenConf.printStackOnValidationFailure) {
-      logOnLevel(glutenConf.validationLogLevel, msg, e)
-    } else {
-      logOnLevel(glutenConf.validationLogLevel, msg)
-    }
-  }
-}
+case class WholeStageTransformContext(
+    root: PlanNode,
+    substraitContext: SubstraitContext = null,
+    enableCudf: Boolean = false)
 
 /** Base interface for a query plan that can be interpreted to Substrait representation. */
 trait TransformSupport extends ValidatablePlan {
+
   override def batchType(): Convention.BatchType = {
     BackendsApiManager.getSettings.primaryBatchType
   }
@@ -145,6 +70,15 @@ trait TransformSupport extends ValidatablePlan {
     throw new UnsupportedOperationException(
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
+
+  protected def isCudf: Boolean = getTagValue[Boolean](CudfTag.CudfTag).getOrElse(false)
+
+  // Use super.nodeName will cause exception scala 213 Super calls can only target methods
+  // for FileSourceScan.
+  override def nodeName: String =
+    if (isCudf) {
+      "Cudf" + getClass.getSimpleName.replaceAll("Exec$", "")
+    } else getClass.getSimpleName
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
@@ -325,7 +259,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
 
-    WholeStageTransformContext(planNode, substraitContext)
+    WholeStageTransformContext(planNode, substraitContext, isCudf)
   }
 
   def doWholeStageTransform(): WholeStageTransformContext = {
@@ -426,7 +360,8 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         wsCtx.substraitContext.registeredRelMap,
         wsCtx.substraitContext.registeredJoinParams,
         wsCtx.substraitContext.registeredAggregationParams
-      )
+      ),
+      wsCtx.enableCudf
     )
 
     SoftAffinity.updateFilePartitionLocations(allInputPartitions, rdd.id)
@@ -613,4 +548,8 @@ class ColumnarInputRDDsWrapper(columnarInputRDDs: Seq[RDD[ColumnarBatch]]) exten
         it :: Nil
     }
   }
+}
+
+object CudfTag {
+  val CudfTag = TreeNodeTag[Boolean]("org.apache.gluten.CudfTag")
 }

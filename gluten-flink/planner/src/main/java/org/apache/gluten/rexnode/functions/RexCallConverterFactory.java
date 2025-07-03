@@ -56,13 +56,13 @@ public class RexCallConverterFactory {
                   () -> new StringNumberCompareRexCallConverter("equalto"))),
           Map.entry(
               "*", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("multiply"))),
-          Map.entry(
-              "-", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("subtract"))),
+          Map.entry("-", Arrays.asList(() -> new SubtractRexCallConverter())),
           Map.entry("+", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("add"))),
           Map.entry("MOD", Arrays.asList(() -> new ModRexCallConverter())),
           Map.entry("CAST", Arrays.asList(() -> new DefaultRexCallConverter("cast"))),
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
-          Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))));
+          Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
+          Map.entry("SEARCH", Arrays.asList(() -> new DefaultRexCallConverter("in"))));
 
   public static RexCallConverter getConverter(RexCall callNode, RexConversionContext context) {
     String operatorName = callNode.getOperator().getName();

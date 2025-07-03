@@ -40,4 +40,9 @@ public class StringTypeNode implements TypeNode, Serializable {
     builder.setString(stringBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

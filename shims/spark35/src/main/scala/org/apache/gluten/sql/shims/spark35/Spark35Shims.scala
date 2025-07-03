@@ -44,7 +44,6 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
@@ -66,7 +65,7 @@ import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap, Properties}
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -352,10 +351,6 @@ class Spark35Shims extends SparkShims {
 
   override def enableNativeWriteFilesByDefault(): Boolean = true
 
-  override def createTestTaskContext(properties: Properties): TaskContext = {
-    TaskContextUtils.createTestTaskContext(properties)
-  }
-
   override def broadcastInternal[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
     SparkContextUtils.broadcastInternal(sc, value)
   }
@@ -579,14 +574,13 @@ class Spark35Shims extends SparkShims {
     }
   }
 
-  override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
-
   override def withTryEvalMode(expr: Expression): Boolean = {
     expr match {
       case a: Add => a.evalMode == EvalMode.TRY
       case s: Subtract => s.evalMode == EvalMode.TRY
       case d: Divide => d.evalMode == EvalMode.TRY
       case m: Multiply => m.evalMode == EvalMode.TRY
+      case c: Cast => c.evalMode == EvalMode.TRY
       case _ => false
     }
   }
@@ -608,10 +602,6 @@ class Spark35Shims extends SparkShims {
     csvOptions.dateFormatInRead == default.dateFormatInRead &&
     csvOptions.timestampFormatInRead == default.timestampFormatInRead &&
     csvOptions.timestampNTZFormatInRead == default.timestampNTZFormatInRead
-  }
-
-  override def isPlannedV1Write(write: DataWritingCommandExec): Boolean = {
-    write.cmd.isInstanceOf[V1WriteCommand] && SQLConf.get.plannedWriteEnabled
   }
 
   override def createParquetFilters(

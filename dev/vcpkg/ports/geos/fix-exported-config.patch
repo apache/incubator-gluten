@@ -1,10 +1,9 @@
-diff --git a/tools/CMakeLists.txt b/tools/CMakeLists.txt
-index bc0e774..e3ca0bd 100644
---- a/tools/CMakeLists.txt
-+++ b/tools/CMakeLists.txt
-@@ -45,11 +45,18 @@ function(configure_install_geos_pc)
-   set(includedir "$\{prefix\}/${CMAKE_INSTALL_INCLUDEDIR}")
-   set(libdir "$\{exec_prefix\}/${CMAKE_INSTALL_LIBDIR}")
+diff -ur a/tools/CMakeLists.txt b/tools/CMakeLists.txt
+--- a/tools/CMakeLists.txt	2025-06-19 21:04:50.771785881 +0000
++++ b/tools/CMakeLists.txt	2025-06-19 21:07:11.310543155 +0000
+@@ -61,11 +61,18 @@
+     set(libdir "$\{exec_prefix\}/${CMAKE_INSTALL_LIBDIR}")
+   endif()
    set(VERSION ${GEOS_VERSION})
 -  set(EXTRA_LIBS "-lstdc++")
 +  if(APPLE OR CMAKE_ANDROID_STL_TYPE MATCHES "^c\\+\\+")
@@ -22,7 +21,7 @@ index bc0e774..e3ca0bd 100644
  
    configure_file(
      ${CMAKE_CURRENT_SOURCE_DIR}/geos.pc.in
-@@ -61,9 +68,9 @@ function(configure_install_geos_pc)
+@@ -77,9 +84,9 @@
      DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
  endfunction()
  
@@ -33,10 +32,9 @@ index bc0e774..e3ca0bd 100644
  endif()
  
  option(BUILD_ASTYLE "Build astyle (Artistic Style) tool" OFF)
-diff --git a/tools/geos-config.in b/tools/geos-config.in
-index 6eff1eb..8827f6a 100644
---- a/tools/geos-config.in
-+++ b/tools/geos-config.in
+diff -ur a/tools/geos-config.in b/tools/geos-config.in
+--- a/tools/geos-config.in	2025-06-19 21:04:50.771785881 +0000
++++ b/tools/geos-config.in	2025-06-19 21:05:00.354633087 +0000
 @@ -1,9 +1,11 @@
  #!/bin/sh
  
@@ -53,7 +51,7 @@ index 6eff1eb..8827f6a 100644
  
  usage()
  {
-@@ -47,16 +49,16 @@ while test $# -gt 0; do
+@@ -47,16 +49,16 @@
        echo -L${libdir} -lgeos-@VERSION_RELEASE@
        ;;
      --clibs)

@@ -28,10 +28,12 @@ namespace gluten {
 /// a Substrait plan is supported in Velox.
 class SubstraitToVeloxPlanValidator {
  public:
-  SubstraitToVeloxPlanValidator(memory::MemoryPool* pool) : planConverter_(pool, {}, std::nullopt, true) {
-    const std::unordered_map<std::string, std::string> configs{
+  SubstraitToVeloxPlanValidator(memory::MemoryPool* pool) {
+    std::unordered_map<std::string, std::string> configs{
         {velox::core::QueryConfig::kSparkPartitionId, "0"}, {velox::core::QueryConfig::kSessionTimezone, "GMT"}};
-    queryCtx_ = velox::core::QueryCtx::create(nullptr, velox::core::QueryConfig(configs));
+    veloxCfg_ = std::make_shared<facebook::velox::config::ConfigBase>(std::move(configs));
+    planConverter_ = std::make_unique<SubstraitToVeloxPlanConverter>(pool, veloxCfg_.get(), std::nullopt, true);
+    queryCtx_ = velox::core::QueryCtx::create(nullptr, velox::core::QueryConfig(veloxCfg_->rawConfigs()));
     // An execution context used for function validation.
     execCtx_ = std::make_unique<velox::core::ExecCtx>(pool, queryCtx_.get());
   }
@@ -100,8 +102,10 @@ class SubstraitToVeloxPlanValidator {
   /// An execution context used for function validation.
   std::unique_ptr<core::ExecCtx> execCtx_;
 
+  std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_{nullptr};
+
   /// A converter used to convert Substrait plan into Velox's plan node.
-  SubstraitToVeloxPlanConverter planConverter_;
+  std::unique_ptr<SubstraitToVeloxPlanConverter> planConverter_{nullptr};
 
   /// An expression converter used to convert Substrait representations into
   /// Velox expressions.

@@ -35,7 +35,8 @@ class HeuristicApplier(
     transformBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
     fallbackPolicyBuilders: Seq[ColumnarRuleCall => SparkPlan => Rule[SparkPlan]],
     postBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
-    finalBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]])
+    finalBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
+    ruleWrappers: Seq[Rule[SparkPlan] => Rule[SparkPlan]])
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
@@ -65,8 +66,13 @@ class HeuristicApplier(
   private def transformPlan(
       phase: String,
       rules: Seq[Rule[SparkPlan]],
-      plan: SparkPlan): SparkPlan =
-    new ColumnarRuleExecutor(phase, rules).execute(plan)
+      plan: SparkPlan): SparkPlan = {
+    val wrappedRules = ruleWrappers.foldLeft(rules) {
+      case (rules, wrapper) =>
+        rules.map(wrapper)
+    }
+    new ColumnarRuleExecutor(phase, wrappedRules).execute(plan)
+  }
 
   /**
    * Rules to let planner create a suggested Gluten plan being sent to `fallbackPolicies` in which

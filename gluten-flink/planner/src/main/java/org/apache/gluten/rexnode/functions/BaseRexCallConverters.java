@@ -22,6 +22,8 @@ import org.apache.gluten.rexnode.TypeUtils;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.BigIntType;
+import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
@@ -79,6 +81,32 @@ class BasicArithmeticOperatorRexCallConverter extends BaseRexCallConverter {
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
     // If types are different, align them
+    List<TypedExpr> alignedParams = TypeUtils.promoteTypeForArithmeticExpressions(params);
+    Type resultType = getResultType(callNode);
+    return new CallTypedExpr(resultType, alignedParams, functionName);
+  }
+}
+
+class SubtractRexCallConverter extends BaseRexCallConverter {
+
+  public SubtractRexCallConverter() {
+    super("subtract");
+  }
+
+  @Override
+  public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
+    List<TypedExpr> params = getParams(callNode, context);
+
+    if (params.get(0).getReturnType() instanceof TimestampType
+        && params.get(1).getReturnType() instanceof BigIntType) {
+
+      Type bigIntType = new BigIntType();
+      TypedExpr castExpr = new CallTypedExpr(bigIntType, List.of(params.get(0)), "cast");
+
+      List<TypedExpr> newParams = List.of(castExpr, params.get(1));
+      return new CallTypedExpr(bigIntType, newParams, functionName);
+    }
+
     List<TypedExpr> alignedParams = TypeUtils.promoteTypeForArithmeticExpressions(params);
     Type resultType = getResultType(callNode);
     return new CallTypedExpr(resultType, alignedParams, functionName);
