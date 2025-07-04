@@ -90,7 +90,7 @@ public final class MemoryTargets {
           LOGGER.info("Request for spilling on consumer {}...", consumer.name());
           // Note: Spill from root node so other consumers also get spilled.
           long spilled = TreeMemoryTargets.spillTree(root, Long.MAX_VALUE);
-          LOGGER.info("Consumer {} spilled {} bytes.", consumer.name(), spilled);
+          LOGGER.info("Consumer {} gets {} bytes from spilling.", consumer.name(), spilled);
         });
   }
 }
