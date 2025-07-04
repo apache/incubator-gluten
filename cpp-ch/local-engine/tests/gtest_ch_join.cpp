@@ -127,7 +127,7 @@ TEST(TestJoin, simple)
     auto hash_join = std::make_shared<HashJoin>(join, right_plan.getCurrentHeader());
 
     QueryPlanStepPtr join_step = std::make_unique<JoinStep>(
-        left_plan.getCurrentHeader(), right_plan.getCurrentHeader(), hash_join, 8192, 8192, 1, NameSet{}, false, false);
+        left_plan.getCurrentHeader(), right_plan.getCurrentHeader(), hash_join, DEFAULT_BLOCK_SIZE, DEFAULT_BLOCK_SIZE, 524288, 1, NameSet{}, false, false);
 
     std::cerr << "join step:" << join_step->getOutputHeader().dumpStructure() << std::endl;
 

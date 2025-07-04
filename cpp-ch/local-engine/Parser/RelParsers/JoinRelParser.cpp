@@ -46,6 +46,7 @@ namespace Setting
 {
 extern const SettingsJoinAlgorithm join_algorithm;
 extern const SettingsUInt64 max_block_size;
+extern const SettingsUInt64 min_joined_block_size_rows;
 extern const SettingsUInt64 min_joined_block_size_bytes;
 extern const SettingsNonZeroUInt64 grace_hash_join_initial_buckets;
 extern const SettingsNonZeroUInt64 grace_hash_join_max_buckets;
@@ -319,6 +320,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
             right->getCurrentHeader(),
             smj_join,
             context->getSettingsRef()[Setting::max_block_size],
+            context->getSettingsRef()[Setting::min_joined_block_size_rows],
             context->getSettingsRef()[Setting::min_joined_block_size_bytes],
             1,
             /* required_output_ = */ NameSet{},
@@ -744,6 +746,7 @@ DB::QueryPlanPtr JoinRelParser::buildMultiOnClauseHashJoin(
         right_plan->getCurrentHeader(),
         hash_join,
         context->getSettingsRef()[Setting::max_block_size],
+        context->getSettingsRef()[Setting::min_joined_block_size_rows],
         context->getSettingsRef()[Setting::min_joined_block_size_bytes],
         1,
         /* required_output_ = */ NameSet{},
@@ -788,6 +791,7 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
         right_plan->getCurrentHeader(),
         hash_join,
         context->getSettingsRef()[Setting::max_block_size],
+        context->getSettingsRef()[Setting::min_joined_block_size_rows],
         context->getSettingsRef()[Setting::min_joined_block_size_bytes],
         1,
         /* required_output_ = */ NameSet{},
