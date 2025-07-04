@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.benchmarks.GenTPCDSTableScripts
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.{Arm, UTSystemParameters}
 
 import org.apache.spark.SparkConf
@@ -133,7 +134,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.warehouse.dir", warehouse)
     /* .set("spark.sql.catalogImplementation", "hive")
     .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
