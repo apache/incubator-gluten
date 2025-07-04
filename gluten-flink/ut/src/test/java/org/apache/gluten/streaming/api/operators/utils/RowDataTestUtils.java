@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.utils;
 
 import org.apache.flink.table.data.RowData;
@@ -27,24 +26,25 @@ import static org.junit.Assert.assertEquals;
 
 public class RowDataTestUtils {
 
-    public static void checkEquals(RowData actual, RowData expected, RowType rowType) {
-        assertEquals("Row arity mismatch", expected.getArity(), actual.getArity());
+  public static void checkEquals(RowData actual, RowData expected, RowType rowType) {
+    assertEquals("Row arity mismatch", expected.getArity(), actual.getArity());
 
-        List<LogicalType> fieldTypes = rowType.getChildren();
-        for (int i = 0; i < actual.getArity(); i++) {
-            RowData.FieldGetter getter = RowData.createFieldGetter(fieldTypes.get(i), i);
-            Object actualValue = getter.getFieldOrNull(actual);
-            Object expectedValue = getter.getFieldOrNull(expected);
+    List<LogicalType> fieldTypes = rowType.getChildren();
+    for (int i = 0; i < actual.getArity(); i++) {
+      RowData.FieldGetter getter = RowData.createFieldGetter(fieldTypes.get(i), i);
+      Object actualValue = getter.getFieldOrNull(actual);
+      Object expectedValue = getter.getFieldOrNull(expected);
 
-            assertEquals("Field " + i + " mismatch", expectedValue, actualValue);
-        }
+      assertEquals("Field " + i + " mismatch", expectedValue, actualValue);
     }
+  }
 
-    public static void assertRowDataListEquals(List<RowData> expected, List<RowData> actual, RowType rowType) {
-        assertEquals("List size mismatch", expected.size(), actual.size());
+  public static void assertRowDataListEquals(
+      List<RowData> expected, List<RowData> actual, RowType rowType) {
+    assertEquals("List size mismatch", expected.size(), actual.size());
 
-        for (int i = 0; i < expected.size(); i++) {
-            checkEquals(actual.get(i), expected.get(i), rowType);
-        }
+    for (int i = 0; i < expected.size(); i++) {
+      checkEquals(actual.get(i), expected.get(i), rowType);
     }
+  }
 }
