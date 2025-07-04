@@ -596,7 +596,7 @@ class DeltaLog private(
 
     val r = buildHadoopFsRelationWithFileIndex(snapshotToUse, fileIndex, bucketSpec = bucketSpec)
     @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
-    new HadoopFsRelation(
+    val relation = new HadoopFsRelation(
       r.location,
       r.partitionSchema,
       r.dataSchema,
@@ -616,6 +616,7 @@ class DeltaLog private(
           catalogTableOpt = catalogTableOpt).run(spark)
       }
     }
+    relation
   }
 
   def buildHadoopFsRelationWithFileIndex(snapshot: SnapshotDescriptor, fileIndex: TahoeFileIndex,
