@@ -31,6 +31,7 @@
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
+#include "memory/VeloxMemoryManager.h"
 
 using namespace facebook;
 using namespace facebook::velox::dwio::common;
@@ -91,6 +92,7 @@ std::unique_ptr<facebook::velox::parquet::WriterOptions> VeloxParquetDataSource:
         maxRowGroupRows, maxRowGroupBytes, [&]() { return false; });
   };
   writeOption->parquetWriteTimestampTimeZone = getConfigValue(sparkConfs, kSessionTimezone, std::nullopt);
+  writeOption->arrowMemoryPool = getDefaultMemoryManager()->getOrCreateArrowMemoryPool("VeloxParquetWrite.ArrowMemoryPool");
   return writeOption;
 }
 
