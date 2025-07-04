@@ -32,6 +32,7 @@ Add the following configurations to your Spark application:
 | spark.gluten.auto.adjustStageResource.enabled                     | Experimental: If enabled, gluten will try to set the stage resource according to stage execution plan. NOTE: Only works when aqe is enabled at the same time. | false   |
 | spark.gluten.auto.adjustStageResources.heap.ratio                 | Experimental: Increase executor heap memory when match adjust stage resource rule.                                                                            | 2.0d    |
 | spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold | Experimental: Increase executor heap memory when stage contains fallen node count exceeds the total node count ratio.                                         | 0.5d    |
+
 #### **1. Enable Auto-Adjustment**
 ```properties  
 spark.gluten.auto.AdjustStageResource.enabled=true  
