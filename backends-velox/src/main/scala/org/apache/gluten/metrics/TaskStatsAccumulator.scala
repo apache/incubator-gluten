@@ -16,49 +16,39 @@
  */
 package org.apache.gluten.metrics
 
-import org.apache.gluten.metrics.TaskStatsAccumulator.Impl
-
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.util.AccumulatorV2
 
-case class TaskStatsAccumulator(child: SparkPlan) {
-  val accumulator: Impl = new Impl
-  child.session.sparkContext.register(accumulator, "velox task stats")
-}
+class TaskStatsAccumulator extends AccumulatorV2[String, String] {
+  private var stats: String = ""
 
-object TaskStatsAccumulator {
-  class Impl extends AccumulatorV2[String, String] {
-    private var stats: String = ""
+  override def isZero: Boolean = stats.isEmpty
 
-    override def isZero: Boolean = stats.isEmpty
-
-    override def copy(): AccumulatorV2[String, String] = {
-      val newAcc = new Impl()
-      newAcc.stats = this.stats
-      newAcc
-    }
-
-    override def reset(): Unit = {
-      stats = ""
-    }
-
-    override def add(v: String): Unit = {
-      if (stats.isEmpty) {
-        stats = v
-      } else {
-        stats += "\n" + v
-      }
-    }
-
-    override def merge(other: AccumulatorV2[String, String]): Unit = {
-      other match {
-        case o: Impl =>
-          add(o.value)
-        case _ =>
-          throw new IllegalArgumentException("Cannot merge with non-VeloxTaskStatsAccumulator")
-      }
-    }
-
-    override def value: String = stats
+  override def copy(): AccumulatorV2[String, String] = {
+    val newAcc = new TaskStatsAccumulator()
+    newAcc.stats = this.stats
+    newAcc
   }
+
+  override def reset(): Unit = {
+    stats = ""
+  }
+
+  override def add(v: String): Unit = {
+    if (stats.isEmpty) {
+      stats = v
+    } else {
+      stats += "\n" + v
+    }
+  }
+
+  override def merge(other: AccumulatorV2[String, String]): Unit = {
+    other match {
+      case o: TaskStatsAccumulator =>
+        add(o.value)
+      case _ =>
+        throw new IllegalArgumentException("Cannot merge with non-VeloxTaskStatsAccumulator")
+    }
+  }
+
+  override def value: String = stats
 }

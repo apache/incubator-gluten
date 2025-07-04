@@ -65,6 +65,9 @@ object MetricsUtil extends Logging {
       }
     }
 
+    val accumulator = new TaskStatsAccumulator()
+    child.session.sparkContext.register(accumulator, "velox task stats")
+
     val mut: MetricsUpdaterTree = treeifyMetricsUpdaters(child)
 
     genMetricsUpdatingFunction(
@@ -73,7 +76,7 @@ object MetricsUtil extends Logging {
       JLong.valueOf(relMap.size() - 1),
       joinParamsMap,
       aggParamsMap,
-      TaskStatsAccumulator(child))
+      accumulator)
   }
 
   /**
@@ -337,7 +340,7 @@ object MetricsUtil extends Logging {
 
           // Update the task stats accumulator with the metrics.
           if (metrics.taskStats != null) {
-            taskStatsAccumulator.accumulator.add(metrics.taskStats)
+            taskStatsAccumulator.add(metrics.taskStats)
           }
         }
       } catch {
