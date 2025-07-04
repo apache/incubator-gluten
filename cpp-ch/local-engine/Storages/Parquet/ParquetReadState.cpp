@@ -39,7 +39,8 @@ int64_t ParquetReadState2::doRead(int64_t batch_size, const ReadPageFunc & readP
     {
         int64_t read = readRecord(batch_size);
         already_read_ += read;
-        return read;
+        chassert(read >= 0 && read <= batch_size);
+        return batch_size - read;
     }
 
     resetForNewBatch(batch_size);
