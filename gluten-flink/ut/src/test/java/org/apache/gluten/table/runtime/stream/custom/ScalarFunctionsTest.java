@@ -128,4 +128,12 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     String query4 = "select c = d as x from tblEqual where a > 0";
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
   }
+
+  @Test
+  void testDecimalMultiply() {
+    List<Row> rows = Arrays.asList(Row.of(1, 100L));
+    createSimpleBoundedValuesTable("testTbl", "id int, price bigint", rows);
+    String query = "select id, 0.908 * price as x from testTbl";
+    runAndCheck(query, Arrays.asList("+I[1, 90.800]"));
+  }
 }
