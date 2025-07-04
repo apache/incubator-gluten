@@ -53,10 +53,13 @@ gluten::ObjectStore::~ObjectStore() {
                  " destroy it automatically but it's recommended to manually close"
                  " the object through the Java closing API after use,"
                  " to minimize peak memory pressure of the application.";
+      // transfer ownership of the object to the temporary vector
+      objects.push_back(store_.lookup(handle));
       store_.erase(handle);
     }
     stores().erase(storeId_);
   }
+  // destructing objects outside the lock to avoid deadlock
   for (auto& obj : objects) {
     if (obj) {
       obj.reset();
