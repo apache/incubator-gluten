@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_07_03
+VELOX_REPO=https://github.com/JkSelf/velox.git
+VELOX_BRANCH=arrow-memory-pool
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
 VELOX_ENHANCED_REPO=https://github.com/oap-project/velox.git
