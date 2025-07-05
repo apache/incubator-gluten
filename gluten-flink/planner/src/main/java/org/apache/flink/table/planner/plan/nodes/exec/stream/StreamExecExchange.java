@@ -18,7 +18,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.table.runtime.keyselector.GlutenKeySelector;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
@@ -137,10 +137,12 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
         KeySelector keySelector =
             KeySelectorUtil.getRowDataSelector(
                 planner.getFlinkContext().getClassLoader(), keys, inputType);
-        parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
         // --- Begin Gluten-specific code changes ---
         OneInputTransformation oneInputTransform = (OneInputTransformation) inputTransform;
         if (oneInputTransform.getOperator() instanceof GlutenOperator) {
+          // TODO: velox's parallelism need to be set here, as some nodes need it.
+          // should set it when operator init.
+          parallelism = inputTransform.getParallelism();
           keySelector = new GlutenKeySelector();
           final ExecEdge inputEdge = getInputEdges().get(0);
           io.github.zhztheplayer.velox4j.type.RowType glutenInputType =
@@ -160,10 +162,9 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
                   "REPARTITION",
                   false,
                   partitionFunctionSpec);
-          PlanNode exchange =
-              new StreamPartitionNode(id, localPartition, inputTransform.getParallelism());
+          PlanNode exchange = new StreamPartitionNode(id, localPartition, parallelism);
           final OneInputStreamOperator exchangeKeyGenerator =
-              new GlutenSingleInputOperator(
+              new GlutenVectorOneInputOperator(
                   new StatefulPlanNode(id, exchange), id, glutenInputType, Map.of(id, outputType));
           inputTransform =
               ExecNodeUtil.createOneInputTransformation(
@@ -176,6 +177,7 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
           partitioner =
               new GlutenKeyGroupStreamPartitioner(keySelector, DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
         } else {
+          parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
           partitioner =
               new KeyGroupStreamPartitioner<>(keySelector, DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
         }

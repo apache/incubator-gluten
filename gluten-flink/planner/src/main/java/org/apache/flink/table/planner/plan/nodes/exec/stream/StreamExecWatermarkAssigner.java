@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.rexnode.Utils;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
@@ -35,6 +35,7 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -160,8 +161,8 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
             idleTimeout,
             rowtimeFieldIndex,
             watermarkInterval);
-    final GlutenSingleInputOperator watermarkOperator =
-        new GlutenSingleInputOperator(
+    final OneInputStreamOperator watermarkOperator =
+        new GlutenVectorOneInputOperator(
             new StatefulPlanNode(watermark.getId(), watermark),
             PlanNodeIdGenerator.newId(),
             inputType,

@@ -52,10 +52,10 @@ import java.util.List;
 import java.util.Map;
 
 /** Calculate operator in gluten, which will call Velox to run. */
-public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
+public class GlutenOneInputOperator extends TableStreamOperator<RowData>
     implements OneInputStreamOperator<RowData, RowData>, GlutenOperator {
 
-  private static final Logger LOG = LoggerFactory.getLogger(GlutenSingleInputOperator.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GlutenOneInputOperator.class);
 
   private final StatefulPlanNode glutenPlan;
   private final String id;
@@ -71,7 +71,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
   private BufferAllocator allocator;
   private SerialTask task;
 
-  public GlutenSingleInputOperator(
+  public GlutenOneInputOperator(
       StatefulPlanNode plan, String id, RowType inputType, Map<String, RowType> outputTypes) {
     this.glutenPlan = plan;
     this.id = id;
