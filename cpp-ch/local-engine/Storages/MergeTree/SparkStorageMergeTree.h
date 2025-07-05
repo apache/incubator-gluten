@@ -54,15 +54,13 @@ class SparkStorageMergeTree : public DB::MergeTreeData
     {
         SparkMutationsSnapshot() = default;
 
-        DB::MutationCommands getAlterMutationCommandsForPart(const MergeTreeData::DataPartPtr & part) const override { return {}; }
+        DB::MutationCommands getOnFlyMutationCommandsForPart(const MergeTreeData::DataPartPtr & part) const override { return {}; }
         std::shared_ptr<MergeTreeData::IMutationsSnapshot> cloneEmpty() const override
         {
             return std::make_shared<SparkMutationsSnapshot>();
         }
 
         DB::NameSet getAllUpdatedColumns() const override { return {}; }
-
-        bool hasMetadataMutations() const override { return params.min_part_metadata_version < params.metadata_version; }
     };
 
 public:

@@ -18,12 +18,6 @@
 
 #include <Storages/SubstraitSource/FileReader.h>
 
-namespace DB
-{
-class ExpressionActions;
-using ExpressionActionsPtr = std::shared_ptr<ExpressionActions>;
-}
-
 namespace local_engine
 {
 class DeltaDVRoaringBitmapArray;
