@@ -803,7 +803,7 @@ QueryPlanPtr readFromMergeTree(MergeTreeWithSnapshot storage)
     auto data_parts = storage.merge_tree->getDataPartsVectorForInternalUsage();
     auto query_plan = std::make_unique<QueryPlan>();
     auto step = storage.merge_tree->reader.readFromParts(
-        data_parts, {}, storage.columns.getNames(), storage.snapshot, *query_info, global_context, 10000, 1);
+        RangesInDataParts{data_parts}, {}, storage.columns.getNames(), storage.snapshot, *query_info, global_context, 10000, 1);
     query_plan->addStep(std::move(step));
     return query_plan;
 }
