@@ -19,6 +19,7 @@ package org.apache.gluten.vectorized;
 import io.github.zhztheplayer.velox4j.type.*;
 
 import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 
@@ -83,7 +84,11 @@ public abstract class ArrowVectorWriter {
                   new ArrayVectorWriter(fieldType, allocator, vector)),
           Map.entry(
               MapType.class,
-              (fieldType, allocator, vector) -> new MapVectorWriter(fieldType, allocator, vector)));
+              (fieldType, allocator, vector) -> new MapVectorWriter(fieldType, allocator, vector)),
+          Map.entry(
+              DecimalType.class,
+              (fieldType, allocator, vector) ->
+                  new DecimalVectorWriter(fieldType, allocator, vector)));
 
   public static ArrowVectorWriter create(
       String fieldName, Type fieldType, BufferAllocator allocator) {
@@ -159,7 +164,14 @@ class FieldVectorCreator {
               (dataType, timeZoneId) ->
                   new ArrowType.Timestamp(
                       TimeUnit.MILLISECOND, timeZoneId == null ? "UTC" : timeZoneId)),
-          Map.entry(DateType.class, (dataType, timeZoneId) -> new ArrowType.Date(DateUnit.DAY)));
+          Map.entry(DateType.class, (dataType, timeZoneId) -> new ArrowType.Date(DateUnit.DAY)),
+          Map.entry(
+              DecimalType.class,
+              (dataType, timeZoneId) -> {
+                DecimalType decimalType = (DecimalType) dataType;
+                return new ArrowType.Decimal(
+                    decimalType.getPrecision(), decimalType.getScale(), 128);
+              }));
 
   private static ArrowType toArrowType(Type dataType, String timeZoneId) {
     ArrowTypeConverter converter = arrowTypeConverters.get(dataType.getClass());
@@ -334,6 +346,30 @@ class Float8VectorWriter extends BaseVectorWriter<Float8Vector, Double> {
   @Override
   protected void setValue(int index, Double value) {
     this.typedVector.setSafe(index, value);
+  }
+}
+
+class DecimalVectorWriter extends BaseVectorWriter<DecimalVector, DecimalData> {
+  private final DecimalType decimalType;
+
+  public DecimalVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
+    super(vector);
+    this.decimalType = (DecimalType) fieldType;
+  }
+
+  @Override
+  protected DecimalData getValue(RowData rowData, int fieldIndex) {
+    return rowData.getDecimal(fieldIndex, decimalType.getPrecision(), decimalType.getScale());
+  }
+
+  @Override
+  protected DecimalData getValue(ArrayData arrayData, int index) {
+    return arrayData.getDecimal(index, decimalType.getPrecision(), decimalType.getScale());
+  }
+
+  @Override
+  protected void setValue(int index, DecimalData value) {
+    this.typedVector.setSafe(index, value.toBigDecimal());
   }
 }
 
