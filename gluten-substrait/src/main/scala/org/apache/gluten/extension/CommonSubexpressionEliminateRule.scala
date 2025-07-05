@@ -171,8 +171,12 @@ case class CommonSubexpressionEliminateRule(spark: SparkSession)
       return RewriteContext(inputCtx.exprs, newChild)
     }
 
+    implicit val aliasOrdering: Ordering[Alias] = (a: Alias, b: Alias) => {
+      a.name.compare(b.name)
+    }
+
     // Generate pre-project as new child
-    var preProjectList = newChild.output ++ commonExprMap.values.map(_.alias)
+    var preProjectList = newChild.output ++ commonExprMap.values.map(_.alias).toSeq.sorted
     val preProject = Project(preProjectList, newChild)
     logTrace(s"newChild after rewrite: $preProject")
 
