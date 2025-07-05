@@ -17,8 +17,8 @@
 #pragma once
 #include <algorithm>
 #include <cassert>
-#include <memory>
 #include <string>
+#include <vector>
 namespace local_engine
 {
 
@@ -57,7 +57,10 @@ public:
         return std::nullopt; // Return a default Range object if no intersection range found
     }
 
-    Range(const size_t from_, const size_t to_) : from(from_), to(to_) { assert(from <= to); }
+    Range(const size_t from_, const size_t to_) : from(from_), to(to_)
+    {
+        assert(from <= to || (from == std::numeric_limits<size_t>::max() && to == 0));
+    }
 
     size_t count() const { return to - from + 1; }
 
