@@ -69,6 +69,10 @@ const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backe
 const std::string kShowTaskMetricsWhenFinished = "spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished";
 const bool kShowTaskMetricsWhenFinishedDefault = false;
 
+const std::string kTaskMetricsToEventLogThreshold =
+    "spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold";
+const int64_t kTaskMetricsToEventLogThresholdDefault = -1;
+
 const std::string kEnableUserExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace";
 const bool kEnableUserExceptionStacktraceDefault = true;
