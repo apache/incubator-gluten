@@ -39,7 +39,6 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType.RowField;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +50,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * A {@link TransformationTranslator} for the {@link OneInputTransformation}.
@@ -98,7 +98,12 @@ public final class OneInputTransformationTranslator<IN, OUT>
         OneInputStreamOperator<IN, OUT> operator = transformation.getOperator();
         Configuration configuration =
             (Configuration) ReflectUtils.getObjectField(operator.getClass(), operator, "conf");
+        List<Integer> partitionIndexes = new ArrayList<>();
+        List<String> partitionKeys = new ArrayList<>();
         try {
+          partitionKeys =
+              (List<String>)
+                  ReflectUtils.getObjectField(operator.getClass(), operator, "partitionKeys");
           Class<?> streamingFileWriterClazz =
               Class.forName("org.apache.flink.connector.file.table.stream.AbstractStreamingWriter");
           Object bucketsBuilder =
@@ -109,41 +114,34 @@ public final class OneInputTransformationTranslator<IN, OUT>
                     BulkFormatBuilder.class, bucketsBuilder, "bucketAssigner");
             Object partitionComputer =
                 ReflectUtils.getObjectField(assigner.getClass(), assigner, "computer");
-            int[] partitionIndexes =
+            int[] partitionIndexArray =
                 (int[])
                     ReflectUtils.getObjectField(
                         partitionComputer.getClass(), partitionComputer, "partitionIndexes");
-            LOG.info("partitionIndex:{}", Arrays.asList(partitionIndexes));
+            partitionIndexes =
+                Arrays.stream(partitionIndexArray).boxed().collect(Collectors.toList());
           } else {
             throw new RuntimeException("Not support:" + bucketsBuilder.getClass().getName());
           }
-          LOG.info("assigner.class: {}", bucketsBuilder.getClass().getName());
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
+        LOG.info("partitionKeys: {}, partitionPartitions:{}", partitionKeys, partitionIndexes);
         org.apache.flink.table.types.logical.RowType inputType =
             (org.apache.flink.table.types.logical.RowType)
                 ((InternalTypeInfo) transformation.getInputType()).toLogicalType();
-        List<RowField> inputRowFields = inputType.getFields();
-        List<RowField> partitionRowFields = new ArrayList<>();
-        List<String> partitionKeys = new ArrayList<>();
-        for (RowField f : inputRowFields) {
-          if (partitionKeys.contains(f.getName())) {
-            partitionRowFields.add(f);
-          }
-        }
         RowType inputDataColumns = (RowType) LogicalTypeConverter.toVLType(inputType);
-        RowType partitionColumns =
-            (RowType)
-                LogicalTypeConverter.toVLType(
-                    new org.apache.flink.table.types.logical.RowType(partitionRowFields));
         RowType ignore = new RowType(List.of("num"), List.of(new BigIntType()));
         Map<String, String> tableParams = configuration.toMap();
         tableParams.put("fs.file_name_prefix", UUID.randomUUID().toString());
         tableParams.put("fs.writer_task_id", String.valueOf(0));
         FileSystemInsertTableHandle insertTableHandle =
             new FileSystemInsertTableHandle(
-                transformation.getName(), inputDataColumns, partitionColumns, tableParams);
+                transformation.getName(),
+                inputDataColumns,
+                partitionKeys,
+                partitionIndexes,
+                tableParams);
         TableWriteNode fileSystemWriteNode =
             new TableWriteNode(
                 PlanNodeIdGenerator.newId(),
