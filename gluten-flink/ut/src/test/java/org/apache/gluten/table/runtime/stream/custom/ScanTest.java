@@ -33,7 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Disabled("Gluten has not support part of job in native")
 class ScanTest extends GlutenStreamingTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(ScanTest.class);
 
@@ -54,6 +53,7 @@ class ScanTest extends GlutenStreamingTestBase {
   }
 
   @Test
+  @Disabled("The output is not as expected.")
   void testStructScan() {
     List<Row> rows =
         Arrays.asList(
