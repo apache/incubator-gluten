@@ -32,7 +32,8 @@ import org.apache.iceberg.spark.source.IcebergWriteUtil
 case class IcebergColumnarBatchDataWriter(
     writer: Long,
     jniWrapper: IcebergWriteJniWrapper,
-    format: Int)
+    format: Int,
+    partitionSpec: PartitionSpec)
   extends DataWriter[ColumnarBatch]
   with Logging {
 
@@ -47,7 +48,7 @@ case class IcebergColumnarBatchDataWriter(
   }
 
   override def commit: WriterCommitMessage = {
-    val dataFiles = jniWrapper.commit(writer).map(d => parseDataFile(d))
+    val dataFiles = jniWrapper.commit(writer).map(d => parseDataFile(d, partitionSpec))
     IcebergWriteUtil.commitDataFiles(dataFiles)
   }
 
@@ -59,7 +60,7 @@ case class IcebergColumnarBatchDataWriter(
     logDebug("Close the ColumnarBatchDataWriter")
   }
 
-  private def parseDataFile(json: String): DataFile = {
+  private def parseDataFile(json: String, spec: PartitionSpec): DataFile = {
     val dataFile = mapper.readValue(json, classOf[DataFileJson])
     // TODO: add partition
     val metrics = new Metrics(
@@ -68,11 +69,13 @@ case class IcebergColumnarBatchDataWriter(
       ImmutableMap.of(),
       ImmutableMap.of(),
       ImmutableMap.of())
+
     val builder = DataFiles
-      .builder(PartitionSpec.unpartitioned())
+      .builder(spec)
       .withPath(dataFile.path)
       .withFormat(getFileFormat)
       .withFileSizeInBytes(dataFile.fileSizeInBytes)
+      .withPartition(PartitionDataJson.fromJson(dataFile.partitionDataJson, partitionSpec))
       .withMetrics(metrics)
     builder.build()
   }

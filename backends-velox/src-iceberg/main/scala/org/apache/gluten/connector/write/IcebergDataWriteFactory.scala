@@ -19,7 +19,7 @@ package org.apache.gluten.connector.write
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.IcebergWriteJniWrapper
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.proto.IcebergPartitionSpec
+import org.apache.gluten.proto.{IcebergPartitionField, IcebergPartitionSpec}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
 
@@ -30,13 +30,17 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.arrow.c.ArrowSchema
+import org.apache.iceberg.PartitionSpec
+import org.apache.iceberg.transforms.IcebergTransformUtil
+
+import java.util.stream.Collectors
 
 case class IcebergDataWriteFactory(
     schema: StructType,
     format: Integer,
     directory: String,
     codec: String,
-    partitionSpec: IcebergPartitionSpec)
+    partitionSpec: PartitionSpec)
   extends ColumnarBatchDataWriterFactory {
 
   /**
@@ -47,8 +51,18 @@ case class IcebergDataWriteFactory(
    * fail and get retried until hitting the maximum retry times.
    */
   override def createWriter(): DataWriter[ColumnarBatch] = {
-    val (writerHandle, jniWrapper) = getJniWrapper(schema, format, directory, codec, partitionSpec)
-    IcebergColumnarBatchDataWriter(writerHandle, jniWrapper, format)
+    val fields = partitionSpec
+      .fields()
+      .stream()
+      .map[IcebergPartitionField](IcebergTransformUtil.convertPartitionField _)
+      .collect(Collectors.toList[IcebergPartitionField])
+    val specProto = IcebergPartitionSpec
+      .newBuilder()
+      .setSpecId(partitionSpec.specId())
+      .addAllFields(fields)
+      .build()
+    val (writerHandle, jniWrapper) = getJniWrapper(schema, format, directory, codec, specProto)
+    IcebergColumnarBatchDataWriter(writerHandle, jniWrapper, format, partitionSpec)
   }
 
   private def getJniWrapper(

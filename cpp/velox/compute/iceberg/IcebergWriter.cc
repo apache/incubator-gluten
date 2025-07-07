@@ -32,9 +32,8 @@ namespace {
 std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
     std::string targetDirectory,
     std::optional<std::string> writeDirectory = std::nullopt,
-    connector::hive::LocationHandle::TableType tableType = connector::hive::LocationHandle::TableType::kNew) {
-  return std::make_shared<connector::hive::LocationHandle>(
-      targetDirectory, writeDirectory.value_or(targetDirectory), tableType);
+    connector::hive::LocationHandle::TableType tableType = connector::hive::LocationHandle::TableType::kExisting) {
+  return;
 }
 
 std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
@@ -43,6 +42,7 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
     dwio::common::FileFormat fileFormat,
     facebook::velox::common::CompressionKind compressionKind,
     std::shared_ptr<const IcebergPartitionSpec> spec) {
+      std::cout <<"output directory" << outputDirectoryPath << std::endl;
   std::vector<std::shared_ptr<const connector::hive::HiveColumnHandle>> columnHandles;
 
   std::vector<std::string> columnNames = outputRowType->names();
@@ -68,8 +68,8 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
             columnTypes.at(i),
             columnTypes.at(i)));
   }
-  std::shared_ptr<const connector::hive::LocationHandle> locationHandle =
-      makeLocationHandle(outputDirectoryPath, std::nullopt, connector::hive::LocationHandle::TableType::kNew);
+  std::shared_ptr<const connector::hive::LocationHandle> locationHandle = std::make_shared<connector::hive::LocationHandle>(
+    outputDirectoryPath, outputDirectoryPath, connector::hive::LocationHandle::TableType::kExisting);
 
   return std::make_shared<connector::hive::iceberg::IcebergInsertTableHandle>(
       columnHandles, locationHandle, spec, fileFormat, nullptr, compressionKind);

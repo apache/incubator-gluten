@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.iceberg.FileFormat
+import org.apache.iceberg.{FileFormat, PartitionSpec}
 import org.apache.iceberg.TableProperties.{ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT, PARQUET_COMPRESSION, PARQUET_COMPRESSION_DEFAULT}
 import org.apache.iceberg.spark.source.IcebergWriteUtil
 
@@ -41,6 +41,10 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
     if (codec == "UNCOMPRESSED") {
       "none"
     } else codec
+  }
+
+  protected def getPartitionSpec: PartitionSpec = {
+    IcebergWriteUtil.getPartitionSpec(write)
   }
 
   override def doValidateInternal(): ValidationResult = {
