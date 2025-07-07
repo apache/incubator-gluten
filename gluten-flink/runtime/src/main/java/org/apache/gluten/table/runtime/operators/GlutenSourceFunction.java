@@ -102,16 +102,13 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
         final StatefulElement element = task.statefulGet();
-        final RowVector outRv = element.asRecord().getRowVector();
-        try {
+        try (final RowVector outRv = element.asRecord().getRowVector()) {
           List<RowData> rows =
               FlinkRowToVLVectorConvertor.toRowData(
                   outRv, allocator, outputTypes.values().iterator().next());
           for (RowData row : rows) {
             sourceContext.collect(row);
           }
-        } finally {
-          outRv.close();
         }
       } else if (state == UpIterator.State.BLOCKED) {
         LOG.debug("Get empty row");
