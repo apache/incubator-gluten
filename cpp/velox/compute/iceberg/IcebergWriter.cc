@@ -47,9 +47,21 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
 
   std::vector<std::string> columnNames = outputRowType->names();
   std::vector<TypePtr> columnTypes = outputRowType->children();
-
+  std::vector<std::string> partitionColumns;
+  partitionColumns.reserve(spec->fields.size());
+  for (const auto& field : spec->fields) {
+    partitionColumns.push_back(field.name);
+  }
   for (auto i = 0; i < columnNames.size(); ++i) {
-    columnHandles.push_back(
+    if (std::find(partitionColumns.begin(), partitionColumns.end(), columnNames[i]) != partitionColumns.end()) {
+      columnHandles.push_back(
+        std::make_shared<connector::hive::HiveColumnHandle>(
+            columnNames.at(i),
+            connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
+            columnTypes.at(i),
+            columnTypes.at(i)));
+    } else {
+      columnHandles.push_back(
         std::make_shared<connector::hive::HiveColumnHandle>(
             columnNames.at(i),
             connector::hive::HiveColumnHandle::ColumnType::kRegular,
