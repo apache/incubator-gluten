@@ -16,12 +16,15 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.gluten.table.runtime.operators.GlutenDiscardingSink;
 import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 import org.apache.gluten.util.PlanNodeIdGenerator;
+import org.apache.gluten.util.ReflectUtils;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
@@ -30,12 +33,15 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ParallelismProvider;
@@ -71,6 +77,7 @@ import org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer;
 import org.apache.flink.table.runtime.operators.sink.RowKindSetter;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -81,6 +88,8 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,7 +103,7 @@ import java.util.stream.IntStream;
  */
 public abstract class CommonExecSink extends ExecNodeBase<Object>
     implements MultipleTransformationTranslator<Object> {
-
+  private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(CommonExecSink.class);
   public static final String CONSTRAINT_VALIDATOR_TRANSFORMATION = "constraint-validator";
   public static final String PARTITIONER_TRANSFORMATION = "partitioner";
   public static final String UPSERT_MATERIALIZE_TRANSFORMATION = "upsert-materialize";
@@ -204,16 +213,60 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     if (targetRowKind.isPresent()) {
       sinkTransform = applyRowKindSetter(sinkTransform, targetRowKind.get(), config);
     }
+    Transformation<Object> transformation =
+        (Transformation<Object>)
+            applySinkProvider(
+                sinkTransform,
+                streamExecEnv,
+                runtimeProvider,
+                rowtimeFieldIndex,
+                sinkParallelism,
+                config,
+                classLoader);
+    if (transformation instanceof SinkTransformation
+        && tableSink.getClass().getSimpleName().equals("FileSystemTableSink")
+        && ((SinkTransformation<?, ?>) transformation).getSink() instanceof DiscardingSink) {
+      return convertFileSystemSink(transformation, tableSink);
+    } else {
+      return transformation;
+    }
+  }
 
-    return (Transformation<Object>)
-        applySinkProvider(
-            sinkTransform,
-            streamExecEnv,
-            runtimeProvider,
-            rowtimeFieldIndex,
-            sinkParallelism,
-            config,
-            classLoader);
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private Transformation<Object> convertFileSystemSink(
+      Transformation<Object> transformation, DynamicTableSink tableSink) {
+    SinkTransformation sinkTransformation = (SinkTransformation) transformation;
+    GlutenDiscardingSink discardingSink = null;
+    if (tableSink.getClass().getSimpleName().equals("FileSystemTableSink")) {
+      try {
+        Class<?> fileSystemTableClazz =
+            Class.forName("org.apache.flink.connector.file.table.AbstractFileSystemTable");
+        Configuration tableOptions =
+            (Configuration)
+                ReflectUtils.getObjectField(fileSystemTableClazz, tableSink, "tableOptions");
+        ObjectIdentifier tableIdentifier =
+            (ObjectIdentifier)
+                ReflectUtils.getObjectField(fileSystemTableClazz, tableSink, "tableIdentifier");
+        DataType physicalDataType =
+            (DataType)
+                ReflectUtils.getObjectField(fileSystemTableClazz, tableSink, "physicalRowDataType");
+        discardingSink = new GlutenDiscardingSink(tableIdentifier, tableOptions, physicalDataType);
+      } catch (ClassNotFoundException e) {
+        discardingSink = null;
+      }
+    }
+    if (discardingSink != null) {
+      sinkTransformation =
+          new SinkTransformation<RowData, RowData>(
+              sinkTransformation.getInputStream(),
+              discardingSink,
+              sinkTransformation.getOutputType(),
+              sinkTransformation.getName(),
+              sinkTransformation.getParallelism(),
+              sinkParallelismConfigured,
+              sinkTransformation.getSinkOperatorsUidHashes());
+    }
+    return sinkTransformation;
   }
 
   /** Apply an operator to filter or report error to process not-null values for not-null fields. */
@@ -432,12 +485,11 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
       ExecNodeConfig config,
       ClassLoader classLoader) {
     try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
-
       TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
       if (runtimeProvider instanceof DataStreamSinkProvider) {
-        Transformation<RowData> sinkTransformation =
+        Transformation<RowData> rowTimeTransformation =
             applyRowtimeTransformation(inputTransform, rowtimeFieldIndex, sinkParallelism, config);
-        final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
+        final DataStream<RowData> dataStream = new DataStream<>(env, rowTimeTransformation);
         final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
         return provider
             .consumeDataStream(createProviderContext(config), dataStream)

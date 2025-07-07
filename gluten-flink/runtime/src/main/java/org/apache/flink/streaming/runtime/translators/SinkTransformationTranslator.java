@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPreWriteTopology;
 import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
@@ -59,6 +60,9 @@ import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFacto
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -83,6 +87,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class SinkTransformationTranslator<Input, Output>
     implements TransformationTranslator<Output, SinkTransformation<Input, Output>> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SinkTransformationTranslator.class);
+
   private static final String COMMITTER_NAME = "Committer";
   private static final String WRITER_NAME = "Writer";
 
@@ -98,8 +104,17 @@ public class SinkTransformationTranslator<Input, Output>
     return translateInternal(transformation, context, false);
   }
 
+  @SuppressWarnings("rawtypes")
   private Collection<Integer> translateInternal(
       SinkTransformation<Input, Output> transformation, Context context, boolean batch) {
+    DataStream<Input> inputStream = transformation.getInputStream();
+    if (inputStream instanceof SingleOutputStreamOperator) {
+      SingleOutputStreamOperator singleOutput = (SingleOutputStreamOperator) inputStream;
+      if (singleOutput.getName().equals("StreamingFileWriter")
+          || singleOutput.getName().equals("PartitionCommitter")) {
+        return Collections.emptyList();
+      }
+    }
     SinkExpander<Input> expander =
         new SinkExpander<>(
             transformation.getInputStream(),
@@ -148,6 +163,7 @@ public class SinkTransformationTranslator<Input, Output>
       this.isBatchMode = isBatchMode;
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private void expand() {
 
       final int sizeBefore = executionEnvironment.getTransformations().size();

@@ -33,6 +33,7 @@ import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.table.data.RowData;
 
@@ -44,7 +45,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /** Gluten legacy source function, call velox plan to execute. */
-public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
+public class GlutenSourceFunction extends RichParallelSourceFunction<RowData>
+    implements CheckpointListener {
   private static final Logger LOG = LoggerFactory.getLogger(GlutenSourceFunction.class);
 
   private final PlanNode planNode;
@@ -57,6 +59,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   private Query query;
   BufferAllocator allocator;
   private MemoryManager memoryManager;
+  private SerialTask task;
 
   public GlutenSourceFunction(
       PlanNode planNode, RowType outputType, String id, ConnectorSplit split) {
@@ -90,7 +93,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
     allocator = new RootAllocator(Long.MAX_VALUE);
 
-    SerialTask task = session.queryOps().execute(query);
+    task = session.queryOps().execute(query);
     task.addSplit(id, split);
     task.noMoreSplits(id);
     while (isRunning) {
@@ -119,5 +122,10 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   @Override
   public void cancel() {
     isRunning = false;
+  }
+
+  @Override
+  public void notifyCheckpointComplete(long checkpointId) throws Exception {
+    task.commit(checkpointId);
   }
 }
