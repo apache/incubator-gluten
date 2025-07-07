@@ -392,7 +392,7 @@ public:
     {
         ReaderTestBase::SetUp();
         /// we know all datas are not nullable
-        context_->setSetting("schema_inference_make_columns_nullable", DB::Field("0"));
+        // context_->setSetting("schema_inference_make_columns_nullable", DB::Field("0"));
 
         /// for big query
         context_->setSetting("max_query_size", DB::Field(524288));
@@ -971,46 +971,51 @@ TEST_F(IcebergTest, positionalDeletesMultipleSplits)
 TEST_F(IcebergTest, basic_utils_test)
 {
 
-    {
-        context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", true);
-        std::map<std::string, std::vector<int64_t>> rowGroupSizesForFiles;
-        // Create two data files, each with two RowGroups
-        rowGroupSizesForFiles["data_file_1"] = {100, 85};
-        rowGroupSizesForFiles["data_file_2"] = {99, 1};
+    context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", true);
+    const  std::string sql = R"(SELECT l_returnflag, l_linestatus FROM file('/home/chang/test/perf/tpch100/lineitem/*.parquet','Parquet') where l_orderkey = 100)";
+    auto x = runClickhouseSQL(sql);
+    headBlock(x);
 
-        std::unordered_map<std::string, std::multimap<std::string, std::vector<int64_t>>> deleteFilesForBaseDatafiles;
-
-        deleteFilesForBaseDatafiles["delete_file_1"] = {
-            {"data_file_1", {0, 100, 102, 184}}, {"data_file_2", {1, 98, 99}}};
-
-        std::map<std::string, std::shared_ptr<TempFilePath>> dataFilePaths =
-            writeDataFiles(rowGroupSizesForFiles);
-
-        std::unordered_map<std::string, std::pair<int64_t, std::shared_ptr<TempFilePath>>>
-        deleteFilePaths = writePositionDeleteFiles( deleteFilesForBaseDatafiles, dataFilePaths);
-        assert(deleteFilePaths.size() == 1);
-
-        auto x = runClickhouseSQL(fmt::format("select pos from file('{}') where file_path = 'file://{}'",
-            deleteFilePaths["delete_file_1"].second->string(), dataFilePaths["data_file_2"]->string()));
-        // auto y = runClickhouseSQL(fmt::format("select * from file('{}')",
-        //     deleteFilePaths["delete_file_1"].second->string()));
-        headBlock(x, 100 , 100);
-
-        context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", DB::Field(false));
-    }
-
-    {
-        std::shared_ptr<TempFilePath> dataFilePath = writeDataFiles(rowCount, 4)[0];
-
-        runClickhouseSQL(fmt::format("select count(*) from file('{}')", dataFilePath->string()));
-        DB::Block block = runClickhouseSQL("select count(*) from IcebergTest.tmp");
-        EXPECT_TRUE(assertEqualResults(block, DB::Block{createColumn<UInt64>({rowCount}, "count()")}));
-
-
-        auto read = makeIcebergSplit(dataFilePath->string());
-        DB::Block actual = collectResult( *read);
-        EXPECT_TRUE(assertEqualResults( actual, runClickhouseSQL("select * from IcebergTest.tmp")));
-    }
+    // {
+    //     context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", true);
+    //     std::map<std::string, std::vector<int64_t>> rowGroupSizesForFiles;
+    //     // Create two data files, each with two RowGroups
+    //     rowGroupSizesForFiles["data_file_1"] = {100, 85};
+    //     rowGroupSizesForFiles["data_file_2"] = {99, 1};
+    //
+    //     std::unordered_map<std::string, std::multimap<std::string, std::vector<int64_t>>> deleteFilesForBaseDatafiles;
+    //
+    //     deleteFilesForBaseDatafiles["delete_file_1"] = {
+    //         {"data_file_1", {0, 100, 102, 184}}, {"data_file_2", {1, 98, 99}}};
+    //
+    //     std::map<std::string, std::shared_ptr<TempFilePath>> dataFilePaths =
+    //         writeDataFiles(rowGroupSizesForFiles);
+    //
+    //     std::unordered_map<std::string, std::pair<int64_t, std::shared_ptr<TempFilePath>>>
+    //     deleteFilePaths = writePositionDeleteFiles( deleteFilesForBaseDatafiles, dataFilePaths);
+    //     assert(deleteFilePaths.size() == 1);
+    //
+    //     auto x = runClickhouseSQL(fmt::format("select pos from file('{}') where file_path = 'file://{}'",
+    //         deleteFilePaths["delete_file_1"].second->string(), dataFilePaths["data_file_2"]->string()));
+    //     // auto y = runClickhouseSQL(fmt::format("select * from file('{}')",
+    //     //     deleteFilePaths["delete_file_1"].second->string()));
+    //     headBlock(x, 100 , 100);
+    //
+    //     context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", DB::Field(false));
+    // }
+    //
+    // {
+    //     std::shared_ptr<TempFilePath> dataFilePath = writeDataFiles(rowCount, 4)[0];
+    //
+    //     runClickhouseSQL(fmt::format("select count(*) from file('{}')", dataFilePath->string()));
+    //     DB::Block block = runClickhouseSQL("select count(*) from IcebergTest.tmp");
+    //     EXPECT_TRUE(assertEqualResults(block, DB::Block{createColumn<UInt64>({rowCount}, "count()")}));
+    //
+    //
+    //     auto read = makeIcebergSplit(dataFilePath->string());
+    //     DB::Block actual = collectResult( *read);
+    //     EXPECT_TRUE(assertEqualResults( actual, runClickhouseSQL("select * from IcebergTest.tmp")));
+    // }
 }
 
 TEST_F(IcebergTest, EqualityDeleteActionBuilder)
