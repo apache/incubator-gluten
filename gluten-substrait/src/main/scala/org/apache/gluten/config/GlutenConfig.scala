@@ -1504,7 +1504,7 @@ object GlutenConfig {
           "evaluator class, else follow the configuration " +
           "spark.sql.adaptive.customCostEvaluatorClass.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val CELEBORN_FALLBACK_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.shuffle.celeborn.fallback.enabled")
