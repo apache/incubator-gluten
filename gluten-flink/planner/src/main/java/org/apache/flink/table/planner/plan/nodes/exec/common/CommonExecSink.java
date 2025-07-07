@@ -16,7 +16,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
@@ -561,7 +561,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             "StreamRecordTimestampInserter",
             config),
         // TODO: support it, Map.of() will not be used, hardcode it here.
-        new GlutenSingleInputOperator(
+        new GlutenOneInputOperator(
             null, PlanNodeIdGenerator.newId(), null, Map.of("1", outputType)),
         inputTransform.getOutputType(),
         sinkParallelism,
