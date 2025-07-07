@@ -42,17 +42,6 @@ case class VeloxIcebergAppendDataExec(query: SparkPlan, refreshCache: () => Unit
       IcebergWriteUtil.getDirectory(write),
       getCodec,
       getPartitionSpec)
-
-  private def getPartitionSpec: IcebergPartitionSpec = {
-    val spec = IcebergWriteUtil.getPartitionSpec(write)
-    val fields = spec
-      .fields()
-      .stream()
-      .map[IcebergPartitionField](IcebergTransformUtil.convertPartitionField _)
-      .collect(Collectors.toList[IcebergPartitionField])
-    IcebergPartitionSpec.newBuilder().setSpecId(spec.specId()).addAllFields(fields).build()
-  }
-
 }
 
 object VeloxIcebergAppendDataExec {
