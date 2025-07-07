@@ -110,34 +110,22 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
 
   @Override
   public void processElement(StreamRecord<RowData> element) {
-    RowVector inRv = null;
-    RowVector outRv = null;
-    try {
-      inRv =
-          FlinkRowToVLVectorConvertor.fromRowData(
-              element.getValue(), allocator, session, inputType);
+    try (RowVector inRv =
+        FlinkRowToVLVectorConvertor.fromRowData(
+            element.getValue(), allocator, session, inputType)) {
       inputQueue.put(inRv);
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
         final StatefulElement statefulElement = task.statefulGet();
-        outRv = statefulElement.asRecord().getRowVector();
-        try {
+
+        try (RowVector outRv = statefulElement.asRecord().getRowVector()) {
           List<RowData> rows =
               FlinkRowToVLVectorConvertor.toRowData(
                   outRv, allocator, outputTypes.values().iterator().next());
           for (RowData row : rows) {
             output.collect(outElement.replace(row));
           }
-        } finally {
-          outRv.close();
         }
-      }
-    } finally {
-      /// The RowVector should be closed in `finally`, to avoid it may not be closed when exceptions
-      // rasied,
-      /// that lead to memory leak.
-      if (inRv != null) {
-        inRv.close();
       }
     }
   }
