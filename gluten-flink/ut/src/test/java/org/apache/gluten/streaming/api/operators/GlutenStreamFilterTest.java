@@ -206,7 +206,7 @@ public class GlutenStreamFilterTest extends GlutenStreamOperatorTestBase {
         PlanNodeIdGenerator.newId(), List.of(new EmptyNode(veloxType)), veloxFilterCondition);
   }
 
-  private static class TestableGlutenSingleInputOperator extends TestGlutenSingleInputOperator {
+  private static class TestableGlutenSingleInputOperator extends GlutenSingleInputOperator {
     private boolean opened = false;
     private boolean closed = false;
 

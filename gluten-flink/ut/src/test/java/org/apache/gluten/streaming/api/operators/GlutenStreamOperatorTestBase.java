@@ -161,34 +161,10 @@ public abstract class GlutenStreamOperatorTestBase {
     io.github.zhztheplayer.velox4j.type.RowType outputVeloxType =
         convertToVeloxType(((InternalTypeInfo<RowData>) outputTypeInfo).toRowType());
 
-    return new TestGlutenSingleInputOperator(
+    return new GlutenSingleInputOperator(
         new StatefulPlanNode(veloxPlan.getId(), veloxPlan),
         PlanNodeIdGenerator.newId(),
         inputVeloxType,
         Map.of(veloxPlan.getId(), outputVeloxType));
-  }
-
-  protected static class TestGlutenSingleInputOperator extends GlutenSingleInputOperator {
-    public TestGlutenSingleInputOperator(
-        StatefulPlanNode plan,
-        String id,
-        io.github.zhztheplayer.velox4j.type.RowType inputType,
-        Map<String, io.github.zhztheplayer.velox4j.type.RowType> outTypes) {
-      super(plan, id, inputType, outTypes);
-    }
-
-    @Override
-    public void processElement(StreamRecord<RowData> element) {
-      try {
-        super.processElement(element);
-      } catch (Exception e) {
-        if (e.getMessage() != null
-            && (e.getMessage().contains("ResourceHandle not found")
-                || e.getMessage().contains("Failed to reattach current thread to JVM"))) {
-        } else {
-          throw e;
-        }
-      }
-    }
   }
 }
