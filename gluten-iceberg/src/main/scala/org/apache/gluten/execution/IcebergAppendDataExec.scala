@@ -20,6 +20,8 @@ import org.apache.iceberg.{FileFormat, PartitionSpec}
 import org.apache.iceberg.TableProperties.{ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT, PARQUET_COMPRESSION, PARQUET_COMPRESSION_DEFAULT}
 import org.apache.iceberg.spark.source.IcebergWriteUtil
 
+import scala.collection.JavaConverters._
+
 trait IcebergAppendDataExec extends ColumnarAppendDataExec {
 
   protected def getFileFormat(format: FileFormat): Int = {
@@ -54,8 +56,10 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
     if (IcebergWriteUtil.hasUnsupportedDataType(write)) {
       return ValidationResult.failed("Contains unsupported data type")
     }
-    if (IcebergWriteUtil.getTable(write).spec().isPartitioned) {
-      return ValidationResult.failed("Not support write partition table")
+    val spec = IcebergWriteUtil.getTable(write).spec()
+    // TODO: check the partition column data type, only some data type is supported.
+    if (spec.isPartitioned && spec.fields().asScala.exists(p => p.transform().isIdentity)) {
+      return ValidationResult.failed("Not support write non identity partition table")
     }
     if (IcebergWriteUtil.getTable(write).sortOrder().isSorted) {
       return ValidationResult.failed("Not support write table with sort order")
