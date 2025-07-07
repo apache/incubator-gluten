@@ -33,13 +33,12 @@ import org.apache.spark.util.LongAccumulator
 
 trait ColumnarAppendDataExec extends V2ExistingTableWriteExec with ValidatablePlan {
 
-  private lazy val result: Seq[ColumnarBatch] = runColumnarBatch()
-
   protected def createFactory(schema: StructType): ColumnarBatchDataWriterFactory
 
-  override def doExecute(): RDD[InternalRow] = {
-    result
-    sparkContext.parallelize(Nil, 1)
+  override protected def run(): Seq[InternalRow] = {
+    writeColumnarBatchWithV2(write.toBatch)
+    refreshCache()
+    Nil
   }
 
   override def batchType(): Convention.BatchType = Convention.BatchType.None
@@ -106,11 +105,4 @@ trait ColumnarAppendDataExec extends V2ExistingTableWriteExec with ValidatablePl
     }
 
   }
-
-  private def runColumnarBatch(): Seq[ColumnarBatch] = {
-    writeColumnarBatchWithV2(write.toBatch)
-    refreshCache()
-    Seq.empty[ColumnarBatch]
-  }
-
 }
