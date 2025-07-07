@@ -16,10 +16,10 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.connector.write.ColumnarBatchDataWriterFactory
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.extension.columnar.transition.Convention.RowType
-
 import org.apache.spark.{SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -44,6 +44,10 @@ trait ColumnarAppendDataExec extends V2ExistingTableWriteExec with ValidatablePl
   override def batchType(): Convention.BatchType = Convention.BatchType.None
 
   override def rowType0(): Convention.RowType = RowType.VanillaRowType
+
+  override def requiredChildConvention(): Seq[ConventionReq] = Seq(
+    ConventionReq.ofBatch(
+      ConventionReq.BatchType.Is(BackendsApiManager.getSettings.primaryBatchType)))
 
   private def writingTaskBatch: WritingColumnarBatchSparkTask[_] = DataWritingColumnarBatchSparkTask
 
