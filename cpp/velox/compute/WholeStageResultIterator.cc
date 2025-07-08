@@ -177,6 +177,7 @@ WholeStageResultIterator::WholeStageResultIterator(
 }
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
+  gluten::VeloxBackend::get()->initConnector(veloxCfg_);
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
   std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(

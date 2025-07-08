@@ -170,7 +170,7 @@ void VeloxBackend::init(
 #endif
 
   initJolFilesystem();
-  initConnector();
+  //initConnector();
 
   velox::dwio::common::registerFileSinks();
   velox::parquet::registerParquetReaderFactory();
@@ -290,8 +290,21 @@ void VeloxBackend::initCache() {
   }
 }
 
-void VeloxBackend::initConnector() {
+void VeloxBackend::initConnector(std::shared_ptr<facebook::velox::config::ConfigBase> newConf) {
+  if (ioConnectorReg_) {
+    return;
+  }
+
   auto hiveConf = getHiveConfig(backendConf_);
+
+  std::string_view kSparkHadoopPrefix = "spark.hadoop.";
+  std::string_view kSparkHadoopAbfsPrefix = "spark.hadoop.fs.azure.";
+  for (const auto& [key, value] : newConf->rawConfigs()) {
+    if (key.find(kSparkHadoopAbfsPrefix) == 0) {
+      // Remove the SparkHadoopPrefix and override
+      hiveConf->set(key.substr(kSparkHadoopPrefix.size()), value);
+    }
+  }
 
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   GLUTEN_CHECK(
