@@ -95,7 +95,7 @@ VectorizedColumnReader::VectorizedColumnReader(
 void VectorizedColumnReader::nextRowGroup()
 {
     input_.nextRowGroup().and_then(
-        [&](ColumnChunkPageRead && read) -> std::optional<int64_t>
+        [&](ColumnChunkPageReadState && read) -> std::optional<int64_t>
         {
             setPageReader(std::move(read.first), std::move(read.second));
             return std::nullopt;
@@ -231,7 +231,7 @@ ParquetFileReaderExt::ParquetFileReaderExt(
     source_size_ = source_size;
 }
 
-std::optional<ColumnChunkPageRead> PageIterator::nextRowGroup()
+std::optional<ColumnChunkPageReadState> PageIterator::nextRowGroup()
 {
     while (!row_groups_.empty())
     {
@@ -244,7 +244,7 @@ std::optional<ColumnChunkPageRead> PageIterator::nextRowGroup()
     return std::nullopt;
 }
 
-ColumnChunkPageRead ParquetFileReaderExt::nextRowGroup(
+ColumnChunkPageReadState ParquetFileReaderExt::nextRowGroup(
     const RowRanges & row_ranges, int32_t row_group_index, int32_t column_index, const std::string & column_name) const
 {
     const auto & file_metadata = *fileMeta();
@@ -277,7 +277,7 @@ ColumnChunkPageRead ParquetFileReaderExt::nextRowGroup(
     return std::make_pair(createPageReader(input_stream, *column_metadata), std::move(read_state));
 }
 
-std::optional<ColumnChunkPageRead>
+std::optional<ColumnChunkPageReadState>
 ParquetFileReaderExt::nextRowGroup(int32_t row_group_index, int32_t column_index, const std::string & column_name) const
 {
     return row_ranges_provider_.getRowRanges(row_group_index)
