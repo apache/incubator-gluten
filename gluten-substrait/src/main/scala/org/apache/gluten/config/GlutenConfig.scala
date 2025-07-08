@@ -501,7 +501,6 @@ object GlutenConfig {
       conf: Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     nativeConfMap.putAll(conf.filter(e => nativeKeys.contains(e._1)).asJava)
-
     val keyWithDefault = ImmutableList.of(
       (CASE_SENSITIVE.key, CASE_SENSITIVE.defaultValueString),
       (IGNORE_MISSING_FILES.key, IGNORE_MISSING_FILES.defaultValueString),
