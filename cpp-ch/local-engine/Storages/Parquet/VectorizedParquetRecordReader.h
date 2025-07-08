@@ -56,7 +56,7 @@ class ParquetReadState1;
 class ParquetReadState2;
 using ParquetReadState = ParquetReadState2;
 using ParquetReadStatePtr = std::unique_ptr<ParquetReadState>;
-using ColumnChunkPageRead = std::pair<PageReaderPtr, ParquetReadStatePtr>;
+using ColumnChunkPageReadState = std::pair<PageReaderPtr, ParquetReadStatePtr>;
 
 
 std::shared_ptr<parquet::ArrowInputStream>
@@ -181,7 +181,7 @@ class ParquetFileReaderExt
     PageReaderPtr createPageReader(
         const std::shared_ptr<parquet::ArrowInputStream> & input_stream, const parquet::ColumnChunkMetaData & column_metadata) const;
 
-    ColumnChunkPageRead
+    ColumnChunkPageReadState
     nextRowGroup(const RowRanges & row_ranges, int32_t row_group_index, int32_t column_index, const std::string & column_name) const;
 
 public:
@@ -190,7 +190,9 @@ public:
         std::unique_ptr<parquet::ParquetFileReader> parquetFileReader,
         const ColumnIndexRowRangesProvider & row_ranges_provider,
         const DB::FormatSettings & format_settings);
-    std::optional<ColumnChunkPageRead> nextRowGroup(int32_t row_group_index, int32_t column_index, const std::string & column_name) const;
+
+    std::optional<ColumnChunkPageReadState>
+    nextRowGroup(int32_t row_group_index, int32_t column_index, const std::string & column_name) const;
     parquet::ParquetFileReader * fileReader() const { return file_reader_.get(); }
     std::shared_ptr<parquet::FileMetaData> fileMeta() const { return file_reader_->metadata(); }
 
@@ -211,7 +213,7 @@ public:
 
     ~PageIterator() override = default;
 
-    std::optional<ColumnChunkPageRead> nextRowGroup();
+    std::optional<ColumnChunkPageReadState> nextRowGroup();
 };
 
 class VectorizedColumnReader
