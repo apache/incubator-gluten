@@ -50,6 +50,9 @@ class RowRanges;
 using ReadRanges = std::vector<arrow::io::ReadRange>;
 using ReadSequence = std::vector<int64_t>;
 using PageReaderPtr = std::unique_ptr<parquet::PageReader>;
+using OffsetIndexPtr = std::unique_ptr<OffsetIndex>;
+using ColumnChunkPageRead = std::pair<PageReaderPtr, OffsetIndexPtr>;
+
 class VectorizedParquetBlockInputFormat;
 class ColumnIndexRowRangesProvider;
 class ParquetReadState1;
@@ -57,7 +60,6 @@ class ParquetReadState2;
 using ParquetReadState = ParquetReadState2;
 using ParquetReadStatePtr = std::unique_ptr<ParquetReadState>;
 using ColumnChunkPageReadState = std::pair<PageReaderPtr, ParquetReadStatePtr>;
-
 
 std::shared_ptr<parquet::ArrowInputStream>
 getStream(arrow::io::RandomAccessFile & reader, const std::vector<arrow::io::ReadRange> & ranges);
@@ -181,7 +183,7 @@ class ParquetFileReaderExt
     PageReaderPtr createPageReader(
         const std::shared_ptr<parquet::ArrowInputStream> & input_stream, const parquet::ColumnChunkMetaData & column_metadata) const;
 
-    ColumnChunkPageReadState
+    ColumnChunkPageRead
     nextRowGroup(const RowRanges & row_ranges, int32_t row_group_index, int32_t column_index, const std::string & column_name) const;
 
 public:

@@ -244,7 +244,7 @@ std::optional<ColumnChunkPageReadState> PageIterator::nextRowGroup()
     return std::nullopt;
 }
 
-ColumnChunkPageReadState ParquetFileReaderExt::nextRowGroup(
+ColumnChunkPageRead ParquetFileReaderExt::nextRowGroup(
     const RowRanges & row_ranges, int32_t row_group_index, int32_t column_index, const std::string & column_name) const
 {
     const auto & file_metadata = *fileMeta();
@@ -256,32 +256,35 @@ ColumnChunkPageReadState ParquetFileReaderExt::nextRowGroup(
 
     ReadRanges read_ranges;
     ParquetReadStatePtr read_state;
-
+    OffsetIndexPtr offset_index = nullptr;
     if (rg_count == row_ranges.rowCount())
     {
         chassert(row_ranges.getRanges().size() == 1);
         read_ranges.emplace_back(col_range);
-        read_state = std::make_unique<ParquetReadState>(row_ranges, nullptr);
     }
     else
     {
         const ColumnIndexStore & column_index_store = row_ranges_provider_.getColumnIndexStore(row_group_index);
         const ColumnIndex & index = *column_index_store.find(lowerColumnNameIfNeed(column_name, format_settings_))->second;
         const std::vector<parquet::PageLocation> & page_locations = index.offsetIndex().page_locations();
-        auto offset_index = ColumnIndexFilterUtils::filterOffsetIndex(page_locations, row_ranges, rg_count);
+        offset_index = ColumnIndexFilterUtils::filterOffsetIndex(page_locations, row_ranges, rg_count);
         read_ranges = ColumnIndexFilterUtils::calculateReadRanges(*offset_index, col_range, page_locations[0].offset);
-
-        read_state = std::make_unique<ParquetReadState>(row_ranges, std::move(offset_index));
     }
     const auto input_stream = getStream(*source_, read_ranges);
-    return std::make_pair(createPageReader(input_stream, *column_metadata), std::move(read_state));
+    return std::make_pair(createPageReader(input_stream, *column_metadata), std::move(offset_index));
 }
 
 std::optional<ColumnChunkPageReadState>
 ParquetFileReaderExt::nextRowGroup(int32_t row_group_index, int32_t column_index, const std::string & column_name) const
 {
     return row_ranges_provider_.getRowRanges(row_group_index)
-        .transform([&](const RowRanges & row_ranges) { return nextRowGroup(row_ranges, row_group_index, column_index, column_name); });
+        .transform(
+            [&](const RowRanges & row_ranges)
+            {
+                ColumnChunkPageRead result = nextRowGroup(row_ranges, row_group_index, column_index, column_name);
+                auto read_state = std::make_unique<ParquetReadState>(row_ranges, std::move(result.second));
+                return std::make_pair(std::move(result.first), std::move(read_state));
+            });
 }
 
 PageReaderPtr ParquetFileReaderExt::createPageReader(
