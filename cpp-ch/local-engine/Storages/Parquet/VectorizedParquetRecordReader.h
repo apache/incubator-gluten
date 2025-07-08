@@ -181,6 +181,9 @@ class ParquetFileReaderExt
     PageReaderPtr createPageReader(
         const std::shared_ptr<parquet::ArrowInputStream> & input_stream, const parquet::ColumnChunkMetaData & column_metadata) const;
 
+    ColumnChunkPageRead
+    nextRowGroup(const RowRanges & row_ranges, int32_t row_group_index, int32_t column_index, const std::string & column_name) const;
+
 public:
     ParquetFileReaderExt(
         const std::shared_ptr<arrow::io::RandomAccessFile> & source,
