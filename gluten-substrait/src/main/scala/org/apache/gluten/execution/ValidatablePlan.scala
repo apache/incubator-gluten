@@ -43,7 +43,7 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
     try {
       f
     } catch {
-      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
+      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException | _: Throwable) =>
         if (!e.isInstanceOf[GlutenNotSupportException]) {
           logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
         }
@@ -52,8 +52,6 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
           logOnLevel(glutenConf.validationLogLevel, message, e)
         }
         ValidationResult.failed(message)
-      case t: Throwable =>
-        throw t
     } finally {
       finallyBlock
     }
@@ -63,13 +61,15 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
   final def doValidate(): ValidationResult = {
-    val schemaValidationResult = BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason =>
-          ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
-      }
-      .getOrElse(ValidationResult.succeeded)
+    val schemaValidationResult = failValidationWithException {
+      BackendsApiManager.getValidatorApiInstance
+        .doSchemaValidate(schema)
+        .map {
+          reason =>
+            ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
+        }
+        .getOrElse(ValidationResult.succeeded)
+    }()
     if (!schemaValidationResult.ok()) {
       TestStats.addFallBackClassName(this.getClass.toString)
       if (validationFailFast) {
