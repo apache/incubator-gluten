@@ -278,12 +278,21 @@ ParquetFileReaderExt::nextRowGroup(int32_t row_group_index, int32_t column_index
                     read_state = std::make_unique<ParquetReadState>(row_ranges, std::move(offset_index));
                 }
                 const auto input_stream = getStream(*source_, read_ranges);
-                return std::make_pair(createPageReader(*column_metadata, input_stream), std::move(read_state));
+                return std::make_pair(createPageReader(input_stream, *column_metadata), std::move(read_state));
             });
 }
 
 PageReaderPtr ParquetFileReaderExt::createPageReader(
-    const parquet::ColumnChunkMetaData & column_metadata, const std::shared_ptr<parquet::ArrowInputStream> & input_stream) const
+    const std::shared_ptr<parquet::ArrowInputStream> & input_stream, int32_t row_group_index, int32_t column_index) const
+{
+    const auto & file_metadata = *fileMeta();
+    const auto rg = file_metadata.RowGroup(row_group_index);
+    const auto column_metadata = rg->ColumnChunk(column_index);
+    return createPageReader(input_stream, *column_metadata);
+}
+
+PageReaderPtr ParquetFileReaderExt::createPageReader(
+    const std::shared_ptr<parquet::ArrowInputStream> & input_stream, const parquet::ColumnChunkMetaData & column_metadata) const
 {
     const auto & file_metadata = *fileMeta();
 

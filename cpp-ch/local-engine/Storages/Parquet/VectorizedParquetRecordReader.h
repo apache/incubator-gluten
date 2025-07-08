@@ -179,7 +179,7 @@ class ParquetFileReaderExt
     const ColumnIndexRowRangesProvider & row_ranges_provider_;
 
     PageReaderPtr createPageReader(
-        const parquet::ColumnChunkMetaData & column_metadata, const std::shared_ptr<parquet::ArrowInputStream> & input_stream) const;
+        const std::shared_ptr<parquet::ArrowInputStream> & input_stream, const parquet::ColumnChunkMetaData & column_metadata) const;
 
 public:
     ParquetFileReaderExt(
@@ -190,6 +190,10 @@ public:
     std::optional<ColumnChunkPageRead> nextRowGroup(int32_t row_group_index, int32_t column_index, const std::string & column_name) const;
     parquet::ParquetFileReader * fileReader() const { return file_reader_.get(); }
     std::shared_ptr<parquet::FileMetaData> fileMeta() const { return file_reader_->metadata(); }
+
+    // UT
+    PageReaderPtr
+    createPageReader(const std::shared_ptr<parquet::ArrowInputStream> & input_stream, int32_t row_group_index, int32_t column_index) const;
 };
 
 class PageIterator final : public parquet::arrow::FileColumnIterator
