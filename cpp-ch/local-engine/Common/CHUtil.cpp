@@ -642,6 +642,7 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("max_download_threads", 1);
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
     settings.set("output_format_parquet_use_custom_encoder", false);
+    settings.set("input_format_parquet_use_native_reader_with_filter_push_down", true);
 
     //1.
     // TODO: we need set Setting::max_threads to 1 by default, but now we can't get correct metrics for the some query if we set it to 1.
