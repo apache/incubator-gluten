@@ -418,7 +418,6 @@ object GlutenConfig {
   private val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
-  val SPARK_ONHEAP_SIZE_KEY = "spark.executor.memory"
   val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
   val SPARK_OVERHEAD_FACTOR_KEY = "spark.executor.memoryOverheadFactor"
   val SPARK_REDACTION_REGEX = "spark.redaction.regex"

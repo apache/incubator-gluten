@@ -47,7 +47,7 @@ public final class TreeMemoryConsumers {
 
     private Factory(TaskMemoryManager tmm) {
       MemoryMode mode =
-          GlutenConfig.get().dynamicOffHeapSizingEnabled()
+          GlutenCoreConfig.get().dynamicOffHeapSizingEnabled()
               ? MemoryMode.ON_HEAP
               : MemoryMode.OFF_HEAP;
       this.sparkConsumer = new TreeMemoryConsumer(tmm, mode);

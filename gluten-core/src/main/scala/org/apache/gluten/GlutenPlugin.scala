@@ -109,20 +109,20 @@ private object GlutenDriverPlugin extends Logging {
     checkOffHeapSettings(conf)
 
     // Get the off-heap size set by user.
-    val offHeapSize = conf.getSizeAsBytes(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY)
-    val offHeapSize = if (conf.getBoolean(GlutenConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, false)) {
-      val onHeapSize: Long =
-        if (conf.contains(GlutenConfig.SPARK_ONHEAP_SIZE_KEY)) {
-          conf.getSizeAsBytes(GlutenConfig.SPARK_ONHEAP_SIZE_KEY)
-        } else {
-          // 1GB default
-          1024 * 1024 * 1024
-        }
-      ((onHeapSize - (300 * 1024 * 1024)) *
-        conf.getDouble(GlutenConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION.key, 0.6d)).toLong
-    } else {
-      conf.getSizeAsBytes(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY)
-    }
+    val offHeapSize =
+      if (conf.getBoolean(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, false)) {
+        val onHeapSize: Long =
+          if (conf.contains(GlutenCoreConfig.SPARK_ONHEAP_SIZE_KEY)) {
+            conf.getSizeAsBytes(GlutenCoreConfig.SPARK_ONHEAP_SIZE_KEY)
+          } else {
+            // 1GB default
+            1024 * 1024 * 1024
+          }
+        ((onHeapSize - (300 * 1024 * 1024)) *
+          conf.getDouble(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION.key, 0.6d)).toLong
+      } else {
+        conf.getSizeAsBytes(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY)
+      }
 
     // Set off-heap size in bytes.
     conf.set(GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES, offHeapSize)
