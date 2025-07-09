@@ -24,13 +24,12 @@ import org.apache.gluten.substrait.expression.ExpressionNode
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 import org.apache.gluten.utils.PullOutProjectHelper
-
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.IntegerType
-
 import com.google.protobuf.StringValue
+import org.apache.spark.unsafe.types.UTF8String
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -238,11 +237,15 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
           )
         case JsonTuple(Seq(jsonObj, jsonPaths @ _*)) =>
           val getJsons: IndexedSeq[Expression] = {
+            def wrapPath(path: String): String =
+              s"""$$['$path']"""
             jsonPaths.map {
               case jsonPath if jsonPath.foldable =>
                 Option(jsonPath.eval()) match {
-                  case Some(path) =>
-                    GetJsonObject(jsonObj, Literal.create(JSON_PATH_PREFIX + path))
+                  case Some(path: UTF8String) =>
+                    GetJsonObject(jsonObj, Literal.create(wrapPath(path.toString)))
+                  case Some(path: String) =>
+                    GetJsonObject(jsonObj, Literal.create(wrapPath(path)))
                   case _ =>
                     Literal.create(null)
                 }
@@ -250,7 +253,12 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
                 // TODO: The prefix is just for adapting to GetJsonObject.
                 // Maybe, we can remove this handling in the future by
                 // making path without "$." recognized
-                GetJsonObject(jsonObj, Concat(Seq(Literal.create(JSON_PATH_PREFIX), jsonPath)))
+                val wrappedPath = Concat(Seq(
+                  Literal.create("$['"),
+                  jsonPath,
+                  Literal.create("']")
+                ))
+                GetJsonObject(jsonObj, wrappedPath)
             }.toIndexedSeq
           }
           val preGenerateExprs =
