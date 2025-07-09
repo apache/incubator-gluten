@@ -43,7 +43,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.gluten.streaming.api.operators.utils.RowDataTestUtils.assertRowDataListEquals;
+import static org.apache.gluten.streaming.api.operators.utils.RowDataTestUtils.checkEquals;
 
 public class GlutenStreamProjectTest extends GlutenStreamOperatorTestBase {
 
@@ -89,7 +89,7 @@ public class GlutenStreamProjectTest extends GlutenStreamOperatorTestBase {
 
     List<RowData> actualOutput = extractOutputFromHarness(harness);
 
-    assertRowDataListEquals(actualOutput, expectedOutput, outputRowType);
+    checkEquals(actualOutput, expectedOutput, outputRowType.getChildren());
 
     harness.close();
   }

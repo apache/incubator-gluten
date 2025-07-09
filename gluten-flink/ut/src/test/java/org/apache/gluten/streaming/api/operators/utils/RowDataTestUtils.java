@@ -18,7 +18,6 @@ package org.apache.gluten.streaming.api.operators.utils;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
 
 import java.util.List;
 
@@ -26,10 +25,10 @@ import static org.junit.Assert.assertEquals;
 
 public class RowDataTestUtils {
 
-  public static void checkEquals(RowData actual, RowData expected, RowType rowType) {
+  public static void checkEquals(RowData actual, RowData expected, List<LogicalType> fieldTypes) {
     assertEquals("Row arity mismatch", expected.getArity(), actual.getArity());
+    assertEquals("Field types count mismatch", fieldTypes.size(), actual.getArity());
 
-    List<LogicalType> fieldTypes = rowType.getChildren();
     for (int i = 0; i < actual.getArity(); i++) {
       RowData.FieldGetter getter = RowData.createFieldGetter(fieldTypes.get(i), i);
       Object actualValue = getter.getFieldOrNull(actual);
@@ -39,12 +38,12 @@ public class RowDataTestUtils {
     }
   }
 
-  public static void assertRowDataListEquals(
-      List<RowData> expected, List<RowData> actual, RowType rowType) {
+  public static void checkEquals(
+      List<RowData> actual, List<RowData> expected, List<LogicalType> filedTypes) {
     assertEquals("List size mismatch", expected.size(), actual.size());
 
     for (int i = 0; i < expected.size(); i++) {
-      checkEquals(actual.get(i), expected.get(i), rowType);
+      checkEquals(actual.get(i), expected.get(i), filedTypes);
     }
   }
 }

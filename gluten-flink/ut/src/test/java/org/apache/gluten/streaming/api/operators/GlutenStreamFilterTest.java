@@ -45,7 +45,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.gluten.streaming.api.operators.utils.RowDataTestUtils.assertRowDataListEquals;
+import static org.apache.gluten.streaming.api.operators.utils.RowDataTestUtils.checkEquals;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class GlutenStreamFilterTest extends GlutenStreamOperatorTestBase {
@@ -192,7 +192,7 @@ public class GlutenStreamFilterTest extends GlutenStreamOperatorTestBase {
     processTestData(harness, testData);
 
     List<RowData> actualOutput = extractOutputFromHarness(harness);
-    assertRowDataListEquals(actualOutput, expectedOutput, rowType);
+    checkEquals(actualOutput, expectedOutput, rowType.getChildren());
 
     harness.close();
   }
