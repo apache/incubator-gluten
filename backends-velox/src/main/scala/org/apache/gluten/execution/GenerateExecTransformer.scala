@@ -255,11 +255,12 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
                 // TODO: The prefix is just for adapting to GetJsonObject.
                 // Maybe, we can remove this handling in the future by
                 // making path without "$." recognized
-                val wrappedPath = Concat(Seq(
-                  Literal.create("$['"),
-                  jsonPath,
-                  Literal.create("']")
-                ))
+                val wrappedPath = Concat(
+                  Seq(
+                    Literal.create("$['"),
+                    jsonPath,
+                    Literal.create("']")
+                  ))
                 GetJsonObject(jsonObj, wrappedPath)
             }.toIndexedSeq
           }
