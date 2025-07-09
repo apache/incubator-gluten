@@ -19,7 +19,7 @@
 #include <glog/logging.h>
 #include <iostream>
 
-//static
+// static
 std::unique_ptr<gluten::ObjectStore> gluten::ObjectStore::create() {
   static std::mutex mtx;
   std::lock_guard<std::mutex> lock(mtx);
@@ -37,23 +37,34 @@ gluten::ResourceMap<gluten::ObjectStore*>& gluten::ObjectStore::stores() {
 }
 
 gluten::ObjectStore::~ObjectStore() {
-  // destructing in reversed order (the last added object destructed first)
-  const std::lock_guard<std::mutex> lock(mtx_);
-  for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
-    const ResourceHandle handle = (*itr).first;
-    const auto& info = (*itr).second;
-    const std::string_view typeName = info.typeName;
-    const size_t size = info.size;
-    VLOG(2) << "Unclosed object ["
-            << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", TypeName: " << typeName
-            << ", Size: " << size
-            << "] is found when object store is closing. Gluten will"
-               " destroy it automatically but it's recommended to manually close"
-               " the object through the Java closing API after use,"
-               " to minimize peak memory pressure of the application.";
-    store_.erase(handle);
+  std::vector<std::shared_ptr<void>> objects;
+  {
+    // destructing in reversed order (the last added object destructed first)
+    const std::lock_guard<std::mutex> lock(mtx_);
+    for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
+      const ResourceHandle handle = (*itr).first;
+      const auto& info = (*itr).second;
+      const std::string_view typeName = info.typeName;
+      const size_t size = info.size;
+      VLOG(2) << "Unclosed object ["
+              << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", TypeName: " << typeName
+              << ", Size: " << size
+              << "] is found when object store is closing. Gluten will"
+                 " destroy it automatically but it's recommended to manually close"
+                 " the object through the Java closing API after use,"
+                 " to minimize peak memory pressure of the application.";
+      // transfer ownership of the object to the temporary vector
+      objects.push_back(store_.lookup(handle));
+      store_.erase(handle);
+    }
+    stores().erase(storeId_);
   }
-  stores().erase(storeId_);
+  // destructing objects outside the lock to avoid deadlock
+  for (auto& obj : objects) {
+    if (obj) {
+      obj.reset();
+    }
+  }
 }
 
 void gluten::ObjectStore::releaseInternal(gluten::ResourceHandle handle) {
