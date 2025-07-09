@@ -24,12 +24,14 @@ import org.apache.gluten.substrait.expression.ExpressionNode
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 import org.apache.gluten.utils.PullOutProjectHelper
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.IntegerType
-import com.google.protobuf.StringValue
 import org.apache.spark.unsafe.types.UTF8String
+
+import com.google.protobuf.StringValue
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -253,11 +255,12 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
                 // TODO: The prefix is just for adapting to GetJsonObject.
                 // Maybe, we can remove this handling in the future by
                 // making path without "$." recognized
-                val wrappedPath = Concat(Seq(
-                  Literal.create("$['"),
-                  jsonPath,
-                  Literal.create("']")
-                ))
+                val wrappedPath = Concat(
+                  Seq(
+                    Literal.create("$['"),
+                    jsonPath,
+                    Literal.create("']")
+                  ))
                 GetJsonObject(jsonObj, wrappedPath)
             }.toIndexedSeq
           }
