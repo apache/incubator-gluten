@@ -232,6 +232,8 @@ object ConverterUtils extends Logging {
         TypeBuilder.makeDecimal(nullable, precision, scale)
       case TimestampType =>
         TypeBuilder.makeTimestamp(nullable)
+      case TimestampNTZType =>
+        TypeBuilder.makeTimestamp(nullable)
       case m: MapType =>
         TypeBuilder.makeMap(
           nullable,
@@ -404,6 +406,7 @@ object ConverterUtils extends Logging {
       case DoubleType => "fp64"
       case DateType => "date"
       case TimestampType => "ts"
+      case TimestampNTZType => "ntz_ts"
       case StringType => "str"
       case BinaryType => "vbin"
       case DecimalType() =>
