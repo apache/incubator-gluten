@@ -14,15 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.utils
+package org.apache.spark.sql.execution.python
 
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.TaskContext
+import org.apache.spark.api.python.ChainedPythonFunctions
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.types.StructType
 
-object CatalogUtil {
+abstract class EvalPythonExecBase extends EvalPythonExec {
 
-  def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
-    import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.TransformHelper
-    partitions.convertTransforms
+  override protected def evaluate(
+      funcs: Seq[ChainedPythonFunctions],
+      argOffsets: Array[Array[Int]],
+      iter: Iterator[InternalRow],
+      schema: StructType,
+      context: TaskContext): Iterator[InternalRow] = {
+    throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
   }
 }

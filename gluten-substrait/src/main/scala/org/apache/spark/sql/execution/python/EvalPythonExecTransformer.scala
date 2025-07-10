@@ -32,7 +32,7 @@ import org.apache.spark.api.python.ChainedPythonFunctions
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.execution.python.EvalPythonExecBase
 
 import java.util.{ArrayList => JArrayList, List => JList}
 
@@ -40,15 +40,11 @@ case class EvalPythonExecTransformer(
     udfs: Seq[PythonUDF],
     resultAttrs: Seq[Attribute],
     child: SparkPlan)
-  extends EvalPythonExec
+  extends EvalPythonExecBase
   with UnaryTransformSupport {
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
-
-  override protected def evaluatorFactory: EvalPythonEvaluatorFactory = {
-    throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
-  }
 
   override protected def withNewChildInternal(newChild: SparkPlan): EvalPythonExecTransformer =
     copy(udfs, resultAttrs, newChild)

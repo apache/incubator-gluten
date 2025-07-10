@@ -121,7 +121,9 @@ case class ColumnarShuffleExchangeExec(
     Statistics(dataSize, Some(rowCount))
   }
 
-  override def shuffleId: Int = columnarShuffleDependency.shuffleId
+  // Required for Spark 4.0 to implement a trait method.
+  // The "override" keyword is omitted to maintain compatibility with earlier Spark versions.
+  def shuffleId: Int = columnarShuffleDependency.shuffleId
 
   override def getShuffleRDD(partitionSpecs: Array[ShufflePartitionSpec]): RDD[ColumnarBatch] = {
     new ShuffledColumnarBatchRDD(columnarShuffleDependency, readMetrics, partitionSpecs)

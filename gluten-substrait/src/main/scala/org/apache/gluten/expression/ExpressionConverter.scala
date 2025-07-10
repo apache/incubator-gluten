@@ -161,13 +161,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         return BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(
           expr,
           attributeSeq)
-      case i @ StaticInvoke(_, _, "encode" | "decode", Seq(_, _), _, _, _, _, _)
-          if i.objectName.endsWith("UrlCodec") =>
+      case i: StaticInvoke
+          if Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith(
+            "UrlCodec") =>
         return GenericExpressionTransformer(
           "url_" + i.functionName,
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i)
-      case i @ StaticInvoke(_, _, "isLuhnNumber", _, _, _, _, _, _) =>
+      case i: StaticInvoke if i.functionName.equals("isLuhnNumber") =>
         return GenericExpressionTransformer(
           ExpressionNames.LUHN_CHECK,
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
@@ -185,8 +186,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
         throw new GlutenNotSupportException(
-          s"Not supported to transform StaticInvoke with object: ${clz.getName}, " +
-            s"function: $functionName")
+          s"Not supported to transform StaticInvoke with object: ${i.staticObject.getName}, " +
+            s"function: $i.functionName")
       case _ =>
     }
 

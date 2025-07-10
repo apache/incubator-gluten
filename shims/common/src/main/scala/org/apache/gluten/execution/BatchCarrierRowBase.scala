@@ -19,9 +19,7 @@ package org.apache.gluten.execution
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.types.{DataType, Decimal}
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
-import org.apache.spark.unsafe.types.VariantVal;
 
 /**
  * An internal-row abstraction that is designed for columnar-based computations to bypass Spark's
@@ -36,7 +34,7 @@ import org.apache.spark.unsafe.types.VariantVal;
  * PlaceholderRows, followed by one TerminalRow that actually wraps that columnar batch. The total
  * number of PlaceholderRows + the TerminalRow equates to the size of the original columnar batch.
  */
-sealed abstract class BatchCarrierRow extends InternalRow {
+abstract class BatchCarrierRowBase extends InternalRow {
   override def numFields: Int = throw unsupported()
 
   override def setNullAt(i: Int): Unit = throw unsupported()
@@ -77,39 +75,8 @@ sealed abstract class BatchCarrierRow extends InternalRow {
 
   override def get(ordinal: Int, dataType: DataType): AnyRef = throw unsupported()
 
-  override def getVariant(ordinal: Int): VariantVal = throw unsupported()
-
   private def unsupported() = {
     new UnsupportedOperationException(
       "Underlying columnar data is inaccessible from BatchCarrierRow")
   }
-}
-
-object BatchCarrierRow {
-  def unwrap(row: InternalRow): Option[ColumnarBatch] = row match {
-    case _: PlaceholderRow => None
-    case t: TerminalRow => Some(t.batch())
-    case _ =>
-      throw new UnsupportedOperationException(
-        s"Row $row is not a ${classOf[BatchCarrierRow].getSimpleName}")
-  }
-}
-
-/**
- * A [[BatchCarrierRow]] implementation that is backed by a
- * [[org.apache.spark.sql.vectorized.ColumnarBatch]].
- *
- * Serialization code originated since https://github.com/apache/incubator-gluten/issues/9270.
- */
-abstract class TerminalRow extends BatchCarrierRow {
-  def batch(): ColumnarBatch
-  def withNewBatch(batch: ColumnarBatch): TerminalRow
-}
-
-/**
- * A [[BatchCarrierRow]] implementation with no data. The only function of this row implementation
- * is to provide row metadata to the receiver and to support correct row-counting.
- */
-class PlaceholderRow extends BatchCarrierRow {
-  override def copy(): InternalRow = new PlaceholderRow()
 }

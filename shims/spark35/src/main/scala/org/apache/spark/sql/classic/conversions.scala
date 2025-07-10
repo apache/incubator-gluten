@@ -14,15 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.utils
+package org.apache.spark.sql.classic
 
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.catalyst.expressions.Expression
 
-object CatalogUtil {
+/**
+ * Just to ensure the code below works for Spark versions earlier than 4.0.
+ *
+ * import org.apache.spark.sql.classic.ClassicConversions._
+ */
 
-  def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
-    import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.TransformHelper
-    partitions.convertTransforms
+trait ClassicConversions {
+
+  implicit class ColumnConstructorExt(val c: Column.type) {
+    def apply(e: Expression): Column = Column("fake")
   }
 }
+
+object ClassicConversions extends ClassicConversions

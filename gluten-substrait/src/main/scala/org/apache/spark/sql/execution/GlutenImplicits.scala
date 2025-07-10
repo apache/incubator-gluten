@@ -16,22 +16,25 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.{GlutenPlan, WholeStageTransformer}
 import org.apache.gluten.utils.PlanUtil
 
-import org.apache.spark.sql.{AnalysisException, Dataset, SparkSession}
+import org.apache.spark.sql.{Column, Dataset, SparkSession}
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.{CommandResult, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
 import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.ColumnarWriteFilesExec.NoopLeaf
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, QueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, AdaptiveSparkPlanExec, QueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.BooleanType
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -55,6 +58,10 @@ import scala.collection.mutable.ArrayBuffer
 // format: on
 object GlutenImplicits {
 
+  def noOp(): Unit = {
+    val _ = new ColumnConstructorExt(Column).apply(AttributeReference("fake", BooleanType)())
+  }
+
   case class FallbackSummary(
       numGlutenNodes: Int,
       numFallbackNodes: Int,
@@ -75,8 +82,7 @@ object GlutenImplicits {
     keys.zip(values).foreach {
       case (k, v) =>
         if (SQLConf.isStaticConfigKey(k)) {
-          throw new AnalysisException(errorClass = "Cannot modify the value of a static config",
-          messageParameters = Map("k" -> k))
+          throw new GlutenException(s"Cannot modify the value of a static config: $k")
         }
         conf.setConfString(k, v)
     }

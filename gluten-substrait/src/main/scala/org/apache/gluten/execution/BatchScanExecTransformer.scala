@@ -87,11 +87,10 @@ abstract class BatchScanExecTransformerBase(
     keyGroupedPartitioning,
     ordering,
     table,
-    None,
-    commonPartitionValues,
-    None,
-    applyPartialClustering,
-    replicatePartitions)
+    commonPartitionValues = commonPartitionValues,
+    applyPartialClustering = applyPartialClustering,
+    replicatePartitions = replicatePartitions
+  )
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.

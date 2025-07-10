@@ -148,3 +148,16 @@ case class ColumnarSubqueryBroadcastExec(
   protected def withNewChildInternal(newChild: SparkPlan): ColumnarSubqueryBroadcastExec =
     copy(child = newChild)
 }
+
+object ColumnarSubqueryBroadcastExec {
+
+  // For compatibility with Spark-3.5 and earlier versions whose SubqueryBroadcastExec
+  // holds only one index, not a Seq.
+  def apply(
+      name: String,
+      index: Int,
+      buildKeys: Seq[Expression],
+      child: SparkPlan): ColumnarSubqueryBroadcastExec = {
+    ColumnarSubqueryBroadcastExec(name, Seq(index), buildKeys, child)
+  }
+}

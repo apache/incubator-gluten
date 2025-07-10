@@ -14,15 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.utils
+package org.apache.spark.sql.catalyst
 
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.connector.expressions.Transform
-
-object CatalogUtil {
-
-  def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
-    import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.TransformHelper
-    partitions.convertTransforms
-  }
-}
+abstract class InternalRowBase extends InternalRow {}

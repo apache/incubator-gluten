@@ -22,7 +22,7 @@ import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.ui.{PagedDataSource, PagedTable, UIUtils, WebUIPage}
 import org.apache.spark.util.Utils
 
-import jakarta.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletRequest
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8

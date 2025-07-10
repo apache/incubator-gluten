@@ -26,7 +26,7 @@ import org.apache.gluten.execution.TransformSupport
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.util._
@@ -34,6 +34,7 @@ import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan, SQLExecution, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
+import org.apache.spark.sql.types.BooleanType
 import org.apache.spark.storage.StorageLevel
 
 import org.junit.Assert
@@ -46,6 +47,10 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 
 abstract class GlutenQueryTest extends PlanTest {
+
+  def noOp(): Unit = {
+    val _ = new ColumnConstructorExt(Column).apply(AttributeReference("fake", BooleanType)())
+  }
 
   protected def spark: SparkSession
 
