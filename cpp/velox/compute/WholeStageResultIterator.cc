@@ -344,6 +344,16 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
+  // Save and print the plan with stats if debug mode is enabled or showTaskMetricsWhenFinished is true.
+  if (veloxCfg_->get<bool>(kDebugModeEnabled, false) ||
+      veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
+    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
+    std::ostringstream oss;
+    oss << "Native Plan with stats for: " << taskInfo_;
+    oss << "\n" << planWithStats << std::endl;
+    LOG(INFO) << oss.str();
+  }
+
   auto planStats = velox::exec::toPlanStats(taskStats);
   // Calculate the total number of metrics.
   int statsNum = 0;
@@ -364,23 +374,6 @@ void WholeStageResultIterator::collectMetrics() {
   }
 
   metrics_ = std::make_unique<Metrics>(statsNum);
-
-  const int64_t collectTaskStatsThreshold =
-      veloxCfg_->get<int64_t>(kTaskMetricsToEventLogThreshold, kTaskMetricsToEventLogThresholdDefault);
-  // Save and print the plan with stats if debug mode is enabled or showTaskMetricsWhenFinished is true.
-  if (collectTaskStatsThreshold >= 0 || veloxCfg_->get<bool>(kDebugModeEnabled, false) ||
-      veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
-    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
-    std::ostringstream oss;
-    oss << "Native Plan with stats for: " << taskInfo_;
-    oss << "\n" << planWithStats << std::endl;
-    const auto& stats = oss.str();
-    if (static_cast<int64_t>(taskStats.terminationTimeMs - taskStats.executionStartTimeMs) >
-        collectTaskStatsThreshold) {
-      metrics_->stats = stats;
-    }
-    LOG(INFO) << stats;
-  }
 
   int metricIndex = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
@@ -452,6 +445,15 @@ void WholeStageResultIterator::collectMetrics() {
 
       metricIndex += 1;
     }
+  }
+
+  // Populate the metrics with task stats for long running tasks.
+  if (const int64_t collectTaskStatsThreshold =
+          veloxCfg_->get<int64_t>(kTaskMetricsToEventLogThreshold, kTaskMetricsToEventLogThresholdDefault);
+      collectTaskStatsThreshold >= 0 &&
+      static_cast<int64_t>(taskStats.terminationTimeMs - taskStats.executionStartTimeMs) > collectTaskStatsThreshold) {
+    auto jsonStats = velox::exec::toPlanStatsJson(taskStats);
+    metrics_->stats = folly::toJson(jsonStats);
   }
 }
 

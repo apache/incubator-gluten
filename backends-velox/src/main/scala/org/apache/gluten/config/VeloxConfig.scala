@@ -352,9 +352,9 @@ object VeloxConfig {
     buildConf("spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold")
       .internal()
       .doc("Sets the threshold for writing task statistics to the event log if the task runs " +
-        "longer than this value. Default is -1, meaning never write the stats to the event log.")
-      .longConf
-      .createWithDefault(-1)
+        "longer than this value.")
+      .timeConf(TimeUnit.SECONDS)
+      .createOptional
 
   val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
     buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")

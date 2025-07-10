@@ -113,7 +113,7 @@ The following configurations are related to Velox settings.
 | spark.gluten.auto.adjustStageResources.heap.ratio                       | Experimental: Increase executor heap memory when match adjust stage resource rule.                                                                                      | 2.0d              |
 | spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold       | Experimental: Increase executor heap memory when stage contains fallen node count exceeds the total node count ratio.                                                   | 0.5d              |
 | spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished     | Print Velox task metrics after the task finishes.                                                                                                                       | false             |
-| spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold | Sets the threshold for writing task statistics to the event log if the task runs longer than this value. Default is -1, meaning never write the stats to the event log. | -1                |
+| spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold | Sets the threshold for writing task statistics to the event log if the task runs longer than this value. Default is -1, meaning never write the stats to the event log. |                   |
 
 
 Additionally, you can control the configurations of gluten at thread level by local property.
