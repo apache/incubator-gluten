@@ -277,4 +277,26 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     assert(metrics("storageReadBytes").value > 0)
     assert(metrics("ramReadBytes").value == 0)
   }
+
+  test("test nested loop join metrics") {
+    withSQLConf() {
+      runQueryAndCompare(
+        "select /*+ BROADCAST(t2) */ c1, c2 from (select c1  from metrics_t1 where c1 < 50) t1 ," +
+          "(select c2 from metrics_t2) t2;"
+      ) {
+        df =>
+          // scalastyle:off println
+          println("bnlj plan: " + df.queryExecution.executedPlan)
+          val join = find(df.queryExecution.executedPlan) {
+            case _: BroadcastNestedLoopJoinExecTransformer => true
+            case _ => false
+          }
+          assert(join.isDefined)
+          val metrics = join.get.metrics
+          assert(metrics("nestedLoopJoinBuildInputRows").value == 200)
+          assert(metrics("nestedLoopJoinProbeInputRows").value == 50)
+          assert(metrics("numOutputRows").value == 200 * 50)
+      }
+    }
+  }
 }
