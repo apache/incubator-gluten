@@ -48,7 +48,11 @@ VELOX_HOME=""
 VELOX_PARAMETER=""
 BUILD_ARROW=ON
 SPARK_VERSION=ALL
-INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
+if [[ "$(uname)" == "Darwin" ]]; then
+    INSTALL_PREFIX=${INSTALL_PREFIX:-}
+else
+    INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
+fi
 
 # set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
