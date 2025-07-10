@@ -21,8 +21,6 @@ import org.apache.gluten.execution.{ColumnarToCarrierRowExecBase, ProjectExecTra
 import org.apache.gluten.execution.datasource.GlutenFormatWriterInjects
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, SparkPlan}
 import org.apache.spark.sql.execution.ColumnarCollapseTransformStages.transformStageCounter
 
@@ -36,10 +34,10 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
    *   must be a FakeRowAdaptor
    * @return
    */
-  override def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow] = {
+  override def getWriterWrappedSparkPlan(plan: SparkPlan): SparkPlan = {
     if (plan.isInstanceOf[ColumnarToCarrierRowExecBase]) {
       // here, the FakeRowAdaptor is simply a R2C converter
-      return plan.execute()
+      return plan
     }
 
     // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
@@ -67,6 +65,6 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     val transformedWithAdapter = injectAdapter(transformed)
     val wst = WholeStageTransformer(transformedWithAdapter, materializeInput = true)(
       transformStageCounter.incrementAndGet())
-    BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(wst).execute()
+    BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(wst)
   }
 }

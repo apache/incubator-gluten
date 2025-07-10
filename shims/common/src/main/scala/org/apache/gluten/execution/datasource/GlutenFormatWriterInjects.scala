@@ -16,9 +16,7 @@
  */
 package org.apache.gluten.execution.datasource
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{BlockStripes, OutputWriter}
@@ -40,7 +38,7 @@ trait GlutenFormatWriterInjects {
       options: Map[String, String],
       files: Seq[FileStatus]): Option[StructType]
 
-  def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow]
+  def getWriterWrappedSparkPlan(plan: SparkPlan): SparkPlan
 
   def nativeConf(
       options: Map[String, String],

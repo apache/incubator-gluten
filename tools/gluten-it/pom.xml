@@ -21,7 +21,7 @@
     <spark.version>3.4.4</spark.version>
     <scala.binary.version>2.12</scala.binary.version>
     <spark.major.version>3</spark.major.version>
-    <celeborn.version>0.5.4</celeborn.version>
+    <celeborn.version>0.6.0</celeborn.version>
     <uniffle.version>0.9.2</uniffle.version>
     <gluten.version>1.5.0-SNAPSHOT</gluten.version>
     <guava.version>32.0.1-jre</guava.version>
@@ -183,7 +183,13 @@
     <profile>
       <id>celeborn-0.5</id>
       <properties>
-        <celeborn.version>0.5.3</celeborn.version>
+        <celeborn.version>0.5.4</celeborn.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>celeborn-0.6</id>
+      <properties>
+        <celeborn.version>0.6.0</celeborn.version>
       </properties>
     </profile>
   </profiles>

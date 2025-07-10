@@ -564,7 +564,7 @@ jobs:
       fail-fast: false
       matrix:
         spark: [ "spark-3.2" ]
-        celeborn: [ "celeborn-0.5.4", "celeborn-0.4.3"]
+        celeborn: [ "celeborn-0.6.0", "celeborn-0.5.4", "celeborn-0.4.3"]
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
@@ -590,6 +590,8 @@ jobs:
             EXTRA_PROFILE="-Pceleborn-0.4"
           elif [ "${{ matrix.celeborn }}" = "celeborn-0.5.4" ]; then
             EXTRA_PROFILE="-Pceleborn-0.5"
+          elif [ "${{ matrix.celeborn }}" = "celeborn-0.6.0" ]; then
+            EXTRA_PROFILE="-Pceleborn-0.6"
           fi
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
           if [ ! -e "/opt/apache-${{ matrix.celeborn }}-bin.tgz" ]; then

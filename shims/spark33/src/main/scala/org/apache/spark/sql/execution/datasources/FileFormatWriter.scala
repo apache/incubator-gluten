@@ -278,13 +278,13 @@ object FileFormatWriter extends Logging {
       }
 
       val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
-      (GlutenFormatFactory(nativeFormat).executeWriterWrappedSparkPlan(wrapped), None)
+      (GlutenFormatFactory(nativeFormat).getWriterWrappedSparkPlan(wrapped), None)
     }
 
     try {
-      val (rdd, concurrentOutputWriterSpec) = if (orderingMatched) {
+      val (finalPlan, concurrentOutputWriterSpec) = if (orderingMatched) {
         if (!nativeEnabled || (staticPartitionWriteOnly && nativeEnabled)) {
-          (empty2NullPlan.execute(), None)
+          (empty2NullPlan, None)
         } else {
           nativeWrap(empty2NullPlan)
         }
@@ -308,21 +308,23 @@ object FileFormatWriter extends Logging {
 
         if (concurrentWritersEnabled) {
           (
-            empty2NullPlan.execute(),
+            empty2NullPlan,
             Some(ConcurrentOutputWriterSpec(maxWriters, () => sortPlan.createSorter())))
         } else {
           if (staticPartitionWriteOnly && nativeEnabled) {
             // remove the sort operator for static partition write.
-            (empty2NullPlan.execute(), None)
+            (empty2NullPlan, None)
           } else {
             if (!nativeEnabled) {
-              (sortPlan.execute(), None)
+              (sortPlan, None)
             } else {
               nativeWrap(sortPlan)
             }
           }
         }
       }
+
+      val rdd = finalPlan.execute()
 
       // SPARK-23271 If we are attempting to write a zero partition rdd, create a dummy single
       // partition rdd to make sure we at least set up one write task to write the metadata.
