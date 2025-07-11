@@ -532,6 +532,7 @@ std::string compressionFileNameSuffix(common::CompressionKind kind) {
 
 std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
     const std::string& targetDirectory,
+    const std::string& fileNameUUID,
     dwio::common::FileFormat fileFormat,
     common::CompressionKind compression,
     const bool& isBucketed,
@@ -540,7 +541,8 @@ std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
         connector::hive::LocationHandle::TableType::kExisting) {
   std::string targetFileName = "";
   if (fileFormat == dwio::common::FileFormat::PARQUET && !isBucketed) {
-    targetFileName = fmt::format("gluten-part-{}{}{}", makeUuid(), compressionFileNameSuffix(compression), ".parquet");
+    targetFileName =
+        fmt::format("gluten-part-{}{}{}", fileNameUUID, compressionFileNameSuffix(compression), ".parquet");
   }
   return std::make_shared<connector::hive::LocationHandle>(
       targetDirectory, writeDirectory.value_or(targetDirectory), tableType, targetFileName);
@@ -672,6 +674,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     writePath = "";
   }
 
+  std::string fileNameUUID;
+  if (writeFileName_.has_value()) {
+    fileNameUUID = writeFileName_.value();
+  } else {
+    VELOX_CHECK(validationMode_, "WriteRel should have the write path before initializing the plan.");
+    fileNameUUID = "";
+  }
+
   GLUTEN_CHECK(writeRel.named_table().has_advanced_extension(), "Advanced extension not found in WriteRel");
   const auto& ext = writeRel.named_table().advanced_extension();
   GLUTEN_CHECK(ext.has_optimization(), "Extension optimization not found in WriteRel");
@@ -706,7 +716,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               inputType->children(),
               partitionedKey,
               bucketProperty,
-              makeLocationHandle(writePath, fileFormat, compressionKind, bucketProperty != nullptr),
+              makeLocationHandle(writePath, fileNameUUID, fileFormat, compressionKind, bucketProperty != nullptr),
               writerOptions,
               fileFormat,
               compressionKind)),

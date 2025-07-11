@@ -194,12 +194,12 @@ class VeloxColumnarWriteFilesRDD(
     val commitProtocol = new SparkWriteFilesCommitProtocol(jobTrackerID, description, committer)
 
     commitProtocol.setupTask()
-    val writePath = commitProtocol.newTaskAttemptTempPath()
+    val (writePath, fileNameUUID) = commitProtocol.newTaskAttemptTempPath()
     logDebug(s"Velox staging write path: $writePath")
     var writeTaskResult: WriteTaskResult = null
     try {
       Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
-        BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, "")
+        BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, fileNameUUID)
 
         // Initialize the native plan
         val iter = firstParent[ColumnarBatch].iterator(split, context)
