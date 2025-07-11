@@ -285,8 +285,6 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           "(select c2 from metrics_t2) t2;"
       ) {
         df =>
-          // scalastyle:off println
-          println("bnlj plan: " + df.queryExecution.executedPlan)
           val join = find(df.queryExecution.executedPlan) {
             case _: BroadcastNestedLoopJoinExecTransformer => true
             case _ => false
