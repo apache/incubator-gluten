@@ -88,6 +88,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
+    .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude(
@@ -807,6 +808,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // The below two are replaced by two modified versions.
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
+    .exclude("function current_timestamp and now")
     // Unsupported datetime format: specifier X is not supported by velox.
     .exclude("to_timestamp with microseconds precision")
     // Legacy mode is not supported, assuming this mode is not commonly used.
