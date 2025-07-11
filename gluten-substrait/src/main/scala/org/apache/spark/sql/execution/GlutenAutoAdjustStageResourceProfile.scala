@@ -26,7 +26,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.{CPUS_PER_TASK, EXECUTOR_CORES}
 import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, ResourceProfileManager, TaskResourceRequest}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.SparkSession.setActiveSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.GlutenAutoAdjustStageResourceProfile.{applyNewResourceProfileIfPossible, collectStagePlan}
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
@@ -165,10 +164,14 @@ object GlutenAutoAdjustStageResourceProfile extends Logging {
     val coresPerExecutor = rp.getExecutorCores.getOrElse(sparkConf.get(EXECUTOR_CORES))
     val coresPerTask = rp.getTaskCpus.getOrElse(sparkConf.get(CPUS_PER_TASK))
     val taskSlots = coresPerExecutor / coresPerTask
-    sparkConf.set(GlutenCoreConfig.NUM_TASK_SLOTS_PER_EXECUTOR, taskSlots)
-    val offHeapSize = rp.executorResources.get(ResourceProfile.OFFHEAP_MEM).map(_.amount.toInt).get
-    sparkConf.set(GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES, offHeapSize)
-    sparkConf.set(GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES, offHeapSize / taskSlots)
+    SQLConf.get.setConfString(GlutenCoreConfig.NUM_TASK_SLOTS_PER_EXECUTOR.key, taskSlots.toString)
+    val offHeapSize = rp.executorResources.get(ResourceProfile.OFFHEAP_MEM).map(_.amount).get
+    SQLConf.get.setConfString(
+      GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES.key,
+      offHeapSize.toString)
+    SQLConf.get.setConfString(
+      GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
+      (offHeapSize / taskSlots).toString)
 
     val finalRP = getFinalResourceProfile(rpManager, rp)
     // Wrap the plan with ApplyResourceProfileExec so that we can apply new ResourceProfile
