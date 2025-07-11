@@ -87,7 +87,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("% (Remainder)")
     .excludeCH("SPARK-17617: % (Remainder) double % double on super big double")
     .excludeCH("pmod")
-    .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenBinaryFileFormatSuite]
     // Exception.
     .exclude("column pruning - non-readable file")

@@ -105,6 +105,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Revised by setting timezone through config and commented unsupported cases.
     .exclude("cast string to timestamp")
   enableSuite[GlutenArithmeticExpressionSuite]
+    // https://github.com/apache/incubator-gluten/issues/10175
     .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
