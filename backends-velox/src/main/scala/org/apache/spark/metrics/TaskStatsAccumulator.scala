@@ -51,6 +51,10 @@ class TaskStatsAccumulator extends AccumulatorV2[String, String] {
   override def value: String = stats
 
   override def toInfo(update: Option[Any], value: Option[Any]): AccumulableInfo = {
-    AccumulableInfo(id, name, Some(""), Some(stats), internal = false, countFailedValues = false)
+    // If `update` is None, it means the `toInfo` method was called from stage completion, and we
+    // don't send the stats to the stage metrics.
+    val v = update.map(_ => Some(stats))
+    // `update` field is always empty. `value` field shows the stats of the current task.
+    AccumulableInfo(id, name, None, v, internal = false, countFailedValues = false)
   }
 }
