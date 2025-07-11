@@ -130,12 +130,14 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
       .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
   // Whether to use CelebornShuffleManager.
+  // TODO: Deprecate the API: https://github.com/apache/incubator-gluten/issues/10107.
   def isUseCelebornShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
       .contains("celeborn")
 
   // Whether to use UniffleShuffleManager.
+  // TODO: Deprecate the API: https://github.com/apache/incubator-gluten/issues/10107.
   def isUseUniffleShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
@@ -416,7 +418,6 @@ object GlutenConfig {
   private val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
-  val SPARK_ONHEAP_SIZE_KEY = "spark.executor.memory"
   val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
   val SPARK_OVERHEAD_FACTOR_KEY = "spark.executor.memoryOverheadFactor"
   val SPARK_REDACTION_REGEX = "spark.redaction.regex"

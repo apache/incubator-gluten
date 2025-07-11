@@ -14,30 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.util;
 
-#pragma once
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-#include <Processors/QueryPlan/ReadFromPreparedSource.h>
-#include <Processors/QueryPlan/SourceStepWithFilter.h>
-#include <Storages/MergeTree/KeyCondition.h>
-#include <Interpreters/Context_fwd.h>
-#include <Core/NamesAndTypes.h>
+public class SparkThreadPoolUtil {
+  private static final ExecutorService GC_THREAD_POOL =
+      ThreadUtils.newDaemonSingleThreadExecutor("gc-thread-pool");
 
-namespace local_engine
-{
-class SubstraitFileSourceStep : public DB::SourceStepWithFilter
-{
-public:
-    explicit SubstraitFileSourceStep(const DB::ContextPtr & context_, DB::Pipe pipe_, const String & name);
+  private static final AtomicBoolean PERFORMING_GC = new AtomicBoolean(false);
 
-    void applyFilters(DB::ActionDAGNodes added_filter_nodes) override;
-
-    String getName() const override { return "SubstraitFileSourceStep"; }
-
-    void initializePipeline(DB::QueryPipelineBuilder &, const DB::BuildQueryPipelineSettings &) override;
-
-private:
-    DB::Pipe pipe;
-};
-
+  public static void triggerGCInThreadPool(Runnable callback) {
+    if (PERFORMING_GC.compareAndSet(false, true)) {
+      GC_THREAD_POOL.submit(
+          new Runnable() {
+            @Override
+            public void run() {
+              try {
+                callback.run();
+              } finally {
+                PERFORMING_GC.set(false);
+              }
+            }
+          });
+    }
+  }
 }

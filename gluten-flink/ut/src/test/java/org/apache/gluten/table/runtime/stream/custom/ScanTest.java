@@ -26,13 +26,13 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Disabled("Gluten has not support part of job in native")
 class ScanTest extends GlutenStreamingTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(ScanTest.class);
 
@@ -53,6 +53,7 @@ class ScanTest extends GlutenStreamingTestBase {
   }
 
   @Test
+  @Disabled("The output is not as expected.")
   void testStructScan() {
     List<Row> rows =
         Arrays.asList(
@@ -188,5 +189,15 @@ class ScanTest extends GlutenStreamingTestBase {
     createSimpleBoundedValuesTable("dateTbl", "a int, b date", rows);
     String query = "select a, b from dateTbl where a > 0";
     runAndCheck(query, Arrays.asList("+I[1, 2023-01-01]", "+I[2, 2023-01-02]"));
+  }
+
+  @Test
+  void testDecimal() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, new BigDecimal("1.23")), Row.of(2, null), Row.of(3, new BigDecimal("7.89")));
+    createSimpleBoundedValuesTable("decimalTbl", "a int, b decimal(5, 2)", rows);
+    String query = "select a, b from decimalTbl where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1, 1.23]", "+I[2, null]", "+I[3, 7.89]"));
   }
 }
