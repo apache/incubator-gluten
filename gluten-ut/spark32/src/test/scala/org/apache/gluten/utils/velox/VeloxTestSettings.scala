@@ -252,6 +252,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("random")
     .exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenArithmeticExpressionSuite]
+    .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
     // Spill not supported yet.
