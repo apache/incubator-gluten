@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.functions
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BatchScanExecTransformer, ProjectExecTransformer}
 
 import org.apache.spark.SparkConf
@@ -24,14 +25,14 @@ import org.apache.spark.sql.Row
 class MathFunctionsValidateSuiteRasOff extends MathFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "false")
+      .set(GlutenConfig.RAS_ENABLED.key, "false")
   }
 }
 
 class MathFunctionsValidateSuiteRasOn extends MathFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "true")
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
   }
 }
 

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.tpch
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
@@ -37,7 +38,7 @@ class GlutenClickHouseTPCHParquetAQESuite extends ParquetTPCHSuite {
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .setCHConfig("use_local_format", true)
-      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
+      .set(CHBackendSettings.GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM, "sparkMurmurHash3_32")
   }
 
   final override val testCases: Seq[Int] = Seq(
@@ -149,7 +150,7 @@ class GlutenClickHouseTPCHParquetAQESuite extends ParquetTPCHSuite {
   test("GLUTEN-7971:Q21 Support using left side as the build table for the left anti/semi join") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.backend.ch.convert.left.anti_semi.to.right", "true")) {
+      (CHBackendSettings.GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT, "true")) {
       customCheck(21, compare = false) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])

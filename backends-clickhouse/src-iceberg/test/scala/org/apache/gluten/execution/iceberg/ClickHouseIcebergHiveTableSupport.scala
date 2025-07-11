@@ -18,6 +18,9 @@
 package org.apache.gluten.execution.iceberg
 
 import com.google.common.base.Strings
+
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
@@ -47,10 +50,10 @@ class ClickHouseIcebergHiveTableSupport {
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.parquet.maxmin.index", "true")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
+      .set(GlutenConfig.ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX.key, "true")
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
-      .set("spark.gluten.supported.hive.udfs", "my_add")
+      .set(GlutenConfig.GLUTEN_SUPPORTED_HIVE_UDFS.key, "my_add")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.shuffle.partitions", "2")
