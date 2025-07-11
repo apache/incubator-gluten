@@ -74,7 +74,8 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
       {S3Config::Keys::kMaxAttempts, std::make_pair("retry.limit", std::nullopt)},
       {S3Config::Keys::kRetryMode, std::make_pair("retry.mode", "legacy")},
       {S3Config::Keys::kMaxConnections, std::make_pair("connection.maximum", "15")},
-      {S3Config::Keys::kConnectTimeout, std::make_pair("connection.timeout", "200s")},
+      {S3Config::Keys::kSocketTimeout, std::make_pair("connection.timeout", "200s")},
+      {S3Config::Keys::kConnectTimeout, std::make_pair("connection.establish.timeout", "30s")},
       {S3Config::Keys::kUseInstanceCredentials, std::make_pair("instance.credentials", "false")},
       {S3Config::Keys::kIamRole, std::make_pair("iam.role", std::nullopt)},
       {S3Config::Keys::kIamRoleSessionName, std::make_pair("iam.role.session.name", "gluten-session")},
@@ -130,6 +131,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   setConfigIfPresent(S3Config::Keys::kSSLEnabled);
   setConfigIfPresent(S3Config::Keys::kPathStyleAccess);
   setConfigIfPresent(S3Config::Keys::kMaxConnections);
+  setConfigIfPresent(S3Config::Keys::kSocketTimeout);
   setConfigIfPresent(S3Config::Keys::kConnectTimeout);
   setConfigIfPresent(S3Config::Keys::kEndpointRegion);
 
