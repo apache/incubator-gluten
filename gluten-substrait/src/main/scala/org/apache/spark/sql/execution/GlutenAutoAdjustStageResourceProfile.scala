@@ -16,14 +16,17 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, GlutenCoreConfig}
 import org.apache.gluten.execution.{ColumnarToRowExecBase, GlutenPlan}
 import org.apache.gluten.logging.LogLevelUtil
 
+import org.apache.spark.SparkConf
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.{CPUS_PER_TASK, EXECUTOR_CORES}
 import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, ResourceProfileManager, TaskResourceRequest}
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.SparkSession.setActiveSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.GlutenAutoAdjustStageResourceProfile.{applyNewResourceProfileIfPossible, collectStagePlan}
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
@@ -94,7 +97,7 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
       executorResource.put(ResourceProfile.OFFHEAP_MEM, newExecutorOffheap)
 
       val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
-      return applyNewResourceProfileIfPossible(plan, newRP, rpManager)
+      return applyNewResourceProfileIfPossible(plan, newRP, rpManager, spark.sparkContext.getConf)
     }
 
     // case 2: check whether fallback exists and decide whether increase heap memory
@@ -107,7 +110,7 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
         new ExecutorResourceRequest(ResourceProfile.MEMORY, newMemoryAmount.toLong)
       executorResource.put(ResourceProfile.MEMORY, newExecutorMemory)
       val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
-      return applyNewResourceProfileIfPossible(plan, newRP, rpManager)
+      return applyNewResourceProfileIfPossible(plan, newRP, rpManager, spark.sparkContext.getConf)
     }
     plan
   }
@@ -156,17 +159,21 @@ object GlutenAutoAdjustStageResourceProfile extends Logging {
   def applyNewResourceProfileIfPossible(
       plan: SparkPlan,
       rp: ResourceProfile,
-      rpManager: ResourceProfileManager): SparkPlan = {
+      rpManager: ResourceProfileManager,
+      sparkConf: SparkConf): SparkPlan = {
+    // Reflects resource changes in some configurations that will be passed to the native side.
+    val coresPerExecutor = rp.getExecutorCores.getOrElse(sparkConf.get(EXECUTOR_CORES))
+    val coresPerTask = rp.getTaskCpus.getOrElse(sparkConf.get(CPUS_PER_TASK))
+    val taskSlots = coresPerExecutor / coresPerTask
+    sparkConf.set(GlutenCoreConfig.NUM_TASK_SLOTS_PER_EXECUTOR, taskSlots)
+    val offHeapSize = rp.executorResources.get(ResourceProfile.OFFHEAP_MEM).map(_.amount.toInt).get
+    sparkConf.set(GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES, offHeapSize)
+    sparkConf.set(GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES, offHeapSize / taskSlots)
+
     val finalRP = getFinalResourceProfile(rpManager, rp)
-    if (plan.isInstanceOf[Exchange]) {
-      // Wrap the plan with ApplyResourceProfileExec so that we can apply new ResourceProfile
-      val wrapperPlan = ApplyResourceProfileExec(plan.children.head, finalRP)
-      logInfo(s"Apply resource profile $finalRP for plan ${wrapperPlan.nodeName}")
-      plan.withNewChildren(IndexedSeq(wrapperPlan))
-    } else {
-      logInfo(s"Ignore apply resource profile for plan ${plan.nodeName}")
-      // todo: support set final stage's resource profile
-      plan
-    }
+    // Wrap the plan with ApplyResourceProfileExec so that we can apply new ResourceProfile
+    val wrapperPlan = ApplyResourceProfileExec(plan.children.head, finalRP)
+    logInfo(s"Apply resource profile $finalRP for plan ${wrapperPlan.nodeName}")
+    plan.withNewChildren(IndexedSeq(wrapperPlan))
   }
 }
