@@ -229,27 +229,17 @@ object MetricsUtil extends Logging {
         })
 
     mutNode.updater match {
-      case ju: HashJoinMetricsUpdater =>
-        // JoinRel outputs two suites of metrics respectively for hash build and hash probe.
+      case smj: SortMergeJoinMetricsUpdater =>
+        smj.updateJoinMetrics(
+          operatorMetrics,
+          metrics.getSingleMetrics,
+          joinParamsMap.get(operatorIdx))
+      case ju: JoinMetricsUpdaterBase =>
+        // JoinRel and CrossRel output two suites of metrics respectively for build and probe.
         // Therefore, fetch one more suite of metrics here.
         operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
         curMetricsIdx -= 1
         ju.updateJoinMetrics(
-          operatorMetrics,
-          metrics.getSingleMetrics,
-          joinParamsMap.get(operatorIdx))
-      case nestedLoopJoinUpdater: NestedLoopJoinMetricsUpdater =>
-        // NestedLoopJoin outputs two suites of metrics respectively for nested loop join build and
-        // nested loop join probe.
-        // Therefore, fetch one more suite of metrics here.
-        operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
-        curMetricsIdx -= 1
-        nestedLoopJoinUpdater.updateJoinMetrics(
-          operatorMetrics,
-          metrics.getSingleMetrics,
-          joinParamsMap.get(operatorIdx))
-      case smj: SortMergeJoinMetricsUpdater =>
-        smj.updateJoinMetrics(
           operatorMetrics,
           metrics.getSingleMetrics,
           joinParamsMap.get(operatorIdx))
