@@ -516,6 +516,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36920: Support day-time intervals by ABS")
     .exclude("SPARK-36921: Support YearMonthIntervalType by div")
     .exclude("SPARK-36921: Support DayTimeIntervalType by div")
+    .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude("null cast")
