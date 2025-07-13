@@ -88,6 +88,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
+    // https://github.com/apache/incubator-gluten/issues/10175
+    .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude(
@@ -789,6 +791,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Legacy mode is not supported and velox getTimestamp function does not throw
     // exception when format is "yyyy-dd-aa".
     .exclude("function to_date")
+    // https://github.com/apache/incubator-gluten/issues/10175
+    .exclude("function current_timestamp and now")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
