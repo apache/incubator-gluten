@@ -196,7 +196,8 @@ class VeloxParquetWriteForHiveSuite
   }
 
   test(
-    "test hive dynamic and static partition write table multiple keys, multiple partitions, single batch to write") {
+    "test hive dynamic and static partition write table multiple keys, multiple partitions, " +
+      "single batch to write") {
     withTable("t") {
       spark.sql(
         "CREATE TABLE t (c int, d long, e long, f int)" +
