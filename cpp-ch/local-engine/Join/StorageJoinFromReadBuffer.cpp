@@ -105,7 +105,7 @@ void StorageJoinFromReadBuffer::buildJoin(const Blocks & data, const Block & hea
 {
     auto build_join = [&]
     {
-        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count, "", false, true);
+        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count, "", false);
         for (const Block& block : data)
             join->addBlockToJoin(block, true);
     };
@@ -132,7 +132,7 @@ void StorageJoinFromReadBuffer::buildJoinLazily(DB::Block header, std::shared_pt
         std::unique_lock lock(join_mutex);
         if (join)
             return;
-        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count, "", false, true);
+        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count, "", false);
         while (!input_blocks.empty())
         {
             auto & block = *input_blocks.begin();
