@@ -407,16 +407,26 @@ Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_splitBlockByPartitio
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
-  auto safeArray = gluten::getIntArrayElementsSafe(env, partitionColIndice);
-  int size = env->GetArrayLength(partitionColIndice);
-  std::vector<int32_t> partitionColIndiceVec;
-  for (int i = 0; i < size; ++i) {
-    partitionColIndiceVec.push_back(safeArray.elems()[i]);
+
+  std::vector<int32_t> dataColIndicesVec;
+  {
+    auto partitionKeyArray = gluten::getIntArrayElementsSafe(env, partitionColIndice);
+    int numPartitionKeys = partitionKeyArray.length();
+    std::unordered_set<int32_t> partitionColIndiceVec;
+    for (int i = 0; i < numPartitionKeys; ++i) {
+      partitionColIndiceVec.emplace(partitionKeyArray.elems()[i]);
+    }
+    for (int i = 0; i < batch->numColumns(); ++i) {
+      if (partitionColIndiceVec.count(i) == 0) {
+        // The column is not a partition column. Add it to the data column vector.
+        dataColIndicesVec.emplace_back(i);
+      }
+    }
   }
 
   auto result = batch->toUnsafeRow(0);
   auto rowBytes = result.data();
-  auto newBatchHandle = ctx->saveObject(ctx->select(batch, partitionColIndiceVec));
+  auto newBatchHandle = ctx->saveObject(ctx->select(batch, dataColIndicesVec));
 
   auto bytesSize = result.size();
   jbyteArray bytesArray = env->NewByteArray(bytesSize);
