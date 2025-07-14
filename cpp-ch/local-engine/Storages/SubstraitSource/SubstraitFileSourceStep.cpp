@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include <Interpreters/Context_fwd.h>
 #include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
@@ -66,9 +65,12 @@ void SubstraitFileSourceStep::initializePipeline(DB::QueryPipelineBuilder & pipe
 
 void SubstraitFileSourceStep::applyFilters(const DB::ActionDAGNodes added_filter_nodes)
 {
-    filter_actions_dag = DB::ActionsDAG::buildFilterActionsDAG(added_filter_nodes.nodes);
-    for (const auto & processor : pipe.getProcessors())
-        if (auto * source = dynamic_cast<DB::SourceWithKeyCondition *>(processor.get()))
-            source->setKeyCondition(filter_actions_dag, context);
+    SourceStepWithFilter::applyFilters(std::move(added_filter_nodes));
+    if (filter_actions_dag)
+    {
+        for (const auto & processor : pipe.getProcessors())
+            if (auto * source = dynamic_cast<SubstraitFileSource *>(processor.get()))
+                source->setKeyCondition(filter_actions_dag, context);
+    }
 }
 }

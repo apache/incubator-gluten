@@ -34,7 +34,8 @@ TextFormatFile::TextFormatFile(
 {
 }
 
-FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr
+TextFormatFile::createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & /*filter_actions_dag*/)
 {
     auto read_buffer = read_buffer_builder->buildWithCompressionWrapper(file_info);
 
