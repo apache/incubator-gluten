@@ -24,6 +24,7 @@ import org.apache.gluten.util.ReflectUtils;
 
 import io.github.zhztheplayer.velox4j.connector.CommitStrategy;
 import io.github.zhztheplayer.velox4j.connector.FileSystemInsertTableHandle;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableWriteNode;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.RowType;
@@ -158,7 +159,10 @@ public final class OneInputTransformationTranslator<IN, OUT>
             transformation,
             new GlutenOneInputOperatorFactory(
                 new GlutenSingleInputOperator(
-                    fileSystemWriteNode, PlanNodeIdGenerator.newId(), inputDataColumns, ignore)),
+                    new StatefulPlanNode(fileSystemWriteNode.getId(), fileSystemWriteNode),
+                    PlanNodeIdGenerator.newId(),
+                    inputDataColumns,
+                    Map.of("output", ignore))),
             transformation.getInputType(),
             transformation.getStateKeySelector(),
             transformation.getStateKeyType(),
