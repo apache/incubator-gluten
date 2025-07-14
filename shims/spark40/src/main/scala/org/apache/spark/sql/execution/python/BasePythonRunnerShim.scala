@@ -21,12 +21,12 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 abstract class BasePythonRunnerShim(
-    funcs: Seq[ChainedPythonFunctions],
+    funcs: Seq[(ChainedPythonFunctions, Long)],
     evalType: Int,
     argOffsets: Array[Array[Int]],
     pythonMetrics: Map[String, SQLMetric])
   extends BasePythonRunner[ColumnarBatch, ColumnarBatch](
-    funcs,
+    funcs.map(_._1),
     evalType,
     argOffsets,
     None,
