@@ -94,7 +94,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     throw GlutenException("Not implemented");
   }
 
-  // Just for benchmark
   ::substrait::Plan& getPlan() {
     return substraitPlan_;
   }

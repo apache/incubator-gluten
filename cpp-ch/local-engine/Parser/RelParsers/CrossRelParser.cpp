@@ -41,6 +41,7 @@ namespace DB
 namespace Setting
 {
 extern const SettingsUInt64 max_block_size;
+extern const SettingsUInt64 min_joined_block_size_rows;
 extern const SettingsUInt64 min_joined_block_size_bytes;
 }
 namespace ErrorCodes
@@ -171,10 +172,6 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
     QueryPlanPtr query_plan;
     if (storage_join)
     {
-        /// FIXME: There is mistake in HashJoin::needUsedFlagsForPerRightTableRow which returns true when
-        /// join clauses is empty. But in fact there should not be any join clause in cross join.
-        table_join->addDisjunct();
-
         auto broadcast_hash_join = storage_join->getJoinLocked(table_join, context);
         // table_join->resetKeys();
         QueryPlanStepPtr join_step = std::make_unique<FilledJoinStep>(left->getCurrentHeader(), broadcast_hash_join, 8192);
@@ -205,6 +202,7 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
             right->getCurrentHeader(),
             hash_join,
             context->getSettingsRef()[Setting::max_block_size],
+            context->getSettingsRef()[Setting::min_joined_block_size_rows],
             context->getSettingsRef()[Setting::min_joined_block_size_bytes],
             1,
             /* required_output_ = */ NameSet{},

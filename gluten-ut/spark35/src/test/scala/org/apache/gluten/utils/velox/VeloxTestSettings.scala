@@ -88,6 +88,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
+    // https://github.com/apache/incubator-gluten/issues/10175
+    .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude(
@@ -439,6 +441,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
+    .exclude("SPARK-38825: in and notIn filters")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
@@ -456,6 +459,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
+    .exclude("SPARK-38825: in and notIn filters")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
@@ -812,6 +816,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Legacy mode is not supported and velox getTimestamp function does not throw
     // exception when format is "yyyy-dd-aa".
     .exclude("function to_date")
+    // https://github.com/apache/incubator-gluten/issues/10175
+    .exclude("function current_timestamp and now")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
@@ -957,6 +963,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Independent Batched Python UDFs and Scalar Pandas UDFs should be combined separately")
     .exclude("Dependent Batched Python UDFs and Scalar Pandas UDFs should not be combined")
     .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V2")
+  enableSuite[GlutenStreamingQuerySuite]
+    // requires test resources that don't exist in Gluten repo
+    .exclude("detect escaped path and report the migration guide")
+    .exclude("ignore the escaped path check when the flag is off")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

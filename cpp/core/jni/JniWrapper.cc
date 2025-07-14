@@ -400,11 +400,17 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jint partitionId,
     jlong taskId,
     jboolean enableDumping,
-    jstring spillDir) {
+    jstring spillDir,
+    jboolean enableCudf) {
   JNI_METHOD_START
 
   auto ctx = getRuntime(env, wrapper);
-  auto& conf = ctx->getConfMap();
+  auto conf = ctx->getConfMap();
+#ifdef GLUTEN_ENABLE_GPU
+  if (enableCudf) {
+    conf[kCudfEnabled] = "true";
+  }
+#endif
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 

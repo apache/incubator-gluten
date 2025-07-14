@@ -467,7 +467,9 @@ object PullOutArrowEvalPythonPreProjectHelper extends PullOutProjectHelper {
         eliminateProjectList(arrowEvalPythonExec.child.outputSet, expressionMap.values.toSeq),
         arrowEvalPythonExec.child)
       val newUDFs = arrowEvalPythonExec.udfs.map(f => rewriteUDF(f, expressionMap))
-      arrowEvalPythonExec.copy(udfs = newUDFs, child = preProject)
+      val newArrowEvalPythonExec = arrowEvalPythonExec.copy(udfs = newUDFs, child = preProject)
+      newArrowEvalPythonExec.copyTagsFrom(arrowEvalPythonExec)
+      newArrowEvalPythonExec
     } else {
       arrowEvalPythonExec
     }

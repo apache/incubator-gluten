@@ -37,6 +37,10 @@
 #include "velox/common/base/BloomFilter.h"
 #include "velox/common/file/FileSystems.h"
 
+#ifdef GLUTEN_ENABLE_GPU
+#include "cudf/CudfPlanValidator.h"
+#endif
+
 using namespace gluten;
 using namespace facebook;
 
@@ -589,6 +593,22 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_config_ConfigJniWrapper_isEnha
   return false;
 #endif
 }
+
+#ifdef GLUTEN_ENABLE_GPU
+JNIEXPORT jboolean JNICALL Java_org_apache_gluten_cudf_VeloxCudfPlanValidatorJniWrapper_validate( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jbyteArray planArr) {
+  JNI_METHOD_START
+  auto safePlanArray = getByteArrayElementsSafe(env, planArr);
+  auto planSize = env->GetArrayLength(planArr);
+  ::substrait::Plan substraitPlan;
+  parseProtobuf(safePlanArray.elems(), planSize, &substraitPlan);
+  // get the task and driver, validate the plan, if return all operator except table scan is offloaded, validate true.
+  return CudfPlanValidator::validate(substraitPlan);
+  JNI_METHOD_END(false)
+}
+#endif
 
 #ifdef __cplusplus
 }

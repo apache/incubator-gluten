@@ -87,7 +87,7 @@ void registerGlutenDisks(bool global_skip_access_check)
             config_prefix,
             object_storage_creator);
 
-        disk->startup(context, skip_access_check);
+        disk->startup(skip_access_check);
         return disk;
     };
 
@@ -134,7 +134,7 @@ void registerGlutenDisks(bool global_skip_access_check)
             config_prefix,
             object_storage_creator);
 
-        disk->startup(context, skip_access_check);
+        disk->startup(skip_access_check);
         return disk;
     };
 
