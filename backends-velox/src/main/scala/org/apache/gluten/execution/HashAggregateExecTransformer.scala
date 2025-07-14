@@ -734,7 +734,7 @@ case class RegularHashAggregateExecTransformer(
 // Hash aggregation that is offloaded from sort aggregation.
 // Is identical to RegularHashAggregateExecTransformer but with a
 // different value of isOffloadedSortExec.
-case class OffloadedSortHashAggregateExecTransformer(
+case class HashFromSortAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
