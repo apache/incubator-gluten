@@ -19,6 +19,8 @@
 
 #include <glog/logging.h>
 #include <jni/JniCommon.h>
+#include <velox/connectors/hive/PartitionIdGenerator.h>
+#include <velox/exec/OperatorUtils.h>
 
 #include <exception>
 #include "JniUdf.h"
@@ -72,7 +74,7 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
 
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-  blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[B)V");
+  blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[[B)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
 
@@ -401,45 +403,104 @@ Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_splitBlockByPartitio
     JNIEnv* env,
     jobject wrapper,
     jlong batchHandle,
-    jintArray partitionColIndice,
-    jboolean hasBucket,
-    jlong memoryManagerId) {
+    jintArray partitionColIndices,
+    jboolean hasBucket) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
-  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+
+  GLUTEN_CHECK(!hasBucket, "Bucketing not supported by splitBlockByPartitionAndBucket");
+
+  const auto ctx = gluten::getRuntime(env, wrapper);
+  const auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+
+  auto partitionKeyArray = gluten::getIntArrayElementsSafe(env, partitionColIndices);
+  int numPartitionKeys = partitionKeyArray.length();
+  std::vector<uint32_t> partitionColIndicesVec;
+  for (int i = 0; i < numPartitionKeys; ++i) {
+    const auto partitionColumnIndex = partitionKeyArray.elems()[i];
+    GLUTEN_CHECK(partitionColumnIndex < batch->numColumns(), "Partition column index overflow");
+    partitionColIndicesVec.emplace_back(partitionColumnIndex);
+  }
 
   std::vector<int32_t> dataColIndicesVec;
-  {
-    auto partitionKeyArray = gluten::getIntArrayElementsSafe(env, partitionColIndice);
-    int numPartitionKeys = partitionKeyArray.length();
-    std::unordered_set<int32_t> partitionColIndiceVec;
-    for (int i = 0; i < numPartitionKeys; ++i) {
-      partitionColIndiceVec.emplace(partitionKeyArray.elems()[i]);
-    }
-    for (int i = 0; i < batch->numColumns(); ++i) {
-      if (partitionColIndiceVec.count(i) == 0) {
-        // The column is not a partition column. Add it to the data column vector.
-        dataColIndicesVec.emplace_back(i);
-      }
+  for (int i = 0; i < batch->numColumns(); ++i) {
+    if (std::find(partitionColIndicesVec.begin(), partitionColIndicesVec.end(), i) == partitionColIndicesVec.end()) {
+      // The column is not a partition column. Add it to the data column vector.
+      dataColIndicesVec.emplace_back(i);
     }
   }
 
-  auto result = batch->toUnsafeRow(0);
-  auto rowBytes = result.data();
-  auto newBatchHandle = ctx->saveObject(ctx->select(batch, dataColIndicesVec));
+  auto pool = dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager())->getLeafMemoryPool();
+  const auto veloxBatch = VeloxColumnarBatch::from(pool.get(), batch);
+  const auto inputRowVector = veloxBatch->getRowVector();
+  const auto numRows = inputRowVector->size();
 
-  auto bytesSize = result.size();
-  jbyteArray bytesArray = env->NewByteArray(bytesSize);
-  env->SetByteArrayRegion(bytesArray, 0, bytesSize, reinterpret_cast<jbyte*>(rowBytes));
+  connector::hive::PartitionIdGenerator idGen{
+      asRowType(inputRowVector->type()), partitionColIndicesVec, 128, pool.get(), true};
+  raw_vector<uint64_t> partitionIds{};
+  idGen.run(inputRowVector, partitionIds);
+  GLUTEN_CHECK(partitionIds.size() == numRows, "Mismatched number of partition ids");
+  const auto numPartitions = static_cast<int32_t>(idGen.numPartitions());
 
-  jlongArray batchArray = env->NewLongArray(1);
-  long* cBatchArray = new long[1];
-  cBatchArray[0] = newBatchHandle;
-  env->SetLongArrayRegion(batchArray, 0, 1, cBatchArray);
-  delete[] cBatchArray;
+  std::vector<vector_size_t> partitionSizes(numPartitions);
+  std::vector<BufferPtr> partitionRows(numPartitions);
+  std::vector<vector_size_t*> rawPartitionRows(numPartitions);
+  std::fill(partitionSizes.begin(), partitionSizes.end(), 0);
+
+  for (auto row = 0; row < numRows; ++row) {
+    const auto partitionId = partitionIds[row];
+    ++partitionSizes[partitionId];
+  }
+
+  for (int partitionId = 0; partitionId < numPartitions; ++partitionId) {
+    partitionRows[partitionId] = allocateIndices(partitionSizes[partitionId], pool.get());
+    rawPartitionRows[partitionId] = partitionRows[partitionId]->asMutable<vector_size_t>();
+  }
+
+  std::vector<vector_size_t> partitionNextRowOffset(numPartitions);
+  std::fill(partitionNextRowOffset.begin(), partitionNextRowOffset.end(), 0);
+  for (auto row = 0; row < numRows; ++row) {
+    const auto partitionId = partitionIds[row];
+    rawPartitionRows[partitionId][partitionNextRowOffset[partitionId]] = row;
+    ++partitionNextRowOffset[partitionId];
+  }
+
+  jobjectArray partitionHeadingRowBytesArray = env->NewObjectArray(numPartitions, env->FindClass("[B"), nullptr);
+  std::vector<jlong> partitionBatchHandles(numPartitions);
+
+  for (int partitionId = 0; partitionId < numPartitions; ++partitionId) {
+    const vector_size_t partitionSize = partitionSizes[partitionId];
+    if (partitionSize == 0) {
+      continue;
+    }
+
+    const RowVectorPtr rowVector = partitionSize == inputRowVector->size()
+        ? inputRowVector
+        : exec::wrap(partitionSize, partitionRows[partitionId], inputRowVector);
+
+    const std::shared_ptr<VeloxColumnarBatch> partitionBatch = std::make_shared<VeloxColumnarBatch>(rowVector);
+    const std::shared_ptr<VeloxColumnarBatch> partitionBatchWithoutPartitionColumns =
+        partitionBatch->select(pool.get(), dataColIndicesVec);
+    partitionBatchHandles[partitionId] = ctx->saveObject(partitionBatchWithoutPartitionColumns);
+    const auto headingRow = partitionBatch->toUnsafeRow(0);
+    const auto headingRowBytes = headingRow.data();
+    const auto headingRowNumBytes = headingRow.size();
+
+    jbyteArray jHeadingRowBytes = env->NewByteArray(headingRowNumBytes);
+    env->SetByteArrayRegion(jHeadingRowBytes, 0, headingRowNumBytes, reinterpret_cast<const jbyte*>(headingRowBytes));
+    env->SetObjectArrayElement(partitionHeadingRowBytesArray, partitionId, jHeadingRowBytes);
+  }
+
+  jlongArray partitionBatchArray = env->NewLongArray(numPartitions);
+  env->SetLongArrayRegion(partitionBatchArray, 0, numPartitions, partitionBatchHandles.data());
 
   jobject blockStripes = env->NewObject(
-      blockStripesClass, blockStripesConstructor, batchHandle, batchArray, nullptr, batch->numColumns(), bytesArray);
+      blockStripesClass,
+      blockStripesConstructor,
+      batchHandle,
+      partitionBatchArray,
+      nullptr,
+      batch->numColumns(),
+      partitionHeadingRowBytesArray);
   return blockStripes;
   JNI_METHOD_END(nullptr)
 }
@@ -595,8 +656,8 @@ Java_org_apache_gluten_vectorized_UnifflePartitionWriterJniWrapper_createPartiti
 }
 
 JNIEXPORT jboolean JNICALL Java_org_apache_gluten_config_ConfigJniWrapper_isEnhancedFeaturesEnabled( // NOLINT
-      JNIEnv* env,
-      jclass) {
+    JNIEnv* env,
+    jclass) {
 #ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
   return true;
 #else
