@@ -218,13 +218,13 @@ object OffloadOthers {
           ProjectExecTransformer(plan.projectList, columnarChild)
         case plan: HashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)
+          HashAggregateExecBaseTransformer.from(plan, false)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan, true)
         case plan: ObjectHashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)
+          HashAggregateExecBaseTransformer.from(plan, false)
         case plan: UnionExec =>
           val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

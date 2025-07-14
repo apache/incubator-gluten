@@ -192,7 +192,7 @@ object HashAggregateExecBaseTransformer {
 
   def from(
       agg: BaseAggregateExec,
-      offloadedSortExec: Boolean = false): HashAggregateExecBaseTransformer = {
+      offloadedSortExec: Boolean): HashAggregateExecBaseTransformer = {
     BackendsApiManager.getSparkPlanExecApiInstance
       .genHashAggregateExecTransformer(
         agg.requiredChildDistributionExpressions,
