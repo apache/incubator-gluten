@@ -19,6 +19,7 @@
 #include <Core/Block.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <IO/ReadBufferFromFile.h>
+#include <Interpreters/Context.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
@@ -27,7 +28,7 @@
 #include <QueryPipeline/QueryPipeline.h>
 #include <base/types.h>
 #include <benchmark/benchmark.h>
-#include <parquet/arrow/reader.h>
+#include <Common/QueryContext.h>
 
 using namespace DB;
 using namespace local_engine;
@@ -56,7 +57,9 @@ static void readParquetFile(const Block & header, const String & file, Block & b
 {
     auto in = std::make_unique<ReadBufferFromFile>(file);
     FormatSettings format_settings;
-    auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings, 1, 1, 8192);
+    auto global_context = QueryContext::globalContext();
+    auto parser_group = std::make_shared<FormatParserGroup>(global_context->getSettingsRef(), 1, nullptr, global_context);
+    auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings, std::move(parser_group), 8192);
     auto pipeline = QueryPipeline(std::move(format));
     auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
     while (reader->pull(block))

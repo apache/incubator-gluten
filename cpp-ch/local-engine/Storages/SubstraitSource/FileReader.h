@@ -77,7 +77,7 @@ public:
         const FormatFilePtr & current_file,
         const DB::Block & readHeader,
         const DB::Block & outputHeader,
-        const std::shared_ptr<const DB::KeyCondition> & key_condition,
+        const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag,
         const ColumnIndexFilterPtr & column_index_filter);
 };
 
