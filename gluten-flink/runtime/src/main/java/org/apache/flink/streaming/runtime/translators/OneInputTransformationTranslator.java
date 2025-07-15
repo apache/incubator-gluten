@@ -24,6 +24,7 @@ import org.apache.gluten.util.ReflectUtils;
 
 import io.github.zhztheplayer.velox4j.connector.CommitStrategy;
 import io.github.zhztheplayer.velox4j.connector.FileSystemInsertTableHandle;
+import io.github.zhztheplayer.velox4j.plan.EmptyNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableWriteNode;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
@@ -127,7 +128,6 @@ public final class OneInputTransformationTranslator<IN, OUT>
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
-        LOG.info("partitionKeys: {}, partitionPartitions:{}", partitionKeys, partitionIndexes);
         org.apache.flink.table.types.logical.RowType inputType =
             (org.apache.flink.table.types.logical.RowType)
                 ((InternalTypeInfo) transformation.getInputType()).toLogicalType();
@@ -154,7 +154,7 @@ public final class OneInputTransformationTranslator<IN, OUT>
                 false,
                 ignore,
                 CommitStrategy.NO_COMMIT,
-                null);
+                List.of(new EmptyNode(inputDataColumns)));
         return translateInternal(
             transformation,
             new GlutenOneInputOperatorFactory(
@@ -162,7 +162,7 @@ public final class OneInputTransformationTranslator<IN, OUT>
                     new StatefulPlanNode(fileSystemWriteNode.getId(), fileSystemWriteNode),
                     PlanNodeIdGenerator.newId(),
                     inputDataColumns,
-                    Map.of("output", ignore))),
+                    Map.of(fileSystemWriteNode.getId(), ignore))),
             transformation.getInputType(),
             transformation.getStateKeySelector(),
             transformation.getStateKeyType(),
