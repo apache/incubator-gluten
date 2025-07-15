@@ -63,9 +63,6 @@ import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Preconditions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
@@ -89,8 +86,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class SinkTransformationTranslator<Input, Output>
     implements TransformationTranslator<Output, SinkTransformation<Input, Output>> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(SinkTransformationTranslator.class);
 
   private static final String COMMITTER_NAME = "Committer";
   private static final String WRITER_NAME = "Writer";
@@ -166,7 +161,6 @@ public class SinkTransformationTranslator<Input, Output>
       this.isBatchMode = isBatchMode;
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
     private void expand() {
 
       final int sizeBefore = executionEnvironment.getTransformations().size();

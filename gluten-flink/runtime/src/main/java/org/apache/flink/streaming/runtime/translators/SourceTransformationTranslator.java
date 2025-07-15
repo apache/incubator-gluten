@@ -72,7 +72,6 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
     return translateInternal(transformation, context, true /* emit progressive watermarks */);
   }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
   private Collection<Integer> translateInternal(
       final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
       final Context context,
