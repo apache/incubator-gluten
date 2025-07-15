@@ -494,6 +494,10 @@ object GlutenConfig {
       "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
+    // handle ABFS config
+    conf
+      .filter(_._1.contains(ABFS_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     val keyWithDefault = ImmutableList.of(
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
