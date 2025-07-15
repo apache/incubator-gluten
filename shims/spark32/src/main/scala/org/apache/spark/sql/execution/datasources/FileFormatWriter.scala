@@ -107,8 +107,6 @@ object FileFormatWriter extends Logging {
    * @return
    *   The set of all partition paths that were updated during this write job.
    */
-
-  // scalastyle:off argcount
   def write(
       sparkSession: SparkSession,
       plan: SparkPlan,
@@ -119,37 +117,14 @@ object FileFormatWriter extends Logging {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       statsTrackers: Seq[WriteJobStatsTracker],
-      options: Map[String, String]): Set[String] = write(
-    sparkSession = sparkSession,
-    plan = plan,
-    fileFormat = fileFormat,
-    committer = committer,
-    outputSpec = outputSpec,
-    hadoopConf = hadoopConf,
-    partitionColumns = partitionColumns,
-    bucketSpec = bucketSpec,
-    statsTrackers = statsTrackers,
-    options = options,
-    numStaticPartitionCols = 0
-  )
-
-  def write(
-      sparkSession: SparkSession,
-      plan: SparkPlan,
-      fileFormat: FileFormat,
-      committer: FileCommitProtocol,
-      outputSpec: OutputSpec,
-      hadoopConf: Configuration,
-      partitionColumns: Seq[Attribute],
-      bucketSpec: Option[BucketSpec],
-      statsTrackers: Seq[WriteJobStatsTracker],
-      options: Map[String, String],
-      numStaticPartitionCols: Int = 0): Set[String] = {
+      options: Map[String, String]): Set[String] = {
 
     val nativeEnabled =
       "true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")
-    val staticPartitionWriteOnly =
-      "true" == sparkSession.sparkContext.getLocalProperty("staticPartitionWriteOnly")
+    val numStaticPartitionCols =
+      Option(sparkSession.sparkContext.getLocalProperty("numStaticPartitionCols"))
+        .map(_.toInt)
+        .getOrElse(0)
 
     if (nativeEnabled) {
       logInfo(
@@ -174,12 +149,10 @@ object FileFormatWriter extends Logging {
       case attr => attr
     }
 
-    val empty2NullPlan = if (staticPartitionWriteOnly && nativeEnabled) {
-      // Velox backend only support static partition write.
-      // And no need to add sort operator for static partition write.
-      plan
+    val empty2NullPlan = if (needConvert) {
+      ProjectExec(projectList, plan)
     } else {
-      if (needConvert) ProjectExec(projectList, plan) else plan
+      plan
     }
 
     val bucketIdExpression = bucketSpec.map {
@@ -263,7 +236,7 @@ object FileFormatWriter extends Logging {
 
     try {
       val (finalPlan, concurrentOutputWriterSpec) = if (orderingMatched) {
-        if (!nativeEnabled || (staticPartitionWriteOnly && nativeEnabled)) {
+        if (!nativeEnabled) {
           (empty2NullPlan, None)
         } else {
           nativeWrap(empty2NullPlan)
@@ -291,15 +264,10 @@ object FileFormatWriter extends Logging {
             empty2NullPlan,
             Some(ConcurrentOutputWriterSpec(maxWriters, () => sortPlan.createSorter())))
         } else {
-          if (staticPartitionWriteOnly && nativeEnabled) {
-            // remove the sort operator for static partition write.
-            (empty2NullPlan, None)
+          if (!nativeEnabled) {
+            (sortPlan, None)
           } else {
-            if (!nativeEnabled) {
-              (sortPlan, None)
-            } else {
-              nativeWrap(sortPlan)
-            }
+            nativeWrap(sortPlan)
           }
         }
       }

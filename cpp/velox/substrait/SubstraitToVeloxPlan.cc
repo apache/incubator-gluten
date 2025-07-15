@@ -881,8 +881,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     ordinalityName = std::make_optional<std::string>("pos");
   }
 
+  // TODO: allow to set this in SQL
+  std::optional<std::string> emptyUnnestValueName = std::nullopt;
+
   return std::make_shared<core::UnnestNode>(
-      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, childNode);
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, emptyUnnestValueName, childNode);
 }
 
 const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(
