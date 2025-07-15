@@ -37,11 +37,15 @@ gluten::ResourceMap<gluten::ObjectStore*>& gluten::ObjectStore::stores() {
 }
 
 gluten::ObjectStore::~ObjectStore() {
-  std::vector<std::shared_ptr<void>> objects;
-  {
-    // destructing in reversed order (the last added object destructed first)
-    const std::lock_guard<std::mutex> lock(mtx_);
-    for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
+  for (;;) {
+    if (aliveObjects_.empty()) {
+      break;
+    }
+    std::shared_ptr<void> tempObj;
+    {
+      const std::lock_guard<std::mutex> lock(mtx_);
+      // destructing in reversed order (the last added object destructed first)
+      auto itr = aliveObjects_.rbegin();
       const ResourceHandle handle = (*itr).first;
       const auto& info = (*itr).second;
       const std::string_view typeName = info.typeName;
@@ -53,18 +57,13 @@ gluten::ObjectStore::~ObjectStore() {
                  " destroy it automatically but it's recommended to manually close"
                  " the object through the Java closing API after use,"
                  " to minimize peak memory pressure of the application.";
-      // transfer ownership of the object to the temporary vector
-      objects.push_back(store_.lookup(handle));
+      tempObj = store_.lookup(handle);
       store_.erase(handle);
+      aliveObjects_.erase(handle);
     }
-    stores().erase(storeId_);
+    tempObj.reset(); // this will call the destructor of the object
   }
-  // destructing objects outside the lock to avoid deadlock
-  for (auto& obj : objects) {
-    if (obj) {
-      obj.reset();
-    }
-  }
+  stores().erase(storeId_);
 }
 
 void gluten::ObjectStore::releaseInternal(gluten::ResourceHandle handle) {
