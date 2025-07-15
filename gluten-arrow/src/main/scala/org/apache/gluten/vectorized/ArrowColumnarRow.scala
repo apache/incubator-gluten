@@ -219,6 +219,16 @@ final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector])
     }
   }
 
+  def writeRowUnsafe(input: InternalRow): Unit = {
+    if (input.numFields != columns.length) {
+      throw new GlutenException(
+        "The numFields of input row should be equal to the number of column vector!")
+    }
+    for (i <- 0 until input.numFields) {
+      columns(i).writeUnsafe(input, i)
+    }
+  }
+
   def finishWriteRow(): Unit = {
     var i = 0
     while (i < columns.length) {
