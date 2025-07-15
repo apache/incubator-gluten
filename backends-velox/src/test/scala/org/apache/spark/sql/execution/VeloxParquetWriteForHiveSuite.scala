@@ -130,6 +130,7 @@ class VeloxParquetWriteForHiveSuite
           checkNative = true)
       }
       checkAnswer(spark.table("t"), Row(3, 1, 2))
+      checkAnswer(spark.sql("SHOW PARTITIONS t"), Seq(Row("c=1/d=2")))
     }
   }
 
@@ -141,10 +142,84 @@ class VeloxParquetWriteForHiveSuite
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
         checkNativeWrite(
           "INSERT OVERWRITE TABLE t partition(c=1, d)" +
-            " SELECT 3 as e, 2 as e",
-          checkNative = false)
+            " SELECT 3 as e, 2 as d",
+          checkNative = true)
       }
       checkAnswer(spark.table("t"), Row(3, 1, 2))
+      checkAnswer(spark.sql("SHOW PARTITIONS t"), Seq(Row("c=1/d=2")))
+    }
+  }
+
+  test("test hive dynamic and static partition write table, multiple partitions") {
+    withTable("t") {
+      spark.sql(
+        "CREATE TABLE t (c int, d long, e long)" +
+          " STORED AS PARQUET partitioned by (c, d)")
+      withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
+        checkNativeWrite(
+          "INSERT OVERWRITE TABLE t partition(c=1, d)" +
+            " SELECT 3 as e, 2 as d" +
+            " UNION ALL" +
+            " SELECT 4 as e, 5 as d",
+          checkNative = true)
+      }
+      checkAnswer(spark.table("t"), Seq(Row(3, 1, 2), Row(4, 1, 5)))
+      checkAnswer(spark.sql("SHOW PARTITIONS t"), Seq(Row("c=1/d=2"), Row("c=1/d=5")))
+    }
+  }
+
+  test("test hive dynamic and static partition write table, multiple keys, multiple partitions") {
+    withTable("t") {
+      spark.sql(
+        "CREATE TABLE t (c int, d long, e long, f int)" +
+          " STORED AS PARQUET partitioned by (c, d, f)")
+      withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
+        checkNativeWrite(
+          "INSERT OVERWRITE TABLE t partition(c=1, d, f)" +
+            " SELECT 3 as e, 2 as d, 7 as f" + // Partition 0.
+            " UNION ALL" +
+            " SELECT 4 as e, 5 as d, 9 as f" + // Partition 1.
+            " UNION ALL" +
+            " SELECT 6 as e, 2 as d, 7 as f" + // Partition 0.
+            " UNION ALL" +
+            " SELECT 8 as e, 5 as d, 7 as f", // Partition 2.
+          checkNative = true
+        )
+      }
+      checkAnswer(
+        spark.table("t"),
+        Seq(Row(3, 1, 2, 7), Row(4, 1, 5, 9), Row(6, 1, 2, 7), Row(8, 1, 5, 7)))
+      checkAnswer(
+        spark.sql("SHOW PARTITIONS t"),
+        Seq(Row("c=1/d=2/f=7"), Row("c=1/d=5/f=7"), Row("c=1/d=5/f=9")))
+    }
+  }
+
+  test(
+    "test hive dynamic and static partition write table multiple keys, multiple partitions, " +
+      "single batch to write") {
+    withTable("t") {
+      spark.sql(
+        "CREATE TABLE t (c int, d long, e long, f int)" +
+          " STORED AS PARQUET partitioned by (c, d, f)")
+      withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
+        // Use of VALUES will result in a single input batch for DynamicPartitionDataSingleWriter
+        // to test the sanity of #splitBlockByPartitionAndBucket.
+        checkNativeWrite(
+          "INSERT OVERWRITE TABLE t PARTITION (c=1, d, f) VALUES" +
+            " (3, 2, 7)," +
+            " (4, 5, 9)," +
+            " (6, 2, 7)," +
+            " (8, 5, 7)",
+          checkNative = true
+        )
+      }
+      checkAnswer(
+        spark.table("t"),
+        Seq(Row(3, 1, 2, 7), Row(4, 1, 5, 9), Row(6, 1, 2, 7), Row(8, 1, 5, 7)))
+      checkAnswer(
+        spark.sql("SHOW PARTITIONS t"),
+        Seq(Row("c=1/d=2/f=7"), Row("c=1/d=5/f=7"), Row("c=1/d=5/f=9")))
     }
   }
 

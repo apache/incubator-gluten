@@ -127,6 +127,8 @@ object GlutenWriterColumnarRules {
     if (format.isDefined) {
       spark.sparkContext.setLocalProperty("isNativeApplicable", true.toString)
       spark.sparkContext.setLocalProperty("nativeFormat", format.get)
+      // The flag for static-only write is not used by Velox backend where
+      // the static partition write is already supported.
       spark.sparkContext.setLocalProperty(
         "staticPartitionWriteOnly",
         BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)

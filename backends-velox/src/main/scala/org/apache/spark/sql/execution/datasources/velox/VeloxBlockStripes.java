@@ -27,40 +27,42 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Iterator;
 
 public class VeloxBlockStripes extends BlockStripes {
-
-  private int index = 0;
-
   public VeloxBlockStripes(BlockStripes bs) {
     super(bs.originBlockAddress,
         bs.blockAddresses, bs.headingRowIndice, bs.originBlockNumColumns,
-        bs.rowBytes);
+        bs.headingRowBytes);
   }
 
   @Override
   public @NotNull Iterator<BlockStripe> iterator() {
     return new Iterator<BlockStripe>() {
+      private int index = 0;
 
       @Override
       public boolean hasNext() {
-        return index < 1;
+        return index < blockAddresses.length;
       }
 
       @Override
       public BlockStripe next() {
-        index += 1;
-        return new BlockStripe() {
+        final BlockStripe nextStripe = new BlockStripe() {
+          private final long blockAddress = blockAddresses[index];
+          private final byte[] headingRowByteArray = headingRowBytes[index];
+
           @Override
           public ColumnarBatch getColumnarBatch() {
-            return ColumnarBatches.create(blockAddresses[0]);
+            return ColumnarBatches.create(blockAddress);
           }
 
           @Override
           public InternalRow getHeadingRow() {
             UnsafeRow row = new UnsafeRow(originBlockNumColumns);
-            row.pointTo(rowBytes, rowBytes.length);
+            row.pointTo(headingRowByteArray, headingRowByteArray.length);
             return row;
           }
         };
+        index += 1;
+        return nextStripe;
       }
     };
   }
