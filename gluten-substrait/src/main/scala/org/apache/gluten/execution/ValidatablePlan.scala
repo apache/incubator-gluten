@@ -23,6 +23,8 @@ import org.apache.gluten.expression.TransformerState
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.test.TestStats
 
+import org.apache.spark.sql.AnalysisException
+
 /**
  * Base interface for a Gluten query plan that is also open to validation calls.
  *
@@ -63,13 +65,26 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
   final def doValidate(): ValidationResult = {
-    val schemaValidationResult = BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason =>
-          ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
+    val schemaValidationResult =
+      try {
+        BackendsApiManager.getValidatorApiInstance
+          .doSchemaValidate(schema)
+          .map {
+            reason =>
+              ValidationResult.failed(
+                s"Found schema check failure for $schema, due to: $reason")
+          }
+          .getOrElse(ValidationResult.succeeded)
+      } catch {
+        case e: AnalysisException =>
+          val message =
+            s"Failed to retrieve schema, due to: ${e.getMessage}." +
+              s" If you are using a hash expression with a map key," +
+              s" consider enabling the spark.sql.legacy.allowHashOnMapType " +
+              s"setting to resolve this issue."
+          ValidationResult.failed(message)
       }
-      .getOrElse(ValidationResult.succeeded)
+
     if (!schemaValidationResult.ok()) {
       TestStats.addFallBackClassName(this.getClass.toString)
       if (validationFailFast) {
