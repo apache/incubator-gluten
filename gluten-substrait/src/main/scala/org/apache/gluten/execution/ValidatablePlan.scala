@@ -23,7 +23,7 @@ import org.apache.gluten.expression.TransformerState
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.test.TestStats
 
-import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.catalyst.analysis.UnresolvedException
 
 /**
  * Base interface for a Gluten query plan that is also open to validation calls.
@@ -71,14 +71,13 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
           .doSchemaValidate(schema)
           .map {
             reason =>
-              ValidationResult.failed(
-                s"Found schema check failure for $schema, due to: $reason")
+              ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
           }
           .getOrElse(ValidationResult.succeeded)
       } catch {
-        case e: AnalysisException =>
+        case u: UnresolvedException =>
           val message =
-            s"Failed to retrieve schema, due to: ${e.getMessage}." +
+            s"Failed to retrieve schema, due to: ${u.getMessage}." +
               s" If you are using a hash expression with a map key," +
               s" consider enabling the spark.sql.legacy.allowHashOnMapType " +
               s"setting to resolve this issue."
