@@ -113,6 +113,16 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>paimon</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <build>
