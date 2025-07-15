@@ -101,6 +101,7 @@
     <!-- For unit tests -->
     <fasterxml.version>2.13.5</fasterxml.version>
     <junit.version>4.13.1</junit.version>
+    <flexmark.version>0.62.2</flexmark.version>
 
     <!-- Package name to use when relocating shaded classes -->
     <gluten.shade.packageName>org.apache.gluten.shaded</gluten.shade.packageName>
@@ -1404,6 +1405,12 @@
         <groupId>org.scala-lang.modules</groupId>
         <artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
         <version>2.11.0</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-all</artifactId>
+        <version>${flexmark.version}</version>
         <scope>test</scope>
       </dependency>
     </dependencies>

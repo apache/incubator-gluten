@@ -20,6 +20,8 @@ import org.apache.gluten.config.BackendType.BackendType
 
 import org.apache.spark.sql.internal.GlutenConfigProvider
 
+import scala.collection.JavaConverters._
+
 /**
  * An entry contains all meta information for a configuration.
  *
@@ -240,4 +242,8 @@ object ConfigEntry {
   }
 
   def findEntry(key: String): ConfigEntry[_] = knownConfigs.get(key)
+
+  def getAllEntries: Seq[ConfigEntry[_]] = {
+    knownConfigs.values().asScala.toSeq
+  }
 }
