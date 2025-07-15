@@ -41,9 +41,7 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,8 +64,6 @@ import java.util.stream.Collectors;
 public final class OneInputTransformationTranslator<IN, OUT>
     extends AbstractOneInputTransformationTranslator<IN, OUT, OneInputTransformation<IN, OUT>> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(OneInputTransformationTranslator.class);
-
   @Override
   public Collection<Integer> translateForBatchInternal(
       final OneInputTransformation<IN, OUT> transformation, final Context context) {
@@ -89,7 +85,56 @@ public final class OneInputTransformationTranslator<IN, OUT>
     return ids;
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings("deprecation")
+  private List<Integer> fileWriterPartitionIndexes(OneInputStreamOperator<IN, OUT> operator) {
+    List<Integer> partitionIndexes = new ArrayList<>();
+    try {
+      Class<?> streamingFileWriterClazz =
+          Class.forName("org.apache.flink.connector.file.table.stream.AbstractStreamingWriter");
+      Object bucketsBuilder =
+          ReflectUtils.getObjectField(streamingFileWriterClazz, operator, "bucketsBuilder");
+      if (bucketsBuilder instanceof BulkFormatBuilder) {
+        Object assigner =
+            ReflectUtils.getObjectField(BulkFormatBuilder.class, bucketsBuilder, "bucketAssigner");
+        Object partitionComputer =
+            ReflectUtils.getObjectField(assigner.getClass(), assigner, "computer");
+        int[] partitionIndexArray =
+            (int[])
+                ReflectUtils.getObjectField(
+                    partitionComputer.getClass(), partitionComputer, "partitionIndexes");
+        partitionIndexes = Arrays.stream(partitionIndexArray).boxed().collect(Collectors.toList());
+      }
+    } catch (Exception e) {
+      throw new FlinkRuntimeException(e);
+    }
+    return partitionIndexes;
+  }
+
+  private List<String> fileWriterPartitionKeys(OneInputStreamOperator<IN, OUT> operator) {
+    List<String> partitionKeys = new ArrayList<>();
+    try {
+      partitionKeys =
+          (List<String>)
+              ReflectUtils.getObjectField(operator.getClass(), operator, "partitionKeys");
+    } catch (Exception e) {
+      throw new FlinkRuntimeException(e);
+    }
+    return partitionKeys;
+  }
+
+  private Map<String, String> fileWriterTableParameters(OneInputStreamOperator<IN, OUT> operator) {
+    try {
+      Configuration configuration =
+          (Configuration) ReflectUtils.getObjectField(operator.getClass(), operator, "conf");
+      Map<String, String> tableParams = configuration.toMap();
+      tableParams.put("fs.file_name_prefix", UUID.randomUUID().toString());
+      tableParams.put("fs.writer_task_id", String.valueOf(0));
+      return tableParams;
+    } catch (Exception e) {
+      throw new FlinkRuntimeException(e);
+    }
+  }
+
   @Override
   public Collection<Integer> translateForStreamingInternal(
       final OneInputTransformation<IN, OUT> transformation, final Context context) {
@@ -97,45 +142,15 @@ public final class OneInputTransformationTranslator<IN, OUT>
     if (operatorFactory instanceof SimpleOperatorFactory) {
       String operatorClazzName = transformation.getOperator().getClass().getSimpleName();
       if (operatorClazzName.equals("StreamingFileWriter")) {
-        OneInputStreamOperator<IN, OUT> operator = transformation.getOperator();
-        Configuration configuration =
-            (Configuration) ReflectUtils.getObjectField(operator.getClass(), operator, "conf");
-        List<Integer> partitionIndexes = new ArrayList<>();
-        List<String> partitionKeys = new ArrayList<>();
-        try {
-          partitionKeys =
-              (List<String>)
-                  ReflectUtils.getObjectField(operator.getClass(), operator, "partitionKeys");
-          Class<?> streamingFileWriterClazz =
-              Class.forName("org.apache.flink.connector.file.table.stream.AbstractStreamingWriter");
-          Object bucketsBuilder =
-              ReflectUtils.getObjectField(streamingFileWriterClazz, operator, "bucketsBuilder");
-          if (bucketsBuilder instanceof BulkFormatBuilder) {
-            Object assigner =
-                ReflectUtils.getObjectField(
-                    BulkFormatBuilder.class, bucketsBuilder, "bucketAssigner");
-            Object partitionComputer =
-                ReflectUtils.getObjectField(assigner.getClass(), assigner, "computer");
-            int[] partitionIndexArray =
-                (int[])
-                    ReflectUtils.getObjectField(
-                        partitionComputer.getClass(), partitionComputer, "partitionIndexes");
-            partitionIndexes =
-                Arrays.stream(partitionIndexArray).boxed().collect(Collectors.toList());
-          } else {
-            throw new RuntimeException("Not support:" + bucketsBuilder.getClass().getName());
-          }
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
         org.apache.flink.table.types.logical.RowType inputType =
             (org.apache.flink.table.types.logical.RowType)
                 ((InternalTypeInfo) transformation.getInputType()).toLogicalType();
         RowType inputDataColumns = (RowType) LogicalTypeConverter.toVLType(inputType);
         RowType ignore = new RowType(List.of("num"), List.of(new BigIntType()));
-        Map<String, String> tableParams = configuration.toMap();
-        tableParams.put("fs.file_name_prefix", UUID.randomUUID().toString());
-        tableParams.put("fs.writer_task_id", String.valueOf(0));
+        OneInputStreamOperator<IN, OUT> operator = transformation.getOperator();
+        List<Integer> partitionIndexes = fileWriterPartitionIndexes(operator);
+        List<String> partitionKeys = fileWriterPartitionKeys(operator);
+        Map<String, String> tableParams = fileWriterTableParameters(operator);
         FileSystemInsertTableHandle insertTableHandle =
             new FileSystemInsertTableHandle(
                 transformation.getName(),
