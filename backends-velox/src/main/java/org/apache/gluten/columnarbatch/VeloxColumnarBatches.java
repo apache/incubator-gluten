@@ -141,4 +141,22 @@ public final class VeloxColumnarBatches {
       return ColumnarBatches.create(handle);
     }
   }
+
+  /**
+   * repeat batch1 using the array `rowId2RowNums` passed in and then compose with batch2.
+   * rowId2RowNums records the number of each row after repeated.
+   */
+  public static ColumnarBatch repeatedThenCompose(
+      ColumnarBatch batch1, ColumnarBatch batch2, int[] rowId2RowNums) {
+    final Runtime runtime =
+        Runtimes.contextInstance(
+            BackendsApiManager.getBackendName(), "VeloxColumnarBatches#repeatedThenCompose");
+    final long[] handles = {
+      ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), batch1),
+      ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), batch2)
+    };
+    final long handle =
+        VeloxColumnarBatchJniWrapper.create(runtime).repeatedThenCompose(handles, rowId2RowNums);
+    return ColumnarBatches.create(handle);
+  }
 }
