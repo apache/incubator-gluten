@@ -107,8 +107,6 @@ object FileFormatWriter extends Logging {
    * @return
    *   The set of all partition paths that were updated during this write job.
    */
-
-  // scalastyle:off argcount
   def write(
       sparkSession: SparkSession,
       plan: SparkPlan,
@@ -119,35 +117,14 @@ object FileFormatWriter extends Logging {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       statsTrackers: Seq[WriteJobStatsTracker],
-      options: Map[String, String]): Set[String] = write(
-    sparkSession = sparkSession,
-    plan = plan,
-    fileFormat = fileFormat,
-    committer = committer,
-    outputSpec = outputSpec,
-    hadoopConf = hadoopConf,
-    partitionColumns = partitionColumns,
-    bucketSpec = bucketSpec,
-    statsTrackers = statsTrackers,
-    options = options,
-    numStaticPartitionCols = 0
-  )
-
-  def write(
-      sparkSession: SparkSession,
-      plan: SparkPlan,
-      fileFormat: FileFormat,
-      committer: FileCommitProtocol,
-      outputSpec: OutputSpec,
-      hadoopConf: Configuration,
-      partitionColumns: Seq[Attribute],
-      bucketSpec: Option[BucketSpec],
-      statsTrackers: Seq[WriteJobStatsTracker],
-      options: Map[String, String],
-      numStaticPartitionCols: Int = 0): Set[String] = {
+      options: Map[String, String]): Set[String] = {
 
     val nativeEnabled =
       "true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")
+    val numStaticPartitionCols =
+      Option(sparkSession.sparkContext.getLocalProperty("numStaticPartitionCols"))
+        .map(_.toInt)
+        .getOrElse(0)
 
     if (nativeEnabled) {
       logInfo(

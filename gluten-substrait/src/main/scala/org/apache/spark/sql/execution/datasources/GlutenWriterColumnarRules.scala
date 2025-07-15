@@ -111,7 +111,13 @@ object GlutenWriterColumnarRules {
           } else {
             None
           }
-        injectSparkLocalProperty(session, format)
+        val numStaticPartitions: Option[Int] = cmd match {
+          case cmd: InsertIntoHadoopFsRelationCommand =>
+            Some(cmd.staticPartitions.size)
+          case _ =>
+            None
+        }
+        injectSparkLocalProperty(session, format, numStaticPartitions)
         format match {
           case Some(_) =>
             injectFakeRowAdaptor(rc, child)
@@ -123,7 +129,12 @@ object GlutenWriterColumnarRules {
     }
   }
 
-  def injectSparkLocalProperty(spark: SparkSession, format: Option[String]): Unit = {
+  // TODO: This makes FileFormatWriter#write caller-sensitive.
+  //  Remove this workaround once we have a better solution.
+  def injectSparkLocalProperty(
+      spark: SparkSession,
+      format: Option[String],
+      numStaticPartitions: Option[Int]): Unit = {
     if (format.isDefined) {
       spark.sparkContext.setLocalProperty("isNativeApplicable", true.toString)
       spark.sparkContext.setLocalProperty("nativeFormat", format.get)
@@ -132,10 +143,14 @@ object GlutenWriterColumnarRules {
       spark.sparkContext.setLocalProperty(
         "staticPartitionWriteOnly",
         BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
+      spark.sparkContext.setLocalProperty(
+        "numStaticPartitionCols",
+        numStaticPartitions.getOrElse(0).toString)
     } else {
       spark.sparkContext.setLocalProperty("isNativeApplicable", null)
       spark.sparkContext.setLocalProperty("nativeFormat", null)
       spark.sparkContext.setLocalProperty("staticPartitionWriteOnly", null)
+      spark.sparkContext.setLocalProperty("numStaticPartitionCols", null)
     }
   }
 }
