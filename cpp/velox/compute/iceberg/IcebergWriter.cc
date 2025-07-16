@@ -60,13 +60,13 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
               columnTypes.at(i),
               columnTypes.at(i)));
     }
-    std::shared_ptr<const connector::hive::LocationHandle> locationHandle =
-        std::make_shared<connector::hive::LocationHandle>(
-            outputDirectoryPath, outputDirectoryPath, connector::hive::LocationHandle::TableType::kExisting);
-
-    return std::make_shared<connector::hive::iceberg::IcebergInsertTableHandle>(
-        columnHandles, locationHandle, spec, fileFormat, nullptr, compressionKind);
   }
+  std::shared_ptr<const connector::hive::LocationHandle> locationHandle =
+      std::make_shared<connector::hive::LocationHandle>(
+          outputDirectoryPath, outputDirectoryPath, connector::hive::LocationHandle::TableType::kExisting);
+
+  return std::make_shared<connector::hive::iceberg::IcebergInsertTableHandle>(
+      columnHandles, locationHandle, spec, fileFormat, nullptr, compressionKind);
 }
 
 } // namespace
