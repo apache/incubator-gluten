@@ -58,7 +58,19 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
     }
     val spec = IcebergWriteUtil.getTable(write).spec()
     // TODO: check the partition column data type, only some data type is supported.
-    if (spec.isPartitioned && spec.fields().asScala.exists(p => p.transform().isIdentity)) {
+    // Not support nest column as partition column now.
+    if (
+      spec.isPartitioned && spec
+        .fields()
+        .asScala
+        .exists(
+          p =>
+            !p.transform().isIdentity || !spec
+              .schema()
+              .columns()
+              .stream()
+              .anyMatch(c => c.fieldId() == p.sourceId()))
+    ) {
       return ValidationResult.failed("Not support write non identity partition table")
     }
     if (IcebergWriteUtil.getTable(write).sortOrder().isSorted) {
