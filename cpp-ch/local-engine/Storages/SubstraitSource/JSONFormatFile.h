@@ -28,7 +28,8 @@ public:
 
     bool supportSplit() const override { return true; }
 
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
+    FormatFile::InputFormatPtr
+    createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag = nullptr) override;
 
     String getFileFormat() const override { return "JSONEachRow"; }
 };

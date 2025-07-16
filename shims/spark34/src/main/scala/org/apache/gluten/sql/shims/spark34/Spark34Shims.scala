@@ -622,4 +622,5 @@ class Spark34Shims extends SparkShims {
     plan.offset
   }
 
+  override def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = unBase64.failOnError
 }

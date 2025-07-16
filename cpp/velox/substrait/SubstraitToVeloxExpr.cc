@@ -199,7 +199,7 @@ makeFieldAccessExpr(const std::string& name, const TypePtr& type, core::FieldAcc
 
 } // namespace
 
-using facebook::velox::core::variantArrayToVector;
+using facebook::velox::variantToVector;
 
 namespace gluten {
 
@@ -322,8 +322,8 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::lite
     variants.emplace_back(veloxVariant->value());
   }
   VELOX_CHECK(literalType.has_value(), "Type expected.");
-  auto varArray = variant::array(variants);
-  ArrayVectorPtr arrayVector = variantArrayToVector(ARRAY(literalType.value()), varArray.array(), pool_);
+  auto varArray = Variant::array(variants);
+  VectorPtr arrayVector = variantToVector(ARRAY(literalType.value()), varArray, pool_);
   // Wrap the array vector into constant vector.
   auto constantVector = BaseVector::wrapInConstant(1 /*length*/, 0 /*index*/, arrayVector);
   return std::make_shared<const core::ConstantTypedExpr>(constantVector);

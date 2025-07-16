@@ -50,7 +50,7 @@
           <java>
             <toggleOffOn/>
             <googleJavaFormat>
-              <version>1.7</version>
+              <version>1.15.0</version>
             </googleJavaFormat>
 
             <!-- \# refers to the static imports -->

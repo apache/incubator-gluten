@@ -174,23 +174,25 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
               val start = System.currentTimeMillis()
               val childData = ColumnarBatches
                 .select(BackendsApiManager.getBackendName, batch, projectIndexInChild.toArray)
-              val projectedBatch = getProjectedBatchArrow(childData, c2a, a2c)
-
-              val batchIterator = projectedBatch.map {
-                b =>
-                  if (b.numCols() != 0) {
-                    val compositeBatch = VeloxColumnarBatches.compose(batch, b)
-                    b.close()
-                    compositeBatch
-                  } else {
-                    b.close()
-                    ColumnarBatches.retain(batch)
-                    batch
-                  }
+              try {
+                val projectedBatch = getProjectedBatchArrow(childData, c2a, a2c)
+                val batchIterator = projectedBatch.map {
+                  b =>
+                    if (b.numCols() != 0) {
+                      val compositeBatch = VeloxColumnarBatches.compose(batch, b)
+                      b.close()
+                      compositeBatch
+                    } else {
+                      b.close()
+                      ColumnarBatches.retain(batch)
+                      batch
+                    }
+                }
+                totalTime += System.currentTimeMillis() - start
+                batchIterator
+              } finally {
+                childData.close()
               }
-              childData.close()
-              totalTime += System.currentTimeMillis() - start
-              batchIterator
             }
           }
         }

@@ -803,12 +803,12 @@ QueryPlanPtr readFromMergeTree(MergeTreeWithSnapshot storage)
     auto data_parts = storage.merge_tree->getDataPartsVectorForInternalUsage();
     auto query_plan = std::make_unique<QueryPlan>();
     auto step = storage.merge_tree->reader.readFromParts(
-        data_parts, {}, storage.columns.getNames(), storage.snapshot, *query_info, global_context, 10000, 1);
+        RangesInDataParts{data_parts}, {}, storage.columns.getNames(), storage.snapshot, *query_info, global_context, 10000, 1);
     query_plan->addStep(std::move(step));
     return query_plan;
 }
 
-QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, String right_key, size_t block_size = 8192)
+QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, String right_key)
 {
     auto join = std::make_shared<TableJoin>(
         global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
@@ -846,7 +846,7 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
     auto hash_join = std::make_shared<HashJoin>(join, right->getCurrentHeader());
 
     QueryPlanStepPtr join_step = std::make_unique<JoinStep>(
-        left->getCurrentHeader(), right->getCurrentHeader(), hash_join, block_size, 8192, 1, NameSet{}, false, false);
+        left->getCurrentHeader(), right->getCurrentHeader(), hash_join, DEFAULT_BLOCK_SIZE, DEFAULT_BLOCK_SIZE, 524288, 1, NameSet{}, false, false);
 
     std::vector<QueryPlanPtr> plans;
     plans.emplace_back(std::move(left));

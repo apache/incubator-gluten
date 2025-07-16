@@ -101,13 +101,13 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
         collectAllInputs(data, right_sample_block);
 }
 
-void StorageJoinFromReadBuffer::buildJoin(Blocks & data, const Block header, std::shared_ptr<DB::TableJoin> analyzed_join)
+void StorageJoinFromReadBuffer::buildJoin(const Blocks & data, const Block & header, std::shared_ptr<DB::TableJoin> analyzed_join)
 {
     auto build_join = [&]
     {
-        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
-        for (Block block : data)
-            join->addBlockToJoin(std::move(block), true);
+        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count, "", false);
+        for (const Block& block : data)
+            join->addBlockToJoin(block, true);
     };
     /// Record memory usage in Total Memory Tracker
     ThreadFromGlobalPoolNoTracingContextPropagation thread(build_join);
@@ -132,7 +132,7 @@ void StorageJoinFromReadBuffer::buildJoinLazily(DB::Block header, std::shared_pt
         std::unique_lock lock(join_mutex);
         if (join)
             return;
-        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
+        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count, "", false);
         while (!input_blocks.empty())
         {
             auto & block = *input_blocks.begin();
@@ -154,11 +154,11 @@ void StorageJoinFromReadBuffer::buildJoinLazily(DB::Block header, std::shared_pt
 }
 
 
-/// The column names of 'rgiht_header' could be different from the ones in `input_blocks`, and we must
+/// The column names of 'right_header' could be different from the ones in `input_blocks`, and we must
 /// use 'right_header' to build the HashJoin. Otherwise, it will cause exceptions with name mismatches.
 ///
 /// In most cases, 'getJoinLocked' is called only once, and the input_blocks should not be too large.
-/// This is will be OK.
+/// This will be OK.
 DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/)
 {
     if ((analyzed_join->forceNullableRight() && !use_nulls)

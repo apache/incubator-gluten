@@ -110,26 +110,32 @@ trait PullOutProjectHelper {
       newResultExpressions: Seq[NamedExpression] = agg.resultExpressions
   ): BaseAggregateExec = agg match {
     case hash: HashAggregateExec =>
-      hash.copy(
+      val newHash = hash.copy(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
         aggregateAttributes = newAggregateAttributes,
         resultExpressions = newResultExpressions
       )
+      newHash.copyTagsFrom(hash)
+      newHash
     case sort: SortAggregateExec =>
-      sort.copy(
+      val newSort = sort.copy(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
         aggregateAttributes = newAggregateAttributes,
         resultExpressions = newResultExpressions
       )
+      newSort.copyTagsFrom(sort)
+      newSort
     case objectHash: ObjectHashAggregateExec =>
-      objectHash.copy(
+      val newObjectHash = objectHash.copy(
         groupingExpressions = newGroupingExpressions,
         aggregateExpressions = newAggregateExpressions,
         aggregateAttributes = newAggregateAttributes,
         resultExpressions = newResultExpressions
       )
+      newObjectHash.copyTagsFrom(objectHash)
+      newObjectHash
     case _ =>
       throw new GlutenNotSupportException(s"Unsupported agg $agg")
   }
@@ -148,7 +154,9 @@ trait PullOutProjectHelper {
           .asInstanceOf[AggregateFunction]
         val newFilter =
           ae.filter.map(replaceExpressionWithAttribute(_, expressionMap))
-        ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
+        val newAe = ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
+        newAe.copyTagsFrom(ae)
+        newAe
       case _ => ae
     }
   }
@@ -265,6 +273,8 @@ trait PullOutProjectHelper {
         we.windowSpec.copy(frameSpecification = newFrame)
       case _ => we.windowSpec
     }
-    we.copy(windowFunction = newWindowFunc, windowSpec = newWindowSpec)
+    val newWe = we.copy(windowFunction = newWindowFunc, windowSpec = newWindowSpec)
+    newWe.copyTagsFrom(we)
+    newWe
   }
 }

@@ -34,6 +34,7 @@ import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -49,10 +50,14 @@ import scala.collection.mutable.ArrayBuffer
 
 case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 
-case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null)
+case class WholeStageTransformContext(
+    root: PlanNode,
+    substraitContext: SubstraitContext = null,
+    enableCudf: Boolean = false)
 
 /** Base interface for a query plan that can be interpreted to Substrait representation. */
 trait TransformSupport extends ValidatablePlan {
+
   override def batchType(): Convention.BatchType = {
     BackendsApiManager.getSettings.primaryBatchType
   }
@@ -65,6 +70,15 @@ trait TransformSupport extends ValidatablePlan {
     throw new UnsupportedOperationException(
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
+
+  protected def isCudf: Boolean = getTagValue[Boolean](CudfTag.CudfTag).getOrElse(false)
+
+  // Use super.nodeName will cause exception scala 213 Super calls can only target methods
+  // for FileSourceScan.
+  override def nodeName: String =
+    if (isCudf) {
+      "Cudf" + getClass.getSimpleName.replaceAll("Exec$", "")
+    } else getClass.getSimpleName
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
@@ -245,7 +259,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
 
-    WholeStageTransformContext(planNode, substraitContext)
+    WholeStageTransformContext(planNode, substraitContext, isCudf)
   }
 
   def doWholeStageTransform(): WholeStageTransformContext = {
@@ -346,7 +360,8 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         wsCtx.substraitContext.registeredRelMap,
         wsCtx.substraitContext.registeredJoinParams,
         wsCtx.substraitContext.registeredAggregationParams
-      )
+      ),
+      wsCtx.enableCudf
     )
 
     SoftAffinity.updateFilePartitionLocations(allInputPartitions, rdd.id)
@@ -533,4 +548,8 @@ class ColumnarInputRDDsWrapper(columnarInputRDDs: Seq[RDD[ColumnarBatch]]) exten
         it :: Nil
     }
   }
+}
+
+object CudfTag {
+  val CudfTag = TreeNodeTag[Boolean]("org.apache.gluten.CudfTag")
 }

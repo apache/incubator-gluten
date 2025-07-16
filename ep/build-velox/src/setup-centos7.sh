@@ -60,7 +60,7 @@ function install_cmake {
 
 function install_ninja {
   cd "${DEPENDENCY_DIR}"
-  github_checkout ninja-build/ninja v1.11.1
+  github_checkout ninja-build/ninja v1.11.1 --depth 1
   ./configure.py --bootstrap
   cmake -Bbuild-cmake
   cmake --build build-cmake
