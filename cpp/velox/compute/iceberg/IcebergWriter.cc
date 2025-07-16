@@ -47,24 +47,26 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
   for (auto i = 0; i < columnNames.size(); ++i) {
     if (std::find(partitionColumns.begin(), partitionColumns.end(), columnNames[i]) != partitionColumns.end()) {
       columnHandles.push_back(
-        std::make_shared<connector::hive::HiveColumnHandle>(
-            columnNames.at(i),
-            connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
-            columnTypes.at(i),
-            columnTypes.at(i)));
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              columnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
+              columnTypes.at(i),
+              columnTypes.at(i)));
     } else {
       columnHandles.push_back(
-        std::make_shared<connector::hive::HiveColumnHandle>(
-            columnNames.at(i),
-            connector::hive::HiveColumnHandle::ColumnType::kRegular,
-            columnTypes.at(i),
-            columnTypes.at(i)));
-  }
-  std::shared_ptr<const connector::hive::LocationHandle> locationHandle = std::make_shared<connector::hive::LocationHandle>(
-    outputDirectoryPath, outputDirectoryPath, connector::hive::LocationHandle::TableType::kExisting);
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              columnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kRegular,
+              columnTypes.at(i),
+              columnTypes.at(i)));
+    }
+    std::shared_ptr<const connector::hive::LocationHandle> locationHandle =
+        std::make_shared<connector::hive::LocationHandle>(
+            outputDirectoryPath, outputDirectoryPath, connector::hive::LocationHandle::TableType::kExisting);
 
-  return std::make_shared<connector::hive::iceberg::IcebergInsertTableHandle>(
-      columnHandles, locationHandle, spec, fileFormat, nullptr, compressionKind);
+    return std::make_shared<connector::hive::iceberg::IcebergInsertTableHandle>(
+        columnHandles, locationHandle, spec, fileFormat, nullptr, compressionKind);
+  }
 }
 
 } // namespace
