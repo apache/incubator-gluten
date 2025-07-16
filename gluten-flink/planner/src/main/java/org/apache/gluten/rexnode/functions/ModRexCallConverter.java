@@ -37,7 +37,7 @@ public class ModRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public ValidationResult doValidate(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     // Modulus operation is supported for numeric types.
     boolean typesValidate =
         callNode.getOperands().size() == 2

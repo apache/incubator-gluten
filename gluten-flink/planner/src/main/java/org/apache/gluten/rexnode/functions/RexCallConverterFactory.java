@@ -79,7 +79,7 @@ public class RexCallConverterFactory {
             .map(RexCallConverterBuilder::build)
             .filter(
                 c -> {
-                  ValidationResult validationResult = c.doValidate(callNode, context);
+                  ValidationResult validationResult = c.isSuitable(callNode, context);
                   if (!validationResult.isOk()) {
                     failureMessages.add(
                         c.getClass().getName() + ": " + validationResult.getMessage());

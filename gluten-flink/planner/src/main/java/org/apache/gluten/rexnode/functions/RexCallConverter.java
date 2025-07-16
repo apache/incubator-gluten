@@ -27,5 +27,5 @@ public interface RexCallConverter {
   // Let the Converter decide how to build the arguments.
   TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
 
-  ValidationResult doValidate(RexCall callNode, RexConversionContext context);
+  ValidationResult isSuitable(RexCall callNode, RexConversionContext context);
 }

@@ -39,7 +39,7 @@ class StringCompareRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public ValidationResult doValidate(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     // This converter supports string comparison functions.
     boolean typesValidate =
         callNode.getOperands().stream()
@@ -69,7 +69,7 @@ class StringNumberCompareRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public ValidationResult doValidate(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     // This converter supports string and numeric comparison functions.
     List<Type> paramTypes =
         callNode.getOperands().stream()

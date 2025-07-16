@@ -46,7 +46,7 @@ abstract class BaseRexCallConverter implements RexCallConverter {
   }
 
   @Override
-  public ValidationResult doValidate(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     // Default implementation assumes all RexCall nodes are supported.
     // Subclasses can override this method to provide specific support checks.
     return ValidationResult.success();
@@ -80,7 +80,7 @@ class BasicArithmeticOperatorRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public ValidationResult doValidate(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     boolean typesValidate =
         callNode.getOperands().stream()
             .allMatch(param -> TypeUtils.isNumericType(RexNodeConverter.toType(param.getType())));

@@ -39,7 +39,7 @@ class SubtractRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public ValidationResult doValidate(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     // Subtraction operation is supported for numeric types.
     List<Type> paramTypes =
         callNode.getOperands().stream()
