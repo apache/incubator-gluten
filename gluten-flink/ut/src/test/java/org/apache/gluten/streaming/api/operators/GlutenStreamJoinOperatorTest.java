@@ -18,193 +18,187 @@ package org.apache.gluten.streaming.api.operators;
 
 import org.apache.gluten.table.runtime.operators.GlutenVectorTwoInputOperator;
 
-import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
-
-import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.planner.calcite.FlinkRexBuilder;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.gluten.streaming.api.operators.utils.RowDataTestUtils.checkEquals;
+import static org.apache.flink.table.data.StringData.fromString;
 
 public class GlutenStreamJoinOperatorTest extends GlutenStreamJoinOperatorTestBase {
 
+  private static FlinkTypeFactory typeFactory;
+  private static RexBuilder rexBuilder;
+  private static List<RowData> leftTestData;
+  private static List<RowData> rightTestData;
+
+  @BeforeAll
+  public static void setupTestData() {
+    typeFactory =
+        new FlinkTypeFactory(
+            Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
+    rexBuilder = new FlinkRexBuilder(typeFactory);
+
+    leftTestData =
+        Arrays.asList(
+            GenericRowData.of(
+                fromString("Ord#1"),
+                fromString("LineOrd#1"),
+                fromString("3 Bellevue Drive, Pottstown, PA 19464")),
+            GenericRowData.of(
+                fromString("Ord#1"),
+                fromString("LineOrd#2"),
+                fromString("3 Bellevue Drive, Pottstown, PA 19464")),
+            GenericRowData.of(
+                fromString("Ord#2"),
+                fromString("LineOrd#3"),
+                fromString("68 Manor Station Street, Honolulu, HI 96815")));
+
+    rightTestData =
+        Arrays.asList(
+            GenericRowData.of(fromString("LineOrd#2"), fromString("AIR")),
+            GenericRowData.of(fromString("LineOrd#3"), fromString("TRUCK")),
+            GenericRowData.of(fromString("LineOrd#4"), fromString("SHIP")));
+  }
+
   @Test
   public void testInnerJoin() throws Exception {
-    GlutenVectorTwoInputOperator operator = createJoinOperator(FlinkJoinType.INNER);
-    TwoInputStreamOperatorTestHarness<StatefulRecord, StatefulRecord, RowData> harness =
-        createTestHarness(operator);
-
-    processLeftTestData(harness, leftTestData);
-    processRightTestData(harness, rightTestData);
-
-    List<RowData> actualOutput = extractOutputFromHarness(harness);
+    GlutenVectorTwoInputOperator operator = createGlutenJoinOperator(FlinkJoinType.INNER);
 
     List<RowData> expectedOutput =
         Arrays.asList(
             GenericRowData.of(
-                StringData.fromString("Ord#1"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("3 Bellevue Drive, Pottstown, PA 19464"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("AIR")),
+                fromString("Ord#1"),
+                fromString("LineOrd#2"),
+                fromString("3 Bellevue Drive, Pottstown, PA 19464"),
+                fromString("LineOrd#2"),
+                fromString("AIR")),
             GenericRowData.of(
-                StringData.fromString("Ord#2"),
-                StringData.fromString("LineOrd#3"),
-                StringData.fromString("68 Manor Station Street, Honolulu, HI 96815"),
-                StringData.fromString("LineOrd#3"),
-                StringData.fromString("TRUCK")));
-
-    checkEquals(actualOutput, expectedOutput, outputRowType.getChildren());
-    harness.close();
+                fromString("Ord#2"),
+                fromString("LineOrd#3"),
+                fromString("68 Manor Station Street, Honolulu, HI 96815"),
+                fromString("LineOrd#3"),
+                fromString("TRUCK")));
+    executeJoinTest(operator, leftTestData, rightTestData, expectedOutput);
   }
 
   @Test
   @Disabled
   public void testLeftJoin() throws Exception {
-    GlutenVectorTwoInputOperator operator = createJoinOperator(FlinkJoinType.LEFT);
-    TwoInputStreamOperatorTestHarness<StatefulRecord, StatefulRecord, RowData> harness =
-        createTestHarness(operator);
-
-    processLeftTestData(harness, leftTestData);
-    processRightTestData(harness, rightTestData);
-
-    List<RowData> actualOutput = extractOutputFromHarness(harness);
+    GlutenVectorTwoInputOperator operator = createGlutenJoinOperator(FlinkJoinType.LEFT);
 
     List<RowData> expectedOutput =
         Arrays.asList(
             GenericRowData.of(
-                StringData.fromString("Ord#1"),
-                StringData.fromString("LineOrd#1"),
-                StringData.fromString("3 Bellevue Drive, Pottstown, PA 19464"),
+                fromString("Ord#1"),
+                fromString("LineOrd#1"),
+                fromString("3 Bellevue Drive, Pottstown, PA 19464"),
                 null,
                 null),
             GenericRowData.of(
-                StringData.fromString("Ord#1"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("3 Bellevue Drive, Pottstown, PA 19464"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("AIR")),
+                fromString("Ord#1"),
+                fromString("LineOrd#2"),
+                fromString("3 Bellevue Drive, Pottstown, PA 19464"),
+                fromString("LineOrd#2"),
+                fromString("AIR")),
             GenericRowData.of(
-                StringData.fromString("Ord#2"),
-                StringData.fromString("LineOrd#3"),
-                StringData.fromString("68 Manor Station Street, Honolulu, HI 96815"),
-                StringData.fromString("LineOrd#3"),
-                StringData.fromString("TRUCK")));
-
-    checkEquals(actualOutput, expectedOutput, outputRowType.getChildren());
-    harness.close();
+                fromString("Ord#2"),
+                fromString("LineOrd#3"),
+                fromString("68 Manor Station Street, Honolulu, HI 96815"),
+                fromString("LineOrd#3"),
+                fromString("TRUCK")));
+    executeJoinTest(operator, leftTestData, rightTestData, expectedOutput);
   }
 
   @Test
   @Disabled
   public void testRightJoin() throws Exception {
-    GlutenVectorTwoInputOperator operator = createJoinOperator(FlinkJoinType.RIGHT);
-    TwoInputStreamOperatorTestHarness<StatefulRecord, StatefulRecord, RowData> harness =
-        createTestHarness(operator);
-
-    processLeftTestData(harness, leftTestData);
-    processRightTestData(harness, rightTestData);
-
-    List<RowData> actualOutput = extractOutputFromHarness(harness);
+    GlutenVectorTwoInputOperator operator = createGlutenJoinOperator(FlinkJoinType.RIGHT);
 
     List<RowData> expectedOutput =
         Arrays.asList(
             GenericRowData.of(
-                StringData.fromString("Ord#1"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("3 Bellevue Drive, Pottstown, PA 19464"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("AIR")),
+                fromString("Ord#1"),
+                fromString("LineOrd#2"),
+                fromString("3 Bellevue Drive, Pottstown, PA 19464"),
+                fromString("LineOrd#2"),
+                fromString("AIR")),
             GenericRowData.of(
-                StringData.fromString("Ord#2"),
-                StringData.fromString("LineOrd#3"),
-                StringData.fromString("68 Manor Station Street, Honolulu, HI 96815"),
-                StringData.fromString("LineOrd#3"),
-                StringData.fromString("TRUCK")),
-            GenericRowData.of(
-                null,
-                null,
-                null,
-                StringData.fromString("LineOrd#4"),
-                StringData.fromString("SHIP")));
+                fromString("Ord#2"),
+                fromString("LineOrd#3"),
+                fromString("68 Manor Station Street, Honolulu, HI 96815"),
+                fromString("LineOrd#3"),
+                fromString("TRUCK")),
+            GenericRowData.of(null, null, null, fromString("LineOrd#4"), fromString("SHIP")));
 
-    checkEquals(actualOutput, expectedOutput, outputRowType.getChildren());
-    harness.close();
+    executeJoinTest(operator, leftTestData, rightTestData, expectedOutput);
   }
 
   @Test
   @Disabled
   public void testFullOuterJoin() throws Exception {
-    GlutenVectorTwoInputOperator operator = createJoinOperator(FlinkJoinType.FULL);
-    TwoInputStreamOperatorTestHarness<StatefulRecord, StatefulRecord, RowData> harness =
-        createTestHarness(operator);
-
-    processLeftTestData(harness, leftTestData);
-    processRightTestData(harness, rightTestData);
-
-    List<RowData> actualOutput = extractOutputFromHarness(harness);
+    GlutenVectorTwoInputOperator operator = createGlutenJoinOperator(FlinkJoinType.FULL);
 
     List<RowData> expectedOutput =
         Arrays.asList(
             GenericRowData.of(
-                StringData.fromString("Ord#1"),
-                StringData.fromString("LineOrd#1"),
-                StringData.fromString("3 Bellevue Drive, Pottstown, PA 19464"),
+                fromString("Ord#1"),
+                fromString("LineOrd#1"),
+                fromString("3 Bellevue Drive, Pottstown, PA 19464"),
                 null,
                 null),
             GenericRowData.of(
-                StringData.fromString("Ord#1"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("3 Bellevue Drive, Pottstown, PA 19464"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("AIR")),
+                fromString("Ord#1"),
+                fromString("LineOrd#2"),
+                fromString("3 Bellevue Drive, Pottstown, PA 19464"),
+                fromString("LineOrd#2"),
+                fromString("AIR")),
             GenericRowData.of(
-                StringData.fromString("Ord#2"),
-                StringData.fromString("LineOrd#3"),
-                StringData.fromString("68 Manor Station Street, Honolulu, HI 96815"),
-                StringData.fromString("LineOrd#3"),
-                StringData.fromString("TRUCK")),
-            GenericRowData.of(
-                null,
-                null,
-                null,
-                StringData.fromString("LineOrd#4"),
-                StringData.fromString("SHIP")));
+                fromString("Ord#2"),
+                fromString("LineOrd#3"),
+                fromString("68 Manor Station Street, Honolulu, HI 96815"),
+                fromString("LineOrd#3"),
+                fromString("TRUCK")),
+            GenericRowData.of(null, null, null, fromString("LineOrd#4"), fromString("SHIP")));
 
-    checkEquals(actualOutput, expectedOutput, outputRowType.getChildren());
-    harness.close();
+    executeJoinTest(operator, leftTestData, rightTestData, expectedOutput);
   }
 
   @Test
   public void testInnerJoinWithNonEquiCondition() throws Exception {
+    RexNode nonEquiCondition = createNonEquiCondition();
     GlutenVectorTwoInputOperator operator =
-        createJoinOperator(FlinkJoinType.INNER, createNonEquiCondition());
-    TwoInputStreamOperatorTestHarness<StatefulRecord, StatefulRecord, RowData> harness =
-        createTestHarness(operator);
-
-    processLeftTestData(harness, leftTestData);
-    processRightTestData(harness, rightTestData);
-
-    List<RowData> actualOutput = extractOutputFromHarness(harness);
+        createGlutenJoinOperator(FlinkJoinType.INNER, nonEquiCondition);
 
     List<RowData> expectedOutput =
         Arrays.asList(
             GenericRowData.of(
-                StringData.fromString("Ord#1"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("3 Bellevue Drive, Pottstown, PA 19464"),
-                StringData.fromString("LineOrd#2"),
-                StringData.fromString("AIR")));
+                fromString("Ord#1"),
+                fromString("LineOrd#2"),
+                fromString("3 Bellevue Drive, Pottstown, PA 19464"),
+                fromString("LineOrd#2"),
+                fromString("AIR")));
 
-    checkEquals(actualOutput, expectedOutput, outputRowType.getChildren());
-    harness.close();
+    executeJoinTest(operator, leftTestData, rightTestData, expectedOutput);
+  }
+
+  private RexNode createNonEquiCondition() {
+    RexNode leftField = rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.CHAR, 20), 0);
+    RexNode rightField =
+        rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.CHAR, 10), 4);
+    return rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, leftField, rightField);
   }
 }
