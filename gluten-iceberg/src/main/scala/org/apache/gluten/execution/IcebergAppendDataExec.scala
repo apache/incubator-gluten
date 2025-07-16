@@ -16,9 +16,10 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.iceberg.{FileFormat, PartitionSpec}
+import org.apache.iceberg.{FileFormat, PartitionField, PartitionSpec, Schema}
 import org.apache.iceberg.TableProperties.{ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT, PARQUET_COMPRESSION, PARQUET_COMPRESSION_DEFAULT}
 import org.apache.iceberg.spark.source.IcebergWriteUtil
+import org.apache.iceberg.types.Type.TypeID
 
 import scala.collection.JavaConverters._
 
@@ -49,6 +50,12 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
     IcebergWriteUtil.getPartitionSpec(write)
   }
 
+  private def validatePartitionType(schema: Schema, field: PartitionField): Boolean = {
+    val partitionType = schema.findType(field.sourceId())
+    val unSupportType = Seq(TypeID.DOUBLE, TypeID.FLOAT, TypeID.BINARY, TypeID.DECIMAL)
+    !unSupportType.contains(partitionType.typeId())
+  }
+
   override def doValidateInternal(): ValidationResult = {
     if (!IcebergWriteUtil.isDataWrite(write)) {
       return ValidationResult.failed(s"Not support the write ${write.getClass.getSimpleName}")
@@ -57,21 +64,19 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
       return ValidationResult.failed("Contains unsupported data type")
     }
     val spec = IcebergWriteUtil.getTable(write).spec()
-    // TODO: check the partition column data type, only some data type is supported.
-    // Not support nest column as partition column now.
-    if (
-      spec.isPartitioned && spec
-        .fields()
-        .asScala
-        .exists(
-          p =>
-            !p.transform().isIdentity || !spec
-              .schema()
-              .columns()
-              .stream()
-              .anyMatch(c => c.fieldId() == p.sourceId()))
-    ) {
-      return ValidationResult.failed("Not support write non identity partition table")
+    if (spec.isPartitioned) {
+      val topIds = spec.schema().columns().asScala.map(c => c.fieldId())
+      if (
+        spec
+          .fields()
+          .stream()
+          .anyMatch(
+            f =>
+              !f.transform().isIdentity
+                || !validatePartitionType(spec.schema(), f) || !topIds.contains(f.sourceId()))
+      )
+        return ValidationResult.failed(
+          "Not support write non identity partition table, or contains unsupported partition type, or is nested partition column")
     }
     if (IcebergWriteUtil.getTable(write).sortOrder().isSorted) {
       return ValidationResult.failed("Not support write table with sort order")
@@ -79,7 +84,10 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
     val format = IcebergWriteUtil.getFileFormat(write)
     val supportFormat = format match {
       case FileFormat.PARQUET => true
-      case FileFormat.ORC => true
+      // ORC throws Reason: WriterFactory is not registered for format orc
+      // Retriable: False
+      // Function: getWriterFactory
+      case FileFormat.ORC => false
       case _ => false
     }
     if (!supportFormat) {

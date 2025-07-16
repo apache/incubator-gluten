@@ -24,4 +24,6 @@ public class TestGlutenSparkMetadataColumns extends TestSparkMetadataColumns {
       FileFormat fileFormat, boolean vectorized, int formatVersion) {
     super(fileFormat, vectorized, formatVersion);
   }
+
+
 }
