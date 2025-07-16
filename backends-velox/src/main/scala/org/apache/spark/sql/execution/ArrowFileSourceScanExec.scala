@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.concurrent.duration.NANOSECONDS
@@ -35,8 +34,6 @@ case class ArrowFileSourceScanExec(original: FileSourceScanExec)
   override def output: Seq[Attribute] = original.output
 
   override def doCanonicalize(): FileSourceScanExec = original.doCanonicalize()
-
-  override def getStream: Option[SparkDataStream] = original.stream
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("numOutputRows")

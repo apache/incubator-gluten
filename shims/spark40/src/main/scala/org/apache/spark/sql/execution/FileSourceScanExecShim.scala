@@ -22,6 +22,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, PlanExpression, Predicate}
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -143,4 +144,6 @@ abstract class ArrowFileSourceScanLikeShim(original: FileSourceScanExec)
   override def relation: HadoopFsRelation = original.relation
 
   override def requiredSchema: StructType = original.requiredSchema
+
+  override def getStream: Option[SparkDataStream] = original.stream
 }

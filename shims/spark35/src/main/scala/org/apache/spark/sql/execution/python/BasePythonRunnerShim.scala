@@ -17,10 +17,16 @@
 package org.apache.spark.sql.execution.python
 
 import org.apache.spark.api.python.{BasePythonRunner, ChainedPythonFunctions}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 abstract class BasePythonRunnerShim(
-    funcs: Seq[ChainedPythonFunctions],
+    funcs: Seq[(ChainedPythonFunctions, Long)],
     evalType: Int,
-    argOffsets: Array[Array[Int]])
-  extends BasePythonRunner[ColumnarBatch, ColumnarBatch](funcs, evalType, argOffsets, None) {}
+    argOffsets: Array[Array[Int]],
+    pythonMetrics: Map[String, SQLMetric])
+  extends BasePythonRunner[ColumnarBatch, ColumnarBatch](
+    funcs.map(_._1),
+    evalType,
+    argOffsets,
+    None) {}
