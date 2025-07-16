@@ -29,20 +29,12 @@ using namespace facebook::velox::connector::hive;
 using namespace facebook::velox::connector::hive::iceberg;
 namespace {
 
-std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
-    std::string targetDirectory,
-    std::optional<std::string> writeDirectory = std::nullopt,
-    connector::hive::LocationHandle::TableType tableType = connector::hive::LocationHandle::TableType::kExisting) {
-  return;
-}
-
 std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
     const RowTypePtr& outputRowType,
     const std::string& outputDirectoryPath,
     dwio::common::FileFormat fileFormat,
     facebook::velox::common::CompressionKind compressionKind,
     std::shared_ptr<const IcebergPartitionSpec> spec) {
-      std::cout <<"output directory" << outputDirectoryPath << std::endl;
   std::vector<std::shared_ptr<const connector::hive::HiveColumnHandle>> columnHandles;
 
   std::vector<std::string> columnNames = outputRowType->names();
@@ -127,7 +119,7 @@ std::shared_ptr<const iceberg::IcebergPartitionSpec> parseIcebergPartitionSpec(
     const int32_t length) {
   gluten::IcebergPartitionSpec protoSpec;
   gluten::parseProtobuf(data, length, &protoSpec);
-  std::vector<iceberg::IcebergPartitionField> fields;
+  std::vector<iceberg::IcebergPartitionSpec::Field> fields;
   fields.reserve(protoSpec.fields_size());
 
   for (const auto& protoField : protoSpec.fields()) {
@@ -135,25 +127,25 @@ std::shared_ptr<const iceberg::IcebergPartitionSpec> parseIcebergPartitionSpec(
     iceberg::TransformType transform;
     switch (protoField.transform()) {
       case gluten::IDENTITY:
-        transform = iceberg::TransformType::IDENTITY;
+        transform = iceberg::TransformType::kIdentity;
         break;
       case gluten::YEAR:
-        transform = iceberg::TransformType::YEAR;
+        transform = iceberg::TransformType::kYear;
         break;
       case gluten::MONTH:
-        transform = iceberg::TransformType::MONTH;
+        transform = iceberg::TransformType::kMonth;
         break;
       case gluten::DAY:
-        transform = iceberg::TransformType::DAY;
+        transform = iceberg::TransformType::kDay;
         break;
       case gluten::HOUR:
-        transform = iceberg::TransformType::HOUR;
+        transform = iceberg::TransformType::kHour;
         break;
       case gluten::BUCKET:
-        transform = iceberg::TransformType::BUCKET;
+        transform = iceberg::TransformType::kBucket;
         break;
       case gluten::TRUNCATE:
-        transform = iceberg::TransformType::TRUNCATE;
+        transform = iceberg::TransformType::kTruncate;
         break;
       default:
         throw std::runtime_error("Unknown transform type");
