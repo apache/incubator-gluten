@@ -24,9 +24,8 @@ import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
-
-import org.apache.spark.{ShuffleDependency, SparkException}
+import org.apache.gluten.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializer}
+import org.apache.spark.{ShuffleDependency, SparkEnv, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
@@ -54,11 +53,10 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
-
 import org.apache.commons.lang3.ClassUtils
+import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 
 import javax.ws.rs.core.UriBuilder
-
 import java.util.Locale
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
@@ -550,6 +548,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
   override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
     val conf = GlutenConfig.get
+    //todo: remove isUseCelebornShuffleManager here
     lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
       conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
     partitioning != SinglePartition &&
@@ -608,19 +607,21 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val deserializeTime = metrics("deserializeTime")
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val decompressTime = metrics("decompressTime")
-    if (GlutenConfig.get.isUseCelebornShuffleManager) {
-      val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
-      val constructor =
-        clazz.getConstructor(classOf[StructType], classOf[SQLMetric], classOf[SQLMetric])
-      constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
-    } else {
-      new ColumnarBatchSerializer(
-        schema,
-        readBatchNumRows,
-        numOutputRows,
-        deserializeTime,
-        decompressTime,
-        isSort)
+    val shuffleManager = SparkEnv.get.shuffleManager
+    shuffleManager match {
+      case providedColumnarBatchSerializer: NeedCustomColumnarBatchSerializer =>
+        val clazz = ClassUtils.getClass(providedColumnarBatchSerializer.columnarBatchSerializerClass())
+        val constructor =
+          clazz.getConstructor(classOf[StructType], classOf[SQLMetric], classOf[SQLMetric])
+        constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
+      case _ =>
+        new ColumnarBatchSerializer(
+          schema,
+          readBatchNumRows,
+          numOutputRows,
+          deserializeTime,
+          decompressTime,
+          isSort)
     }
   }
 
