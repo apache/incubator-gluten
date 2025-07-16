@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.connector.write.{ColumnarBatchDataWriterFactory, IcebergDataWriteFactory}
-import org.apache.gluten.proto.{IcebergPartitionField, IcebergPartitionSpec}
 
 import org.apache.spark.sql.connector.write.Write
 import org.apache.spark.sql.execution.SparkPlan
@@ -25,9 +24,6 @@ import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.types.StructType
 
 import org.apache.iceberg.spark.source.IcebergWriteUtil
-import org.apache.iceberg.transforms.IcebergTransformUtil
-
-import java.util.stream.Collectors
 
 case class VeloxIcebergAppendDataExec(query: SparkPlan, refreshCache: () => Unit, write: Write)
   extends IcebergAppendDataExec {
