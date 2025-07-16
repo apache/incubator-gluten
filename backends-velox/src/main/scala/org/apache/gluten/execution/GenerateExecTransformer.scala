@@ -70,7 +70,7 @@ case class GenerateExecTransformer(
   override protected def doGeneratorValidate(
       generator: Generator,
       outer: Boolean): ValidationResult = {
-    if (!supportsGenerate(generator, outer)) {
+    if (!supportsGenerate(generator)) {
       ValidationResult.failed(
         s"Velox backend does not support this generator: ${generator.getClass.getSimpleName}" +
           s", outer: $outer")
@@ -167,7 +167,7 @@ case class GenerateExecTransformer(
 }
 
 object GenerateExecTransformer {
-  def supportsGenerate(generator: Generator, outer: Boolean): Boolean = {
+  def supportsGenerate(generator: Generator): Boolean = {
     generator match {
       case _: Inline | _: ExplodeBase | _: JsonTuple | _: Stack =>
         true
@@ -180,7 +180,7 @@ object GenerateExecTransformer {
 object PullOutGenerateProjectHelper extends PullOutProjectHelper {
   val JSON_PATH_PREFIX = "$."
   def pullOutPreProject(generate: GenerateExec): SparkPlan = {
-    if (GenerateExecTransformer.supportsGenerate(generate.generator, generate.outer)) {
+    if (GenerateExecTransformer.supportsGenerate(generate.generator)) {
       generate.generator match {
         case _: Inline | _: ExplodeBase =>
           val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
@@ -278,7 +278,7 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
   }
 
   def pullOutPostProject(generate: GenerateExec): SparkPlan = {
-    if (GenerateExecTransformer.supportsGenerate(generate.generator, generate.outer)) {
+    if (GenerateExecTransformer.supportsGenerate(generate.generator)) {
       generate.generator match {
         case PosExplode(_) =>
           val originalOrdinal = generate.generatorOutput.head
