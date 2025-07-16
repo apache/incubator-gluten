@@ -28,7 +28,7 @@ import org.apache.gluten.utils.PullOutProjectHelper
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetrics
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.{BooleanType, IntegerType}
 
 import com.google.protobuf.StringValue
 
@@ -132,6 +132,12 @@ case class GenerateExecTransformer(
         .append(if (isStack) "1" else "0")
         .append("\n")
 
+      // isOuter: 1 for outer, 0 for inner.
+      parametersStr
+        .append("isOuter=")
+        .append(if (outer) "1" else "0")
+        .append("\n")
+
       val injectProject = if (isStack) {
         // We always need to inject a Project for stack because we organize
         // stack's flat params into arrays, e.g. stack(2, 1, 2, 3) is
@@ -162,16 +168,11 @@ case class GenerateExecTransformer(
 
 object GenerateExecTransformer {
   def supportsGenerate(generator: Generator, outer: Boolean): Boolean = {
-    // TODO: supports outer and remove this param.
-    if (outer) {
-      false
-    } else {
-      generator match {
-        case _: Inline | _: ExplodeBase | _: JsonTuple | _: Stack =>
-          true
-        case _ =>
-          false
-      }
+    generator match {
+      case _: Inline | _: ExplodeBase | _: JsonTuple | _: Stack =>
+        true
+      case _ =>
+        false
     }
   }
 }
@@ -287,22 +288,76 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
               originalOrdinal.exprId,
               originalOrdinal.qualifier)
           }
-          val newGenerate =
-            generate.copy(generatorOutput = generate.generatorOutput.tail :+ originalOrdinal)
-          ProjectExec(
-            (generate.requiredChildOutput :+ ordinal) ++ generate.generatorOutput.tail,
-            newGenerate)
+
+          if (generate.outer) {
+            val isNullOrEmpty =
+              AttributeReference(generatePostAliasName, BooleanType, nullable = true)()
+
+            val newOutput = (ordinal +: generate.generatorOutput.tail).map {
+              attr =>
+                val caseWhen = CaseWhen(
+                  Seq((isNullOrEmpty, Literal(null, attr.dataType))),
+                  attr
+                )
+                Alias(caseWhen, generatePostAliasName)(attr.exprId, attr.qualifier)
+            }
+
+            // Reorder the generatorOutput to match the output from the Unnest operator in Velox.
+            val newGenerate = generate.copy(generatorOutput =
+              generate.generatorOutput.tail :+ originalOrdinal :+ isNullOrEmpty)
+
+            ProjectExec(generate.requiredChildOutput ++ newOutput, newGenerate)
+          } else {
+            val newGenerate =
+              generate.copy(generatorOutput = generate.generatorOutput.tail :+ originalOrdinal)
+            ProjectExec(
+              (generate.requiredChildOutput :+ ordinal) ++ generate.generatorOutput.tail,
+              newGenerate)
+          }
         case Inline(_) | JsonTupleExplode(_) =>
           val unnestOutput = {
             val struct = CreateStruct(generate.generatorOutput)
             val alias = Alias(struct, generatePostAliasName)()
             alias.toAttribute
           }
-          val newGenerate = generate.copy(generatorOutput = Seq(unnestOutput))
-          val newOutput = generate.generatorOutput.zipWithIndex.map {
-            case (attr, i) =>
-              val getStructField = GetStructField(unnestOutput, i, Some(attr.name))
-              Alias(getStructField, generatePostAliasName)(attr.exprId, attr.qualifier)
+          if (generate.outer) {
+            val isNullOrEmpty =
+              AttributeReference(generatePostAliasName, BooleanType, nullable = true)()
+            val newGenerate = generate.copy(generatorOutput = Seq(unnestOutput) :+ isNullOrEmpty)
+            val newOutput = generate.generatorOutput.zipWithIndex.map {
+              case (attr, i) =>
+                val getStructField = GetStructField(unnestOutput, i, Some(attr.name))
+                val caseWhen = CaseWhen(
+                  Seq((isNullOrEmpty, Literal(null, getStructField.dataType))),
+                  getStructField
+                )
+                Alias(caseWhen, generatePostAliasName)(attr.exprId, attr.qualifier)
+            }
+            ProjectExec(generate.requiredChildOutput ++ newOutput, newGenerate)
+          } else {
+            val newGenerate = generate.copy(generatorOutput = Seq(unnestOutput))
+            val newOutput = generate.generatorOutput.zipWithIndex.map {
+              case (attr, i) =>
+                val getStructField = GetStructField(unnestOutput, i, Some(attr.name))
+                Alias(getStructField, generatePostAliasName)(attr.exprId, attr.qualifier)
+            }
+            ProjectExec(generate.requiredChildOutput ++ newOutput, newGenerate)
+          }
+        case Explode(_) if generate.outer =>
+          // Drop the last column of generatorOutput, which is the boolean representing whether
+          // the null value is unnested from the input array/map (e.g. array(1, null)), or the
+          // array/map itself is null or empty (e.g. array(), map(), null).
+          val isNullOrEmpty =
+            AttributeReference(generatePostAliasName, BooleanType, nullable = true)()
+          val newGenerate =
+            generate.copy(generatorOutput = generate.generatorOutput :+ isNullOrEmpty)
+          val newOutput = generate.generatorOutput.map {
+            attr =>
+              val caseWhen = CaseWhen(
+                Seq((isNullOrEmpty, Literal(null, attr.dataType))),
+                attr
+              )
+              Alias(caseWhen, generatePostAliasName)(attr.exprId, attr.qualifier)
           }
           ProjectExec(generate.requiredChildOutput ++ newOutput, newGenerate)
         case _ => generate
