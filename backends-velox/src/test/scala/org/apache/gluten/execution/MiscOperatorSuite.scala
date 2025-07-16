@@ -947,7 +947,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             }
             runQueryAndCompare(
               s"""
-                 |SELECT $func(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, '', 6, null)));
+                 |SELECT
+                 |  $func(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, '', 6, null)));
                  |""".stripMargin) {
               checkGlutenOperatorMatch[GenerateExecTransformer]
             }
