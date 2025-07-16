@@ -971,8 +971,8 @@ TEST_F(IcebergTest, positionalDeletesMultipleSplits)
 TEST_F(IcebergTest, basic_utils_test)
 {
 
-    context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", true);
-    const  std::string sql = R"(SELECT l_returnflag, l_linestatus FROM file('/home/chang/test/perf/tpch100/lineitem/*.parquet','Parquet') where l_orderkey = 100)";
+    context_->setSetting("input_format_parquet_use_native_reader", true);
+    const  std::string sql = R"(SELECT l_comment FROM file('/home/chang/test/perf/tpch100/lineitem/*.parquet','Parquet') where l_orderkey = 100)";
     auto x = runClickhouseSQL(sql);
     headBlock(x);
 
