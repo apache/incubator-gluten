@@ -51,9 +51,6 @@ case class HudiScanTransformer(
   override lazy val fileFormat: ReadFileFormat = ReadFileFormat.ParquetReadFormat
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (requiredSchema.fields.exists(_.name.startsWith("_hoodie"))) {
-      return ValidationResult.failed(s"Hudi meta field not supported.")
-    }
     super.doValidateInternal()
   }
 
