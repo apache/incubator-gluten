@@ -29,7 +29,7 @@ import org.apache.spark.{ContextAwareIterator, SparkEnv, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
-import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BasePythonRunnerShim, EvalPythonExecBase}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
@@ -240,13 +240,12 @@ case class ColumnarArrowEvalPythonExec(
   override def requiredChildConvention(): Seq[ConventionReq] = List(
     ConventionReq.ofBatch(ConventionReq.BatchType.Is(ArrowJavaBatchType)))
 
-  // Seems the below code can be uncommented.
-  // override lazy val metrics = Map(
-  //   "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-  //   "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
-  //   "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-  //   "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_arrow_udf")
-  // )
+  override lazy val metrics = Map(
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output_batches"),
+    "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_arrow_udf")
+  )
 
   private val sessionLocalTimeZone = conf.sessionLocalTimeZone
 
