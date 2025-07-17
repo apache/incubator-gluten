@@ -74,9 +74,11 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
             f =>
               !f.transform().isIdentity
                 || !validatePartitionType(spec.schema(), f) || !topIds.contains(f.sourceId()))
-      )
+      ) {
         return ValidationResult.failed(
-          "Not support write non identity partition table, or contains unsupported partition type, or is nested partition column")
+          "Not support write non identity partition table," +
+            "or contains unsupported partition type, or is nested partition column")
+      }
     }
     if (IcebergWriteUtil.getTable(write).sortOrder().isSorted) {
       return ValidationResult.failed("Not support write table with sort order")
