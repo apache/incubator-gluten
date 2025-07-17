@@ -16,13 +16,43 @@
  */
 package org.apache.spark.sql.execution.python
 
+import org.apache.spark.SparkEnv
+import org.apache.spark.TaskContext
 import org.apache.spark.api.python.{BasePythonRunner, ChainedPythonFunctions}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.io.DataOutputStream
+import java.net.Socket
 
 abstract class BasePythonRunnerShim(
     funcs: Seq[(ChainedPythonFunctions, Long)],
     evalType: Int,
     argOffsets: Array[Array[Int]],
     pythonMetrics: Map[String, SQLMetric])
-  extends BasePythonRunner[ColumnarBatch, ColumnarBatch](funcs.map(_._1), evalType, argOffsets) {}
+  extends BasePythonRunner[ColumnarBatch, ColumnarBatch](funcs.map(_._1), evalType, argOffsets) {
+  // The type aliases below provide consistent type names in child classes,
+  // ensuring code compatibility with both Spark 4.0 and earlier versions.
+  type Writer = WriterThread
+  type PythonWorker = Socket
+
+  protected def createNewWriter(
+      env: SparkEnv,
+      worker: PythonWorker,
+      inputIterator: Iterator[ColumnarBatch],
+      partitionIndex: Int,
+      context: TaskContext): Writer
+
+  protected def writeUdf(dataOut: DataOutputStream, argOffsets: Array[Array[Int]]): Unit = {
+    PythonUDFRunner.writeUDFs(dataOut, funcs.map(_._1), argOffsets)
+  }
+
+  override protected def newWriterThread(
+      env: SparkEnv,
+      worker: PythonWorker,
+      inputIterator: Iterator[ColumnarBatch],
+      partitionIndex: Int,
+      context: TaskContext): Writer = {
+    createNewWriter(env, worker, inputIterator, partitionIndex, context)
+  }
+}
