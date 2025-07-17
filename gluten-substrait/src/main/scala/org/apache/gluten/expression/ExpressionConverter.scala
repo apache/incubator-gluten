@@ -173,8 +173,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           ExpressionNames.LUHN_CHECK,
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i)
-      case i @ StaticInvoke(_, _, "encode" | "decode", Seq(_, _), _, _, _, _)
-          if i.objectName.endsWith("Base64") =>
+      case i: StaticInvoke
+          if Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith("Base64") =>
         if (!SQLConf.get.getConfString("spark.sql.chunkBase64String.enabled", "true").toBoolean) {
           throw new GlutenNotSupportException(
             "Base64 with chunkBase64String disabled is not supported in gluten.")
@@ -184,7 +184,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i
         )
-      case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
+      case i: StaticInvoke =>
         throw new GlutenNotSupportException(
           s"Not supported to transform StaticInvoke with object: ${i.staticObject.getName}, " +
             s"function: $i.functionName")

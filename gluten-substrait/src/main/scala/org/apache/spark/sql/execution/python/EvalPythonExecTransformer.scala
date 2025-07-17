@@ -27,9 +27,6 @@ import org.apache.gluten.substrait.expression._
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel._
 
-import org.apache.spark.TaskContext
-import org.apache.spark.api.python.ChainedPythonFunctions
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.python.EvalPythonExecBase

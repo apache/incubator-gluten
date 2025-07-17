@@ -318,6 +318,6 @@ trait SparkShims {
   def getCollectLimitOffset(plan: CollectLimitExec): Int = 0
 
   def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = false
-  
+
   def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType
 }
