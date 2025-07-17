@@ -14,10 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.shuffle
+package org.apache.spark.shuffle
 
-trait SupportsColumnarShuffle
+import org.apache.gluten.backendsapi.velox.VeloxBackend
+import org.apache.spark.shuffle.gluten.celeborn.CelebornColumnarBatchSerializerFactory
 
-trait NeedCustomColumnarBatchSerializer {
-  def columnarBatchSerializerClass(): String
+class VeloxCelebornColumnarBatchSerlizerFactory extends CelebornColumnarBatchSerializerFactory {
+  override def backendName(): String = VeloxBackend.BACKEND_NAME
+
+  override def columnarBatchSerializerClass(): String = "org.apache.spark.shuffle.CelebornColumnarBatchSerializer"
 }
