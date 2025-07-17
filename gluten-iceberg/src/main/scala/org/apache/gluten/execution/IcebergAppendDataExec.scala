@@ -84,16 +84,8 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
       return ValidationResult.failed("Not support write table with sort order")
     }
     val format = IcebergWriteUtil.getFileFormat(write)
-    val supportFormat = format match {
-      case FileFormat.PARQUET => true
-      // ORC throws Reason: WriterFactory is not registered for format orc
-      // Retriable: False
-      // Function: getWriterFactory
-      case FileFormat.ORC => false
-      case _ => false
-    }
-    if (!supportFormat) {
-      return ValidationResult.failed("Not support this format " + format)
+    if (format != FileFormat.PARQUET) {
+      return ValidationResult.failed("Not support this format " + format.name())
     }
 
     val codec = getCodec
