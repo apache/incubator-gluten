@@ -37,6 +37,8 @@ function prepare_arrow_build() {
 function build_arrow_cpp() {
   pushd $ARROW_PREFIX/cpp
   ARROW_WITH_ZLIB=ON
+  # The zlib version bundled with arrow is not compatible with clang 17.
+  # It can be removed after upgrading the arrow version.
   if [[ "$(uname)" == "Darwin" ]]; then
     clang_major_version=$(echo | clang -dM -E - | grep __clang_major__ | awk '{print $3}')
     if [ "${clang_major_version}" -ge 17 ]; then

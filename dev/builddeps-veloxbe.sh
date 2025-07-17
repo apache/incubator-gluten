@@ -44,15 +44,10 @@ ENABLE_ENHANCED_FEATURES=OFF
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
 VELOX_BRANCH=""
-VELOX_HOME=""
+VELOX_HOME="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
 VELOX_PARAMETER=""
 BUILD_ARROW=ON
 SPARK_VERSION=ALL
-if [[ "$(uname)" == "Darwin" ]]; then
-    INSTALL_PREFIX=${INSTALL_PREFIX:-}
-else
-    INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
-fi
 
 # set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -173,6 +168,12 @@ do
     esac
 done
 
+if [[ "$(uname)" == "Darwin" ]]; then
+    INSTALL_PREFIX=${INSTALL_PREFIX:-${VELOX_HOME}/deps-install}
+else
+    INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
+fi
+
 function concat_velox_param {
     # check velox repo
     if [[ -n $VELOX_REPO ]]; then
@@ -255,12 +256,7 @@ function build_gluten_cpp {
     -DENABLE_ENHANCED_FEATURES=$ENABLE_ENHANCED_FEATURES"
 
   if [ $OS == 'Darwin' ]; then
-    if [ -n "$INSTALL_PREFIX" ]; then
-      DEPS_INSTALL_DIR=$INSTALL_PREFIX
-    else
-      DEPS_INSTALL_DIR=$VELOX_HOME/deps-install
-    fi
-    GLUTEN_CMAKE_OPTIONS+=" -DCMAKE_PREFIX_PATH=$DEPS_INSTALL_DIR"
+    GLUTEN_CMAKE_OPTIONS+=" -DCMAKE_PREFIX_PATH=$INSTALL_PREFIX"
   fi
 
   cmake $GLUTEN_CMAKE_OPTIONS ..
@@ -279,10 +275,6 @@ function build_velox_backend {
   cd $GLUTEN_DIR/ep/build-velox/src
   ./get_velox.sh $VELOX_PARAMETER
 )
-
-if [ "$VELOX_HOME" == "" ]; then
-  VELOX_HOME="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
-fi
 
 OS=`uname -s`
 ARCH=`uname -m`
