@@ -90,7 +90,8 @@ object IcebergWriteUtil {
   def getDirectory(write: Write): String = {
     val field = classOf[SparkWrite].getDeclaredField("table")
     field.setAccessible(true)
-    getTable(write).locationProvider().newDataLocation("")
+    val loc = getTable(write).locationProvider().newDataLocation("")
+    loc.substring(0, loc.length - 1)
   }
 
   def getPartitionSpec(write: Write): PartitionSpec = {
