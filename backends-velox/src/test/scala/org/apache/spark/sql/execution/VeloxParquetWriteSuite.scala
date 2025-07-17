@@ -39,7 +39,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
     "snappy" -> ".snappy",
     "gzip" -> ".gz",
     "lzo" -> ".lzo",
-    "lz4" -> ".lz4",
+    "lz4" -> ".lz4hadoop",
     "brotli" -> ".br",
     "zstd" -> ".zstd"
   )

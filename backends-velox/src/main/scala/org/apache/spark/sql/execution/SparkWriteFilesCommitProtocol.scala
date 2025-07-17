@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.io.{FileCommitProtocol, HadoopMapReduceCommitProtocol}
+import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
 import org.apache.spark.sql.execution.datasources.WriteJobDescription
 import org.apache.spark.util.Utils
 
@@ -28,6 +28,8 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
 import java.lang.reflect.Field
+
+import scala.collection.mutable
 
 /**
  * A wrapper for [[HadoopMapReduceCommitProtocol]]. This class only affects the task side commit
@@ -48,6 +50,8 @@ class SparkWriteFilesCommitProtocol(
 
   private val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
   private val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
+
+  private var fileNames: mutable.Set[String] = null
 
   // Set up the attempt context required to use in the output committer.
   val taskAttemptContext: TaskAttemptContext = {
@@ -70,9 +74,21 @@ class SparkWriteFilesCommitProtocol(
 
   def setupTask(): Unit = {
     committer.setupTask(taskAttemptContext)
+    fileNames = mutable.Set[String]()
   }
 
   def getJobId: String = jobId.toString
+
+  // Copied from `HadoopMapReduceCommitProtocol.getFilename`.
+  def getFilename(spec: FileNameSpec): String = {
+    // The file name looks like part-00000-2dd664f9-d2c4-4ffe-878f-c6c70c1fb0cb_00003-c000.parquet
+    // Note that %05d does not truncate the split number, so if we have more than 100000 tasks,
+    // the file name is fine and won't overflow.
+    val split = taskAttemptContext.getTaskAttemptID.getTaskID.getId
+    val fileName = f"${spec.prefix}part-$split%05d-$jobId${spec.suffix}"
+    fileNames += fileName
+    fileName
+  }
 
   def newTaskAttemptTempPath(): String = {
     assert(internalCommitter != null)
@@ -100,8 +116,11 @@ class SparkWriteFilesCommitProtocol(
   def abortTask(writePath: String): Unit = {
     committer.abortTask(taskAttemptContext)
 
-    val tmpPath = new Path(writePath)
-    tmpPath.getFileSystem(taskAttemptContext.getConfiguration).delete(tmpPath, true)
+    // Deletes the files written by current task.
+    for (fileName <- fileNames) {
+      val filePath = new Path(writePath, fileName)
+      filePath.getFileSystem(taskAttemptContext.getConfiguration).delete(filePath, false)
+    }
   }
 
   // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version

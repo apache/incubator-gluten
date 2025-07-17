@@ -217,7 +217,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
   }
 
   override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
-    NativePlanEvaluator.injectWriteFilesTempPath(path)
+    NativePlanEvaluator.injectWriteFilesTempPath(path, fileName)
   }
 
   /** Generate Iterator[ColumnarBatch] for first stage. */
