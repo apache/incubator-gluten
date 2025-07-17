@@ -37,7 +37,8 @@ arrow::Status RssPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
       spillTime_ -= compressTime_;
     }
     RETURN_NOT_OK(rssOs_->Flush());
-    ARROW_ASSIGN_OR_RAISE(bytesEvicted_[lastEvictedPartitionId_], rssOs_->Tell());
+    ARROW_ASSIGN_OR_RAISE(const auto evicted, rssOs_->Tell());
+    bytesEvicted_[lastEvictedPartitionId_] += evicted;
     RETURN_NOT_OK(rssOs_->Close());
   }
 
@@ -77,7 +78,8 @@ RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayl
         RETURN_NOT_OK(compressedOs_->Flush());
       }
       RETURN_NOT_OK(rssOs_->Flush());
-      ARROW_ASSIGN_OR_RAISE(bytesEvicted_[lastEvictedPartitionId_], rssOs_->Tell());
+      ARROW_ASSIGN_OR_RAISE(const auto evicted, rssOs_->Tell());
+      bytesEvicted_[lastEvictedPartitionId_] += evicted;
       RETURN_NOT_OK(rssOs_->Close());
     }
 
@@ -94,7 +96,7 @@ RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayl
     lastEvictedPartitionId_ = partitionId;
   }
 
-  rawPartitionLengths_[partitionId] = inMemoryPayload->rawSize();
+  rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
   if (compressedOs_ != nullptr) {
     RETURN_NOT_OK(inMemoryPayload->serialize(compressedOs_.get()));
   } else {
