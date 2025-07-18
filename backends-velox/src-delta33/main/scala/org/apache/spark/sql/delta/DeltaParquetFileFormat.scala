@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,13 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.delta
 
-import scala.collection.mutable.ArrayBuffer
-import scala.util.control.NonFatal
-
-import org.apache.spark.sql.delta.RowIndexFilterType
+import org.apache.spark.internal.{LoggingShims, MDC}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.DeltaParquetFileFormat._
 import org.apache.spark.sql.delta.actions.{DeletionVectorDescriptor, Metadata, Protocol}
 import org.apache.spark.sql.delta.commands.DeletionVectorUtils.deletionVectorsReadable
@@ -27,27 +26,27 @@ import org.apache.spark.sql.delta.deletionvectors.{DropMarkedRowsFilter, KeepAll
 import org.apache.spark.sql.delta.logging.DeltaLogKeys
 import org.apache.spark.sql.delta.schema.SchemaMergingUtils
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.util.ScalaExtensions._
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.mapreduce.Job
-import org.apache.parquet.hadoop.ParquetOutputFormat
-import org.apache.parquet.hadoop.util.ContextUtil
-
-import org.apache.spark.internal.{LoggingShims, MDC}
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.FileSourceConstantMetadataStructField
 import org.apache.spark.sql.execution.datasources.OutputWriterFactory
 import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector, WritableColumnVector}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources._
-import org.apache.spark.sql.types.{ByteType, LongType, MetadataBuilder, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{ByteType, LongType, MetadataBuilder, StructField, StructType}
+import org.apache.spark.sql.util.ScalaExtensions._
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnarBatchRow, ColumnVector}
 import org.apache.spark.util.SerializableConfiguration
 
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.mapreduce.Job
+import org.apache.parquet.hadoop.ParquetOutputFormat
+import org.apache.parquet.hadoop.util.ContextUtil
+
+import scala.collection.mutable.ArrayBuffer
+import scala.util.control.NonFatal
+
+// spotless:off
 /**
  * A thin wrapper over the Parquet file format to support
  *  - columns names without restrictions.
@@ -62,7 +61,7 @@ case class DeltaParquetFileFormat(
                                    optimizationsEnabled: Boolean = true,
                                    tablePath: Option[String] = None,
                                    isCDCRead: Boolean = false)
-  extends ParquetFileFormat
+  extends GlutenParquetFileFormat
     with LoggingShims {
   // Validate either we have all arguments for DV enabled read or none of them.
   if (hasTablePath) {
@@ -90,6 +89,10 @@ case class DeltaParquetFileFormat(
     require(SparkSession.getActiveSession.exists(_.sessionState.conf.getConf(requiredWriteConf)),
       s"${requiredWriteConf.key} must be enabled to support Delta id column mapping mode")
   }
+
+  override def shortName(): String = "parquet"
+
+  override def toString: String = "Parquet"
 
   /**
    * prepareSchemaForRead must only be used for parquet read.
@@ -613,3 +616,4 @@ object DeltaParquetFileFormat {
   /** Helper class to encapsulate column info */
   case class ColumnMetadata(index: Int, structField: StructField)
 }
+// spotless:on
