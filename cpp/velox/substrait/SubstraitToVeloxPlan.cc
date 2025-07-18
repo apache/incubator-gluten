@@ -1091,6 +1091,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
 
   return std::make_shared<core::TopNRowNumberNode>(
       nextPlanNodeId(),
+      core::TopNRowNumberNode::RankFunction::kRowNumber,
       partitionKeys,
       sortingKeys,
       sortingOrders,
