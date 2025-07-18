@@ -18,8 +18,6 @@ package org.apache.gluten.connector.write;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.List;
-
 public class DataFileJson {
   @JsonProperty public String path;
 
