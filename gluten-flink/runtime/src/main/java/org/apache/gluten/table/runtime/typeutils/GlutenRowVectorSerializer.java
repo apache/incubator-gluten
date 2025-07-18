@@ -31,11 +31,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /** Serializer for {@link RowVector}. */
 @Internal
-public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
+public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> implements Closeable {
   private static final long serialVersionUID = 1L;
   private final RowType rowType;
   private MemoryManager memoryManager;
@@ -62,12 +63,58 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
     target.write(vectorStr.getBytes());
   }
 
+  private static final ThreadLocal<SerializerResources> THREAD_LOCAL_RESOURCES =
+      ThreadLocal.withInitial(
+          () -> {
+            SerializerResources resources = new SerializerResources();
+            Runtime.getRuntime()
+                .addShutdownHook(
+                    new Thread(
+                        () -> {
+                          try {
+                            resources.close();
+                          } catch (Exception e) {
+                          }
+                        }));
+            return resources;
+          });
+
+  private static class SerializerResources implements Closeable {
+    private MemoryManager memoryManager;
+    private Session session;
+
+    MemoryManager getMemoryManager() {
+      if (memoryManager == null) {
+        memoryManager = MemoryManager.create(AllocationListener.NOOP);
+      }
+      return memoryManager;
+    }
+
+    Session getSession() {
+      if (session == null) {
+        session = Velox4j.newSession(getMemoryManager());
+      }
+      return session;
+    }
+
+    @Override
+    public void close() {
+      if (session != null) {
+        session.close();
+        session = null;
+      }
+      if (memoryManager != null) {
+        memoryManager.close();
+        memoryManager = null;
+      }
+    }
+  }
+
   @Override
   public StatefulRecord deserialize(DataInputView source) throws IOException {
-    if (memoryManager == null) {
-      memoryManager = MemoryManager.create(AllocationListener.NOOP);
-      session = Velox4j.newSession(memoryManager);
-    }
+    SerializerResources resources = THREAD_LOCAL_RESOURCES.get();
+    Session session = resources.getSession();
+
     int len = source.readInt();
     byte[] str = new byte[len];
     source.readFully(str);
@@ -75,6 +122,19 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
     StatefulRecord record = new StatefulRecord(null, 0, 0, false, -1);
     record.setRowVector(rowVector);
     return record;
+  }
+
+  @Override
+  public void close() {
+    SerializerResources resources = THREAD_LOCAL_RESOURCES.get();
+    if (resources != null) {
+      try {
+        resources.close();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      THREAD_LOCAL_RESOURCES.remove();
+    }
   }
 
   @Override
