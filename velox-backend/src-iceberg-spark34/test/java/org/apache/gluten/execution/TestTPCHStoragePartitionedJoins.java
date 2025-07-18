@@ -82,8 +82,6 @@ public class TestTPCHStoragePartitionedJoins extends SparkTestBaseWithCatalog {
     tableNames.forEach(
         table -> {
           String tableDir = tpchBasePath + "/tpch-data-parquet";
-          //            String tableDir =
-          // "/Users/chengchengjin/code/gluten/velox-backend/src/test/resources/tpch-data-parquet";
           String tablePath = new File(tableDir, table).getAbsolutePath();
           Dataset<Row> tableDF = spark.read().format("parquet").load(tablePath);
           tableDF.createOrReplaceTempView(PARQUET_TABLE_PREFIX + table);
