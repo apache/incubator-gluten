@@ -876,13 +876,15 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 
   std::optional<std::string> ordinalityName = std::nullopt;
-  if (generateRel.has_advanced_extension() &&
-      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
-    ordinalityName = std::make_optional<std::string>("pos");
-  }
-
-  // TODO: allow to set this in SQL
   std::optional<std::string> emptyUnnestValueName = std::nullopt;
+  if (generateRel.has_advanced_extension()) {
+    if (SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
+      ordinalityName = std::make_optional<std::string>("pos");
+    }
+    if (SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isOuter=")) {
+      emptyUnnestValueName = std::make_optional<std::string>("empty_unnest");
+    }
+  }
 
   return std::make_shared<core::UnnestNode>(
       nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, emptyUnnestValueName, childNode);
