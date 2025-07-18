@@ -66,8 +66,13 @@ class SubstraitToVeloxPlanConverter {
       memory::MemoryPool* pool,
       const facebook::velox::config::ConfigBase* veloxCfg,
       const std::optional<std::string> writeFilesTempPath = std::nullopt,
+      const std::optional<std::string> writeFileName = std::nullopt,
       bool validationMode = false)
-      : pool_(pool), veloxCfg_(veloxCfg), writeFilesTempPath_(writeFilesTempPath), validationMode_(validationMode) {
+      : pool_(pool),
+        veloxCfg_(veloxCfg),
+        writeFilesTempPath_(writeFilesTempPath),
+        writeFileName_(writeFileName),
+        validationMode_(validationMode) {
     VELOX_USER_CHECK_NOT_NULL(veloxCfg_);
   }
 
@@ -284,6 +289,7 @@ class SubstraitToVeloxPlanConverter {
 
   /// The temporary path used to write files.
   std::optional<std::string> writeFilesTempPath_;
+  std::optional<std::string> writeFileName_;
 
   /// A flag used to specify validation.
   bool validationMode_ = false;
