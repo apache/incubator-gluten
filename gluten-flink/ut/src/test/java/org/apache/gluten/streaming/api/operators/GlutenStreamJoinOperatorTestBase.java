@@ -46,12 +46,16 @@ import io.github.zhztheplayer.velox4j.type.BooleanType;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.AbstractStreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingJoinOperatorTestBase;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -83,22 +87,24 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
   @BeforeAll
   public static void setupGlutenEnvironment() {
     Velox4jEnvironment.initializeOnce();
+    setGlutenTypes();
   }
 
-  @Override
-  @BeforeEach
-  public void beforeEach(TestInfo testInfo) throws Exception {
-    setupGlutenResources();
-    setupGlutenTypes();
-  }
+  private static void setGlutenTypes() {
 
-  @Override
-  @AfterEach
-  public void afterEach() throws Exception {
-    cleanupGlutenResources();
-  }
+    InternalTypeInfo<RowData> leftTypeInfo =
+        InternalTypeInfo.of(
+            org.apache.flink.table.types.logical.RowType.of(
+                new LogicalType[] {
+                  new CharType(false, 20), new CharType(false, 20), VarCharType.STRING_TYPE
+                },
+                new String[] {"order_id", "line_order_id", "shipping_address"}));
+    InternalTypeInfo<RowData> rightTypeInfo =
+        InternalTypeInfo.of(
+            org.apache.flink.table.types.logical.RowType.of(
+                new LogicalType[] {new CharType(false, 20), new CharType(true, 10)},
+                new String[] {"line_order_id0", "line_order_ship_mode"}));
 
-  private void setupGlutenTypes() {
     leftVeloxType = (RowType) LogicalTypeConverter.toVLType(leftTypeInfo.toRowType());
     rightVeloxType = (RowType) LogicalTypeConverter.toVLType(rightTypeInfo.toRowType());
 
@@ -114,6 +120,35 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
                 .toArray(String[]::new));
 
     outputVeloxType = (RowType) LogicalTypeConverter.toVLType(outputRowType);
+  }
+
+  @Override
+  @BeforeEach
+  public void beforeEach(TestInfo testInfo) {
+    sharedMemoryManager = MemoryManager.create(AllocationListener.NOOP);
+    sharedSession = Velox4j.newSession(sharedMemoryManager);
+    sharedAllocator = new RootAllocator(Long.MAX_VALUE);
+  }
+
+  @Override
+  @AfterEach
+  public void afterEach() {
+    try {
+      if (sharedAllocator != null) {
+        sharedAllocator.close();
+        sharedAllocator = null;
+      }
+      if (sharedSession != null) {
+        sharedSession.close();
+        sharedSession = null;
+      }
+      if (sharedMemoryManager != null) {
+        sharedMemoryManager.close();
+        sharedMemoryManager = null;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   @Override
@@ -201,7 +236,8 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
   }
 
   protected void processTestData(
-      TwoInputStreamOperatorTestHarness<StatefulRecord, StatefulRecord, RowData> harness,
+      KeyedTwoInputStreamOperatorTestHarness<RowData, StatefulRecord, StatefulRecord, RowData>
+          harness,
       List<RowData> leftData,
       List<RowData> rightData)
       throws Exception {
@@ -219,37 +255,13 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
   }
 
   protected List<RowData> extractOutputFromHarness(
-      TwoInputStreamOperatorTestHarness<StatefulRecord, StatefulRecord, RowData> harness) {
+      KeyedTwoInputStreamOperatorTestHarness<RowData, StatefulRecord, StatefulRecord, RowData>
+          harness) {
     Queue<Object> outputQueue = harness.getOutput();
     return outputQueue.stream()
         .filter(record -> record instanceof StreamRecord)
         .map(record -> ((StreamRecord<RowData>) record).getValue())
         .collect(Collectors.toList());
-  }
-
-  private void setupGlutenResources() {
-    sharedMemoryManager = MemoryManager.create(AllocationListener.NOOP);
-    sharedSession = Velox4j.newSession(sharedMemoryManager);
-    sharedAllocator = new RootAllocator(Long.MAX_VALUE);
-  }
-
-  private void cleanupGlutenResources() {
-    try {
-      if (sharedAllocator != null) {
-        sharedAllocator.close();
-        sharedAllocator = null;
-      }
-      if (sharedSession != null) {
-        sharedSession.close();
-        sharedSession = null;
-      }
-      if (sharedMemoryManager != null) {
-        sharedMemoryManager.close();
-        sharedMemoryManager = null;
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
   }
 
   private StatefulRecord convertToStatefulRecord(RowData rowData, RowType rowType) {
@@ -272,8 +284,14 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
       List<RowData> rightData,
       List<RowData> expectedOutput)
       throws Exception {
-    TwoInputStreamOperatorTestHarness<StatefulRecord, StatefulRecord, RowData> harness =
-        new TwoInputStreamOperatorTestHarness<>(operator);
+    KeyedTwoInputStreamOperatorTestHarness<RowData, StatefulRecord, StatefulRecord, RowData>
+        harness =
+            new KeyedTwoInputStreamOperatorTestHarness<>(
+                operator,
+                new GlutenRowDataKeySelector(leftKeySelector, leftVeloxType),
+                new GlutenRowDataKeySelector(rightKeySelector, rightVeloxType),
+                joinKeyTypeInfo);
+
     try {
       harness.setup();
       harness.open();
@@ -283,6 +301,38 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
       checkEquals(actualOutput, expectedOutput, outputRowType.getChildren());
     } finally {
       harness.close();
+    }
+  }
+
+  private static class GlutenRowDataKeySelector
+      implements org.apache.flink.api.java.functions.KeySelector<StatefulRecord, RowData> {
+    private final RowDataKeySelector delegate;
+    private final RowType rowType;
+
+    private transient BufferAllocator allocator;
+
+    public GlutenRowDataKeySelector(RowDataKeySelector delegate, RowType rowType) {
+      this.delegate = delegate;
+      this.rowType = rowType;
+    }
+
+    private BufferAllocator getAllocator() {
+      if (allocator == null) {
+        allocator = new RootAllocator(Long.MAX_VALUE);
+      }
+      return allocator;
+    }
+
+    @Override
+    public RowData getKey(StatefulRecord record) {
+      try {
+        List<RowData> rowDataList =
+            FlinkRowToVLVectorConvertor.toRowData(record.getRowVector(), getAllocator(), rowType);
+
+        return delegate.getKey(rowDataList.get(0));
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to extract key from StatefulRecord", e);
+      }
     }
   }
 }
