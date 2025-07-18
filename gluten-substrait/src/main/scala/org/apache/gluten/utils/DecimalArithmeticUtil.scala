@@ -166,7 +166,6 @@ object DecimalArithmeticUtil {
     }
 
     if (!isPromoteCast(left) && isPromoteCastIntegral(right)) {
-      // Have removed PromotePrecision(Cast(DecimalType)).
       // Decimal * cast int.
       doScale(left, right)
     } else if (!isPromoteCast(right) && isPromoteCastIntegral(left)) {
@@ -176,21 +175,6 @@ object DecimalArithmeticUtil {
     } else {
       (left, right)
     }
-  }
-
-  /**
-   * Remove the Cast when child is PromotePrecision and PromotePrecision is Cast(Decimal, Decimal)
-   *
-   * @param arithmeticExpr
-   *   BinaryArithmetic left or right
-   * @return
-   *   expression removed child PromotePrecision->Cast
-   */
-  def removeCastForDecimal(arithmeticExpr: Expression): Expression = arithmeticExpr match {
-    case PromotePrecision(_ @Cast(child, _: DecimalType, _, _))
-        if child.dataType.isInstanceOf[DecimalType] =>
-      child
-    case _ => arithmeticExpr
   }
 
   private def isPromoteCastIntegral(expr: Expression): Boolean = expr match {
