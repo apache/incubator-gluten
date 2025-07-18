@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,33 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.delta
 
-import com.databricks.spark.util.{Log4jUsageLogger, UsageRecord}
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import io.delta.tables.{DeltaTable => IODeltaTable}
-import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.spark.{SparkContext, SparkFunSuite, SparkThrowable}
 import org.apache.spark.scheduler.{JobFailed, SparkListener, SparkListenerJobEnd, SparkListenerJobStart}
+import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.util.{FailFastMode, quietly}
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.commands.cdc.CDCReader
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
+import org.apache.spark.sql.delta.test.DeltaSQLTestUtils
 import org.apache.spark.sql.delta.util.FileNames
-import org.apache.spark.sql.delta._
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.QueryExecutionListener
-import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.util.Utils
-import org.apache.spark.{SparkContext, SparkFunSuite, SparkThrowable}
+import com.databricks.spark.util.{Log4jUsageLogger, UsageRecord}
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import io.delta.tables.{DeltaTable => IODeltaTable}
+import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.spark.sql.delta.DeltaTestUtils.Plans
 import org.scalatest.BeforeAndAfterEach
-import org.apache.spark.sql.delta.test.DeltaSQLTestUtils
 
 import java.io.{BufferedReader, File, InputStreamReader}
 import java.nio.charset.StandardCharsets.UTF_8
@@ -50,6 +50,7 @@ import scala.collection.concurrent
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
 
+// spotless:off
 trait DeltaTestUtilsBase {
   import DeltaTestUtils.TableIdentifierOrPath
 
@@ -629,3 +630,4 @@ trait DeltaDMLTestUtils
       .drop(CDCReader.CDC_COMMIT_VERSION)
   }
 }
+// spotless:on

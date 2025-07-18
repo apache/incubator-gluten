@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.delta.test
 
-import io.delta.storage.commit.{CommitResponse, GetCommitsResponse, UpdatedActions}
-import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
+import org.apache.spark.sql.delta.{DeltaLog, OptimisticTransaction, Snapshot}
 import org.apache.spark.sql.delta.DeltaOperations.{ManualUpdate, Operation, Write}
 import org.apache.spark.sql.delta.actions.{Action, AddFile, Metadata, Protocol}
 import org.apache.spark.sql.delta.catalog.DeltaTableV2
@@ -27,12 +27,14 @@ import org.apache.spark.sql.delta.commands.optimize.OptimizeMetrics
 import org.apache.spark.sql.delta.coordinatedcommits.TableCommitCoordinatorClient
 import org.apache.spark.sql.delta.hooks.AutoCompact
 import org.apache.spark.sql.delta.stats.StatisticsCollection
-import org.apache.spark.sql.delta.{DeltaLog, OptimisticTransaction, Snapshot}
-import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.util.Clock
+
+import io.delta.storage.commit.{CommitResponse, GetCommitsResponse, UpdatedActions}
+import org.apache.hadoop.fs.Path
 
 import java.io.File
 
+// spotless:off
 /**
  * Additional method definitions for Delta classes that are intended for use only in testing.
  */
@@ -199,3 +201,4 @@ object DeltaTestImplicits {
     }
   }
 }
+// spotless:on

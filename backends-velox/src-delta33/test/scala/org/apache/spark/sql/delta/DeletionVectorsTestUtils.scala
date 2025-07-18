@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,26 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.delta
 
-import org.apache.commons.io.FileUtils
-import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.{DataFrame, QueryTest, RuntimeConfig, SparkSession}
 import org.apache.spark.sql.delta.DeltaOperations.Truncate
 import org.apache.spark.sql.delta.actions.{Action, AddFile, DeletionVectorDescriptor, RemoveFile}
 import org.apache.spark.sql.delta.deletionvectors.{RoaringBitmapArray, RoaringBitmapArrayFormat}
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.storage.dv.DeletionVectorStore
+import org.apache.spark.sql.delta.test.DeltaSQLTestUtils
 import org.apache.spark.sql.delta.util.PathWithFileSystem
-import org.apache.spark.sql.delta.{DeltaConfigs, DeltaLog, DeltaOperations}
 import org.apache.spark.sql.functions.{col, lit}
 import org.apache.spark.sql.test.SharedSparkSession
-import org.apache.spark.sql.{DataFrame, QueryTest, RuntimeConfig, SparkSession}
-import org.apache.spark.sql.delta.test.DeltaSQLTestUtils
+
+import org.apache.commons.io.FileUtils
+import org.apache.hadoop.fs.Path
 
 import java.io.File
 import java.util.UUID
 
+// spotless:off
 /** Collection of test utilities related with persistent Deletion Vectors. */
 trait DeletionVectorsTestUtils extends QueryTest with SharedSparkSession with DeltaSQLTestUtils {
 
@@ -363,3 +364,4 @@ trait DeletionVectorsTestUtils extends QueryTest with SharedSparkSession with De
     }
   }
 }
+// spotless:on
