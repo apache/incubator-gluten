@@ -59,7 +59,7 @@ private:
     std::shared_ptr<DB::TemporaryDataBuffer> data_buffer;
 };
 
-class CompactObjectStorageDiskTransaction final: public DB::IDiskTransaction {
+class CompactObjectStorageDiskTransaction: public DB::IDiskTransaction {
     public:
     static inline const String PART_DATA_FILE_NAME = "part_data.gluten";
     static inline const String PART_META_FILE_NAME = "part_meta.gluten";
@@ -192,26 +192,6 @@ class CompactObjectStorageDiskTransaction final: public DB::IDiskTransaction {
     void truncateFile(const std::string & /* src_path */, size_t /* target_size */) override
     {
         throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Operation `truncateFile` is not implemented");
-    }
-    std::vector<std::string> listUncommittedDirectoryInTransaction(const std::string & path) const override
-    {
-        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Operation `listUncommittedDirectoryInTransaction` is not implemented");
-    }
-    std::unique_ptr<DB::ReadBufferFromFileBase> readUncommittedFileInTransaction(
-        const String & path,
-        const DB::ReadSettings & settings,
-        std::optional<size_t> read_hint,
-        std::optional<size_t> file_size) const override
-    {
-        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Operation `readUncommittedFileInTransaction` is not implemented");
-    }
-    bool isTransactional() const override
-    {
-        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Operation `isTransactional` is not implemented");
-    }
-    void validateTransaction(std::function<void(IDiskTransaction &)> check_function) override
-    {
-        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Operation `validateTransaction` is not implemented");
     }
 
 private:

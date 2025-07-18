@@ -92,14 +92,6 @@ public:
     void removeDirectory(const std::string &) override;
     void removeRecursive(const std::string &) override;
     void unlinkFile(const std::string &) override;
-    std::optional<DB::StoredObjects> tryGetBlobsFromTransactionIfExists(const std::string &) const override
-    {
-        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Operation `tryGetBlobsFromTransactionIfExists` is not implemented");
-    }
-    std::vector<std::string> listUncommittedDirectory(const std::string &) const override
-    {
-        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Operation `listUncommittedDirectory` is not implemented");
-    }
 
 private:
     const MetadataStorageFromRocksDB & metadata_storage;
