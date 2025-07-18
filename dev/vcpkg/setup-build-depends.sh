@@ -163,6 +163,24 @@ install_centos_8() {
     install_maven_from_source
 }
 
+install_centos_9() {
+    yum -y install \
+        wget tar zip unzip git which sudo patch \
+        cmake perl-IPC-Cmd autoconf automake libtool \
+        gcc-toolset-12 \
+        flex bison python3 \
+        java-17-openjdk java-17-openjdk-devel
+
+    pip3 install --upgrade pip
+
+    # Requires cmake >= 3.28.3
+    pip3 install cmake==3.28.3
+
+    dnf -y --enablerepo=crb install autoconf-archive ninja-build
+
+    install_maven_from_source
+}
+
 install_ubuntu_20.04() {
     apt-get update && apt-get -y install \
         wget curl tar zip unzip git \
