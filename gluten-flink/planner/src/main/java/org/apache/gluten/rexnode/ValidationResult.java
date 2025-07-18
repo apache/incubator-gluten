@@ -14,18 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.rexnode.functions;
+package org.apache.gluten.rexnode;
 
-import org.apache.gluten.rexnode.RexConversionContext;
-import org.apache.gluten.rexnode.ValidationResult;
+public class ValidationResult {
+  private final boolean ok;
+  private final String message;
 
-import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+  public boolean isOk() {
+    return ok;
+  }
 
-import org.apache.calcite.rex.RexCall;
+  public String getMessage() {
+    return message;
+  }
 
-public interface RexCallConverter {
-  // Let the Converter decide how to build the arguments.
-  TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
+  public ValidationResult(boolean ok, String message) {
+    this.ok = ok;
+    this.message = message;
+  }
 
-  ValidationResult isSuitable(RexCall callNode, RexConversionContext context);
+  public static ValidationResult success() {
+    return new ValidationResult(true, "Validation successful");
+  }
+
+  public static ValidationResult failure(String message) {
+    return new ValidationResult(false, message);
+  }
 }
