@@ -74,7 +74,7 @@ std::vector<Int32> ParquetMetaBuilder::pruneColumn(
     THROW_ARROW_NOT_OK(parquet::arrow::FromParquetSchema(metadata.schema(), &schema));
 
     ArrowFieldIndexUtil field_util(case_insensitive, allow_missing_columns);
-    auto index_mapping = field_util.findRequiredIndices(header, *schema, metadata);
+    auto index_mapping = field_util.findRequiredIndices(header, *schema, metadata, std::nullopt);
 
     std::vector<Int32> column_indices;
     for (const auto & [clickhouse_header_index, parquet_indexes] : index_mapping)

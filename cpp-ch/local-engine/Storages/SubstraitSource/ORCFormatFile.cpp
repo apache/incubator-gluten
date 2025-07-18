@@ -25,6 +25,7 @@
 #include <Processors/Formats/Impl/NativeORCBlockInputFormat.h>
 #include <Storages/SubstraitSource/OrcUtil.h>
 #include <Poco/Util/AbstractConfiguration.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace local_engine
@@ -72,7 +73,8 @@ ORCFormatFile::createInputFormat(const DB::Block & header, const std::shared_ptr
     }
     //TODO: support prefetch
     auto parser_group = std::make_shared<DB::FormatParserGroup>(context->getSettingsRef(), 1, filter_actions_dag, context);
-    auto input_format = std::make_shared<DB::NativeORCBlockInputFormat>(*read_buffer, header, format_settings, false, 0, parser_group);
+    auto input_format
+        = std::make_shared<DB::NativeORCBlockInputFormat>(*read_buffer, toShared(header), format_settings, false, 0, parser_group);
     return std::make_shared<InputFormat>(std::move(read_buffer), input_format);
 }
 

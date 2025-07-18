@@ -28,7 +28,7 @@ namespace local_engine
 class EmptyProjectStep : public DB::ITransformingStep
 {
 public:
-    explicit EmptyProjectStep(const DB::Block & input_header);
+    explicit EmptyProjectStep(const DB::SharedHeader & input_header);
     ~EmptyProjectStep() override = default;
 
     String getName() const override { return "EmptyProjectStep"; }
