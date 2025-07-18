@@ -170,7 +170,7 @@ TEST(MergeTree, ClickhouseMergeTree)
         merging_params,
         std::move(storage_settings));
 
-    Block header{{INT(), "id"}, {STRING(), "Name"}, {makeNullable(INT()), "Age"}};
+    auto header = toShared(Block{{INT(), "id"}, {STRING(), "Name"}, {makeNullable(INT()), "Age"}});
     DB::Squashing squashing(header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]);
     squashing.add(person_chunk());
     auto x = Squashing::squash(squashing.flush());

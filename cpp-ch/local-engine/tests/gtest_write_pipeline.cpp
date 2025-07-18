@@ -112,7 +112,7 @@ TEST(LocalExecutor, StorageObjectStorageSink)
         object_storage,
         config_cloned_ptr,
         {},
-        {{STRING(), "name"}, {UINT(), "value"}},
+        toShared(Block{{STRING(), "name"}, {UINT(), "value"}}),
         QueryContext::globalContext()};
 
     /// 2. Create Chunk

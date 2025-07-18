@@ -20,6 +20,7 @@
 #include <Processors/Port.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace local_engine
@@ -102,8 +103,8 @@ static DB::ITransformingStep::Traits getTraits()
         }};
 }
 
-EmptyProjectStep::EmptyProjectStep(const DB::Block & input_header)
-    : ITransformingStep(input_header, BlockUtil::buildRowCountHeader(), getTraits())
+EmptyProjectStep::EmptyProjectStep(const DB::SharedHeader & input_header)
+    : ITransformingStep(input_header, toShared(BlockUtil::buildRowCountHeader()), getTraits())
 {
 }
 

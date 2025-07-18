@@ -812,11 +812,11 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
 {
     auto join = std::make_shared<TableJoin>(
         global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
-    auto left_columns = left->getCurrentHeader().getColumnsWithTypeAndName();
-    auto right_columns = right->getCurrentHeader().getColumnsWithTypeAndName();
+    auto left_columns = left->getCurrentHeader()->getColumnsWithTypeAndName();
+    auto right_columns = right->getCurrentHeader()->getColumnsWithTypeAndName();
     join->setKind(JoinKind::Left);
     join->setStrictness(JoinStrictness::All);
-    join->setColumnsFromJoinedTable(right->getCurrentHeader().getNamesAndTypesList());
+    join->setColumnsFromJoinedTable(right->getCurrentHeader()->getNamesAndTypesList());
     join->addDisjunct();
     ASTPtr lkey = std::make_shared<ASTIdentifier>(left_key);
     ASTPtr rkey = std::make_shared<ASTIdentifier>(right_key);
@@ -824,7 +824,7 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
     for (const auto & column : join->columnsFromJoinedTable())
         join->addJoinedColumn(column);
 
-    auto left_keys = left->getCurrentHeader().getNamesAndTypesList();
+    auto left_keys = left->getCurrentHeader()->getNamesAndTypesList();
     join->addJoinedColumnsAndCorrectTypes(left_keys, true);
     std::optional<ActionsDAG> left_convert_actions;
     std::optional<ActionsDAG> right_convert_actions;
@@ -846,7 +846,16 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
     auto hash_join = std::make_shared<HashJoin>(join, right->getCurrentHeader());
 
     QueryPlanStepPtr join_step = std::make_unique<JoinStep>(
-        left->getCurrentHeader(), right->getCurrentHeader(), hash_join, DEFAULT_BLOCK_SIZE, DEFAULT_BLOCK_SIZE, 524288, 1, NameSet{}, false, false);
+        left->getCurrentHeader(),
+        right->getCurrentHeader(),
+        hash_join,
+        DEFAULT_BLOCK_SIZE,
+        DEFAULT_BLOCK_SIZE,
+        524288,
+        1,
+        NameSet{},
+        false,
+        false);
 
     std::vector<QueryPlanPtr> plans;
     plans.emplace_back(std::move(left));

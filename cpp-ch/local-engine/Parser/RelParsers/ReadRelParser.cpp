@@ -234,7 +234,7 @@ QueryPlanStepPtr ReadRelParser::parseReadRelWithRange(const substrait::ReadRel &
     Int32 num_slices = document["numSlices"].GetInt();
     Int32 slice_index = document["sliceIndex"].GetInt();
 
-    auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
+    auto header = toShared(TypeParser::buildBlockFromNamedStruct(rel.base_schema()));
     size_t max_block_size = getContext()->getSettingsRef()[Setting::max_block_size];
     auto source = std::make_shared<SourceFromRange>(header, start, end, step, num_slices, slice_index, max_block_size);
     QueryPlanStepPtr source_step = std::make_unique<ReadFromPreparedSource>(Pipe(source));
