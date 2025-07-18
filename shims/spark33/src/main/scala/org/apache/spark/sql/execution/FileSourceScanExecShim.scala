@@ -128,7 +128,7 @@ abstract class FileSourceScanExecShim(
     }(t => driverMetrics("metadataTime") = NANOSECONDS.toMillis(t + optimizerMetadataTimeNs))
   }.toArray
 
-  private def isDynamicPruningFilter(e: Expression): Boolean =
+  protected def isDynamicPruningFilter(e: Expression): Boolean =
     e.exists(_.isInstanceOf[PlanExpression[_]])
 
   // We can only determine the actual partitions at runtime when a dynamic partition filter is
@@ -159,6 +159,10 @@ abstract class FileSourceScanExecShim(
     }
     sendDriverMetrics()
     selected
+  }
+
+  def getPartitionArray(): Array[PartitionDirectory] = {
+    dynamicallySelectedPartitions
   }
 }
 

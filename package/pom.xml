@@ -326,6 +326,8 @@
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$ChainedIterator</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.MemoryConsumer</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.TaskMemoryManager </ignoreClass>
+                    <!-- guava -->
+                    <ignoreClass>com.google.thirdparty.publicsuffix* </ignoreClass>
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>

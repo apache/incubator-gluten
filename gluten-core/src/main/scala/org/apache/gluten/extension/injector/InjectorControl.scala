@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.injector
 
-import org.apache.spark.sql.{SparkSession, Strategy}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser.ParserInterface
@@ -24,6 +24,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
+import org.apache.spark.sql.execution.{SparkStrategy => Strategy}
 
 import java.lang.reflect.{InvocationHandler, InvocationTargetException, Method}
 

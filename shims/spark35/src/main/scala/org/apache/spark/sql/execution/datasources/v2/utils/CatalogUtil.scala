@@ -23,6 +23,6 @@ object CatalogUtil {
 
   def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
     import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.TransformHelper
-    partitions.toSeq.convertTransforms
+    partitions.convertTransforms
   }
 }
