@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.iceberg.{FileFormat, PartitionField, PartitionSpec, Schema}
 import org.apache.iceberg.TableProperties.{ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT, PARQUET_COMPRESSION, PARQUET_COMPRESSION_DEFAULT}
 import org.apache.iceberg.spark.source.IcebergWriteUtil
@@ -61,9 +62,15 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
       return ValidationResult.failed(s"Not support the write ${write.getClass.getSimpleName}")
     }
     if (IcebergWriteUtil.hasUnsupportedDataType(write)) {
+      return ValidationResult.failed("Contains UUID ot FIXED data type")
+    }
+    if (BackendsApiManager.getValidatorApiInstance.doSchemaValidate(query.schema).isDefined) {
       return ValidationResult.failed("Contains unsupported data type")
     }
     val spec = IcebergWriteUtil.getTable(write).spec()
+    if (spec.isPartitioned) {
+      return ValidationResult.failed("Not support write partition table")
+    }
     if (spec.isPartitioned) {
       val topIds = spec.schema().columns().asScala.map(c => c.fieldId())
       if (
