@@ -115,14 +115,10 @@ abstract class FileSourceScanExecTransformerBase(
   override def outputAttributes(): Seq[Attribute] = output
 
   override def getPartitions: Seq[InputPartition] = {
-    val staticDataFilters = dataFilters.filterNot(isDynamicPruningFilter)
-    val staticPartitionFilters = partitionFilters.filterNot(isDynamicPruningFilter)
-    val partitionDirectories =
-      relation.location.listFiles(staticPartitionFilters, staticDataFilters)
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
       requiredSchema,
-      partitionDirectories.toArray,
+      getPartitionArray(),
       output,
       bucketedScan,
       optionalBucketSet,
