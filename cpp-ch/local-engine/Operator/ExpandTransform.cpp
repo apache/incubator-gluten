@@ -36,7 +36,7 @@ extern const int LOGICAL_ERROR;
 
 namespace local_engine
 {
-ExpandTransform::ExpandTransform(const DB::Block & input_, const DB::Block & output_, const ExpandField & project_set_exprs_)
+ExpandTransform::ExpandTransform(const DB::SharedHeader & input_, const DB::SharedHeader & output_, const ExpandField & project_set_exprs_)
     : DB::IProcessor({input_}, {output_}), project_set_exprs(project_set_exprs_)
 {
 }

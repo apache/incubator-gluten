@@ -27,7 +27,7 @@ namespace local_engine
 class EarlyStopStep : public DB::ITransformingStep
 {
 public:
-    explicit EarlyStopStep(const DB::Block & input_header_);
+    explicit EarlyStopStep(const DB::SharedHeader & input_header_);
     ~EarlyStopStep() override = default;
 
     String getName() const override { return "EarlyStopStep"; }
@@ -46,7 +46,7 @@ class EarlyStopTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
-    explicit EarlyStopTransform(const DB::Block & header_);
+    explicit EarlyStopTransform(const DB::SharedHeader & header_);
     ~EarlyStopTransform() override = default;
 
     Status prepare() override;
