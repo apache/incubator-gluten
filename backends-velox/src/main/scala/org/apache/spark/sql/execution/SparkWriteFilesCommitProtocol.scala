@@ -28,6 +28,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
 import java.lang.reflect.Field
+import java.util.UUID
 
 import scala.collection.mutable
 
@@ -85,7 +86,7 @@ class SparkWriteFilesCommitProtocol(
     // Note that %05d does not truncate the split number, so if we have more than 100000 tasks,
     // the file name is fine and won't overflow.
     val split = taskAttemptContext.getTaskAttemptID.getTaskID.getId
-    val fileName = f"${spec.prefix}part-$split%05d-$jobId${spec.suffix}"
+    val fileName = f"${spec.prefix}part-$split%05d-${UUID.randomUUID().toString()}${spec.suffix}"
     fileNames += fileName
     fileName
   }
