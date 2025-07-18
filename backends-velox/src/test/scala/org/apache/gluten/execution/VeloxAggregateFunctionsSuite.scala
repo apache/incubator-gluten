@@ -49,7 +49,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
-      .set("spark.gluten.sql.mergeTwoPhasesAggregate.enabled", "false")
+      .set(GlutenConfig.MERGE_TWO_PHASES_ENABLED.key, "false")
   }
 
   test("count") {
@@ -1276,10 +1276,10 @@ class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
 
   test("flushable aggregate rule - double sum when floatingPointMode is strict") {
     withSQLConf(
-      "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemory" -> "100",
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "false",
-      "spark.gluten.sql.columnar.maxBatchSize" -> "2",
-      "spark.gluten.sql.columnar.backend.velox.floatingPointMode" -> "strict"
+      VeloxConfig.MAX_PARTIAL_AGGREGATION_MEMORY.key -> "100",
+      VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key -> "false",
+      GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key -> "2",
+      VeloxConfig.FLOATING_POINT_MODE.key -> "strict"
     ) {
       withTempView("t1") {
         import testImplicits._
@@ -1302,7 +1302,7 @@ class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
 
   test("flushable aggregate rule - double sum when floatingPointMode is loose") {
     withSQLConf(
-      "spark.gluten.sql.columnar.backend.velox.floatingPointMode" -> "loose"
+      VeloxConfig.FLOATING_POINT_MODE.key -> "loose"
     ) {
       withTempView("t1") {
         import testImplicits._

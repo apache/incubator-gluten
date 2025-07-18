@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.config.VeloxConfig
 
 import org.apache.spark.SparkConf
@@ -44,7 +45,7 @@ abstract class VeloxTPCHTableSupport extends VeloxWholeStageTransformerSuite {
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
-      .set("spark.gluten.sql.columnar.backend.velox.memInitCapacity", "1m")
+      .set(VeloxConfig.COLUMNAR_VELOX_MEM_INIT_CAPACITY.key, "1m")
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
@@ -259,7 +260,8 @@ class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.memory.offHeap.size", "50m")
-      .set("spark.gluten.memory.overAcquiredMemoryRatio", "0.9") // to trigger distinct spill early
+      // to trigger distinct spill early
+      .set(GlutenCoreConfig.COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO.key, "0.9")
       .set(GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key, "8k")
   }
 
@@ -376,7 +378,7 @@ class VeloxTPCHV1RasSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.gluten.ras.enabled", "true")
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
   }
 }
 
@@ -387,7 +389,7 @@ class VeloxTPCHV1BhjRasSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
-      .set("spark.gluten.ras.enabled", "true")
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
   }
 }
 
@@ -429,8 +431,8 @@ class VeloxTPCHV1GlutenBhjVanillaBeSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
-      .set("spark.gluten.sql.columnar.broadcastJoin", "true")
-      .set("spark.gluten.sql.columnar.broadcastExchange", "false")
+      .set(GlutenConfig.COLUMNAR_BROADCAST_JOIN_ENABLED.key, "true")
+      .set(GlutenConfig.COLUMNAR_BROADCAST_EXCHANGE_ENABLED.key, "false")
   }
 }
 
@@ -441,7 +443,7 @@ class VeloxTPCHV1VanillaBhjGlutenBeSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
-      .set("spark.gluten.sql.columnar.broadcastJoin", "false")
-      .set("spark.gluten.sql.columnar.broadcastExchange", "true")
+      .set(GlutenConfig.COLUMNAR_BROADCAST_JOIN_ENABLED.key, "false")
+      .set(GlutenConfig.COLUMNAR_BROADCAST_EXCHANGE_ENABLED.key, "true")
   }
 }

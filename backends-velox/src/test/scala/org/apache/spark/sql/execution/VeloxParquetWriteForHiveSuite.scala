@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
 
 import org.apache.spark.SparkConf
@@ -89,7 +90,7 @@ class VeloxParquetWriteForHiveSuite
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
-      .set("spark.gluten.sql.native.writer.enabled", "true")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
   }
 
   private def checkNativeWrite(sqlStr: String, checkNative: Boolean): Unit = {
@@ -277,7 +278,7 @@ class VeloxParquetWriteForHiveSuite
   test("native writer should respect table properties") {
     Seq(true, false).foreach {
       enableNativeWrite =>
-        withSQLConf("spark.gluten.sql.native.writer.enabled" -> enableNativeWrite.toString) {
+        withSQLConf(GlutenConfig.NATIVE_WRITER_ENABLED.key -> enableNativeWrite.toString) {
           withTable("t") {
             withSQLConf(
               "spark.sql.hive.convertMetastoreParquet" -> "false",
@@ -412,7 +413,7 @@ class VeloxParquetWriteForHiveSuite
     "3.3") {
     Seq(false, true).foreach {
       enableNativeWrite =>
-        withSQLConf("spark.gluten.sql.native.writer.enabled" -> enableNativeWrite.toString) {
+        withSQLConf(GlutenConfig.NATIVE_WRITER_ENABLED.key -> enableNativeWrite.toString) {
           withTable("t") {
             withSQLConf(
               "spark.sql.hive.convertMetastoreParquet" -> "false",
