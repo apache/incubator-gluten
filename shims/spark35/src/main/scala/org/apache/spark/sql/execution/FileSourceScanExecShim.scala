@@ -122,6 +122,10 @@ abstract class FileSourceScanExecShim(
     sendDriverMetrics()
     selected
   }
+
+  def getPartitionArray(): Array[PartitionDirectory] = {
+    dynamicallySelectedPartitions
+  }
 }
 
 abstract class ArrowFileSourceScanLikeShim(original: FileSourceScanExec)
