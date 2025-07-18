@@ -37,8 +37,4 @@ public class DataFileJson {
   public static class MetricsJson {
     @JsonProperty public long recordCount = -1L;
   }
-
-  public static class PartitionValueJson {
-    @JsonProperty List<String> partitionValues;
-  }
 }
