@@ -643,6 +643,9 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
   }
 
   if (lastRowSize_ != 0) {
+    if (lastRowSize_ > rowBuffer_->size()) {
+      reallocateRowBuffer();
+    }
     readNextRow();
   }
 
@@ -650,22 +653,18 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
     GLUTEN_ASSIGN_OR_THROW(auto bytes, in_->Read(sizeof(RowSizeType), &lastRowSize_));
     if (bytes == 0) {
       reachedEos_ = true;
-      if (cachedRows_ > 0) {
+      if (bytesRead_ > 0) {
         return deserializeToBatch();
       }
       return nullptr;
     }
 
-    if (cachedRows_ > 0 && lastRowSize_ + bytesRead_ > rowBuffer_->size()) {
-      return deserializeToBatch();
-    }
-
-    if (lastRowSize_ > deserializerBufferSize_) {
-      auto newSize = facebook::velox::bits::nextPowerOfTwo(lastRowSize_);
-      LOG(WARNING) << "Row size " << lastRowSize_ << " exceeds deserializer buffer size " << rowBuffer_->size()
-                   << ". Resizing buffer to " << newSize;
-      rowBuffer_ = AlignedBuffer::allocate<char>(newSize, veloxPool_, std::nullopt, true /*allocateExact*/);
-      rowBufferPtr_ = rowBuffer_->asMutable<char>();
+    if (lastRowSize_ + bytesRead_ > rowBuffer_->size()) {
+      if (bytesRead_ > 0) {
+        // If we have already read some rows, return the current batch.
+        return deserializeToBatch();
+      }
+      reallocateRowBuffer();
     }
 
     readNextRow();
@@ -683,6 +682,14 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::deserializeTo
   bytesRead_ = 0;
   data_.resize(0);
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
+void VeloxSortShuffleReaderDeserializer::reallocateRowBuffer() {
+  auto newSize = facebook::velox::bits::nextPowerOfTwo(lastRowSize_);
+  LOG(WARNING) << "Row size " << lastRowSize_ << " exceeds current buffer size " << rowBuffer_->size()
+               << ". Resizing buffer to " << newSize;
+  rowBuffer_ = AlignedBuffer::allocate<char>(newSize, veloxPool_, std::nullopt, true /*allocateExact*/);
+  rowBufferPtr_ = rowBuffer_->asMutable<char>();
 }
 
 void VeloxSortShuffleReaderDeserializer::readNextRow() {
