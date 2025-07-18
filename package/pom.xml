@@ -54,11 +54,11 @@
 
   <profiles>
     <profile>
-      <id>backends-velox</id>
+      <id>velox-backend</id>
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
-          <artifactId>backends-velox</artifactId>
+          <artifactId>velox-backend</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>

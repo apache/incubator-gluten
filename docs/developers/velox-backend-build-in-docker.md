@@ -31,7 +31,7 @@ RUN source /opt/rh/devtoolset-11/enable && \
     git clone https://github.com/apache/incubator-gluten.git && \
     cd incubator-gluten && \
     ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_s3=ON --enable_gcs=ON --enable_abfs=ON --enable_vcpkg=ON --build_arrow=OFF && \
-    mvn clean package -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-3.4 -DskipTests
+    mvn clean package -Pvelox-backend -Pceleborn -Piceberg -Pdelta -Pspark-3.4 -DskipTests
 ```
 `enable_vcpkg=ON` enables the static link. Vcpkg packages are already pre-installed in the vcpkg-centos-7 image and can be reused automatically. The image is maintained by Gluten community.
 
@@ -55,7 +55,7 @@ RUN source /opt/rh/devtoolset-11/enable && \
     git clone https://github.com/apache/incubator-gluten.git && \
     cd incubator-gluten && \
     ./dev/builddeps-veloxbe.sh --run_setup_script=ON --enable_hdfs=ON --enable_vcpkg=OFF --build_arrow=OFF && \
-    mvn clean package -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-3.4 -DskipTests && \
+    mvn clean package -Pvelox-backend -Pceleborn -Piceberg -Pdelta -Pspark-3.4 -DskipTests && \
     ./dev/build-thirdparty.sh
 ```
 `enable_vcpkg=OFF` enables the dynamic link. Part of shared libraries are pre-installed in the image. You need to specify `--run_setup_script=ON` to install the rest of them. It then packages all dependency libraries into a jar by `build-thirdparty.sh`. 

@@ -18,7 +18,7 @@ parent: /developer-overview/
 
 2. Maven Build Gluten ClickHouse with Profile
    ```
-   mvn clean install -DskipTests -P delta -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut
+   mvn clean install -DskipTests -P delta -Pclickhouse-backend -Pspark-3.3 -Pspark-ut
    ```
    
 3. Set Maven Profiles in IntelliJ IDEA

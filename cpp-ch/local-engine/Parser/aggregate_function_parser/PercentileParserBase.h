@@ -41,7 +41,7 @@ protected:
     virtual size_t expectedArgumentsNumberInFirstStage() const = 0;
 
     /// Expected number of element types wrapped in struct type as intermidate result type of current aggregate function in second stage
-    /// Refer to L327 in backends-clickhouse/src/main/scala/io/glutenproject/execution/CHHashAggregateExecTransformer.scala
+    /// Refer to L327 in clickhouse-backend/src/main/scala/io/glutenproject/execution/CHHashAggregateExecTransformer.scala
     virtual size_t expectedTupleElementsNumberInSecondStage() const = 0;
 
     /// Get argument indexes in first stage substrait function which should be treated as parameters in CH aggregate function.

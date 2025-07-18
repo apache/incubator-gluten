@@ -202,14 +202,14 @@
 
   <profiles>
     <profile>
-      <id>backends-velox</id>
+      <id>velox-backend</id>
       <properties>
         <backend.type>velox</backend.type>
         <backend.home>${project.basedir}/../ep/build-velox/build/velox_ep</backend.home>
       </properties>
     </profile>
     <profile>
-      <id>backends-clickhouse</id>
+      <id>clickhouse-backend</id>
       <properties>
         <backend.type>ch</backend.type>
         <backend.home>${project.basedir}/../cpp-ch/ClickHouse</backend.home>

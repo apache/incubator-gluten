@@ -179,8 +179,8 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
     git clone https://github.com/apache/incubator-gluten.git
     cd incubator-gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
-    mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.2 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
-    ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.2-jar-with-dependencies.jar
+    mvn clean install -Pclickhouse-backend -Phadoop-2.7.4 -Pspark-3.2 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
+    ls -al clickhouse-backend/target/gluten-XXXXX-spark-3.2-jar-with-dependencies.jar
 ```
 
 - for Spark 3.3.1
@@ -189,8 +189,8 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
     git clone https://github.com/apache/incubator-gluten.git
     cd incubator-gluten/
     export MAVEN_OPTS="-Xmx8g -XX:ReservedCodeCacheSize=2g"
-    mvn clean install -Pbackends-clickhouse -Phadoop-2.7.4 -Pspark-3.3 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
-    ls -al backends-clickhouse/target/gluten-XXXXX-spark-3.3-jar-with-dependencies.jar
+    mvn clean install -Pclickhouse-backend -Phadoop-2.7.4 -Pspark-3.3 -Dhadoop.version=2.8.5 -DskipTests -Dcheckstyle.skip
+    ls -al clickhouse-backend/target/gluten-XXXXX-spark-3.3-jar-with-dependencies.jar
 ```
 
 ### Gluten in local Spark Thrift Server
@@ -684,7 +684,7 @@ First refer to this URL(https://github.com/apache/celeborn) to setup a celeborn 
 When compiling the Gluten Java module, it's required to enable `celeborn` profile, as follows:
 
 ```
-mvn clean package -Pbackends-clickhouse -Pspark-3.3 -Pceleborn -DskipTests
+mvn clean package -Pclickhouse-backend -Pspark-3.3 -Pceleborn -DskipTests
 ```
 
 Then add the Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).

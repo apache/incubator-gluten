@@ -72,8 +72,8 @@ ep/_ep/
 scalastyle-output.xml
 
 # Generated C++ benchmark data
-backends-velox/generated-native-benchmark/
-backends-velox/spark-warehouse/
+velox-backend/generated-native-benchmark/
+velox-backend/spark-warehouse/
 
 # Generated C++ benchmark executables
 cpp/**/benchmarks/**/*

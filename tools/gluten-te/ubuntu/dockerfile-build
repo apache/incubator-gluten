@@ -64,7 +64,7 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
                            --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=ON \
                            --build_type=$GLUTEN_BUILD_TYPE"; \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
-                           -Pbackends-velox \
+                           -Pvelox-backend \
                            -Pceleborn \
                            -Puniffle \
                            -Piceberg \

@@ -21,7 +21,7 @@ transforms Spark plan to Substrait plan, and then send the Substrait plan to the
 
 The Gluten codes consist of two parts: the C++ codes and the Java/Scala codes. 
 1. All C++ codes are placed under the directory of `${GLUTEN_HOME}/cpp`, the Java/Scala codes are placed under several directories, such as
-  `${GLUTEN_HOME}/gluten-substrait` `${GLUTEN_HOME}/gluten-data` `${GLUTEN_HOME}/backends-velox`.
+  `${GLUTEN_HOME}/gluten-substrait` `${GLUTEN_HOME}/gluten-data` `${GLUTEN_HOME}/velox-backend`.
 2. The Java/Scala codes are responsible for validating and transforming the execution plan. Source data should also be provided, the source data may
   come from files or other forms such as networks.
 3. The C++ codes take the Substrait plan and the source data as inputs and transform the Substrait plan to the corresponding backend plan. If the backend
@@ -54,19 +54,19 @@ ${GLUTEN_HOME}/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON -
 
 ```
 cd ${GLUTEN_HOME}
-mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox \
+mvn test -Pspark-3.2 -Pvelox-backend -pl velox-backend \
 -am -DtagsToInclude="org.apache.gluten.tags.GenerateExample" \
 -Dtest=none -DfailIfNoTests=false \
 -Dexec.skip
 ```
 
-- After the above operations, the example files are generated under `${GLUTEN_HOME}/backends-velox`
-- You can check it by the command `tree ${GLUTEN_HOME}/backends-velox/generated-native-benchmark/`
+- After the above operations, the example files are generated under `${GLUTEN_HOME}/velox-backend`
+- You can check it by the command `tree ${GLUTEN_HOME}/velox-backend/generated-native-benchmark/`
 - You may replace `-Pspark-3.2` with `-Pspark-3.3` if your spark's version is 3.3
 
 ```shell
-$ tree ${GLUTEN_HOME}/backends-velox/generated-native-benchmark/
-/some-dir-to-gluten-home/backends-velox/generated-native-benchmark/
+$ tree ${GLUTEN_HOME}/velox-backend/generated-native-benchmark/
+/some-dir-to-gluten-home/velox-backend/generated-native-benchmark/
 |-- conf_12_0.ini
 |-- data_12_0_0.parquet
 |-- data_12_0_1.parquet
@@ -84,9 +84,9 @@ gdb cpp/build/velox/benchmarks/generic_benchmark
   arguments for the example files like:
   ```
   r --with-shuffle --partitioning hash --threads 1 --iterations 1 \
-    --conf backends-velox/generated-native-benchmark/conf_12_0.ini \
-    --plan backends-velox/generated-native-benchmark/plan_12_0.json \
-    --data backends-velox/generated-native-benchmark/data_12_0_0.parquet,backends-velox/generated-native-benchmark/data_12_0_1.parquet
+    --conf velox-backend/generated-native-benchmark/conf_12_0.ini \
+    --plan velox-backend/generated-native-benchmark/plan_12_0.json \
+    --data velox-backend/generated-native-benchmark/data_12_0_0.parquet,velox-backend/generated-native-benchmark/data_12_0_1.parquet
   ```
   The process `generic_benchmark` will start and stop at the `main` function.
 - You can check the variables' state with command `p variable_name`, or execute the program line by line with command `n`, or step-in the function been
@@ -122,7 +122,7 @@ export SPARK_SUBMIT_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,a
 
 To run a Scala/Java test class, you can use the below mvn command (take Velox backend as example), which is helpful to debug some unit test failure reported by Gluten CI. 
 ```
-mvn test -Pspark-3.5 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/path/to/spark/source/code/home/" -DwildcardSuites=xxx
+mvn test -Pspark-3.5 -Pspark-ut -Pvelox-backend -DargLine="-Dspark.test.home=/path/to/spark/source/code/home/" -DwildcardSuites=xxx
 ```
 
 Please set `wildcardSuites` with a fully qualified class name. `spark.test.home` is optional to set. It is only required for some test suites to use Spark resources.
@@ -161,8 +161,8 @@ to let it override the corresponding C standard functions entirely. It may help 
 
 # How to run TPC-H on Velox backend
 
-Now, both Parquet and DWRF format files are supported, related scripts and files are under the directory of `${GLUTEN_HOME}/backends-velox/workload/tpch`.
-The file `README.md` under `${GLUTEN_HOME}/backends-velox/workload/tpch` offers some useful help, but it's still not enough and exact.
+Now, both Parquet and DWRF format files are supported, related scripts and files are under the directory of `${GLUTEN_HOME}/velox-backend/workload/tpch`.
+The file `README.md` under `${GLUTEN_HOME}/velox-backend/workload/tpch` offers some useful help, but it's still not enough and exact.
 
 One way of run TPC-H test is to run velox-be by workflow, you can refer to [velox_backend.yml](https://github.com/apache/incubator-gluten/blob/main/.github/workflows/velox_backend.yml#L280)
 
@@ -170,14 +170,14 @@ Here we will explain how to run TPC-H on Velox backend with the Parquet file for
 1. First, prepare the datasets, you have two choices.
   - One way, generate Parquet datasets using the script under `${GLUTEN_HOME}/tools/workload/tpch/gen_data/parquet_dataset`, you can get help from the above
     -mentioned `README.md`.
-  - The other way, using the small dataset under `${GLUTEN_HOME}/backends-velox/src/test/resources/tpch-data-parquet` directly, if you just want to make simple
+  - The other way, using the small dataset under `${GLUTEN_HOME}/velox-backend/src/test/resources/tpch-data-parquet` directly, if you just want to make simple
     TPC-H testing, this dataset is a good choice.
 2. Second, run TPC-H on Velox backend testing.
   - Modify `${GLUTEN_HOME}/tools/workload/tpch/run_tpch/tpch_parquet.scala`.
     - Set `var parquet_file_path` to correct directory. If using the small dataset directly in the step one, then modify it as below:
 
     ```scala
-    var parquet_file_path = "gluten_home/backends-velox/src/test/resources/tpch-data-parquet"
+    var parquet_file_path = "gluten_home/velox-backend/src/test/resources/tpch-data-parquet"
     ```
 
     - Set `var gluten_root` to correct directory. If `${GLUTEN_HOME}` is the directory of `/home/gluten`, then modify it as below

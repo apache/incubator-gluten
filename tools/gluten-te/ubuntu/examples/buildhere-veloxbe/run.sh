@@ -19,7 +19,7 @@ set -ex
 BASEDIR=$(dirname $0)
 
 EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
-                     -Pbackends-velox \
+                     -Pvelox-backend \
                      -Pceleborn \
                      -Puniffle \
                      -DskipTests \

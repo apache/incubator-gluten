@@ -93,13 +93,13 @@ Currently, Gluten is using a [forked Velox](https://github.com/oap-project/velox
 ## compile Gluten java module and create package jar
 cd /path/to/gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
+mvn clean package -Pvelox-backend -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
+mvn clean package -Pvelox-backend -Pspark-3.3 -DskipTests
 # For spark3.4.x
-mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
+mvn clean package -Pvelox-backend -Pspark-3.4 -DskipTests
 # For spark3.5.x
-mvn clean package -Pbackends-velox -Pspark-3.5 -DskipTests
+mvn clean package -Pvelox-backend -Pspark-3.5 -DskipTests
 ```
 
 Notes： Building Velox may fail caused by OOM. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox. The recommended minimal memory size is 64G.
@@ -244,7 +244,7 @@ First refer to this URL(https://github.com/apache/celeborn) to setup a celeborn 
 When compiling the Gluten Java module, it's required to enable `celeborn` profile, as follows:
 
 ```
-mvn clean package -Pbackends-velox -Pspark-3.3 -Pceleborn -DskipTests
+mvn clean package -Pvelox-backend -Pspark-3.3 -Pceleborn -DskipTests
 ```
 
 Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
@@ -293,7 +293,7 @@ First refer to this URL(https://uniffle.apache.org/docs/intro) to get start with
 When compiling the Gluten Java module, it's required to enable `uniffle` profile, as follows:
 
 ```
-mvn clean package -Pbackends-velox -Pspark-3.3 -Puniffle -DskipTests
+mvn clean package -Pvelox-backend -Pspark-3.3 -Puniffle -DskipTests
 ```
 
 Then add the Uniffle and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
@@ -333,7 +333,7 @@ Gluten with velox backend supports [DeltaLake](https://delta.io/) table.
 First of all, compile gluten-delta module by a `delta` profile, as follows:
 
 ```
-mvn clean package -Pbackends-velox -Pspark-3.3 -Pdelta -DskipTests
+mvn clean package -Pvelox-backend -Pspark-3.3 -Pdelta -DskipTests
 ```
 
 Once built successfully, delta features will be included in gluten-velox-bundle-X jar. Then you can query delta table by gluten/velox without scan's fallback.
@@ -350,7 +350,7 @@ Gluten with velox backend supports [Iceberg](https://iceberg.apache.org/) table.
 First of all, compile gluten-iceberg module by a `iceberg` profile, as follows:
 
 ```
-mvn clean package -Pbackends-velox -Pspark-3.3 -Piceberg -DskipTests
+mvn clean package -Pvelox-backend -Pspark-3.3 -Piceberg -DskipTests
 ```
 
 Once built successfully, iceberg features will be included in gluten-velox-bundle-X jar. Then you can query iceberg table by gluten/velox without scan's fallback.
@@ -364,7 +364,7 @@ Gluten with velox backend supports [Hudi](https://hudi.apache.org/) table. Curre
 First of all, compile gluten-hudi module by a `hudi` profile, as follows:
 
 ```
-mvn clean package -Pbackends-velox -Pspark-3.3 -Phudi -DskipTests
+mvn clean package -Pvelox-backend -Pspark-3.3 -Phudi -DskipTests
 ```
 
 Once built successfully, hudi features will be included in gluten-velox-bundle-X jar. Then you can query hudi **COW** table by gluten/velox without scan's fallback.

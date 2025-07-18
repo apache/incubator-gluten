@@ -40,14 +40,14 @@
 
   <profiles>
     <profile>
-      <id>backends-clickhouse</id>
+      <id>clickhouse-backend</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
-          <artifactId>backends-clickhouse</artifactId>
+          <artifactId>clickhouse-backend</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
@@ -104,7 +104,7 @@
                 </goals>
                 <configuration>
                   <sources>
-                    <source>src/test/backends-clickhouse</source>
+                    <source>src/test/clickhouse-backend</source>
                   </sources>
                 </configuration>
               </execution>
@@ -114,14 +114,14 @@
       </build>
     </profile>
     <profile>
-      <id>backends-velox</id>
+      <id>velox-backend</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
-          <artifactId>backends-velox</artifactId>
+          <artifactId>velox-backend</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
@@ -163,7 +163,7 @@
                 </goals>
                 <configuration>
                   <sources>
-                    <source>src/test/backends-velox</source>
+                    <source>src/test/velox-backend</source>
                   </sources>
                 </configuration>
               </execution>

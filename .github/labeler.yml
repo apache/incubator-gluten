@@ -60,7 +60,7 @@ VELOX:
   - changed-files:
     - any-glob-to-any-file: [
       'gluten-arrow/**/*',
-      'backends-velox/**/*',
+      'velox-backend/**/*',
       'ep/build-velox/**/*',
       'cpp/**/*'
     ]
@@ -68,7 +68,7 @@ VELOX:
 CLICKHOUSE:
   - changed-files:
     - any-glob-to-any-file: [
-      'backends-clickhouse/**/*',
+      'clickhouse-backend/**/*',
       'ep/build-clickhouse/**/*',
       'cpp-ch/**/*'
     ]

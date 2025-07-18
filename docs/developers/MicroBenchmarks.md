@@ -37,19 +37,19 @@ cd /path/to/gluten/
 ./dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON
 
 # Run test to generate input data files. If you are using spark 3.3, replace -Pspark-3.2 with -Pspark-3.3.
-mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am \
+mvn test -Pspark-3.2 -Pvelox-backend -pl velox-backend -am \
 -DtagsToInclude="org.apache.gluten.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Dexec.skip
 ```
 
-The generated example files are placed in gluten/backends-velox:
+The generated example files are placed in gluten/velox-backend:
 
 - stageId means Spark stage id in web ui.
 - partitionedId means Spark partition id in web stage ui.
 - vId means backends internal virtual id.
 
 ```shell
-$ tree gluten/backends-velox/generated-native-benchmark/
-gluten/backends-velox/generated-native-benchmark/
+$ tree gluten/velox-backend/generated-native-benchmark/
+gluten/velox-backend/generated-native-benchmark/
 ├── conf_12_10_3.ini
 ├── data_12_10_3_0.parquet
 ├── data_12_10_3_1.parquet
@@ -62,10 +62,10 @@ the input files:
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan <path-to-gluten>/backends-velox/generated-native-benchmark/plan_{stageId}_{partitionId}_{vId}.json \
---data <path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet,\
-<path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet \
---conf <path-to-gluten>/backends-velox/generated-native-benchmark/conf_{stageId}_{partitionId}_{vId}.ini \
+--plan <path-to-gluten>/velox-backend/generated-native-benchmark/plan_{stageId}_{partitionId}_{vId}.json \
+--data <path-to-gluten>/velox-backend/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet,\
+<path-to-gluten>/velox-backend/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet \
+--conf <path-to-gluten>/velox-backend/generated-native-benchmark/conf_{stageId}_{partitionId}_{vId}.ini \
 --threads 1 --iterations 1 --noprint-result
 ```
 

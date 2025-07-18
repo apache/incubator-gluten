@@ -466,12 +466,12 @@
     </profile>
 
     <profile>
-      <id>backends-clickhouse</id>
+      <id>clickhouse-backend</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
-        <module>backends-clickhouse</module>
+        <module>clickhouse-backend</module>
       </modules>
       <properties>
         <backend_type>clickhouse</backend_type>
@@ -916,13 +916,13 @@
       </build>
     </profile>
     <profile>
-      <id>backends-velox</id>
+      <id>velox-backend</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
         <module>gluten-arrow</module>
-        <module>backends-velox</module>
+        <module>velox-backend</module>
       </modules>
       <properties>
         <backend_type>velox</backend_type>

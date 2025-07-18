@@ -59,7 +59,7 @@ RUN set -ex; \
     cd /opt/gluten; \
     source /opt/rh/gcc-toolset-11/enable; \
     ./dev/builddeps-veloxbe.sh --run_setup_script=ON build_arrow; \
-    mvn dependency:go-offline -Pbackends-velox -Piceberg -Pdelta -Pspark-3.5 -DskipTests; \
+    mvn dependency:go-offline -Pvelox-backend -Piceberg -Pdelta -Pspark-3.5 -DskipTests; \
     dnf clean all; \
     rm -rf /opt/gluten; \
     rm -rf /root/.cache/ccache;

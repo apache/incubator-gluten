@@ -99,7 +99,7 @@ Install the Linux IntelliJ version, and debug code locally.
 
 - Make sure you have compiled Gluten.
 - Load the Gluten by File->Open, select <gluten_home/pom.xml>.
-- Activate your profiles such as <backends-velox>, and Reload Maven Project, you will find all your need modules have been activated.
+- Activate your profiles such as <velox-backend>, and Reload Maven Project, you will find all your need modules have been activated.
 - Create breakpoint and debug as you wish, maybe you can try `CTRL+N` to find `TestOperator` to start your test.
 
 ## Java/Scala code style
@@ -111,13 +111,13 @@ To generate a fix for Java/Scala code style, you can run one or more of the belo
 
 For Velox backend:
 ```
-mvn spotless:apply -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.2 -Pspark-ut -DskipTests
-mvn spotless:apply -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.3 -Pspark-ut -DskipTests
+mvn spotless:apply -Pvelox-backend -Pceleborn -Puniffle -Pspark-3.2 -Pspark-ut -DskipTests
+mvn spotless:apply -Pvelox-backend -Pceleborn -Puniffle -Pspark-3.3 -Pspark-ut -DskipTests
 ```
 For Clickhouse backend:
 ```
-mvn spotless:apply -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -DskipTests
-mvn spotless:apply -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut -DskipTests
+mvn spotless:apply -Pclickhouse-backend -Pspark-3.2 -Pspark-ut -DskipTests
+mvn spotless:apply -Pclickhouse-backend -Pspark-3.3 -Pspark-ut -DskipTests
 ```
 
 # CPP code development with Visual Studio Code
@@ -235,9 +235,9 @@ Click the `Add Configuration` button in launch.json, and select gdb "launch" (to
           "--with-shuffle",
           "--partitioning=hash",
           "--iterations=1",
-          "--conf=${workspaceFolder}/backends-velox/generated-native-benchmark/conf_12_0_2.ini",
-          "--plan=${workspaceFolder}/backends-velox/generated-native-benchmark/plan_12_0_2.json",
-          "--data=${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_2_0.parquet,${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_2_1.parquet"
+          "--conf=${workspaceFolder}/velox-backend/generated-native-benchmark/conf_12_0_2.ini",
+          "--plan=${workspaceFolder}/velox-backend/generated-native-benchmark/plan_12_0_2.json",
+          "--data=${workspaceFolder}/velox-backend/generated-native-benchmark/data_12_0_2_0.parquet,${workspaceFolder}/velox-backend/generated-native-benchmark/data_12_0_2_1.parquet"
       ],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
@@ -509,7 +509,7 @@ As a result, developers may encounter unit test fail in Github CI or locally, wi
 - TPC-H q5 *** FAILED ***
   Mismatch for query 5
   Actual Plan path: /tmp/tpch-approved-plan/v2-bhj/spark322/5.txt
-  Golden Plan path: /opt/gluten/backends-velox/target/scala-2.12/test-classes/tpch-approved-plan/v2-bhj/spark322/5.txt (VeloxTPCHSuite.scala:101)
+  Golden Plan path: /opt/gluten/velox-backend/target/scala-2.12/test-classes/tpch-approved-plan/v2-bhj/spark322/5.txt (VeloxTPCHSuite.scala:101)
 ```
 For developers to update the golden plan, you can find the actual plan in Github CI Artifacts or in local `/tmp/` directory. 
 

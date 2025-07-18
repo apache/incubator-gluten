@@ -53,8 +53,8 @@ The below parameters can be set via `-P` for mvn.
 
 | Parameters          | Description                           | Default state |
 |---------------------|---------------------------------------|---------------|
-| backends-velox      | Build Gluten Velox backend.           | disabled      |
-| backends-clickhouse | Build Gluten ClickHouse backend.      | disabled      |
+| velox-backend      | Build Gluten Velox backend.           | disabled      |
+| clickhouse-backend | Build Gluten ClickHouse backend.      | disabled      |
 | celeborn            | Build Gluten with Celeborn.           | disabled      |
 | uniffle             | Build Gluten with Uniffle.            | disabled      |
 | delta               | Build Gluten with Delta Lake support. | disabled      |

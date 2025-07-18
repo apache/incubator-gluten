@@ -1171,7 +1171,7 @@ def run_test_suites(categories):
         "test",
         "-Pspark-3.5",
         "-Pspark-ut",
-        "-Pbackends-velox",
+        "-Pvelox-backend",
         f"-DargLine=-Dspark.test.home={spark_home} -Dlog4j2.configurationFile=file:{log4j_properties_file}",
         f"-DwildcardSuites={suites}",
         "-Dtest=none",

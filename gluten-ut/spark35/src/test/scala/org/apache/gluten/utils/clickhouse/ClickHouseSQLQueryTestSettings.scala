@@ -20,7 +20,7 @@ import org.apache.gluten.utils.SQLQueryTestSettings
 
 object ClickHouseSQLQueryTestSettings extends SQLQueryTestSettings {
   override def getResourceFilePath: String =
-    getClass.getResource("/").getPath + "../../../src/test/resources/backends-clickhouse/sql-tests"
+    getClass.getResource("/").getPath + "../../../src/test/resources/clickhouse-backend/sql-tests"
 
   override def getSupportedSQLQueryTests: Set[String] = SUPPORTED_SQL_QUERY_LIST
 
