@@ -66,3 +66,7 @@ add_velox_test(buffer_outputstream_test SOURCES BufferOutputStreamTest.cc)
 if(BUILD_EXAMPLES)
   add_velox_test(my_udf_test SOURCES MyUdfTest.cc)
 endif()
+
+if(ENABLE_ENHANCED_FEATURES)
+  add_velox_test(velox_iceberg_test SOURCES iceberg/IcebergWriteTest.cc)
+endif()

@@ -14,18 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.component
-import org.apache.gluten.backendsapi.velox.VeloxBackend
-import org.apache.gluten.execution.{OffloadIcebergScan, OffloadIcebergWrite}
-import org.apache.gluten.extension.injector.Injector
 
-class VeloxIcebergComponent extends Component {
-  override def name(): String = "velox-iceberg"
-  override def buildInfo(): Component.BuildInfo =
-    Component.BuildInfo("VeloxIceberg", "N/A", "N/A", "N/A")
-  override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
-  override def injectRules(injector: Injector): Unit = {
-    OffloadIcebergScan.inject(injector)
-    OffloadIcebergWrite.inject(injector)
-  }
-}
+#pragma once
+
+#include "velox/dwio/common/Options.h"
+
+namespace gluten {
+enum class IcebergFileFormat { ORC, PARQUET, AVRO, METADATA };
+
+facebook::velox::dwio::common::FileFormat icebergFormatToVelox(int32_t format);
+} // namespace gluten

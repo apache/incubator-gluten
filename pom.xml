@@ -805,8 +805,7 @@
                     <source>${project.basedir}/src-iceberg/test/scala</source>
                     <source>${project.basedir}/src-iceberg/test/java</source>
                     <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/scala</source>
-                    <!-- // TODO: temporary mark disable to pass CI -->
-                     <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/java</source>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
