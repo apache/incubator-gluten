@@ -49,7 +49,7 @@ DB::Columns BaseReader::addVirtualColumn(DB::Chunk dataChunk, size_t rowNum) con
     assert(rows && "read 0 rows from file");
 
     auto read_columns = dataChunk.detachColumns();
-    const auto & columns = outputHeader.getColumnsWithTypeAndName();
+    const auto & columns = getHeader().getColumnsWithTypeAndName();
     const auto & normalized_partition_values = file->getFileNormalizedPartitionValues();
 
     DB::Columns res_columns;
@@ -229,7 +229,7 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
 
     /// If the original output header is empty, build a block to represent the row count.
     DB::Columns res_columns
-        = outputHeader.columns() > 0 ? addVirtualColumn({}, to_read_rows) : BlockUtil::buildRowCountChunk(to_read_rows).detachColumns();
+        = getHeader().columns() > 0 ? addVirtualColumn({}, to_read_rows) : BlockUtil::buildRowCountChunk(to_read_rows).detachColumns();
 
     chunk = DB::Chunk(std::move(res_columns), to_read_rows);
     return true;
@@ -263,7 +263,7 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
 
 DB::Block BaseReader::buildRowCountHeader(const DB::Block & header)
 {
-    return header ? header : BlockUtil::buildRowCountHeader();
+    return !header.empty() ? header : BlockUtil::buildRowCountHeader();
 }
 
 namespace
@@ -320,7 +320,7 @@ std::unique_ptr<BaseReader> BaseReader::create(
     const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag,
     const ColumnIndexFilterPtr & column_index_filter)
 {
-    if (!readHeader)
+    if (readHeader.empty())
     {
         if (auto totalRows = current_file->getTotalRows())
             return std::make_unique<ConstColumnsFileReader>(current_file, outputHeader, *totalRows);

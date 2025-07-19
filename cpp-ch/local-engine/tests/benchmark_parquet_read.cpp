@@ -51,7 +51,7 @@ void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
 
     std::string file = local_engine::test::third_party_data(
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
-    Block header{local_engine::toSampleBlock(local_engine::test::readParquetSchema(file))};
+    auto header = local_engine::toShared(local_engine::toSampleBlock(local_engine::test::readParquetSchema(file)));
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
@@ -63,7 +63,7 @@ void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
             .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
             .allow_missing_columns = format_settings.parquet.allow_missing_columns};
         ReadBufferFromFilePRead fileReader(file);
-        metaBuilder.build(fileReader, header);
+        metaBuilder.build(fileReader, *header);
         local_engine::ColumnIndexRowRangesProvider provider{metaBuilder};
         auto format = std::make_shared<local_engine ::VectorizedParquetBlockInputFormat>(fileReader, header, provider, format_settings);
         auto pipeline = QueryPipeline(std::move(format));
@@ -81,7 +81,7 @@ void BM_ColumnIndexRead_Old(benchmark::State & state)
 
     std::string file = local_engine::test::third_party_data(
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
-    Block header{local_engine::toSampleBlock(local_engine::test::readParquetSchema(file))};
+    auto header = local_engine::toShared(local_engine::toSampleBlock(local_engine::test::readParquetSchema(file)));
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
@@ -102,10 +102,10 @@ void BM_ColumnIndexRead_Old(benchmark::State & state)
 void BM_ParquetReadDate32(benchmark::State & state)
 {
     using namespace DB;
-    Block header{
+    auto header = local_engine::toShared(Block{
         ColumnWithTypeAndName(DataTypeDate32().createColumn(), std::make_shared<DataTypeDate32>(), "l_shipdate"),
         ColumnWithTypeAndName(DataTypeDate32().createColumn(), std::make_shared<DataTypeDate32>(), "l_commitdate"),
-        ColumnWithTypeAndName(DataTypeDate32().createColumn(), std::make_shared<DataTypeDate32>(), "l_receiptdate")};
+        ColumnWithTypeAndName(DataTypeDate32().createColumn(), std::make_shared<DataTypeDate32>(), "l_receiptdate")});
     std::string file{GLUTEN_SOURCE_TPCH_DIR("lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet")};
     FormatSettings format_settings;
     Block res;

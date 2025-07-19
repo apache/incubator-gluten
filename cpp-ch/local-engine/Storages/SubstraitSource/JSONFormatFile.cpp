@@ -16,11 +16,10 @@
  */
 #include "JSONFormatFile.h"
 
-
 #include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/JSONEachRowRowInputFormat.h>
-
+#include <Common/BlockTypeUtils.h>
 
 namespace local_engine
 {
@@ -42,7 +41,7 @@ JSONFormatFile::createInputFormat(const DB::Block & header, const std::shared_pt
     size_t max_block_size = file_info.json().max_block_size();
     DB::RowInputFormatParams in_params = {max_block_size};
     std::shared_ptr<DB::JSONEachRowRowInputFormat> json_input_format
-        = std::make_shared<DB::JSONEachRowRowInputFormat>(*read_buffer, header, in_params, format_settings, false);
+        = std::make_shared<DB::JSONEachRowRowInputFormat>(*read_buffer, toShared(header), in_params, format_settings, false);
 
     return std::make_shared<InputFormat>(std::move(read_buffer), json_input_format);
 }

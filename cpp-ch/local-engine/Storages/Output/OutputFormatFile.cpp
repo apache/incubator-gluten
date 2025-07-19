@@ -47,7 +47,7 @@ OutputFormatFile::OutputFormatFile(
 
 Block OutputFormatFile::createHeaderWithPreferredSchema(const Block & header)
 {
-    if (!preferred_schema)
+    if (preferred_schema.empty())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "preferred_schema is empty");
 
     /// Create a new header with the preferred column name and type

@@ -18,8 +18,8 @@
 
 #include <Processors/ISimpleTransform.h>
 #include <Processors/QueryPlan/ITransformingStep.h>
-#include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
+#include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
 
 namespace local_engine
 {
@@ -27,7 +27,7 @@ namespace local_engine
 class FillingDeltaInternalRowDeletedStep : public DB::ITransformingStep
 {
 public:
-    explicit FillingDeltaInternalRowDeletedStep(const DB::Block & input_header, const MergeTreeTableInstance & _merge_tree_table, const DB::ContextPtr _context);
+    explicit FillingDeltaInternalRowDeletedStep(const DB::SharedHeader & input_header, const MergeTreeTableInstance & _merge_tree_table, const DB::ContextPtr _context);
     ~FillingDeltaInternalRowDeletedStep() override = default;
 
     static DB::Block transformHeader(const DB::Block & input);
@@ -44,7 +44,7 @@ private:
 class FillingDeltaInternalRowDeletedTransform : public DB::ISimpleTransform
 {
 public:
-    FillingDeltaInternalRowDeletedTransform(const DB::Block & input_header_, const MergeTreeTableInstance & merge_tree_table, const DB::ContextPtr context);
+    FillingDeltaInternalRowDeletedTransform(const DB::SharedHeader & input_header_, const MergeTreeTableInstance & merge_tree_table, const DB::ContextPtr context);
     ~FillingDeltaInternalRowDeletedTransform() override = default;
 
     String getName() const override { return "FillingDeltaInternalRowDeletedTransform"; }

@@ -17,6 +17,7 @@
 #include <Operator/EarlyStopStep.h>
 #include <Processors/Port.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/BlockTypeUtils.h>
 
 namespace DB
 {
@@ -43,13 +44,13 @@ static DB::ITransformingStep::Traits getTraits()
 }
 
 EarlyStopStep::EarlyStopStep(
-    const DB::Block & input_header_)
+    const DB::SharedHeader & input_header_)
     : DB::ITransformingStep(
-        input_header_, transformHeader(input_header_), getTraits())
+        input_header_, toShared(transformHeader(*input_header_)), getTraits())
 {
 }
 
-DB::Block EarlyStopStep::transformHeader(const DB::Block& input)
+DB::Block EarlyStopStep::transformHeader(const DB::Block & input)
 {
     return input.cloneEmpty();
 }
@@ -57,7 +58,7 @@ DB::Block EarlyStopStep::transformHeader(const DB::Block& input)
 void EarlyStopStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/)
 {
     pipeline.addSimpleTransform(
-        [&](const DB::Block & header)
+        [&](const DB::SharedHeader & header)
         {
             return std::make_shared<EarlyStopTransform>(header);
         });
@@ -71,11 +72,11 @@ void EarlyStopStep::describeActions(DB::IQueryPlanStep::FormatSettings & setting
 
 void EarlyStopStep::updateOutputHeader()
 {
-    output_header = transformHeader(input_headers.front());
+    output_header = toShared(transformHeader(*input_headers.front()));
 }
 
-EarlyStopTransform::EarlyStopTransform(const DB::Block &header_)
-    : DB::IProcessor({header_}, {EarlyStopStep::transformHeader(header_)})
+EarlyStopTransform::EarlyStopTransform(const DB::SharedHeader & header_)
+    : DB::IProcessor({header_}, {toShared(EarlyStopStep::transformHeader(*header_))})
 {
 }
 

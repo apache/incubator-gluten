@@ -65,7 +65,7 @@ private:
     const substrait::WindowGroupLimitRel * win_rel_def;
     String aggregate_function_name;
     size_t limit = 0;
-    DB::Block input_header;
+    DB::SharedHeader input_header;
     // DB::Block output_header;
     DB::Names aggregate_grouping_keys;
     String aggregate_tuple_column_name;

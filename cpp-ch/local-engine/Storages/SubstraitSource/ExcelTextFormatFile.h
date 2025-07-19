@@ -62,7 +62,7 @@ class ExcelRowInputFormat final : public DB::CSVRowInputFormat
 {
 public:
     ExcelRowInputFormat(
-        const DB::Block & header_,
+        const DB::SharedHeader & header_,
         std::shared_ptr<DB::PeekableReadBuffer> & buf_,
         const DB::RowInputFormatParams & params_,
         const DB::FormatSettings & format_settings_,

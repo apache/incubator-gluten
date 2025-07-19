@@ -23,8 +23,8 @@
 #include <Processors/IProcessor.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <Poco/Logger.h>
-#include <Common/MemorySpillScheduler.h>
 #include <Common/AggregateUtil.h>
+#include <Common/MemorySpillScheduler.h>
 
 
 namespace local_engine
@@ -40,7 +40,7 @@ class GraceAggregatingTransform : public DB::IProcessor
 public:
     using Status = DB::IProcessor::Status;
     explicit GraceAggregatingTransform(
-        const DB::Block & header_,
+        const DB::SharedHeader & header_,
         DB::AggregatingTransformParamsPtr params_,
         DB::ContextPtr context_,
         bool no_pre_aggregated_,
@@ -54,7 +54,7 @@ public:
 private:
     bool no_pre_aggregated;
     bool final_output;
-    DB::Block header;
+    DB::SharedHeader header;
     DB::Block output_header;
     DB::ColumnRawPtrs key_columns;
     DB::Aggregator::AggregateColumns aggregate_columns;

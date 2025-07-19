@@ -18,6 +18,7 @@
 #include <Interpreters/castColumn.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <jni/jni_common.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
@@ -38,7 +39,7 @@ jmethodID SourceFromJavaIter::serialized_record_batch_iterator_next = nullptr;
 
 static DB::Block getRealHeader(const DB::Block & header, const std::optional<DB::Block> & first_block)
 {
-    if (!header)
+    if (header.empty())
         return BlockUtil::buildRowCountHeader();
     if (!first_block.has_value())
         return header;
@@ -81,13 +82,12 @@ std::optional<DB::Block> SourceFromJavaIter::peekBlock(JNIEnv * env, jobject jav
         return std::optional(DB::Block(block->getColumnsWithTypeAndName()));
     else
         return std::nullopt;
-
 }
 
 
 SourceFromJavaIter::SourceFromJavaIter(
     DB::ContextPtr context_, const DB::Block& header, jobject java_iter_, bool materialize_input_, std::optional<DB::Block> && first_block_)
-    : DB::ISource(getRealHeader(header, first_block_))
+    : DB::ISource(toShared(getRealHeader(header, first_block_)))
     , context(context_)
     , original_header(header)
     , java_iter(java_iter_)
@@ -118,7 +118,7 @@ DB::Chunk SourceFromJavaIter::generate()
         return {};
 
     DB::Chunk result;
-    if (original_header)
+    if (!original_header.empty())
     {
         const auto & header = getPort().getHeader();
         chassert(header.columns() == input_block->columns());
