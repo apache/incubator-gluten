@@ -32,7 +32,7 @@ class GraceAggregatingStep : public DB::ITransformingStep
 {
 public:
     explicit GraceAggregatingStep(
-        DB::ContextPtr context_, const DB::Block & input_header, DB::Aggregator::Params params_, bool no_pre_aggregated_);
+        DB::ContextPtr context_, const DB::SharedHeader & input_header, DB::Aggregator::Params params_, bool no_pre_aggregated_);
     ~GraceAggregatingStep() override = default;
 
     String getName() const override { return "GraceAggregatingStep"; }

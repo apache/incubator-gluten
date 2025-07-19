@@ -24,8 +24,8 @@ class NativeWriterInMemory
 {
 public:
     NativeWriterInMemory();
-    void write(DB::Block & block);
-    std::string & collect();
+    void write(const DB::Block & block);
+    std::string & collect() const;
 
 private:
     std::unique_ptr<DB::WriteBufferFromOwnString> write_buffer;

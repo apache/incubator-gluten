@@ -18,6 +18,7 @@
 #include "GraceAggregatingTransform.h"
 #include <Processors/Port.h>
 #include <Common/BitHelpers.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/CurrentThread.h>
 #include <Common/GlutenConfig.h>
@@ -32,7 +33,7 @@ extern const int LOGICAL_ERROR;
 namespace local_engine
 {
 GraceAggregatingTransform::GraceAggregatingTransform(
-    const DB::Block & header_,
+    const DB::SharedHeader & header_,
     DB::AggregatingTransformParamsPtr params_,
     DB::ContextPtr context_,
     bool no_pre_aggregated_,
@@ -149,7 +150,7 @@ void GraceAggregatingTransform::work()
     if (has_input)
     {
         assert(!input_finished);
-        auto block = header.cloneWithColumns(input_chunk.detachColumns());
+        auto block = header->cloneWithColumns(input_chunk.detachColumns());
         mergeOneBlock(block, true);
         has_input = false;
     }
@@ -308,7 +309,7 @@ void GraceAggregatingTransform::flushBuckets()
         flushBucket(i);
 }
 
-static size_t flushBlocksInfoDisk(std::optional<DB::TemporaryBlockStreamHolder>& file_stream, std::list<DB::Block> & blocks)
+static size_t flushBlocksInfoDisk(std::optional<DB::TemporaryBlockStreamHolder> & file_stream, std::list<DB::Block> & blocks)
 {
     size_t flush_bytes = 0;
     DB::Blocks tmp_blocks;
@@ -354,7 +355,7 @@ size_t GraceAggregatingTransform::flushBucket(size_t bucket_index)
     {
         if (!file_stream.intermediate_file_stream)
         {
-            auto intermediate_header = params->aggregator.getHeader(false);
+            auto intermediate_header = toShared(params->aggregator.getHeader(false));
             file_stream.intermediate_file_stream = DB::TemporaryBlockStreamHolder(intermediate_header, tmp_data_disk.get());
         }
         flush_bytes += flushBlocksInfoDisk(file_stream.intermediate_file_stream, file_stream.intermediate_blocks);

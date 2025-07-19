@@ -25,7 +25,7 @@
 #include <jni/CelebornClient.h>
 #include <jni/jni_common.h>
 #include <Poco/StringTokenizer.h>
-
+#include <Common/BlockTypeUtils.h>
 
 namespace DB
 {
@@ -83,7 +83,7 @@ void SparkExchangeSink::onFinish()
 
 void SparkExchangeSink::initOutputHeader(const Block & block)
 {
-    if (!output_header)
+    if (output_header.empty())
     {
         if (output_columns_indicies.empty())
         {
@@ -154,14 +154,14 @@ void SparkExchangeManager::initSinks(size_t num)
     for (size_t i = 0; i < num; ++i)
     {
         partition_writers[i] = createPartitionWriter(options, use_sort_shuffle, std::move(celeborn_client));
-        sinks[i] = std::make_shared<SparkExchangeSink>(input_header, partitioner_creator(options), partition_writers[i], output_columns_indicies, use_sort_shuffle);
+        sinks[i] = std::make_shared<SparkExchangeSink>(toShared(input_header), partitioner_creator(options), partition_writers[i], output_columns_indicies, use_sort_shuffle);
     }
 }
 
 void SparkExchangeManager::setSinksToPipeline(DB::QueryPipelineBuilder & pipeline) const
 {
     size_t count = 0;
-    DB::Pipe::ProcessorGetterWithStreamKind getter = [&](const Block & header, Pipe::StreamType stream_type) -> ProcessorPtr
+    DB::Pipe::ProcessorGetterSharedHeaderWithStreamKind getter = [&](const SharedHeader & header, Pipe::StreamType stream_type) -> ProcessorPtr
     {
         if (stream_type == Pipe::StreamType::Main)
         {

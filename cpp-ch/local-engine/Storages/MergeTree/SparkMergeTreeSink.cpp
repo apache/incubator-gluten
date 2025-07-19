@@ -124,6 +124,7 @@ SinkToStoragePtr SparkMergeTreeSink::create(
     const DB::Settings & settings = context->getSettingsRef();
     return std::make_shared<SparkMergeTreeSink>(
         sink_helper,
+        std::make_shared<const DB::Block>(sink_helper->metadata_snapshot->getSampleBlock()),
         context,
         delta_stats,
         stats,

@@ -214,7 +214,7 @@ protected:
     virtual DB::Chunk final_result() = 0;
 
 public:
-    WriteStatsBase(const DB::Block & input_header_, const DB::Block & output_header_)
+    WriteStatsBase(const DB::SharedHeader & input_header_, const DB::SharedHeader & output_header_)
         : ISimpleTransform(input_header_, output_header_, true)
     {
     }
@@ -264,13 +264,13 @@ protected:
     }
 
 public:
-    WriteStats(const DB::Block & input_header_, const DB::Block & output_header_)
-        : WriteStatsBase(input_header_, output_header_), columns_(output_header_.cloneEmptyColumns())
+    WriteStats(const DB::SharedHeader & input_header_, const DB::SharedHeader & output_header_)
+        : WriteStatsBase(input_header_, output_header_), columns_(output_header_->cloneEmptyColumns())
     {
     }
-    static std::shared_ptr<WriteStats> create(const DB::Block & input, const DB::Names & partition)
+    static std::shared_ptr<WriteStats> create(const DB::SharedHeader & input, const DB::Names & partition)
     {
-        return std::make_shared<WriteStats>(input, DeltaStats::statsHeader(input, partition, statsHeaderBase()));
+        return std::make_shared<WriteStats>(input, toShared(DeltaStats::statsHeader(*input, partition, statsHeaderBase())));
     }
 
     String getName() const override { return "WriteStats"; }
@@ -368,14 +368,14 @@ public:
         const bool bucketed_write,
         const std::string & relative,
         const std::string & format_hint,
-        const DB::Block & header,
+        const DB::SharedHeader header,
         const std::shared_ptr<WriteStatsBase> & stats,
         const DeltaStats & delta_stats)
         : SinkToStorage(header)
         , partition_id_(partition_id)
         , bucketed_write_(bucketed_write)
         , relative_path_(relative)
-        , format_file_(createOutputFormatFile(context, makeAbsoluteFilename(base_path, partition_id, relative), header, format_hint))
+        , format_file_(createOutputFormatFile(context, makeAbsoluteFilename(base_path, partition_id, relative), *header, format_hint))
         , stats_(std::dynamic_pointer_cast<WriteStats>(stats))
         , delta_stats_(delta_stats)
     {
@@ -497,13 +497,13 @@ public:
     SparkPartitionedBaseSink(
         const DB::ContextPtr & context,
         const DB::Names & partition_by,
-        const DB::Block & input_header,
+        const DB::SharedHeader & input_header,
         const std::shared_ptr<WriteStatsBase> & stats)
-        : PartitionedSink(make_partition_expression(partition_by, input_header), context, input_header)
+        : PartitionedSink(make_partition_expression(partition_by, *input_header), context, input_header)
         , context_(context)
         , stats_(stats)
-        , bucketed_write_(isBucketedWrite(input_header))
-        , empty_delta_stats_(DeltaStats::create(input_header, partition_by))
+        , bucketed_write_(isBucketedWrite(*input_header))
+        , empty_delta_stats_(DeltaStats::create(*input_header, partition_by))
     {
     }
 };
@@ -512,16 +512,16 @@ class SubstraitPartitionedFileSink final : public SparkPartitionedBaseSink
 {
     const std::string base_path_;
     const FileNameGenerator generator_;
-    const DB::Block input_header_;
-    const DB::Block sample_block_;
+    const DB::SharedHeader input_header_;
+    const DB::SharedHeader sample_block_;
     const std::string format_hint_;
 
 public:
     SubstraitPartitionedFileSink(
         const DB::ContextPtr & context,
         const DB::Names & partition_by,
-        const DB::Block & input_header,
-        const DB::Block & sample_block,
+        const DB::SharedHeader & input_header,
+        const DB::SharedHeader & sample_block,
         const std::string & base_path,
         const FileNameGenerator & generator,
         const std::string & format_hint,
