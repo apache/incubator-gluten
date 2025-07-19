@@ -19,6 +19,7 @@ package org.apache.gluten.rexnode;
 import io.github.zhztheplayer.velox4j.expression.CastTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.*;
+import io.github.zhztheplayer.velox4j.type.DecimalType;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
@@ -59,6 +60,16 @@ public class TypeUtils {
                 expr -> {
                   Type returnType = expr.getReturnType();
                   int priority = getNumericTypePriority(returnType);
+                  if (returnType instanceof DecimalType) {
+                    DecimalType decimalType = (DecimalType) returnType;
+                    System.err.println(
+                        "xxx decimal type. precision:"
+                            + decimalType.getPrecision()
+                            + ", scale:"
+                            + decimalType.getScale());
+                  } else {
+                    System.err.println("xxx type: " + returnType.getClass().getName());
+                  }
                   return new Tuple2<>(priority, returnType);
                 })
             .max((t1, t2) -> Integer.compare(t1.f0, t2.f0))

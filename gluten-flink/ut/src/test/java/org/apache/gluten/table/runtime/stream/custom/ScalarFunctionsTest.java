@@ -23,6 +23,7 @@ import org.apache.flink.types.Row;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -55,6 +56,17 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
     String query2 = "select a - 1 as x from tblSub where a > 0";
     runAndCheck(query2, Arrays.asList("+I[0]", "+I[1]", "+I[2]"));
+  }
+
+  @Test
+  void testDivide() {
+    List<Row> rows = Arrays.asList(Row.of(1, 100), Row.of(2, 3), Row.of(3, 5));
+    createSimpleBoundedValuesTable("tblDiv", "a bigint, d int", rows);
+    String query1 = "select d / a as x from tblDiv where a > 0";
+    // runAndCheck(query1, Arrays.asList("+I[100]", "+I[1]", "+I[1]"));
+
+    String query2 = "select d / 3 as x from tblDiv where a > 0";
+    runAndCheck(query2, Arrays.asList("+I[33]", "+I[1]", "+I[1]"));
   }
 
   @Test
@@ -125,5 +137,44 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
     String query4 = "select c = d as x from tblEqual where a > 0";
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
+  }
+
+  @Test
+  void testDecimal() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, new BigDecimal("1.0"), new BigDecimal("1.0"), 2L),
+            Row.of(2, new BigDecimal("2.0"), new BigDecimal("2.0"), 3L),
+            Row.of(3, new BigDecimal("3.0"), new BigDecimal("3.0"), 4L));
+    createSimpleBoundedValuesTable(
+        "tblDecimal", "a int, b decimal(11, 2), c decimal(10, 3), d bigint", rows);
+    String query = "select b + c as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[2.000]", "+I[4.000]", "+I[6.000]"));
+
+    query = "select b + a as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[2.00]", "+I[4.00]", "+I[6.00]"));
+
+    query = "select b + d as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[3.00]", "+I[5.00]", "+I[7.00]"));
+
+    query = "select b - c as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[0.000]", "+I[0.000]", "+I[0.000]"));
+
+    query = "select b - a as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[0.00]", "+I[0.00]", "+I[0.00]"));
+
+    query = "select b * c as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1.00000]", "+I[4.00000]", "+I[9.00000]"));
+
+    query = "select b * d as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[2.00]", "+I[6.00]", "+I[12.00]"));
+
+    query = "select b / c as x from tblDecimal where a > 0";
+    runAndCheck(
+        query, Arrays.asList("+I[1.0000000000000]", "+I[1.0000000000000]", "+I[1.0000000000000]"));
+
+    query = "select b / a as x from tblDecimal where a > 0";
+    runAndCheck(
+        query, Arrays.asList("+I[1.0000000000000]", "+I[1.0000000000000]", "+I[1.0000000000000]"));
   }
 }
