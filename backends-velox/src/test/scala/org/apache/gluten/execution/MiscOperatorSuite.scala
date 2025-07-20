@@ -930,81 +930,98 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
 
   test("test explode/posexplode function") {
     Seq("explode", "posexplode").foreach {
-      func =>
-        // Literal: func(literal)
-        runQueryAndCompare(s"""
-                              |SELECT $func(array(1, 2, 3));
-                              |""".stripMargin) {
-          checkGlutenOperatorMatch[GenerateExecTransformer]
-        }
-        runQueryAndCompare(s"""
-                              |SELECT $func(map(1, 'a', 2, 'b'));
-                              |""".stripMargin) {
-          checkGlutenOperatorMatch[GenerateExecTransformer]
-        }
-        runQueryAndCompare(
-          s"""
-             |SELECT $func(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
-             |""".stripMargin) {
-          checkGlutenOperatorMatch[GenerateExecTransformer]
-        }
-        runQueryAndCompare(s"""
-                              |SELECT $func(map(1, array(1, 2), 2, array(3, 4)));
-                              |""".stripMargin) {
-          checkGlutenOperatorMatch[GenerateExecTransformer]
-        }
+      f =>
+        Seq(true, false).foreach {
+          isOuter =>
+            val func = if (isOuter) s"${f}_outer" else f
+            // Literal: func(literal)
+            runQueryAndCompare(s"""
+                                  |SELECT $func(array(1, 2, 3));
+                                  |""".stripMargin) {
+              checkGlutenOperatorMatch[GenerateExecTransformer]
+            }
+            runQueryAndCompare(s"""
+                                  |SELECT $func(map(1, 'a', 2, 'b'));
+                                  |""".stripMargin) {
+              checkGlutenOperatorMatch[GenerateExecTransformer]
+            }
+            runQueryAndCompare(
+              s"""
+                 |SELECT
+                 |  $func(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, '', 6, null)));
+                 |""".stripMargin) {
+              checkGlutenOperatorMatch[GenerateExecTransformer]
+            }
+            runQueryAndCompare(s"""
+                                  |SELECT $func(map(1, array(1, 2), 2, array(3, 4), 3, array()));
+                                  |""".stripMargin) {
+              checkGlutenOperatorMatch[GenerateExecTransformer]
+            }
 
-        // CreateArray/CreateMap: func(array(col)), func(map(k, v))
-        withTempView("t1") {
-          sql("""select * from values (1), (2), (3), (4)
-                |as tbl(a)
+            // CreateArray/CreateMap: func(array(col)), func(map(k, v))
+            withTempView("t1") {
+              sql("""select * from values (1), (2), (3), (4), (null)
+                    |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t1")
-          runQueryAndCompare(s"""
-                                |SELECT $func(array(a)) from t1;
-                                |""".stripMargin) {
-            checkGlutenOperatorMatch[GenerateExecTransformer]
-          }
-          sql("""select * from values (1, 'a'), (2, 'b'), (3, null), (4, null)
-                |as tbl(a, b)
+              runQueryAndCompare(s"""
+                                    |SELECT $func(array(a)) from t1;
+                                    |""".stripMargin) {
+                checkGlutenOperatorMatch[GenerateExecTransformer]
+              }
+              sql("""select * from values (1, 'a'), (2, 'b'), (3, null), (4, null)
+                    |as tbl(a, b)
          """.stripMargin).createOrReplaceTempView("t1")
-          runQueryAndCompare(s"""
-                                |SELECT $func(map(a, b)) from t1;
-                                |""".stripMargin) {
-            checkGlutenOperatorMatch[GenerateExecTransformer]
-          }
-        }
+              runQueryAndCompare(s"""
+                                    |SELECT $func(map(a, b)) from t1;
+                                    |""".stripMargin) {
+                checkGlutenOperatorMatch[GenerateExecTransformer]
+              }
+            }
 
-        // AttributeReference: func(col)
-        withTempView("t2") {
-          sql("""select * from values
-                |  array(1, 2, 3),
-                |  array(4, null)
-                |as tbl(a)
+            // AttributeReference: func(col)
+            withTempView("t2") {
+              sql("""select * from values
+                    |  array(1, 2, 3),
+                    |  array(4, null),
+                    |  array(),
+                    |  null
+                    |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t2")
-          runQueryAndCompare(s"""
-                                |SELECT $func(a) from t2;
-                                |""".stripMargin) {
-            // No ProjectExecTransformer is introduced.
-            checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer]
-          }
-          sql("""select * from values
-                |  map(1, 'a', 2, 'b', 3, null),
-                |  map(4, null)
-                |as tbl(a)
+              runQueryAndCompare(s"""
+                                    |SELECT $func(a) from t2;
+                                    |""".stripMargin) {
+                df =>
+                  if (!isOuter) {
+                    // No ProjectExecTransformer is introduced.
+                    checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer](df)
+                  }
+                  checkGlutenOperatorMatch[GenerateExecTransformer](df)
+              }
+              sql("""select * from values
+                    |  map(1, 'a', 2, 'b', 3, null),
+                    |  map(4, null),
+                    |  map(),
+                    |  null
+                    |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t2")
-          runQueryAndCompare(s"""
-                                |SELECT $func(a) from t2;
-                                |""".stripMargin) {
-            // No ProjectExecTransformer is introduced.
-            checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer]
-          }
+              runQueryAndCompare(s"""
+                                    |SELECT $func(a) from t2;
+                                    |""".stripMargin) {
+                df =>
+                  if (!isOuter) {
+                    // No ProjectExecTransformer is introduced.
+                    checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer](df)
+                  }
+                  checkGlutenOperatorMatch[GenerateExecTransformer](df)
+              }
 
-          runQueryAndCompare(
-            s"""
-               |SELECT $func(${VeloxDummyExpression.VELOX_DUMMY_EXPRESSION}(a)) from t2;
-               |""".stripMargin) {
-            checkGlutenOperatorMatch[GenerateExecTransformer]
-          }
+              runQueryAndCompare(
+                s"""
+                   |SELECT $func(${VeloxDummyExpression.VELOX_DUMMY_EXPRESSION}(a)) from t2;
+                   |""".stripMargin) {
+                checkGlutenOperatorMatch[GenerateExecTransformer]
+              }
+            }
         }
     }
   }
@@ -1047,58 +1064,67 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("test inline function") {
-    // Literal: func(literal)
-    runQueryAndCompare(s"""
-                          |SELECT inline(array(
-                          |  named_struct('c1', 0, 'c2', 1),
-                          |  named_struct('c1', 2, 'c2', null)));
-                          |""".stripMargin) {
-      checkGlutenOperatorMatch[GenerateExecTransformer]
-    }
+    Seq(true, false).foreach {
+      isOuter =>
+        val func = if (isOuter) "inline_outer" else "inline"
 
-    // CreateArray: func(array(col))
-    withTempView("t1") {
-      sql("""SELECT * from values
-            |  (named_struct('c1', 0, 'c2', 1)),
-            |  (named_struct('c1', 2, 'c2', null)),
-            |  (null)
-            |as tbl(a)
+        // Literal: func(literal)
+        runQueryAndCompare(s"""
+                              |SELECT $func(array(
+                              |  named_struct('c1', 0, 'c2', 1),
+                              |  named_struct('c1', 2, 'c2', null)));
+                              |""".stripMargin) {
+          checkGlutenOperatorMatch[GenerateExecTransformer]
+        }
+
+        // CreateArray: func(array(col))
+        withTempView("t1") {
+          sql("""SELECT * from values
+                |  (named_struct('c1', 0, 'c2', 1)),
+                |  (named_struct('c1', 2, 'c2', null)),
+                |  (null)
+                |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t1")
-      runQueryAndCompare(s"""
-                            |SELECT inline(array(a)) from t1;
-                            |""".stripMargin) {
-        checkGlutenOperatorMatch[GenerateExecTransformer]
-      }
-    }
+          runQueryAndCompare(s"""
+                                |SELECT $func(array(a)) from t1;
+                                |""".stripMargin) {
+            checkGlutenOperatorMatch[GenerateExecTransformer]
+          }
+        }
 
-    withTempView("t2") {
-      sql("""SELECT * from values
-            |  array(
-            |    named_struct('c1', 0, 'c2', 1),
-            |    null,
-            |    named_struct('c1', 2, 'c2', 3)
-            |  ),
-            |  array(
-            |    null,
-            |    named_struct('c1', 0, 'c2', 1),
-            |    named_struct('c1', 2, 'c2', 3)
-            |  )
-            |as tbl(a)
+        withTempView("t2") {
+          sql("""SELECT * from values
+                |  array(
+                |    named_struct('c1', 0, 'c2', 1),
+                |    null,
+                |    named_struct('c1', 2, 'c2', 3)
+                |  ),
+                |  array(
+                |    null,
+                |    named_struct('c1', 0, 'c2', 1),
+                |    named_struct('c1', 2, 'c2', 3)
+                |  ),
+                |  array(),
+                |  null
+                |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t2")
-      runQueryAndCompare("""
-                           |SELECT inline(a) from t2;
-                           |""".stripMargin) {
-        checkGlutenOperatorMatch[GenerateExecTransformer]
-      }
-    }
+          runQueryAndCompare(s"""
+                                |SELECT $func(a) from t2;
+                                |""".stripMargin) {
+            checkGlutenOperatorMatch[GenerateExecTransformer]
+          }
+        }
 
-    // Fallback for array(struct(...), null) literal.
-    runQueryAndCompare(s"""
-                          |SELECT inline(array(
-                          |  named_struct('c1', 0, 'c2', 1),
-                          |  named_struct('c1', 2, 'c2', null),
-                          |  null));
-                          |""".stripMargin)(_)
+        // Fallback for array(struct(...), null) literal.
+        runQueryAndCompare(s"""
+                              |SELECT $func(array(
+                              |  named_struct('c1', 0, 'c2', 1),
+                              |  named_struct('c1', 2, 'c2', null),
+                              |  null));
+                              |""".stripMargin) {
+          checkSparkOperatorMatch[GenerateExec]
+        }
+    }
   }
 
   test("test multi-generate") {
