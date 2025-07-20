@@ -19,6 +19,7 @@
 
 #include <Core/Settings.h>
 #include <DataTypes/DataTypesDecimal.h>
+#include <Operator/FillingDeltaInternalRowDeletedStep.h>
 #include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/SubstraitParserUtils.h>
@@ -33,7 +34,6 @@
 #include <Common/BlockTypeUtils.h>
 #include <Common/GlutenSettings.h>
 #include <Common/PlanUtil.h>
-#include <Operator/FillingDeltaInternalRowDeletedStep.h>
 
 namespace DB
 {
@@ -223,7 +223,7 @@ DB::Block MergeTreeRelParser::replaceDeltaNameIfNeeded(const DB::Block & output)
 void MergeTreeRelParser::recoverDeltaNameIfNeeded(
     DB::QueryPlan & plan, const DB::Block & output, const MergeTreeTableInstance & merge_tree_table)
 {
-    const auto & header = plan.getCurrentHeader();
+    const auto & header = *plan.getCurrentHeader();
     DB::ActionsDAG actions_dag(header.getNamesAndTypesList());
     // Use 'Names' to make sure the orders of the output
     Names names;
@@ -276,7 +276,7 @@ void MergeTreeRelParser::recoverNodeWithCaseSensitive(DB::QueryPlan & query_plan
     if (spark_sql_config.caseSensitive)
         return;
 
-    auto read_Header = query_plan.getCurrentHeader();
+    const auto & read_Header = *query_plan.getCurrentHeader();
     NameToNameMap names;
     names.reserve(output.columns());
     for (const auto & elem : output.getColumnsWithTypeAndName())
@@ -303,7 +303,7 @@ void MergeTreeRelParser::recoverNodeWithCaseSensitive(DB::QueryPlan & query_plan
     if (!need_alias)
         return;
 
-    DB::ActionsDAG actions_dag{blockToRowType(query_plan.getCurrentHeader())};
+    DB::ActionsDAG actions_dag{blockToRowType(*query_plan.getCurrentHeader())};
     actions_dag.project(aliases);
     auto expression_step = std::make_unique<DB::ExpressionStep>(query_plan.getCurrentHeader(), std::move(actions_dag));
     expression_step->setStepDescription("Rename MergeTree Output(Cause: case sensitive)");
@@ -370,7 +370,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     query_plan->addStep(std::move(read_step));
     if (!non_nullable_columns.empty())
     {
-        auto input_header = query_plan->getCurrentHeader();
+        const auto & input_header = *query_plan->getCurrentHeader();
         std::erase_if(non_nullable_columns, [input_header](auto item) -> bool { return !input_header.has(item); });
         if (auto * remove_null_step = PlanUtil::addRemoveNullableStep(*query_plan, parser_context->queryContext(), non_nullable_columns))
             steps.emplace_back(remove_null_step);

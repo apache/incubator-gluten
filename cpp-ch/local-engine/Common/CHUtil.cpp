@@ -1051,7 +1051,7 @@ UInt64 MemoryUtil::getMemoryRSS()
 
 void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 {
-    ActionsDAG project{plan.getCurrentHeader().getNamesAndTypesList()};
+    ActionsDAG project{plan.getCurrentHeader()->getNamesAndTypesList()};
     NamesWithAliases project_cols;
     for (const auto & col : cols)
     {

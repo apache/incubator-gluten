@@ -120,8 +120,8 @@ protected:
 
 public:
     const std::deque<PartWithStats> & unsafeGet() const { return new_parts.unsafeGet(); }
-    void
-    writeTempPart(DB::BlockWithPartition & block_with_partition, PartWithStats part_with_stats, const DB::ContextPtr & context, int part_num);
+    void writeTempPart(
+        DB::BlockWithPartition & block_with_partition, PartWithStats part_with_stats, const DB::ContextPtr & context, int part_num);
     void checkAndMerge(bool force = false);
     void finish(const DB::ContextPtr & context);
 
@@ -192,13 +192,13 @@ protected:
     }
 
 public:
-    explicit MergeTreeStats(const DB::Block & input, const DB::Block & output)
-        : WriteStatsBase(input, output), columns_(output.cloneEmptyColumns())
+    explicit MergeTreeStats(const DB::SharedHeader & input, const DB::SharedHeader & output)
+        : WriteStatsBase(input, output), columns_(output->cloneEmptyColumns())
     {
     }
-    static std::shared_ptr<MergeTreeStats> create(const DB::Block & input, const DB::Names & partition)
+    static std::shared_ptr<MergeTreeStats> create(const DB::SharedHeader & input, const DB::Names & partition)
     {
-        return std::make_shared<MergeTreeStats>(input, DeltaStats::statsHeader(input, partition, statsHeaderBase()));
+        return std::make_shared<MergeTreeStats>(input, toShared(DeltaStats::statsHeader(*input, partition, statsHeaderBase())));
     }
     String getName() const override { return "MergeTreeStats"; }
 
@@ -267,16 +267,17 @@ public:
 
     explicit SparkMergeTreeSink(
         const SinkHelperPtr & sink_helper_,
+        const DB::SharedHeader & header_,
         const DB::ContextPtr & context_,
         const DeltaStatsOption & delta_stats,
         const SinkStatsOption & stats,
         size_t min_block_size_rows,
         size_t min_block_size_bytes)
-        : SinkToStorage(sink_helper_->metadata_snapshot->getSampleBlock())
+        : SinkToStorage(header_)
         , context(context_)
         , sink_helper(sink_helper_)
         , stats_(stats)
-        , squashing(sink_helper_->metadata_snapshot->getSampleBlock(), min_block_size_rows, min_block_size_bytes)
+        , squashing(header_, min_block_size_rows, min_block_size_bytes)
         , empty_delta_stats_(delta_stats)
     {
     }
@@ -309,7 +310,7 @@ class SparkMergeTreePartitionedFileSink final : public SparkPartitionedBaseSink
 
 public:
     SparkMergeTreePartitionedFileSink(
-        const DB::Block & input_header,
+        const DB::SharedHeader & input_header,
         const DB::Names & partition_by,
         const MergeTreeTable & merge_tree_table,
         const SparkMergeTreeWriteSettings & write_settings,

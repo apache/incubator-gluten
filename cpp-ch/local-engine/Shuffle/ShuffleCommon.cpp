@@ -22,7 +22,7 @@ namespace local_engine
 {
 void ColumnsBuffer::add(DB::Block & block, int start, int end)
 {
-    if (!header)
+    if (header.empty())
         header = block.cloneEmpty();
 
     if (accumulated_columns.empty())
@@ -57,7 +57,7 @@ void ColumnsBuffer::appendSelective(
     size_t from,
     size_t length)
 {
-    if (!header)
+    if (header.empty())
         header = source.cloneEmpty();
 
     if (accumulated_columns.empty())
@@ -111,8 +111,7 @@ DB::Block ColumnsBuffer::getHeader()
     return header;
 }
 
-ColumnsBuffer::ColumnsBuffer(size_t prefer_buffer_size_)
-    : prefer_buffer_size(prefer_buffer_size_)
+ColumnsBuffer::ColumnsBuffer(size_t prefer_buffer_size_) : prefer_buffer_size(prefer_buffer_size_)
 {
 }
 }

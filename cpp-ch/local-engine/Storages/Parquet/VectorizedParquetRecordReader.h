@@ -217,7 +217,7 @@ protected:
 public:
     VectorizedParquetBlockInputFormat(
         DB::ReadBuffer & in_,
-        const DB::Block & header_,
+        const DB::SharedHeader & header_,
         const ColumnIndexRowRangesProvider & row_ranges_provider,
         const DB::FormatSettings & format_settings);
     String getName() const override { return "VectorizedParquetBlockInputFormat"; }

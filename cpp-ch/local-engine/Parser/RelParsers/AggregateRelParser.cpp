@@ -67,32 +67,32 @@ AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
     setup(std::move(query_plan), rel);
 
     addPreProjection();
-    LOG_TRACE(logger, "header after pre-projection is: {}", plan->getCurrentHeader().dumpStructure());
+    LOG_TRACE(logger, "header after pre-projection is: {}", plan->getCurrentHeader()->dumpStructure());
     if (has_final_stage)
     {
         addMergingAggregatedStep();
-        LOG_TRACE(logger, "header after merging is: {}", plan->getCurrentHeader().dumpStructure());
+        LOG_TRACE(logger, "header after merging is: {}", plan->getCurrentHeader()->dumpStructure());
 
         addPostProjection();
-        LOG_TRACE(logger, "header after post-projection is: {}", plan->getCurrentHeader().dumpStructure());
+        LOG_TRACE(logger, "header after post-projection is: {}", plan->getCurrentHeader()->dumpStructure());
     }
     else if (has_complete_stage)
     {
         addCompleteModeAggregatedStep();
-        LOG_TRACE(logger, "header after complete aggregate is: {}", plan->getCurrentHeader().dumpStructure());
+        LOG_TRACE(logger, "header after complete aggregate is: {}", plan->getCurrentHeader()->dumpStructure());
 
         addPostProjection();
-        LOG_TRACE(logger, "header after post-projection is: {}", plan->getCurrentHeader().dumpStructure());
+        LOG_TRACE(logger, "header after post-projection is: {}", plan->getCurrentHeader()->dumpStructure());
     }
     else
     {
         addAggregatingStep();
-        LOG_TRACE(logger, "header after aggregating is: {}", plan->getCurrentHeader().dumpStructure());
+        LOG_TRACE(logger, "header after aggregating is: {}", plan->getCurrentHeader()->dumpStructure());
     }
 
     /// Add a check here to help find bugs, Don't remove it.
     /// Thre order of result of result columns must be ordered grouping keys ++ ordered aggregate expression results
-    auto aggregation_output_header = plan->getCurrentHeader();
+    const auto & aggregation_output_header = *plan->getCurrentHeader();
     for (size_t i = 0; i < grouping_keys.size(); ++i)
     {
         auto pos = aggregation_output_header.getPositionByName(grouping_keys[i]);
@@ -167,7 +167,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
             DB::ErrorCodes::LOGICAL_ERROR, "AggregateRelParser: multiple aggregation phases with complete mode are not supported");
     }
 
-    auto input_header = plan->getCurrentHeader();
+    const auto & input_header = *plan->getCurrentHeader();
     for (const auto & measure : aggregate_rel->measures())
     {
         AggregateInfo agg_info;
@@ -205,7 +205,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
 /// The projections are built by the function parsers.
 void AggregateRelParser::addPreProjection()
 {
-    auto input_header = plan->getCurrentHeader();
+    const auto & input_header = *plan->getCurrentHeader();
     ActionsDAG projection_action{input_header.getColumnsWithTypeAndName()};
     std::string dag_footprint = projection_action.dumpDAG();
     for (auto & agg_info : aggregates)
@@ -233,7 +233,7 @@ void AggregateRelParser::addPreProjection()
 
 void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & descriptions)
 {
-    const auto & current_plan_header = plan->getCurrentHeader();
+    const auto & current_plan_header = *plan->getCurrentHeader();
     auto build_result_column_name
         = [this, current_plan_header](
               const String & function_name, const Array & params, const Strings & arg_names, substrait::AggregationPhase phase)
@@ -494,7 +494,7 @@ void AggregateRelParser::addAggregatingStep()
 // Only be called in final stage.
 void AggregateRelParser::addPostProjection()
 {
-    auto input_header = plan->getCurrentHeader();
+    const auto & input_header = *plan->getCurrentHeader();
     ActionsDAG project_actions_dag{input_header.getColumnsWithTypeAndName()};
     auto dag_footprint = project_actions_dag.dumpDAG();
 

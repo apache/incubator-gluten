@@ -27,7 +27,7 @@ class WindowGroupLimitStep : public DB::ITransformingStep
 {
 public:
     explicit WindowGroupLimitStep(
-        const DB::Block & input_header_,
+        const DB::SharedHeader & input_header_,
         const String & function_name_,
         const std::vector<size_t> & partition_columns_,
         const std::vector<size_t> & sort_columns_,
