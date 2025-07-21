@@ -168,7 +168,7 @@ install_centos_9() {
         wget tar zip unzip git which sudo patch \
         cmake perl-IPC-Cmd autoconf automake libtool \
         gcc-toolset-12 \
-        flex bison python3 \
+        flex bison python3 python3-pip \
         java-17-openjdk java-17-openjdk-devel
 
     pip3 install --upgrade pip
