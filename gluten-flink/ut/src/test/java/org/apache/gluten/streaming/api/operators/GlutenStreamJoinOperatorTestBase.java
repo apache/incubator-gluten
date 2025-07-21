@@ -132,22 +132,18 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
 
   @Override
   @AfterEach
-  public void afterEach() {
-    try {
-      if (sharedAllocator != null) {
-        sharedAllocator.close();
-        sharedAllocator = null;
-      }
-      if (sharedSession != null) {
-        sharedSession.close();
-        sharedSession = null;
-      }
-      if (sharedMemoryManager != null) {
-        sharedMemoryManager.close();
-        sharedMemoryManager = null;
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
+  public void afterEach() throws Exception {
+    if (sharedAllocator != null) {
+      sharedAllocator.close();
+      sharedAllocator = null;
+    }
+    if (sharedSession != null) {
+      sharedSession.close();
+      sharedSession = null;
+    }
+    if (sharedMemoryManager != null) {
+      sharedMemoryManager.close();
+      sharedMemoryManager = null;
     }
   }
 
