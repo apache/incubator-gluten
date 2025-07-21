@@ -380,7 +380,7 @@ abstract class DeleteSuiteBase extends QueryTest
       data: => DataFrame,
       where: String,
       expectException: Boolean,
-      customErrorRegex: Option[String] = None) {
+      customErrorRegex: Option[String] = None): Unit = {
     test(s"$functionType functions in delete - expect exception: $expectException") {
       withTable("deltaTable") {
         data.write.format("delta").saveAsTable("deltaTable")
