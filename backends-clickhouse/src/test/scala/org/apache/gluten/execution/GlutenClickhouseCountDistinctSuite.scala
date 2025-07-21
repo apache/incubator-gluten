@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.test.AllDataTypesWithComplexType
 import org.apache.gluten.test.AllDataTypesWithComplexType.genTestData
 
@@ -127,7 +128,7 @@ class GlutenClickhouseCountDistinctSuite extends GlutenClickHouseWholeStageTrans
     "Gluten-5618: [CH] Fix 'Position x is out of bound in Block' error " +
       "when executing count distinct") {
 
-    withSQLConf(("spark.gluten.sql.countDistinctWithoutExpand", "false")) {
+    withSQLConf((GlutenConfig.ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND.key, "false")) {
       val sql =
         """
           |select count(distinct a, b, c)  from

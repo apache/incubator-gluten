@@ -39,7 +39,7 @@ class AutoAdjustStageResourceProfileSuite
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.auto.adjustStageResource.enabled", "true")
+      .set(GlutenConfig.AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED.key, "true")
   }
 
   override def beforeAll(): Unit = {
