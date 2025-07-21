@@ -43,7 +43,8 @@ public final class TreeMemoryConsumers {
       final MemoryMode foundMode = factory.sparkConsumer.getMode();
       Preconditions.checkState(
           foundMode == mode,
-          "An existing Spark memory consumer already exists but is of the different memory mode: %s",
+          "An existing Spark memory consumer already exists but is of the different memory " +
+                  "mode: %s",
           foundMode);
       return factory;
     }
