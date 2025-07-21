@@ -28,9 +28,13 @@ import org.apache.iceberg.spark.SparkTestBase;
 import org.apache.iceberg.spark.sql.TestAggregatePushDown;
 import org.apache.spark.sql.SparkSession;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 
 import java.util.Map;
 
+// The aggregate push down is described in https://github.com/apache/iceberg/pull/6252, which uses
+// statistic to get the result by LocalTableScan, Now stats is not supported.
+@Ignore
 public class TestGlutenAggregatePushDown extends TestAggregatePushDown {
   public TestGlutenAggregatePushDown(
       String catalogName, String implementation, Map<String, String> config) {
