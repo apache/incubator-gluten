@@ -34,15 +34,14 @@ object IcebergWriteUtil {
   }
 
   def hasUnsupportedDataType(write: Write): Boolean = {
-    getWriteSchema(write).columns().stream().anyMatch(d => containsUuidOrFixedType(d.`type`()))
+    getWriteSchema(write).columns().stream().anyMatch(d => hasUnsupportedDataType(d.`type`()))
   }
 
-  private def containsUuidOrFixedType(dataType: Type): Boolean = {
+  private def hasUnsupportedDataType(dataType: Type): Boolean = {
     dataType match {
-      case l: ListType => containsUuidOrFixedType(l.elementType)
-      case m: MapType => containsUuidOrFixedType(m.keyType) || containsUuidOrFixedType(m.valueType)
-      case s: org.apache.iceberg.types.Types.StructType =>
-        s.fields().stream().anyMatch(f => containsUuidOrFixedType(f.`type`()))
+      case _: ListType => false
+      case _: MapType => false
+      case _: org.apache.iceberg.types.Types.StructType => false
       case t if t.typeId() == TypeID.UUID || t.typeId() == TypeID.FIXED => true
       case _ => false
     }
