@@ -241,7 +241,7 @@ jobs:
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
-          name: nightly-gluten-velox-bundle-package-jdk8-${{ steps.date.outputs.date }}
+          name: nightly-gluten-velox-bundle-package-jdk8-arm64-${{ steps.date.outputs.date }}
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
 
@@ -280,7 +280,7 @@ jobs:
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
-          name: nightly-gluten-velox-bundle-package-jdk17-${{ steps.date.outputs.date }}
+          name: nightly-gluten-velox-bundle-package-jdk17-arm64-${{ steps.date.outputs.date }}
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
 
@@ -291,7 +291,7 @@ jobs:
       - name: Download JDK8 Package Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: nightly-gluten-velox-bundle-package-jdk8-${{ steps.date.outputs.date }}
+          name: nightly-gluten-velox-bundle-package-jdk8-arm64-${{ steps.date.outputs.date }}
           path: package/
       - name: rsync to apache nightly
         uses: burnett01/rsync-deployments@5.2
@@ -311,7 +311,7 @@ jobs:
       - name: Download JDK17 Package Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: nightly-gluten-velox-bundle-package-jdk17-${{ steps.date.outputs.date }}
+          name: nightly-gluten-velox-bundle-package-jdk17-arm64-${{ steps.date.outputs.date }}
           path: package/
       - name: rsync to apache nightly
         uses: burnett01/rsync-deployments@5.2
