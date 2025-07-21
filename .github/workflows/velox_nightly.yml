@@ -200,7 +200,7 @@ jobs:
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: velox-arrow-jars-centos-8-${{github.sha}}
+          name: velox-arrow-jar-centos-8-${{github.sha}}
           path: .m2/repository/org/apache/arrow/
           if-no-files-found: error
 
