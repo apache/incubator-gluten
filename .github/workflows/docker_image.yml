@@ -24,7 +24,9 @@ on:
       - '.github/workflows/util/install_spark_resources.sh'
       - 'dev/docker/Dockerfile.centos7-static-build'
       - 'dev/docker/Dockerfile.centos8-static-build'
+      - 'dev/docker/Dockerfile.centos9-static-build'
       - 'dev/docker/Dockerfile.centos8-dynamic-build'
+      - 'dev/docker/Dockerfile.centos9-dynamic-build'
       - 'dev/docker/cudf/Dockerfile'
   schedule:
     - cron: '0 20 * * 0'
