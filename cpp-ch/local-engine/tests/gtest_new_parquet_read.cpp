@@ -28,13 +28,12 @@
 using namespace DB;
 using namespace local_engine;
 
-TEST(ParquetRead, ParquetFileReaderExt)
+TEST(ParquetColumnReader, ParquetFileReaderExt)
 {
     const std::string sample(test::gtest_data("sample.parquet"));
     const FormatSettings format_settings{};
     ReadBufferFromFile in(sample);
     auto arrow_file = test::asArrowFileForParquet(in, format_settings);
-
 
     ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
     Block blockHeader({{DOUBLE(), "b"}, {BIGINT(), "a"}});
@@ -57,13 +56,52 @@ TEST(ParquetRead, ParquetFileReaderExt)
 
     auto reader = ParquetRecordReaderFactory::makeReader(col_descriptor, BIGINT(), std::move(meta), std::move(readState.value().first));
     EXPECT_TRUE(reader);
+
+    reader->reserve(10000);
+
     /// Note ParquetColumnReader requires that the number of records read should not
     /// exceed the number of records in the row group
-
     constexpr int skip_records = 2;
     reader->skipRecords(skip_records);
-    auto x = reader->readBatch(8, "a");
+    EXPECT_EQ(reader->readRecords(2), 2);
+    reader->skipRecords(skip_records);
+    EXPECT_EQ(reader->readRecords(4), 4);
+    auto x = reader->resetColumn("a");
     const auto & _a = *x.column;
     for (size_t i = 0; i < _a.size(); i++)
         EXPECT_EQ(_a.get64(i) - skip_records, i + 1);
+}
+
+TEST(ParquetColumnReader, SkipInterface)
+{
+    const std::string sample(GLUTEN_SOURCE_TPCH_DIR("lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet"));
+    ReadBufferFromFile in(sample);
+    const FormatSettings format_settings{};
+    auto arrow_file = test::asArrowFileForParquet(in, format_settings);
+    auto sampleBlock = toSampleBlock(test::readParquetSchema(sample));
+
+    constexpr int rowGroup = 0;
+
+    ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
+    metaBuilder.build(in, sampleBlock);
+    ColumnIndexRowRangesProvider provider{metaBuilder};
+
+    ParquetFileReaderExt test{
+        arrow_file, parquet::ParquetFileReader::Open(arrow_file, parquet::default_reader_properties()), provider, format_settings};
+    auto & file_reader = *test.fileReader();
+    auto cur_row_group_reader = file_reader.RowGroup(rowGroup);
+
+
+    for (size_t i = 0; i < sampleBlock.columns(); i++)
+    {
+        const ColumnWithTypeAndName & col_with_name = sampleBlock.getByPosition(i);
+        const parquet::ColumnDescriptor & col_descriptor = *file_reader.metadata()->schema()->Column(i);
+        std::unique_ptr<parquet::ColumnChunkMetaData> meta = cur_row_group_reader->metadata()->ColumnChunk(i);
+        auto readState = test.nextRowGroup(rowGroup, i, "___");
+        ASSERT_TRUE(readState.has_value());
+        auto reader = ParquetRecordReaderFactory::makeReader(col_descriptor, col_with_name.type, std::move(meta), std::move(readState.value().first));
+        EXPECT_TRUE(reader);
+        reader->skipRecords(1);
+    }
+
 }
