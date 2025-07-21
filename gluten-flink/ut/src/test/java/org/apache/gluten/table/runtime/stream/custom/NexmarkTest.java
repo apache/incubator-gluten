@@ -132,24 +132,17 @@ public class NexmarkTest {
       assertThat(insertResult.getJobClient().isPresent()).isTrue();
       try {
         waitForJobCompletion(insertResult, 30000);
-      } catch (Exception e) {
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
         throw new RuntimeException("Query execution failed: " + queryFileName, e);
       }
     }
   }
 
-  private void waitForJobCompletion(TableResult result, long timeoutMs) {
+  private void waitForJobCompletion(TableResult result, long timeoutMs)
+      throws InterruptedException, ExecutionException, TimeoutException {
     if (result.getJobClient().isPresent()) {
-      var jobClint = result.getJobClient().get();
-      try {
-        jobClint.getJobExecutionResult().get(timeoutMs, TimeUnit.MILLISECONDS);
-      } catch (ExecutionException e) {
-        throw new RuntimeException("Job timeout after ", e);
-      } catch (TimeoutException e) {
-        throw new RuntimeException("Job execution failed ", e);
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
+      var jobClient = result.getJobClient().get();
+      jobClient.getJobExecutionResult().get(timeoutMs, TimeUnit.MILLISECONDS);
     }
   }
 
