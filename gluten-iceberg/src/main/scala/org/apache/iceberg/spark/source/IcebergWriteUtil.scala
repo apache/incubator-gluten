@@ -39,9 +39,9 @@ object IcebergWriteUtil {
 
   private def hasUnsupportedDataType(dataType: Type): Boolean = {
     dataType match {
-      case _: ListType => false
-      case _: MapType => false
-      case _: org.apache.iceberg.types.Types.StructType => false
+      case _: ListType => true
+      case _: MapType => true
+      case _: org.apache.iceberg.types.Types.StructType => true
       case t if t.typeId() == TypeID.UUID || t.typeId() == TypeID.FIXED => true
       case _ => false
     }
