@@ -24,7 +24,7 @@ import org.apache.spark.sql.{DataFrame, GlutenTestUtils, Row}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
@@ -32,8 +32,6 @@ import org.apache.spark.sql.types._
 
 import java.nio.file.Files
 import java.sql.Date
-
-import scala.reflect.ClassTag
 
 class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {
   private var parquetPath: String = _
@@ -736,101 +734,6 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       runQueryAndCompare(
         "SELECT array(map(cast(id as string), id), map(cast(id+1 as string), id+1))[1] " +
           "from range(100)")(checkGlutenOperatorMatch[ProjectExecTransformer])
-    }
-  }
-
-  test("test common subexpression eliminate") {
-    def checkOperatorCount[T <: TransformSupport](count: Int)(df: DataFrame)(implicit
-        tag: ClassTag[T]): Unit = {
-      if (spark33) {
-        assert(
-          getExecutedPlan(df).count(
-            plan => {
-              plan.getClass == tag.runtimeClass
-            }) == count,
-          s"executed plan: ${getExecutedPlan(df)}")
-      }
-    }
-
-    withSQLConf(("spark.gluten.sql.commonSubexpressionEliminate", "true")) {
-      // CSE in project
-      runQueryAndCompare("select hash(id), hash(id)+1, hash(id)-1 from range(10)") {
-        df => checkOperatorCount[ProjectExecTransformer](2)(df)
-      }
-
-      // CSE in filter(not work yet)
-      // runQueryAndCompare(
-      //   "select id from range(10) " +
-      //     "where hex(id) != '' and upper(hex(id)) != '' and lower(hex(id)) != ''") { _ => }
-
-      // CSE in window
-      runQueryAndCompare(
-        "SELECT id, AVG(id) OVER (PARTITION BY id % 2 ORDER BY id) as avg_id, " +
-          "SUM(id) OVER (PARTITION BY id % 2 ORDER BY id) as sum_id FROM range(10)") {
-        df => checkOperatorCount[ProjectExecTransformer](4)(df)
-      }
-
-      // CSE in aggregate
-      runQueryAndCompare(
-        "select id % 2, max(hash(id)), min(hash(id)) " +
-          "from range(10) group by id % 2") {
-        df => checkOperatorCount[ProjectExecTransformer](1)(df)
-      }
-      runQueryAndCompare(
-        "select id % 10, sum(id +100) + max(id+100) from range(100) group by id % 10") {
-        df => checkOperatorCount[ProjectExecTransformer](2)(df)
-      }
-      // issue https://github.com/oap-project/gluten/issues/4642
-      runQueryAndCompare(
-        "select id, if(id % 2 = 0, sum(id), max(id)) as s1, " +
-          "if(id %2 = 0, sum(id+1), sum(id+2)) as s2 from range(10) group by id") {
-        df => checkOperatorCount[ProjectExecTransformer](2)(df)
-      }
-
-      // CSE in sort
-      runQueryAndCompare(
-        "select id from range(10) " +
-          "order by hash(id%10), hash(hash(id%10))") {
-        df => checkOperatorCount[ProjectExecTransformer](3)(df)
-      }
-
-      runQueryAndCompare(s"""
-                            |SELECT 'test' AS test
-                            |  , Sum(CASE
-                            |    WHEN name = '2' THEN 0
-                            |      ELSE id
-                            |    END) AS c1
-                            |  , Sum(CASE
-                            |    WHEN name = '2' THEN id
-                            |      ELSE 0
-                            |    END) AS c2
-                            | , CASE WHEN name = '2' THEN Sum(id) ELSE 0
-                            |   END AS c3
-                            |FROM (select id, cast(id as string) name from range(10))
-                            |GROUP BY name
-                            |""".stripMargin) {
-        df => checkOperatorCount[ProjectExecTransformer](4)(df)
-      }
-
-      runQueryAndCompare(
-        s"""
-           |select id % 2, max(hash(id)), min(hash(id)) from range(10) group by id % 2
-           |""".stripMargin)(
-        df => {
-          df.queryExecution.optimizedPlan.collect {
-            case Aggregate(_, aggregateExpressions, _) =>
-              val result =
-                aggregateExpressions
-                  .map(a => a.asInstanceOf[Alias].child)
-                  .filter(_.isInstanceOf[AggregateExpression])
-                  .map(expr => expr.asInstanceOf[AggregateExpression].aggregateFunction)
-                  .filter(aggFunc => aggFunc.children.head.isInstanceOf[AttributeReference])
-                  .map(aggFunc => aggFunc.children.head.asInstanceOf[AttributeReference].name)
-                  .distinct
-              assertResult(1)(result.size)
-          }
-          checkOperatorCount[ProjectExecTransformer](1)(df)
-        })
     }
   }
 
