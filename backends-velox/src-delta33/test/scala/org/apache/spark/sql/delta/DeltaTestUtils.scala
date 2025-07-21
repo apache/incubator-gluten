@@ -21,7 +21,8 @@ import org.apache.spark.scheduler.{JobFailed, SparkListener, SparkListenerJobEnd
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.util.{FailFastMode, quietly}
+import org.apache.spark.sql.catalyst.util.{quietly, FailFastMode}
+import org.apache.spark.sql.delta.DeltaTestUtils.Plans
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.commands.cdc.CDCReader
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
@@ -33,18 +34,19 @@ import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.QueryExecutionListener
 import org.apache.spark.util.Utils
+
 import com.databricks.spark.util.{Log4jUsageLogger, UsageRecord}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.delta.tables.{DeltaTable => IODeltaTable}
 import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.spark.sql.delta.DeltaTestUtils.Plans
 import org.scalatest.BeforeAndAfterEach
 
 import java.io.{BufferedReader, File, InputStreamReader}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+
 import scala.collection.JavaConverters._
 import scala.collection.concurrent
 import scala.reflect.ClassTag
