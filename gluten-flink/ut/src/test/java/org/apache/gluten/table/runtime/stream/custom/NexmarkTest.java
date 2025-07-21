@@ -45,6 +45,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertTrue;
 
 public class NexmarkTest {
 
@@ -79,7 +80,7 @@ public class NexmarkTest {
   }
 
   @Test
-  void testAllNexmarkQueries() {
+  void testAllNexmarkQueries() throws ExecutionException, InterruptedException, TimeoutException {
     List<String> queryFiles = getQueries();
     assertThat(queryFiles).isNotEmpty();
 
@@ -114,7 +115,8 @@ public class NexmarkTest {
     return result;
   }
 
-  private void executeQuery(StreamTableEnvironment tEnv, String queryFileName) {
+  private void executeQuery(StreamTableEnvironment tEnv, String queryFileName)
+      throws ExecutionException, InterruptedException, TimeoutException {
     String queryContent = readSqlFromFile(NEXMARK_RESOURCE_DIR + "/" + queryFileName);
 
     String[] sqlStatements = queryContent.split(";");
@@ -129,21 +131,14 @@ public class NexmarkTest {
     String insertQuery = sqlStatements[1].trim();
     if (!insertQuery.isEmpty()) {
       TableResult insertResult = tEnv.executeSql(insertQuery);
-      assertThat(insertResult.getJobClient().isPresent()).isTrue();
-      try {
-        waitForJobCompletion(insertResult, 30000);
-      } catch (InterruptedException | ExecutionException | TimeoutException e) {
-        throw new RuntimeException("Query execution failed: " + queryFileName, e);
-      }
+      waitForJobCompletion(insertResult, 30000);
     }
   }
 
   private void waitForJobCompletion(TableResult result, long timeoutMs)
       throws InterruptedException, ExecutionException, TimeoutException {
-    if (result.getJobClient().isPresent()) {
-      var jobClient = result.getJobClient().get();
-      jobClient.getJobExecutionResult().get(timeoutMs, TimeUnit.MILLISECONDS);
-    }
+    assertTrue(result.getJobClient().isPresent());
+    result.getJobClient().get().getJobExecutionResult().get(timeoutMs, TimeUnit.MILLISECONDS);
   }
 
   private List<String> getQueries() {
