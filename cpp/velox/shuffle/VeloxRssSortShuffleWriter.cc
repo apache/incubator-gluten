@@ -26,6 +26,7 @@
 #include "velox/common/base/Nulls.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
+#include "velox/vector/VectorEncoding.h"
 
 namespace gluten {
 
@@ -51,14 +52,13 @@ arrow::Status VeloxRssSortShuffleWriter::init() {
 }
 
 arrow::Status VeloxRssSortShuffleWriter::doSort(facebook::velox::RowVectorPtr rv, int64_t memLimit) {
-  currentInputColumnBytes_ += rv->estimateFlatSize();
+  calculateBatchesSize(rv);
   batches_.push_back(rv);
   if (currentInputColumnBytes_ > memLimit) {
     for (auto pid = 0; pid < numPartitions(); ++pid) {
       RETURN_NOT_OK(evictRowVector(pid));
     }
-    batches_.clear();
-    currentInputColumnBytes_ = 0;
+    resetBatches();
   }
   setSortState(RssSortState::kSortInit);
   return arrow::Status::OK();
@@ -253,6 +253,51 @@ void VeloxRssSortShuffleWriter::stat() const {
 
 void VeloxRssSortShuffleWriter::setSortState(RssSortState state) {
   sortState_ = state;
+}
+
+void VeloxRssSortShuffleWriter::calculateBatchesSize(facebook::velox::RowVectorPtr& vector) {
+  currentInputColumnBytes_ += vector->retainedSize();
+  for (auto& child : vector->children()) {
+    deduplicateStrBuffer(child);
+  }
+}
+
+void VeloxRssSortShuffleWriter::deduplicateStrBuffer(facebook::velox::VectorPtr& vector) {
+  switch (vector->encoding()) {
+    case facebook::velox::VectorEncoding::Simple::FLAT:
+      if ((vector->type()->isVarchar() || vector->type()->isVarbinary())) {
+        for (auto& buffer : vector->asFlatVector<facebook::velox::StringView>()->stringBuffers()) {
+          if (!stringBuffers_.insert(buffer.get()).second) {
+            currentInputColumnBytes_ -= buffer->capacity();
+          }
+        }
+      }
+      break;
+    case facebook::velox::VectorEncoding::Simple::MAP:
+      deduplicateStrBuffer(vector->asUnchecked<facebook::velox::MapVector>()->mapKeys());
+      deduplicateStrBuffer(vector->asUnchecked<facebook::velox::MapVector>()->mapValues());
+      break;
+    case facebook::velox::VectorEncoding::Simple::ROW:
+      for (auto& child : vector->asUnchecked<facebook::velox::RowVector>()->children()) {
+        deduplicateStrBuffer(child);
+      }
+      break;
+    case facebook::velox::VectorEncoding::Simple::ARRAY:
+      deduplicateStrBuffer(vector->asUnchecked<facebook::velox::ArrayVector>()->elements());
+      break;
+    default:
+      VELOX_FAIL("The encoding of flatten vector should not be " + mapSimpleToName(vector->encoding()));
+  }
+}
+
+uint32_t VeloxRssSortShuffleWriter::getInputColumnBytes() const {
+  return currentInputColumnBytes_;
+}
+
+void VeloxRssSortShuffleWriter::resetBatches() {
+  batches_.clear();
+  currentInputColumnBytes_ = 0;
+  stringBuffers_.clear();
 }
 
 } // namespace gluten
