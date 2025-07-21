@@ -45,6 +45,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class NexmarkTest {
@@ -125,7 +126,7 @@ public class NexmarkTest {
     String createResultTable = sqlStatements[0].trim();
     if (!createResultTable.isEmpty()) {
       TableResult createResult = tEnv.executeSql(createResultTable);
-      assertThat(createResult.getJobClient().isPresent()).isFalse();
+      assertFalse(createResult.getJobClient().isPresent());
     }
 
     String insertQuery = sqlStatements[1].trim();
