@@ -168,7 +168,7 @@ jobs:
 
 
   #TODO: split ARM section into different file
-  build-native-lib-centos-8-arm:
+  build-native-lib-centos-8-arm64:
     runs-on: ubuntu-24.04-arm
     container: apache/gluten:vcpkg-centos-8
     steps:
@@ -205,7 +205,7 @@ jobs:
           if-no-files-found: error
 
   build-bundle-package-centos8-jdk8-arm64:
-    needs: build-native-lib-centos-8-arm
+    needs: build-native-lib-centos-8-arm64
     runs-on: ubuntu-22.04-arm
     container: centos:8
     steps:
@@ -244,19 +244,9 @@ jobs:
           name: nightly-gluten-velox-bundle-package-jdk8-${{ steps.date.outputs.date }}
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
-      - name: rsync to apache nightly
-        uses: burnett01/rsync-deployments@5.2
-        with:
-          switches: -avzr
-          path: package/target/gluten-velox-bundle-*.jar
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/nightly-release-jdk8
-          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
-          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
-          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
-          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
 
   build-bundle-package-centos8-jdk17-arm64:
-    needs: build-native-lib-centos-8-arm
+    needs: build-native-lib-centos-8-arm64
     runs-on: ubuntu-22.04-arm
     container: centos:8
     steps:
@@ -293,6 +283,36 @@ jobs:
           name: nightly-gluten-velox-bundle-package-jdk17-${{ steps.date.outputs.date }}
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
+
+  upload-jdk8-package-arm64:
+    needs: [build-bundle-package-centos8-jdk8-arm64]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download JDK8 Package Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: nightly-gluten-velox-bundle-package-jdk8-${{ steps.date.outputs.date }}
+          path: package/
+      - name: rsync to apache nightly
+        uses: burnett01/rsync-deployments@5.2
+        with:
+          switches: -avzr
+          path: package/target/gluten-velox-bundle-*.jar
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/nightly-release-jdk8
+          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+
+  upload-jdk17-package-arm64:
+    needs: [build-bundle-package-centos8-jdk17-arm64]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download JDK17 Package Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: nightly-gluten-velox-bundle-package-jdk17-${{ steps.date.outputs.date }}
+          path: package/
       - name: rsync to apache nightly
         uses: burnett01/rsync-deployments@5.2
         with:
