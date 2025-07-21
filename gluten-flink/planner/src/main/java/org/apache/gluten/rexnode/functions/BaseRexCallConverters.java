@@ -73,7 +73,7 @@ class DefaultRexCallConverter extends BaseRexCallConverter {
     List<TypedExpr> params = getParams(callNode, context);
     Type resultType = getResultType(callNode);
 
-    if ("cast".equals(functionName) && params.size() == 1) {
+    if ("cast".equals(functionName)) {
       TypedExpr sourceExpr = params.get(0);
       Type sourceType = sourceExpr.getReturnType();
 
@@ -146,27 +146,31 @@ class BasicArithmeticOperatorRexCallConverter extends BaseRexCallConverter {
     int resultPrecision;
     int resultScale;
 
-    switch (operation.toLowerCase()) {
+    // Decimal precision and scale computation follows Velox/Spark decimal rules
+    // Reference:
+    // https://github.com/facebookincubator/velox/blob/main/velox/docs/functions/spark/decimal.rst
+    switch (operation) {
       case "plus":
       case "add":
       case "minus":
       case "subtract":
-        // + -：precision = max(p1-s1, p2-s2) + max(s1, s2) + 1
-        //        scale = max(s1, s2)
+        // precision = max(p1-s1, p2-s2) + max(s1, s2) + 1
+        // scale = max(s1, s2)
         resultScale = Math.max(leftScale, rightScale);
         resultPrecision =
             Math.max(leftPrecision - leftScale, rightPrecision - rightScale) + resultScale + 1;
         break;
 
       case "multiply":
-        // * ：precision = p1 + p2 + 1, scale = s1 + s2
+        // precision = p1 + p2 + 1
+        // scale = s1 + s2
         resultPrecision = leftPrecision + rightPrecision + 1;
         resultScale = leftScale + rightScale;
         break;
 
       case "divide":
-        // / ：precision = p1 - s1 + s2 + max(6, s1 + p2 + 1)
-        //      scale = max(6, s1 + p2 + 1)
+        // precision = p1 - s1 + s2 + max(6, s1 + p2 + 1)
+        // scale = max(6, s1 + p2 + 1)
         resultScale = Math.max(6, leftScale + rightPrecision + 1);
         resultPrecision = leftPrecision - leftScale + rightScale + resultScale;
         break;
@@ -177,6 +181,7 @@ class BasicArithmeticOperatorRexCallConverter extends BaseRexCallConverter {
         break;
     }
 
+    // Cap precision at 38 (maximum decimal precision in Spark/Velox)
     if (resultPrecision > 38) {
       resultPrecision = 38;
       resultScale = Math.min(resultScale, resultPrecision);
