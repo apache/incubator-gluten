@@ -16,13 +16,26 @@
  */
 package org.apache.gluten.source;
 
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.spark.source.TestIcebergSourceHiveTables;
+import org.apache.iceberg.types.Types;
 import org.junit.Test;
+
+import static org.apache.iceberg.types.Types.NestedField.optional;
 
 // Fallback all the table scan because source table is metadata table with format avro.
 public class TestGlutenIcebergSourceHiveTables extends TestIcebergSourceHiveTables {
+  private static final Schema SCHEMA =
+      new Schema(
+          optional(1, "id", Types.IntegerType.get()), optional(2, "data", Types.StringType.get()));
+
   @Test
   public void testAllEntriesTable() {
+    TableIdentifier tableIdentifier = TableIdentifier.of("db", "entries_test");
+    createTable(tableIdentifier, SCHEMA, PartitionSpec.unpartitioned(), ImmutableMap.of());
     System.out.println("Ignore because lack metadata");
   }
 }
