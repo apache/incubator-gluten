@@ -255,14 +255,14 @@ void VeloxRssSortShuffleWriter::setSortState(RssSortState state) {
   sortState_ = state;
 }
 
-void VeloxRssSortShuffleWriter::calculateBatchesSize(facebook::velox::RowVectorPtr& vector) {
+void VeloxRssSortShuffleWriter::calculateBatchesSize(const facebook::velox::RowVectorPtr& vector) {
   currentInputColumnBytes_ += vector->retainedSize();
   for (auto& child : vector->children()) {
     deduplicateStrBuffer(child);
   }
 }
 
-void VeloxRssSortShuffleWriter::deduplicateStrBuffer(facebook::velox::VectorPtr& vector) {
+void VeloxRssSortShuffleWriter::deduplicateStrBuffer(const facebook::velox::VectorPtr& vector) {
   switch (vector->encoding()) {
     case facebook::velox::VectorEncoding::Simple::FLAT:
       if ((vector->type()->isVarchar() || vector->type()->isVarbinary())) {

@@ -95,9 +95,9 @@ class VeloxRssSortShuffleWriter final : public VeloxShuffleWriter {
 
   void stat() const;
 
-  void calculateBatchesSize(facebook::velox::RowVectorPtr& vector);
+  void calculateBatchesSize(const facebook::velox::RowVectorPtr& vector);
 
-  void deduplicateStrBuffer(facebook::velox::VectorPtr& vector);
+  void deduplicateStrBuffer(const facebook::velox::VectorPtr& vector);
 
   int32_t splitBufferSize_;
   int64_t sortBufferMaxSize_;
@@ -120,7 +120,7 @@ class VeloxRssSortShuffleWriter final : public VeloxShuffleWriter {
   RssSortState sortState_{kSortInit};
 
   // The existing string buffers in the current batches.
-  std::unordered_set<facebook::velox::Buffer*> stringBuffers_;
+  folly::F14FastSet<facebook::velox::Buffer*> stringBuffers_;
 
   bool stopped_{false};
 }; // class VeloxSortBasedShuffleWriter
