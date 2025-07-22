@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.utils
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
+import org.apache.gluten.config.ShuffleWriterType
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
@@ -88,7 +89,8 @@ object ExecUtil {
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      shuffleWriterType: ShuffleWriterType)
+      : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     metrics("numPartitions").set(newPartitioning.numPartitions)
     val executionId = rdd.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     SQLMetrics.postDriverMetricUpdates(
@@ -209,7 +211,7 @@ object ExecUtil {
         shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
         nativePartitioning = nativePartitioning,
         metrics = metrics,
-        isSort = isSort
+        shuffleWriterType = shuffleWriterType
       )
 
     dependency

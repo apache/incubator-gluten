@@ -79,8 +79,7 @@ public class UniffleShuffleManager extends RssShuffleManager implements Supports
           shuffleWriteClient,
           rssHandle,
           this::markFailedTask,
-          context,
-          dependency.isSort());
+          context);
     } else {
       return super.getWriter(handle, mapId, context, metrics);
     }
