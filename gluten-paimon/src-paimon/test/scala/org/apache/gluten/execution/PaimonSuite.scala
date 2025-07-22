@@ -39,15 +39,20 @@ abstract class PaimonSuite extends WholeStageTransformerSuite {
   }
 
   test("paimon transformer exists") {
-    withTable("paimon_tbl") {
-      sql("DROP TABLE IF EXISTS paimon_tbl")
-      sql("CREATE TABLE paimon_tbl (id INT, name STRING) USING paimon")
-      sql("INSERT INTO paimon_tbl VALUES (1, 'Bob'), (2, 'Blue'), (3, 'Mike')")
-      runQueryAndCompare("""
-                           |SELECT * from paimon_tbl;
-                           |""".stripMargin) {
-        checkGlutenOperatorMatch[PaimonScanTransformer]
-      }
+    Seq("parquet", "orc").foreach {
+      format =>
+        withTable(s"paimon_${format}_tbl") {
+          sql(s"DROP TABLE IF EXISTS paimon_${format}_tbl")
+          sql(
+            s"CREATE TABLE paimon_${format}_tbl (id INT, name STRING) USING PAIMON " +
+              s"TBLPROPERTIES ('file.format'='$format')")
+          sql(s"INSERT INTO paimon_${format}_tbl VALUES (1, 'Bob'), (2, 'Blue'), (3, 'Mike')")
+          runQueryAndCompare(s"""
+                                |SELECT * from paimon_${format}_tbl;
+                                |""".stripMargin) {
+            checkGlutenOperatorMatch[PaimonScanTransformer]
+          }
+        }
     }
   }
 
