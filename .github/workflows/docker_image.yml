@@ -201,7 +201,8 @@ jobs:
       matrix:
         os: [ ubuntu-latest, ubuntu-24.04-arm ]
         jdk: [jdk8, jdk11, jdk17]
-
+    env:
+      JDK_VERSION: 1.8.0
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -237,7 +238,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          build-args: JAVA_VERSION=${{ JDK_VERSION }}
+          build-args: JAVA_VERSION=${{ env.JDK_VERSION }}
           file: dev/docker/Dockerfile.centos8-dynamic-build
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ env.DOCKERHUB_REPO }}",push-by-digest=true,push=true
@@ -263,7 +264,8 @@ jobs:
       matrix:
         os: [ ubuntu-latest, ubuntu-24.04-arm ]
         jdk: [jdk8, jdk11, jdk17]
-
+    env:
+      JDK_VERSION: 1.8.0
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -299,7 +301,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          build-args: JAVA_VERSION=${{ JDK_VERSION }}
+          build-args: JAVA_VERSION=${{ env.JDK_VERSION }}
           file: dev/docker/Dockerfile.centos8-dynamic-build
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ env.DOCKERHUB_REPO }}",push-by-digest=true,push=true
