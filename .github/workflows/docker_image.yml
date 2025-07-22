@@ -214,7 +214,7 @@ jobs:
           tags: centos-8-${{ matrix.jdk }}
 
       - name: Prepare
-        runs: |
+        run: |
           if [ "${{ matrix.jdk }}" = "jdk8" ]; then
             echo "JDK_VERSION=1.8.0" >> $GITHUB_ENV
           elif [ "${{ matrix.jdk }}" = "jdk11" ]; then
@@ -276,7 +276,7 @@ jobs:
           tags: centos-9-${{ matrix.jdk }}
 
       - name: Prepare
-        runs: |
+        run: |
           if [ "${{ matrix.jdk }}" = "jdk8" ]; then
             echo "JDK_VERSION=1.8.0" >> $GITHUB_ENV
           elif [ "${{ matrix.jdk }}" = "jdk11" ]; then
