@@ -218,7 +218,12 @@
                     <exclude>NOTICE.txt</exclude>
                   </excludes>
                 </filter>
-
+                <filter>
+                  <artifact>org.apache.gluten:gluten-core</artifact>
+                  <excludes>
+                    <exclude>gluten-build-info.properties</exclude>
+                  </excludes>
+                </filter>
               </filters>
             </configuration>
           </execution>
