@@ -60,39 +60,40 @@ case class VeloxBloomFilterMightContain(
       newValueExpression: Expression): VeloxBloomFilterMightContain =
     copy(bloomFilterExpression = newBloomFilterExpression, valueExpression = newValueExpression)
 
-  private lazy val bloomFilterData: ByteBuffer = {
-    val bytes = bloomFilterExpression.eval().asInstanceOf[Array[Byte]]
-    if (bytes == null) {
+  private lazy val bloomFilterData: Array[Byte] =
+    bloomFilterExpression.eval().asInstanceOf[Array[Byte]]
+
+  @transient private lazy val bloomFilterBuffer: ByteBuffer = {
+    if (bloomFilterData == null) {
       null
     } else {
-      val buffer = ByteBuffer.allocateDirect(bytes.length)
-      buffer.put(bytes)
+      val buffer = ByteBuffer.allocateDirect(bloomFilterData.length)
+      buffer.put(bloomFilterData)
     }
   }
 
   override def eval(input: InternalRow): Any = {
-    if (bloomFilterData == null) {
+    if (bloomFilterBuffer == null) {
       return null
     }
     val value = valueExpression.eval(input)
     if (value == null) {
       return null
     }
-    VeloxBloomFilter.mightContainLongOnSerializedBloom(bloomFilterData, value.asInstanceOf[Long])
+    VeloxBloomFilter.mightContainLongOnSerializedBloom(bloomFilterBuffer, value.asInstanceOf[Long])
   }
 
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    if (bloomFilterData == null) {
+    if (bloomFilterBuffer == null) {
       return ev.copy(isNull = TrueLiteral, value = JavaCode.defaultLiteral(dataType))
     }
     ctx.addReferenceObj(
-      "bloomFilterData",
-      bloomFilterData
+      "bloomFilterBuffer",
+      bloomFilterBuffer
     ) // This field keeps the direct buffer data alive.
     val bfAddr = ctx.addReferenceObj(
       "bloomFilterAddress",
-      PlatformDependent.directBufferAddress(bloomFilterData))
-
+      PlatformDependent.directBufferAddress(bloomFilterBuffer))
     val valueEval = valueExpression.genCode(ctx)
     val code =
       code"""
