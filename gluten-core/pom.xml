@@ -137,9 +137,6 @@
       <resource>
         <directory>${project.basedir}/src/main/resources</directory>
       </resource>
-      <resource>
-        <directory>${project.build.directory}/generated-resources</directory>
-      </resource>
     </resources>
     <plugins>
       <!-- compile proto buffer files using copied protoc binary -->
