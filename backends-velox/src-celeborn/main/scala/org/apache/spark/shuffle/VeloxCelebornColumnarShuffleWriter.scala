@@ -34,7 +34,6 @@ import org.apache.spark.util.SparkResourceUtil
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.ReservedKeys
 
 import java.io.IOException
 
