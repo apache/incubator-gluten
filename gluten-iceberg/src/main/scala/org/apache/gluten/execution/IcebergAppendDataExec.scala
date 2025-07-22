@@ -20,6 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 
 import org.apache.iceberg.{FileFormat, PartitionField, PartitionSpec, Schema}
 import org.apache.iceberg.TableProperties.{ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT, PARQUET_COMPRESSION, PARQUET_COMPRESSION_DEFAULT}
+import org.apache.iceberg.avro.AvroSchemaUtil
 import org.apache.iceberg.spark.source.IcebergWriteUtil
 import org.apache.iceberg.types.Type.TypeID
 
@@ -99,6 +100,9 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
     val codec = getCodec
     if (Seq("brotli, lzo").contains(codec)) {
       return ValidationResult.failed("Not support this codec " + codec)
+    }
+    if (output.exists(a => !AvroSchemaUtil.makeCompatibleName(a.name).equals(a.name))) {
+      return ValidationResult.failed("Not support the compatible column name")
     }
 
     ValidationResult.succeeded
