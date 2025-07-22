@@ -50,11 +50,16 @@ class VeloxRssSortShuffleWriterTest : public VeloxShuffleWriterTestBase, public 
     setUpTestData();
   }
 
-  std::shared_ptr<VeloxRssSortShuffleWriter> createShuffleWriter(uint32_t numPartitions) {
+  std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) {
     auto options = std::make_shared<RssPartitionWriterOptions>();
     auto writerOptions = std::make_shared<RssSortShuffleWriterOptions>();
     auto rssClient = std::make_unique<LocalRssClient>(dataFile_);
-    GLUTEN_ASSIGN_OR_THROW(auto codec, arrow::util::Codec::Create(writerOptions->compressionType));
+    std::unique_ptr<arrow::util::Codec> codec;
+    if (writerOptions->compressionType == arrow::Compression::type::UNCOMPRESSED) {
+      codec = nullptr;
+    } else {
+      GLUTEN_ASSIGN_OR_THROW(codec, arrow::util::Codec::Create(writerOptions->compressionType));
+    }
     auto partitionWriter = std::make_shared<RssPartitionWriter>(
         numPartitions, codec, getDefaultMemoryManager(), options, std::move(rssClient));
     GLUTEN_ASSIGN_OR_THROW(
@@ -66,7 +71,7 @@ class VeloxRssSortShuffleWriterTest : public VeloxShuffleWriterTestBase, public 
 };
 
 TEST_F(VeloxRssSortShuffleWriterTest, calculateBatchesSize) {
-  auto shuffleWriter = createShuffleWriter(10);
+  auto shuffleWriter = std::dynamic_pointer_cast<VeloxRssSortShuffleWriter>(createShuffleWriter(10));
   // Do not trigger resetBatches by shuffle writer.
   const int64_t memLimit = INT64_MAX;
 
