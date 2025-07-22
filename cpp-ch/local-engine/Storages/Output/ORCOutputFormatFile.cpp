@@ -22,6 +22,7 @@
 #include <Processors/Formats/Impl/ORCBlockOutputFormat.h>
 #include <Processors/Port.h>
 #include <Poco/Util/AbstractConfiguration.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace local_engine
@@ -49,7 +50,7 @@ OutputFormatFile::OutputFormatPtr ORCOutputFormatFile::createOutputFormat(const 
         const String mapped_timezone = DateTimeUtil::convertTimeZone(config_timezone);
         format_settings.orc.writer_time_zone_name = mapped_timezone;
     }
-    auto output_format = std::make_shared<DB::ORCBlockOutputFormat>(*(res->write_buffer), new_header, format_settings);
+    auto output_format = std::make_shared<DB::ORCBlockOutputFormat>(*(res->write_buffer), toShared(new_header), format_settings);
     res->output = output_format;
     return res;
 }

@@ -1345,7 +1345,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
 
     withSQLConf(
       (CHConfig.runtimeSettings("use_excel_serialization"), "false"),
-      ("spark.gluten.sql.text.input.empty.as.default", "true")) {
+      (GlutenConfig.TEXT_INPUT_EMPTY_AS_DEFAULT.key, "true")) {
       compareResultsAgainstVanillaSpark(
         """
           | select * from TEST_MEASURE

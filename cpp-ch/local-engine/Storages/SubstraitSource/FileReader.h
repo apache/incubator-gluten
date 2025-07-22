@@ -20,6 +20,7 @@
 #include <Core/Field.h>
 #include <Processors/Chunk.h>
 #include <Storages/SubstraitSource/FormatFile.h>
+#include <Common/BlockTypeUtils.h>
 
 namespace local_engine
 {
@@ -33,7 +34,7 @@ class BaseReader
 {
 public:
     explicit BaseReader(const FormatFilePtr & file_, const DB::Block & to_read_header_, const DB::Block & header_)
-        : file(file_), readHeader(to_read_header_), outputHeader(header_)
+        : file(file_), readHeader(to_read_header_), outputHeader(toShared(header_))
     {
     }
     virtual ~BaseReader() = default;
@@ -48,7 +49,8 @@ public:
     virtual bool pull(DB::Chunk & chunk) = 0;
     bool isCancelled() const { return is_cancelled.load(std::memory_order_acquire); }
 
-    const DB::Block & getHeader() const { return outputHeader; }
+    const DB::Block & getHeader() const { return *outputHeader; }
+    const DB::SharedHeader & getSharedHeader() const { return outputHeader; }
 
 protected:
     virtual void onCancel() { };
@@ -57,7 +59,7 @@ protected:
 
     FormatFilePtr file;
     DB::Block readHeader;
-    DB::Block outputHeader;
+    DB::SharedHeader outputHeader;
 
     std::atomic<bool> is_cancelled{false};
 

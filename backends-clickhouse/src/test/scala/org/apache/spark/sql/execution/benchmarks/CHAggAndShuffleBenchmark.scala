@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, ProjectExecTransformer, WholeStageTransformer}
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -67,7 +68,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchma
   override def getSparkSession: SparkSession = {
     beforeAll()
     val conf = getSparkConf
-      .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")
+      .set(CHBackendSettings.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "false")
       .setIfMissing("spark.sql.shuffle.partitions", shufflePartition)
       .setIfMissing("spark.shuffle.manager", "sort")
       .setIfMissing("spark.io.compression.codec", "SNAPPY")

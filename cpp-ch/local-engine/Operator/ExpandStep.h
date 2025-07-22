@@ -27,7 +27,7 @@ class ExpandStep : public DB::ITransformingStep
 {
 public:
     // The input stream should only contain grouping columns.
-    explicit ExpandStep(const DB::Block & input_header, const ExpandField & project_set_exprs_);
+    explicit ExpandStep(const DB::SharedHeader & input_header, const ExpandField & project_set_exprs_);
     ~ExpandStep() override = default;
 
     String getName() const override { return "ExpandStep"; }

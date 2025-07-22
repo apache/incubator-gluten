@@ -101,6 +101,7 @@
     <!-- For unit tests -->
     <fasterxml.version>2.13.5</fasterxml.version>
     <junit.version>4.13.1</junit.version>
+    <flexmark.version>0.62.2</flexmark.version>
 
     <!-- Package name to use when relocating shaded classes -->
     <gluten.shade.packageName>org.apache.gluten.shaded</gluten.shade.packageName>
@@ -1406,6 +1407,12 @@
         <version>2.11.0</version>
         <scope>test</scope>
       </dependency>
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-all</artifactId>
+        <version>${flexmark.version}</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1689,6 +1696,82 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${build-helper-maven-plugin.version}</version>
+          <!--We use build-helper-maven-plugin rather than maven-resources-plugin-->
+          <!--to add base resources (generated-resources and other common extended resource folders).-->
+          <!--So submodules could easily add their own resources through maven-resources-plugin-->
+          <!--which is more compatible with Intellij IDEA (E.g., `targetPath` can be respected by-->
+          <!--IDEA with maven-resources-plugin while it is not working with build-helper-maven-plugin).-->
+          <executions>
+            <execution>
+              <id>add-common-sources</id>
+              <phase>generate-sources</phase>
+              <goals>
+                <goal>add-source</goal>
+              </goals>
+              <configuration>
+                <sources>
+                  <source>${project.basedir}/src-spark${spark.plain.version}/main/java</source>
+                  <source>${project.basedir}/src-spark${spark.plain.version}/main/scala</source>
+                </sources>
+              </configuration>
+            </execution>
+            <execution>
+              <id>add-common-resources</id>
+              <phase>generate-resources</phase>
+              <goals>
+                <goal>add-resource</goal>
+              </goals>
+              <configuration>
+                <resources>
+                  <resource>
+                    <directory>${project.basedir}/src-spark${spark.plain.version}/main/resources</directory>
+                  </resource>
+                </resources>
+              </configuration>
+            </execution>
+            <execution>
+              <id>add-common-test-sources</id>
+              <phase>generate-test-sources</phase>
+              <goals>
+                <goal>add-test-source</goal>
+              </goals>
+              <configuration>
+                <sources>
+                  <source>${project.basedir}/src-spark${spark.plain.version}/test/scala</source>
+                  <source>${project.basedir}/src-spark${spark.plain.version}/test/java</source>
+                </sources>
+              </configuration>
+            </execution>
+            <execution>
+              <id>add-common-test-resources</id>
+              <phase>generate-test-resources</phase>
+              <goals>
+                <goal>add-test-resource</goal>
+              </goals>
+              <configuration>
+                <resources>
+                  <resource>
+                    <directory>${project.basedir}/src-spark${spark.plain.version}/test/resources</directory>
+                  </resource>
+                </resources>
+              </configuration>
+            </execution>
+            <execution>
+              <id>add-generated-resources</id>
+              <phase>generate-resources</phase>
+              <goals>
+                <goal>add-resource</goal>
+              </goals>
+              <configuration>
+                <resources>
+                  <resource>
+                    <!-- Include the properties file to provide the build information. -->
+                    <directory>${project.build.directory}/generated-resources</directory>
+                  </resource>
+                </resources>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.xolstice.maven.plugins</groupId>
@@ -1747,100 +1830,12 @@
         <version>2.15.0</version>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <!--We use build-helper-maven-plugin rather than maven-resources-plugin-->
-        <!--to add base resources (generated-resources and other common extended resource folders).-->
-        <!--So submodules could easily add their own resources through maven-resources-plugin-->
-        <!--which is more compatible with Intellij IDEA (E.g., `targetPath` can be respected by-->
-        <!--IDEA with maven-resources-plugin while it is not working with build-helper-maven-plugin).-->
-        <executions>
-          <execution>
-          </execution>
-          <execution>
-            <id>add-generated-resources</id>
-            <phase>generate-resources</phase>
-            <goals>
-              <goal>add-resource</goal>
-            </goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <!-- Include the properties file to provide the build information. -->
-                  <directory>${project.build.directory}/generated-resources</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
       </plugin>
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>add-common-sources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${project.basedir}/src-spark${spark.plain.version}/main/java</source>
-                <source>${project.basedir}/src-spark${spark.plain.version}/main/scala</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add-common-resources</id>
-            <phase>generate-resources</phase>
-            <goals>
-              <goal>add-resource</goal>
-            </goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <directory>${project.basedir}/src-spark${spark.plain.version}/main/resources</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add-common-test-sources</id>
-            <phase>generate-test-sources</phase>
-            <goals>
-              <goal>add-test-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${project.basedir}/src-spark${spark.plain.version}/test/scala</source>
-                <source>${project.basedir}/src-spark${spark.plain.version}/test/java</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add-common-test-resources</id>
-            <phase>generate-test-resources</phase>
-            <goals>
-              <goal>add-test-resource</goal>
-            </goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <directory>${project.basedir}/src-spark${spark.plain.version}/test/resources</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>

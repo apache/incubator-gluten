@@ -19,7 +19,7 @@
 #include <glog/logging.h>
 #include <iostream>
 
-//static
+// static
 std::unique_ptr<gluten::ObjectStore> gluten::ObjectStore::create() {
   static std::mutex mtx;
   std::lock_guard<std::mutex> lock(mtx);
@@ -37,21 +37,31 @@ gluten::ResourceMap<gluten::ObjectStore*>& gluten::ObjectStore::stores() {
 }
 
 gluten::ObjectStore::~ObjectStore() {
-  // destructing in reversed order (the last added object destructed first)
-  const std::lock_guard<std::mutex> lock(mtx_);
-  for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
-    const ResourceHandle handle = (*itr).first;
-    const auto& info = (*itr).second;
-    const std::string_view typeName = info.typeName;
-    const size_t size = info.size;
-    VLOG(2) << "Unclosed object ["
-            << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", TypeName: " << typeName
-            << ", Size: " << size
-            << "] is found when object store is closing. Gluten will"
-               " destroy it automatically but it's recommended to manually close"
-               " the object through the Java closing API after use,"
-               " to minimize peak memory pressure of the application.";
-    store_.erase(handle);
+  for (;;) {
+    if (aliveObjects_.empty()) {
+      break;
+    }
+    std::shared_ptr<void> tempObj;
+    {
+      const std::lock_guard<std::mutex> lock(mtx_);
+      // destructing in reversed order (the last added object destructed first)
+      auto itr = aliveObjects_.rbegin();
+      const ResourceHandle handle = (*itr).first;
+      const auto& info = (*itr).second;
+      const std::string_view typeName = info.typeName;
+      const size_t size = info.size;
+      VLOG(2) << "Unclosed object ["
+              << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", TypeName: " << typeName
+              << ", Size: " << size
+              << "] is found when object store is closing. Gluten will"
+                 " destroy it automatically but it's recommended to manually close"
+                 " the object through the Java closing API after use,"
+                 " to minimize peak memory pressure of the application.";
+      tempObj = store_.lookup(handle);
+      store_.erase(handle);
+      aliveObjects_.erase(handle);
+    }
+    tempObj.reset(); // this will call the destructor of the object
   }
   stores().erase(storeId_);
 }

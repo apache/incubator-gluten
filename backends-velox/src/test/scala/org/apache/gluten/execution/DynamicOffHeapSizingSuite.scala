@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.memory.memtarget.DynamicOffHeapSizingMemoryTarget
 
 import org.apache.spark.SparkConf
@@ -35,8 +36,8 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.executor.memory", "2GB")
       .set("spark.memory.offHeap.enabled", "false")
       .set("spark.memory.offHeap.size", "0")
-      .set("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction", "0.95")
-      .set("spark.gluten.memory.dynamic.offHeap.sizing.enabled", "true")
+      .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION.key, "0.95")
+      .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, "true")
   }
 
   test("Dynamic off-heap sizing") {

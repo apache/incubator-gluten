@@ -19,6 +19,7 @@ package org.apache.gluten.rexnode.functions;
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.rexnode.TypeUtils;
+import org.apache.gluten.rexnode.ValidationResult;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
@@ -36,10 +37,19 @@ public class ModRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     // Modulus operation is supported for numeric types.
-    return callNode.getOperands().size() == 2
-        && TypeUtils.isNumericType(RexNodeConverter.toType(callNode.getType()));
+    boolean typesValidate =
+        callNode.getOperands().size() == 2
+            && TypeUtils.isNumericType(RexNodeConverter.toType(callNode.getType()));
+    if (!typesValidate) {
+      String message =
+          String.format(
+              "Modulus operation requires exactly two numeric operands, but found: %s",
+              getFunctionProtoTypeName(callNode));
+      return ValidationResult.failure(message);
+    }
+    return ValidationResult.success();
   }
 
   @Override

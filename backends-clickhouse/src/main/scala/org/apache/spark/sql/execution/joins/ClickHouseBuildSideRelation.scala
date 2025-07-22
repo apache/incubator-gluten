@@ -44,31 +44,42 @@ case class ClickHouseBuildSideRelation(
 
   override def asReadOnlyCopy(): ClickHouseBuildSideRelation = this
 
-  private var hashTableData: Long = 0L
+  private var existHashTableData: Long = 0L
+  private var existBroadCastHashJoinContext: BroadCastHashJoinContext = null
 
   def buildHashTable(
       broadCastContext: BroadCastHashJoinContext): (Long, ClickHouseBuildSideRelation) =
     synchronized {
-      if (hashTableData == 0) {
+      if (!couldReuseHashTableData(broadCastContext)) {
         logDebug(
           s"BHJ value size: " +
             s"${broadCastContext.buildHashTableId} = ${batches.length}")
         // Build the hash table
-        hashTableData = StorageJoinBuilder.build(
+        existHashTableData = StorageJoinBuilder.build(
           batches,
           numOfRows,
           broadCastContext,
           newBuildKeys.asJava,
           output.asJava,
           hasNullKeyValues)
-        (hashTableData, this)
+        existBroadCastHashJoinContext = broadCastContext
+        (existHashTableData, this)
       } else {
-        (StorageJoinBuilder.nativeCloneBuildHashTable(hashTableData), null)
+        (StorageJoinBuilder.nativeCloneBuildHashTable(existHashTableData), null)
       }
     }
 
   def reset(): Unit = synchronized {
-    hashTableData = 0
+    existHashTableData = 0
+    existBroadCastHashJoinContext = null
+  }
+
+  private def couldReuseHashTableData(broadCastContext: BroadCastHashJoinContext): Boolean = {
+    if (existHashTableData != 0) {
+      existBroadCastHashJoinContext.joinType == broadCastContext.joinType &&
+      existBroadCastHashJoinContext.hasMixedFiltCondition == broadCastContext.hasMixedFiltCondition
+    }
+    false
   }
 
   /**
