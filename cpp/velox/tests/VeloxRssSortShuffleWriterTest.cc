@@ -61,7 +61,7 @@ class VeloxRssSortShuffleWriterTest : public VeloxShuffleWriterTestBase, public 
       GLUTEN_ASSIGN_OR_THROW(codec, arrow::util::Codec::Create(writerOptions->compressionType));
     }
     auto partitionWriter = std::make_shared<RssPartitionWriter>(
-        numPartitions, codec, getDefaultMemoryManager(), options, std::move(rssClient));
+        numPartitions, std::move(codec), getDefaultMemoryManager(), options, std::move(rssClient));
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxRssSortShuffleWriter::create(
