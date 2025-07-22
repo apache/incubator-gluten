@@ -1534,8 +1534,10 @@ object GlutenConfig {
   val CELEBORN_USE_RSS_SORT =
     buildConf("spark.gluten.sql.columnar.shuffle.celeborn.useRssSort")
       .internal()
-      .doc("If enabled, use RSS sort implementation for Celeborn sort-based shuffle. " +
-        "If disabled, use Gluten's sort implementation for Celeborn sort-based shuffle.")
+      .doc(
+        "If true, use RSS sort implementation for Celeborn sort-based shuffle." +
+          "If false, use Gluten's row-based sort implementation. " +
+          "Only valid when `spark.celeborn.client.spark.shuffle.writer` is set to `sort`.")
       .booleanConf
       .createWithDefault(true)
 
