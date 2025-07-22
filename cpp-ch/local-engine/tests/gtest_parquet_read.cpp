@@ -360,7 +360,7 @@ TEST(ParquetRead, ArrowRead)
 
     auto columns = toSampleBlock(test::readParquetSchema(sample));
 
-    Block header(columns);
+    const Block& header(columns);
     ArrowColumnToCHColumn converter(
         header,
         "Parquet",
@@ -394,6 +394,8 @@ TEST(ParquetRead, LowLevelRead)
 
     // Get the File MetaData
     const std::shared_ptr<parquet::FileMetaData> file_metadata = parquet_reader->metadata();
+    parquet::arrow::SchemaManifest manifest = VectorizedParquetRecordReader::createSchemaManifest(*file_metadata);
+
     // Get the number of RowGroups
     const int num_row_groups = file_metadata->num_row_groups();
     EXPECT_EQ(num_row_groups, 2);
@@ -405,8 +407,8 @@ TEST(ParquetRead, LowLevelRead)
     const parquet::SchemaDescriptor & schema = *(file_metadata->schema());
     const parquet::ColumnDescriptor & column_a_descr = *(schema.Column(col_a));
     EXPECT_EQ(column_a_descr.name(), "a");
-    const parquet::internal::LevelInfo level_info = computeLevelInfo(&column_a_descr);
-    const auto reader = parquet::internal::RecordReader::Make(&column_a_descr, level_info);
+    auto const & field_a = manifest.schema_fields[col_a];
+    const auto reader = parquet::internal::RecordReader::Make(&column_a_descr, field_a.level_info);
 
     // Iterate over all the RowGroups in the file
     for (int r = 0; r < num_row_groups; ++r)
