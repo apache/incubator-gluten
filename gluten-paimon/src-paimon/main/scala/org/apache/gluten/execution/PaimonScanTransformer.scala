@@ -92,9 +92,7 @@ case class PaimonScanTransformer(
     } else if ("orc".equalsIgnoreCase(formatStr)) {
       ReadFileFormat.OrcReadFormat
     } else {
-      throw new GlutenNotSupportException(
-        s"Only support Parquet/ORC format, " +
-          s"but found $formatStr")
+      ReadFileFormat.UnknownFormat
     }
   }
 
@@ -103,15 +101,18 @@ case class PaimonScanTransformer(
       case paimonScan: PaimonScan =>
         paimonScan.table match {
           case table: FileStoreTable =>
+            if (fileFormat == ReadFileFormat.UnknownFormat) {
+              return ValidationResult.failed("Only support parquet/orc Paimon table.")
+            }
             if (!table.primaryKeys().isEmpty || coreOptions.deletionVectorsEnabled()) {
-              return ValidationResult.failed("Not support Paimon PK/DV table")
+              return ValidationResult.failed("Not support Paimon PK/DV table.")
             }
           case table =>
             return ValidationResult.failed(
-              s"Not support Paimon ${table.getClass.getSimpleName} table")
+              s"Not support Paimon ${table.getClass.getSimpleName} table.")
         }
       case _ =>
-        throw new GlutenNotSupportException("Only support PaimonScan.")
+        return ValidationResult.failed("Only support PaimonScan.")
     }
     super.doValidateInternal()
   }
