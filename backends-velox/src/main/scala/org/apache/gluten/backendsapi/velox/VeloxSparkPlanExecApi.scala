@@ -637,7 +637,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           classOf[SQLMetric],
           classOf[SQLMetric],
           classOf[ShuffleWriterType])
-      constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
+      constructor
+        .newInstance(schema, readBatchNumRows, numOutputRows, shuffleWriterType)
+        .asInstanceOf[Serializer]
     } else {
       new ColumnarBatchSerializer(
         schema,
