@@ -100,7 +100,8 @@ case class VeloxBloomFilterMightContain(
       boolean ${ev.isNull} = ${valueEval.isNull};
       ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
       if (!${ev.isNull}) {
-        ${ev.value} = ${classOf[VeloxBloomFilter].getName}.mightContainLongOnSerializedBloom((Long) $bfAddr, (Long)${valueEval.value});
+        ${ev.value} = ${classOf[VeloxBloomFilter].getName}.mightContainLongOnSerializedBloom((Long) $bfAddr,
+        (Long)${valueEval.value});
       }"""
     ev.copy(code = code)
   }
