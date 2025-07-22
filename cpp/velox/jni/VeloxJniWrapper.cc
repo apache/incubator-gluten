@@ -259,6 +259,18 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapp
   JNI_METHOD_END(false)
 }
 
+JNIEXPORT jboolean JNICALL
+Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_mightContainLongOnSerializedBloom( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong address,
+    jlong item) {
+  JNI_METHOD_START
+  bool out = velox::BloomFilter<>::mayContain(reinterpret_cast<const char*>(address), folly::hasher<int64_t>()(item));
+  return out;
+  JNI_METHOD_END(false)
+}
+
 namespace {
 static std::vector<char> serialize(BloomFilter<std::allocator<uint64_t>>* bf) {
   uint32_t size = bf->serializedSize();

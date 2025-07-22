@@ -25,7 +25,10 @@ import org.apache.spark.sql.catalyst.expressions.{BinaryExpression, Expression}
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.types.DataType
-import org.apache.spark.task.TaskResources
+
+import io.netty.util.internal.PlatformDependent
+
+import java.nio.ByteBuffer
 
 /**
  * Velox's bloom-filter implementation uses different algorithms internally comparing to vanilla
@@ -57,34 +60,38 @@ case class VeloxBloomFilterMightContain(
       newValueExpression: Expression): VeloxBloomFilterMightContain =
     copy(bloomFilterExpression = newBloomFilterExpression, valueExpression = newValueExpression)
 
-  private lazy val bloomFilterData: Array[Byte] =
-    bloomFilterExpression.eval().asInstanceOf[Array[Byte]]
-
-  @transient private lazy val bloomFilter =
-    if (bloomFilterData == null) null else VeloxBloomFilter.readFrom(bloomFilterData)
+  private lazy val bloomFilterData: ByteBuffer = {
+    val bytes = bloomFilterExpression.eval().asInstanceOf[Array[Byte]]
+    if (bytes == null) {
+      null
+    } else {
+      val buffer = ByteBuffer.allocateDirect(bytes.length)
+      buffer.put(bytes)
+    }
+  }
 
   override def eval(input: InternalRow): Any = {
-    if (!TaskResources.inSparkTask()) {
-      throw new UnsupportedOperationException("velox_might_contain is not evaluable on Driver")
-    }
-    if (bloomFilter == null) {
+    if (bloomFilterData == null) {
       return null
     }
     val value = valueExpression.eval(input)
     if (value == null) {
       return null
     }
-    bloomFilter.mightContainLong(value.asInstanceOf[Long])
+    VeloxBloomFilter.mightContainLongOnSerializedBloom(bloomFilterData, value.asInstanceOf[Long])
   }
 
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     if (bloomFilterData == null) {
       return ev.copy(isNull = TrueLiteral, value = JavaCode.defaultLiteral(dataType))
     }
-    val bfData = ctx.addReferenceObj("bloomFilterData", bloomFilterData)
-    val className = classOf[VeloxBloomFilter].getName
-    val bf = ctx.addMutableState(className, "bloomFilter")
-    ctx.addPartitionInitializationStatement(s"$bf = $className.readFrom($bfData);")
+    ctx.addReferenceObj(
+      "bloomFilterData",
+      bloomFilterData
+    ) // This field keeps the direct buffer data alive.
+    val bfAddr = ctx.addReferenceObj(
+      "bloomFilterAddress",
+      PlatformDependent.directBufferAddress(bloomFilterData))
 
     val valueEval = valueExpression.genCode(ctx)
     val code =
@@ -93,7 +100,7 @@ case class VeloxBloomFilterMightContain(
       boolean ${ev.isNull} = ${valueEval.isNull};
       ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
       if (!${ev.isNull}) {
-        ${ev.value} = $bf.mightContainLong((Long)${valueEval.value});
+        ${ev.value} = ${classOf[VeloxBloomFilter].getName}.mightContainLongOnSerializedBloom((Long) $bfAddr, (Long)${valueEval.value});
       }"""
     ev.copy(code = code)
   }
