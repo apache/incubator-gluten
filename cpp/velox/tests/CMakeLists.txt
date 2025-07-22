@@ -39,6 +39,9 @@ add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
 add_velox_test(velox_shuffle_writer_spill_test SOURCES
                VeloxShuffleWriterSpillTest.cc)
 
+add_velox_test(velox_rss_sort_shuffle_writer_test SOURCES
+        VeloxRssSortShuffleWriterTest.cc)
+
 # TODO: ORC is not well supported. add_velox_test(orc_test SOURCES OrcTest.cc)
 add_velox_test(
   velox_operators_test
