@@ -103,6 +103,15 @@ class VeloxMemoryManager final : public MemoryManager {
  private:
   bool tryDestructSafe();
 
+  /// This function releases resources held by VeloxMemoryManager at final destruct
+  /// after some try of tryDestructSafe.
+  /// Note: veloxMemoryManager_ is cleared at the end because pools will
+  /// call back into veloxMemoryManager_ during their destruction.
+  /// If veloxMemoryManager_ is reset earlier, it may cause a crash.
+  /// Although this function is not as safe as tryDestructSafe, this order avoids
+  /// issues with destruction sequence.
+  void finalDestructUnsafe();
+
   void dropMemoryPool(const std::string& name);
 
 #ifdef GLUTEN_ENABLE_HBM

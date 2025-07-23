@@ -444,6 +444,13 @@ bool VeloxMemoryManager::tryDestructSafe() {
   return true;
 }
 
+void VeloxMemoryManager::finalDestructUnsafe() {
+  heldVeloxPools_.clear();
+  veloxLeafPool_.reset();
+  veloxAggregatePool_.reset();
+  veloxMemoryManager_.reset();
+}
+
 VeloxMemoryManager::~VeloxMemoryManager() {
   static const uint32_t kWaitTimeoutMs = FLAGS_gluten_velox_async_timeout_on_task_stopping; // 30s by default
   uint32_t accumulatedWaitMs = 0UL;
@@ -465,6 +472,7 @@ VeloxMemoryManager::~VeloxMemoryManager() {
   if (!destructed) {
     LOG(ERROR) << "Failed to release Velox memory manager after " << accumulatedWaitMs
                << "ms as there are still outstanding memory resources. ";
+    finalDestructUnsafe();
   }
 #ifdef ENABLE_JEMALLOC_STATS
   malloc_stats_print(NULL, NULL, NULL);
