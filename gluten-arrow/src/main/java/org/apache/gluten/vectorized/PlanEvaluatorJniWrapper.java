@@ -41,7 +41,7 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public static native void injectWriteFilesTempPath(byte[] path);
+  public static native void injectWriteFilesTempPath(byte[] path, byte[] fileName);
 
   /**
    * Validate the Substrait plan in native compute engine.

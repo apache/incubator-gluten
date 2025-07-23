@@ -34,6 +34,7 @@ class VeloxPlanConverter {
       facebook::velox::memory::MemoryPool* veloxPool,
       const facebook::velox::config::ConfigBase* veloxCfg,
       const std::optional<std::string> writeFilesTempPath = std::nullopt,
+      const std::optional<std::string> writeFileName = std::nullopt,
       bool validationMode = false);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(
