@@ -30,7 +30,7 @@ import io.netty.util.internal.PlatformDependent
 import sun.nio.ch.DirectBuffer
 
 import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
-import java.nio.ByteBuffer
+import java.nio.{Buffer, ByteBuffer}
 
 /**
  * Velox's bloom-filter implementation uses different algorithms internally comparing to vanilla
@@ -121,11 +121,11 @@ object VeloxBloomFilterMightContain {
    *
    * Note: Keep this public so generated code can access.
    */
-  class SerializableDirectByteBuffer(buffer: ByteBuffer) extends Serializable {
+  class SerializableDirectByteBuffer(buffer: Buffer) extends Serializable {
     require(buffer.isInstanceOf[DirectBuffer])
     require(buffer.position() == 0)
 
-    @transient private var byteBuffer: ByteBuffer = buffer
+    @transient private var byteBuffer: ByteBuffer = buffer.asInstanceOf[ByteBuffer]
 
     def get(): ByteBuffer = {
       byteBuffer
