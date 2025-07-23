@@ -68,7 +68,7 @@ concurrency:
 
 jobs:
   build-native-lib-centos-7:
-    runs-on: ubuntu-22.04
+    runs-on: linux-large
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
