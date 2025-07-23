@@ -79,13 +79,6 @@ function install_conda {
   dnf_install conda
 }
 
-function install_openssl {
-  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl
-  (
-    cd ${DEPENDENCY_DIR}/openssl
-    ./config no-shared && make depend && make && sudo make install
-  )
-}
 
 function install_gflags {
   # Remove an older version if present.
@@ -200,7 +193,6 @@ function install_velox_deps {
   run_and_time install_wangle
   run_and_time install_mvfst
   run_and_time install_fbthrift
-  run_and_time install_openssl
   run_and_time install_duckdb
   run_and_time install_geos
 }

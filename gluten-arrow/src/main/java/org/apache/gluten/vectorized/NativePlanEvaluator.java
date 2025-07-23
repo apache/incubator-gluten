@@ -25,12 +25,15 @@ import org.apache.gluten.utils.DebugUtil;
 import org.apache.gluten.validate.NativePlanValidationInfo;
 
 import org.apache.spark.TaskContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NativePlanEvaluator {
+  private static final Logger LOGGER = LoggerFactory.getLogger(NativePlanEvaluator.class);
   private static final AtomicInteger id = new AtomicInteger(0);
 
   private final Runtime runtime;
@@ -51,8 +54,9 @@ public class NativePlanEvaluator {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
   }
 
-  public static void injectWriteFilesTempPath(String path) {
-    PlanEvaluatorJniWrapper.injectWriteFilesTempPath(path.getBytes(StandardCharsets.UTF_8));
+  public static void injectWriteFilesTempPath(String path, String fileName) {
+    PlanEvaluatorJniWrapper.injectWriteFilesTempPath(
+        path.getBytes(StandardCharsets.UTF_8), fileName.getBytes(StandardCharsets.UTF_8));
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and
@@ -62,7 +66,8 @@ public class NativePlanEvaluator {
       byte[][] splitInfo,
       List<ColumnarBatchInIterator> iterList,
       int partitionIndex,
-      String spillDirPath)
+      String spillDirPath,
+      boolean enableCudf)
       throws RuntimeException {
     final long itrHandle =
         jniWrapper.nativeCreateKernelWithIterator(
@@ -73,7 +78,8 @@ public class NativePlanEvaluator {
             partitionIndex, // TaskContext.getPartitionId(),
             TaskContext.get().taskAttemptId(),
             DebugUtil.isDumpingEnabledForTask(),
-            spillDirPath);
+            spillDirPath,
+            enableCudf);
     final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle);
     runtime
         .memoryManager()
@@ -84,7 +90,13 @@ public class NativePlanEvaluator {
                 if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
                   return 0L;
                 }
-                return out.spill(size);
+                long spilled = out.spill(size);
+                LOGGER.info(
+                    "NativePlanEvaluator-{}: Spilled {} / {} bytes of data.",
+                    id.get(),
+                    spilled,
+                    size);
+                return spilled;
               }
             });
     return out;

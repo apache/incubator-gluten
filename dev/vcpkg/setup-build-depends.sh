@@ -33,9 +33,12 @@ install_maven_from_source() {
         fi
 
         cd /tmp
-        wget https://archive.apache.org/dist/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
-        tar -xvf apache-maven-$maven_version-bin.tar.gz
-        rm -f apache-maven-$maven_version-bin.tar.gz
+        local_binary="apache-maven-${maven_version}-bin.tar.gz";
+        mirror_host="https://www.apache.org/dyn/closer.lua";
+        url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download";
+        wget -nv -O ${local_binary} ${url};
+        tar -xvf ${local_binary};
+        rm -rf ${local_binary};
         mv apache-maven-$maven_version "${maven_install_dir}"
         ln -s "${maven_install_dir}/bin/mvn" /usr/local/bin/mvn
     fi

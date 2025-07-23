@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "velox/substrait/tests/JsonToProtoConverter.h"
+#include "utils//JsonToProtoConverter.h"
 #include <fstream>
 #include <sstream>
 #include "velox/common/base/Exceptions.h"

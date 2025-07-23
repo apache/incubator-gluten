@@ -580,6 +580,7 @@ class Spark35Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.TRY
       case d: Divide => d.evalMode == EvalMode.TRY
       case m: Multiply => m.evalMode == EvalMode.TRY
+      case c: Cast => c.evalMode == EvalMode.TRY
       case _ => false
     }
   }
@@ -681,4 +682,6 @@ class Spark35Shims extends SparkShims {
   override def getCollectLimitOffset(plan: CollectLimitExec): Int = {
     plan.offset
   }
+
+  override def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = unBase64.failOnError
 }

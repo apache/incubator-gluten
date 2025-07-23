@@ -321,7 +321,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       )
     } else {
       baseMetrics ++ Map(
-        "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split")
+        "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
+        "avgDictionaryFields" -> SQLMetrics
+          .createAverageMetric(sparkContext, "avg dictionary fields"),
+        "dictionarySize" -> SQLMetrics.createSizeMetric(sparkContext, "dictionary size")
       )
     }
   }
@@ -566,15 +569,63 @@ class VeloxMetricsApi extends MetricsApi with Logging {
   override def genNestedLoopJoinTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of NestedLoopJoin"),
-      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
+      "nestedLoopJoinBuildInputRows" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of memory allocations")
+        "number of nested loop join build input rows"),
+      "nestedLoopJoinBuildOutputRows" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join build output rows"),
+      "nestedLoopJoinBuildOutputVectors" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join build output vectors"),
+      "nestedLoopJoinBuildOutputBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "number of nested loop join build output bytes"),
+      "nestedLoopJoinBuildCpuCount" -> SQLMetrics.createMetric(
+        sparkContext,
+        "nested loop join build cpu wall time count"),
+      "nestedLoopJoinBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of nested loop join build"),
+      "nestedLoopJoinBuildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "nested loop join build peak memory bytes"),
+      "nestedLoopJoinBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join build memory allocations"),
+      "nestedLoopJoinProbeInputRows" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join probe input rows"),
+      "nestedLoopJoinProbeOutputRows" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join probe output rows"),
+      "nestedLoopJoinProbeOutputVectors" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join probe output vectors"),
+      "nestedLoopJoinProbeOutputBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "number of nested loop join probe output bytes"),
+      "nestedLoopJoinProbeCpuCount" -> SQLMetrics.createMetric(
+        sparkContext,
+        "nested loop join probe cpu wall time count"),
+      "nestedLoopJoinProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of nested loop join probe"),
+      "nestedLoopJoinProbePeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "nested loop join probe peak memory bytes"),
+      "nestedLoopJoinProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join probe memory allocations"),
+      "postProjectionCpuCount" -> SQLMetrics.createMetric(
+        sparkContext,
+        "postProject cpu wall time count"),
+      "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of postProjection"),
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "numOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "numOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes")
     )
 
   override def genNestedLoopJoinTransformerMetricsUpdater(

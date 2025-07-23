@@ -159,7 +159,7 @@ NormalFileWriter::NormalFileWriter(const OutputFormatFilePtr & file_, const DB::
 
 DB::Block NormalFileWriter::castBlock(const DB::Block & block) const
 {
-    if (!block)
+    if (block.empty())
         return block;
 
     Block res = block;

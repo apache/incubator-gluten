@@ -194,6 +194,10 @@
       <version>1.0.2</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.vladsch.flexmark</groupId>
+      <artifactId>flexmark-all</artifactId>
+    </dependency>
   </dependencies>
 
   <profiles>

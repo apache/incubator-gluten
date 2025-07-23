@@ -39,7 +39,7 @@ public:
     explicit FunctionParserTimestampAdd(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserTimestampAdd() override = default;
 
-    static constexpr auto name = "timestamp_add";
+    static constexpr auto name = "timestampadd";
 
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "timestamp_add"; }

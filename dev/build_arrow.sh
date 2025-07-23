@@ -26,7 +26,8 @@ BUILD_TYPE=Release
 
 function prepare_arrow_build() {
   mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && sudo rm -rf arrow_ep/
-  wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
+  wget_and_untar https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${VELOX_ARROW_BUILD_VERSION}/.tar.gz arrow_ep
+  #wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
   cd arrow_ep
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
@@ -34,9 +35,17 @@ function prepare_arrow_build() {
 }
 
 function build_arrow_cpp() {
- pushd $ARROW_PREFIX/cpp
-
- cmake_install \
+  pushd $ARROW_PREFIX/cpp
+  ARROW_WITH_ZLIB=ON
+  # The zlib version bundled with arrow is not compatible with clang 17.
+  # It can be removed after upgrading the arrow version.
+  if [[ "$(uname)" == "Darwin" ]]; then
+    clang_major_version=$(echo | clang -dM -E - | grep __clang_major__ | awk '{print $3}')
+    if [ "${clang_major_version}" -ge 17 ]; then
+      ARROW_WITH_ZLIB=OFF
+    fi
+  fi
+  cmake_install \
        -DARROW_PARQUET=OFF \
        -DARROW_FILESYSTEM=ON \
        -DARROW_PROTOBUF_USE_SHARED=OFF \
@@ -45,7 +54,7 @@ function build_arrow_cpp() {
        -DARROW_WITH_THRIFT=ON \
        -DARROW_WITH_LZ4=ON \
        -DARROW_WITH_SNAPPY=ON \
-       -DARROW_WITH_ZLIB=ON \
+       -DARROW_WITH_ZLIB=${ARROW_WITH_ZLIB} \
        -DARROW_WITH_ZSTD=ON \
        -DARROW_JEMALLOC=OFF \
        -DARROW_SIMD_LEVEL=NONE \

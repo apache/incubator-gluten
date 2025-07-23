@@ -14,10 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <random>
 #include <Core/Block.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeString.h>
 #include <IO/ReadBufferFromFile.h>
+#include <Interpreters/JoinInfo.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
@@ -30,7 +32,6 @@
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/substrait_fwd.h>
 #include <benchmark/benchmark.h>
-#include <parquet/arrow/reader.h>
 #include <substrait/plan.pb.h>
 #include <tests/utils/TempFilePath.h>
 #include <tests/utils/gluten_test_util.h>
@@ -50,7 +51,7 @@ void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
 
     std::string file = local_engine::test::third_party_data(
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
-    Block header{local_engine::toSampleBlock(local_engine::test::readParquetSchema(file))};
+    auto header = local_engine::toShared(local_engine::toSampleBlock(local_engine::test::readParquetSchema(file)));
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
@@ -62,7 +63,7 @@ void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
             .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
             .allow_missing_columns = format_settings.parquet.allow_missing_columns};
         ReadBufferFromFilePRead fileReader(file);
-        metaBuilder.build(fileReader, header);
+        metaBuilder.build(fileReader, *header);
         local_engine::ColumnIndexRowRangesProvider provider{metaBuilder};
         auto format = std::make_shared<local_engine ::VectorizedParquetBlockInputFormat>(fileReader, header, provider, format_settings);
         auto pipeline = QueryPipeline(std::move(format));
@@ -80,13 +81,15 @@ void BM_ColumnIndexRead_Old(benchmark::State & state)
 
     std::string file = local_engine::test::third_party_data(
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
-    Block header{local_engine::toSampleBlock(local_engine::test::readParquetSchema(file))};
+    auto header = local_engine::toShared(local_engine::toSampleBlock(local_engine::test::readParquetSchema(file)));
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
     {
         ReadBufferFromFilePRead fileReader(file);
-        auto format = std::make_shared<ParquetBlockInputFormat>(fileReader, header, format_settings, 1, 1, 8192);
+        auto global_context = local_engine::QueryContext::globalContext();
+        auto parser_group = std::make_shared<FormatParserGroup>(global_context->getSettingsRef(), 1, nullptr, global_context);
+        auto format = std::make_shared<ParquetBlockInputFormat>(fileReader, header, format_settings, parser_group, 8192);
         auto pipeline = QueryPipeline(std::move(format));
         auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
         while (reader->pull(res))
@@ -99,17 +102,19 @@ void BM_ColumnIndexRead_Old(benchmark::State & state)
 void BM_ParquetReadDate32(benchmark::State & state)
 {
     using namespace DB;
-    Block header{
+    auto header = local_engine::toShared(Block{
         ColumnWithTypeAndName(DataTypeDate32().createColumn(), std::make_shared<DataTypeDate32>(), "l_shipdate"),
         ColumnWithTypeAndName(DataTypeDate32().createColumn(), std::make_shared<DataTypeDate32>(), "l_commitdate"),
-        ColumnWithTypeAndName(DataTypeDate32().createColumn(), std::make_shared<DataTypeDate32>(), "l_receiptdate")};
+        ColumnWithTypeAndName(DataTypeDate32().createColumn(), std::make_shared<DataTypeDate32>(), "l_receiptdate")});
     std::string file{GLUTEN_SOURCE_TPCH_DIR("lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet")};
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
     {
         auto in = std::make_unique<ReadBufferFromFile>(file);
-        auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings, 1, 1, 8192);
+        auto global_context = local_engine::QueryContext::globalContext();
+        auto parser_group = std::make_shared<FormatParserGroup>(global_context->getSettingsRef(), 1, nullptr, global_context);
+        auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings, parser_group, 8192);
         auto pipeline = QueryPipeline(std::move(format));
         auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
         while (reader->pull(res))
@@ -197,7 +202,7 @@ substrait::ReadRel::LocalFiles createLocalFiles(const std::string & filename, co
     return files;
 }
 
-void doRead(const substrait::ReadRel::LocalFiles & files, const std::optional<DB::ActionsDAG> & pushDown, const DB::Block & header)
+void doRead(const substrait::ReadRel::LocalFiles & files, const std::shared_ptr<const DB::ActionsDAG> & pushDown, const DB::Block & header)
 {
     const auto builder = std::make_unique<DB::QueryPipelineBuilder>();
     const auto source = std::make_shared<local_engine::SubstraitFileSource>(local_engine::QueryContext::globalContext(), header, files);
@@ -228,7 +233,9 @@ void BM_ColumnIndexRead_Filter_ReturnAllResult(benchmark::State & state)
     const std::string filter1 = "l_shipdate is not null AND l_shipdate <= toDate32('1998-09-01')";
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
     const local_engine::RowType schema = local_engine::test::readParquetSchema(filename);
-    auto pushDown = local_engine::test::parseFilter(filter1, schema);
+    auto pushDownOpt = local_engine::test::parseFilter(filter1, schema);
+    auto pushDown = pushDownOpt ? std::make_shared<const ActionsDAG>(std::move(*pushDownOpt)) : nullptr;
+
     const Block header = {local_engine::toSampleBlock(schema)};
 
     for (auto _ : state)
@@ -245,7 +252,8 @@ void BM_ColumnIndexRead_Filter_ReturnHalfResult(benchmark::State & state)
     const std::string filter1 = "l_orderkey is not null AND l_orderkey > 300977829";
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
     const local_engine::RowType schema = local_engine::test::readParquetSchema(filename);
-    auto pushDown = local_engine::test::parseFilter(filter1, schema);
+    auto pushDownOpt = local_engine::test::parseFilter(filter1, schema);
+    auto pushDown = pushDownOpt ? std::make_shared<const ActionsDAG>(std::move(*pushDownOpt)) : nullptr;
     const Block header = {local_engine::toSampleBlock(schema)};
 
     for (auto _ : state)

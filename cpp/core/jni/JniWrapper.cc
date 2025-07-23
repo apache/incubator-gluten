@@ -147,7 +147,7 @@ class InternalMemoryManager : public MemoryManager {
     throw GlutenException("Not implemented");
   }
 
-  std::shared_ptr<arrow::MemoryPool> createArrowMemoryPool(const std::string& name) override {
+  std::shared_ptr<arrow::MemoryPool> getOrCreateArrowMemoryPool(const std::string& name) override {
     throw GlutenException("Not yet implemented");
   }
 
@@ -215,7 +215,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", "()V");
 
   splitResultClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/GlutenSplitResult;");
-  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJJJJ[J[J)V");
+  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJJJJDJ[J[J)V");
 
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
 
@@ -380,12 +380,18 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrap
 JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_injectWriteFilesTempPath( // NOLINT
     JNIEnv* env,
     jclass,
-    jbyteArray path) {
+    jbyteArray path,
+    jbyteArray fileName) {
   JNI_METHOD_START
   auto len = env->GetArrayLength(path);
   auto safeArray = getByteArrayElementsSafe(env, path);
   std::string pathStr(reinterpret_cast<char*>(safeArray.elems()), len);
   *Runtime::localWriteFilesTempPath() = pathStr;
+
+  len = env->GetArrayLength(fileName);
+  auto fileNameArray = getByteArrayElementsSafe(env, fileName);
+  std::string fileNameStr(reinterpret_cast<char*>(fileNameArray.elems()), len);
+  *Runtime::localWriteFileName() = fileNameStr;
   JNI_METHOD_END()
 }
 
@@ -400,11 +406,17 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jint partitionId,
     jlong taskId,
     jboolean enableDumping,
-    jstring spillDir) {
+    jstring spillDir,
+    jboolean enableCudf) {
   JNI_METHOD_START
 
   auto ctx = getRuntime(env, wrapper);
-  auto& conf = ctx->getConfMap();
+  auto conf = ctx->getConfMap();
+#ifdef GLUTEN_ENABLE_GPU
+  if (enableCudf) {
+    conf[kCudfEnabled] = "true";
+  }
+#endif
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
@@ -794,7 +806,8 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
     jint numSubDirs,
     jint shuffleFileBufferSize,
     jstring dataFileJstr,
-    jstring localDirsJstr) {
+    jstring localDirsJstr,
+    jboolean enableDictionary) {
   JNI_METHOD_START
 
   const auto ctx = getRuntime(env, wrapper);
@@ -803,7 +816,13 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
   auto localDirs = splitPaths(jStringToCString(env, localDirsJstr));
 
   auto partitionWriterOptions = std::make_shared<LocalPartitionWriterOptions>(
-      shuffleFileBufferSize, compressionBufferSize, compressionThreshold, mergeBufferSize, mergeThreshold, numSubDirs);
+      shuffleFileBufferSize,
+      compressionBufferSize,
+      compressionThreshold,
+      mergeBufferSize,
+      mergeThreshold,
+      numSubDirs,
+      enableDictionary);
 
   auto partitionWriter = std::make_shared<LocalPartitionWriter>(
       numPartitions,
@@ -980,6 +999,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrap
       shuffleWriter->totalBytesEvicted(),
       shuffleWriter->totalBytesToEvict(),
       shuffleWriter->peakBytesAllocated(),
+      shuffleWriter->avgDictionaryFields(),
+      shuffleWriter->dictionarySize(),
       partitionLengthArr,
       rawPartitionLengthArr);
 

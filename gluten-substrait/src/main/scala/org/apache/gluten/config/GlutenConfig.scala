@@ -106,6 +106,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableCountDistinctWithoutExpand: Boolean =
     getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
 
+  def enableColumnarCudf: Boolean = getConf(COLUMNAR_CUDF_ENABLED)
+
   def enableExtendedColumnPruning: Boolean =
     getConf(ENABLE_EXTENDED_COLUMN_PRUNING)
 
@@ -128,12 +130,14 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
       .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
   // Whether to use CelebornShuffleManager.
+  // TODO: Deprecate the API: https://github.com/apache/incubator-gluten/issues/10107.
   def isUseCelebornShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
       .contains("celeborn")
 
   // Whether to use UniffleShuffleManager.
+  // TODO: Deprecate the API: https://github.com/apache/incubator-gluten/issues/10107.
   def isUseUniffleShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
@@ -141,7 +145,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   // scalastyle:off classforname
   def shuffleManagerSupportsColumnarShuffle: Boolean = {
-    classOf[SupportsColumnarShuffle].isAssignableFrom(Class.forName(SQLConf.get
+    classOf[SupportsColumnarShuffle].isAssignableFrom(Class.forName(conf
       .getConfString("spark.shuffle.manager", "org.apache.spark.shuffle.sort.SortShuffleManager")))
   }
   // scalastyle:on classforname
@@ -195,6 +199,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def columnarSortShuffleDeserializerBufferSize: Long =
     getConf(COLUMNAR_SORT_SHUFFLE_DESERIALIZER_BUFFER_SIZE)
+
+  def columnarShuffleEnableDictionary: Boolean =
+    getConf(SHUFFLE_ENABLE_DICTIONARY)
 
   def maxBatchSize: Int = getConf(COLUMNAR_MAX_BATCH_SIZE)
 
@@ -285,7 +292,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   }
 
   def printStackOnValidationFailure: Boolean =
-    getConf(VALIDATION_PRINT_FAILURE_STACK_)
+    getConf(VALIDATION_PRINT_FAILURE_STACK)
 
   def validationFailFast: Boolean = getConf(VALIDATION_FAIL_FAST)
 
@@ -411,7 +418,6 @@ object GlutenConfig {
   private val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
-  val SPARK_ONHEAP_SIZE_KEY = "spark.executor.memory"
   val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
   val SPARK_OVERHEAD_FACTOR_KEY = "spark.executor.memoryOverheadFactor"
   val SPARK_REDACTION_REGEX = "spark.redaction.regex"
@@ -1037,6 +1043,13 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
+  val SHUFFLE_ENABLE_DICTIONARY =
+    buildConf("spark.gluten.sql.columnar.shuffle.dictionary.enabled")
+      .internal()
+      .doc("Enable dictionary in hash-based shuffle.")
+      .booleanConf
+      .createWithDefault(false)
+
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf("spark.gluten.sql.columnar.maxBatchSize")
       .internal()
@@ -1186,7 +1199,7 @@ object GlutenConfig {
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("WARN")
 
-  val VALIDATION_PRINT_FAILURE_STACK_ =
+  val VALIDATION_PRINT_FAILURE_STACK =
     buildConf("spark.gluten.sql.validation.printStackOnFailure")
       .internal()
       .booleanConf

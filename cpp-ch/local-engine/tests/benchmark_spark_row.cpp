@@ -19,6 +19,7 @@
 #include <Core/Block.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <IO/ReadBufferFromFile.h>
+#include <Interpreters/Context.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
@@ -27,7 +28,8 @@
 #include <QueryPipeline/QueryPipeline.h>
 #include <base/types.h>
 #include <benchmark/benchmark.h>
-#include <parquet/arrow/reader.h>
+#include <Common/BlockTypeUtils.h>
+#include <Common/QueryContext.h>
 
 using namespace DB;
 using namespace local_engine;
@@ -52,11 +54,13 @@ static Block getLineitemHeader(const NameTypes & name_types)
     return std::move(Block(columns));
 }
 
-static void readParquetFile(const Block & header, const String & file, Block & block)
+static void readParquetFile(const SharedHeader & header, const String & file, Block & block)
 {
     auto in = std::make_unique<ReadBufferFromFile>(file);
     FormatSettings format_settings;
-    auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings, 1, 1, 8192);
+    auto global_context = QueryContext::globalContext();
+    auto parser_group = std::make_shared<FormatParserGroup>(global_context->getSettingsRef(), 1, nullptr, global_context);
+    auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings, std::move(parser_group), 8192);
     auto pipeline = QueryPipeline(std::move(format));
     auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
     while (reader->pull(block))
@@ -84,7 +88,7 @@ static void BM_CHColumnToSparkRow_Lineitem(benchmark::State & state)
         {"l_comment", "Nullable(String)"},
     };
 
-    const Block header = std::move(getLineitemHeader(name_types));
+    auto header = toShared(getLineitemHeader(name_types));
     const String file = "/data1/liyang/cppproject/gluten/gluten-core/src/test/resources/tpch-data/lineitem/"
                         "part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet";
     Block block;
@@ -120,7 +124,7 @@ static void BM_SparkRowToCHColumn_Lineitem(benchmark::State & state)
         {"l_comment", "Nullable(String)"},
     };
 
-    const Block header = std::move(getLineitemHeader(name_types));
+    auto header = toShared(getLineitemHeader(name_types));
     const String file = "/data1/liyang/cppproject/gluten/gluten-core/src/test/resources/tpch-data/lineitem/"
                         "part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet";
     Block in_block;
@@ -129,7 +133,7 @@ static void BM_SparkRowToCHColumn_Lineitem(benchmark::State & state)
     CHColumnToSparkRow spark_row_converter;
     auto spark_row_info = spark_row_converter.convertCHColumnToSparkRow(in_block);
     for (auto _ : state) [[maybe_unused]]
-        auto out_block = SparkRowToCHColumn::convertSparkRowInfoToCHColumn(*spark_row_info, header);
+        auto out_block = SparkRowToCHColumn::convertSparkRowInfoToCHColumn(*spark_row_info, *header);
 }
 
 BENCHMARK(BM_CHColumnToSparkRow_Lineitem)->Unit(benchmark::kMillisecond)->Iterations(10);

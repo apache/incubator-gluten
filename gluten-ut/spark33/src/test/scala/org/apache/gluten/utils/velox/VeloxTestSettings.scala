@@ -105,6 +105,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Revised by setting timezone through config and commented unsupported cases.
     .exclude("cast string to timestamp")
   enableSuite[GlutenArithmeticExpressionSuite]
+    // https://github.com/apache/incubator-gluten/issues/10175
+    .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude(
@@ -148,6 +150,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDecimalPrecisionSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenHigherOrderFunctionsSuite]
+  enableSuite[GlutenGeneratorExpressionSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenJsonExpressionsSuite]
     // https://github.com/apache/incubator-gluten/issues/8102
@@ -427,6 +430,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
+    .exclude("SPARK-38825: in and notIn filters")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
@@ -444,6 +448,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
+    .exclude("SPARK-38825: in and notIn filters")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]

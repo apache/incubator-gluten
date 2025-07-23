@@ -17,6 +17,7 @@
 package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.rexnode.ValidationResult;
 
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 
@@ -26,5 +27,5 @@ public interface RexCallConverter {
   // Let the Converter decide how to build the arguments.
   TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
 
-  boolean isSupported(RexCall callNode, RexConversionContext context);
+  ValidationResult isSuitable(RexCall callNode, RexConversionContext context);
 }

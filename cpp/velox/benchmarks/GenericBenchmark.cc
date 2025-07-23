@@ -63,6 +63,7 @@ DEFINE_string(
     "lz4",
     "Specify the compression codec. Valid options are none, lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
+DEFINE_bool(shuffle_dictionary, false, "Whether to enable dictionary encoding for shuffle write.");
 
 DEFINE_string(plan, "", "Path to input json file of the substrait plan.");
 DEFINE_string(
@@ -208,7 +209,9 @@ createPartitionWriter(Runtime* runtime, const std::string& dataFile, const std::
     return std::make_shared<RssPartitionWriter>(
         FLAGS_shuffle_partitions, createCodec(), runtime->memoryManager(), options, std::move(rssClient));
   }
+
   auto options = std::make_shared<LocalPartitionWriterOptions>();
+  options->enableDictionary = FLAGS_shuffle_dictionary;
   return std::make_unique<LocalPartitionWriter>(
       FLAGS_shuffle_partitions, createCodec(), runtime->memoryManager(), options, dataFile, localDirs);
 }
@@ -441,8 +444,9 @@ auto BM_Generic = [](::benchmark::State& state,
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
-          inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
-              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
+          inputIters.push_back(
+              FileReaderIterator::getInputIteratorFromFileReader(
+                  readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
         }
         std::transform(
             inputIters.begin(),

@@ -42,6 +42,7 @@ struct ShuffleTestParams {
   int32_t mergeBufferSize{0};
   int32_t diskWriteBufferSize{0};
   bool useRadixSort{false};
+  bool enableDictionary{false};
 
   std::string toString() const {
     std::ostringstream out;
@@ -50,7 +51,8 @@ struct ShuffleTestParams {
         << ", compressionType = " << arrow::util::Codec::GetCodecAsString(compressionType)
         << ", compressionThreshold = " << compressionThreshold << ", mergeBufferSize = " << mergeBufferSize
         << ", compressionBufferSize = " << diskWriteBufferSize
-        << ", useRadixSort = " << (useRadixSort ? "true" : "false");
+        << ", useRadixSort = " << (useRadixSort ? "true" : "false")
+        << ", enableDictionary = " << (enableDictionary ? "true" : "false");
     return out.str();
   }
 };
@@ -124,12 +126,15 @@ std::vector<ShuffleTestParams> getTestParams() {
     for (const auto compressionThreshold : compressionThresholds) {
       // Local.
       for (const auto mergeBufferSize : mergeBufferSizes) {
-        params.push_back(ShuffleTestParams{
-            .shuffleWriterType = ShuffleWriterType::kHashShuffle,
-            .partitionWriterType = PartitionWriterType::kLocal,
-            .compressionType = compression,
-            .compressionThreshold = compressionThreshold,
-            .mergeBufferSize = mergeBufferSize});
+        for (const bool enableDictionary : {true, false}) {
+          params.push_back(ShuffleTestParams{
+              .shuffleWriterType = ShuffleWriterType::kHashShuffle,
+              .partitionWriterType = PartitionWriterType::kLocal,
+              .compressionType = compression,
+              .compressionThreshold = compressionThreshold,
+              .mergeBufferSize = mergeBufferSize,
+              .enableDictionary = enableDictionary});
+        }
       }
 
       // Rss.
@@ -151,13 +156,15 @@ std::shared_ptr<PartitionWriter> createPartitionWriter(
     const std::vector<std::string>& localDirs,
     arrow::Compression::type compressionType,
     int32_t mergeBufferSize,
-    int32_t compressionThreshold) {
+    int32_t compressionThreshold,
+    bool enableDictionary) {
   GLUTEN_ASSIGN_OR_THROW(auto codec, arrow::util::Codec::Create(compressionType));
   switch (partitionWriterType) {
     case PartitionWriterType::kLocal: {
       auto options = std::make_shared<LocalPartitionWriterOptions>();
       options->mergeBufferSize = mergeBufferSize;
       options->compressionThreshold = compressionThreshold;
+      options->enableDictionary = enableDictionary;
       return std::make_shared<LocalPartitionWriter>(
           numPartitions, std::move(codec), getDefaultMemoryManager(), options, dataFile, std::move(localDirs));
     }
@@ -227,23 +234,21 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       shuffleWriterOptions = defaultShuffleWriterOptions();
     }
 
+    const auto& params = GetParam();
     const auto partitionWriter = createPartitionWriter(
-        GetParam().partitionWriterType,
+        params.partitionWriterType,
         numPartitions,
         dataFile_,
         localDirs_,
-        GetParam().compressionType,
-        GetParam().mergeBufferSize,
-        GetParam().compressionThreshold);
+        params.compressionType,
+        params.mergeBufferSize,
+        params.compressionThreshold,
+        params.enableDictionary);
 
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxShuffleWriter::create(
-            GetParam().shuffleWriterType,
-            numPartitions,
-            partitionWriter,
-            shuffleWriterOptions,
-            getDefaultMemoryManager()));
+            params.shuffleWriterType, numPartitions, partitionWriter, shuffleWriterOptions, getDefaultMemoryManager()));
 
     return shuffleWriter;
   }
@@ -735,6 +740,29 @@ TEST_P(RoundRobinPartitioningShuffleWriterTest, sortMaxRows) {
 
   auto blockPid1 = takeRows({inputVector1_}, {{0, 2, 4, 6, 8}});
   auto blockPid2 = takeRows({inputVector1_}, {{1, 3, 5, 7, 9}});
+  shuffleWriteReadMultiBlocks(*shuffleWriter, 2, {blockPid1, blockPid2});
+}
+
+TEST_P(RoundRobinPartitioningShuffleWriterTest, sortSpill) {
+  if (GetParam().shuffleWriterType != ShuffleWriterType::kSortShuffle) {
+    return;
+  }
+  auto shuffleWriter = createShuffleWriter(2);
+
+  ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_, 0));
+  ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_, 0));
+
+  int64_t evicted;
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(1024, &evicted));
+
+  ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_, 0));
+
+  auto blockPid1 =
+      takeRows({inputVector1_, inputVector1_, inputVector1_}, {{0, 2, 4, 6, 8}, {0, 2, 4, 6, 8}, {0, 2, 4, 6, 8}});
+  auto blockPid2 =
+      takeRows({inputVector1_, inputVector1_, inputVector1_}, {{1, 3, 5, 7, 9}, {1, 3, 5, 7, 9}, {1, 3, 5, 7, 9}});
+
+  // Stop and verify.
   shuffleWriteReadMultiBlocks(*shuffleWriter, 2, {blockPid1, blockPid2});
 }
 

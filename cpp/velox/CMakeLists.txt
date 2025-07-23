@@ -148,6 +148,7 @@ set(VELOX_SRCS
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxColumnarBatchWriter.cc
     operators/writer/VeloxParquetDataSource.cc
+    shuffle/ArrowShuffleDictionaryWriter.cc
     shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxRssSortShuffleWriter.cc
     shuffle/VeloxShuffleReader.cc
@@ -176,6 +177,9 @@ if(ENABLE_S3)
   find_package(ZLIB)
 endif()
 
+if(ENABLE_GPU)
+  list(APPEND VELOX_SRCS cudf/CudfPlanValidator.cc)
+endif()
 add_library(velox SHARED ${VELOX_SRCS})
 
 if(ENABLE_GLUTEN_VCPKG AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")

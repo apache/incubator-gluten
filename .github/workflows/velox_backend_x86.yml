@@ -564,7 +564,7 @@ jobs:
       fail-fast: false
       matrix:
         spark: [ "spark-3.2" ]
-        celeborn: [ "celeborn-0.5.4", "celeborn-0.4.3"]
+        celeborn: [ "celeborn-0.6.0", "celeborn-0.5.4", "celeborn-0.4.3"]
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
@@ -590,6 +590,8 @@ jobs:
             EXTRA_PROFILE="-Pceleborn-0.4"
           elif [ "${{ matrix.celeborn }}" = "celeborn-0.5.4" ]; then
             EXTRA_PROFILE="-Pceleborn-0.5"
+          elif [ "${{ matrix.celeborn }}" = "celeborn-0.6.0" ]; then
+            EXTRA_PROFILE="-Pceleborn-0.6"
           fi
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
           if [ ! -e "/opt/apache-${{ matrix.celeborn }}-bin.tgz" ]; then
@@ -632,7 +634,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.2.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -721,7 +723,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.3.1 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -820,7 +822,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.4.4 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.4.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -922,7 +924,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -978,7 +980,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1070,7 +1072,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1160,7 +1162,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/

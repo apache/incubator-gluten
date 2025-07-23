@@ -28,21 +28,62 @@ env:
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
   TPCH_TEST: "env GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare 
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1"
+  INSTALL_PREFIX: /usr/local
+
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
+  # action/checkout does not work centos7 anymore, so we clone the main branch instead
+  build-on-centos-7:
+    strategy:
+      fail-fast: false
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ubuntu-22.04
+    container: centos:7
+    steps:
+      - name: Build Gluten native libraries and package
+        run: |
+          sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
+          sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
+          yum update -y
+          yum install -y epel-release sudo dnf
+          yum install -y centos-release-scl
+          rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
+          sed -i \
+          -e 's/^mirrorlist/#mirrorlist/' \
+          -e 's/^#baseurl/baseurl/' \
+          -e 's/mirror\.centos\.org/vault.centos.org/' \
+          /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+          yum install -y devtoolset-11
+          source /opt/rh/devtoolset-11/enable
+          yum install -y java-1.8.0-openjdk-devel patch wget git perl python3-pip
+          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
+          export PATH=$JAVA_HOME/bin:$PATH
+          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.9/binaries/apache-maven-3.8.9-bin.tar.gz && \
+          tar -xvf apache-maven*bin.tar.gz && \
+          mv apache-maven-3.8.9 /usr/lib/maven && \
+          export MAVEN_HOME=/usr/lib/maven && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin && \
+          ln -s /usr/lib/maven/bin /usr/bin/mvn
+          ls -l /usr/bin/mvn
+          
+          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
+          ./dev/package.sh
+          
+
   build-on-centos:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "centos:7", "centos:8", "quay.io/centos/centos:stream9" ]
+        os: [ "centos:8", "quay.io/centos/centos:stream9" ]
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v4
       - name: Update mirror list
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -71,11 +112,12 @@ jobs:
           yum install -y java-1.8.0-openjdk-devel patch wget git perl
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           export PATH=$JAVA_HOME/bin:$PATH
-          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
+          
           $SETUP install_maven
           export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          ./dev/package.sh
+          export PATH=${PATH}:${MAVEN_HOME}/bin
+
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
 
   build-on-ubuntu:
     strategy:
@@ -89,17 +131,27 @@ jobs:
       - uses: actions/checkout@v4
       - name: build
         run: |
+          # sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
           # To avoid the prompt for region selection during installing tzdata.
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update && apt-get install -y sudo maven wget git
+          apt-get update && apt-get install -y sudo maven wget git curl
           if [ "${{ matrix.os }}" = "ubuntu:20.04" ]; then
             sudo apt install -y software-properties-common
             sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-            sudo apt update && sudo apt install -y gcc-11 g++-11
+            sudo apt update && sudo apt install -y gcc-11 g++-11 build-essential cmake
             export CC=/usr/bin/gcc-11
             export CXX=/usr/bin/g++-11
+            wget https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.1.tar.gz
+            tar xf v0.8.1.tar.gz
+            cd xxHash-0.8.1/
+            make && make install
+            cd /tmp
+            wget https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz
+            tar xf v1.13.0.tar.gz && cd googletest-1.13.0/
+            export CXXFLAGS=-fPIC
+            cmake . && make install -j
           fi
-          sudo apt-get install -y openjdk-8-jdk
+          sudo apt-get install -y openjdk-8-jdk python3-pip cmake
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
 

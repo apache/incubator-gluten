@@ -83,7 +83,7 @@ class VeloxMemoryManager final : public MemoryManager {
     return defaultArrowPool_.get();
   }
 
-  std::shared_ptr<arrow::MemoryPool> createArrowMemoryPool(const std::string& name) override;
+  std::shared_ptr<arrow::MemoryPool> getOrCreateArrowMemoryPool(const std::string& name) override;
 
   const MemoryUsageStats collectMemoryUsageStats() const override;
 

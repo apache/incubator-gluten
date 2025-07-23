@@ -173,8 +173,9 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
     catalog.dropTable(TableIdentifier.of("default", name));
   }
 
+  // The native side does not report the numDeletes metric.
   protected boolean countDeletes() {
-    return true;
+    return false;
   }
 
   @Override

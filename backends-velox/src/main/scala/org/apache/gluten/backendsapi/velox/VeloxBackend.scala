@@ -514,8 +514,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def skipNativeCtas(ctas: CreateDataSourceTableAsSelectCommand): Boolean = true
 
   override def skipNativeInsertInto(insertInto: InsertIntoHadoopFsRelationCommand): Boolean = {
-    insertInto.partitionColumns.nonEmpty &&
-    insertInto.staticPartitions.size < insertInto.partitionColumns.size ||
     insertInto.bucketSpec.nonEmpty
   }
 
