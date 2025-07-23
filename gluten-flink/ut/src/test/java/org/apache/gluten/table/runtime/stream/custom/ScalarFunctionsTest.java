@@ -169,4 +169,14 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     query = "select b + e as x from tblDecimal where a > 0";
     runAndCheck(query, Arrays.asList("+I[2.0]", "+I[5.0]", "+I[7.0]"));
   }
+
+  @Test
+  void testDateFormat() {
+    List<Row> rows =
+        Arrays.asList(Row.of(1, "2024-12-31 12:12:12"), Row.of(2, "2025-02-28 12:12:12"));
+    createSimpleBoundedValuesTable("dateFormatTbl", "a int, b string", rows);
+    String query =
+        "select a, DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd') from dateFormatTbl";
+    runAndCheck(query, Arrays.asList("+I[1, 2024-12-31]", "+I[2, 2025-02-28]"));
+  }
 }
