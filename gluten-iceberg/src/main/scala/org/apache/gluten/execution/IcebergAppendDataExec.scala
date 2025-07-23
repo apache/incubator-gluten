@@ -101,7 +101,7 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
     if (Seq("brotli, lzo").contains(codec)) {
       return ValidationResult.failed("Not support this codec " + codec)
     }
-    if (output.exists(a => !AvroSchemaUtil.makeCompatibleName(a.name).equals(a.name))) {
+    if (query.output.exists(a => !AvroSchemaUtil.makeCompatibleName(a.name).equals(a.name))) {
       return ValidationResult.failed("Not support the compatible column name")
     }
 
