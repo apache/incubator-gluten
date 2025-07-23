@@ -369,6 +369,10 @@ object GlutenConfig {
   val PARQUET_BLOCK_SIZE: String = "parquet.block.size"
   val PARQUET_BLOCK_ROWS: String = "parquet.block.rows"
   val PARQUET_GZIP_WINDOW_SIZE: String = "parquet.gzip.windowSize"
+  val PARQUET_ZSTD_COMPRESSION_LEVEL: String = "parquet.compression.codec.zstd.level"
+  val PARQUET_DATAPAGE_SIZE: String = "parquet.page.size"
+  val PARQUET_ENABLE_DICTIONARY: String = "parquet.enable.dictionary"
+  val PARQUET_WRITER_VERSION: String = "parquet.writer.version"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 

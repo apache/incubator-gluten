@@ -58,6 +58,14 @@ const std::string kParquetBlockRows = "parquet.block.rows";
 const std::string kParquetGzipWindowSize = "parquet.gzip.windowSize";
 const std::string kGzipWindowSize4k = "4096";
 
+const std::string kParquetZSTDCompressionLevel = "parquet.compression.codec.zstd.level";
+
+const std::string kParquetDataPageSize = "parquet.page.size";
+
+const std::string kParquetEnableDictionary = "parquet.enable.dictionary";
+
+const std::string kParquetWriterVersion = "parquet.writer.version";
+
 const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.codec";
 
 const std::string kColumnarToRowMemoryThreshold = "spark.gluten.sql.columnarToRowMemoryThreshold";
