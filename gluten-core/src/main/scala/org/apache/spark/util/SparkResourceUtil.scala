@@ -18,12 +18,11 @@ package org.apache.spark.util
 
 import org.apache.spark.{SparkConf, SparkMasterRegex}
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.{EXECUTOR_MEMORY, EXECUTOR_MEMORY_OVERHEAD}
+import org.apache.spark.internal.config.{EXECUTOR_MEMORY, EXECUTOR_MEMORY_OVERHEAD, EXECUTOR_MEMORY_OVERHEAD_FACTOR}
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
 object SparkResourceUtil extends Logging {
-  private val MEMORY_OVERHEAD_FACTOR = "spark.executor.memoryOverheadFactor"
   private val MIN_MEMORY_OVERHEAD = "spark.executor.minMemoryOverhead"
 
   /** Get the total cores of the Spark application */
@@ -87,15 +86,14 @@ object SparkResourceUtil extends Logging {
 
   // Returns whether user manually sets memory overhead.
   def isMemoryOverheadSet(conf: SparkConf): Boolean = {
-    Seq(EXECUTOR_MEMORY_OVERHEAD.key, MEMORY_OVERHEAD_FACTOR, MIN_MEMORY_OVERHEAD).exists(
-      conf.contains)
+    Seq(EXECUTOR_MEMORY_OVERHEAD.key, EXECUTOR_MEMORY_OVERHEAD_FACTOR.key, MIN_MEMORY_OVERHEAD)
+      .exists(conf.contains)
   }
 
   def getMemoryOverheadSize(conf: SparkConf): Long = {
     val overheadMib = conf.get(EXECUTOR_MEMORY_OVERHEAD).getOrElse {
       val executorMemMib = conf.get(EXECUTOR_MEMORY)
-      val factor =
-        conf.getDouble(MEMORY_OVERHEAD_FACTOR, 0.1d)
+      val factor = conf.get(EXECUTOR_MEMORY_OVERHEAD_FACTOR)
       val minMib = conf.getLong(MIN_MEMORY_OVERHEAD, 384L)
       (executorMemMib * factor).toLong.max(minMib)
     }
