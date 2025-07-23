@@ -471,7 +471,6 @@ VeloxMemoryManager::~VeloxMemoryManager() {
   if (!destructed) {
     LOG(ERROR) << "Failed to release Velox memory manager after " << accumulatedWaitMs
                << "ms as there are still outstanding memory resources. ";
-    finalDestructUnsafe();
   }
 #ifdef ENABLE_JEMALLOC_STATS
   malloc_stats_print(NULL, NULL, NULL);
