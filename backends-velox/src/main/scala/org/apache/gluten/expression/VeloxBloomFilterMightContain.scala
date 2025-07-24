@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.execution.GlutenTaskOnlyExpression
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.VeloxBloomFilter
 
@@ -26,21 +25,23 @@ import org.apache.spark.sql.catalyst.expressions.{BinaryExpression, Expression}
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.types.DataType
-import org.apache.spark.task.TaskResources
+
+import io.netty.util.internal.PlatformDependent
+import sun.nio.ch.DirectBuffer
+
+import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
+import java.nio.{Buffer, ByteBuffer}
 
 /**
  * Velox's bloom-filter implementation uses different algorithms internally comparing to vanilla
  * Spark so produces different intermediate aggregate data. Thus we use different filter function /
  * agg function types for Velox's version to distinguish from vanilla Spark's implementation.
- *
- * FIXME: Remove GlutenTaskOnlyExpression after the VeloxBloomFilter expr is made compatible with
- * spark. See: https://github.com/apache/incubator-gluten/pull/9850#issuecomment-3007448538
  */
 case class VeloxBloomFilterMightContain(
     bloomFilterExpression: Expression,
     valueExpression: Expression)
-  extends BinaryExpression
-  with GlutenTaskOnlyExpression {
+  extends BinaryExpression {
+  import VeloxBloomFilterMightContain._
 
   private val delegate =
     SparkShimLoader.getSparkShims.newMightContain(bloomFilterExpression, valueExpression)
@@ -65,50 +66,85 @@ case class VeloxBloomFilterMightContain(
   private lazy val bloomFilterData: Array[Byte] =
     bloomFilterExpression.eval().asInstanceOf[Array[Byte]]
 
-  @transient private lazy val bloomFilter =
-    if (bloomFilterData == null) null else VeloxBloomFilter.readFrom(bloomFilterData)
+  @transient private lazy val bloomFilterBuffer: SerializableDirectByteBuffer = {
+    if (bloomFilterData == null) {
+      null
+    } else {
+      new SerializableDirectByteBuffer(
+        ByteBuffer
+          .allocateDirect(bloomFilterData.length)
+          .put(bloomFilterData)
+          .rewind())
+    }
+  }
 
   override def eval(input: InternalRow): Any = {
-    if (!TaskResources.inSparkTask()) {
-      throw new UnsupportedOperationException("velox_might_contain is not evaluable on Driver")
-    }
-    if (bloomFilter == null) {
+    if (bloomFilterBuffer == null) {
       return null
     }
     val value = valueExpression.eval(input)
     if (value == null) {
       return null
     }
-    bloomFilter.mightContainLong(value.asInstanceOf[Long])
+    VeloxBloomFilter.mightContainLongOnSerializedBloom(
+      bloomFilterBuffer.get(),
+      value.asInstanceOf[Long])
   }
 
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    if (bloomFilterData == null) {
+    if (bloomFilterBuffer == null) {
       return ev.copy(isNull = TrueLiteral, value = JavaCode.defaultLiteral(dataType))
     }
-    val bfData = ctx.addReferenceObj("bloomFilterData", bloomFilterData)
-    val className = classOf[VeloxBloomFilter].getName
-    val bf = ctx.addMutableState(className, "bloomFilter")
-    ctx.addPartitionInitializationStatement(s"$bf = $className.readFrom($bfData);")
-
+    val bloomBuf = ctx.addReferenceObj(
+      "bloomFilterBuffer",
+      bloomFilterBuffer
+    ) // This field keeps the direct buffer data alive.
     val valueEval = valueExpression.genCode(ctx)
     val code =
       code"""
-      org.apache.gluten.expression.VeloxBloomFilterMightContain.checkInSparkTask();
       ${valueEval.code}
       boolean ${ev.isNull} = ${valueEval.isNull};
       ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
       if (!${ev.isNull}) {
-        ${ev.value} = $bf.mightContainLong((Long)${valueEval.value});
+        ${ev.value} = ${classOf[VeloxBloomFilter].getName}.mightContainLongOnSerializedBloom(
+        (Long) ${classOf[PlatformDependent].getName}.directBufferAddress($bloomBuf.get()),
+        (Long)${valueEval.value});
       }"""
     ev.copy(code = code)
   }
 }
 
 object VeloxBloomFilterMightContain {
-  def checkInSparkTask(): Unit = {
-    if (!TaskResources.inSparkTask()) {
-      throw new UnsupportedOperationException("velox_might_contain is not evaluable on Driver")
+
+  /**
+   * A serializable container for a Java direct byte buffer.
+   *
+   * Note: Keep this public so generated code can access.
+   */
+  class SerializableDirectByteBuffer(buffer: Buffer) extends Serializable {
+    require(buffer.isInstanceOf[DirectBuffer])
+    require(buffer.position() == 0)
+
+    @transient private var byteBuffer: ByteBuffer = buffer.asInstanceOf[ByteBuffer]
+
+    def get(): ByteBuffer = {
+      byteBuffer
+    }
+
+    @throws[IOException]
+    private def writeObject(out: ObjectOutputStream): Unit = {
+      val data: Array[Byte] = new Array[Byte](byteBuffer.remaining)
+      byteBuffer.duplicate.get(data) // use duplicate to avoid affecting position
+      out.writeInt(data.length)
+      out.write(data)
+    }
+
+    @throws[IOException]
+    private def readObject(in: ObjectInputStream): Unit = {
+      val length: Int = in.readInt
+      val data: Array[Byte] = new Array[Byte](length)
+      in.readFully(data)
+      byteBuffer = ByteBuffer.allocateDirect(length).put(data)
     }
   }
 }

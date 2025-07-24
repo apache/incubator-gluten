@@ -57,9 +57,22 @@ public class RexCallConverterFactory {
                   () -> new StringCompareRexCallConverter("equalto"),
                   () -> new StringNumberCompareRexCallConverter("equalto"))),
           Map.entry(
-              "*", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("multiply"))),
-          Map.entry("-", Arrays.asList(() -> new SubtractRexCallConverter())),
-          Map.entry("+", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("add"))),
+              "/", Arrays.asList(() -> new DecimalArithmeticOperatorRexCallConverters("divide"))),
+          Map.entry(
+              "*",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("multiply"),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("multiply"))),
+          Map.entry(
+              "-",
+              Arrays.asList(
+                  () -> new SubtractRexCallConverter(),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("subtract"))),
+          Map.entry(
+              "+",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("add"),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("add"))),
           Map.entry("MOD", Arrays.asList(() -> new ModRexCallConverter())),
           Map.entry("CAST", Arrays.asList(() -> new DefaultRexCallConverter("cast"))),
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
