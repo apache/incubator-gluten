@@ -58,6 +58,23 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
   }
 
   @Test
+  void testDiv() {
+    List<Row> rows = Arrays.asList(Row.of(1, 1L, 1.0), Row.of(2, 2L, 1.0), Row.of(3, 3L, 2.0));
+    createSimpleBoundedValuesTable("tblDiv", "a int, b bigint, c double", rows);
+    String query = "select a / b as x from tblDiv where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1]", "+I[1]", "+I[1]"));
+
+    query = "select a / 3 as x from tblDiv where a > 0";
+    runAndCheck(query, Arrays.asList("+I[0]", "+I[0]", "+I[1]"));
+
+    query = "select c / cast(2.0 as double) as x from tblDiv where a > 0";
+    runAndCheck(query, Arrays.asList("+I[0.5]", "+I[0.5]", "+I[1.0]"));
+
+    query = "select a / c as x from tblDiv where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1.0]", "+I[2.0]", "+I[1.5]"));
+  }
+
+  @Test
   void testMod() {
     List<Row> rows = Arrays.asList(Row.of(1, 100), Row.of(2, 3), Row.of(3, 5));
     createSimpleBoundedValuesTable("tblMod", "a int, d int", rows);
