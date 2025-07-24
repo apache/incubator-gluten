@@ -51,8 +51,6 @@ public class VeloxQueryConfig {
       String localTimeZone = config.get(TableConfigOptions.LOCAL_TIME_ZONE);
       configMap.put(keyVeloxAdjustTimestampToSessionTimeZone, "true");
       configMap.put(keyVeloxSessionTimezone, localTimeZone);
-    } else {
-      configMap.put(keyVeloxAdjustTimestampToSessionTimeZone, "false");
     }
     return Config.create(configMap);
   }
