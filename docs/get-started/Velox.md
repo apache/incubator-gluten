@@ -396,7 +396,7 @@ With above steps, you will get a physical plan output like:
     +- VeloxColumnarToRowExec (5)
       +- ^ ProjectExecTransformer (3)
         +- GlutenRowToArrowColumnar (2)
-          +- Scan hive default.extracted_db_pins (1)
+          +- Scan hive default.table (1)
 
 ```
 
