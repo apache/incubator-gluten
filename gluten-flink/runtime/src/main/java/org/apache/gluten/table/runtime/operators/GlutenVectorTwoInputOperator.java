@@ -17,6 +17,7 @@
 package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.table.runtime.typeutils.GlutenRowVectorSerializer;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
@@ -99,6 +100,7 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
     outElement = new StreamRecord(null);
     memoryManager = MemoryManager.create(AllocationListener.NOOP);
     session = Velox4j.newSession(memoryManager);
+    GlutenRowVectorSerializer.setSessionForCurrentOperator(session);
 
     leftInputQueue = session.externalStreamOps().newBlockingQueue();
     rightInputQueue = session.externalStreamOps().newBlockingQueue();
