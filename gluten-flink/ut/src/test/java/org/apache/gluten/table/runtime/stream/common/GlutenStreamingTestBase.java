@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,5 +81,12 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
             .map(Object::toString)
             .collect(Collectors.toList());
     assertThat(actual).isEqualTo(expected);
+  }
+
+  protected void runAndCheck(String query, List<String> expected, Map<String, String> configs) {
+    for (String key : configs.keySet()) {
+      tEnv().getConfig().set(key, configs.get(key));
+    }
+    runAndCheck(query, expected);
   }
 }

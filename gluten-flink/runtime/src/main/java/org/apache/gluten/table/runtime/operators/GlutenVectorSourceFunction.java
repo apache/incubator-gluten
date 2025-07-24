@@ -16,8 +16,9 @@
  */
 package org.apache.gluten.table.runtime.operators;
 
+import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
+
 import io.github.zhztheplayer.velox4j.Velox4j;
-import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
 import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
@@ -91,7 +92,9 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
     LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
     memoryManager = MemoryManager.create(AllocationListener.NOOP);
     session = Velox4j.newSession(memoryManager);
-    query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
+    query =
+        new Query(
+            planNode, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
     allocator = new RootAllocator(Long.MAX_VALUE);
 
     SerialTask task = session.queryOps().execute(query);

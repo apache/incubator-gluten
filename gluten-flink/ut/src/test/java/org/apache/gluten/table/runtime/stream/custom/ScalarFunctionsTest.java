@@ -16,8 +16,10 @@
  */
 package org.apache.gluten.table.runtime.stream.custom;
 
+import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
 import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
@@ -176,7 +179,21 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
         Arrays.asList(Row.of(1, "2024-12-31 12:12:12"), Row.of(2, "2025-02-28 12:12:12"));
     createSimpleBoundedValuesTable("dateFormatTbl", "a int, b string", rows);
     String query =
-        "select a, DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd') from dateFormatTbl";
-    runAndCheck(query, Arrays.asList("+I[1, 2024-12-31]", "+I[2, 2025-02-28]"));
+        "select a, DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd'), DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd HH:mm:ss') from dateFormatTbl";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2024-12-31, 2024-12-31 12:12:12]", "+I[2, 2025-02-28, 2025-02-28 12:12:12]"));
+    Map<String, String> configs =
+        Map.of(
+            VeloxQueryConfig.ADJUST_TIMESTMP_TO_SESSION_TIMEZONE.key(),
+            "true",
+            TableConfigOptions.LOCAL_TIME_ZONE.key(),
+            "America/Los_Angeles");
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2024-12-31, 2024-12-31 12:12:12]", "+I[2, 2025-02-28, 2025-02-28 12:12:12]"),
+        configs);
   }
 }
