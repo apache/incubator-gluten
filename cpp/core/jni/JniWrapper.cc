@@ -223,7 +223,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       env,
       metricsBuilderClass,
       "<init>",
-      "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[JLjava/lang/String;)V");
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
@@ -548,7 +548,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_metrics_IteratorMetricsJniWrapp
       longArray[Metrics::kPreloadSplits],
       longArray[Metrics::kPhysicalWrittenBytes],
       longArray[Metrics::kWriteIOTime],
-      longArray[Metrics::kNumWrittenFiles]);
+      longArray[Metrics::kNumWrittenFiles],
+      metrics && metrics->stats.has_value() ? env->NewStringUTF(metrics->stats->c_str()) : nullptr);
 
   JNI_METHOD_END(nullptr)
 }
