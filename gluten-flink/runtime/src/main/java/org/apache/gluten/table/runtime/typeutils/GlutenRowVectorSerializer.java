@@ -16,9 +16,7 @@
  */
 package org.apache.gluten.table.runtime.typeutils;
 
-import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.data.RowVector;
-import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
@@ -62,16 +60,30 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
     target.write(vectorStr.getBytes());
   }
 
+  private static volatile Session sharedSession;
+  private static final Object LOCK = new Object();
+
+  public static void setSessionForCurrentOperator(Session session) {
+    synchronized (LOCK) {
+      sharedSession = session;
+    }
+  }
+
   @Override
   public StatefulRecord deserialize(DataInputView source) throws IOException {
-    if (memoryManager == null) {
-      memoryManager = MemoryManager.create(AllocationListener.NOOP);
-      session = Velox4j.newSession(memoryManager);
+    Session currentSession;
+    synchronized (LOCK) {
+      currentSession = sharedSession;
+      if (currentSession == null) {
+        throw new IllegalStateException("No Velox session available for serialization");
+      }
     }
+
     int len = source.readInt();
     byte[] str = new byte[len];
     source.readFully(str);
-    RowVector rowVector = session.baseVectorOps().deserializeOne(new String(str)).asRowVector();
+    RowVector rowVector =
+        currentSession.baseVectorOps().deserializeOne(new String(str)).asRowVector();
     StatefulRecord record = new StatefulRecord(null, 0, 0, false, -1);
     record.setRowVector(rowVector);
     return record;
