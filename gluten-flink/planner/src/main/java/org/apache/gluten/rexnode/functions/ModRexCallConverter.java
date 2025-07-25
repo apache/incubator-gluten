@@ -55,7 +55,6 @@ public class ModRexCallConverter extends BaseRexCallConverter {
   @Override
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
-    List<TypedExpr> alignedParams = TypeUtils.promoteTypeForArithmeticExpressions(params);
     // Use the divisor's type as the result type
     Type resultType = params.get(1).getReturnType();
     return new CallTypedExpr(resultType, params, functionName);
