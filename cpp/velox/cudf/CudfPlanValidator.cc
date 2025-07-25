@@ -23,6 +23,7 @@
 #include "operators/plannodes/RowVectorStream.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
+#include "velox/exec/TableScan.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 
 using namespace facebook;
@@ -60,7 +61,7 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
   std::vector<velox::exec::Operator*> operators;
   task->testingVisitDrivers([&](velox::exec::Driver* driver) { operators = driver->operators(); });
   for (const auto* op : operators) {
-    if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
+    if (dynamic_cast<const velox::exec::TableScan*>(op) != nullptr) {
       continue;
     }
     // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
