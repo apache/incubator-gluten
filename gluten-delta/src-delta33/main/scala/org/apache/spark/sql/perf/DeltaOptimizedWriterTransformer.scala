@@ -17,6 +17,7 @@
 package org.apache.spark.sql.perf
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.ShuffleWriterType
 import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.Convention
 
@@ -70,8 +71,8 @@ case class DeltaOptimizedWriterTransformer(
   with GlutenPlan
   with DeltaLogging {
 
-  lazy val useSortBasedShuffle: Boolean =
-    BackendsApiManager.getSparkPlanExecApiInstance.useSortBasedShuffle(outputPartitioning, output)
+  lazy val shuffleWriterType: ShuffleWriterType =
+    BackendsApiManager.getSparkPlanExecApiInstance.getShuffleWriterType(outputPartitioning, output)
 
   override def output: Seq[Attribute] = child.output
 
@@ -86,7 +87,7 @@ case class DeltaOptimizedWriterTransformer(
     BackendsApiManager.getMetricsApiInstance
       .genColumnarShuffleExchangeMetrics(
         sparkContext,
-        useSortBasedShuffle) ++ readMetrics ++ writeMetrics
+        shuffleWriterType) ++ readMetrics ++ writeMetrics
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
