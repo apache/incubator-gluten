@@ -19,6 +19,7 @@ package org.apache.gluten.vectorized;
 import org.apache.gluten.exception.GlutenException;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.InternalRowBase;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.BinaryType;
@@ -49,7 +50,7 @@ import java.math.BigDecimal;
 // Copy from Spark MutableColumnarRow mostly but class member columns`type is
 // ArrowWritableColumnVector. And support string and binary type to write, Arrow writer does not
 // need to setNotNull before write a value.
-public final class ArrowColumnarRow extends InternalRow {
+public final class ArrowColumnarRow extends InternalRowBase {
   public int rowId;
   private final ArrowWritableColumnVector[] columns;
 
