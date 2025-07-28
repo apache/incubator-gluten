@@ -79,7 +79,7 @@ trait SparkPlanExecApi {
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
       child: SparkPlan,
-      offloadedSortExec: Boolean = false): HashAggregateExecBaseTransformer
+      offloadedSortExec: Boolean): HashAggregateExecBaseTransformer
 
   /** Generate HashAggregateExecPullOutHelper */
   def genHashAggregateExecPullOutHelper(
