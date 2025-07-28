@@ -111,6 +111,7 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
 
   @Override
   public void processElement(StreamRecord<StatefulRecord> element) {
+    System.out.println("Operator " + id + " get element");
     RowVector inRv = element.getValue().getRowVector();
     inputQueue.put(inRv);
     while (true) {
