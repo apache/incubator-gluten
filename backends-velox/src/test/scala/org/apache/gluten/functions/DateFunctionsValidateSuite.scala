@@ -278,6 +278,12 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("timestamp_seconds") {
+    runQueryAndCompare("select timestamp_seconds(l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("to_date") {
     withTempPath {
       path =>
