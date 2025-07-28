@@ -116,10 +116,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       right: ExpressionTransformer,
       original: TryEval,
       checkArithmeticExprName: String): ExpressionTransformer = {
-    if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original.child)) {
-      throw new GlutenNotSupportException(
-        s"${original.child.prettyName} with ansi mode is not supported")
-    }
     original.child.dataType match {
       case LongType | IntegerType | ShortType | ByteType =>
       case _ => throw new GlutenNotSupportException(s"$substraitExprName is not supported")
