@@ -968,7 +968,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // requires test resources that don't exist in Gluten repo
     .exclude("detect escaped path and report the migration guide")
     .exclude("ignore the escaped path check when the flag is off")
-
+  enableSuite[GlutenQueryExecutionSuite]
+    // Rewritten to set root logger level to INFO so that logs can be parsed
+    .exclude("Logging plan changes for execution")
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
 // scalastyle:on line.size.limit
