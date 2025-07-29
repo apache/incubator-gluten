@@ -23,6 +23,7 @@ import org.apache.gluten.rexnode.ValidationResult;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
@@ -70,6 +71,15 @@ class DefaultRexCallConverter extends BaseRexCallConverter {
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
     Type resultType = getResultType(callNode);
+
+    if ("cast".equals(functionName)) {
+      TypedExpr sourceExpr = params.get(0);
+      Type sourceType = sourceExpr.getReturnType();
+
+      if (sourceType instanceof TimestampType && resultType instanceof TimestampType) {
+        return sourceExpr;
+      }
+    }
     return new CallTypedExpr(resultType, params, functionName);
   }
 }
