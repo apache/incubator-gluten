@@ -18,56 +18,64 @@ package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.util.Utils
+
 import org.apache.logging.log4j.{Level, LogManager}
 import org.apache.logging.log4j.core.LoggerContext
-import org.apache.spark.util.Utils
 
 import scala.io.Source
 
 class GlutenQueryExecutionSuite extends QueryExecutionSuite with GlutenSQLTestsBaseTrait {
 
-  override def checkDumpedPlans(path: String, expected: Int): Unit = Utils.tryWithResource(
-    Source.fromFile(path)) { source =>
-    assert(source.getLines.toList
-      .takeWhile(_ != "== Whole Stage Codegen ==")
-      .map(_.replaceAll("#\\d+", "#x")) == List(
-      "== Parsed Logical Plan ==",
-      s"Range (0, $expected, step=1, splits=Some(2))",
-      "",
-      "== Analyzed Logical Plan ==",
-      "id: bigint",
-      s"Range (0, $expected, step=1, splits=Some(2))",
-      "",
-      "== Optimized Logical Plan ==",
-      s"Range (0, $expected, step=1, splits=Some(2))",
-      "",
-      "== Physical Plan ==",
-      "*(1) ColumnarToRow",
-      s"+- ColumnarRange 0, $expected, 1, 2, $expected, [id#xL]",
-      ""))
-  }
+  override def checkDumpedPlans(path: String, expected: Int): Unit =
+    Utils.tryWithResource(Source.fromFile(path)) {
+      source =>
+        assert(
+          source.getLines.toList
+            .takeWhile(_ != "== Whole Stage Codegen ==")
+            .map(_.replaceAll("#\\d+", "#x")) == List(
+            "== Parsed Logical Plan ==",
+            s"Range (0, $expected, step=1, splits=Some(2))",
+            "",
+            "== Analyzed Logical Plan ==",
+            "id: bigint",
+            s"Range (0, $expected, step=1, splits=Some(2))",
+            "",
+            "== Optimized Logical Plan ==",
+            s"Range (0, $expected, step=1, splits=Some(2))",
+            "",
+            "== Physical Plan ==",
+            "*(1) ColumnarToRow",
+            s"+- ColumnarRange 0, $expected, 1, 2, $expected, [id#xL]",
+            ""
+          ))
+    }
 
   testGluten("dumping query execution info to a file - explainMode=formatted") {
-    withTempDir { dir =>
-      val path = dir.getCanonicalPath + "/plans.txt"
-      val df = spark.range(0, 10)
-      df.queryExecution.debug.toFile(path, explainMode = Option("formatted"))
-      val lines = Utils.tryWithResource(Source.fromFile(path))(_.getLines().toList)
-      assert(lines
-        .takeWhile(_ != "== Whole Stage Codegen ==").map(_.replaceAll("#\\d+", "#x")) == List(
-        "== Physical Plan ==",
-        "* ColumnarToRow (2)",
-        "+- ColumnarRange (1)",
-        "",
-        "",
-        "(1) ColumnarRange",
-        "Output [1]: [id#xL]",
-        "Arguments: 0, 10, 1, 2, 10, [id#xL]",
-        "",
-        "(2) ColumnarToRow [codegen id : 1]",
-        "Input [1]: [id#xL]",
-        "",
-        ""))
+    withTempDir {
+      dir =>
+        val path = dir.getCanonicalPath + "/plans.txt"
+        val df = spark.range(0, 10)
+        df.queryExecution.debug.toFile(path, explainMode = Option("formatted"))
+        val lines = Utils.tryWithResource(Source.fromFile(path))(_.getLines().toList)
+        assert(
+          lines
+            .takeWhile(_ != "== Whole Stage Codegen ==")
+            .map(_.replaceAll("#\\d+", "#x")) == List(
+            "== Physical Plan ==",
+            "* ColumnarToRow (2)",
+            "+- ColumnarRange (1)",
+            "",
+            "",
+            "(1) ColumnarRange",
+            "Output [1]: [id#xL]",
+            "Arguments: 0, 10, 1, 2, 10, [id#xL]",
+            "",
+            "(2) ColumnarToRow [codegen id : 1]",
+            "Input [1]: [id#xL]",
+            "",
+            ""
+          ))
     }
   }
 
