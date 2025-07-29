@@ -239,7 +239,8 @@ bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
   // https://github.com/apache/incubator-gluten/issues/9392
   // is currently WIP to add support for other types.
   if (toType->isVarchar()) {
-    return fromType->isDouble() || fromType->isBoolean() || fromType->isTimestamp();
+    return fromType->isDouble() || fromType->isBoolean() || fromType->isTimestamp()
+     || fromType->isInteger() || fromType->isBigint() || fromType->isDate();
   }
 
   if (toType->isDouble()) {
