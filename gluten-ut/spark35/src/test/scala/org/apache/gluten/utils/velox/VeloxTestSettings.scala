@@ -971,7 +971,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenQueryExecutionSuite]
     // Rewritten to set root logger level to INFO so that logs can be parsed
     .exclude("Logging plan changes for execution")
+    // Rewrite for transformed plan
     .exclude("dumping query execution info to a file - explainMode=formatted")
+
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
 // scalastyle:on line.size.limit
