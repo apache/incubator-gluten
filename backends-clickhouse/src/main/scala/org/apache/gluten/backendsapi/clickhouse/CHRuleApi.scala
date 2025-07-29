@@ -51,6 +51,7 @@ class CHRuleApi extends RuleApi {
 }
 
 object CHRuleApi {
+
   /**
    * Registers Spark rules or extensions, except for Gluten's columnar rules that are supposed to be
    * injected through [[injectLegacy]] / [[injectRas]].
