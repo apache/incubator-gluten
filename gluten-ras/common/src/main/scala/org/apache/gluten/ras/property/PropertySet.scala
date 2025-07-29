@@ -52,7 +52,7 @@ object PropertySet {
     }
 
     override def get[P <: Property[T]](propDef: PropertyDef[T, P]): P = {
-      assert(map.contains(propDef))
+      assert(map.contains(propDef), s"Required property $propDef not found in property set: $this")
       map(propDef).asInstanceOf[P]
     }
 
