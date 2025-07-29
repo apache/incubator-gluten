@@ -968,6 +968,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // requires test resources that don't exist in Gluten repo
     .exclude("detect escaped path and report the migration guide")
     .exclude("ignore the escaped path check when the flag is off")
+    .excludeByPrefix("SPARK-51187")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
