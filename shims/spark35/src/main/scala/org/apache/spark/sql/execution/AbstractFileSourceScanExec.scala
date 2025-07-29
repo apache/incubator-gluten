@@ -183,8 +183,7 @@ abstract class AbstractFileSourceScanExec(
     logInfo(s"Planning with ${bucketSpec.numBuckets} buckets")
     val filesGroupedToBuckets =
       selectedPartitions
-        .flatMap(
-          p => p.files.map(f => PartitionedFileUtilShim.getPartitionedFile(f, p.values)))
+        .flatMap(p => p.files.map(f => PartitionedFileUtilShim.getPartitionedFile(f, p.values)))
         .groupBy {
           f =>
             BucketingUtils
