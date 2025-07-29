@@ -351,8 +351,8 @@ object VeloxConfig {
   val COLUMNAR_VELOX_TASK_METRICS_TO_EVENT_LOG_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold")
       .internal()
-      .doc("Sets the threshold for writing task statistics to the event log if the task runs " +
-        "longer than this value. Configuring the value >=0 can enable the feature. " +
+      .doc("Sets the threshold in seconds for writing task statistics to the event log if the " +
+        "task runs longer than this value. Configuring the value >=0 can enable the feature. " +
         "0 means all tasks report and save the metrics to eventlog. value <0 disable the feature.")
       .timeConf(TimeUnit.SECONDS)
       .createOptional
