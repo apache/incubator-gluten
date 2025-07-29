@@ -74,7 +74,8 @@ class SubtractRexCallConverter extends BaseRexCallConverter {
       return new CallTypedExpr(bigIntType, newParams, functionName);
     }
 
-    List<TypedExpr> alignedParams = TypeUtils.promoteTypeForArithmeticExpressions(params);
+    List<TypedExpr> alignedParams =
+        TypeUtils.promoteTypeForArithmeticExpressions(params.get(0), params.get(1));
     Type resultType = getResultType(callNode);
     return new CallTypedExpr(resultType, alignedParams, functionName);
   }

@@ -108,7 +108,8 @@ class BasicArithmeticOperatorRexCallConverter extends BaseRexCallConverter {
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
     // If types are different, align them
-    List<TypedExpr> alignedParams = TypeUtils.promoteTypeForArithmeticExpressions(params);
+    List<TypedExpr> alignedParams =
+        TypeUtils.promoteTypeForArithmeticExpressions(params.get(0), params.get(1));
     Type resultType = getResultType(callNode);
     return new CallTypedExpr(resultType, alignedParams, functionName);
   }
