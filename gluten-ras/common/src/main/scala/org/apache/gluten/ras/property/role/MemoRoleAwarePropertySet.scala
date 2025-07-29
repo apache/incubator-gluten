@@ -3,7 +3,7 @@ package org.apache.gluten.ras.property.role
 import org.apache.gluten.ras.{Property, PropertyDef}
 import org.apache.gluten.ras.property.PropertySet
 
-sealed trait MemoRoleAwarePropertySet[T <: AnyRef] extends PropertySet[T] {
+private[ras] sealed trait MemoRoleAwarePropertySet[T <: AnyRef] extends PropertySet[T] {
   import MemoRoleAwarePropertySet._
   override def satisfies(other: PropertySet[T]): Boolean = (this, other) match {
     case (p: Prop[T], r: Req[T]) =>
@@ -23,7 +23,7 @@ sealed trait MemoRoleAwarePropertySet[T <: AnyRef] extends PropertySet[T] {
   }
 }
 
-object MemoRoleAwarePropertySet {
+private[ras] object MemoRoleAwarePropertySet {
   sealed trait Req[T <: AnyRef] extends MemoRoleAwarePropertySet[T]
   sealed trait Prop[T <: AnyRef] extends MemoRoleAwarePropertySet[T]
 

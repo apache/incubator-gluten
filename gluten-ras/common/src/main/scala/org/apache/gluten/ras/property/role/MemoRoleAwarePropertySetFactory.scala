@@ -23,34 +23,34 @@ import org.apache.gluten.ras.rule.{EnforcerRuleFactory, RasRule}
 
 import scala.collection.mutable
 
-class MemoRoleAwarePropertySetFactory[T <: AnyRef](val planModel: PlanModel[T], val userPropSetFactory: PropertySetFactory[T]) extends PropertySetFactory[T] {
+private[ras] class MemoRoleAwarePropertySetFactory[T <: AnyRef](val planModel: PlanModel[T], val userPropSetFactory: PropertySetFactory[T]) extends PropertySetFactory[T] {
   assert(!userPropSetFactory.isInstanceOf[MemoRoleAwarePropertySetFactory[_]])
 
-  private val groupRoleLookup = mutable.Map[Int, MemoRole2]()
+  private val groupRoleLookup = mutable.Map[Int, MemoRole]()
 
   override def any(): PropertySet[T] = {
-    throw new UnsupportedOperationException()
+    MemoRoleAwarePropertySet.UserConstraintSet(userPropSetFactory.any())
   }
 
   override def get(node: T): PropertySet[T] = {
     val role = getMemoRole(node)
     role match {
-      case MemoRole2.Hub =>
+      case MemoRole.Hub =>
         MemoRoleAwarePropertySet.HubPropertySet()
-      case MemoRole2.User =>
+      case MemoRole.User =>
         MemoRoleAwarePropertySet.UserPropertySet(userPropSetFactory.get(node))
-      case MemoRole2.Leaf =>
+      case MemoRole.Leaf =>
         MemoRoleAwarePropertySet.LeafPropertySet(userPropSetFactory.get(node))
     }
   }
 
-  private def getMemoRole(node: T): MemoRole2 = {
+  private def getMemoRole(node: T): MemoRole = {
     if (planModel.isGroupLeaf(node)) {
       val groupId = planModel.getGroupId(node)
       return groupRoleLookup(groupId)
     }
     if (planModel.isLeaf(node)) {
-      return MemoRole2.Leaf
+      return MemoRole.Leaf
     }
     val children = planModel.childrenOf(node)
     val childrenRoles = children.map(getMemoRole).distinct
@@ -82,9 +82,10 @@ class MemoRoleAwarePropertySetFactory[T <: AnyRef](val planModel: PlanModel[T], 
   override def assignToGroup(group: GroupLeafBuilder[T], constraintSet: PropertySet[T]): Unit = {
     constraintSet match {
       case MemoRoleAwarePropertySet.HubConstraintSet() =>
-        groupRoleLookup(group.id()) = MemoRole2.Hub
+        groupRoleLookup(group.id()) = MemoRole.Hub
+        userPropSetFactory.assignToGroup(group, userPropSetFactory.any())
       case MemoRoleAwarePropertySet.UserConstraintSet(userConstraintSet) =>
-        groupRoleLookup(group.id()) = MemoRole2.User
+        groupRoleLookup(group.id()) = MemoRole.User
         userPropSetFactory.assignToGroup(group, userConstraintSet)
     }
   }
