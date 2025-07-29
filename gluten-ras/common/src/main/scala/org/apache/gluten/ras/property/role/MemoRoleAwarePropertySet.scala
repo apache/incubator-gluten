@@ -1,9 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.gluten.ras.property.role
 
 import org.apache.gluten.ras.{Property, PropertyDef}
 import org.apache.gluten.ras.property.PropertySet
 
-private[ras] sealed trait MemoRoleAwarePropertySet[T <: AnyRef] extends PropertySet[T] {
+sealed private[ras] trait MemoRoleAwarePropertySet[T <: AnyRef] extends PropertySet[T] {
   import MemoRoleAwarePropertySet._
   override def satisfies(other: PropertySet[T]): Boolean = (this, other) match {
     case (p: Prop[T], r: Req[T]) =>
@@ -18,8 +34,9 @@ private[ras] sealed trait MemoRoleAwarePropertySet[T <: AnyRef] extends Property
           userPropSet.satisfies(userConstraintSet)
       }
     case _ =>
-      throw new IllegalStateException("#satisties should only be called with a property set on the LHS " +
-        "and a constraint set on the RHS")
+      throw new IllegalStateException(
+        "#satisties should only be called with a property set on the LHS " +
+          "and a constraint set on the RHS")
   }
 }
 

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.ras.property.role
 
 import org.apache.gluten.ras.{GroupLeafBuilder, PlanModel}
@@ -23,7 +22,10 @@ import org.apache.gluten.ras.rule.{EnforcerRuleFactory, RasRule}
 
 import scala.collection.mutable
 
-private[ras] class MemoRoleAwarePropertySetFactory[T <: AnyRef](val planModel: PlanModel[T], val userPropSetFactory: PropertySetFactory[T]) extends PropertySetFactory[T] {
+private[ras] class MemoRoleAwarePropertySetFactory[T <: AnyRef](
+    val planModel: PlanModel[T],
+    val userPropSetFactory: PropertySetFactory[T])
+  extends PropertySetFactory[T] {
   assert(!userPropSetFactory.isInstanceOf[MemoRoleAwarePropertySetFactory[_]])
 
   private val groupRoleLookup = mutable.Map[Int, MemoRole]()
@@ -58,7 +60,9 @@ private[ras] class MemoRoleAwarePropertySetFactory[T <: AnyRef](val planModel: P
     childrenRoles.head
   }
 
-  override def childrenConstraintSets(node: T, constraintSet: PropertySet[T]): Seq[PropertySet[T]] = {
+  override def childrenConstraintSets(
+      node: T,
+      constraintSet: PropertySet[T]): Seq[PropertySet[T]] = {
     assert(!planModel.isGroupLeaf(node))
 
     if (planModel.isLeaf(node)) {
@@ -69,12 +73,11 @@ private[ras] class MemoRoleAwarePropertySetFactory[T <: AnyRef](val planModel: P
 
     constraintSet match {
       case MemoRoleAwarePropertySet.HubConstraintSet() =>
-        Seq.tabulate(numChildren) {
-          _ => MemoRoleAwarePropertySet.HubConstraintSet()
-        }
+        Seq.tabulate(numChildren)(_ => MemoRoleAwarePropertySet.HubConstraintSet())
       case MemoRoleAwarePropertySet.UserConstraintSet(userConstraintSet) => {
-        userPropSetFactory.childrenConstraintSets(node, userConstraintSet).map(
-          userSet => MemoRoleAwarePropertySet.UserConstraintSet(userSet))
+        userPropSetFactory
+          .childrenConstraintSets(node, userConstraintSet)
+          .map(userSet => MemoRoleAwarePropertySet.UserConstraintSet(userSet))
       }
     }
   }
