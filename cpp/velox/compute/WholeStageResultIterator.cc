@@ -451,7 +451,8 @@ void WholeStageResultIterator::collectMetrics() {
   if (const int64_t collectTaskStatsThreshold =
           veloxCfg_->get<int64_t>(kTaskMetricsToEventLogThreshold, kTaskMetricsToEventLogThresholdDefault);
       collectTaskStatsThreshold >= 0 &&
-      static_cast<int64_t>(taskStats.terminationTimeMs - taskStats.executionStartTimeMs) > collectTaskStatsThreshold) {
+      static_cast<int64_t>(taskStats.terminationTimeMs - taskStats.executionStartTimeMs) >
+          collectTaskStatsThreshold * 1'000) {
     auto jsonStats = velox::exec::toPlanStatsJson(taskStats);
     metrics_->stats = folly::toJson(jsonStats);
   }
