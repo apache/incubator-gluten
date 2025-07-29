@@ -22,7 +22,7 @@ import org.apache.gluten.ras.rule.{EnforcerRuleFactory, RasRule}
 
 import scala.collection.mutable
 
-private[ras] class MemoRoleAwarePropertySetFactory[T <: AnyRef](
+private[property] class MemoRoleAwarePropertySetFactory[T <: AnyRef](
     val planModel: PlanModel[T],
     val userPropSetFactory: PropertySetFactory[T])
   extends PropertySetFactory[T] {

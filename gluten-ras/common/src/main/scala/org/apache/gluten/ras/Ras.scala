@@ -17,7 +17,7 @@
 package org.apache.gluten.ras
 
 import org.apache.gluten.ras.property.{PropertySet, PropertySetFactory}
-import org.apache.gluten.ras.property.role.{MemoRoleAwarePropertySet, MemoRoleAwarePropertySetFactory}
+import org.apache.gluten.ras.property.role.MemoRoleAwarePropertySet
 import org.apache.gluten.ras.rule.{EnforcerRuleFactory, RasRule}
 
 /**
@@ -49,11 +49,11 @@ class Ras[T <: AnyRef] private (
     val explain: RasExplain[T],
     val ruleFactory: RasRule.Factory[T])
   extends Optimization[T] {
+
   import Ras._
 
   private val propSetFactory: PropertySetFactory[T] = {
-    val baseFactory = PropertySetFactory(propertyModel, planModel)
-    new MemoRoleAwarePropertySetFactory(planModel, baseFactory)
+    PropertySetFactory(propertyModel, planModel)
   }
 
   // Normal groups start with ID 0, so it's safe to use Int.MinValue to do validation.
@@ -201,15 +201,18 @@ object Ras {
   private object UnsafeHashKey {
     def apply[T <: AnyRef](ras: Ras[T], self: T): UnsafeHashKey[T] =
       new UnsafeHashKeyImpl(ras, self)
+
     private class UnsafeHashKeyImpl[T <: AnyRef](ras: Ras[T], val self: T)
       extends UnsafeHashKey[T] {
       override def hashCode(): Int = ras.planModel.hashCode(self)
+
       override def equals(other: Any): Boolean = {
         other match {
           case that: UnsafeHashKeyImpl[T] => ras.planModel.equals(self, that.self)
           case _ => false
         }
       }
+
       override def toString: String = ras.explain.describeNode(self)
     }
   }
