@@ -164,7 +164,7 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
   }
 
   private def describeGroupVerbose(group: RasGroup[T]): String = {
-    s"[Group ${group.id()}: ${group.constraintSet().asMap.values.toIndexedSeq}]"
+    s"[Group ${group.id()}: ${group.constraintSet()}]"
   }
 
   private def describeNode(

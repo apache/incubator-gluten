@@ -56,6 +56,6 @@ object PropertySet {
       map(propDef).asInstanceOf[P]
     }
 
-    override def toString: String = map.values.toVector.toString()
+    override def toString: String = map.values.mkString("(", ",", ")")
   }
 }

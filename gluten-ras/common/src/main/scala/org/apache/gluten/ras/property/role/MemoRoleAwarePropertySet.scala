@@ -52,6 +52,8 @@ private[ras] object MemoRoleAwarePropertySet {
     override def asMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = {
       Map()
     }
+
+    override def toString: String = s"<HUB>"
   }
 
   case class UserConstraintSet[T <: AnyRef](userConstraintSet: PropertySet[T]) extends Req[T] {
@@ -64,6 +66,8 @@ private[ras] object MemoRoleAwarePropertySet {
     override def asMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = {
       userConstraintSet.asMap
     }
+
+    override def toString: String = s"<USER>$userConstraintSet"
   }
 
   case class LeafPropertySet[T <: AnyRef](userPropSet: PropertySet[T]) extends Prop[T] {
@@ -76,6 +80,8 @@ private[ras] object MemoRoleAwarePropertySet {
     override def asMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = {
       userPropSet.asMap
     }
+
+    override def toString: String = s"<LEAF>$userPropSet"
   }
 
   case class HubPropertySet[T <: AnyRef]() extends Prop[T] {
@@ -86,6 +92,8 @@ private[ras] object MemoRoleAwarePropertySet {
     override def asMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = {
       Map()
     }
+
+    override def toString: String = s"<HUB>"
   }
 
   case class UserPropertySet[T <: AnyRef](userPropSet: PropertySet[T]) extends Prop[T] {
@@ -98,5 +106,7 @@ private[ras] object MemoRoleAwarePropertySet {
     override def asMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = {
       userPropSet.asMap
     }
+
+    override def toString: String = s"<USER>$userPropSet"
   }
 }
