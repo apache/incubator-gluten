@@ -74,11 +74,10 @@ private[ras] class MemoRoleAwarePropertySetFactory[T <: AnyRef](
     constraintSet match {
       case MemoRoleAwarePropertySet.HubConstraintSet() =>
         Seq.tabulate(numChildren)(_ => MemoRoleAwarePropertySet.HubConstraintSet())
-      case MemoRoleAwarePropertySet.UserConstraintSet(userConstraintSet) => {
+      case MemoRoleAwarePropertySet.UserConstraintSet(userConstraintSet) =>
         userPropSetFactory
           .childrenConstraintSets(node, userConstraintSet)
           .map(userSet => MemoRoleAwarePropertySet.UserConstraintSet(userSet))
-      }
     }
   }
 
