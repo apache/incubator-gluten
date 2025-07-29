@@ -20,8 +20,6 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.Utils
 
-import org.apache.log4j.{Level, LogManager}
-
 import scala.io.Source
 
 class GlutenQueryExecutionSuite extends QueryExecutionSuite with GlutenSQLTestsBaseTrait {
@@ -79,13 +77,7 @@ class GlutenQueryExecutionSuite extends QueryExecutionSuite with GlutenSQLTestsB
   }
 
   testGluten("Logging plan changes for execution") {
-    org.apache.log4j.LogManager.getCurrentLoggers.asScala.foreach {
-      log =>
-        val logger = log.asInstanceOf[org.apache.log4j.Logger]
-        if (logger.getName.startsWith("org.apache.spark.sql.execution")) {
-          logger.setLevel(org.apache.log4j.Level.INFO)
-        }
-    }
+    sparkContext.setLogLevel("INFO")
 
     val testAppender = new LogAppender("plan changes")
     withLogAppender(testAppender) {
@@ -100,7 +92,7 @@ class GlutenQueryExecutionSuite extends QueryExecutionSuite with GlutenSQLTestsB
         expectedMsg =>
           assert(
             testAppender.loggingEvents.exists(
-              _.getMessage.getRenderedMessage.contains(expectedMsg)
+              _.getRenderedMessage.contains(expectedMsg)
             )
           )
       }
