@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.table.runtime.stream.custom;
 
-import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
 import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -185,11 +184,7 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
         Arrays.asList(
             "+I[1, 2024-12-31, 2024-12-31 12:12:12]", "+I[2, 2025-02-28, 2025-02-28 12:12:12]"));
     Map<String, String> configs =
-        Map.of(
-            VeloxQueryConfig.ADJUST_TIMESTMP_TO_SESSION_TIMEZONE.key(),
-            "true",
-            TableConfigOptions.LOCAL_TIME_ZONE.key(),
-            "America/Los_Angeles");
+        Map.of(TableConfigOptions.LOCAL_TIME_ZONE.key(), "America/Los_Angeles");
     runAndCheck(
         query,
         Arrays.asList(

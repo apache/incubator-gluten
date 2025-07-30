@@ -441,7 +441,6 @@ class DateDayVectorWriter extends BaseVectorWriter<DateDayVector, Integer> {
 
 class StructVectorWriter extends BaseVectorWriter<StructVector, RowData> {
   private final int fieldCount;
-  private BufferAllocator allocator;
   private final List<ArrowVectorWriter> fieldWriters;
 
   public StructVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {

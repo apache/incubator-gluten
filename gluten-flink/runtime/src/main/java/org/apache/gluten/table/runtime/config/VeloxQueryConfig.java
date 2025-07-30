@@ -19,8 +19,6 @@ package org.apache.gluten.table.runtime.config;
 import io.github.zhztheplayer.velox4j.config.Config;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -29,13 +27,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class VeloxQueryConfig {
-
-  public static ConfigOption<Boolean> ADJUST_TIMESTMP_TO_SESSION_TIMEZONE =
-      ConfigOptions.key("velox.adjust_timestamp_to_session_timezone")
-          .booleanType()
-          .defaultValue(false)
-          .withDescription(
-              "adjust the timestamp accroding to the given session timezone in the velox backend");
 
   private static final String keyVeloxAdjustTimestampToSessionTimeZone =
       "adjust_timestamp_to_session_timezone";
@@ -47,11 +38,9 @@ public class VeloxQueryConfig {
     }
     Configuration config = ((StreamingRuntimeContext) context).getJobConfiguration();
     Map<String, String> configMap = new HashMap<>();
-    if (config.get(ADJUST_TIMESTMP_TO_SESSION_TIMEZONE)) {
-      String localTimeZone = config.get(TableConfigOptions.LOCAL_TIME_ZONE);
-      configMap.put(keyVeloxAdjustTimestampToSessionTimeZone, "true");
-      configMap.put(keyVeloxSessionTimezone, localTimeZone);
-    }
+    String localTimeZone = config.get(TableConfigOptions.LOCAL_TIME_ZONE);
+    configMap.put(keyVeloxAdjustTimestampToSessionTimeZone, "true");
+    configMap.put(keyVeloxSessionTimezone, localTimeZone);
     return Config.create(configMap);
   }
 }
