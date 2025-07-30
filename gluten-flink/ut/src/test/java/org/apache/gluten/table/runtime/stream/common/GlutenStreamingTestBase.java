@@ -45,7 +45,7 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
   /*
    * schema is in format of "a int, b bigint, c string"
    */
-  protected void createSimpleBoundedValuesTable(String tableName, String schema, List<Row> rows) {
+  public void createSimpleBoundedValuesTable(String tableName, String schema, List<Row> rows) {
     String myTableDataId = TestValuesTableFactory.registerData(rows);
     String table =
         "CREATE TABLE "
@@ -63,7 +63,7 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
   }
 
   // Return the execution plan represented by StreamEexcNode
-  protected String explainExecutionPlan(String query) {
+  public String explainExecutionPlan(String query) {
     Table table = tEnv().sqlQuery(query);
     String plainPlans = table.explain(ExplainDetail.JSON_EXECUTION_PLAN);
     int index = plainPlans.indexOf(EXECUTION_PLAN_PREIFX);
@@ -74,7 +74,7 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
     }
   }
 
-  protected void runAndCheck(String query, List<String> expected) {
+  public void runAndCheck(String query, List<String> expected) {
     List<String> actual =
         CollectionUtil.iteratorToList(tEnv().executeSql(query).collect()).stream()
             .map(Object::toString)
