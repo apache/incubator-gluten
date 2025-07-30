@@ -282,6 +282,38 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare("select timestamp_seconds(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
+
+    runQueryAndCompare("select timestamp_seconds(float(1.0))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select timestamp_seconds(float(-1.0))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select timestamp_seconds(float(1230219000.123))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select timestamp_seconds(float(-11536000.216))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select timestamp_seconds(double(1.0))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select timestamp_seconds(double(-1.0))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select timestamp_seconds(double(4102444800.567))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select timestamp_seconds(double(-214748648.567))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   test("to_date") {
