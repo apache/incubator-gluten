@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -179,12 +180,11 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     createSimpleBoundedValuesTable("dateFormatTbl", "a int, b string", rows);
     String query =
         "select a, DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd'), DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd HH:mm:ss') from dateFormatTbl";
-    runAndCheck(
-        query,
-        Arrays.asList(
-            "+I[1, 2024-12-31, 2024-12-31 12:12:12]", "+I[2, 2025-02-28, 2025-02-28 12:12:12]"));
-    Map<String, String> configs =
-        Map.of(TableConfigOptions.LOCAL_TIME_ZONE.key(), "America/Los_Angeles");
+    Map<String, String> configs = new HashMap<>();
+    configs.put("config.used-for-test", "true");
+    configs.put(TableConfigOptions.LOCAL_TIME_ZONE.key(), "default");
+    runAndCheckException(query, configs);
+    configs.put(TableConfigOptions.LOCAL_TIME_ZONE.key(), "America/Los_Angeles");
     runAndCheck(
         query,
         Arrays.asList(

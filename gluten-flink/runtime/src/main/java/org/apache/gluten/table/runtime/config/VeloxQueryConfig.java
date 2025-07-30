@@ -19,6 +19,8 @@ package org.apache.gluten.table.runtime.config;
 import io.github.zhztheplayer.velox4j.config.Config;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -27,6 +29,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class VeloxQueryConfig {
+
+  private static final ConfigOption<Boolean> CONFIG_USED_FOR_TEST =
+      ConfigOptions.key("config.used-for-test")
+          .booleanType()
+          .defaultValue(false)
+          .withDescription("A config to identify whether the config is used for test.");
 
   private static final String keyVeloxAdjustTimestampToSessionTimeZone =
       "adjust_timestamp_to_session_timezone";
@@ -37,10 +45,28 @@ public class VeloxQueryConfig {
       return Config.empty();
     }
     Configuration config = ((StreamingRuntimeContext) context).getJobConfiguration();
+    if (isConfigUsedForTest(config)) {
+      return getConfigForTest(config);
+    }
     Map<String, String> configMap = new HashMap<>();
-    String localTimeZone = config.get(TableConfigOptions.LOCAL_TIME_ZONE);
     configMap.put(keyVeloxAdjustTimestampToSessionTimeZone, "true");
-    configMap.put(keyVeloxSessionTimezone, localTimeZone);
+    String localTimeZone = config.get(TableConfigOptions.LOCAL_TIME_ZONE);
+    if (TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(localTimeZone)) {
+      configMap.put(keyVeloxSessionTimezone, "UTC");
+    } else {
+      configMap.put(keyVeloxSessionTimezone, localTimeZone);
+    }
+    return Config.create(configMap);
+  }
+
+  private static boolean isConfigUsedForTest(Configuration config) {
+    return config.get(CONFIG_USED_FOR_TEST);
+  }
+
+  private static Config getConfigForTest(Configuration config) {
+    Map<String, String> configMap = new HashMap<>();
+    configMap.put(keyVeloxAdjustTimestampToSessionTimeZone, "true");
+    configMap.put(keyVeloxSessionTimezone, config.get(TableConfigOptions.LOCAL_TIME_ZONE));
     return Config.create(configMap);
   }
 }

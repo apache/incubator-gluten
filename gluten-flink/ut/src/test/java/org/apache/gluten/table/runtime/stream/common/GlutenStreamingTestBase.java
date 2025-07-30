@@ -21,6 +21,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -88,5 +89,21 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
       tEnv().getConfig().set(key, configs.get(key));
     }
     runAndCheck(query, expected);
+  }
+
+  protected void runAndCheckException(String query, Map<String, String> configs) {
+    for (String key : configs.keySet()) {
+      tEnv().getConfig().set(key, configs.get(key));
+    }
+    boolean errMatches = false;
+    try {
+      CloseableIterator<Row> rows = tEnv().executeSql(query).collect();
+      while (rows.hasNext()) {
+        rows.next();
+      }
+    } catch (Exception e) {
+      errMatches = true;
+    }
+    assertThat(errMatches).isEqualTo(true);
   }
 }
