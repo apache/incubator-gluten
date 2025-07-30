@@ -34,6 +34,22 @@ case class GlutenNumaBindingInfo(
     totalCoreRange: Array[String] = null,
     numCoresPerExecutor: Int = -1) {}
 
+trait ShuffleWriterType {
+  val name: String
+}
+
+case object HashShuffleWriterType extends ShuffleWriterType {
+  override val name: String = ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
+}
+
+case object SortShuffleWriterType extends ShuffleWriterType {
+  override val name: String = ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
+}
+
+case object RssSortShuffleWriterType extends ShuffleWriterType {
+  override val name: String = ReservedKeys.GLUTEN_RSS_SORT_SHUFFLE_WRITER
+}
+
 class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   import GlutenConfig._
 
@@ -333,6 +349,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = getConf(CELEBORN_FALLBACK_ENABLED)
+
+  def useCelebornRssSort: Boolean = getConf(CELEBORN_USE_RSS_SORT)
 
   def enableHdfsViewfs: Boolean = getConf(HDFS_VIEWFS_ENABLED)
 
@@ -1523,6 +1541,16 @@ object GlutenConfig {
       .internal()
       .doc("If enabled, fall back to ColumnarShuffleManager when celeborn service is unavailable." +
         "Otherwise, throw an exception.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CELEBORN_USE_RSS_SORT =
+    buildConf("spark.gluten.sql.columnar.shuffle.celeborn.useRssSort")
+      .internal()
+      .doc(
+        "If true, use RSS sort implementation for Celeborn sort-based shuffle." +
+          "If false, use Gluten's row-based sort implementation. " +
+          "Only valid when `spark.celeborn.client.spark.shuffle.writer` is set to `sort`.")
       .booleanConf
       .createWithDefault(true)
 

@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.ShuffleWriterType
 import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.rdd.RDD
@@ -44,17 +45,17 @@ abstract class ColumnarCollectTailBaseExec(
   private lazy val readMetrics =
     SQLColumnarShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
-  private lazy val useSortBasedShuffle: Boolean =
+  private lazy val shuffleWriterType: ShuffleWriterType =
     BackendsApiManager.getSparkPlanExecApiInstance
-      .useSortBasedShuffle(outputPartitioning, child.output)
+      .getShuffleWriterType(outputPartitioning, child.output)
 
   @transient private lazy val serializer: Serializer =
     BackendsApiManager.getSparkPlanExecApiInstance
-      .createColumnarBatchSerializer(child.schema, metrics, useSortBasedShuffle)
+      .createColumnarBatchSerializer(child.schema, metrics, shuffleWriterType)
 
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance
-      .genColumnarShuffleExchangeMetrics(sparkContext, useSortBasedShuffle) ++
+      .genColumnarShuffleExchangeMetrics(sparkContext, shuffleWriterType) ++
       readMetrics ++ writeMetrics
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
@@ -98,7 +99,7 @@ abstract class ColumnarCollectTailBaseExec(
         serializer,
         writeMetrics,
         metrics,
-        useSortBasedShuffle
+        shuffleWriterType
       ),
       readMetrics
     )
