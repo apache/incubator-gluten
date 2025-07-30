@@ -47,6 +47,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
+import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;

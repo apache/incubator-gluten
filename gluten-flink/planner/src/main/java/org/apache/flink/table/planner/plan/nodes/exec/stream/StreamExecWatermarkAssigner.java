@@ -135,6 +135,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
         (io.github.zhztheplayer.velox4j.type.RowType)
             LogicalTypeConverter.toVLType(inputEdge.getOutputType());
     List<String> inNames = Utils.getNamesFromRowType(inputEdge.getOutputType());
+    System.out.println("Watermark input:" + inputEdge.getOutputType());
     RexConversionContext conversionContext = new RexConversionContext(inNames);
     TypedExpr watermarkExprs = RexNodeConverter.toTypedExpr(watermarkExpr, conversionContext);
     io.github.zhztheplayer.velox4j.type.RowType outputType =

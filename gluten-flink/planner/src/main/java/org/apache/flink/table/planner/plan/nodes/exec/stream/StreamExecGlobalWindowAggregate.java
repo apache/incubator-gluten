@@ -32,13 +32,8 @@ import io.github.zhztheplayer.velox4j.plan.HashPartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
-<<<<<<< HEAD
 import io.github.zhztheplayer.velox4j.plan.StreamWindowAggregationNode;
 import io.github.zhztheplayer.velox4j.plan.StreamWindowPartitionFunctionSpec;
-=======
-import io.github.zhztheplayer.velox4j.plan.WindowAggregationNode;
-import io.github.zhztheplayer.velox4j.plan.WindowPartitionFunctionSpec;
->>>>>>> support state
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
@@ -53,6 +48,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy;
+import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
@@ -228,7 +224,6 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     List<Integer> keyIndexes = Arrays.stream(grouping).boxed().collect(Collectors.toList());
     PartitionFunctionSpec keySelectorSpec = new HashPartitionFunctionSpec(inputType, keyIndexes);
     // TODO: support more window types.
-<<<<<<< HEAD
     Tuple5<Long, Long, Long, Integer, Integer> windowSpecParams =
         WindowUtils.extractWindowParameters(windowing);
     long size = windowSpecParams.f0;
@@ -239,54 +234,6 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     PartitionFunctionSpec sliceAssignerSpec =
         new StreamWindowPartitionFunctionSpec(
             inputType, rowtimeIndex, size, slide, offset, windowType);
-=======
-    int rowtimeIndex = -1;
-    long size = 0;
-    long slide = 0;
-    long offset = 0;
-    int windowType = -1;
-    if (windowing instanceof SliceAttachedWindowingStrategy && windowing.isRowtime()) {
-      rowtimeIndex = ((SliceAttachedWindowingStrategy) windowing).getSliceEnd();
-      WindowSpec windowSpec = windowing.getWindow();
-      if (windowSpec instanceof HoppingWindowSpec) {
-        size = ((HoppingWindowSpec) windowSpec).getSize().toMillis();
-        slide = ((HoppingWindowSpec) windowSpec).getSlide().toMillis();
-        if (size % slide != 0) {
-          throw new RuntimeException(
-              String.format(
-                  "HOP table function based aggregate requires size must be an "
-                      + "integral multiple of slide, but got size %s ms and slide %s ms",
-                  size, slide));
-        }
-        Duration windowOffset = ((HoppingWindowSpec) windowSpec).getOffset();
-        if (windowOffset != null) {
-          offset = windowOffset.toMillis();
-        }
-      }
-      windowType = 0;
-    } else if (windowing instanceof WindowAttachedWindowingStrategy) {
-      rowtimeIndex = ((WindowAttachedWindowingStrategy) windowing).getWindowEnd();
-      WindowSpec windowSpec = windowing.getWindow();
-      if (windowSpec instanceof HoppingWindowSpec) {
-        size = ((HoppingWindowSpec) windowSpec).getSize().toMillis();
-        slide = ((HoppingWindowSpec) windowSpec).getSlide().toMillis();
-        if (size % slide != 0) {
-          throw new RuntimeException(
-              String.format(
-                  "HOP table function based aggregate requires size must be an "
-                      + "integral multiple of slide, but got size %s ms and slide %s ms",
-                  size, slide));
-        }
-        Duration windowOffset = ((HoppingWindowSpec) windowSpec).getOffset();
-        if (windowOffset != null) {
-          offset = windowOffset.toMillis();
-        }
-      }
-      windowType = 1;
-    }
-    PartitionFunctionSpec sliceAssignerSpec =
-        new WindowPartitionFunctionSpec(inputType, rowtimeIndex, size, slide, offset, windowType);
->>>>>>> support state
     PlanNode aggregation =
         new AggregationNode(
             PlanNodeIdGenerator.newId(),
@@ -312,11 +259,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             null,
             List.of());
     PlanNode windowAgg =
-<<<<<<< HEAD
         new StreamWindowAggregationNode(
-=======
-        new WindowAggregationNode(
->>>>>>> support state
             PlanNodeIdGenerator.newId(),
             aggregation,
             localAgg,
@@ -328,12 +271,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             size,
             slide,
             offset,
-<<<<<<< HEAD
             windowType,
             outputType);
-=======
-            windowType);
->>>>>>> support state
     final OneInputStreamOperator windowOperator =
         new GlutenVectorOneInputOperator(
             new StatefulPlanNode(windowAgg.getId(), windowAgg),
