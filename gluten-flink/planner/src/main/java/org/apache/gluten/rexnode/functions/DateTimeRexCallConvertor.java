@@ -23,6 +23,7 @@ import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.CastTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
+import io.github.zhztheplayer.velox4j.type.BooleanType;
 import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 
@@ -39,7 +40,7 @@ class TimeStampIntervalRexCallConverter extends BaseRexCallConverter {
 
   @Override
   public boolean isSupported(RexCall callNode, RexConversionContext context) {
-    // This converter supports timestamp and interval day-time operations.
+    // TODO: this is not fully completed yet.
     List<Type> operandTypes =
         callNode.getOperands().stream()
             .map(param -> RexNodeConverter.toType(param.getType()))
@@ -55,7 +56,7 @@ class TimeStampIntervalRexCallConverter extends BaseRexCallConverter {
     List<TypedExpr> params = getParams(callNode, context);
     Type resultType = getResultType(callNode);
     // TODO: for comparison, should return boolean. Refine it.
-    if (!resultType.getClass().getSimpleName().equals("BooleanType")) {
+    if (!(resultType instanceof BooleanType)) {
       resultType = new BigIntType();
     }
     return new CallTypedExpr(

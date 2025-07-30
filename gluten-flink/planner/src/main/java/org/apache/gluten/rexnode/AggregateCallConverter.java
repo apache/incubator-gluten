@@ -90,7 +90,6 @@ public class AggregateCallConverter {
   }
 
   private static CallTypedExpr convertAggregation(String name, List<TypedExpr> args, Type outType) {
-    System.out.println("Converting " + name + " to " + outType);
     if (name.equals("AVG")) {
       return new CallTypedExpr(new DoubleType(), args, name.toLowerCase());
     } else {

@@ -170,15 +170,6 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         (Transformation<RowData>) inputEdge.translateToPlan(planner);
     final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
-    System.out.println("Window " + windowing);
-    for (NamedWindowProperty namedWindowProperty : namedWindowProperties) {
-      System.out.println("WindowSpec " + namedWindowProperty);
-    }
-    for (AggregateCall aggCall : aggCalls) {
-      System.out.println("WindowAgg " + aggCall);
-    }
-    System.out.println(
-        "WindowOut " + getOutputType() + " " + grouping.length + " " + aggCalls.length);
     // --- Begin Gluten-specific code changes ---
     // TODO: velox window not equal to flink window.
     io.github.zhztheplayer.velox4j.type.RowType inputType =
