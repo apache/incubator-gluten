@@ -144,6 +144,31 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     DecimalArithmeticExpressionTransformer(substraitName, leftChild, rightChild, resultType, b)
   }
 
+  private def replaceIcebergStaticInvoke(
+      s: StaticInvoke,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
+    val invokeMap = Map(
+      "BucketFunction" -> ExpressionNames.BUCKET,
+      "TruncateFunction" -> ExpressionNames.TRUNCATE,
+      "YearsFunction" -> ExpressionNames.YEARS,
+      "MonthsFunction" -> ExpressionNames.MONTHS,
+      "DaysFunction" -> ExpressionNames.DAYS,
+      "HoursFunction" -> ExpressionNames.HOURS
+    )
+    val objName = s.staticObject.getName
+    val transformer = invokeMap.find {
+      case (func, _) => objName.startsWith("org.apache.iceberg.spark.functions." + func)
+    }
+    if (transformer.isEmpty) {
+      throw new GlutenNotSupportException(s"Not supported staticInvoke call object: $objName")
+    }
+    GenericExpressionTransformer(
+      transformer.get._2,
+      s.arguments.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+      s)
+  }
+
   private def replaceWithExpressionTransformer0(
       expr: Expression,
       attributeSeq: Seq[Attribute],
@@ -183,6 +208,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i
         )
+      case i @ StaticInvoke(_, _, "invoke", _, _, _, _, _) =>
+        return replaceIcebergStaticInvoke(i, attributeSeq, expressionsMap)
       case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
         throw new GlutenNotSupportException(
           s"Not supported to transform StaticInvoke with object: ${clz.getName}, " +
