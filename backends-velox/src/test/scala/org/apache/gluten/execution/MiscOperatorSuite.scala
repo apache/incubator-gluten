@@ -2158,4 +2158,15 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       })
   }
+
+  test("Offload offset + limit") {
+    runQueryAndCompare(
+      "select l_shipdate from lineitem order by l_shipdate desc limit 10 offset 10") {
+      df =>
+        val numVanillaOffsetLimitOperators = df.queryExecution.executedPlan.collect {
+          case t: TakeOrderedAndProjectExec => t
+        }.size
+        assert(numVanillaOffsetLimitOperators == 0)
+    }
+  }
 }
