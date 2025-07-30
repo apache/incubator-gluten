@@ -19,11 +19,12 @@ package org.apache.gluten.integration.clickbench
 
 import org.apache.gluten.integration.TableCreator
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{AnalysisException, SparkSession}
+import org.apache.spark.sql.{AnalysisException, SparkSession, functions}
 
 import java.io.File
 
 object ClickBenchTableCreator extends TableCreator {
+  private val SPARK_DATA_FILE_NAME = "hits-spark.parquet"
   private val TABLE_NAME = "hits"
   private val SCHEMA: StructType = StructType.fromDDL("""
       |watchid bigint,
@@ -134,15 +135,15 @@ object ClickBenchTableCreator extends TableCreator {
       |""".stripMargin)
 
   override def create(spark: SparkSession, dataPath: String): Unit = {
-    val file = new File(dataPath + File.separator + ClickBenchDataGen.FILE_NAME)
     if (spark.catalog.tableExists(TABLE_NAME)) {
       println("Table exists: " + TABLE_NAME)
       return
     }
     println("Creating catalog table: " + TABLE_NAME)
+    val file = new File(dataPath + File.separator + ClickBenchDataGen.FILE_NAME)
     spark.catalog.createTable(TABLE_NAME, "parquet", SCHEMA, Map("path" -> file.getAbsolutePath))
     try {
-      spark.catalog.recoverPartitions(file.getName)
+      spark.catalog.recoverPartitions(TABLE_NAME)
     } catch {
       case _: AnalysisException =>
     }
