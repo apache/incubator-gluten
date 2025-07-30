@@ -133,6 +133,7 @@ object MetricsUtil extends Logging {
     var localReadBytes: Long = 0
     var ramReadBytes: Long = 0
     var preloadSplits: Long = 0
+    var pageScanTime: Long = 0
     var numWrittenFiles: Long = 0
 
     val metricsIterator = operatorMetrics.iterator()
@@ -163,6 +164,7 @@ object MetricsUtil extends Logging {
       localReadBytes += metrics.localReadBytes
       ramReadBytes += metrics.ramReadBytes
       preloadSplits += metrics.preloadSplits
+      pageScanTime += metrics.pageScanTime
       numWrittenFiles += metrics.numWrittenFiles
     }
 
@@ -200,6 +202,7 @@ object MetricsUtil extends Logging {
       localReadBytes,
       ramReadBytes,
       preloadSplits,
+      pageScanTime,
       physicalWrittenBytes,
       writeIOTime,
       numWrittenFiles
