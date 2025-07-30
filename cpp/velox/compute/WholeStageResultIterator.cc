@@ -52,6 +52,7 @@ const std::string kStorageReadBytes = "storageReadBytes";
 const std::string kLocalReadBytes = "localReadBytes";
 const std::string kRamReadBytes = "ramReadBytes";
 const std::string kPreloadSplits = "readyPreloadedSplits";
+const std::string kPageLoadTime = "pageLoadTimeNs";
 const std::string kDataSourceAddSplitWallNanos = "dataSourceAddSplitWallNanos";
 const std::string kDataSourceReadWallNanos = "dataSourceReadWallNanos";
 const std::string kNumWrittenFiles = "numWrittenFiles";
@@ -496,6 +497,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kRamReadBytes)[metricIndex] = runtimeMetric("sum", second->customStats, kRamReadBytes);
       metrics_->get(Metrics::kPreloadSplits)[metricIndex] =
           runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
+      metrics_->get(Metrics::kPageLoadTime)[metricIndex] = runtimeMetric("sum", second->customStats, kPageLoadTime);
       metrics_->get(Metrics::kDataSourceAddSplitWallNanos)[metricIndex] =
           runtimeMetric("sum", second->customStats, kDataSourceAddSplitWallNanos);
       metrics_->get(Metrics::kDataSourceReadWallNanos)[metricIndex] =
