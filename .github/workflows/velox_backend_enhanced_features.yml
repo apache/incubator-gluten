@@ -43,24 +43,6 @@ env:
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
-  # for JDK17 unit tests
-  EXTRA_FLAGS:  "-XX:+IgnoreUnrecognizedVMOptions 
-                --add-opens=java.base/java.lang=ALL-UNNAMED
-                --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
-                --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
-                --add-opens=java.base/java.io=ALL-UNNAMED
-                --add-opens=java.base/java.net=ALL-UNNAMED
-                --add-opens=java.base/java.nio=ALL-UNNAMED
-                --add-opens=java.base/java.util=ALL-UNNAMED
-                --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
-                --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
-                --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
-                --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
-                --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
-                --add-opens=java.base/sun.security.action=ALL-UNNAMED
-                --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
-                -Djdk.reflect.useDirectMethodHandle=false
-                -Dio.netty.tryReflectionSetAccessible=true"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -146,7 +128,7 @@ jobs:
           ls -l $SPARK_HOME
           $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest \
-          -DargLine="-Dspark.test.home=$SPARK_HOME ${EXTRA_FLAGS}"
+          -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4

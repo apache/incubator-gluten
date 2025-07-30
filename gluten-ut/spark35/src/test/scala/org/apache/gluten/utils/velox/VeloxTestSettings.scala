@@ -88,8 +88,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
-    // https://github.com/apache/incubator-gluten/issues/10175
-    .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude(
@@ -968,6 +966,11 @@ class VeloxTestSettings extends BackendTestSettings {
     // requires test resources that don't exist in Gluten repo
     .exclude("detect escaped path and report the migration guide")
     .exclude("ignore the escaped path check when the flag is off")
+  enableSuite[GlutenQueryExecutionSuite]
+    // Rewritten to set root logger level to INFO so that logs can be parsed
+    .exclude("Logging plan changes for execution")
+    // Rewrite for transformed plan
+    .exclude("dumping query execution info to a file - explainMode=formatted")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

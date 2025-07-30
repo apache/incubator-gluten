@@ -253,8 +253,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("random")
     .exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenArithmeticExpressionSuite]
-    // https://github.com/apache/incubator-gluten/issues/10175
-    .exclude("SPARK-34742: Abs throws exception when input is out of range in ANSI mode")
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
     // Spill not supported yet.
@@ -834,6 +832,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Independent Batched Python UDFs and Scalar Pandas UDFs should be combined separately")
     .exclude("Dependent Batched Python UDFs and Scalar Pandas UDFs should not be combined")
     .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V2")
+  enableSuite[GlutenQueryExecutionSuite]
+    // Rewritten to set root logger level to INFO so that logs can be parsed
+    .exclude("Logging plan changes for execution")
+    // Rewrite for transformed plan
+    .exclude("dumping query execution info to a file - explainMode=formatted")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

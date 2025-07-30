@@ -108,7 +108,7 @@ TEST(LocalExecutor, StorageObjectStorageSink)
     /// 1. Create ObjectStorageSink
     auto config_cloned_ptr = std::make_shared<StorageHDFSConfiguration>(config);
     DB::StorageObjectStorageSink sink{
-        config_cloned_ptr->getPaths().back(),
+        config_cloned_ptr->getPaths().back().path,
         object_storage,
         config_cloned_ptr,
         {},

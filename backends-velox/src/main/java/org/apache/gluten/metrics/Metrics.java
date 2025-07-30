@@ -59,6 +59,8 @@ public class Metrics implements IMetrics {
 
   public SingleMetric singleMetric = new SingleMetric();
 
+  public String taskStats;
+
   /** Create an instance for native metrics. */
   public Metrics(
       long[] inputRows,
@@ -97,7 +99,8 @@ public class Metrics implements IMetrics {
       long[] preloadSplits,
       long[] physicalWrittenBytes,
       long[] writeIOTime,
-      long[] numWrittenFiles) {
+      long[] numWrittenFiles,
+      String taskStats) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -135,6 +138,7 @@ public class Metrics implements IMetrics {
     this.physicalWrittenBytes = physicalWrittenBytes;
     this.writeIOTime = writeIOTime;
     this.numWrittenFiles = numWrittenFiles;
+    this.taskStats = taskStats;
   }
 
   public OperatorMetrics getOperatorMetrics(int index) {
