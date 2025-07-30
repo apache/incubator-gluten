@@ -1056,7 +1056,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
-        "select map_concat(map(1, 'a', 2, 'b'), map(3, null))"
+        "select map_concat(map(1, 'a', 2, 'b'), map(3, null)), map_concat()"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
