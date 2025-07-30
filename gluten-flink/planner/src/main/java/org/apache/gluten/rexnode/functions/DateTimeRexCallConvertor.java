@@ -18,6 +18,7 @@ package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.ValidationResult;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.CastTypedExpr;
@@ -39,16 +40,20 @@ class TimeStampIntervalRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     // TODO: this is not fully completed yet.
     List<Type> operandTypes =
         callNode.getOperands().stream()
             .map(param -> RexNodeConverter.toType(param.getType()))
             .collect(Collectors.toList());
-    return (operandTypes.get(0) instanceof TimestampType
+    if (operandTypes.get(0) instanceof TimestampType
         // && TypeUtils.isTimeInterval(operandTypes.get(1)))
         || // (TypeUtils.isTimeInterval(operandTypes.get(0)) &&
-        operandTypes.get(1) instanceof TimestampType);
+        operandTypes.get(1) instanceof TimestampType) {
+      return ValidationResult.success();
+    } else {
+      return ValidationResult.failure("Parameters are not TimestampType");
+    }
   }
 
   @Override
