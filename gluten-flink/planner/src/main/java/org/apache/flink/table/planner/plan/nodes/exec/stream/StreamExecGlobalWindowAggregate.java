@@ -46,6 +46,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy;
+import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
@@ -242,6 +243,12 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         if (windowOffset != null) {
           offset = windowOffset.toMillis();
         }
+      } else if (windowSpec instanceof TumblingWindowSpec) {
+        size = ((TumblingWindowSpec) windowSpec).getSize().toMillis();
+        Duration windowOffset = ((TumblingWindowSpec) windowSpec).getOffset();
+        if (windowOffset != null) {
+          offset = windowOffset.toMillis();
+        }
       }
       windowType = 0;
     } else if (windowing instanceof WindowAttachedWindowingStrategy) {
@@ -258,6 +265,12 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
                   size, slide));
         }
         Duration windowOffset = ((HoppingWindowSpec) windowSpec).getOffset();
+        if (windowOffset != null) {
+          offset = windowOffset.toMillis();
+        }
+      } else if (windowSpec instanceof TumblingWindowSpec) {
+        size = ((TumblingWindowSpec) windowSpec).getSize().toMillis();
+        Duration windowOffset = ((TumblingWindowSpec) windowSpec).getOffset();
         if (windowOffset != null) {
           offset = windowOffset.toMillis();
         }
@@ -303,7 +316,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             size,
             slide,
             offset,
-            windowType);
+            windowType,
+            outputType);
     final OneInputStreamOperator windowOperator =
         new GlutenVectorOneInputOperator(
             new StatefulPlanNode(windowAgg.getId(), windowAgg),
