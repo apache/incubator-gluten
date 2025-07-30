@@ -80,6 +80,7 @@ struct Metrics {
     kLocalReadBytes,
     kRamReadBytes,
     kPreloadSplits,
+    kPageScanTime,
 
     // Write metrics.
     kPhysicalWrittenBytes,

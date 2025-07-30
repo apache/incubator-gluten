@@ -52,6 +52,7 @@ public class Metrics implements IMetrics {
   public long[] localReadBytes;
   public long[] ramReadBytes;
   public long[] preloadSplits;
+  public long[] pageScanTime;
 
   public long[] physicalWrittenBytes;
   public long[] writeIOTime;
@@ -97,6 +98,7 @@ public class Metrics implements IMetrics {
       long[] localReadBytes,
       long[] ramReadBytes,
       long[] preloadSplits,
+      long[] pageScanTime,
       long[] physicalWrittenBytes,
       long[] writeIOTime,
       long[] numWrittenFiles,
@@ -135,6 +137,7 @@ public class Metrics implements IMetrics {
     this.localReadBytes = localReadBytes;
     this.ramReadBytes = ramReadBytes;
     this.preloadSplits = preloadSplits;
+    this.pageScanTime = pageScanTime;
     this.physicalWrittenBytes = physicalWrittenBytes;
     this.writeIOTime = writeIOTime;
     this.numWrittenFiles = numWrittenFiles;
@@ -180,6 +183,7 @@ public class Metrics implements IMetrics {
         localReadBytes[index],
         ramReadBytes[index],
         preloadSplits[index],
+        pageScanTime[index],
         physicalWrittenBytes[index],
         writeIOTime[index],
         numWrittenFiles[index]);
