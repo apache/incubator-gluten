@@ -16,14 +16,13 @@
  */
 package org.apache.gluten.integration.action
 
-import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.QueriesCompare.TestResultLine
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 import org.apache.gluten.integration.stat.RamStat
-import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
-import org.apache.spark.sql.{RunResult, SparkSession, SparkSessionSwitcher, TestUtils}
+import org.apache.gluten.integration.{QueryRunner, Suite}
+import org.apache.spark.sql.{SparkSession, TestUtils}
 
 case class QueriesCompare(
     scale: Double,
@@ -31,7 +30,8 @@ case class QueriesCompare(
     queries: QuerySelector,
     explain: Boolean,
     iterations: Int,
-    noSessionReuse: Boolean)
+    noSessionReuse: Boolean,
+    suppressFailureMessages: Boolean)
     extends Action {
 
   override def execute(suite: Suite): Boolean = {
@@ -89,8 +89,23 @@ case class QueriesCompare(
       TestResultLine(b.caseId(), b, t)
     }
 
-    val passedCount = results.count(l => l.testPassed)
+    val passedCount = results.count(l => l.testPassed())
     val count = results.count(_ => true)
+    val succeededQueries = results.filter(_.testPassed())
+    val failedQueries = results.filter(!_.testPassed)
+
+    println()
+
+    if (failedQueries.nonEmpty) {
+      println(s"There are failed queries.")
+      if (!suppressFailureMessages) {
+        println()
+        failedQueries.foreach {
+          failedQuery =>
+            println(s"Query ${failedQuery.queryId} failed by error: ${failedQuery.error()}")
+        }
+      }
+    }
 
     // RAM stats
     println("Performing GC to collect RAM statistics... ")
@@ -107,25 +122,24 @@ case class QueriesCompare(
     println("")
     printf("Summary: %d out of %d queries passed. \n", passedCount, count)
     println("")
-    val succeeded = results.filter(_.testPassed)
-    val all = succeeded match {
+    val all = succeededQueries match {
       case Nil => None
       case several =>
         val allExpected = several.map(_.expected).asSuccesses().agg("all expected").get
         val allActual = several.map(_.actual).asSuccesses().agg("all actual").get
         Some(TestResultLine("all", allExpected, allActual))
     }
-    QueriesCompare.printResults(succeeded ++ all)
+    QueriesCompare.printResults(succeededQueries ++ all)
     println("")
 
-    if (passedCount == count) {
+    if (failedQueries.isEmpty) {
       println("No failed queries. ")
       println("")
     } else {
       println(
         "Failed queries (a failed query with correct row count indicates value mismatches): ")
       println("")
-      QueriesCompare.printResults(results.filter(!_.testPassed))
+      QueriesCompare.printResults(failedQueries)
       println("")
     }
 
@@ -138,15 +152,25 @@ case class QueriesCompare(
 
 object QueriesCompare {
   case class TestResultLine(queryId: String, expected: QueryResult, actual: QueryResult) {
-    val testPassed: Boolean = {
-      expected.succeeded() && actual.succeeded() &&
+    private def tryGetError(): Option[String] = {
+      if (!expected.succeeded()) {
+        return Some(expected.asFailure().error.toString)
+      }
+      if (!actual.succeeded()) {
+        return Some(actual.asFailure().error.toString)
+      }
       TestUtils
-        .compareAnswers(
-          expected.asSuccess().runResult.rows,
-          actual.asSuccess().runResult.rows,
-          sort = true)
-        .isEmpty
+          .compareAnswers(
+            expected.asSuccess().runResult.rows,
+            actual.asSuccess().runResult.rows,
+            sort = true)
     }
+
+    private val maybeError = tryGetError()
+
+    def testPassed(): Boolean = maybeError.isEmpty
+
+    def error(): String = maybeError.get
   }
 
   object TestResultLine {
@@ -154,7 +178,7 @@ object QueriesCompare {
       override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
         val inc = rowAppender.incremental()
         inc.next().write(line.queryId)
-        inc.next().write(line.testPassed)
+        inc.next().write(line.testPassed())
         inc.next().write(line.expected.asSuccessOption().map(_.runResult.rows.size))
         inc.next().write(line.actual.asSuccessOption().map(_.runResult.rows.size))
         inc.next().write(line.expected.asSuccessOption().map(_.runResult.planningTimeMillis))
