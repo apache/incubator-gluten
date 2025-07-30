@@ -95,15 +95,15 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
     for (String key : configs.keySet()) {
       tEnv().getConfig().set(key, configs.get(key));
     }
-    boolean errMatches = false;
+    boolean err = false;
     try {
       CloseableIterator<Row> rows = tEnv().executeSql(query).collect();
       while (rows.hasNext()) {
         rows.next();
       }
     } catch (Exception e) {
-      errMatches = true;
+      err = true;
     }
-    assertThat(errMatches).isEqualTo(true);
+    assertThat(err).isEqualTo(true);
   }
 }
