@@ -107,24 +107,30 @@ case class TakeOrderedAndProjectExecTransformer(
         if (orderingSatisfies) {
           sparkPlan
         } else {
-          SortExecTransformer(sortOrder, global = false, sparkPlan)
+          SortExecTransformer(sortOrder, false, sparkPlan)
         }
       }
 
       val isSinglePartitionInput = childRDDPartsNum == 1
+      val localLimitOffset = if (isSinglePartitionInput) {
+        // Local limit does not need offset
+        0
+      } else {
+        offset
+      }
       // The child should have been replaced by ColumnarCollapseTransformStages.
       val limitBeforeShuffle = child match {
         case wholeStage: WholeStageTransformer =>
           // remove this WholeStageTransformer, put the new sort, limit and project
           // into a new whole stage.
           val localSortPlan = withLocalSort(wholeStage.child)
-          LimitExecTransformer(localSortPlan, offset, limit)
+          LimitExecTransformer(localSortPlan, localLimitOffset, limit)
         case other =>
           // if the child it is not WholeStageTransformer, add the adapter first
           // so that, later we can wrap WholeStageTransformer.
           val localSortPlan = withLocalSort(
             ColumnarCollapseTransformStages.wrapInputIteratorTransformer(other))
-          LimitExecTransformer(localSortPlan, offset, limit)
+          LimitExecTransformer(localSortPlan, localLimitOffset, limit)
       }
       val transformStageCounter: AtomicInteger =
         ColumnarCollapseTransformStages.transformStageCounter
