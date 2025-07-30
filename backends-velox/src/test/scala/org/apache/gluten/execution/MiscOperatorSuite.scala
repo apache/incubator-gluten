@@ -2159,7 +2159,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       })
   }
 
-  test("Offload offset + limit") {
+  testWithMinSparkVersion("Offload offset + limit", "3.4") {
     runQueryAndCompare(
       "select l_shipdate from lineitem order by l_shipdate desc limit 10 offset 10") {
       df =>
