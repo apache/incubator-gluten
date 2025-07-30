@@ -371,4 +371,12 @@ object ExpressionNames {
   // A placeholder for native UDF functions
   final val UDF_PLACEHOLDER = "udf_placeholder"
   final val UDAF_PLACEHOLDER = "udaf_placeholder"
+
+  // Iceberg function names
+  final val YEARS = "years"
+  final val MONTHS = "months"
+  final val DAYS = "days"
+  final val HOURS = "hours"
+  final val BUCKET = "bucket"
+  final val TRUNCATE = "truncate"
 }
