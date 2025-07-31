@@ -83,6 +83,13 @@ WholeStageResultIterator::WholeStageResultIterator(
   // Create task instance.
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
+  {
+    std::shared_lock<std::shared_mutex> l(gluten::VeloxBackend::get()->mutex_);
+    if (!gluten::VeloxBackend::get()->ioConnectorReg_) {
+      gluten::VeloxBackend::get()->initConnector(veloxCfg_);
+      gluten::VeloxBackend::get()->ioConnectorReg_ = true;
+    }
+  }
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
   task_ = velox::exec::Task::create(
       fmt::format(
@@ -177,7 +184,6 @@ WholeStageResultIterator::WholeStageResultIterator(
 }
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
-  gluten::VeloxBackend::get()->initConnector(veloxCfg_);
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
   std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(
