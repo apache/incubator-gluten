@@ -33,9 +33,9 @@ import org.apache.calcite.rex.RexCall;
 import java.util.List;
 import java.util.stream.Collectors;
 
-class TimeStampIntervalRexCallConverter extends BaseRexCallConverter {
+class TimestampIntervalRexCallConverter extends BaseRexCallConverter {
 
-  public TimeStampIntervalRexCallConverter(String functionName) {
+  public TimestampIntervalRexCallConverter(String functionName) {
     super(functionName);
   }
 

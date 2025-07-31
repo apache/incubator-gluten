@@ -218,11 +218,9 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
             PlanNodeIdGenerator.newId(),
             leftInput,
             rightInput,
-            null,
-            null,
+            leftNode,
             rightNode,
-            outputVeloxType,
-            1);
+            outputVeloxType);
 
     return new GlutenVectorTwoInputOperator(
         new StatefulPlanNode(join.getId(), join),

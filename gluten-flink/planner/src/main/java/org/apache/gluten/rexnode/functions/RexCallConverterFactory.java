@@ -84,14 +84,14 @@ public class RexCallConverterFactory {
                   () -> new BasicArithmeticOperatorRexCallConverter("greaterthanorequal"),
                   () -> new StringCompareRexCallConverter("greaterthanorequal"),
                   () -> new StringNumberCompareRexCallConverter("greaterthanorequal"),
-                  () -> new TimeStampIntervalRexCallConverter("greaterthanorequal"))),
+                  () -> new TimestampIntervalRexCallConverter("greaterthanorequal"))),
           Map.entry(
               "<=",
               Arrays.asList(
                   () -> new BasicArithmeticOperatorRexCallConverter("lessthanorequal"),
                   () -> new StringCompareRexCallConverter("lessthanorequal"),
                   () -> new StringNumberCompareRexCallConverter("lessthanorequal"),
-                  () -> new TimeStampIntervalRexCallConverter("lessthanorequal"))));
+                  () -> new TimestampIntervalRexCallConverter("lessthanorequal"))));
 
   public static RexCallConverter getConverter(RexCall callNode, RexConversionContext context) {
     String operatorName = callNode.getOperator().getName();
