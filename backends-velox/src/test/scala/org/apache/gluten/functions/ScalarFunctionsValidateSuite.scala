@@ -1228,4 +1228,25 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("get_array_struct_fields") {
+    withTempPath {
+      path =>
+        val df = Seq(
+          Seq((100, "foo"), (200, "bar"), (300, null)),
+          Seq((400, "baz"), (500, "qux"))
+        ).toDF("items")
+        df.write.mode("overwrite").parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("""
+                             |SELECT
+                             |  items._1 AS item_ids,
+                             |  items._2 AS item_values
+                             |FROM view
+        """.stripMargin) {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }
