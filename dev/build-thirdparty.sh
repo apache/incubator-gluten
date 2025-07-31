@@ -48,7 +48,7 @@ function process_setup_centos_8 {
 }
 
 function process_setup_centos_7 {
-  cp /usr/local/lib64/{libgflags.so.2.2,libglog.so.0} $THIRDPARTY_LIB/
+  cp /usr/local/lib64/{libgflags.so.2.2,libglog.so.0,libgeos.so.3.10.7} $THIRDPARTY_LIB/
   cp /usr/lib64/{libdouble-conversion.so.1,libevent-2.0.so.5,libzstd.so.1,libntlm.so.0,libgsasl.so.7,liblz4.so.1} $THIRDPARTY_LIB/
   cp /usr/local/lib/{libre2.so.10,libboost_context.so.1.84.0,libboost_filesystem.so.1.84.0,libboost_program_options.so.1.84.0,libboost_system.so.1.84.0,libboost_thread.so.1.84.0,libboost_regex.so.1.84.0,libboost_atomic.so.1.84.0,libprotobuf.so.32} $THIRDPARTY_LIB/
 }
