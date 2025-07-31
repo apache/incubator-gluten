@@ -59,6 +59,7 @@ object VeloxRuleApi {
     injector.injectOptimizerRule(HLLRewriteRule.apply)
     injector.injectOptimizerRule(CollapseGetJsonObjectExpressionRule.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
+    injector.injectPostHocResolutionRule(RewriteCastFromArray.apply)
   }
 
   private def injectLegacy(injector: LegacyInjector): Unit = {

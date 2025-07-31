@@ -115,6 +115,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableRewriteDateTimestampComparison: Boolean =
     getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
 
+  def enableRewriteCastArrayToString: Boolean =
+    getConf(ENABLE_REWRITE_CAST_ARRAY_TO_STRING)
+
   def enableCollapseNestedGetJsonObject: Boolean =
     getConf(ENABLE_COLLAPSE_GET_JSON_OBJECT)
 
@@ -1415,6 +1418,14 @@ object GlutenConfig {
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
         + "For example `from_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_REWRITE_CAST_ARRAY_TO_STRING =
+    buildConf("spark.gluten.sql.rewrite.castArrayToString")
+      .internal()
+      .doc("When true, rewrite `cast(array as String)` to" +
+        " `concat('[', array_join(array, ', ', null), ']')` to make velox support offload.")
       .booleanConf
       .createWithDefault(true)
 
