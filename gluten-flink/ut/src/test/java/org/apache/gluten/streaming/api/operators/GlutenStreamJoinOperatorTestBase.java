@@ -218,9 +218,11 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
             PlanNodeIdGenerator.newId(),
             leftInput,
             rightInput,
-            leftNode,
+            null,
+            null,
             rightNode,
-            outputVeloxType);
+            outputVeloxType,
+            1);
 
     return new GlutenVectorTwoInputOperator(
         new StatefulPlanNode(join.getId(), join),
@@ -232,7 +234,8 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
   }
 
   protected void processTestData(
-      KeyedTwoInputStreamOperatorTestHarness<RowData, StatefulRecord, StatefulRecord, RowData>
+      KeyedTwoInputStreamOperatorTestHarness<
+              RowData, StatefulRecord, StatefulRecord, StatefulRecord>
           harness,
       List<RowData> leftData,
       List<RowData> rightData)
@@ -251,7 +254,8 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
   }
 
   protected List<RowData> extractOutputFromHarness(
-      KeyedTwoInputStreamOperatorTestHarness<RowData, StatefulRecord, StatefulRecord, RowData>
+      KeyedTwoInputStreamOperatorTestHarness<
+              RowData, StatefulRecord, StatefulRecord, StatefulRecord>
           harness) {
     Queue<Object> outputQueue = harness.getOutput();
     return outputQueue.stream()
@@ -280,7 +284,7 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
       List<RowData> rightData,
       List<RowData> expectedOutput)
       throws Exception {
-    KeyedTwoInputStreamOperatorTestHarness<RowData, StatefulRecord, StatefulRecord, RowData>
+    KeyedTwoInputStreamOperatorTestHarness<RowData, StatefulRecord, StatefulRecord, StatefulRecord>
         harness =
             new KeyedTwoInputStreamOperatorTestHarness<>(
                 operator,
