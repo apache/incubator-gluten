@@ -1156,6 +1156,25 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare("select cast('123.0' AS INT)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
+    // Cast Array as Array[String]
+    runQueryAndCompare("select cast(array(1, null) AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(1L, null) AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(1.1d, null) AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(false, null) AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(date'2024-01-01') AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(timestamp'2024-01-01 12:00:00') AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   testWithMinSparkVersion("equal_null", "3.4") {

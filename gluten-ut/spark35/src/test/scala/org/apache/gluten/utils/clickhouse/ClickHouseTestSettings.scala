@@ -382,11 +382,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-39749: cast Decimal to string")
     .exclude("SPARK-42176: cast boolean to timestamp")
     .exclude("null cast #2")
-    .exclude("cast array element from integer to string")
-    .exclude("cast array element from double to string")
-    .exclude("cast array element from bool to string")
-    .exclude("cast array element from date to string")
-    .exclude("cast array from timestamp to string")
     .exclude("cast from boolean to timestamp")
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
     .excludeByPrefix("determining the number of reducers")
