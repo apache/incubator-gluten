@@ -76,6 +76,8 @@ class VeloxBackend {
     }
   }
   void initConnector(std::shared_ptr<facebook::velox::config::ConfigBase> sessionConf = nullptr);
+  mutable std::shared_mutex mutex_;
+  std::atomic<bool> ioConnectorReg_ = false;
 
  private:
   explicit VeloxBackend(
@@ -110,7 +112,6 @@ class VeloxBackend {
   std::string cacheFilePrefix_;
 
   std::shared_ptr<facebook::velox::config::ConfigBase> backendConf_;
-  std::atomic<bool> ioConnectorReg_ = false;
 };
 
 } // namespace gluten
