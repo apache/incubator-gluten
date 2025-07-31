@@ -170,7 +170,6 @@ void VeloxBackend::init(
 #endif
 
   initJolFilesystem();
-  //initConnector();
 
   velox::dwio::common::registerFileSinks();
   velox::parquet::registerParquetReaderFactory();
@@ -291,9 +290,6 @@ void VeloxBackend::initCache() {
 }
 
 void VeloxBackend::initConnector(std::shared_ptr<facebook::velox::config::ConfigBase> newConf) {
-  if (ioConnectorReg_) {
-    return;
-  }
 
   auto hiveConf = getHiveConfig(backendConf_);
 
