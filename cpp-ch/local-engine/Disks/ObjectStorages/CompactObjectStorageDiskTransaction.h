@@ -69,7 +69,7 @@ class CompactObjectStorageDiskTransaction: public DB::IDiskTransaction {
     {
     }
 
-    void commit() override;
+    void commit(const DB::TransactionCommitOptionsVariant & options) override;
 
     void undo() override
     {

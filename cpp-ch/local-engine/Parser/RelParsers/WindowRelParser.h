@@ -57,7 +57,6 @@ private:
         google::protobuf::RepeatedPtrField<substrait::SortField> sort_fields;
     };
     DB::QueryPlanPtr current_plan;
-    DB::Block input_header;
     // The final output schema.
     DB::Block output_header;
     Poco::Logger * logger = &Poco::Logger::get("WindowRelParser");

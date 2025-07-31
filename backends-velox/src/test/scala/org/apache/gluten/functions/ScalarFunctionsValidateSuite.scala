@@ -26,14 +26,14 @@ import org.apache.spark.sql.execution.ProjectExec
 class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "false")
+      .set(GlutenConfig.RAS_ENABLED.key, "false")
   }
 }
 
 class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "true")
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
   }
 }
 
@@ -1154,6 +1154,25 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare("select cast('123.0' AS INT)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    // Cast Array as Array[String]
+    runQueryAndCompare("select cast(array(1, null) AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(1L, null) AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(1.1d, null) AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(false, null) AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(date'2024-01-01') AS array<string>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(timestamp'2024-01-01 12:00:00') AS array<string>)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }

@@ -50,18 +50,18 @@ namespace
 DB::ProcessorPtr make_sink(
     const DB::ContextPtr & context,
     const DB::Names & partition_by,
-    const DB::Block & input_header,
-    const DB::Block & output_header,
+    const DB::SharedHeader & input_header,
+    const DB::SharedHeader & output_header,
     const std::string & base_path,
     const FileNameGenerator & generator,
     const std::string & format_hint,
     const std::shared_ptr<WriteStats> & stats)
 {
-    bool no_bucketed = !SparkPartitionedBaseSink::isBucketedWrite(input_header);
+    bool no_bucketed = !SparkPartitionedBaseSink::isBucketedWrite(*input_header);
     if (partition_by.empty() && no_bucketed)
     {
         return std::make_shared<SubstraitFileSink>(
-            context, base_path, "", false, generator.generate(), format_hint, input_header, stats, DeltaStats{input_header.columns()});
+            context, base_path, "", false, generator.generate(), format_hint, input_header, stats, DeltaStats{input_header->columns()});
     }
 
     return std::make_shared<SubstraitPartitionedFileSink>(
@@ -117,7 +117,7 @@ void adjust_output(const DB::QueryPipelineBuilderPtr & builder, const DB::Block 
         return;
 
     builder->addSimpleTransform(
-        [&](const DB::Block & cur_header, const DB::QueryPipelineBuilder::StreamType stream_type) -> DB::ProcessorPtr
+        [&](const DB::SharedHeader & cur_header, const DB::QueryPipelineBuilder::StreamType stream_type) -> DB::ProcessorPtr
         {
             if (stream_type != DB::QueryPipelineBuilder::StreamType::Main)
                 return nullptr;
@@ -129,7 +129,7 @@ void addMergeTreeSinkTransform(
     const DB::ContextPtr & context,
     const DB::QueryPipelineBuilderPtr & builder,
     const MergeTreeTable & merge_tree_table,
-    const DB::Block & header,
+    const DB::SharedHeader & header,
     const DB::Names & partition_by)
 {
     Chain chain;
@@ -141,7 +141,7 @@ void addMergeTreeSinkTransform(
     SparkMergeTreeWriteSettings write_settings{context};
 
     auto sink = partition_by.empty()
-        ? SparkMergeTreeSink::create(merge_tree_table, write_settings, context->getQueryContext(), DeltaStats{header.columns()}, {stats})
+        ? SparkMergeTreeSink::create(merge_tree_table, write_settings, context->getQueryContext(), DeltaStats{header->columns()}, {stats})
         : std::make_shared<SparkMergeTreePartitionedFileSink>(header, partition_by, merge_tree_table, write_settings, context, stats);
 
     chain.addSource(sink);
@@ -152,7 +152,7 @@ void addNormalFileWriterSinkTransform(
     const DB::ContextPtr & context,
     const DB::QueryPipelineBuilderPtr & builder,
     const std::string & format_hint,
-    const DB::Block & output,
+    const DB::SharedHeader & output,
     const DB::Names & partition_by)
 {
     GlutenWriteSettings write_settings = GlutenWriteSettings::get(context);
@@ -168,14 +168,14 @@ void addNormalFileWriterSinkTransform(
     auto stats = WriteStats::create(output, partition_by);
 
     builder->addSimpleTransform(
-        [&](const Block & cur_header, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr
+        [&](const SharedHeader & cur_header, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr
         {
             if (stream_type != QueryPipelineBuilder::StreamType::Main)
                 return nullptr;
             return make_sink(context, partition_by, cur_header, output, write_settings.task_write_tmp_dir, generator, format_hint, stats);
         });
     builder->addSimpleTransform(
-        [&](const Block &, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr
+        [&](const SharedHeader &, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr
         {
             if (stream_type != QueryPipelineBuilder::StreamType::Main)
                 return nullptr;
@@ -204,13 +204,13 @@ void addSinkTransform(const DB::ContextPtr & context, const substrait::WriteRel 
     if (write.has_mergetree())
     {
         MergeTreeTable merge_tree_table(write, table_schema);
-        auto output = TypeParser::buildBlockFromNamedStruct(table_schema, merge_tree_table.low_card_key);
-        adjust_output(builder, output);
+        auto output = toShared(TypeParser::buildBlockFromNamedStruct(table_schema, merge_tree_table.low_card_key));
+        adjust_output(builder, *output);
 
         builder->addSimpleTransform(
-            [&](const Block & in_header) -> ProcessorPtr { return std::make_shared<MaterializingTransform>(in_header, false); });
+            [&](const SharedHeader & in_header) -> ProcessorPtr { return std::make_shared<MaterializingTransform>(in_header, false); });
 
-        const auto partition_by = collect_partition_cols(output, table_schema, partition_indexes);
+        const auto partition_by = collect_partition_cols(*output, table_schema, partition_indexes);
 
         GlutenWriteSettings write_settings = GlutenWriteSettings::get(context);
         if (write_settings.task_write_tmp_dir.empty())
@@ -223,9 +223,9 @@ void addSinkTransform(const DB::ContextPtr & context, const substrait::WriteRel 
     }
     else
     {
-        auto output = TypeParser::buildBlockFromNamedStruct(table_schema);
-        adjust_output(builder, output);
-        const auto partition_by = collect_partition_cols(output, table_schema, partition_indexes);
+        auto output = toShared(TypeParser::buildBlockFromNamedStruct(table_schema));
+        adjust_output(builder, *output);
+        const auto partition_by = collect_partition_cols(*output, table_schema, partition_indexes);
         addNormalFileWriterSinkTransform(context, builder, write.common().format(), output, partition_by);
     }
 }

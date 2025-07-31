@@ -30,7 +30,7 @@ extern const int TYPE_MISMATCH;
 
 namespace local_engine
 {
-SourceFromRange::SourceFromRange(const DB::Block & header_, Int64 start_, Int64 end_, Int64 step_, Int32 num_slices_, Int32 slice_index_, size_t max_block_size_)
+SourceFromRange::SourceFromRange(const DB::SharedHeader & header_, Int64 start_, Int64 end_, Int64 step_, Int32 num_slices_, Int32 slice_index_, size_t max_block_size_)
     : DB::ISource(header_)
     , start(start_)
     , end(end_)
@@ -39,7 +39,7 @@ SourceFromRange::SourceFromRange(const DB::Block & header_, Int64 start_, Int64 
     , slice_index(slice_index_)
     , max_block_size(max_block_size_)
     , num_elements(getNumElements())
-    , is_empty_range(start == end )
+    , is_empty_range(start == end)
 {
     const auto & header = getOutputs().front().getHeader();
     if (header.columns() != 1)

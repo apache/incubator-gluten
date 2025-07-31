@@ -98,7 +98,7 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
                     case IsBestNode() =>
                       buf.append(" [style=filled, fillcolor=lightgreen] ")
                     case IsWinnerNode() =>
-                      buf.append(" [style=filled, fillcolor=lightgrey] ")
+                      buf.append(" [style=bold] ")
                     case _ =>
                   }
                   buf.append("\n")
@@ -164,7 +164,7 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
   }
 
   private def describeGroupVerbose(group: RasGroup[T]): String = {
-    s"[Group ${group.id()}: ${group.constraintSet().asMap.values.toIndexedSeq}]"
+    s"[Group ${group.id()}: ${group.constraintSet()}]"
   }
 
   private def describeNode(

@@ -52,6 +52,7 @@ struct BaseReaders
 
     bool pull(DB::Chunk & chunk);
     const DB::Block & getHeader() const { return readers.front()->getHeader(); }
+    const DB::SharedHeader & getSharedHeader() const { return readers.front()->getSharedHeader(); }
 };
 
 class ReaderTestBase : public testing::Test

@@ -33,7 +33,7 @@ class BranchStepHelper
 {
 public:
     // Create a new query plan that would be used to build sub branch query plan.
-    static DB::QueryPlanPtr createSubPlan(const DB::Block & header, size_t num_streams);
+    static DB::QueryPlanPtr createSubPlan(const DB::SharedHeader & header, size_t num_streams);
 };
 
 // Use to branch the query plan.
@@ -42,7 +42,7 @@ class StaticBranchStep : public DB::ITransformingStep
 public:
     using BranchSelector = std::function<size_t(const std::list<DB::Chunk> &)>;
     explicit StaticBranchStep(
-        const DB::ContextPtr & context_, const DB::Block & header, size_t branches, size_t sample_rows, BranchSelector selector);
+        const DB::ContextPtr & context_, const DB::SharedHeader & header, size_t branches, size_t sample_rows, BranchSelector selector);
     ~StaticBranchStep() override = default;
 
     String getName() const override { return "StaticBranchStep"; }
@@ -56,7 +56,7 @@ protected:
 
 private:
     DB::ContextPtr context;
-    DB::Block header;
+    DB::SharedHeader header;
     size_t max_sample_rows;
     size_t branches;
     BranchSelector selector;
@@ -68,7 +68,7 @@ class UniteBranchesStep : public DB::ITransformingStep
 {
 public:
     explicit UniteBranchesStep(
-        const DB::ContextPtr & context_, const DB::Block & header_, std::vector<DB::QueryPlanPtr> && branch_plans_, size_t num_streams_);
+        const DB::ContextPtr & context_, const DB::SharedHeader & header_, std::vector<DB::QueryPlanPtr> && branch_plans_, size_t num_streams_);
     ~UniteBranchesStep() override = default;
 
     String getName() const override { return "UniteBranchesStep"; }
@@ -78,7 +78,7 @@ public:
 
 private:
     DB::ContextPtr context;
-    DB::Block header;
+    DB::SharedHeader header;
     std::vector<DB::QueryPlanPtr> branch_plans;
     size_t num_streams;
 

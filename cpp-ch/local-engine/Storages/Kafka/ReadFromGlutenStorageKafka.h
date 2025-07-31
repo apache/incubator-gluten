@@ -29,7 +29,7 @@ class ReadFromGlutenStorageKafka : public ISourceStep, protected WithContext
 public:
     ReadFromGlutenStorageKafka(
         const Names & column_names_,
-        Header output_header_,
+        const DB::SharedHeader & output_header_,
         ContextPtr context_,
         Names & topics,
         size_t partition,
@@ -50,7 +50,7 @@ private:
 protected:
     // std::shared_ptr<const StorageLimitsList> storage_limits;
     const Names & column_names;
-    Header output_header;
+    DB::SharedHeader output_header;
 
     Names topics;
     size_t partition;

@@ -27,19 +27,20 @@ namespace local_engine
 class BlocksBufferPoolStep : public DB::ITransformingStep
 {
 public:
-    explicit BlocksBufferPoolStep(const DB::Block & input_header, size_t buffer_size_ = 4);
+    explicit BlocksBufferPoolStep(const DB::SharedHeader & input_header, size_t buffer_size_ = 4);
     ~BlocksBufferPoolStep() override = default;
 
     String getName() const override { return "BlocksBufferPoolStep"; }
 
     void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & settings) override;
     void describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const override;
+
 private:
     size_t buffer_size;
     void updateOutputHeader() override;
 };
 
-class BlocksBufferPoolTransform  : public DB::IProcessor
+class BlocksBufferPoolTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
@@ -50,6 +51,7 @@ public:
     void work() override;
 
     String getName() const override { return "BlocksBufferPoolTransform"; }
+
 private:
     std::list<DB::Chunk> pending_chunks;
     size_t buffer_size;

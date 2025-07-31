@@ -43,6 +43,8 @@ public class VeloxBloomFilterJniWrapper implements RuntimeAware {
 
   public native boolean mightContainLong(long handle, long item);
 
+  public static native boolean mightContainLongOnSerializedBloom(long address, long item);
+
   public native void mergeFrom(long handle, long other);
 
   public native byte[] serialize(long handle);

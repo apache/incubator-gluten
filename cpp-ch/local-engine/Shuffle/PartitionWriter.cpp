@@ -29,6 +29,7 @@
 #include <Storages/IO/CompressedWriteBuffer.h>
 #include <Storages/IO/NativeWriter.h>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <Common/BlockTypeUtils.h>
 #include <Common/Stopwatch.h>
 #include <Common/ThreadPool.h>
 #include <Common/logger_useful.h>
@@ -282,7 +283,7 @@ size_t MemorySortLocalPartitionWriter::evictPartitions()
         info.spilled_file = file;
 
         Stopwatch serialization_time_watch;
-        MergeSorter sorter(sort_header, std::move(accumulated_blocks), sort_description, adaptiveBlockSize(), 0);
+        MergeSorter sorter(toShared(sort_header), std::move(accumulated_blocks), sort_description, adaptiveBlockSize(), 0);
         size_t cur_partition_id = 0;
         info.partition_spill_infos[cur_partition_id] = {0, 0};
         while (auto data = sorter.read())
@@ -375,7 +376,7 @@ size_t MemorySortCelebornPartitionWriter::evictPartitions()
         CompressedWriteBuffer compressed_output(output, codec, options.io_buffer_size);
         NativeWriter writer(compressed_output, output_header);
 
-        MergeSorter sorter(sort_header, std::move(accumulated_blocks), sort_description, adaptiveBlockSize(), 0);
+        MergeSorter sorter(toShared(sort_header), std::move(accumulated_blocks), sort_description, adaptiveBlockSize(), 0);
         size_t cur_partition_id = 0;
         auto push_to_celeborn = [&]()
         {
@@ -464,7 +465,7 @@ size_t CelebornPartitionWriter::evictSinglePartition(size_t partition_id)
 {
     size_t res = 0;
     size_t spilled_bytes = 0;
-    auto spill_to_celeborn = [this,partition_id, &res, &spilled_bytes]()
+    auto spill_to_celeborn = [this, partition_id, &res, &spilled_bytes]()
     {
         Stopwatch serialization_time_watch;
         auto & buffer = partition_buffer[partition_id];
@@ -529,7 +530,8 @@ size_t Partition::spill(NativeWriter & writer)
     size_t written_bytes = 0;
     for (auto & block : blocks)
     {
-        if (!block.rows()) continue;
+        if (!block.rows())
+            continue;
         written_bytes += writer.write(block);
 
         /// Clear each block once it is serialized to reduce peak memory

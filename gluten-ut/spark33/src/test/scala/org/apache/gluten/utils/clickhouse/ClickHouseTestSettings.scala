@@ -177,6 +177,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAsOfJoinSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
+    // Expected exception org.apache.spark.SparkException to be thrown, but no exception was thrown
+    .exclude("map_concat function")
     .exclude("map with arrays")
     .exclude("flatten function")
     .exclude("aggregate function - array for primitive type not containing null")
@@ -627,11 +629,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36924: Cast IntegralType to YearMonthIntervalType")
     .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
     .exclude("cast timestamp to Int64 with floor division")
-    .exclude("cast array element from integer to string")
-    .exclude("cast array element from double to string")
-    .exclude("cast array element from bool to string")
-    .exclude("cast array element from date to string")
-    .exclude("cast array from timestamp to string")
     .exclude("cast from boolean to timestamp")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ColumnarPartialProjectExec
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.udf.CustomerUDF
@@ -89,7 +90,7 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
-      .set("spark.gluten.sql.native.writer.enabled", "true")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
   }
 
   private def withTempFunction(funcName: String)(f: => Unit): Unit = {

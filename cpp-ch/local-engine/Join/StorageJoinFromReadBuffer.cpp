@@ -19,6 +19,7 @@
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/ThreadPool.h>
@@ -93,15 +94,15 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
         table_join->resetKeys();
     }
 
-    right_sample_block = rightSampleBlock(use_nulls, storage_metadata, table_join->kind());
+    right_sample_block = toShared(rightSampleBlock(use_nulls, storage_metadata, table_join->kind()));
     /// If there is mixed join conditions, need to build the hash join lazily, which rely on the real table join.
     if (!has_mixed_join_condition)
         buildJoin(data, right_sample_block, table_join);
     else
-        collectAllInputs(data, right_sample_block);
+        collectAllInputs(data);
 }
 
-void StorageJoinFromReadBuffer::buildJoin(const Blocks & data, const Block & header, std::shared_ptr<DB::TableJoin> analyzed_join)
+void StorageJoinFromReadBuffer::buildJoin(const Blocks & data, const SharedHeader & header, std::shared_ptr<DB::TableJoin> analyzed_join)
 {
     auto build_join = [&]
     {
@@ -114,13 +115,13 @@ void StorageJoinFromReadBuffer::buildJoin(const Blocks & data, const Block & hea
     thread.join();
 }
 
-void StorageJoinFromReadBuffer::collectAllInputs(Blocks & data, const DB::Block)
+void StorageJoinFromReadBuffer::collectAllInputs(Blocks & data)
 {
     for (Block block : data)
         input_blocks.emplace_back(std::move(block));
 }
 
-void StorageJoinFromReadBuffer::buildJoinLazily(DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join)
+void StorageJoinFromReadBuffer::buildJoinLazily(const DB::SharedHeader & header, std::shared_ptr<DB::TableJoin> analyzed_join)
 {
     auto build_join = [&]
     {
@@ -140,7 +141,7 @@ void StorageJoinFromReadBuffer::buildJoinLazily(DB::Block header, std::shared_pt
             for (size_t i = 0; i < block.columns(); ++i)
             {
                 const auto & column = block.getByPosition(i);
-                columns.emplace_back(BlockUtil::convertColumnAsNecessary(column, header.getByPosition(i)));
+                columns.emplace_back(BlockUtil::convertColumnAsNecessary(column, header->getByPosition(i)));
             }
             DB::Block final_block(columns);
             join->addBlockToJoin(final_block, true);
@@ -167,7 +168,7 @@ DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJo
             ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
             "Table {} needs the same join_use_nulls setting as present in LEFT or FULL JOIN",
             storage_metadata.comment);
-    buildJoinLazily(getRightSampleBlock(), analyzed_join);
+    buildJoinLazily(right_sample_block, analyzed_join);
     HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, right_sample_block);
     /// reuseJoinedData will set the flag `HashJoin::from_storage_join` which is required by `FilledStep`
     join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join));

@@ -60,7 +60,7 @@ DB::Block NativeReader::read()
     if (columns_parse_util.empty())
     {
         result_block = prepareByFirstBlock();
-        if (!result_block)
+        if (result_block.empty())
             return {};
     }
     else
@@ -172,7 +172,7 @@ DB::Block NativeReader::prepareByFirstBlock()
     if (rows > 1'000'000'000'000uz)
         throw Exception(ErrorCodes::TOO_LARGE_ARRAY_SIZE, "Suspiciously many rows in Native format: {}", rows);
 
-    if (columns == 0 && !header && rows != 0)
+    if (columns == 0 && header.empty() && rows != 0)
         throw Exception(ErrorCodes::INCORRECT_DATA, "Zero columns but {} rows in Native format.", rows);
 
     for (size_t i = 0; i < columns; ++i)

@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.MetricsApi
+import org.apache.gluten.config.{HashShuffleWriterType, RssSortShuffleWriterType, ShuffleWriterType, SortShuffleWriterType}
 import org.apache.gluten.metrics._
 import org.apache.gluten.substrait.{AggregationParams, JoinParams}
 
@@ -292,7 +293,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
 
   override def genColumnarShuffleExchangeMetrics(
       sparkContext: SparkContext,
-      isSort: Boolean): Map[String, SQLMetric] = {
+      shuffleWriterType: ShuffleWriterType): Map[String, SQLMetric] = {
     val baseMetrics = Map(
       "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions"),
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
@@ -314,18 +315,25 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       // row buffer + sort buffer size.
       "peakBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak bytes allocated")
     )
-    if (isSort) {
-      baseMetrics ++ Map(
-        "sortTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle sort"),
-        "c2rTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle c2r")
-      )
-    } else {
-      baseMetrics ++ Map(
-        "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
-        "avgDictionaryFields" -> SQLMetrics
-          .createAverageMetric(sparkContext, "avg dictionary fields"),
-        "dictionarySize" -> SQLMetrics.createSizeMetric(sparkContext, "dictionary size")
-      )
+    shuffleWriterType match {
+      case HashShuffleWriterType =>
+        baseMetrics ++ Map(
+          "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
+          "avgDictionaryFields" -> SQLMetrics
+            .createAverageMetric(sparkContext, "avg dictionary fields"),
+          "dictionarySize" -> SQLMetrics.createSizeMetric(sparkContext, "dictionary size")
+        )
+      case SortShuffleWriterType =>
+        baseMetrics ++ Map(
+          "sortTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle sort"),
+          "c2rTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle c2r")
+        )
+      case RssSortShuffleWriterType =>
+        baseMetrics ++ Map(
+          "sortTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle sort")
+        )
+      case _ =>
+        baseMetrics
     }
   }
 

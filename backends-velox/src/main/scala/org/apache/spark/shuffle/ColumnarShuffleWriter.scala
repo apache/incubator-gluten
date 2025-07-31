@@ -18,7 +18,7 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, SortShuffleWriterType}
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
@@ -42,7 +42,17 @@ class ColumnarShuffleWriter[K, V](
   with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
-  protected val isSort: Boolean = dep.isSort
+
+  dep.shuffleWriterType match {
+    case HashShuffleWriterType | SortShuffleWriterType =>
+    // Valid shuffle writer types
+    case _ =>
+      throw new IllegalArgumentException(
+        s"Unsupported shuffle writer type: ${dep.shuffleWriterType.name}, " +
+          s"expected one of: ${HashShuffleWriterType.name}, ${SortShuffleWriterType.name}")
+  }
+
+  protected val isSort: Boolean = dep.shuffleWriterType == SortShuffleWriterType
 
   private val numPartitions: Int = dep.partitioner.numPartitions
 

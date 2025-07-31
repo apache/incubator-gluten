@@ -56,6 +56,7 @@ object RasSuiteBase {
     extends LeafLike {
     override def selfCost(): Long = Long.MaxValue
     override def makeCopy(): LeafLike = copy()
+    override def toString: String = s"${classOf[Group].getSimpleName} $id"
   }
 
   object Group {

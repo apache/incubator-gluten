@@ -14,20 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.ras.property.role
 
-/**
- * GlutenExpression is a marker trait for expressions that are specific to Gluten execution. It can
- * be used to identify expressions that should only be evaluated in the context of a Spark task.
- */
-trait GlutenExpression {
+sealed trait MemoRole
 
-  def onlyInSparkTask(): Boolean = false
-
-}
-
-trait GlutenTaskOnlyExpression extends GlutenExpression {
-
-  override def onlyInSparkTask(): Boolean = true
-
+private[role] object MemoRole {
+  case object Hub extends MemoRole
+  case object User extends MemoRole
+  case object Leaf extends MemoRole
 }

@@ -141,6 +141,7 @@ function cmake_install {
 }
 
 function setup_macos {
+  sed -i '' '/run_and_time install_arrow/d' scripts/setup-macos.sh
   if [ $ARCH == 'x86_64' ]; then
     ./scripts/setup-macos.sh
   elif [ $ARCH == 'arm64' ]; then

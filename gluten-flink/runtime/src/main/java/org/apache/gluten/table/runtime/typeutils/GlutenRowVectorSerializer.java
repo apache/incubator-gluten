@@ -31,15 +31,16 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /** Serializer for {@link RowVector}. */
 @Internal
-public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
+public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> implements Closeable {
   private static final long serialVersionUID = 1L;
   private final RowType rowType;
-  private MemoryManager memoryManager;
-  private Session session;
+  private transient MemoryManager memoryManager;
+  private transient Session session;
 
   public GlutenRowVectorSerializer(RowType rowType) {
     this.rowType = rowType;
@@ -100,8 +101,11 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
   @Override
   public boolean equals(Object obj) {
     if (obj instanceof GlutenRowVectorSerializer) {
-      GlutenRowVectorSerializer other = (GlutenRowVectorSerializer) obj;
-      return rowType.equals(other.rowType);
+      if (rowType != null) {
+        GlutenRowVectorSerializer other = (GlutenRowVectorSerializer) obj;
+        return rowType.equals(other.rowType);
+      }
+      return true;
     }
 
     return false;
@@ -109,6 +113,9 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
 
   @Override
   public int hashCode() {
+    if (rowType == null) {
+      return 0;
+    }
     return rowType.hashCode();
   }
 
@@ -125,6 +132,14 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
   @Override
   public TypeSerializerSnapshot<StatefulRecord> snapshotConfiguration() {
     return new RowVectorSerializerSnapshot(rowType);
+  }
+
+  @Override
+  public void close() {
+    if (memoryManager != null) {
+      memoryManager.close();
+      session.close();
+    }
   }
 
   /** {@link TypeSerializerSnapshot} for Gluten RowVector.. */

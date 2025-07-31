@@ -39,9 +39,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class NexmarkTest {
 
@@ -76,7 +81,7 @@ public class NexmarkTest {
   }
 
   @Test
-  void testAllNexmarkQueries() {
+  void testAllNexmarkQueries() throws ExecutionException, InterruptedException, TimeoutException {
     List<String> queryFiles = getQueries();
     assertThat(queryFiles).isNotEmpty();
 
@@ -111,7 +116,8 @@ public class NexmarkTest {
     return result;
   }
 
-  private void executeQuery(StreamTableEnvironment tEnv, String queryFileName) {
+  private void executeQuery(StreamTableEnvironment tEnv, String queryFileName)
+      throws ExecutionException, InterruptedException, TimeoutException {
     String queryContent = readSqlFromFile(NEXMARK_RESOURCE_DIR + "/" + queryFileName);
 
     String[] sqlStatements = queryContent.split(";");
@@ -120,14 +126,20 @@ public class NexmarkTest {
     String createResultTable = sqlStatements[0].trim();
     if (!createResultTable.isEmpty()) {
       TableResult createResult = tEnv.executeSql(createResultTable);
-      assertThat(createResult.getJobClient().isPresent()).isFalse();
+      assertFalse(createResult.getJobClient().isPresent());
     }
 
     String insertQuery = sqlStatements[1].trim();
     if (!insertQuery.isEmpty()) {
       TableResult insertResult = tEnv.executeSql(insertQuery);
-      assertThat(insertResult.getJobClient().isPresent()).isTrue();
+      waitForJobCompletion(insertResult, 30000);
     }
+  }
+
+  private void waitForJobCompletion(TableResult result, long timeoutMs)
+      throws InterruptedException, ExecutionException, TimeoutException {
+    assertTrue(result.getJobClient().isPresent());
+    result.getJobClient().get().getJobExecutionResult().get(timeoutMs, TimeUnit.MILLISECONDS);
   }
 
   private List<String> getQueries() {

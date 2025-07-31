@@ -355,7 +355,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("window expression") {
     Seq(("sort", 0), ("streaming", 1)).foreach {
       case (windowType, localSortSize) =>
-        withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
+        withSQLConf(VeloxConfig.COLUMNAR_VELOX_WINDOW_TYPE.key -> windowType) {
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_commitdate" +
@@ -715,10 +715,9 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("combine small batches before shuffle") {
     val minBatchSize = 15
     withSQLConf(
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
-      "spark.gluten.sql.columnar.maxBatchSize" -> "2",
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.minSize" ->
-        s"$minBatchSize"
+      VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key -> "true",
+      GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key -> "2",
+      VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE.key -> s"$minBatchSize"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
@@ -736,8 +735,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
 
     withSQLConf(
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
-      "spark.gluten.sql.columnar.maxBatchSize" -> "2"
+      VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key -> "true",
+      GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key -> "2"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
@@ -783,7 +782,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("Improve the local sort ensure requirements") {
     withSQLConf(
       "spark.sql.autoBroadcastJoinThreshold" -> "-1",
-      "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
       withTable("t1", "t2") {
         sql("""
               |create table t1 using parquet as
@@ -930,81 +929,98 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
 
   test("test explode/posexplode function") {
     Seq("explode", "posexplode").foreach {
-      func =>
-        // Literal: func(literal)
-        runQueryAndCompare(s"""
-                              |SELECT $func(array(1, 2, 3));
-                              |""".stripMargin) {
-          checkGlutenOperatorMatch[GenerateExecTransformer]
-        }
-        runQueryAndCompare(s"""
-                              |SELECT $func(map(1, 'a', 2, 'b'));
-                              |""".stripMargin) {
-          checkGlutenOperatorMatch[GenerateExecTransformer]
-        }
-        runQueryAndCompare(
-          s"""
-             |SELECT $func(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
-             |""".stripMargin) {
-          checkGlutenOperatorMatch[GenerateExecTransformer]
-        }
-        runQueryAndCompare(s"""
-                              |SELECT $func(map(1, array(1, 2), 2, array(3, 4)));
-                              |""".stripMargin) {
-          checkGlutenOperatorMatch[GenerateExecTransformer]
-        }
+      f =>
+        Seq(true, false).foreach {
+          isOuter =>
+            val func = if (isOuter) s"${f}_outer" else f
+            // Literal: func(literal)
+            runQueryAndCompare(s"""
+                                  |SELECT $func(array(1, 2, 3));
+                                  |""".stripMargin) {
+              checkGlutenOperatorMatch[GenerateExecTransformer]
+            }
+            runQueryAndCompare(s"""
+                                  |SELECT $func(map(1, 'a', 2, 'b'));
+                                  |""".stripMargin) {
+              checkGlutenOperatorMatch[GenerateExecTransformer]
+            }
+            runQueryAndCompare(
+              s"""
+                 |SELECT
+                 |  $func(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, '', 6, null)));
+                 |""".stripMargin) {
+              checkGlutenOperatorMatch[GenerateExecTransformer]
+            }
+            runQueryAndCompare(s"""
+                                  |SELECT $func(map(1, array(1, 2), 2, array(3, 4), 3, array()));
+                                  |""".stripMargin) {
+              checkGlutenOperatorMatch[GenerateExecTransformer]
+            }
 
-        // CreateArray/CreateMap: func(array(col)), func(map(k, v))
-        withTempView("t1") {
-          sql("""select * from values (1), (2), (3), (4)
-                |as tbl(a)
+            // CreateArray/CreateMap: func(array(col)), func(map(k, v))
+            withTempView("t1") {
+              sql("""select * from values (1), (2), (3), (4), (null)
+                    |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t1")
-          runQueryAndCompare(s"""
-                                |SELECT $func(array(a)) from t1;
-                                |""".stripMargin) {
-            checkGlutenOperatorMatch[GenerateExecTransformer]
-          }
-          sql("""select * from values (1, 'a'), (2, 'b'), (3, null), (4, null)
-                |as tbl(a, b)
+              runQueryAndCompare(s"""
+                                    |SELECT $func(array(a)) from t1;
+                                    |""".stripMargin) {
+                checkGlutenOperatorMatch[GenerateExecTransformer]
+              }
+              sql("""select * from values (1, 'a'), (2, 'b'), (3, null), (4, null)
+                    |as tbl(a, b)
          """.stripMargin).createOrReplaceTempView("t1")
-          runQueryAndCompare(s"""
-                                |SELECT $func(map(a, b)) from t1;
-                                |""".stripMargin) {
-            checkGlutenOperatorMatch[GenerateExecTransformer]
-          }
-        }
+              runQueryAndCompare(s"""
+                                    |SELECT $func(map(a, b)) from t1;
+                                    |""".stripMargin) {
+                checkGlutenOperatorMatch[GenerateExecTransformer]
+              }
+            }
 
-        // AttributeReference: func(col)
-        withTempView("t2") {
-          sql("""select * from values
-                |  array(1, 2, 3),
-                |  array(4, null)
-                |as tbl(a)
+            // AttributeReference: func(col)
+            withTempView("t2") {
+              sql("""select * from values
+                    |  array(1, 2, 3),
+                    |  array(4, null),
+                    |  array(),
+                    |  null
+                    |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t2")
-          runQueryAndCompare(s"""
-                                |SELECT $func(a) from t2;
-                                |""".stripMargin) {
-            // No ProjectExecTransformer is introduced.
-            checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer]
-          }
-          sql("""select * from values
-                |  map(1, 'a', 2, 'b', 3, null),
-                |  map(4, null)
-                |as tbl(a)
+              runQueryAndCompare(s"""
+                                    |SELECT $func(a) from t2;
+                                    |""".stripMargin) {
+                df =>
+                  if (!isOuter) {
+                    // No ProjectExecTransformer is introduced.
+                    checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer](df)
+                  }
+                  checkGlutenOperatorMatch[GenerateExecTransformer](df)
+              }
+              sql("""select * from values
+                    |  map(1, 'a', 2, 'b', 3, null),
+                    |  map(4, null),
+                    |  map(),
+                    |  null
+                    |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t2")
-          runQueryAndCompare(s"""
-                                |SELECT $func(a) from t2;
-                                |""".stripMargin) {
-            // No ProjectExecTransformer is introduced.
-            checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer]
-          }
+              runQueryAndCompare(s"""
+                                    |SELECT $func(a) from t2;
+                                    |""".stripMargin) {
+                df =>
+                  if (!isOuter) {
+                    // No ProjectExecTransformer is introduced.
+                    checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer](df)
+                  }
+                  checkGlutenOperatorMatch[GenerateExecTransformer](df)
+              }
 
-          runQueryAndCompare(
-            s"""
-               |SELECT $func(${VeloxDummyExpression.VELOX_DUMMY_EXPRESSION}(a)) from t2;
-               |""".stripMargin) {
-            checkGlutenOperatorMatch[GenerateExecTransformer]
-          }
+              runQueryAndCompare(
+                s"""
+                   |SELECT $func(${VeloxDummyExpression.VELOX_DUMMY_EXPRESSION}(a)) from t2;
+                   |""".stripMargin) {
+                checkGlutenOperatorMatch[GenerateExecTransformer]
+              }
+            }
         }
     }
   }
@@ -1047,58 +1063,67 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("test inline function") {
-    // Literal: func(literal)
-    runQueryAndCompare(s"""
-                          |SELECT inline(array(
-                          |  named_struct('c1', 0, 'c2', 1),
-                          |  named_struct('c1', 2, 'c2', null)));
-                          |""".stripMargin) {
-      checkGlutenOperatorMatch[GenerateExecTransformer]
-    }
+    Seq(true, false).foreach {
+      isOuter =>
+        val func = if (isOuter) "inline_outer" else "inline"
 
-    // CreateArray: func(array(col))
-    withTempView("t1") {
-      sql("""SELECT * from values
-            |  (named_struct('c1', 0, 'c2', 1)),
-            |  (named_struct('c1', 2, 'c2', null)),
-            |  (null)
-            |as tbl(a)
+        // Literal: func(literal)
+        runQueryAndCompare(s"""
+                              |SELECT $func(array(
+                              |  named_struct('c1', 0, 'c2', 1),
+                              |  named_struct('c1', 2, 'c2', null)));
+                              |""".stripMargin) {
+          checkGlutenOperatorMatch[GenerateExecTransformer]
+        }
+
+        // CreateArray: func(array(col))
+        withTempView("t1") {
+          sql("""SELECT * from values
+                |  (named_struct('c1', 0, 'c2', 1)),
+                |  (named_struct('c1', 2, 'c2', null)),
+                |  (null)
+                |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t1")
-      runQueryAndCompare(s"""
-                            |SELECT inline(array(a)) from t1;
-                            |""".stripMargin) {
-        checkGlutenOperatorMatch[GenerateExecTransformer]
-      }
-    }
+          runQueryAndCompare(s"""
+                                |SELECT $func(array(a)) from t1;
+                                |""".stripMargin) {
+            checkGlutenOperatorMatch[GenerateExecTransformer]
+          }
+        }
 
-    withTempView("t2") {
-      sql("""SELECT * from values
-            |  array(
-            |    named_struct('c1', 0, 'c2', 1),
-            |    null,
-            |    named_struct('c1', 2, 'c2', 3)
-            |  ),
-            |  array(
-            |    null,
-            |    named_struct('c1', 0, 'c2', 1),
-            |    named_struct('c1', 2, 'c2', 3)
-            |  )
-            |as tbl(a)
+        withTempView("t2") {
+          sql("""SELECT * from values
+                |  array(
+                |    named_struct('c1', 0, 'c2', 1),
+                |    null,
+                |    named_struct('c1', 2, 'c2', 3)
+                |  ),
+                |  array(
+                |    null,
+                |    named_struct('c1', 0, 'c2', 1),
+                |    named_struct('c1', 2, 'c2', 3)
+                |  ),
+                |  array(),
+                |  null
+                |as tbl(a)
          """.stripMargin).createOrReplaceTempView("t2")
-      runQueryAndCompare("""
-                           |SELECT inline(a) from t2;
-                           |""".stripMargin) {
-        checkGlutenOperatorMatch[GenerateExecTransformer]
-      }
-    }
+          runQueryAndCompare(s"""
+                                |SELECT $func(a) from t2;
+                                |""".stripMargin) {
+            checkGlutenOperatorMatch[GenerateExecTransformer]
+          }
+        }
 
-    // Fallback for array(struct(...), null) literal.
-    runQueryAndCompare(s"""
-                          |SELECT inline(array(
-                          |  named_struct('c1', 0, 'c2', 1),
-                          |  named_struct('c1', 2, 'c2', null),
-                          |  null));
-                          |""".stripMargin)(_)
+        // Fallback for array(struct(...), null) literal.
+        runQueryAndCompare(s"""
+                              |SELECT $func(array(
+                              |  named_struct('c1', 0, 'c2', 1),
+                              |  named_struct('c1', 2, 'c2', null),
+                              |  null));
+                              |""".stripMargin) {
+          checkSparkOperatorMatch[GenerateExec]
+        }
+    }
   }
 
   test("test multi-generate") {
@@ -1255,7 +1280,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("Test sample op") {
-    withSQLConf("spark.gluten.sql.columnarSampleEnabled" -> "true") {
+    withSQLConf(GlutenConfig.COLUMNAR_SAMPLE_ENABLED.key -> "true") {
       withTable("t") {
         sql("create table t (id int, b boolean) using parquet")
         sql("insert into t values (1, true), (2, false), (3, null), (4, true), (5, false)")
@@ -1277,7 +1302,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
             |""".stripMargin)
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "true") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true") {
         runQueryAndCompare(
           """
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
@@ -1297,7 +1322,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
@@ -1307,7 +1332,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 left semi join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1355,7 +1380,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             |create table t2 using parquet as
             |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
             |""".stripMargin)
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 inner join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1365,7 +1390,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 left join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1375,7 +1400,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 left semi join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1385,7 +1410,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 right join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1395,7 +1420,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 left anti join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -2083,7 +2108,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("Blacklist expression can be handled by ColumnarPartialProject") {
-    withSQLConf("spark.gluten.expression.blacklist" -> "regexp_replace") {
+    withSQLConf(GlutenConfig.EXPRESSION_BLACK_LIST.key -> "regexp_replace") {
       runQueryAndCompare(
         "SELECT c_custkey, c_name, regexp_replace(c_comment, '\\w', 'something') FROM customer") {
         df =>

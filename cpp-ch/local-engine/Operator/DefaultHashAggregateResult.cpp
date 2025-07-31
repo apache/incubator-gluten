@@ -16,7 +16,6 @@
  */
 #include "DefaultHashAggregateResult.h"
 
-#include <Columns/ColumnNullable.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Operator/ExpandTransform.h>
@@ -25,6 +24,7 @@
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace local_engine
@@ -43,10 +43,10 @@ static DB::ITransformingStep::Traits getTraits()
 }
 
 /// A more special case, the aggregate functions is also empty.
-/// We add a fake block to downstream. 
+/// We add a fake block to downstream.
 DB::Block adjustOutputHeader(const DB::Block & original_block)
 {
-    if (original_block)
+    if (!original_block.empty())
         return original_block;
     return BlockUtil::buildRowCountHeader();
 }
@@ -95,7 +95,7 @@ public:
                 return Status::Finished;
             }
             DB::Columns result_cols;
-            if (header)
+            if (!header.empty())
             {
                 for (const auto & col : header.getColumnsWithTypeAndName())
                 {
@@ -128,9 +128,10 @@ public:
             return Status::Ready;
         }
         return Status::NeedData;
-    }    
+    }
 
     String getName() const override { return "DefaultHashAggrgateResultTransform"; }
+
 private:
     DB::Block header;
     bool has_input = false;
@@ -139,8 +140,8 @@ private:
     DB::Chunk output_chunk;
 };
 
-DefaultHashAggregateResultStep::DefaultHashAggregateResultStep(const DB::Block & input_header)
-    : DB::ITransformingStep(input_header, adjustOutputHeader(input_header), getTraits())
+DefaultHashAggregateResultStep::DefaultHashAggregateResultStep(const DB::SharedHeader & input_header)
+    : DB::ITransformingStep(input_header, toShared(adjustOutputHeader(*input_header)), getTraits())
 {
 }
 

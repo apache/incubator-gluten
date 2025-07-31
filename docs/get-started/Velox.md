@@ -284,6 +284,14 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 spark.dynamicAllocation.enabled false
 ```
 
+Additionally, for sort-based shuffle, Celeborn supports two types of shuffle writers: the default row-based sort shuffle writer and the RSS sort shuffle writer.
+By default, Celeborn uses the RSS sort shuffle writer. You can switch to the default row-based sort shuffle writer
+by setting the following configuration:
+
+```
+spark.gluten.sql.columnar.shuffle.celeborn.useRssSort false
+```
+
 ## Uniffle support
 
 Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.9.2`.
@@ -396,7 +404,7 @@ With above steps, you will get a physical plan output like:
     +- VeloxColumnarToRowExec (5)
       +- ^ ProjectExecTransformer (3)
         +- GlutenRowToArrowColumnar (2)
-          +- Scan hive default.extracted_db_pins (1)
+          +- Scan hive default.table (1)
 
 ```
 

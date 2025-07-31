@@ -30,7 +30,7 @@ class GlutenKafkaSource : public DB::ISource
 {
 public:
     GlutenKafkaSource(
-        const DB::Block & result_header_,
+        const DB::SharedHeader & result_header_,
         const DB::ContextPtr & context_,
         const DB::Names & topics_,
         const size_t & partition_,
@@ -71,7 +71,7 @@ private:
     UInt64 max_block_size;
     std::shared_ptr<DB::KafkaConsumer> consumer;
 
-    DB::Block result_header;
+    DB::SharedHeader result_header;
     DB::Block virtual_header;
     DB::Block non_virtual_header;
     std::shared_ptr<DB::KafkaSettings> kafka_settings;

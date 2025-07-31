@@ -34,6 +34,22 @@ case class GlutenNumaBindingInfo(
     totalCoreRange: Array[String] = null,
     numCoresPerExecutor: Int = -1) {}
 
+trait ShuffleWriterType {
+  val name: String
+}
+
+case object HashShuffleWriterType extends ShuffleWriterType {
+  override val name: String = ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
+}
+
+case object SortShuffleWriterType extends ShuffleWriterType {
+  override val name: String = ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
+}
+
+case object RssSortShuffleWriterType extends ShuffleWriterType {
+  override val name: String = ReservedKeys.GLUTEN_RSS_SORT_SHUFFLE_WRITER
+}
+
 class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   import GlutenConfig._
 
@@ -68,6 +84,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableColumnarWindow: Boolean = getConf(COLUMNAR_WINDOW_ENABLED)
 
   def enableColumnarWindowGroupLimit: Boolean = getConf(COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED)
+
+  def enableAppendData: Boolean = getConf(COLUMNAR_APPEND_DATA_ENABLED)
 
   def enableColumnarShuffledHashJoin: Boolean = getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
@@ -292,7 +310,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   }
 
   def printStackOnValidationFailure: Boolean =
-    getConf(VALIDATION_PRINT_FAILURE_STACK_)
+    getConf(VALIDATION_PRINT_FAILURE_STACK)
 
   def validationFailFast: Boolean = getConf(VALIDATION_FAIL_FAST)
 
@@ -332,6 +350,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableCelebornFallback: Boolean = getConf(CELEBORN_FALLBACK_ENABLED)
 
+  def useCelebornRssSort: Boolean = getConf(CELEBORN_USE_RSS_SORT)
+
   def enableHdfsViewfs: Boolean = getConf(HDFS_VIEWFS_ENABLED)
 
   def parquetEncryptionValidationEnabled: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
@@ -367,6 +387,10 @@ object GlutenConfig {
   val PARQUET_BLOCK_SIZE: String = "parquet.block.size"
   val PARQUET_BLOCK_ROWS: String = "parquet.block.rows"
   val PARQUET_GZIP_WINDOW_SIZE: String = "parquet.gzip.windowSize"
+  val PARQUET_ZSTD_COMPRESSION_LEVEL: String = "parquet.compression.codec.zstd.level"
+  val PARQUET_DATAPAGE_SIZE: String = "parquet.page.size"
+  val PARQUET_ENABLE_DICTIONARY: String = "parquet.enable.dictionary"
+  val PARQUET_WRITER_VERSION: String = "parquet.writer.version"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 
@@ -838,6 +862,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_APPEND_DATA_ENABLED =
+    buildConf("spark.gluten.sql.columnar.appendData")
+      .internal()
+      .doc("Enable or disable columnar v2 command append data.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_PREFER_STREAMING_AGGREGATE =
     buildConf("spark.gluten.sql.columnar.preferStreamingAggregate")
       .internal()
@@ -1199,7 +1230,7 @@ object GlutenConfig {
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("WARN")
 
-  val VALIDATION_PRINT_FAILURE_STACK_ =
+  val VALIDATION_PRINT_FAILURE_STACK =
     buildConf("spark.gluten.sql.validation.printStackOnFailure")
       .internal()
       .booleanConf
@@ -1510,6 +1541,16 @@ object GlutenConfig {
       .internal()
       .doc("If enabled, fall back to ColumnarShuffleManager when celeborn service is unavailable." +
         "Otherwise, throw an exception.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CELEBORN_USE_RSS_SORT =
+    buildConf("spark.gluten.sql.columnar.shuffle.celeborn.useRssSort")
+      .internal()
+      .doc(
+        "If true, use RSS sort implementation for Celeborn sort-based shuffle." +
+          "If false, use Gluten's row-based sort implementation. " +
+          "Only valid when `spark.celeborn.client.spark.shuffle.writer` is set to `sort`.")
       .booleanConf
       .createWithDefault(true)
 

@@ -33,8 +33,6 @@ import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusListener, GlutenUIUt
 import org.apache.spark.sql.internal.SparkConfigUtil._
 import org.apache.spark.sql.internal.SQLConf
 
-import java.util.Collections
-
 import scala.collection.mutable
 
 trait SubstraitBackend extends Backend with Logging {
@@ -54,8 +52,6 @@ trait SubstraitBackend extends Backend with Logging {
     postBuildInfoEvent(sc)
 
     setPredefinedConfigs(conf)
-
-    Collections.emptyMap()
 
     listenerApi().onDriverStart(sc, pc)
   }

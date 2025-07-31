@@ -95,7 +95,11 @@ class LocalPartitionWriter::LocalSpiller {
   arrow::Status spill(uint32_t partitionId, std::unique_ptr<InMemoryPayload> payload) {
     ScopedTimer timer(&spillTime_);
 
-    curPid_ = partitionId;
+    if (curPid_ != partitionId) {
+      // Record the write position of the new partition.
+      ARROW_ASSIGN_OR_RAISE(writePos_, os_->Tell());
+      curPid_ = partitionId;
+    }
     flushed_ = false;
 
     auto* raw = compressedOs_ != nullptr ? compressedOs_.get() : os_.get();

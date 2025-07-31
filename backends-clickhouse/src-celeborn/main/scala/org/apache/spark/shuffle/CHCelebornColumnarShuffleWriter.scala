@@ -82,7 +82,7 @@ class CHCelebornColumnarShuffleWriter[K, V](
       CHBackendSettings.shuffleHashAlgorithm,
       celebornPartitionPusher,
       CHConfig.get.chColumnarForceMemorySortShuffle
-        || ShuffleMode.SORT.name.equalsIgnoreCase(shuffleWriterType)
+        || ShuffleMode.SORT.name.equalsIgnoreCase(dep.shuffleWriterType.name)
     )
 
     splitResult = jniWrapper.stop(nativeShuffleWriter)

@@ -68,11 +68,11 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
 
   def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
-
-  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled
 }
 
 object VeloxConfig {
+
+  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled
 
   def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
@@ -347,6 +347,15 @@ object VeloxConfig {
       .doc("Show velox full task metrics when finished.")
       .booleanConf
       .createWithDefault(false)
+
+  val COLUMNAR_VELOX_TASK_METRICS_TO_EVENT_LOG_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold")
+      .internal()
+      .doc("Sets the threshold in seconds for writing task statistics to the event log if the " +
+        "task runs longer than this value. Configuring the value >=0 can enable the feature. " +
+        "0 means all tasks report and save the metrics to eventlog. value <0 disable the feature.")
+      .timeConf(TimeUnit.SECONDS)
+      .createOptional
 
   val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
     buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")

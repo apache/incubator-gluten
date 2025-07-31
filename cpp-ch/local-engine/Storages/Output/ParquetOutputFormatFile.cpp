@@ -25,6 +25,7 @@
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ParquetBlockOutputFormat.h>
 #include <Processors/Port.h>
+#include <Common/BlockTypeUtils.h>
 
 namespace local_engine
 {
@@ -42,7 +43,7 @@ OutputFormatFile::OutputFormatPtr ParquetOutputFormatFile::createOutputFormat(co
     auto res = std::make_shared<OutputFormatFile::OutputFormat>();
     res->write_buffer = write_buffer_builder->build(file_uri);
 
-    auto new_header = createHeaderWithPreferredSchema(header);
+    auto new_header = toShared(createHeaderWithPreferredSchema(header));
     // TODO: align all spark parquet config with ch parquet config
     auto format_settings = DB::getFormatSettings(context);
     auto output_format = std::make_shared<DB::ParquetBlockOutputFormat>(*(res->write_buffer), new_header, format_settings);

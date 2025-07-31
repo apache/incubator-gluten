@@ -20,9 +20,10 @@
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Storages/SubstraitSource/Delta/DeltaMeta.h>
 #include <Storages/Parquet/ParquetMeta.h>
+#include <Storages/SubstraitSource/Delta/DeltaMeta.h>
 #include <Storages/SubstraitSource/FormatFile.h>
+#include <Common/BlockTypeUtils.h>
 
 namespace DB
 {
@@ -46,7 +47,7 @@ static DB::ITransformingStep::Traits getTraits()
         }};
 }
 
-FillingDeltaInternalRowDeletedStep::FillingDeltaInternalRowDeletedStep(const DB::Block & input_header, const MergeTreeTableInstance & _merge_tree_table, const DB::ContextPtr _context)
+FillingDeltaInternalRowDeletedStep::FillingDeltaInternalRowDeletedStep(const DB::SharedHeader & input_header, const MergeTreeTableInstance & _merge_tree_table, const DB::ContextPtr _context)
     : ITransformingStep(input_header, input_header, getTraits()), merge_tree_table(_merge_tree_table), context(_context)
 {
 }
@@ -63,16 +64,16 @@ DB::Block FillingDeltaInternalRowDeletedStep::transformHeader(const DB::Block & 
 
 void FillingDeltaInternalRowDeletedStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/)
 {
-    pipeline.addSimpleTransform([&](const DB::Block & header) { return std::make_shared<FillingDeltaInternalRowDeletedTransform>(header, merge_tree_table, context); });
+    pipeline.addSimpleTransform([&](const DB::SharedHeader & header) { return std::make_shared<FillingDeltaInternalRowDeletedTransform>(header, merge_tree_table, context); });
 }
 
 void FillingDeltaInternalRowDeletedStep::updateOutputHeader()
 {
-    output_header = transformHeader(input_headers.front());
+    output_header = toShared(transformHeader(*input_headers.front()));
 }
 
-FillingDeltaInternalRowDeletedTransform::FillingDeltaInternalRowDeletedTransform(const DB::Block & input_header_, const MergeTreeTableInstance & merge_tree_table, const DB::ContextPtr context)
-    : ISimpleTransform(input_header_, input_header_, true), read_header(input_header_)
+FillingDeltaInternalRowDeletedTransform::FillingDeltaInternalRowDeletedTransform(const DB::SharedHeader & input_header_, const MergeTreeTableInstance & merge_tree_table, const DB::ContextPtr context)
+    : ISimpleTransform(input_header_, input_header_, true), read_header(*input_header_)
 {
     for (const auto part : merge_tree_table.parts)
     {
@@ -96,7 +97,7 @@ void FillingDeltaInternalRowDeletedTransform::transform(DB::Chunk & chunk)
     size_t part_path_key_pos = read_header.getPositionByName(FileMetaColumns::FILE_PATH);
     size_t row_index_pos = read_header.getPositionByName(ParquetVirtualMeta::TMP_ROWINDEX);
 
-    const auto& input_columns = chunk.getColumns();
+    const auto & input_columns = chunk.getColumns();
 
     auto deleted_row_column_nest = DB::ColumnUInt8::create(num_rows);
     auto & vec = deleted_row_column_nest->getData();

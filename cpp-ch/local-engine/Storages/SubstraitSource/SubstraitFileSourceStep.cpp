@@ -51,7 +51,7 @@ SubstraitFileStorage dummy_storage{DB::StorageID("dummy_db", "dummy_table")};
 }
 
 SubstraitFileSourceStep::SubstraitFileSourceStep(const DB::ContextPtr & context_, DB::Pipe pipe_, const String &)
-    : SourceStepWithFilter(pipe_.getHeader(), {}, {}, dummy_storage.getStorageSnapshot(nullptr, nullptr), context_), pipe(std::move(pipe_))
+    : SourceStepWithFilter(pipe_.getSharedHeader(), {}, {}, dummy_storage.getStorageSnapshot(nullptr, nullptr), context_), pipe(std::move(pipe_))
 {
 }
 

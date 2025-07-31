@@ -43,24 +43,6 @@ env:
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
-  # for JDK17 unit tests
-  EXTRA_FLAGS:  "-XX:+IgnoreUnrecognizedVMOptions 
-                --add-opens=java.base/java.lang=ALL-UNNAMED
-                --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
-                --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
-                --add-opens=java.base/java.io=ALL-UNNAMED
-                --add-opens=java.base/java.net=ALL-UNNAMED
-                --add-opens=java.base/java.nio=ALL-UNNAMED
-                --add-opens=java.base/java.util=ALL-UNNAMED
-                --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
-                --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
-                --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
-                --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
-                --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
-                --add-opens=java.base/sun.security.action=ALL-UNNAMED
-                --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
-                -Djdk.reflect.useDirectMethodHandle=false
-                -Dio.netty.tryReflectionSetAccessible=true"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -613,6 +595,11 @@ jobs:
             --local --preset=velox-with-celeborn --extra-conf=spark.celeborn.client.spark.shuffle.writer=sort \
             --extra-conf=spark.celeborn.push.sortMemory.threshold=8m --benchmark-type=ds --error-on-memleak \
             --off-heap-size=10g -s=1.0 --threads=8 --iterations=1
+          GLUTEN_IT_JVM_ARGS=-Xmx10G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox-with-celeborn --extra-conf=spark.celeborn.client.spark.shuffle.writer=sort \
+            --extra-conf=spark.gluten.sql.columnar.shuffle.celeborn.useRssSort=false \
+            --extra-conf=spark.celeborn.push.sortMemory.threshold=8m --benchmark-type=ds --error-on-memleak \
+            --off-heap-size=10g -s=1.0 --threads=8 --iterations=1
 
   spark-test-spark32:
     needs: build-native-lib-centos-7
@@ -634,14 +621,14 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.2.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
           $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Piceberg \
           -Pdelta -Phudi -DargLine="-Dspark.test.home=/opt/shims/spark32/spark_home/" \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -723,7 +710,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.3.1 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -734,7 +721,7 @@ jobs:
           java -version
           $MVN_CMD clean test -Pspark-3.3 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark33/spark_home/" \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -822,7 +809,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.4.4 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.4.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -834,8 +821,8 @@ jobs:
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l $SPARK_HOME
           $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest \
-          -DargLine="-Dspark.test.home=$SPARK_HOME ${EXTRA_FLAGS}"
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest \
+          -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -885,7 +872,7 @@ jobs:
           ls -l $SPARK_HOME
           $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
-          -DargLine="-Dspark.test.home=$SPARK_HOME ${EXTRA_FLAGS}"
+          -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -924,7 +911,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -934,8 +921,8 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
           $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
-          -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/  ${EXTRA_FLAGS}" \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest
+          -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -980,7 +967,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -991,7 +978,7 @@ jobs:
           java -version
           $MVN_CMD clean test -Pspark-3.5 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Piceberg \
           -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/shims/spark35-scala-2.13/spark_home/" \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -1072,7 +1059,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1083,7 +1070,7 @@ jobs:
           java -version
           $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
@@ -1162,7 +1149,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1173,7 +1160,7 @@ jobs:
           java -version
           $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.sql.columnar.forceShuffledHashJoin=false" \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
@@ -1262,7 +1249,7 @@ jobs:
       - name: Run UDF test
         run: |
           # Depends on --build_example=ON.
-          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None \
+          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=org.apache.gluten.tags.EnhancedFeaturesTest \
           -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload test report
         uses: actions/upload-artifact@v4
@@ -1275,25 +1262,6 @@ jobs:
         with:
           name: ${{ github.job }}-test-log
           path: "**/target/*.log"
-
-  build-enhanced-feature-centos-8:
-    runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
-    steps:
-      - uses: actions/checkout@v2
-      - name: Get Ccache
-        uses: actions/cache/restore@v4
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-enhanced-centos8-release-shared-${{runner.arch}}-${{github.sha}}
-          restore-keys: |
-            ccache-enhanced-centos8-release-shared-${{runner.arch}}
-      - name: Build Gluten
-        run: |
-          df -a
-          source /opt/rh/gcc-toolset-11/enable
-          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_enhanced_features=ON
-          ccache -s
 
   build-cudf-centos-9:
     runs-on: ubuntu-22.04

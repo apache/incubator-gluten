@@ -60,4 +60,9 @@ public class TestGlutenMergeOnReadDelete extends TestMergeOnReadDelete {
   public synchronized void testDeleteWithSnapshotIsolation() throws ExecutionException {
     System.out.println("Run timeout");
   }
+
+  @Test
+  public void testDeleteFileThenMetadataDelete() {
+    System.out.println("Does not support metadata deletion");
+  }
 }

@@ -16,11 +16,11 @@
  */
 
 #pragma once
+#include <jni.h>
 #include <Processors/ISink.h>
+#include <Shuffle/PartitionWriter.h>
 #include <Shuffle/SelectorBuilder.h>
 #include <Shuffle/ShuffleCommon.h>
-#include <jni.h>
-#include <Shuffle/PartitionWriter.h>
 
 namespace DB
 {
@@ -35,8 +35,9 @@ class PartitionWriter;
 class SparkExchangeSink : public DB::ISink
 {
     friend class SparkExchangeManager;
+
 public:
-    SparkExchangeSink(const DB::Block& header, std::unique_ptr<SelectorBuilder> partitioner_,
+    SparkExchangeSink(const DB::SharedHeader& header, std::unique_ptr<SelectorBuilder> partitioner_,
                       std::shared_ptr<PartitionWriter> partition_writer_,
                       const std::vector<size_t>& output_columns_indicies_, bool sort_writer_)
         : DB::ISink(header)
@@ -45,7 +46,7 @@ public:
           , output_columns_indicies(output_columns_indicies_)
           , sort_writer(sort_writer_)
     {
-        initOutputHeader(header);
+        initOutputHeader(*header);
         partition_writer->initialize(&split_result, output_header);
     }
 
@@ -69,7 +70,7 @@ protected:
     void onFinish() override;
 
 private:
-    void initOutputHeader(const DB::Block& block);
+    void initOutputHeader(const DB::Block & block);
 
     DB::Block output_header;
     std::unique_ptr<SelectorBuilder> partitioner;

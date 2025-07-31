@@ -101,7 +101,7 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
     const substrait::PlanRel & root_rel = plan.relations().at(0);
     if (root_rel.root().names_size())
     {
-        auto columns = query_plan->getCurrentHeader().columns();
+        auto columns = query_plan->getCurrentHeader()->columns();
         if (columns != static_cast<size_t>(root_rel.root().names_size()))
         {
             debug::dumpPlan(*query_plan, "clickhouse plan", true);
@@ -126,7 +126,7 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
     const auto & output_schema = root_rel.root().output_schema();
     if (output_schema.types_size())
     {
-        auto origin_header = query_plan->getCurrentHeader();
+        const auto & origin_header = *query_plan->getCurrentHeader();
         const auto & origin_columns = origin_header.getColumnsWithTypeAndName();
 
         if (static_cast<size_t>(output_schema.types_size()) != origin_columns.size())
@@ -179,7 +179,8 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
 
         if (need_final_project)
         {
-            ActionsDAG final_project = ActionsDAG::makeConvertingActions(origin_columns, final_columns, ActionsDAG::MatchColumnsMode::Position, true);
+            ActionsDAG final_project
+                = ActionsDAG::makeConvertingActions(origin_columns, final_columns, ActionsDAG::MatchColumnsMode::Position, true);
             QueryPlanStepPtr final_project_step
                 = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(final_project));
             final_project_step->setStepDescription("Project for output schema");

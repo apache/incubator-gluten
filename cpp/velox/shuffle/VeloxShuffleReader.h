@@ -97,6 +97,8 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
 
   void readNextRow();
 
+  void reallocateRowBuffer();
+
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
