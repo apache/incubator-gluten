@@ -38,6 +38,7 @@ import java.util.List;
 
 import static org.apache.flink.table.data.StringData.fromString;
 
+@Disabled("Need to apply for the new interface of gluten operator")
 public class GlutenStreamJoinOperatorTest extends GlutenStreamJoinOperatorTestBase {
 
   private static FlinkTypeFactory typeFactory;

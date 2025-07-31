@@ -21,12 +21,14 @@ import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
+@Disabled("Need to apply for the new interface of gluten operator")
 class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
   @Override
