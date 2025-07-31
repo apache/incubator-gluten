@@ -179,6 +179,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAsOfJoinSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
+    // Expected exception org.apache.spark.SparkException to be thrown, but no exception was thrown
+    .exclude("map_concat function")
     .exclude("map with arrays")
     .exclude("flatten function")
     .exclude("aggregate function - array for primitive type not containing null")

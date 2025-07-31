@@ -130,20 +130,20 @@
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
-          <artifactId>iceberg-flink-runtime-1.16</artifactId>
+          <artifactId>iceberg-flink-runtime-1.18</artifactId>
           <version>${iceberg.version}</version>
           <scope>provided</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
-          <artifactId>iceberg-flink-1.16</artifactId>
+          <artifactId>iceberg-flink-1.18</artifactId>
           <version>${iceberg.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
-          <artifactId>iceberg-flink-1.16</artifactId>
+          <artifactId>iceberg-flink-1.18</artifactId>
           <version>${iceberg.version}</version>
           <scope>test</scope>
         </dependency>

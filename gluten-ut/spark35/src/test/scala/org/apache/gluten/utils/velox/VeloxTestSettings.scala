@@ -967,6 +967,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("detect escaped path and report the migration guide")
     .exclude("ignore the escaped path check when the flag is off")
     .excludeByPrefix("SPARK-51187")
+  enableSuite[GlutenQueryExecutionSuite]
+    // Rewritten to set root logger level to INFO so that logs can be parsed
+    .exclude("Logging plan changes for execution")
+    // Rewrite for transformed plan
+    .exclude("dumping query execution info to a file - explainMode=formatted")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
