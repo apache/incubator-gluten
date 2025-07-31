@@ -18,6 +18,7 @@ package org.apache.gluten.table.runtime.stream.custom;
 
 import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +26,9 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
@@ -168,5 +171,24 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
     query = "select b + e as x from tblDecimal where a > 0";
     runAndCheck(query, Arrays.asList("+I[2.0]", "+I[5.0]", "+I[7.0]"));
+  }
+
+  @Test
+  void testDateFormat() {
+    List<Row> rows =
+        Arrays.asList(Row.of(1, "2024-12-31 12:12:12"), Row.of(2, "2025-02-28 12:12:12"));
+    createSimpleBoundedValuesTable("dateFormatTbl", "a int, b string", rows);
+    String query =
+        "select a, DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd'), DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd HH:mm:ss') from dateFormatTbl";
+    Map<String, String> configs = new HashMap<>();
+    configs.put("config.used-for-test", "true");
+    configs.put(TableConfigOptions.LOCAL_TIME_ZONE.key(), "default");
+    runAndCheckException(query, configs);
+    configs.put(TableConfigOptions.LOCAL_TIME_ZONE.key(), "America/Los_Angeles");
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2024-12-31, 2024-12-31 12:12:12]", "+I[2, 2025-02-28, 2025-02-28 12:12:12]"),
+        configs);
   }
 }
