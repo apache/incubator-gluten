@@ -18,7 +18,7 @@
 
 GLUTEN_UPDATE="${GLUTEN_UPDATE:-1}" \
 mvn clean test \
-  -pl gluten-substrait -pl backends-velox -am \
+  -pl gluten-substrait -P backends-velox -am \
   -Dtest=none \
   -DfailIfNoTests=false \
   -DwildcardSuites=org.apache.gluten.config.AllGlutenConfiguration,org.apache.gluten.config.AllVeloxConfiguration
