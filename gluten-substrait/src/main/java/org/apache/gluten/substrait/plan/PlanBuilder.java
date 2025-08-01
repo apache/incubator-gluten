@@ -63,7 +63,8 @@ public class PlanBuilder {
       TypeNode outputSchema,
       AdvancedExtensionNode extension) {
     if (subCtx == null) {
-      throw new NullPointerException("ColumnarWholestageTransformer cannot doTansform.");
+      throw new NullPointerException(
+          "Cannot execute doTransform due to the SubstraitContext is null.");
     }
     List<FunctionMappingNode> mappingNodes = new ArrayList<>();
 
