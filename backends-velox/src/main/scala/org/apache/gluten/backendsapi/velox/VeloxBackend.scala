@@ -94,7 +94,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".internal.udfLibraryPaths"
   val GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION = VeloxBackend.CONF_PREFIX + ".udfAllowTypeConversion"
 
-  /** The columnar-batch type this backend is by default using. */
   override def primaryBatchType: Convention.BatchType = VeloxBatchType
 
   override def validateScanExec(
