@@ -102,7 +102,6 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
         final StatefulElement element = task.statefulGet();
-        System.out.println("Source Get row");
         if (element.isWatermark()) {
           sourceContext.emitWatermark(new Watermark(element.asWatermark().getTimestamp()));
         } else {
