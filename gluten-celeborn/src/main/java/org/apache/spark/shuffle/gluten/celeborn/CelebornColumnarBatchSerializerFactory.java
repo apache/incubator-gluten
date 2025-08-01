@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.shuffle
+package org.apache.spark.shuffle.gluten.celeborn;
 
-trait SupportsColumnarShuffle
+public interface CelebornColumnarBatchSerializerFactory {
+  String backendName();
 
-trait NeedCustomColumnarBatchSerializer {
-  def columnarBatchSerializerClass(): String
+  String columnarBatchSerializerClass();
 }
