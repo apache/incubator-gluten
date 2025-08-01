@@ -135,7 +135,7 @@ And you can see an operator named `gluten-cal` from the web frontend of your fli
 
 #### All operators executed by native
 Another example supports all operators executed by native. 
-You can use the data-generator.sql under docs directory.
+You can use the data-generator.sql under dev directory.
 
 ```bash
 bin/sql-client.sh -f data-generator.sql
