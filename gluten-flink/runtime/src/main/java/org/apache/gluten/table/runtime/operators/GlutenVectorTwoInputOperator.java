@@ -118,7 +118,6 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<Statefu
 
   @Override
   public void processElement1(StreamRecord<StatefulRecord> element) {
-    LOG.debug("processElement1: {}", element);
     final RowVector inRv = element.getValue().getRowVector();
     leftInputQueue.put(inRv);
     processElement();
@@ -127,7 +126,6 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<Statefu
 
   @Override
   public void processElement2(StreamRecord<StatefulRecord> element) {
-    LOG.debug("processElement2: {}", element);
     final RowVector inRv = element.getValue().getRowVector();
     rightInputQueue.put(inRv);
     processElement();

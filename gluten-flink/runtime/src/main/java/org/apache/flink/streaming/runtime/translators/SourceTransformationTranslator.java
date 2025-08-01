@@ -41,9 +41,6 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -59,7 +56,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, EnumChkT>
     extends SimpleTransformationTranslator<OUT, SourceTransformation<OUT, SplitT, EnumChkT>> {
-  private static final Logger LOG = LoggerFactory.getLogger(SourceTransformationTranslator.class);
 
   @Override
   protected Collection<Integer> translateForBatchInternal(
