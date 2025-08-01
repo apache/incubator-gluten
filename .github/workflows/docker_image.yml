@@ -146,7 +146,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, ubuntu-24.04-arm ]
+        os: [ ubuntu-22.04, ubuntu-22.04-arm ]
 
     steps:
       - name: Checkout repository
@@ -259,7 +259,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, ubuntu-24.04-arm ]
+        os: [ ubuntu-22.04, ubuntu-22.04-arm ]
         jdk: [jdk8, jdk11, jdk17]
     env:
       JDK_VERSION: 1.8.0
