@@ -39,21 +39,25 @@ case class RewriteCastFromArray(spark: SparkSession) extends Rule[LogicalPlan] {
     ) {
       return plan
     }
-    plan.transformExpressionsUpWithPruning(_.containsPattern(CAST)) {
-      case cast @ Cast(child, StringType, timeZoneId, evalMode)
-          if child.dataType.isInstanceOf[ArrayType] =>
-        child.dataType match {
-          case ArrayType(StringType, _) =>
-            val arrayJoin = ArrayJoin(child, Literal(", "), Some(Literal("null")))
-            Concat(Seq(Literal("["), arrayJoin, Literal("]")))
-          case ArrayType(IntegerType, _) | ArrayType(LongType, _) | ArrayType(DoubleType, _) |
-              ArrayType(BooleanType, _) | ArrayType(DateType, _) | ArrayType(TimestampType, _) =>
-            val arrayJoin = ArrayJoin(
-              Cast(child, ArrayType(StringType), timeZoneId, evalMode),
-              Literal(", "),
-              Some(Literal("null")))
-            Concat(Seq(Literal("["), arrayJoin, Literal("]")))
-          case _ => cast
+    plan.transformUpWithPruning(_.containsPattern(CAST)) {
+      case p =>
+        p.transformExpressionsUpWithPruning(_.containsPattern(CAST)) {
+          case cast @ Cast(child, StringType, timeZoneId, evalMode)
+              if child.dataType.isInstanceOf[ArrayType] =>
+            child.dataType match {
+              case ArrayType(StringType, _) =>
+                val arrayJoin = ArrayJoin(child, Literal(", "), Some(Literal("null")))
+                Concat(Seq(Literal("["), arrayJoin, Literal("]")))
+              case ArrayType(IntegerType, _) | ArrayType(LongType, _) | ArrayType(DoubleType, _) |
+                  ArrayType(BooleanType, _) | ArrayType(DateType, _) |
+                  ArrayType(TimestampType, _) =>
+                val arrayJoin = ArrayJoin(
+                  Cast(child, ArrayType(StringType), timeZoneId, evalMode),
+                  Literal(", "),
+                  Some(Literal("null")))
+                Concat(Seq(Literal("["), arrayJoin, Literal("]")))
+              case _ => cast
+            }
         }
     }
   }
