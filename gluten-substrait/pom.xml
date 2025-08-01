@@ -262,7 +262,7 @@
                 com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
               </protocArtifact>
               <protoSourceRoot>src/main/resources/substrait/proto</protoSourceRoot>
-              <clearOutputDirectory>true</clearOutputDirectory>
+              <clearOutputDirectory>false</clearOutputDirectory>
             </configuration>
           </execution>
         </executions>
