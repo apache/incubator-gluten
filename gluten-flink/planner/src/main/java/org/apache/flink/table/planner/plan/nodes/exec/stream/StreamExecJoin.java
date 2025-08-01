@@ -243,7 +243,6 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 rightStateRetentionTime,
                 MinibatchUtil.createMiniBatchCoTrigger(config));
       } else {
-        System.out.println("ExecConfig: " + config.toMap());
         // --- Begin Gluten-specific code changes ---
         io.github.zhztheplayer.velox4j.type.RowType leftInputType =
             (io.github.zhztheplayer.velox4j.type.RowType)

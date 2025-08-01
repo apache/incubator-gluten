@@ -60,7 +60,6 @@ import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
@@ -169,16 +168,6 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
     final ZoneId shiftTimeZone =
         TimeWindowUtil.getShiftTimeZone(
             windowing.getTimeAttributeType(), TableConfigUtils.getLocalTimeZone(config));
-    final WindowAssigner windowAssigner = createWindowAssigner(windowing, shiftTimeZone);
-    System.out.println("WindowAssigner: " + windowAssigner);
-    System.out.println("Window: " + windowing);
-    System.out.println("Window spec: " + windowing.getWindow());
-    for (AggregateCall aggCall : aggCalls) {
-      System.out.println("WindowAgg " + aggCall);
-    }
-    System.out.println("WindowInput " + inputRowType);
-    System.out.println(
-        "WindowOut " + getOutputType() + " " + grouping.length + " " + aggCalls.length);
 
     // --- Begin Gluten-specific code changes ---
     // TODO: velox window not equal to flink window.

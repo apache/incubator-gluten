@@ -44,7 +44,6 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   public GlutenRowVectorSerializer(RowType rowType) {
     this.rowType = rowType;
-    new Exception("GlutenRowVectorSerializer").printStackTrace();
   }
 
   @Override
@@ -66,7 +65,6 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   @Override
   public StatefulRecord deserialize(DataInputView source) throws IOException {
-    new Exception("GlutenRow deserialize").printStackTrace();
     if (memoryManager == null) {
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
