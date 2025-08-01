@@ -39,10 +39,6 @@ object GlutenWriterColumnarRules {
     "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" -> "parquet"
   )
   private def getNativeFormat(cmd: DataWritingCommand): Option[String] = {
-    if (!BackendsApiManager.getSettings.enableNativeWriteFiles()) {
-      return None
-    }
-
     cmd match {
       case command: CreateDataSourceTableAsSelectCommand
           if !BackendsApiManager.getSettings.skipNativeCtas(command) =>
@@ -104,9 +100,11 @@ object GlutenWriterColumnarRules {
     override def apply(p: SparkPlan): SparkPlan = p match {
       case rc @ DataWritingCommandExec(cmd, child) =>
         // The same thread can set these properties in the last query submission.
-        val fields = child.output.toStructType.fields
         val format =
-          if (BackendsApiManager.getSettings.supportNativeWrite(fields)) {
+          if (
+            BackendsApiManager.getSettings.supportNativeWrite(child.schema.fields) &&
+            BackendsApiManager.getSettings.enableNativeWriteFiles()
+          ) {
             getNativeFormat(cmd)
           } else {
             None

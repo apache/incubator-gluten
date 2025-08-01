@@ -370,14 +370,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def supportNativeWrite(fields: Array[StructField]): Boolean = {
-    fields.map {
-      field =>
-        field.dataType match {
-          case _: StructType | _: ArrayType | _: MapType => return false
-          case _ =>
-        }
+    def isNotSupported(dataType: DataType): Boolean = dataType match {
+      case _: StructType | _: ArrayType | _: MapType => true
+      case _ => false
     }
-    true
+    !fields.exists(field => isNotSupported(field.dataType))
   }
 
   override def supportExpandExec(): Boolean = true
