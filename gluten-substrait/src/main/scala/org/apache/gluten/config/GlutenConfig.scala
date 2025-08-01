@@ -439,8 +439,6 @@ object GlutenConfig {
   val GLUTEN_IAA_BACKEND_NAME = "iaa"
   val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("gzip")
 
-  private val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
-
   // Private Spark configs.
   val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
   val SPARK_OVERHEAD_FACTOR_KEY = "spark.executor.memoryOverheadFactor"
@@ -456,9 +454,7 @@ object GlutenConfig {
     new GlutenConfig(SQLConf.get)
   }
 
-  def prefixOf(backendName: String): String = {
-    GLUTEN_CONFIG_PREFIX + backendName
-  }
+  def prefixOf(backendName: String): String = s"spark.gluten.sql.columnar.backend.$backendName"
 
   /**
    * Get dynamic configs.

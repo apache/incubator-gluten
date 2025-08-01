@@ -18,10 +18,11 @@ set -exu
 
 VELOX_REPO=https://github.com/zhli1142015/velox.git
 VELOX_BRANCH=2025_07_30
+
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
 VELOX_ENHANCED_REPO=https://github.com/IBM/velox.git
-VELOX_ENHANCED_BRANCH=ibm-2025_07_30
+VELOX_ENHANCED_BRANCH=ibm-2025_07_31
 ENABLE_ENHANCED_FEATURES=OFF
 
 # Developer use only for testing Velox PR.
