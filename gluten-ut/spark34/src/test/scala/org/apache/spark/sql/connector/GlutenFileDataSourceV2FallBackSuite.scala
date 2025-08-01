@@ -32,7 +32,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class GlutenFileDataSourceV2FallBackSuite
   extends FileDataSourceV2FallBackSuite
-    with GlutenSQLTestsBaseTrait {
+  with GlutenSQLTestsBaseTrait {
 
   testGluten("Fallback Parquet V2 to V1") {
     Seq("parquet", classOf[ParquetDataSourceV2].getCanonicalName).foreach {
@@ -42,9 +42,9 @@ class GlutenFileDataSourceV2FallBackSuite
           val exceptions = ArrayBuffer.empty[(String, Exception)]
           val listener = new QueryExecutionListener {
             override def onFailure(
-                                    funcName: String,
-                                    qe: QueryExecution,
-                                    exception: Exception): Unit = {
+                funcName: String,
+                qe: QueryExecution,
+                exception: Exception): Unit = {
               exceptions += funcName -> exception
             }
 
