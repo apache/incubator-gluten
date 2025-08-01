@@ -23,6 +23,8 @@ import org.apache.gluten.substrait.extensions.FunctionMappingNode;
 import org.apache.gluten.substrait.rel.RelNode;
 import org.apache.gluten.substrait.type.TypeNode;
 
+import com.google.common.base.Preconditions;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -62,10 +64,8 @@ public class PlanBuilder {
       List<String> outNames,
       TypeNode outputSchema,
       AdvancedExtensionNode extension) {
-    if (subCtx == null) {
-      throw new NullPointerException(
-          "Cannot execute doTransform due to the SubstraitContext is null.");
-    }
+    Preconditions.checkNotNull(
+        subCtx, "Cannot execute doTransform due to the SubstraitContext is null.");
     List<FunctionMappingNode> mappingNodes = new ArrayList<>();
 
     for (Map.Entry<String, Long> entry : subCtx.registeredFunction().entrySet()) {
