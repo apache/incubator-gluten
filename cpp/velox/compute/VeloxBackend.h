@@ -75,6 +75,9 @@ class VeloxBackend {
       asyncDataCache_->shutdown();
     }
   }
+  void initConnector(std::shared_ptr<facebook::velox::config::ConfigBase> sessionConf = nullptr);
+  mutable std::shared_mutex mutex_;
+  std::atomic<bool> ioConnectorReg_ = false;
 
  private:
   explicit VeloxBackend(
@@ -85,7 +88,6 @@ class VeloxBackend {
 
   void init(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf);
   void initCache();
-  void initConnector();
   void initUdf();
   std::unique_ptr<facebook::velox::cache::SsdCache> initSsdCache(uint64_t ssdSize);
 
