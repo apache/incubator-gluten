@@ -67,10 +67,6 @@ case class TakeOrderedAndProjectExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (offset != 0) {
-      return ValidationResult.failed(s"Native TopK does not support offset: $offset")
-    }
-
     var tagged: ValidationResult = null
     val orderingSatisfies = SortOrder.orderingSatisfies(child.outputOrdering, sortOrder)
     if (orderingSatisfies) {
@@ -115,8 +111,8 @@ case class TakeOrderedAndProjectExecTransformer(
         }
       }
 
-      val hasShuffle = childRDDPartsNum == 1
-      val limitBeforeShuffleOffset = if (hasShuffle) {
+      val isSinglePartitionInput = childRDDPartsNum == 1
+      val localLimitOffset = if (isSinglePartitionInput) {
         // Local limit does not need offset
         0
       } else {
@@ -128,17 +124,17 @@ case class TakeOrderedAndProjectExecTransformer(
           // remove this WholeStageTransformer, put the new sort, limit and project
           // into a new whole stage.
           val localSortPlan = withLocalSort(wholeStage.child)
-          LimitExecTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
+          LimitExecTransformer(localSortPlan, localLimitOffset, limit)
         case other =>
           // if the child it is not WholeStageTransformer, add the adapter first
           // so that, later we can wrap WholeStageTransformer.
           val localSortPlan = withLocalSort(
             ColumnarCollapseTransformStages.wrapInputIteratorTransformer(other))
-          LimitExecTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
+          LimitExecTransformer(localSortPlan, localLimitOffset, limit)
       }
       val transformStageCounter: AtomicInteger =
         ColumnarCollapseTransformStages.transformStageCounter
-      val finalLimitPlan = if (hasShuffle) {
+      val finalLimitPlan = if (isSinglePartitionInput) {
         limitBeforeShuffle
       } else {
         val limitStagePlan =
