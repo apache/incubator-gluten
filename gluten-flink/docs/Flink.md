@@ -95,32 +95,47 @@ including gluten-flink-runtime-1.5.0.jar, gluten-flink-loader-1.5.0.jar and Velo
 Take following command as an example:
 
 ```shell
-# notice: first set your own specified project home 
+# notice: first set your own specified project home, you may set it mannualy in you .bash_profile so that it can auto take effect. 
 export VELOX4J_HOME=
 export GLUTEN_FLINK_HOME=
 export FLINK_HOME=
 
-ln -s $VELOX4J_HOME/target/velox4j-0.1.0-SNAPSHOT.jar $FLINK_HOME/lib/velox4j-0.1.0-SNAPSHOT.jar
-ln -s $GLUTEN_FLINK_HOME/runtime/target/gluten-flink-runtime-1.5.0-SNAPSHOT.jar $FLINK_HOME/lib/gluten-flink-runtime-1.5.0.jar
-ln -s $GLUTEN_FLINK_HOME/loader/target/gluten-flink-loader-1.5.0-SNAPSHOT.jar $FLINK_HOME/lib/gluten-flink-loader-1.5.0.jar
+cd $FLINK_HOME
+mkdir -p gluten_lib
+ln -s $VELOX4J_HOME/target/velox4j-0.1.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar
+ln -s $GLUTEN_FLINK_HOME/runtime/target/gluten-flink-runtime-1.5.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-runtime-1.5.0.jar
+ln -s $GLUTEN_FLINK_HOME/loader/target/gluten-flink-loader-1.5.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-loader-1.5.0.jar
 ```
+
 And make them loaded before flink libraries.
+
+#### How to make sure gluten packages loaded first in Flink?
+
+Gluten packages need to be loaded first in Flink, you can edit the `bin/config.sh` in Flink dir,
+and change the `constructFlinkClassPath` function like this:
+
+```
+GLUTEN_JAR="$FLINK_HOME/gluten_lib/gluten-flink-loader-1.5.0.jar:$FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar:$FLINK_HOME/gluten_lib/gluten-flink-runtime-1.5.0.jar:"
+echo "$GLUTEN_JAR""$FLINK_CLASSPATH""$FLINK_DIST"
+```
+
 Then you can go to flink binary path and use the below scripts to
 submit the example job.
 
 ```bash
+cd $FLINK_HOME
 bin/start-cluster.sh
-bin/flink run -d -m 0.0.0.0:8080 \
-    -c org.apache.flink.table.examples.java.basics.StreamSQLExample \
-    examples/table/StreamSQLExample.jar
+bin/flink run examples/table/StreamSQLExample.jar
 ```
 
 Then you can get the result in `log/flink-*-taskexecutor-*.out`.
-And you can see an operator named `gluten-cal` from the web frontend of your flink job. 
+And you can see an operator named `gluten-cal` from the web frontend of your flink job.
+
+**Notice: current this example will cause npe until  [issue-10315](https://github.com/apache/incubator-gluten/issues/10315) get resolved.**
 
 #### All operators executed by native
 Another example supports all operators executed by native. 
-You can use the data-generator.sql in docs directory.
+You can use the data-generator.sql under docs directory.
 
 ```bash
 bin/sql-client.sh -f data-generator.sql
