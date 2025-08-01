@@ -17,8 +17,15 @@
 package org.apache.spark.util
 
 object SparkVersionUtil {
+  val lteSpark32: Boolean = compareMajorMinorVersion((3, 2)) <= 0
+  private val comparedWithSpark33 = compareMajorMinorVersion((3, 3))
+  val ltSpark33: Boolean = comparedWithSpark33 < 0
+  val eqSpark33: Boolean = comparedWithSpark33 == 0
+  val lteSpark33: Boolean = ltSpark33 || eqSpark33
+  val gteSpark33: Boolean = comparedWithSpark33 >= 0
+
   // Returns X. X < 0 if one < other, x == 0 if one == other, x > 0 if one > other.
-  def compareMajorMinorVersion(other: (Int, Int)): Int = {
+  private def compareMajorMinorVersion(other: (Int, Int)): Int = {
     val current = VersionUtils.majorMinorVersion(org.apache.spark.SPARK_VERSION)
     val base = 1000
     assert(current._2 < base && other._2 < base)
