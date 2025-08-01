@@ -82,7 +82,7 @@ mvn test
 ## Dependency library deployment
 
 You need to get the Velox4j packages and used them with gluten.
-Velox4j jar available now is velox4j-0.1.0-SNAPSHOT.jar. 
+Velox4j jar available now is under velox4j project target/velox4j-0.1.0-SNAPSHOT.jar. 
 
 ## Submit the Flink SQL job
 
@@ -91,24 +91,51 @@ Submit test script from `flink run`. You can use the `StreamSQLExample` as an ex
 ### Flink local cluster
 
 After deploying flink binaries, please add gluten-flink jar to flink library path,
-including gluten-flink-runtime-1.4.0.jar, gluten-flink-loader-1.4.0.jar and Velox4j jars above.
+including gluten-flink-runtime-1.5.0.jar, gluten-flink-loader-1.5.0.jar and Velox4j jars above.
+Take following command as an example:
+
+```shell
+# notice: first set your own specified project home, you may set it mannualy in you .bash_profile so that it can auto take effect. 
+export VELOX4J_HOME=
+export GLUTEN_FLINK_HOME=
+export FLINK_HOME=
+
+cd $FLINK_HOME
+mkdir -p gluten_lib
+ln -s $VELOX4J_HOME/target/velox4j-0.1.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar
+ln -s $GLUTEN_FLINK_HOME/runtime/target/gluten-flink-runtime-1.5.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-runtime-1.5.0.jar
+ln -s $GLUTEN_FLINK_HOME/loader/target/gluten-flink-loader-1.5.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-loader-1.5.0.jar
+```
+
 And make them loaded before flink libraries.
+
+#### How to make sure gluten packages loaded first in Flink?
+
+Gluten packages need to be loaded first in Flink, you can edit the `bin/config.sh` in Flink dir,
+and change the `constructFlinkClassPath` function like this:
+
+```
+GLUTEN_JAR="$FLINK_HOME/gluten_lib/gluten-flink-loader-1.5.0.jar:$FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar:$FLINK_HOME/gluten_lib/gluten-flink-runtime-1.5.0.jar:"
+echo "$GLUTEN_JAR""$FLINK_CLASSPATH""$FLINK_DIST"
+```
+
 Then you can go to flink binary path and use the below scripts to
 submit the example job.
 
 ```bash
+cd $FLINK_HOME
 bin/start-cluster.sh
-bin/flink run -d -m 0.0.0.0:8080 \
-    -c org.apache.flink.table.examples.java.basics.StreamSQLExample \
-    lib/flink-examples-table_2.12-1.20.1.jar
+bin/flink run examples/table/StreamSQLExample.jar
 ```
 
 Then you can get the result in `log/flink-*-taskexecutor-*.out`.
-And you can see an operator named `gluten-cal` from the web frontend of your flink job. 
+And you can see an operator named `gluten-cal` from the web frontend of your flink job.
+
+**Notice: current this example will cause npe until  [issue-10315](https://github.com/apache/incubator-gluten/issues/10315) get resolved.**
 
 #### All operators executed by native
 Another example supports all operators executed by native. 
-You can use the data-generator.sql in dev directory.
+You can use the data-generator.sql under dev directory.
 
 ```bash
 bin/sql-client.sh -f data-generator.sql
