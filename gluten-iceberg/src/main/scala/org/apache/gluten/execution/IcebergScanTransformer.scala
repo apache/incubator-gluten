@@ -217,9 +217,9 @@ case class IcebergScanTransformer(
     }
     (icebergType, currentType, sparkType) match {
       case (iceberg: Types.StructType, currentType: Types.StructType, sparkStruct: StructType) =>
-        sparkStruct.fields.forall {
-          f =>
-            val currentField = new Schema(currentType.fields()).findField(f.name)
+        sparkStruct.forall {
+          sparkField =>
+            val currentField = new Schema(currentType.fields()).findField(sparkField.name)
             // Find not exists column
             if (currentField == null) {
               false
@@ -230,8 +230,8 @@ case class IcebergScanTransformer(
                 true
               } else {
                 // Maybe rename column
-                field.name() == f.name &&
-                typesMatch(field.`type`(), currentField.`type`(), f.dataType)
+                field.name() == sparkField.name &&
+                typesMatch(field.`type`(), currentField.`type`(), sparkField.dataType)
               }
             }
         }
