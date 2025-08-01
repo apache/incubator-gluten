@@ -1280,6 +1280,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "max",
       "min_by",
       "max_by",
+      "mode",
+      "mode_merge"
+      "mode_merge_extract",
       "stddev_samp",
       "stddev_pop",
       "bloom_filter_agg",
