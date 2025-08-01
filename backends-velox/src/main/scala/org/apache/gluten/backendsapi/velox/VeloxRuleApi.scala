@@ -21,7 +21,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{PreventBatchTypeMismatchInTableCache, RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
-import org.apache.gluten.extension.columnar.enumerated.{RasOffload, RemoveSort}
+import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
 import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.rewrite._
@@ -145,7 +145,6 @@ object VeloxRuleApi {
 
     // Gluten RAS: The RAS rule.
     val validatorBuilder: GlutenConfig => Validator = conf => Validators.newValidator(conf)
-    injector.injectRasRule(_ => RemoveSort)
     val rewrites =
       Seq(
         RewriteIn,
