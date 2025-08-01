@@ -21,11 +21,9 @@ import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.internal.SQLConf
 
 object SparkPlanUtil {
-  private val lteSpark32 = SparkVersionUtil.compareMajorMinorVersion((3, 2)) <= 0
-  private val lteSpark33 = SparkVersionUtil.compareMajorMinorVersion((3, 3)) <= 0
 
   def supportsRowBased(plan: SparkPlan): Boolean = {
-    if (lteSpark32) {
+    if (SparkVersionUtil.lteSpark32) {
       return !plan.supportsColumnar
     }
 
@@ -34,7 +32,7 @@ object SparkPlanUtil {
   }
 
   def isPlannedV1Write(plan: DataWritingCommandExec): Boolean = {
-    if (lteSpark33) {
+    if (SparkVersionUtil.lteSpark33) {
       return false
     }
 
