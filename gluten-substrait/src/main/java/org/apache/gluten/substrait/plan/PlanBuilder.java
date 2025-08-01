@@ -34,11 +34,6 @@ public class PlanBuilder {
   private PlanBuilder() {}
 
   public static PlanNode makePlan(
-      List<FunctionMappingNode> mappingNodes, List<RelNode> relNodes, List<String> outNames) {
-    return new PlanNode(mappingNodes, relNodes, outNames);
-  }
-
-  public static PlanNode makePlan(
       List<FunctionMappingNode> mappingNodes,
       List<RelNode> relNodes,
       List<String> outNames,
@@ -72,10 +67,7 @@ public class PlanBuilder {
           ExtensionBuilder.makeFunctionMapping(entry.getKey(), entry.getValue());
       mappingNodes.add(mappingNode);
     }
-    if (extension != null || outputSchema != null) {
-      return makePlan(mappingNodes, relNodes, outNames, outputSchema, extension);
-    }
-    return makePlan(mappingNodes, relNodes, outNames);
+    return makePlan(mappingNodes, relNodes, outNames, outputSchema, extension);
   }
 
   public static PlanNode makePlan(SubstraitContext subCtx, ArrayList<RelNode> relNodes) {
