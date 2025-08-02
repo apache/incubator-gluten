@@ -71,8 +71,9 @@ class GlutenFileDataSourceV2FallBackSuite
                 val df = spark.read.format(format).load(path.getCanonicalPath)
                 checkAnswer(df, inputData.toDF())
                 assert(
-                  df.queryExecution.executedPlan.exists(
-                    _.isInstanceOf[FileSourceScanExecTransformer]))
+                  df.queryExecution.executedPlan
+                    .find(_.isInstanceOf[FileSourceScanExecTransformer])
+                    .isDefined)
             }
           } finally {
             spark.listenerManager.unregister(listener)
