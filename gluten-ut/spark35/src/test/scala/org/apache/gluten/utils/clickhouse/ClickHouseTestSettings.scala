@@ -827,7 +827,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("Gluten - Enabling/disabling ignoreMissingFiles using orc")
     .excludeCH("Gluten - Enabling/disabling ignoreMissingFiles using parquet")
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
-    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    // Rewritten
     .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenFileFormatWriterSuite]
     // TODO: fix "empty file should be skipped while write to file"
