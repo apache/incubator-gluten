@@ -18,6 +18,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.gluten.rexnode.AggregateCallConverter;
 import org.apache.gluten.rexnode.Utils;
+import org.apache.gluten.rexnode.WindowUtils;
 import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
@@ -36,6 +37,7 @@ import io.github.zhztheplayer.velox4j.plan.WindowPartitionFunctionSpec;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -43,11 +45,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
-import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
-import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
-import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
-import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -75,7 +72,6 @@ import org.apache.commons.math3.util.ArithmeticUtils;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
@@ -187,62 +183,13 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
     List<Integer> keyIndexes = Arrays.stream(grouping).boxed().collect(Collectors.toList());
     PartitionFunctionSpec keySelectorSpec = new HashPartitionFunctionSpec(inputType, keyIndexes);
     // TODO: support more window types.
-    int rowtimeIndex = -1;
-    long size = 0;
-    long slide = 0;
-    long offset = 0;
-    int windowType = -1;
-    if (windowing instanceof TimeAttributeWindowingStrategy && windowing.isRowtime()) {
-      rowtimeIndex = ((TimeAttributeWindowingStrategy) windowing).getTimeAttributeIndex();
-      WindowSpec windowSpec = windowing.getWindow();
-      if (windowSpec instanceof HoppingWindowSpec) {
-        size = ((HoppingWindowSpec) windowSpec).getSize().toMillis();
-        slide = ((HoppingWindowSpec) windowSpec).getSlide().toMillis();
-        if (size % slide != 0) {
-          throw new RuntimeException(
-              String.format(
-                  "HOP table function based aggregate requires size must be an "
-                      + "integral multiple of slide, but got size %s ms and slide %s ms",
-                  size, slide));
-        }
-        Duration windowOffset = ((HoppingWindowSpec) windowSpec).getOffset();
-        if (windowOffset != null) {
-          offset = windowOffset.toMillis();
-        }
-      } else if (windowSpec instanceof TumblingWindowSpec) {
-        size = ((TumblingWindowSpec) windowSpec).getSize().toMillis();
-        Duration windowOffset = ((TumblingWindowSpec) windowSpec).getOffset();
-        if (windowOffset != null) {
-          offset = windowOffset.toMillis();
-        }
-      }
-      windowType = 0;
-    } else if (windowing instanceof WindowAttachedWindowingStrategy) {
-      rowtimeIndex = ((WindowAttachedWindowingStrategy) windowing).getWindowEnd();
-      WindowSpec windowSpec = windowing.getWindow();
-      if (windowSpec instanceof HoppingWindowSpec) {
-        size = ((HoppingWindowSpec) windowSpec).getSize().toMillis();
-        slide = ((HoppingWindowSpec) windowSpec).getSlide().toMillis();
-        if (size % slide != 0) {
-          throw new RuntimeException(
-              String.format(
-                  "HOP table function based aggregate requires size must be an "
-                      + "integral multiple of slide, but got size %s ms and slide %s ms",
-                  size, slide));
-        }
-        Duration windowOffset = ((HoppingWindowSpec) windowSpec).getOffset();
-        if (windowOffset != null) {
-          offset = windowOffset.toMillis();
-        }
-      } else if (windowSpec instanceof TumblingWindowSpec) {
-        size = ((TumblingWindowSpec) windowSpec).getSize().toMillis();
-        Duration windowOffset = ((TumblingWindowSpec) windowSpec).getOffset();
-        if (windowOffset != null) {
-          offset = windowOffset.toMillis();
-        }
-      }
-      windowType = 1;
-    }
+    Tuple5<Long, Long, Long, Integer, Integer> windowSpecParams =
+        WindowUtils.extractWindowParameters(windowing);
+    long size = windowSpecParams.f0;
+    long slide = windowSpecParams.f1;
+    long offset = windowSpecParams.f2;
+    int rowtimeIndex = windowSpecParams.f3;
+    int windowType = windowSpecParams.f4;
     PartitionFunctionSpec sliceAssignerSpec =
         new WindowPartitionFunctionSpec(inputType, rowtimeIndex, size, slide, offset, windowType);
     PlanNode aggregation =
