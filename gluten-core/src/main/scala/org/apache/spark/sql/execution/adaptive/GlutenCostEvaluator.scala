@@ -30,7 +30,7 @@ import org.apache.spark.util.{SparkVersionUtil, Utils}
 case class GlutenCostEvaluator() extends CostEvaluator with SQLConfHelper {
 
   private val vanillaCostEvaluator: CostEvaluator = {
-    if (SparkVersionUtil.ltSpark33) {
+    if (SparkVersionUtil.lteSpark32) {
       val clazz = Utils.classForName("org.apache.spark.sql.execution.adaptive.SimpleCostEvaluator$")
       clazz.getDeclaredField("MODULE$").get(null).asInstanceOf[CostEvaluator]
     } else {
