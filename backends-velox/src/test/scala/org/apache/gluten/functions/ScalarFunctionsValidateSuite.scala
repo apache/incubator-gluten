@@ -1176,6 +1176,19 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     // Cast Array as String
+    withTempView("cast_table") {
+      withTempPath {
+        path =>
+          Seq[Array[String]](Array("a", null), Array(), null)
+            .toDF("c1")
+            .write
+            .parquet(path.getCanonicalPath)
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("cast_table")
+          runQueryAndCompare("select cast(c1 as string) from cast_table") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
     runQueryAndCompare("select cast(array(1, 2) AS string)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }

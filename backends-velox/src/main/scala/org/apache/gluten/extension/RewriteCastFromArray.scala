@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.VeloxConfig
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{ArrayJoin, Cast, Concat, Literal}
@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreePattern.CAST
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, BooleanType, DateType, DoubleType, IntegerType, LongType, StringType, TimestampType}
+import org.apache.spark.sql.types._
 
 /**
  * Velox does not support cast Array to String. Before velox support, temporarily add this rule to
@@ -34,7 +34,7 @@ import org.apache.spark.sql.types.{ArrayType, BooleanType, DateType, DoubleType,
 case class RewriteCastFromArray(spark: SparkSession) extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
-      !GlutenConfig.get.enableRewriteCastArrayToString ||
+      !VeloxConfig.get.enableRewriteCastArrayToString ||
       SQLConf.get.getConf(SQLConf.LEGACY_COMPLEX_TYPES_TO_STRING)
     ) {
       return plan
@@ -44,13 +44,11 @@ case class RewriteCastFromArray(spark: SparkSession) extends Rule[LogicalPlan] {
         p.transformExpressionsUpWithPruning(_.containsPattern(CAST)) {
           case cast @ Cast(child, StringType, timeZoneId, evalMode)
               if child.dataType.isInstanceOf[ArrayType] =>
-            child.dataType match {
-              case ArrayType(StringType, _) =>
+            child.dataType.asInstanceOf[ArrayType].elementType match {
+              case StringType =>
                 val arrayJoin = ArrayJoin(child, Literal(", "), Some(Literal("null")))
                 Concat(Seq(Literal("["), arrayJoin, Literal("]")))
-              case ArrayType(IntegerType, _) | ArrayType(LongType, _) | ArrayType(DoubleType, _) |
-                  ArrayType(BooleanType, _) | ArrayType(DateType, _) |
-                  ArrayType(TimestampType, _) =>
+              case IntegerType | LongType | DoubleType | BooleanType | DateType | TimestampType =>
                 val arrayJoin = ArrayJoin(
                   Cast(child, ArrayType(StringType), timeZoneId, evalMode),
                   Literal(", "),
