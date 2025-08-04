@@ -16,20 +16,21 @@
  */
 package org.apache.gluten.table.runtime.keyselector;
 
-import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
+import org.apache.gluten.table.runtime.rowdata.GlutenStatefulRowData;
 
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.table.data.RowData;
 
 /** A KeySelector which will extract key from RowVector. The key type is RowVector. */
-public class GlutenKeySelector implements KeySelector<StatefulRecord, Integer> {
+public class GlutenKeySelector implements KeySelector<RowData, Integer> {
 
   private static final long serialVersionUID = -1L;
 
   public GlutenKeySelector() {}
 
   @Override
-  public Integer getKey(StatefulRecord value) throws Exception {
+  public Integer getKey(RowData value) throws Exception {
     // TODO: calculate the key hash in velox, and get it here.
-    return value.getKey();
+    return ((GlutenStatefulRowData) value).getRecord().getKey();
   }
 }

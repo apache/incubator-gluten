@@ -14,16 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.runtime.partitioner;
-
-import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
+package org.apache.gluten.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
@@ -34,16 +35,16 @@ import java.util.Objects;
  * @param <T> Type of the elements in the Stream being partitioned
  */
 @Internal
-public class GlutenKeyGroupStreamPartitioner extends StreamPartitioner<StatefulRecord>
+public class GlutenKeyGroupStreamPartitioner extends StreamPartitioner<RowData>
     implements ConfigurableStreamPartitioner {
   private static final long serialVersionUID = 1L;
 
-  private final KeySelector<StatefulRecord, Integer> keySelector;
+  private final KeySelector<RowData, Integer> keySelector;
 
   private int maxParallelism;
 
   public GlutenKeyGroupStreamPartitioner(
-      KeySelector<StatefulRecord, Integer> keySelector, int maxParallelism) {
+      KeySelector<RowData, Integer> keySelector, int maxParallelism) {
     Preconditions.checkArgument(maxParallelism > 0, "Number of key-groups must be > 0!");
     this.keySelector = Preconditions.checkNotNull(keySelector);
     this.maxParallelism = maxParallelism;
@@ -54,7 +55,7 @@ public class GlutenKeyGroupStreamPartitioner extends StreamPartitioner<StatefulR
   }
 
   @Override
-  public int selectChannel(SerializationDelegate<StreamRecord<StatefulRecord>> record) {
+  public int selectChannel(SerializationDelegate<StreamRecord<RowData>> record) {
     try {
       int channel = keySelector.getKey(record.getInstance().getValue());
       return channel;
@@ -70,7 +71,7 @@ public class GlutenKeyGroupStreamPartitioner extends StreamPartitioner<StatefulR
   }
 
   @Override
-  public StreamPartitioner<StatefulRecord> copy() {
+  public StreamPartitioner<RowData> copy() {
     return this;
   }
 

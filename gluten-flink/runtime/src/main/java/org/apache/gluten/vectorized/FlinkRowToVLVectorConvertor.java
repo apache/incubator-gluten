@@ -16,13 +16,17 @@
  */
 package org.apache.gluten.vectorized;
 
+import org.apache.gluten.table.runtime.rowdata.GlutenStatefulRowData;
+
 import io.github.zhztheplayer.velox4j.arrow.Arrow;
 import io.github.zhztheplayer.velox4j.data.BaseVector;
 import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.session.Session;
+import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import io.github.zhztheplayer.velox4j.type.Type;
 
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
@@ -41,7 +45,6 @@ public class FlinkRowToVLVectorConvertor {
     List<Type> fieldTypes = rowType.getChildren();
     List<String> fieldNames = rowType.getNames();
     for (int i = 0; i < rowType.size(); i++) {
-      Type fieldType = rowType.getChildren().get(i);
       ArrowVectorWriter writer =
           ArrowVectorWriter.create(fieldNames.get(i), fieldTypes.get(i), allocator);
       writer.write(i, row);
@@ -92,5 +95,19 @@ public class FlinkRowToVLVectorConvertor {
       accessors.add(i, ArrowVectorAccessor.create(vectors.get(i)));
     }
     return accessors;
+  }
+
+  public static RowVector fromElement(
+      StreamRecord<RowData> element, BufferAllocator allocator, Session session, RowType rowType) {
+    RowData rowData = element.getValue();
+    RowVector inRv;
+    if (rowData instanceof GlutenStatefulRowData) {
+      StatefulRecord statefulRecord =
+          (StatefulRecord) ((GlutenStatefulRowData) rowData).getRecord();
+      inRv = statefulRecord.getRowVector();
+    } else {
+      inRv = FlinkRowToVLVectorConvertor.fromRowData(rowData, allocator, session, rowType);
+    }
+    return inRv;
   }
 }

@@ -20,6 +20,7 @@ import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.rexnode.Utils;
 import org.apache.gluten.table.runtime.operators.GlutenVectorTwoInputOperator;
+import org.apache.gluten.table.runtime.rowdata.GlutenStatefulRowData;
 import org.apache.gluten.table.runtime.stream.common.Velox4jEnvironment;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
@@ -232,29 +233,27 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
   }
 
   protected void processTestData(
-      KeyedTwoInputStreamOperatorTestHarness<
-              RowData, StatefulRecord, StatefulRecord, StatefulRecord>
-          harness,
+      KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> harness,
       List<RowData> leftData,
       List<RowData> rightData)
       throws Exception {
     long timestamp = 0L;
     for (RowData row : leftData) {
       StatefulRecord record = convertToStatefulRecord(row, leftVeloxType);
-      harness.processElement1(new StreamRecord<>(record, timestamp++));
+      harness.processElement1(
+          new StreamRecord<>(new GlutenStatefulRowData(record, sharedAllocator), timestamp++));
     }
 
     timestamp = 0L;
     for (RowData row : rightData) {
       StatefulRecord record = convertToStatefulRecord(row, rightVeloxType);
-      harness.processElement2(new StreamRecord<>(record, timestamp++));
+      harness.processElement2(
+          new StreamRecord<>(new GlutenStatefulRowData(record, sharedAllocator), timestamp++));
     }
   }
 
   protected List<RowData> extractOutputFromHarness(
-      KeyedTwoInputStreamOperatorTestHarness<
-              RowData, StatefulRecord, StatefulRecord, StatefulRecord>
-          harness) {
+      KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> harness) {
     Queue<Object> outputQueue = harness.getOutput();
     return outputQueue.stream()
         .filter(record -> record instanceof StreamRecord)
@@ -282,13 +281,12 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
       List<RowData> rightData,
       List<RowData> expectedOutput)
       throws Exception {
-    KeyedTwoInputStreamOperatorTestHarness<RowData, StatefulRecord, StatefulRecord, StatefulRecord>
-        harness =
-            new KeyedTwoInputStreamOperatorTestHarness<>(
-                operator,
-                new GlutenRowDataKeySelector(leftKeySelector, leftVeloxType),
-                new GlutenRowDataKeySelector(rightKeySelector, rightVeloxType),
-                joinKeyTypeInfo);
+    KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> harness =
+        new KeyedTwoInputStreamOperatorTestHarness<>(
+            operator,
+            new GlutenRowDataKeySelector(leftKeySelector, leftVeloxType),
+            new GlutenRowDataKeySelector(rightKeySelector, rightVeloxType),
+            joinKeyTypeInfo);
 
     try {
       harness.setup();
@@ -303,7 +301,7 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
   }
 
   private static class GlutenRowDataKeySelector
-      implements org.apache.flink.api.java.functions.KeySelector<StatefulRecord, RowData> {
+      implements org.apache.flink.api.java.functions.KeySelector<RowData, RowData> {
     private final RowDataKeySelector delegate;
     private final RowType rowType;
 
@@ -322,14 +320,11 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
     }
 
     @Override
-    public RowData getKey(StatefulRecord record) {
+    public RowData getKey(RowData record) {
       try {
-        List<RowData> rowDataList =
-            FlinkRowToVLVectorConvertor.toRowData(record.getRowVector(), getAllocator(), rowType);
-
-        return delegate.getKey(rowDataList.get(0));
+        return delegate.getKey(record);
       } catch (Exception e) {
-        throw new RuntimeException("Failed to extract key from StatefulRecord", e);
+        throw new RuntimeException("Failed to extract key from GlutenStatefulRowData", e);
       }
     }
   }

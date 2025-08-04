@@ -17,6 +17,8 @@
 package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.table.runtime.rowdata.GlutenStatefulRowData;
+import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
@@ -41,6 +43,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -53,9 +56,8 @@ import java.util.Map;
  * Two input operator in gluten, which will call Velox to run. It receives RowVector from upstream
  * instead of flink RowData.
  */
-public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<StatefulRecord>
-    implements TwoInputStreamOperator<StatefulRecord, StatefulRecord, StatefulRecord>,
-        GlutenOperator {
+public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData>
+    implements TwoInputStreamOperator<RowData, RowData, RowData>, GlutenOperator {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlutenVectorTwoInputOperator.class);
 
@@ -66,7 +68,7 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<Statefu
   private final RowType rightInputType;
   private final Map<String, RowType> outputTypes;
 
-  private StreamRecord<StatefulRecord> outElement = null;
+  private StreamRecord<RowData> outElement = null;
 
   private MemoryManager memoryManager;
   private Session session;
@@ -117,16 +119,18 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<Statefu
   }
 
   @Override
-  public void processElement1(StreamRecord<StatefulRecord> element) {
-    final RowVector inRv = element.getValue().getRowVector();
+  public void processElement1(StreamRecord<RowData> element) {
+    final RowVector inRv =
+        FlinkRowToVLVectorConvertor.fromElement(element, allocator, session, leftInputType);
     leftInputQueue.put(inRv);
     processElement();
     inRv.close();
   }
 
   @Override
-  public void processElement2(StreamRecord<StatefulRecord> element) {
-    final RowVector inRv = element.getValue().getRowVector();
+  public void processElement2(StreamRecord<RowData> element) {
+    final RowVector inRv =
+        FlinkRowToVLVectorConvertor.fromElement(element, allocator, session, rightInputType);
     rightInputQueue.put(inRv);
     processElement();
     inRv.close();
@@ -142,7 +146,7 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<Statefu
           output.emitWatermark(new Watermark(watermark.getTimestamp()));
         } else {
           final StatefulRecord statefulRecord = element.asRecord();
-          output.collect(outElement.replace(statefulRecord));
+          output.collect(outElement.replace(new GlutenStatefulRowData(statefulRecord, allocator)));
           statefulRecord.close();
         }
       } else {
