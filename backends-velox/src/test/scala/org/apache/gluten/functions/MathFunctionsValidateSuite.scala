@@ -46,7 +46,6 @@ class MathFunctionsValidateSuiteAnsiOn extends FunctionsValidateSuite {
   }
 
   disableFallbackCheck
-  import testImplicits._
 
   test("try_add") {
     runQueryAndCompare(
