@@ -89,7 +89,6 @@ object NativeWriteFilesWithSkippingSortAndProject extends Logging {
     def allSortOrdersFromPartitionColumns(sortOrders: Seq[SortOrder]): Boolean = {
       val partitionColumnsSet = AttributeSet(partitionColumns)
       sortOrders.forall(_.direction == Ascending) &&
-      sortOrders.size == partitionColumnsSet.size &&
       sortOrders.map(_.references).forall(attrs => attrs.subsetOf(partitionColumnsSet))
     }
 
