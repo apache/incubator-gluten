@@ -21,6 +21,7 @@ import org.apache.gluten.execution.{BatchScanExecTransformer, ProjectExecTransfo
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.internal.SQLConf
 
 class MathFunctionsValidateSuiteRasOff extends MathFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
@@ -33,6 +34,14 @@ class MathFunctionsValidateSuiteRasOn extends MathFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set(GlutenConfig.RAS_ENABLED.key, "true")
+  }
+}
+
+class MathFunctionsValidateSuiteAnsiOn extends MathFunctionsValidateSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(SQLConf.ANSI_ENABLED.key, "true")
+      .set(GlutenConfig.ANSI_FORCE_ENABLED.key, "true")
   }
 }
 
