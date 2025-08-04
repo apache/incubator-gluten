@@ -664,8 +664,9 @@ object GlutenConfig {
   val GLUTEN_ENABLED = GlutenCoreConfig.GLUTEN_ENABLED
 
   val ANSI_FORCE_ENABLED = buildConf("spark.gluten.sql.ansi.force.enabled")
-    .doc("When true, force Gluten to handle ANSI mode queries even when ANSI mode is enabled. " +
-      "When false, Gluten will fallback to vanilla Spark when ANSI mode is enabled.")
+    .doc(
+      "When true, force Gluten to handle ANSI mode queries even when ANSI mode is enabled. " +
+        "When false, Gluten will fallback to vanilla Spark when ANSI mode is enabled.")
     .booleanConf
     .createWithDefault(false)
 
