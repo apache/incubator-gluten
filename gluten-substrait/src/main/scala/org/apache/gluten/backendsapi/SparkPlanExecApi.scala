@@ -754,4 +754,12 @@ trait SparkPlanExecApi {
 
   def deserializeColumnarBatch(input: ObjectInputStream): ColumnarBatch =
     throw new GlutenNotSupportException("Deserialize ColumnarBatch is not supported")
+
+  def genTimestampDiffTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("timestampdiff is not supported")
+  }
 }

@@ -583,6 +583,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           extract.get.last,
           add
         )
+      case tsDiff: BinaryExpression if tsDiff.getClass.getSimpleName.equals("TimestampDiff") =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTimestampDiffTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(tsDiff.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(tsDiff.right, attributeSeq, expressionsMap),
+          tsDiff
+        )
       case e: Transformable =>
         val childrenTransformers =
           e.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))

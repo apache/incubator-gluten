@@ -77,6 +77,7 @@ class Spark33Shims extends SparkShims {
       Sig[KnownNullable](KNOWN_NULLABLE),
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
       Sig[TimestampAdd](TIMESTAMP_ADD),
+      Sig[TimestampDiff](ExpressionNames.TIMESTAMP_DIFF),
       Sig[RoundFloor](FLOOR),
       Sig[RoundCeil](CEIL)
     )
@@ -395,4 +396,11 @@ class Spark33Shims extends SparkShims {
     }
   }
 
+  override def extractExpressionTimestampDiffUnit(exp: Expression): Option[String] = {
+    exp match {
+      case timestampDiff: TimestampDiff =>
+        Some(timestampDiff.unit)
+      case _ => Option.empty
+    }
+  }
 }
