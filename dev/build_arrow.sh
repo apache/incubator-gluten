@@ -31,6 +31,7 @@ function prepare_arrow_build() {
   cd arrow_ep
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
+  patch -p1 < $CURRENT_DIR/../ep/build-velox/src/cmake-compatibility.patch
   popd
 }
 
