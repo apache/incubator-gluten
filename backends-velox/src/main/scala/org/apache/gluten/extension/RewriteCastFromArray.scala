@@ -44,17 +44,14 @@ case class RewriteCastFromArray(spark: SparkSession) extends Rule[LogicalPlan] {
         p.transformExpressionsUpWithPruning(_.containsPattern(CAST)) {
           case Cast(child, StringType, timeZoneId, evalMode)
               if child.dataType.isInstanceOf[ArrayType] =>
-            child.dataType.asInstanceOf[ArrayType].elementType match {
+            val joinChild = child.dataType.asInstanceOf[ArrayType].elementType match {
               case StringType =>
-                val arrayJoin = ArrayJoin(child, Literal(", "), Some(Literal("null")))
-                Concat(Seq(Literal("["), arrayJoin, Literal("]")))
+                child
               case _ =>
-                val arrayJoin = ArrayJoin(
-                  Cast(child, ArrayType(StringType), timeZoneId, evalMode),
-                  Literal(", "),
-                  Some(Literal("null")))
-                Concat(Seq(Literal("["), arrayJoin, Literal("]")))
+                Cast(child, ArrayType(StringType), timeZoneId, evalMode)
             }
+            val arrayJoin = ArrayJoin(joinChild, Literal(", "), Some(Literal("null")))
+            Concat(Seq(Literal("["), arrayJoin, Literal("]")))
         }
     }
   }
