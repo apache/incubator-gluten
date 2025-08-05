@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreePattern.CAST
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.{ArrayType, StringType}
 
 /**
  * Velox does not support cast Array to String. Before velox support, temporarily add this rule to
@@ -42,19 +42,18 @@ case class RewriteCastFromArray(spark: SparkSession) extends Rule[LogicalPlan] {
     plan.transformUpWithPruning(_.containsPattern(CAST)) {
       case p =>
         p.transformExpressionsUpWithPruning(_.containsPattern(CAST)) {
-          case cast @ Cast(child, StringType, timeZoneId, evalMode)
+          case Cast(child, StringType, timeZoneId, evalMode)
               if child.dataType.isInstanceOf[ArrayType] =>
             child.dataType.asInstanceOf[ArrayType].elementType match {
               case StringType =>
                 val arrayJoin = ArrayJoin(child, Literal(", "), Some(Literal("null")))
                 Concat(Seq(Literal("["), arrayJoin, Literal("]")))
-              case IntegerType | LongType | DoubleType | BooleanType | DateType | TimestampType =>
+              case _ =>
                 val arrayJoin = ArrayJoin(
                   Cast(child, ArrayType(StringType), timeZoneId, evalMode),
                   Literal(", "),
                   Some(Literal("null")))
                 Concat(Seq(Literal("["), arrayJoin, Literal("]")))
-              case _ => cast
             }
         }
     }
