@@ -293,12 +293,11 @@ void VeloxBackend::initConnector(std::shared_ptr<facebook::velox::config::Config
 
   auto hiveConf = getHiveConfig(backendConf_);
 
-  std::string_view kSparkHadoopPrefix = "spark.hadoop.";
-  std::string_view kSparkHadoopAbfsPrefix = "spark.hadoop.fs.azure.";
+  std::string_view kSparkHadoopAbfsPrefix = "fs.azure.";
   for (const auto& [key, value] : newConf->rawConfigs()) {
     if (key.find(kSparkHadoopAbfsPrefix) == 0) {
       // Remove the SparkHadoopPrefix and override
-      hiveConf->set(key.substr(kSparkHadoopPrefix.size()), value);
+      hiveConf->set(key, value);
     }
   }
 
