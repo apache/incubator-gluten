@@ -40,17 +40,21 @@ public class GlutenStatefulRowData implements RowData {
 
   private StatefulElement element;
   private RowKind kind;
+  private RowType type;
   private BufferAllocator allocator;
   private RowData internalRow = null;
 
-  public GlutenStatefulRowData(StatefulElement element, RowKind kind, BufferAllocator allocator) {
+  public GlutenStatefulRowData(
+      StatefulElement element, RowType type, RowKind kind, BufferAllocator allocator) {
     this.element = element;
+    this.type = type;
     this.kind = kind;
     this.allocator = allocator;
   }
 
-  public GlutenStatefulRowData(StatefulElement element, BufferAllocator allocator) {
+  public GlutenStatefulRowData(StatefulElement element, RowType type, BufferAllocator allocator) {
     this.element = element;
+    this.type = type;
     this.kind = RowKind.INSERT;
     this.allocator = allocator;
   }
@@ -77,10 +81,7 @@ public class GlutenStatefulRowData implements RowData {
         }
         StatefulRecord statefulRecord = (StatefulRecord) element;
         List<RowData> rows =
-            FlinkRowToVLVectorConvertor.toRowData(
-                statefulRecord.getRowVector(),
-                allocator,
-                (RowType) statefulRecord.getRowVector().getType());
+            FlinkRowToVLVectorConvertor.toRowData(statefulRecord.getRowVector(), allocator, type);
         internalRow = rows.get(0);
         return internalRow;
       }
@@ -94,10 +95,7 @@ public class GlutenStatefulRowData implements RowData {
   @Override
   public int getArity() {
     if (element instanceof StatefulRecord) {
-      StatefulRecord statefulRecord = (StatefulRecord) element;
-      io.github.zhztheplayer.velox4j.type.RowType rowType =
-          (io.github.zhztheplayer.velox4j.type.RowType) statefulRecord.getRowVector().getType();
-      return rowType.getChildren().size();
+      return type.getChildren().size();
     } else {
       throw new FlinkRuntimeException("Failed to arity, as the element is not a record");
     }
@@ -191,5 +189,9 @@ public class GlutenStatefulRowData implements RowData {
   @Override
   public RowData getRow(int pos, int numFields) {
     return getInternalRow().getRow(pos, numFields);
+  }
+
+  public void close() {
+    element.close();
   }
 }

@@ -50,6 +50,7 @@ import org.apache.arrow.memory.RootAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -60,7 +61,6 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
     implements TwoInputStreamOperator<RowData, RowData, RowData>, GlutenOperator {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlutenVectorTwoInputOperator.class);
-
   private final StatefulPlanNode glutenPlan;
   private final String leftId;
   private final String rightId;
@@ -77,6 +77,7 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
   private ExternalStreams.BlockingQueue rightInputQueue;
   private BufferAllocator allocator;
   private SerialTask task;
+  private boolean forTest;
 
   public GlutenVectorTwoInputOperator(
       StatefulPlanNode plan,
@@ -91,6 +92,7 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
     this.leftInputType = leftInputType;
     this.rightInputType = rightInputType;
     this.outputTypes = outputTypes;
+    this.forTest = false;
   }
 
   @Override
@@ -146,7 +148,20 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
           output.emitWatermark(new Watermark(watermark.getTimestamp()));
         } else {
           final StatefulRecord statefulRecord = element.asRecord();
-          output.collect(outElement.replace(new GlutenStatefulRowData(statefulRecord, allocator)));
+          for (RowType outputType : outputTypes.values()) {
+            if (!forTest) {
+              output.collect(
+                  outElement.replace(
+                      new GlutenStatefulRowData(statefulRecord, outputType, allocator)));
+            } else {
+              List<RowData> outputList =
+                  FlinkRowToVLVectorConvertor.toRowData(
+                      statefulRecord.getRowVector(), allocator, outputType);
+              for (RowData outRow : outputList) {
+                output.collect(outElement.replace(outRow));
+              }
+            }
+          }
           statefulRecord.close();
         }
       } else {
@@ -213,5 +228,9 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
 
   public String getRightId() {
     return rightId;
+  }
+
+  public void setForTest() {
+    this.forTest = true;
   }
 }

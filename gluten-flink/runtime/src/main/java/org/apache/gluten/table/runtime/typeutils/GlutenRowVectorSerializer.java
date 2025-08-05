@@ -78,7 +78,7 @@ public class GlutenRowVectorSerializer extends TypeSerializer<GlutenStatefulRowD
     RowVector rowVector = session.baseVectorOps().deserializeOne(new String(str)).asRowVector();
     StatefulRecord record = new StatefulRecord(null, 0, 0, false, -1);
     record.setRowVector(rowVector);
-    return new GlutenStatefulRowData(record, null);
+    return new GlutenStatefulRowData(record, rowType, null);
   }
 
   @Override

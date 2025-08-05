@@ -126,8 +126,11 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<RowData>
             output.emitWatermark(new Watermark(watermark.getTimestamp()));
           } else {
             final StatefulRecord statefulRecord = statefulElement.asRecord();
-            output.collect(
-                outElement.replace(new GlutenStatefulRowData(statefulRecord, allocator)));
+            for (RowType outputType : outputTypes.values()) {
+              output.collect(
+                  outElement.replace(
+                      new GlutenStatefulRowData(statefulRecord, outputType, allocator)));
+            }
             statefulRecord.close();
           }
         } else {

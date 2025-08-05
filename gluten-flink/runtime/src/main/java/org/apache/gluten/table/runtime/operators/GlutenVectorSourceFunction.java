@@ -107,7 +107,9 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<Glute
         if (element.isWatermark()) {
           sourceContext.emitWatermark(new Watermark(element.asWatermark().getTimestamp()));
         } else {
-          sourceContext.collect(new GlutenStatefulRowData(element, allocator));
+          for (RowType outputType : outputTypes.values()) {
+            sourceContext.collect(new GlutenStatefulRowData(element, outputType, allocator));
+          }
         }
         element.close();
       } else if (state == UpIterator.State.BLOCKED) {
