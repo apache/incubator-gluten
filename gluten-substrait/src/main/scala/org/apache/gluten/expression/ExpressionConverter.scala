@@ -208,7 +208,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i
         )
-      case i @ StaticInvoke(_, _, "invoke", _, _, _, _, _) =>
+      case i @ StaticInvoke(c, _, "invoke", _, _, _, _, _)
+          if c.getName.startsWith("org.apache.iceberg.spark.functions.") =>
         return replaceIcebergStaticInvoke(i, attributeSeq, expressionsMap)
       case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
         throw new GlutenNotSupportException(
