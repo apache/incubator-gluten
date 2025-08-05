@@ -55,6 +55,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
+  def enableAnsiFallback: Boolean = getConf(GLUTEN_ANSI_FALLBACK_ENABLED)
+
   def glutenUiEnabled: Boolean = getConf(GLUTEN_UI_ENABLED)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
@@ -777,6 +779,14 @@ object GlutenConfig {
         "This is tmp config to specify whether to enable the native validation based on " +
           "Substrait plan. After the validations in all backends are correctly implemented, " +
           "this config should be removed.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val GLUTEN_ANSI_FALLBACK_ENABLED =
+    buildConf("spark.gluten.sql.enable.ansi.fallback")
+      .doc(
+        "When true (default), Gluten will fallback to Spark when ANSI mode is enabled. " +
+          "When false, Gluten will attempt to execute in ANSI mode")
       .booleanConf
       .createWithDefault(true)
 
