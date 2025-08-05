@@ -19,7 +19,7 @@ package org.apache.gluten.functions
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.internal.SQLConf
 
 class ArithmeticAnsiValidateSuiteRasOff extends ArithmeticAnsiValidateSuite {
@@ -46,202 +46,45 @@ abstract class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
       .set(SQLConf.ANSI_ENABLED.key, "true")
   }
 
-  test("arithmetic addition with ansi mode - integer types") {
+  test("arithmetic addition with ansi mode") {
     runQueryAndCompare("SELECT int_field1 + 100 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("arithmetic subtraction with ansi mode - integer types") {
+  test("arithmetic subtraction with ansi mode") {
     runQueryAndCompare("SELECT int_field1 - 50 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("arithmetic multiplication with ansi mode - integer types") {
+  test("arithmetic multiplication with ansi mode") {
     runQueryAndCompare("SELECT int_field1 * 2 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("arithmetic division with ansi mode - integer types") {
+  test("arithmetic division with ansi mode") {
     runQueryAndCompare("SELECT int_field1 / 2 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("arithmetic addition with ansi mode - long types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS BIGINT) + 1000L FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+  test("arithmetic addition overflow exception with ansi mode") {
+    intercept[SparkException] {
+      sql("SELECT 2147483647 + 1").collect()
     }
   }
 
-  test("arithmetic subtraction with ansi mode - long types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS BIGINT) - 500L FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+  test("arithmetic division by zero exception with ansi mode") {
+    intercept[SparkException] {
+      sql("SELECT 1 / 0").collect()
     }
   }
 
-  test("arithmetic multiplication with ansi mode - long types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS BIGINT) * 10L FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic division with ansi mode - long types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS BIGINT) / 2L FROM datatab WHERE int_field1 IS NOT NULL " +
-        "LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic addition with ansi mode - short types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS SMALLINT) + CAST(10 AS SMALLINT) FROM datatab " +
-        "WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic subtraction with ansi mode - short types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS SMALLINT) - CAST(1 AS SMALLINT) FROM datatab " +
-        "WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic multiplication with ansi mode - short types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS SMALLINT) * CAST(2 AS SMALLINT) FROM datatab " +
-        "WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic division with ansi mode - short types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS SMALLINT) / CAST(2 AS SMALLINT) FROM datatab " +
-        "WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic addition with ansi mode - byte types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS TINYINT) + CAST(5 AS TINYINT) FROM datatab " +
-        "WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic subtraction with ansi mode - byte types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS TINYINT) - CAST(1 AS TINYINT) FROM datatab " +
-        "WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic multiplication with ansi mode - byte types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS TINYINT) * CAST(2 AS TINYINT) FROM datatab " +
-        "WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic division with ansi mode - byte types") {
-    runQueryAndCompare(
-      "SELECT CAST(int_field1 AS TINYINT) / CAST(2 AS TINYINT) FROM datatab " +
-        "WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic addition with ansi mode - double types") {
-    runQueryAndCompare(
-      "SELECT double_field1 + 1.5 FROM datatab WHERE double_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic subtraction with ansi mode - double types") {
-    runQueryAndCompare(
-      "SELECT double_field1 - 0.5 FROM datatab WHERE double_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic multiplication with ansi mode - double types") {
-    runQueryAndCompare(
-      "SELECT double_field1 * 2.0 FROM datatab WHERE double_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic division with ansi mode - double types") {
-    runQueryAndCompare(
-      "SELECT double_field1 / 2.0 FROM datatab WHERE double_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic addition with ansi mode - float types") {
-    runQueryAndCompare(
-      "SELECT CAST(double_field1 AS FLOAT) + CAST(1.5 AS FLOAT) FROM datatab " +
-        "WHERE double_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic subtraction with ansi mode - float types") {
-    runQueryAndCompare(
-      "SELECT CAST(double_field1 AS FLOAT) - CAST(0.5 AS FLOAT) FROM datatab " +
-        "WHERE double_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic multiplication with ansi mode - float types") {
-    runQueryAndCompare(
-      "SELECT CAST(double_field1 AS FLOAT) * CAST(2.0 AS FLOAT) FROM datatab " +
-        "WHERE double_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic division with ansi mode - float types") {
-    runQueryAndCompare(
-      "SELECT CAST(double_field1 AS FLOAT) / CAST(2.0 AS FLOAT) FROM datatab " +
-        "WHERE double_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic mixed operations with ansi mode") {
-    runQueryAndCompare(
-      "SELECT (int_field1 + 10) * 2 - 5 FROM datatab WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("complex arithmetic expressions with ansi mode") {
-    runQueryAndCompare(
-      "SELECT (int_field1 + 5) * (int_field1 - 1) + double_field1 FROM datatab " +
-        "WHERE int_field1 IS NOT NULL LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic with null values and ansi mode") {
-    runQueryAndCompare(
-      "SELECT int_field1 + NULL, NULL * int_field1, double_field1 - NULL FROM datatab LIMIT 1") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+  test("arithmetic multiplication overflow exception with ansi mode") {
+    intercept[SparkException] {
+      sql("SELECT 2147483647 * 2").collect()
     }
   }
 }
