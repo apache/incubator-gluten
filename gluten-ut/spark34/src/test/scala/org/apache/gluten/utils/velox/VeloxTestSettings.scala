@@ -413,7 +413,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetV1FilterSuite]
     // Rewrite.
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
-    // Rewrite for supported INT96 - timestamp.
+    // Rewrite as legacy write is not supported.
     .exclude("filter pushdown - timestamp")
     .exclude("filter pushdown - date")
     // Exception bebaviour.
@@ -431,7 +431,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
-    // Rewrite for supported INT96 - timestamp.
+    // Rewrite as legacy write is not supported.
     .exclude("filter pushdown - timestamp")
     .exclude("filter pushdown - date")
     // Exception bebaviour.
