@@ -367,7 +367,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
       case InSubqueryExec(_, b: SubqueryBroadcastExec, _, _) =>
         b.index
       case InSubqueryExec(_, b: ColumnarSubqueryBroadcastExec, _, _) =>
-        b.index
+        b.indices
     }
     assert(buf.distinct.size == n)
   }

@@ -26,6 +26,7 @@ import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryExpression, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName}
@@ -308,6 +309,10 @@ class Spark32Shims extends SparkShims {
         e.printStackTrace()
         false
     }
+  }
+
+  override def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType = {
+    DecimalPrecision.widerDecimalType(d1, d2)
   }
 
 }
