@@ -42,6 +42,7 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
   val skippedSplits: SQLMetric = metrics("skippedSplits")
   val processedSplits: SQLMetric = metrics("processedSplits")
   val preloadSplits: SQLMetric = metrics("preloadSplits")
+  val pageScanTime: SQLMetric = metrics("pageScanTime")
   val skippedStrides: SQLMetric = metrics("skippedStrides")
   val processedStrides: SQLMetric = metrics("processedStrides")
   val remainingFilterTime: SQLMetric = metrics("remainingFilterTime")
@@ -80,6 +81,7 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
       localReadBytes += operatorMetrics.localReadBytes
       ramReadBytes += operatorMetrics.ramReadBytes
       preloadSplits += operatorMetrics.preloadSplits
+      pageScanTime += operatorMetrics.pageScanTime
     }
   }
 }

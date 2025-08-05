@@ -50,6 +50,7 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long localReadBytes;
   public long ramReadBytes;
   public long preloadSplits;
+  public long pageScanTime;
 
   public long physicalWrittenBytes;
   public long writeIOTime;
@@ -90,6 +91,7 @@ public class OperatorMetrics implements IOperatorMetrics {
       long localReadBytes,
       long ramReadBytes,
       long preloadSplits,
+      long pageScanTime,
       long physicalWrittenBytes,
       long writeIOTime,
       long numWrittenFiles) {
@@ -126,6 +128,7 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.localReadBytes = localReadBytes;
     this.ramReadBytes = ramReadBytes;
     this.preloadSplits = preloadSplits;
+    this.pageScanTime = pageScanTime;
     this.physicalWrittenBytes = physicalWrittenBytes;
     this.writeIOTime = writeIOTime;
     this.numWrittenFiles = numWrittenFiles;
