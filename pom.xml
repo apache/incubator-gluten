@@ -1540,14 +1540,14 @@
               <compilerPlugin>
                 <groupId>org.wartremover</groupId>
                 <artifactId>wartremover_${scala.binary.version}</artifactId>
-                <version>3.0.6</version>
+                <version>3.4.0</version>
               </compilerPlugin>
             </compilerPlugins>
             <dependencies>
               <dependency>
-                <groupId>io.github.zhztheplayer.scalawarts</groupId>
-                <artifactId>scalawarts_${scala.binary.version}</artifactId>
-                <version>0.1.2</version>
+                <groupId>org.wartremover</groupId>
+                <artifactId>wartremover-contrib_${scala.binary.version}</artifactId>
+                <version>2.3.3</version>
               </dependency>
             </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
@@ -1557,7 +1557,7 @@
               <arg>-deprecation</arg>
               <arg>-feature</arg>
               <arg>-Wconf:cat=deprecation:wv,any:e</arg>
-              <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+              <arg>-P:wartremover:traverser:org.wartremover.contrib.warts.CaseClassInheritance</arg>
             </args>
           </configuration>
           <executions>
