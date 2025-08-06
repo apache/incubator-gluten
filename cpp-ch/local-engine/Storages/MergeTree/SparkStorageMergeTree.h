@@ -49,7 +49,7 @@ private:
 class SparkStorageMergeTree : public DB::MergeTreeData
 {
     friend class MergeSparkMergeTreeTask;
-
+public:
     struct SparkMutationsSnapshot : public MutationsSnapshotBase
     {
         SparkMutationsSnapshot() = default;
@@ -63,7 +63,7 @@ class SparkStorageMergeTree : public DB::MergeTreeData
         DB::NameSet getAllUpdatedColumns() const override { return {}; }
     };
 
-public:
+
     static void wrapRangesInDataParts(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges);
     static void analysisPartsByRanges(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges_in_data_parts);
     std::string getName() const override;
