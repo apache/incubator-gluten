@@ -597,8 +597,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
     auto read_step = storage->reader.readFromParts(
         RangesInDataParts({selected_parts}),
-        /* alter_conversions = */
-        {},
+        std::make_shared<SparkStorageMergeTree::SparkMutationsSnapshot>(),
         names_and_types_list.getNames(),
         storage_snapshot,
         *query_info,
