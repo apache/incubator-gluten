@@ -255,6 +255,9 @@ trait SparkShims {
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
     Option.empty
 
+  def extractExpressionTimestampDiffUnit(timestampDiff: Expression): Option[String] =
+    Option.empty
+
   def withTryEvalMode(expr: Expression): Boolean = false
 
   def withAnsiEvalMode(expr: Expression): Boolean = false

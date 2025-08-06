@@ -33,6 +33,7 @@ concurrency:
 
 jobs:
   build-native-lib:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4

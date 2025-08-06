@@ -37,12 +37,6 @@ public class PlanNode implements Serializable {
   private TypeNode outputSchema = null;
   private AdvancedExtensionNode extension = null;
 
-  PlanNode(List<FunctionMappingNode> mappingNodes, List<RelNode> relNodes, List<String> outNames) {
-    this.mappingNodes.addAll(mappingNodes);
-    this.relNodes.addAll(relNodes);
-    this.outNames.addAll(outNames);
-  }
-
   PlanNode(
       List<FunctionMappingNode> mappingNodes,
       List<RelNode> relNodes,

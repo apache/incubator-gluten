@@ -70,11 +70,11 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   initVeloxJniUDF(env);
 
   infoCls = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/validate/NativePlanValidationInfo;");
-  infoClsInitMethod = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
+  infoClsInitMethod = getMethodIdOrError(env, infoCls, "<init>", "(ILjava/lang/String;)V");
 
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-  blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[[B)V");
+  blockStripesConstructor = getMethodIdOrError(env, blockStripesClass, "<init>", "(J[J[II[[B)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
 

@@ -1175,6 +1175,38 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare("select cast(array(timestamp'2024-01-01 12:00:00') AS array<string>)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
+    // Cast Array as String
+    withTempView("cast_table") {
+      withTempPath {
+        path =>
+          Seq[Array[String]](Array("a", null), Array(), null)
+            .toDF("c1")
+            .write
+            .parquet(path.getCanonicalPath)
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("cast_table")
+          runQueryAndCompare("select cast(c1 as string) from cast_table") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
+    runQueryAndCompare("select cast(array(1, 2) AS string)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(1L, null) AS string)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(1.1d, null) AS string)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(false, null) AS string)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(date'2024-01-01') AS string)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array(timestamp'2024-01-01 12:00:00') AS string)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   testWithMinSparkVersion("equal_null", "3.4") {
