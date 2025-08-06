@@ -220,6 +220,14 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
+  /** Transform abs function with ANSI mode support. */
+  def genAbsTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Abs): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(child), original)
+  }
+
   /** Transform map_entries to Substrait. */
   def genMapEntriesTransformer(
       substraitExprName: String,
