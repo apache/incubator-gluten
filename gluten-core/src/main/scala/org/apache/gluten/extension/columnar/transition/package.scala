@@ -27,9 +27,6 @@ import org.apache.spark.sql.execution.debug.DebugExec
 import org.apache.spark.util.SparkVersionUtil
 
 package object transition {
-  private val gteSpark33: Boolean = {
-    SparkVersionUtil.compareMajorMinorVersion((3, 3)) >= 0
-  }
 
   type TransitionGraph = FloydWarshallGraph[TransitionGraph.Vertex, Transition]
   // These 5 plan operators (as of Spark 3.5) are operators that have the
@@ -38,7 +35,7 @@ package object transition {
   // Extend this list in shim layer once Spark has more.
   def canPropagateConvention(plan: SparkPlan): Boolean = plan match {
     case p: DebugExec => true
-    case p: UnionExec if gteSpark33 =>
+    case p: UnionExec if SparkVersionUtil.gteSpark33 =>
       true
     case p: AQEShuffleReadExec => true
     case p: InputAdapter => true

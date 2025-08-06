@@ -169,10 +169,9 @@ object Convention {
 
   trait KnownRowTypeForSpark33OrLater extends KnownRowType {
     this: SparkPlan =>
-    import KnownRowTypeForSpark33OrLater._
 
     final override def rowType(): RowType = {
-      if (lteSpark32) {
+      if (SparkVersionUtil.lteSpark32) {
         // It's known that in Spark 3.2, one Spark plan node is considered either only having
         // row-based support or only having columnar support at a time.
         // Hence, if the plan supports columnar output, we'd disable its row-based support.
@@ -189,11 +188,5 @@ object Convention {
     }
 
     def rowType0(): RowType
-  }
-
-  object KnownRowTypeForSpark33OrLater {
-    private val lteSpark32: Boolean = {
-      SparkVersionUtil.compareMajorMinorVersion((3, 2)) <= 0
-    }
   }
 }
