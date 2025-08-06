@@ -80,6 +80,7 @@ extern const SettingsUInt64 max_download_buffer_size;
 extern const SettingsBool input_format_allow_seeks;
 extern const SettingsUInt64 max_read_buffer_size;
 extern const SettingsBool s3_slow_all_threads_after_network_error;
+extern const SettingsBool backup_slow_all_threads_after_retryable_s3_error;
 extern const SettingsBool enable_s3_requests_logging;
 }
 namespace ErrorCodes
@@ -555,6 +556,7 @@ private:
             static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_max_redirects]),
             static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_retry_attempts]),
             context->getSettingsRef()[DB::Setting::s3_slow_all_threads_after_network_error],
+            context->getSettingsRef()[Setting::backup_slow_all_threads_after_retryable_s3_error],
             context->getSettingsRef()[DB::Setting::enable_s3_requests_logging],
             false,
             nullptr,
