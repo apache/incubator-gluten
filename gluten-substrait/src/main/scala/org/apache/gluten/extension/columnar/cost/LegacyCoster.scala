@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.cost
 
+import org.apache.gluten.execution.ColumnarToCarrierRowExecBase
 import org.apache.gluten.extension.columnar.transition.{ColumnarToColumnarLike, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
@@ -33,7 +34,8 @@ object LegacyCoster extends LongCoster {
   // much as possible.
   private def selfCostOf0(node: SparkPlan): Long = {
     node match {
-      case ColumnarWriteFilesExec.OnNoopLeafPath(_) => 0
+      case ColumnarWriteFilesExec.OnNoopLeafPath(_) => 0L
+      case _: ColumnarToCarrierRowExecBase => 0L
       case ColumnarToRowLike(_) => 10L
       case RowToColumnarLike(_) => 10L
       case ColumnarToColumnarLike(_) => 5L

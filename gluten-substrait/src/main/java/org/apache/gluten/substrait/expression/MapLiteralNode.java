@@ -16,13 +16,16 @@
  */
 package org.apache.gluten.substrait.expression;
 
+import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.substrait.type.MapNode;
 import org.apache.gluten.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
 import io.substrait.proto.Type;
+import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.MapData;
+import org.apache.spark.sql.types.DataType;
 
 public class MapLiteralNode extends LiteralNodeWithValue<MapData> {
   public MapLiteralNode(MapData map, TypeNode typeNode) {
@@ -31,16 +34,19 @@ public class MapLiteralNode extends LiteralNodeWithValue<MapData> {
 
   @Override
   protected void updateLiteralBuilder(Builder literalBuilder, MapData map) {
-    Object[] keys = map.keyArray().array();
-    Object[] values = map.valueArray().array();
-    TypeNode mapType = ((MapNode) getTypeNode()).getKeyType();
+    ArrayData keys = map.keyArray();
+    ArrayData values = map.valueArray();
+    TypeNode keyType = ((MapNode) getTypeNode()).getKeyType();
     TypeNode valueType = ((MapNode) getTypeNode()).getValueType();
+    DataType keyDataType = ConverterUtils.parseFromTypeNode(keyType);
+    DataType valueDataType = ConverterUtils.parseFromTypeNode(valueType);
 
-    if (keys.length > 0) {
+    if (keys.numElements() > 0) {
       Expression.Literal.Map.Builder mapBuilder = Expression.Literal.Map.newBuilder();
-      for (int i = 0; i < keys.length; ++i) {
-        LiteralNode keyNode = ExpressionBuilder.makeLiteral(keys[i], mapType);
-        LiteralNode valueNode = ExpressionBuilder.makeLiteral(values[i], valueType);
+      for (int i = 0; i < keys.numElements(); ++i) {
+        LiteralNode keyNode = ExpressionBuilder.makeLiteral(keys.get(i, keyDataType), keyType);
+        LiteralNode valueNode =
+            ExpressionBuilder.makeLiteral(values.get(i, valueDataType), valueType);
 
         Expression.Literal.Map.KeyValue.Builder kvBuilder =
             Expression.Literal.Map.KeyValue.newBuilder();
@@ -52,7 +58,7 @@ public class MapLiteralNode extends LiteralNodeWithValue<MapData> {
       literalBuilder.setMap(mapBuilder.build());
     } else {
       Type.Map.Builder mapTypeBuilder = Type.Map.newBuilder();
-      mapTypeBuilder.setKey(mapType.toProtobuf());
+      mapTypeBuilder.setKey(keyType.toProtobuf());
       mapTypeBuilder.setValue(valueType.toProtobuf());
       literalBuilder.setEmptyMap(mapTypeBuilder.build());
     }

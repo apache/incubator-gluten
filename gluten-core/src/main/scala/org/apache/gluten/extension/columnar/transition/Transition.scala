@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.cost.GlutenCostModel
 
@@ -94,7 +94,7 @@ object Transition {
       private val graphCache = mutable.Map[String, TransitionGraph]()
 
       private def graph(): TransitionGraph = synchronized {
-        val aliasOrClass = GlutenConfig.get.rasCostModel
+        val aliasOrClass = GlutenCoreConfig.get.rasCostModel
         graphCache.getOrElseUpdate(
           aliasOrClass, {
             val base = GlutenCostModel.find(aliasOrClass)
@@ -127,8 +127,8 @@ object Transition {
                 // We have only one single built-in row type.
                 Transition.empty
               case _ =>
-                throw new UnsupportedOperationException(
-                  "Row-to-row transition is not yet supported")
+                // Find row-to-row transition.
+                graph().transitionOfOption(from.rowType, toRowType).getOrElse(orElse)
             }
           case (ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType)) =>
             from.batchType match {

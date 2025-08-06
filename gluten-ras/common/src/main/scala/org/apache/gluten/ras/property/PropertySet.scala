@@ -19,8 +19,8 @@ package org.apache.gluten.ras.property
 import org.apache.gluten.ras.{Property, PropertyDef}
 
 trait PropertySet[T <: AnyRef] {
-  def get[P <: Property[T]](property: PropertyDef[T, P]): P
-  def getMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]]
+  def get[P <: Property[T]](propertyDef: PropertyDef[T, P]): P
+  def asMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]]
   def satisfies(other: PropertySet[T]): Boolean
 }
 
@@ -37,37 +37,25 @@ object PropertySet {
     ImmutablePropertySet[T](map)
   }
 
-  implicit class PropertySetImplicits[T <: AnyRef](propSet: PropertySet[T]) {
-    def withProp(property: Property[T]): PropertySet[T] = {
-      val before = propSet.getMap
-      val after = before + (property.definition() -> property)
-      assert(after.size == before.size)
-      ImmutablePropertySet[T](after)
-    }
-  }
-
   private case class ImmutablePropertySet[T <: AnyRef](
       map: Map[PropertyDef[T, _ <: Property[T]], Property[T]])
     extends PropertySet[T] {
 
-    assert(
-      map.values.forall(p => p.satisfies(p.definition().any())),
-      s"Property set $this doesn't satisfy its ${'"'}any${'"'} variant")
+    override def asMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = map
 
-    override def getMap: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = map
     override def satisfies(other: PropertySet[T]): Boolean = {
-      assert(map.size == other.getMap.size)
+      assert(map.size == other.asMap.size)
       map.forall {
         case (propDef, prop) =>
-          prop.satisfies(other.getMap(propDef))
+          prop.satisfies(other.asMap(propDef))
       }
     }
 
     override def get[P <: Property[T]](propDef: PropertyDef[T, P]): P = {
-      assert(map.contains(propDef))
+      assert(map.contains(propDef), s"Required property $propDef not found in property set: $this")
       map(propDef).asInstanceOf[P]
     }
 
-    override def toString: String = map.values.toVector.toString()
+    override def toString: String = map.values.mkString("(", ",", ")")
   }
 }

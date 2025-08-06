@@ -17,6 +17,7 @@
 package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackend
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{OffloadDeltaFilter, OffloadDeltaNode, OffloadDeltaProject}
 import org.apache.gluten.extension.DeltaPostTransformRules
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
@@ -44,7 +45,9 @@ class CHDeltaComponent extends Component {
     legacy.injectTransform {
       c =>
         val offload = Seq(OffloadDeltaNode(), OffloadDeltaProject(), OffloadDeltaFilter())
-        HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
+        HeuristicTransform.Simple(
+          Validators.newValidator(new GlutenConfig(c.sqlConf), offload),
+          offload)
     }
     val offloads: Seq[RasOffload] = Seq(
       RasOffload.from[ProjectExec](OffloadDeltaProject()),
@@ -53,7 +56,7 @@ class CHDeltaComponent extends Component {
     offloads.foreach(
       offload =>
         ras.injectRasRule(
-          c => RasOffload.Rule(offload, Validators.newValidator(c.glutenConf), Nil)))
+          c => RasOffload.Rule(offload, Validators.newValidator(new GlutenConfig(c.sqlConf)), Nil)))
     DeltaPostTransformRules.rules.foreach {
       r =>
         legacy.injectPostTransform(_ => r)

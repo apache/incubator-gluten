@@ -43,7 +43,7 @@ class ColumnarBatchArray : public ColumnarBatchIterator {
 class VeloxBatchResizerTest : public ::testing::Test, public test::VectorTestBase {
  protected:
   static void SetUpTestCase() {
-    memory::MemoryManager::testingSetInstance({});
+    memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 
   RowVectorPtr newVector(size_t numRows) {

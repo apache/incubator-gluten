@@ -21,7 +21,6 @@
 
 #include "memory/VeloxColumnarBatch.h"
 #include "utils/Exception.h"
-#include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/row/UnsafeRowFast.h"
 
 using namespace facebook;

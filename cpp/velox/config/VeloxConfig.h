@@ -69,6 +69,10 @@ const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backe
 const std::string kShowTaskMetricsWhenFinished = "spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished";
 const bool kShowTaskMetricsWhenFinishedDefault = false;
 
+const std::string kTaskMetricsToEventLogThreshold =
+    "spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold";
+const int64_t kTaskMetricsToEventLogThresholdDefault = -1;
+
 const std::string kEnableUserExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace";
 const bool kEnableUserExceptionStacktraceDefault = true;
@@ -145,14 +149,6 @@ const uint32_t kGlogVerboseLevelDefault = 0;
 const uint32_t kGlogVerboseLevelMaximum = 99;
 const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
 const uint32_t kGlogSeverityLevelDefault = 1;
-
-// cudf
-#ifdef GLUTEN_ENABLE_GPU
-const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";
-const bool kCudfEnabledDefault = "false";
-const std::string kDebugCudf = "spark.gluten.sql.debug.cudf";
-const bool kDebugCudfDefault = "false";
-#endif
 
 // Query trace
 /// Enable query tracing flag.

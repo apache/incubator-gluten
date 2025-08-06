@@ -42,7 +42,7 @@ abstract class ColumnarToRowExecBase(child: SparkPlan)
 
   override def batchType(): Convention.BatchType = Convention.BatchType.None
 
-  override def rowType0(): Convention.RowType = Convention.RowType.VanillaRow
+  override def rowType0(): Convention.RowType = Convention.RowType.VanillaRowType
 
   override def requiredChildConvention(): Seq[ConventionReq] = {
     List(

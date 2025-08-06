@@ -28,13 +28,13 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, IdentityBroadcastMode, Partitioning}
-import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashedRelationBroadcastMode, LongHashedRelation}
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, EmptyHashedRelation, HashedRelation, HashedRelationBroadcastMode, LongHashedRelation}
 import org.apache.spark.sql.execution.unsafe.UnsafeColumnarBuildSideRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
 
-import scala.collection.mutable.ArrayBuffer;
+import scala.collection.mutable.ArrayBuffer
 
 // Utility methods to convert Vanilla broadcast relations from/to Velox broadcast relations.
 // FIXME: Truncate output with batch size.
@@ -168,12 +168,12 @@ object BroadcastUtils {
           ColumnarBatches.retain(b)
           b
         })
-    var rowNums = 0
+    var numRows: Long = 0
     val values = filtered
       .map(
         b => {
           val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
-          rowNums += b.numRows()
+          numRows += b.numRows()
           try {
             ColumnarBatchSerializerJniWrapper
               .create(
@@ -188,7 +188,7 @@ object BroadcastUtils {
         })
       .toArray
     if (values.nonEmpty) {
-      new ColumnarBatchSerializeResult(rowNums, values)
+      new ColumnarBatchSerializeResult(numRows, values)
     } else {
       ColumnarBatchSerializeResult.EMPTY
     }
@@ -203,6 +203,7 @@ object BroadcastUtils {
         relation.keys().map(k => relation.getValue(k))
       case relation: LongHashedRelation if !relation.keyIsUnique =>
         relation.keys().flatMap(k => relation.get(k))
+      case EmptyHashedRelation => Iterator.empty
       case other => other.valuesWithKeyIndex().map(_.getValue)
     }
   }

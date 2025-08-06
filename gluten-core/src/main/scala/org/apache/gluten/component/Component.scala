@@ -61,6 +61,9 @@ trait Component {
   def onExecutorStart(pc: PluginContext): Unit = {}
   def onExecutorShutdown(): Unit = {}
 
+  /** Metrics register, only called on Driver. */
+  def registerMetrics(appId: String, pluginContext: PluginContext): Unit = {}
+
   /**
    * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using to
    * determine the convention (its row-based processing / columnar-batch processing support) of a

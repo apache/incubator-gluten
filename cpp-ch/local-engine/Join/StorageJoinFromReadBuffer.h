@@ -57,7 +57,7 @@ public:
     /// in the constructor.
     /// This should be called once.
     DB::JoinPtr getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr context);
-    const DB::Block & getRightSampleBlock() const { return right_sample_block; }
+    const DB::Block & getRightSampleBlock() const { return *right_sample_block; }
 
 private:
     DB::StorageInMemoryMetadata storage_metadata;
@@ -65,15 +65,15 @@ private:
     bool use_nulls;
     size_t row_count;
     bool overwrite;
-    DB::Block right_sample_block;
+    DB::SharedHeader right_sample_block;
     std::shared_mutex join_mutex;
     std::list<DB::Block> input_blocks;
     std::shared_ptr<DB::HashJoin> join = nullptr;
     bool is_null_aware_anti_join;
 
     void readAllBlocksFromInput(DB::ReadBuffer & in);
-    void buildJoin(DB::Blocks & data, const DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
-    void collectAllInputs(DB::Blocks & data, const DB::Block header);
-    void buildJoinLazily(DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
+    void buildJoin(const DB::Blocks & data, const DB::SharedHeader & header, std::shared_ptr<DB::TableJoin> analyzed_join);
+    void collectAllInputs(DB::Blocks & data);
+    void buildJoinLazily(const DB::SharedHeader & header, std::shared_ptr<DB::TableJoin> analyzed_join);
 };
 }

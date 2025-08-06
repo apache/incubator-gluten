@@ -20,6 +20,7 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Storages/Kafka/ReadFromGlutenStorageKafka.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/logger_useful.h>
 
 namespace DB
@@ -85,8 +86,8 @@ DB::QueryPlanPtr StreamKafkaRelParser::parseRelImpl(DB::QueryPlanPtr query_plan,
     Names topics;
     topics.emplace_back(topic);
 
-    auto header = TypeParser::buildBlockFromNamedStruct(read_rel.base_schema());
-    Names names = header.getNames();
+    auto header = toShared(TypeParser::buildBlockFromNamedStruct(read_rel.base_schema()));
+    Names names = header->getNames();
     auto source = std::make_unique<ReadFromGlutenStorageKafka>(
         names, header, getContext(), topics, partition, start_offset, end_offset, poll_timeout_ms, group_id, brokers);
 

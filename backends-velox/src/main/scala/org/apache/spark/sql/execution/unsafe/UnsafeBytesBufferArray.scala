@@ -57,7 +57,7 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
   private val bytesBufferOffset = if (bytesBufferLengths.isEmpty) {
     new Array(0)
   } else {
-    bytesBufferLengths.init.scanLeft(0)(_ + _)
+    bytesBufferLengths.init.scanLeft(0L)(_ + _)
   }
 
   /**

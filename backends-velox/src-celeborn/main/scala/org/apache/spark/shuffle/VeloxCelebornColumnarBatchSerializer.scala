@@ -17,8 +17,7 @@
 package org.apache.spark.shuffle
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.ReservedKeys.{GLUTEN_RSS_SORT_SHUFFLE_WRITER, GLUTEN_SORT_SHUFFLE_WRITER}
+import org.apache.gluten.config.{GlutenConfig, ShuffleWriterType}
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
@@ -49,20 +48,26 @@ import scala.reflect.ClassTag
 class CelebornColumnarBatchSerializer(
     schema: StructType,
     readBatchNumRows: SQLMetric,
-    numOutputRows: SQLMetric)
+    numOutputRows: SQLMetric,
+    shuffleWriterType: ShuffleWriterType)
   extends Serializer
   with Serializable {
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
-    new CelebornColumnarBatchSerializerInstance(schema, readBatchNumRows, numOutputRows)
+    new CelebornColumnarBatchSerializerInstance(
+      schema,
+      readBatchNumRows,
+      numOutputRows,
+      shuffleWriterType)
   }
 }
 
 private class CelebornColumnarBatchSerializerInstance(
     schema: StructType,
     readBatchNumRows: SQLMetric,
-    numOutputRows: SQLMetric)
+    numOutputRows: SQLMetric,
+    shuffleWriterType: ShuffleWriterType)
   extends SerializerInstance
   with Logging {
 
@@ -86,8 +91,6 @@ private class CelebornColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.get.columnarShuffleCodecBackend.orNull
-    val shuffleWriterType = GlutenConfig.get.celebornShuffleWriterType
-      .replace(GLUTEN_SORT_SHUFFLE_WRITER, GLUTEN_RSS_SORT_SHUFFLE_WRITER)
     val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val batchSize = GlutenConfig.get.maxBatchSize
     val readerBufferSize = GlutenConfig.get.columnarShuffleReaderBufferSize
@@ -100,7 +103,7 @@ private class CelebornColumnarBatchSerializerInstance(
         batchSize,
         readerBufferSize,
         deserializerBufferSize,
-        shuffleWriterType
+        shuffleWriterType.name
       )
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that

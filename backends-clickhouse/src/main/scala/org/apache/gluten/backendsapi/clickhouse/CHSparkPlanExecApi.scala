@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, ShuffleWriterType}
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
@@ -416,7 +416,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric],
-      isSort: Boolean
+      shuffleWriterType: ShuffleWriterType
   ): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     CHExecUtil.genShuffleDependency(
       rdd,
@@ -429,10 +429,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     )
   }
   // scalastyle:on argcount
-
-  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
-  override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean =
-    false
 
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
@@ -452,7 +448,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   override def createColumnarBatchSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): Serializer = {
+      shuffleWriterType: ShuffleWriterType): Serializer = {
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val numOutputRows = metrics("numOutputRows")
     val dataSize = metrics("dataSize")
@@ -1001,4 +997,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val address = CHStreamReader.directRead(input, readBuffer, bufferSize)
     new CHNativeBlock(address).toColumnarBatch
   }
+
+  override def genColumnarToCarrierRow(plan: SparkPlan): SparkPlan =
+    CHColumnarToCarrierRowExec.enforce(plan)
 }

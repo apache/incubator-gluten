@@ -18,8 +18,7 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.ReservedKeys
+import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, RssSortShuffleWriterType, SortShuffleWriterType}
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
@@ -51,19 +50,16 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     celebornConf,
     client,
     writeMetrics) {
-  private val isSort = !ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER.equals(shuffleWriterType)
-
   private val runtime =
     Runtimes.contextInstance(BackendsApiManager.getBackendName, "CelebornShuffleWriter")
 
-  private val jniWrapper = ShuffleWriterJniWrapper.create(runtime)
+  private val partitionWriterJniWrapper = CelebornPartitionWriterJniWrapper.create(runtime)
+  private val shuffleWriterJniWrapper = ShuffleWriterJniWrapper.create(runtime)
 
   private var splitResult: GlutenSplitResult = _
 
   private def availableOffHeapPerTask(): Long = {
-    val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
-    perTask
+    SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
   }
 
   @throws[IOException]
@@ -78,9 +74,14 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         initShuffleWriter(cb)
-        val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
+        val columnarBatchHandle =
+          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
         val startTime = System.nanoTime()
-        jniWrapper.write(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
+        shuffleWriterJniWrapper.write(
+          nativeShuffleWriter,
+          cb.numRows,
+          columnarBatchHandle,
+          availableOffHeapPerTask())
         dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)
@@ -96,19 +97,28 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     }
 
     val startTime = System.nanoTime()
-    splitResult = jniWrapper.stop(nativeShuffleWriter)
+    splitResult = shuffleWriterJniWrapper.stop(nativeShuffleWriter)
 
     dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
-    val nativeMetrics = if (isSort) {
-      dep.metrics("sortTime")
-    } else {
-      dep.metrics("splitTime")
+    dep.shuffleWriterType match {
+      case HashShuffleWriterType =>
+        dep
+          .metrics("splitTime")
+          .add(
+            dep.metrics("shuffleWallTime").value - splitResult.getTotalPushTime -
+              splitResult.getTotalWriteTime -
+              splitResult.getTotalCompressTime)
+      case RssSortShuffleWriterType =>
+        dep
+          .metrics("sortTime")
+          .add(
+            dep.metrics("shuffleWallTime").value - splitResult.getTotalPushTime -
+              splitResult.getTotalWriteTime -
+              splitResult.getTotalCompressTime)
+      case SortShuffleWriterType =>
+        dep.metrics("sortTime").add(splitResult.getSortTime)
+        dep.metrics("c2rTime").add(splitResult.getC2RTime)
     }
-    nativeMetrics
-      .add(
-        dep.metrics("shuffleWallTime").value - splitResult.getTotalPushTime -
-          splitResult.getTotalWriteTime -
-          splitResult.getTotalCompressTime)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalPushTime)
@@ -120,28 +130,52 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
   }
 
   override def createShuffleWriter(columnarBatch: ColumnarBatch): Unit = {
-    nativeShuffleWriter = jniWrapper.makeForRSS(
-      dep.nativePartitioning.getShortName,
-      dep.nativePartitioning.getNumPartitions,
-      nativeBufferSize,
+    val partitionWriterHandle = partitionWriterJniWrapper.createPartitionWriter(
+      numPartitions,
       compressionCodec.orNull,
+      GlutenConfig.get.columnarShuffleCodecBackend.orNull,
       compressionLevel,
       compressionBufferSize,
-      conf.get(SHUFFLE_DISK_WRITE_BUFFER_SIZE).toInt,
-      bufferCompressThreshold,
-      GlutenConfig.get.columnarShuffleCompressionMode,
-      conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
-      conf.get(SHUFFLE_SORT_USE_RADIXSORT),
       clientPushBufferMaxSize,
       clientPushSortMemoryThreshold,
-      celebornPartitionPusher,
-      ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, columnarBatch),
-      context.taskAttemptId(),
-      GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
-      "celeborn",
-      shuffleWriterType,
-      GlutenConfig.get.columnarShuffleReallocThreshold
+      celebornPartitionPusher
     )
+
+    nativeShuffleWriter = dep.shuffleWriterType match {
+      case HashShuffleWriterType =>
+        shuffleWriterJniWrapper.createHashShuffleWriter(
+          numPartitions,
+          dep.nativePartitioning.getShortName,
+          GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
+          nativeBufferSize,
+          GlutenConfig.get.columnarShuffleReallocThreshold,
+          partitionWriterHandle
+        )
+      case SortShuffleWriterType =>
+        shuffleWriterJniWrapper.createSortShuffleWriter(
+          numPartitions,
+          dep.nativePartitioning.getShortName,
+          GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
+          conf.get(SHUFFLE_DISK_WRITE_BUFFER_SIZE).toInt,
+          conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
+          conf.get(SHUFFLE_SORT_USE_RADIXSORT),
+          partitionWriterHandle
+        )
+      case RssSortShuffleWriterType =>
+        shuffleWriterJniWrapper.createRssSortShuffleWriter(
+          numPartitions,
+          dep.nativePartitioning.getShortName,
+          GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
+          nativeBufferSize,
+          clientPushSortMemoryThreshold,
+          compressionCodec.orNull,
+          partitionWriterHandle
+        )
+      case other =>
+        throw new UnsupportedOperationException(
+          s"Unsupported celeborn shuffle writer type: ${other.name}")
+    }
+
     runtime
       .memoryManager()
       .addSpiller(new Spiller() {
@@ -151,7 +185,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
           }
           logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
           // fixme pass true when being called by self
-          val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+          val pushed = shuffleWriterJniWrapper.reclaim(nativeShuffleWriter, size)
           logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
           pushed
         }
@@ -159,6 +193,6 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
   }
 
   override def closeShuffleWriter(): Unit = {
-    jniWrapper.close(nativeShuffleWriter)
+    shuffleWriterJniWrapper.close(nativeShuffleWriter)
   }
 }

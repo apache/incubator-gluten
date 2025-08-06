@@ -27,10 +27,10 @@ class GlutenCustomerExtensionSuite extends GlutenSQLTestsTrait {
     super.sparkConf
       .set("spark.sql.adaptive.enabled", "false")
       .set(
-        "spark.gluten.sql.columnar.extended.columnar.pre.rules",
+        GlutenConfig.EXTENDED_COLUMNAR_TRANSFORM_RULES.key,
         "org.apache.spark.sql" +
           ".extension.CustomerColumnarPreRules")
-      .set("spark.gluten.sql.columnar.extended.columnar.post.rules", "")
+      .set(GlutenConfig.EXTENDED_COLUMNAR_POST_RULES.key, "")
   }
 
   testGluten("test customer column rules") {
@@ -39,7 +39,7 @@ class GlutenCustomerExtensionSuite extends GlutenSQLTestsTrait {
       sql("insert into my_parquet values (1)")
       sql("insert into my_parquet values (2)")
     }
-    withSQLConf(("spark.gluten.sql.columnar.filescan", "false")) {
+    withSQLConf((GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key, "false")) {
       val df = sql("select * from my_parquet")
       val testFileSourceScanExecTransformer = df.queryExecution.executedPlan.collect {
         case f: TestFileSourceScanExecTransformer => f

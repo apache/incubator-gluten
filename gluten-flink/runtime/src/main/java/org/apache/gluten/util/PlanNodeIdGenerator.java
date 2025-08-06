@@ -20,9 +20,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /** Generate a unique id for each velox PlanNode */
 public class PlanNodeIdGenerator {
-    private static final AtomicInteger ID_COUNTER = new AtomicInteger(0);
+  private static final AtomicInteger ID_COUNTER = new AtomicInteger(0);
 
-    public static String newId() {
-        return String.valueOf(ID_COUNTER.getAndIncrement());
-    }
+  public static String newId() {
+    return String.valueOf(ID_COUNTER.getAndIncrement());
+  }
 }

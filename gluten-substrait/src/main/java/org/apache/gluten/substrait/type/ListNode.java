@@ -45,4 +45,9 @@ public class ListNode implements TypeNode, Serializable {
     builder.setList(listBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

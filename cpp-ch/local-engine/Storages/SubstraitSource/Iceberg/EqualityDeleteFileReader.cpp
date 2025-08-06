@@ -21,6 +21,7 @@
 #include <Columns/ColumnSet.h>
 #include <DataTypes/DataTypeSet.h>
 #include <Functions/FunctionFactory.h>
+#include <Interpreters/Context.h>
 #include <Interpreters/ExpressionActions.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/SubstraitSource/Iceberg/SimpleParquetReader.h>

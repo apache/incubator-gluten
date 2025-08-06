@@ -146,8 +146,8 @@ TypePtr getScalarType(const ::substrait::Expression::Literal& literal) {
   }
 }
 
-/// Whether null will be returned on cast failure.
-bool isNullOnFailure(::substrait::Expression::Cast::FailureBehavior failureBehavior) {
+/// Whether is try cast.
+bool isTryCast(::substrait::Expression::Cast::FailureBehavior failureBehavior) {
   switch (failureBehavior) {
     case ::substrait::Expression_Cast_FailureBehavior_FAILURE_BEHAVIOR_UNSPECIFIED:
     case ::substrait::Expression_Cast_FailureBehavior_FAILURE_BEHAVIOR_THROW_EXCEPTION:
@@ -199,7 +199,7 @@ makeFieldAccessExpr(const std::string& name, const TypePtr& type, core::FieldAcc
 
 } // namespace
 
-using facebook::velox::core::variantArrayToVector;
+using facebook::velox::variantToVector;
 
 namespace gluten {
 
@@ -322,8 +322,8 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::lite
     variants.emplace_back(veloxVariant->value());
   }
   VELOX_CHECK(literalType.has_value(), "Type expected.");
-  auto varArray = variant::array(variants);
-  ArrayVectorPtr arrayVector = variantArrayToVector(ARRAY(literalType.value()), varArray.array(), pool_);
+  auto varArray = Variant::array(variants);
+  VectorPtr arrayVector = variantToVector(ARRAY(literalType.value()), varArray, pool_);
   // Wrap the array vector into constant vector.
   auto constantVector = BaseVector::wrapInConstant(1 /*length*/, 0 /*index*/, arrayVector);
   return std::make_shared<const core::ConstantTypedExpr>(constantVector);
@@ -562,10 +562,8 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     const ::substrait::Expression::Cast& castExpr,
     const RowTypePtr& inputType) {
   auto type = SubstraitParser::parseType(castExpr.type());
-  bool nullOnFailure = isNullOnFailure(castExpr.failure_behavior());
-
   std::vector<core::TypedExprPtr> inputs{toVeloxExpr(castExpr.input(), inputType)};
-  return std::make_shared<core::CastTypedExpr>(type, inputs, nullOnFailure);
+  return std::make_shared<core::CastTypedExpr>(type, inputs, isTryCast(castExpr.failure_behavior()));
 }
 
 core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(

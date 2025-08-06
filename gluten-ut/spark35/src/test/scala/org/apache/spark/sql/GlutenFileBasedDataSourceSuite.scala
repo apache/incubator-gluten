@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.BatchScanExecTransformer
 
 import org.apache.spark.{SparkConf, SparkException}
@@ -39,7 +40,7 @@ class GlutenFileBasedDataSourceSuite extends FileBasedDataSourceSuite with Glute
 
   override def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "false")
+      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")
       .set(SQLConf.SHUFFLE_PARTITIONS.key, "5")
   }
 

@@ -40,4 +40,9 @@ public class BinaryTypeNode implements TypeNode, Serializable {
     builder.setBinary(binaryBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

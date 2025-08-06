@@ -18,7 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.TypeBuilder
@@ -71,24 +70,8 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
       throw new IllegalArgumentException(s"ShuffledJoin should not take $x as the JoinType")
   }
 
-  override def output: Seq[Attribute] = {
-    joinType match {
-      case _: InnerLike =>
-        left.output ++ right.output
-      case LeftOuter =>
-        left.output ++ right.output.map(_.withNullability(true))
-      case RightOuter =>
-        left.output.map(_.withNullability(true)) ++ right.output
-      case FullOuter =>
-        (left.output ++ right.output).map(_.withNullability(true))
-      case j: ExistenceJoin =>
-        left.output :+ j.exists
-      case LeftExistence(_) =>
-        left.output
-      case x =>
-        throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
-    }
-  }
+  override def output: Seq[Attribute] =
+    JoinUtils.getDirectJoinOutputSeq(joinType, left.output, right.output, getClass.getSimpleName)
 }
 
 /** Performs a hash join of two child relations by first shuffling the data using the join keys. */
@@ -274,13 +257,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     )
 
     context.registerJoinParam(operatorId, joinParams)
-
-    JoinUtils.createTransformContext(
-      needSwitchChildren,
-      output,
-      joinRel,
-      inputStreamedOutput,
-      inputBuildOutput)
+    TransformContext(output, joinRel)
   }
 
   def genJoinParameters(): Any = {
@@ -376,24 +353,8 @@ abstract class BroadcastHashJoinExecTransformerBase(
     isNullAwareAntiJoin: Boolean)
   extends HashJoinLikeExecTransformer {
 
-  override def output: Seq[Attribute] = {
-    joinType match {
-      case _: InnerLike =>
-        left.output ++ right.output
-      case LeftOuter =>
-        left.output ++ right.output.map(_.withNullability(true))
-      case RightOuter =>
-        left.output.map(_.withNullability(true)) ++ right.output
-      case FullOuter =>
-        (left.output ++ right.output).map(_.withNullability(true))
-      case j: ExistenceJoin =>
-        left.output :+ j.exists
-      case LeftExistence(_) =>
-        left.output
-      case x =>
-        throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
-    }
-  }
+  override def output: Seq[Attribute] =
+    JoinUtils.getDirectJoinOutputSeq(joinType, left.output, right.output, getClass.getSimpleName)
 
   override def requiredChildDistribution: Seq[Distribution] = {
     val mode = HashedRelationBroadcastMode(buildKeyExprs, isNullAwareAntiJoin)

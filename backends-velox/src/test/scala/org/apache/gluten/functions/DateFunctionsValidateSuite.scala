@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.functions
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.SparkConf
@@ -27,14 +28,14 @@ import java.sql.Timestamp
 class DateFunctionsValidateSuiteRasOff extends DateFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "false")
+      .set(GlutenConfig.RAS_ENABLED.key, "false")
   }
 }
 
 class DateFunctionsValidateSuiteRasOn extends DateFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "true")
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
   }
 }
 
@@ -43,7 +44,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
   import testImplicits._
 
-  test("Test date_add function") {
+  test("date_add") {
     withTempPath {
       path =>
         Seq(
@@ -66,7 +67,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test date_diff function") {
+  test("date_diff") {
     withTempPath {
       path =>
         Seq(
@@ -89,7 +90,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test date_format function") {
+  test("date_format") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2024-08-22 10:10:10.010")
@@ -104,7 +105,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test date_part & extract & weekofyear function") {
+  test("date_part, extract, weekofyear") {
     withTempPath {
       path =>
         Seq(
@@ -127,7 +128,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test date_trunc function") {
+  test("date_trunc") {
     withTempPath {
       path =>
         Seq(
@@ -162,7 +163,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test from_utc_timestamp function") {
+  test("from_utc_timestamp") {
     withTempPath {
       path =>
         Seq(
@@ -183,14 +184,14 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test make_date function") {
+  test("make_date") {
     runQueryAndCompare(
       "select make_date(2025, 2, 7), make_date(2024, 11, null), make_date(2024, 11, 50)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test make_timestamp function") {
+  test("make_timestamp") {
     withTempPath {
       path =>
         // w/o timezone.
@@ -233,7 +234,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test make_ym_interval function") {
+  test("make_ym_interval") {
     runQueryAndCompare("select make_ym_interval(1, 1)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -265,19 +266,63 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test timestamp_micros function") {
+  test("timestamp_micros") {
     runQueryAndCompare("select timestamp_micros(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test timestamp_millis function") {
+  test("timestamp_millis") {
     runQueryAndCompare("select timestamp_millis(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test to_utc_timestamp function") {
+  testWithMinSparkVersion("timestampdiff", "3.3") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2020-03-01 00:00:00.500")
+        val t2 = Timestamp.valueOf("2020-02-29 00:00:00.500")
+        Seq((t1, t2)).toDF("t1", "t2").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select timestampdiff(SECOND, t1, t2) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("to_date") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
+        val t2 = Timestamp.valueOf("2014-12-31 23:59:59.012")
+        val t3 = Timestamp.valueOf("2014-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select to_date(t, 'yyyy-MM') from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("to_timestamp") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
+        val t2 = Timestamp.valueOf("2014-12-31 23:59:59.012")
+        val t3 = Timestamp.valueOf("2014-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select to_timestamp(t, 'yyyy-MM') from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("to_utc_timestamp") {
     withTempPath {
       path =>
         Seq(
@@ -298,7 +343,25 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test unix_date function") {
+  test("trunc") {
+    withTempPath {
+      path =>
+        Seq(
+          java.sql.Date.valueOf("2008-02-20"),
+          java.sql.Date.valueOf("2022-01-01")
+        )
+          .toDF("dt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+        runQueryAndCompare("select trunc(dt, 'week') from t") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("unix_date") {
     withTempPath {
       path =>
         Seq(
@@ -318,7 +381,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test unix_micros function") {
+  test("unix_micros") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
@@ -333,7 +396,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test unix_millis function") {
+  test("unix_millis") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
@@ -348,7 +411,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test unix_seconds function") {
+  test("unix_seconds") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2024-08-22 10:10:10.010")

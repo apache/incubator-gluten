@@ -40,4 +40,9 @@ public class FP64TypeNode implements TypeNode, Serializable {
     builder.setFp64(doubleBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

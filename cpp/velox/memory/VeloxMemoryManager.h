@@ -18,6 +18,7 @@
 #pragma once
 
 #include "memory/AllocationListener.h"
+#include "memory/ArrowMemoryPool.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/MemoryManager.h"
 #include "velox/common/memory/Memory.h"
@@ -78,9 +79,11 @@ class VeloxMemoryManager final : public MemoryManager {
     return veloxMemoryManager_.get();
   }
 
-  arrow::MemoryPool* getArrowMemoryPool() override {
-    return arrowPool_.get();
+  arrow::MemoryPool* defaultArrowMemoryPool() override {
+    return defaultArrowPool_.get();
   }
+
+  std::shared_ptr<arrow::MemoryPool> getOrCreateArrowMemoryPool(const std::string& name) override;
 
   const MemoryUsageStats collectMemoryUsageStats() const override;
 
@@ -90,7 +93,7 @@ class VeloxMemoryManager final : public MemoryManager {
 
   /// Test only
   MemoryAllocator* allocator() const {
-    return listenableAlloc_.get();
+    return defaultArrowPool_->allocator();
   }
 
   AllocationListener* getListener() const {
@@ -100,20 +103,24 @@ class VeloxMemoryManager final : public MemoryManager {
  private:
   bool tryDestructSafe();
 
+  void dropMemoryPool(const std::string& name);
+
 #ifdef GLUTEN_ENABLE_HBM
   std::unique_ptr<VeloxMemoryAllocator> wrappedAlloc_;
 #endif
 
-  // This is a listenable allocator used for arrow.
-  std::unique_ptr<MemoryAllocator> listenableAlloc_;
   std::unique_ptr<AllocationListener> listener_;
   std::unique_ptr<AllocationListener> blockListener_;
-  std::unique_ptr<arrow::MemoryPool> arrowPool_;
+
+  std::shared_ptr<ArrowMemoryPool> defaultArrowPool_;
+  std::unordered_map<std::string, std::weak_ptr<ArrowMemoryPool>> arrowPools_;
 
   std::unique_ptr<facebook::velox::memory::MemoryManager> veloxMemoryManager_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxAggregatePool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxLeafPool_;
   std::vector<std::shared_ptr<facebook::velox::memory::MemoryPool>> heldVeloxPools_;
+
+  std::mutex mutex_;
 };
 
 VeloxMemoryManager* getDefaultMemoryManager();

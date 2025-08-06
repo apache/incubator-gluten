@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.hive
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
 import org.apache.gluten.test.AllDataTypesWithComplexType
 
@@ -54,13 +55,13 @@ class GlutenClickHouseHiveTableSuite
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.parquet.maxmin.index", "true")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
+      .set(GlutenConfig.ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX.key, "true")
       .set(
         "spark.sql.warehouse.dir",
         this.getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
-      .set("spark.gluten.supported.hive.udfs", "my_add")
+      .set(GlutenConfig.GLUTEN_SUPPORTED_HIVE_UDFS.key, "my_add")
       .setCHConfig("use_local_format", true)
       .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
       .set(
@@ -1698,6 +1699,29 @@ class GlutenClickHouseHiveTableSuite
 
         spark.sql(dropSql)
     }
+  }
+
+  test("GLUTEN-9647: Fix SimplifySumRule on different types") {
+    val sql =
+      s"""
+         | select sum(int_field * 2L),
+         |        min(float_field / 2),
+         |        max(double_field * 0.03),
+         |        sum(short_field * 2),
+         |        sum(decimal_field * 3L)
+         | from $json_table_name
+         | where day = '2023-06-06'
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      compareResult = true,
+      df => {
+        val jsonFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(jsonFileScan.size == 1)
+      }
+    )
   }
 
 }

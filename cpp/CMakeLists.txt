@@ -16,7 +16,7 @@
 cmake_minimum_required(VERSION 3.16)
 message(STATUS "Building using CMake version: ${CMAKE_VERSION}")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # The set(CACHE) command does not remove any normal variable of the same name
@@ -57,6 +57,7 @@ option(ENABLE_HDFS "Enable HDFS" OFF)
 option(ENABLE_ORC "Enable ORC" OFF)
 option(ENABLE_ABFS "Enable ABFS" OFF)
 option(ENABLE_GPU "Enable GPU" OFF)
+option(ENABLE_ENHANCED_FEATURES "Enable enhanced features" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
@@ -239,6 +240,10 @@ endif()
 
 if(ENABLE_GPU)
   add_definitions(-DGLUTEN_ENABLE_GPU)
+endif()
+
+if(ENABLE_ENHANCED_FEATURES)
+  add_definitions(-DGLUTEN_ENABLE_ENHANCED_FEATURES)
 endif()
 
 # Subdirectories

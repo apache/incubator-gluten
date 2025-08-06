@@ -26,12 +26,12 @@ public class CastNode implements ExpressionNode, Serializable {
   private final TypeNode typeNode;
   private final ExpressionNode expressionNode;
 
-  public final boolean throwOnFailure;
+  public final boolean isTryCast;
 
-  CastNode(TypeNode typeNode, ExpressionNode expressionNode, boolean throwOnFailure) {
+  CastNode(TypeNode typeNode, ExpressionNode expressionNode, boolean isTryCast) {
     this.typeNode = typeNode;
     this.expressionNode = expressionNode;
-    this.throwOnFailure = throwOnFailure;
+    this.isTryCast = isTryCast;
   }
 
   @Override
@@ -39,7 +39,7 @@ public class CastNode implements ExpressionNode, Serializable {
     Expression.Cast.Builder castBuilder = Expression.Cast.newBuilder();
     castBuilder.setType(typeNode.toProtobuf());
     castBuilder.setInput(expressionNode.toProtobuf());
-    if (throwOnFailure) {
+    if (!isTryCast) {
       // Throw exception on failure.
       castBuilder.setFailureBehaviorValue(2);
     } else {

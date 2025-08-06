@@ -139,8 +139,11 @@ abstract class BatchScanExecShim(
   }
 }
 
-abstract class ArrowBatchScanExecShim(original: BatchScanExec) extends DataSourceV2ScanExecBase {
-  @transient override lazy val inputPartitions: Seq[InputPartition] = original.inputPartitions
-
-  override def keyGroupedPartitioning: Option[Seq[Expression]] = original.keyGroupedPartitioning
-}
+abstract class ArrowBatchScanExecShim(original: BatchScanExec)
+  extends BatchScanExecShim(
+    original.output,
+    original.scan,
+    original.runtimeFilters,
+    original.keyGroupedPartitioning,
+    table = null
+  )

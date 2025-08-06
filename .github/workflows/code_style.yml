@@ -19,31 +19,14 @@ on:
     paths:
       - '.github/workflows/code_style.yml'
       - 'cpp/**'
-      - 'cpp-ch/**'
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
-  CPP-format-check:
-    name: CPP Format Check
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        path:
-          - check: 'cpp'
-            exclude: ''
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run clang-format style check for C/C++
-        uses: jidicula/clang-format-action@v4.11.0
-        with:
-          clang-format-version: '15'
-          check-path: ${{ matrix.path['check'] }}
-          fallback-style: 'Google' # optional
 
-  CMake-format-check:
-    name: CMake Format Check
+  Code-format-check:
+    name: Code Format Check(cpp)
     runs-on: ubuntu-latest
     container: ubuntu:22.04
     steps:
@@ -51,19 +34,30 @@ jobs:
         run: |
           apt update -y
           apt install git python3-pip -y
-          pip3 install --user cmake-format
+          apt install --no-install-recommends -y clang-format-15
+          pip3 install cmake_format black pyyaml regex
+          update-alternatives --install /usr/bin/clang-format clang-format "$(command -v clang-format-15)" 15
       - uses: actions/checkout@v4
-      - name: Check CMake format
+        with:
+            fetch-depth: 0
+      - name: Check CPP format
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
           cd $GITHUB_WORKSPACE/
-          fileList=$(find ./cpp ./cpp-ch -name CMakeLists.txt -o -name *.cmake)
-          for file in $fileList; do
-              /github/home/.local/bin/cmake-format --first-comment-is-literal True --in-place $file
-          done
-          if [ -n "$(git status --porcelain)" ]; then
-             echo "Please use cmake-format to format cmake files or apply the below patch."
-             git diff -- '*CMakeLists.txt' '*.cmake'
-             exit 1
+          python3 dev/check.py format main --fix
+          if ! git diff --quiet; then
+            diff=`git --no-pager diff`
+            echo "${{ matrix.command.message }} in the following files:"
+            git --no-pager diff --name-only
+            echo "Check the Job summary for a copy-pasteable patch."
+
+            echo "> [!IMPORTANT]" >> $GITHUB_STEP_SUMMARY
+            echo "${{ matrix.config.message }}" >> $GITHUB_STEP_SUMMARY
+            echo "> Please apply fix using:"  >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`sh" >> $GITHUB_STEP_SUMMARY
+            echo "patch -p1 <<EOF" >> $GITHUB_STEP_SUMMARY
+            echo "$diff" >> $GITHUB_STEP_SUMMARY
+            echo "EOF" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            exit 1
           fi
-          echo "No CMake format issue."

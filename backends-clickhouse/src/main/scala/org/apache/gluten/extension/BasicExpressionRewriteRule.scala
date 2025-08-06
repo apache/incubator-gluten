@@ -108,7 +108,7 @@ case class ReplaceSubStringComparison(spark: SparkSession) extends Rule[SparkPla
   }
 
   def visitPlan(plan: SparkPlan): SparkPlan = {
-    plan match {
+    val newPlan = plan match {
       case project: ProjectExecTransformer =>
         val newProjectList =
           project.projectList.map(expr => visitExpression(expr).asInstanceOf[NamedExpression])
@@ -122,6 +122,8 @@ case class ReplaceSubStringComparison(spark: SparkSession) extends Rule[SparkPla
       case other =>
         other.withNewChildren(other.children.map(visitPlan))
     }
+    newPlan.copyTagsFrom(plan)
+    newPlan
   }
 
   def validateSubstring(expr: Expression): Boolean = {

@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.SparkPlanExecApi
-import org.apache.gluten.config.{GlutenConfig, ReservedKeys, VeloxConfig}
+import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, ReservedKeys, RssSortShuffleWriterType, ShuffleWriterType, SortShuffleWriterType, VeloxConfig}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
@@ -548,7 +548,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      shuffleWriterType: ShuffleWriterType)
+      : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     ExecUtil.genShuffleDependency(
       rdd,
@@ -557,19 +558,39 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       serializer,
       writeMetrics,
       metrics,
-      isSort)
+      shuffleWriterType)
   }
   // scalastyle:on argcount
 
   /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
-  override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
+  override def getShuffleWriterType(
+      partitioning: Partitioning,
+      output: Seq[Attribute]): ShuffleWriterType = {
     val conf = GlutenConfig.get
-    lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
-      conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
-    partitioning != SinglePartition &&
-    (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
-      output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold) ||
-    isCelebornSortBasedShuffle
+    if (conf.isUseCelebornShuffleManager) {
+      if (conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER) {
+        if (conf.useCelebornRssSort) {
+          RssSortShuffleWriterType
+        } else if (partitioning != SinglePartition) {
+          SortShuffleWriterType
+        } else {
+          // If not using rss sort, we still use hash shuffle writer for single partitioning.
+          HashShuffleWriterType
+        }
+      } else {
+        HashShuffleWriterType
+      }
+    } else {
+      if (
+        partitioning != SinglePartition &&
+        (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
+          output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold)
+      ) {
+        SortShuffleWriterType
+      } else {
+        HashShuffleWriterType
+      }
+    }
   }
 
   /**
@@ -581,6 +602,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V] = {
     ShuffleUtil.genColumnarShuffleWriter(parameters)
   }
+
   override def createColumnarWriteFilesExec(
       child: WriteFilesExecTransformer,
       noop: SparkPlan,
@@ -616,7 +638,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def createColumnarBatchSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): Serializer = {
+      shuffleWriterType: ShuffleWriterType): Serializer = {
     val numOutputRows = metrics("numOutputRows")
     val deserializeTime = metrics("deserializeTime")
     val readBatchNumRows = metrics("avgReadBatchNumRows")
@@ -624,8 +646,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     if (GlutenConfig.get.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor =
-        clazz.getConstructor(classOf[StructType], classOf[SQLMetric], classOf[SQLMetric])
-      constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
+        clazz.getConstructor(
+          classOf[StructType],
+          classOf[SQLMetric],
+          classOf[SQLMetric],
+          classOf[ShuffleWriterType])
+      constructor
+        .newInstance(schema, readBatchNumRows, numOutputRows, shuffleWriterType)
+        .asInstanceOf[Serializer]
     } else {
       new ColumnarBatchSerializer(
         schema,
@@ -633,7 +661,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         numOutputRows,
         deserializeTime,
         decompressTime,
-        isSort)
+        shuffleWriterType)
     }
   }
 
@@ -938,4 +966,21 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def genColumnarTailExec(limit: Int, child: SparkPlan): ColumnarCollectTailBaseExec =
     ColumnarCollectTailExec(limit, child)
 
+  override def genColumnarToCarrierRow(plan: SparkPlan): SparkPlan = {
+    VeloxColumnarToCarrierRowExec.enforce(plan)
+  }
+
+  override def genTimestampDiffTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    // Since spark 3.3.0
+    val extract =
+      SparkShimLoader.getSparkShims.extractExpressionTimestampDiffUnit(original)
+    if (extract.isEmpty) {
+      throw new UnsupportedOperationException(s"Not support expression TimestampDiff.")
+    }
+    TimestampDiffTransformer(substraitExprName, extract.get, left, right, original)
+  }
 }

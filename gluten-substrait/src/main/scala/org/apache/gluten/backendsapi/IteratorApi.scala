@@ -75,7 +75,8 @@ trait IteratorApi {
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq(),
+      enableCudf: Boolean = false
   ): Iterator[ColumnarBatch]
 
   /**
@@ -92,6 +93,7 @@ trait IteratorApi {
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      materializeInput: Boolean = false): Iterator[ColumnarBatch]
+      materializeInput: Boolean = false,
+      enableCudf: Boolean = false): Iterator[ColumnarBatch]
   // scalastyle:on argcount
 }

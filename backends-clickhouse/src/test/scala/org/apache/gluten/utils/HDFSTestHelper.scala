@@ -64,8 +64,10 @@ class HDFSTestHelper(TMP_PREFIX: String, independentDir: String) {
     val it = fs.listFiles(new Path(hdfs_dir), true)
     var count = 0
     while (it.hasNext) {
-      it.next()
-      count += 1
+      val f = it.next()
+      if (!f.getPath.toString.endsWith(".crc") && !f.getPath.toString.endsWith("vacuum_info")) {
+        count += 1
+      }
     }
     count
   }

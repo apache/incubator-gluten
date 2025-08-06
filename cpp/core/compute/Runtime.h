@@ -69,6 +69,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       const std::unordered_map<std::string, std::string>& sessionConf = {});
   static void release(Runtime*);
   static std::optional<std::string>* localWriteFilesTempPath();
+  static std::optional<std::string>* localWriteFileName();
 
   Runtime(
       const std::string& kind,
@@ -94,7 +95,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     throw GlutenException("Not implemented");
   }
 
-  // Just for benchmark
   ::substrait::Plan& getPlan() {
     return substraitPlan_;
   }
@@ -129,9 +129,9 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   }
 
   virtual std::shared_ptr<ShuffleWriter> createShuffleWriter(
-      int numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options) {
+      int32_t numPartitions,
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options) {
     throw GlutenException("Not implemented");
   }
 

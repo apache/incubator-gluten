@@ -16,16 +16,16 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.SparkRowIterator
+import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.execution.{BatchCarrierRow, PlaceholderRow, SparkRowIterator, TerminalRow}
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
-import org.apache.spark.sql.execution.datasources.FakeRow
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CHRDDScanTransformer(
@@ -73,8 +73,19 @@ case class CHRDDScanTransformer(
             }
 
             override def next(): ColumnarBatch = {
+              def findNextTerminalRow: TerminalRow = {
+                while (it.hasNext) {
+                  it.next().asInstanceOf[BatchCarrierRow] match {
+                    case _: PlaceholderRow =>
+                    case t: TerminalRow =>
+                      return t
+                  }
+                }
+                throw new GlutenException("The next terminal row not found")
+              }
+
               if (isBatch) {
-                return it.next().asInstanceOf[FakeRow].batch
+                return findNextTerminalRow.batch()
               }
 
               if (sample) {
@@ -88,9 +99,9 @@ case class CHRDDScanTransformer(
               sample = true
               val data = it.next()
               data match {
-                case row: FakeRow =>
+                case _: BatchCarrierRow =>
                   isBatch = true
-                  return row.batch
+                  findNextTerminalRow.batch()
                 case _ =>
                   byteArrayIterator = it.map {
                     case u: UnsafeRow => u.getBytes

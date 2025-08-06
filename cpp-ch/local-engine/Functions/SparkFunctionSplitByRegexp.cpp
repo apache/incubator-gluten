@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <ranges>
 #include <Columns/ColumnConst.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
@@ -22,7 +22,6 @@
 #include <Functions/FunctionTokens.h>
 #include <Functions/IFunctionAdaptors.h>
 #include <Functions/Regexps.h>
-#include <base/map.h>
 #include <Common/assert_cast.h>
 
 
@@ -195,7 +194,9 @@ public:
         if (patternIsTrivialChar(arguments))
             return FunctionFactory::instance().getImpl("splitByChar", context)->build(arguments);
         return std::make_unique<FunctionToFunctionBaseAdaptor>(
-            split_by_regexp, collections::map<DataTypes>(arguments, [](const auto & elem) { return elem.type; }), return_type);
+            split_by_regexp,
+            DataTypes{std::from_range_t{}, arguments | std::views::transform([](const auto & elem) { return elem.type; })},
+            return_type);
     }
 
     DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override

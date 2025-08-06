@@ -31,8 +31,9 @@ private class ExhaustivePlanner[T <: AnyRef] private (
     plan: T)
   extends RasPlanner[T] {
   private val memo = Memo(ras)
-  private val rules = ras.ruleFactory.create().map(rule => RuleApplier(ras, memo, rule))
-  private val enforcerRuleSet = EnforcerRuleSet[T](ras, memo)
+  private val rules = ras.ruleFactory.create().map(rule => RuleApplier.regular(ras, memo, rule))
+  private val enforcerRuleSetFactory = EnforcerRuleSet.Factory.regular(ras, memo)
+  private val deriverRuleSetFactory = EnforcerRuleSet.Factory.derive(ras, memo)
 
   private lazy val rootGroupId: Int = {
     memo.memorize(plan, constraintSet).id()
@@ -59,7 +60,12 @@ private class ExhaustivePlanner[T <: AnyRef] private (
     // TODO1: Prune paths within cost threshold
     // ~~ TODO2: Use partial-canonical paths to reduce search space ~~
     memo.doExhaustively {
-      val explorer = new ExhaustiveExplorer(ras, memo.newState(), rules, enforcerRuleSet)
+      val explorer = new ExhaustiveExplorer(
+        ras,
+        memo.newState(),
+        rules,
+        enforcerRuleSetFactory,
+        deriverRuleSetFactory)
       explorer.explore()
     }
   }
@@ -78,7 +84,8 @@ object ExhaustivePlanner {
       ras: Ras[T],
       memoState: MemoState[T],
       rules: Seq[RuleApplier[T]],
-      enforcerRuleSet: EnforcerRuleSet[T]) {
+      enforcerRuleSetFactory: EnforcerRuleSet.Factory[T],
+      deriverRuleSetFactory: EnforcerRuleSet.Factory[T]) {
     private val allClusters = memoState.allClusters()
     private val allGroups = memoState.allGroups()
 
@@ -114,8 +121,8 @@ object ExhaustivePlanner {
         .clusterLookup()
         .foreach {
           case (cKey, cluster) =>
-            val dummyGroup = memoState.getDummyGroup(cKey)
-            findPaths(GroupNode(ras, dummyGroup), shapes) {
+            val hubGroup = memoState.getHubGroup(cKey)
+            findPaths(GroupNode(ras, hubGroup), shapes) {
               path => rules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
             }
         }
@@ -125,12 +132,14 @@ object ExhaustivePlanner {
       allGroups.foreach {
         group =>
           val constraintSet = group.constraintSet()
-          val enforcerRules = enforcerRuleSet.rulesOf(constraintSet)
+          val enforcerRuleSet = deriverRuleSetFactory.ruleSetOf(
+            constraintSet) ++ enforcerRuleSetFactory.ruleSetOf(constraintSet)
+          val enforcerRules = enforcerRuleSet.rules()
           if (enforcerRules.nonEmpty) {
-            val shapes = enforcerRules.map(_.shape())
+            val enforcerRuleShapes = enforcerRuleSet.shapes()
             val cKey = group.clusterKey()
-            val dummyGroup = memoState.getDummyGroup(cKey)
-            findPaths(GroupNode(ras, dummyGroup), shapes) {
+            val hubGroup = memoState.getHubGroup(cKey)
+            findPaths(GroupNode(ras, hubGroup), enforcerRuleShapes) {
               path => enforcerRules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
             }
           }

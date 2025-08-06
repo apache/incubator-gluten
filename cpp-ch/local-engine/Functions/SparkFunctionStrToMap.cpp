@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include <memory>
+#include <ranges>
 #include <type_traits>
 #include <Columns/ColumnConst.h>
 #include <Columns/ColumnNullable.h>
@@ -32,7 +33,6 @@
 #include <Functions/IFunction.h>
 #include <Functions/IFunctionAdaptors.h>
 #include <Functions/Regexps.h>
-#include <base/map.h>
 #include <Common/Exception.h>
 #include <Common/OptimizedRegularExpression.h>
 
@@ -55,7 +55,7 @@ class TrivialCharSplitter
 {
 public:
     using Pos = const char *;
-    TrivialCharSplitter(String & delimiter_) : delimiter(delimiter_) { }
+    TrivialCharSplitter(const String & delimiter_) : delimiter(delimiter_) { }
 
     void reset(Pos str_begin_, Pos str_end_)
     {
@@ -76,15 +76,12 @@ public:
         token_begin = str_cursor;
         auto next_token_pos = static_cast<Pos>(memmem(str_cursor, str_end - str_cursor, delimiter.c_str(), delimiter.size()));
         // If delimiter is not found, return the remaining string.
-        LOG_ERROR(getLogger("TrivialCharSplitter"), "xxx next_token_pos: {}", fmt::ptr(next_token_pos));
         if (!next_token_pos)
         {
             token_end = str_end;
             str_cursor = str_end;
             delimiter_begin = nullptr;
             delimiter_end = nullptr;
-            LOG_ERROR(
-                getLogger("TrivialCharSplitter"), "xxx delimiter_begin: {} {}", delimiter_begin == nullptr, fmt::ptr(delimiter_begin));
         }
         else
         {
@@ -97,7 +94,7 @@ public:
     }
 
 private:
-    const String & delimiter;
+    String delimiter;
     Pos str_begin;
     Pos str_end;
     Pos str_cursor;
@@ -161,7 +158,7 @@ public:
     }
 
 private:
-    const String & delimiter;
+    String delimiter;
     DB::Regexps::RegexpPtr re;
     OptimizedRegularExpression::MatchVec matches;
     Pos str_begin;
@@ -352,7 +349,9 @@ public:
         else
             function_ptr = SparkFunctionStrToMap<RegularSplitter, RegularSplitter>::create(context);
         return std::make_unique<DB::FunctionToFunctionBaseAdaptor>(
-            function_ptr, collections::map<DB::DataTypes>(arguments, [](const auto & elem) { return elem.type; }), return_type);
+            function_ptr,
+            DB::DataTypes{std::from_range_t{}, arguments | std::views::transform([](const auto & elem) { return elem.type; })},
+            return_type);
     }
 
     DB::DataTypePtr getReturnTypeImpl(const DB::ColumnsWithTypeAndName & arguments) const override

@@ -20,4 +20,6 @@ import io.substrait.proto.Type;
 
 public interface TypeNode {
   Type toProtobuf();
+
+  Boolean nullable();
 }

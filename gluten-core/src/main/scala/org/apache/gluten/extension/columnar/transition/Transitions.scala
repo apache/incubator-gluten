@@ -35,13 +35,10 @@ case class InsertTransitions(convReq: ConventionReq) extends Rule[SparkPlan] {
   }
 
   private def fillWithTransitions(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case p => applyForNode(p)
+    case node if node.children.nonEmpty => applyForNode(node)
   }
 
   private def applyForNode(node: SparkPlan): SparkPlan = {
-    if (node.children.isEmpty) {
-      return node
-    }
     val convReqs = convFunc.conventionReqOf(node)
     val newChildren = node.children.zip(convReqs).map {
       case (child, convReq) =>
@@ -66,7 +63,7 @@ object InsertTransitions {
     val conventionReq = if (outputsColumnar) {
       ConventionReq.ofBatch(ConventionReq.BatchType.Is(batchType))
     } else {
-      ConventionReq.row
+      ConventionReq.vanillaRow
     }
     InsertTransitions(conventionReq)
   }
@@ -86,11 +83,11 @@ object RemoveTransitions extends Rule[SparkPlan] {
 
 object Transitions {
   def insert(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    InsertTransitions.create(outputsColumnar, BatchType.VanillaBatch).apply(plan)
+    InsertTransitions.create(outputsColumnar, BatchType.VanillaBatchType).apply(plan)
   }
 
   def toRowPlan(plan: SparkPlan): SparkPlan = {
-    enforceReq(plan, ConventionReq.row)
+    enforceReq(plan, ConventionReq.vanillaRow)
   }
 
   def toBatchPlan(plan: SparkPlan, toBatchType: Convention.BatchType): SparkPlan = {

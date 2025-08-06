@@ -16,11 +16,12 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
+import org.apache.gluten.execution.BatchCarrierRow
 import org.apache.gluten.vectorized.CHColumnVector
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRow, OutputWriter}
+import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -30,13 +31,13 @@ class FakeRowOutputWriter(datasourceJniWrapper: Option[CHDatasourceJniWrapper], 
   protected var addFiles: ArrayBuffer[AddFile] = new ArrayBuffer[AddFile]()
 
   override def write(row: InternalRow): Unit = {
-    assert(row.isInstanceOf[FakeRow])
-    val nextBatch = row.asInstanceOf[FakeRow].batch
-
-    if (nextBatch.numRows > 0) {
-      val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-      datasourceJniWrapper.foreach(_.write(col.getBlockAddress))
-    } // else ignore this empty block
+    BatchCarrierRow.unwrap(row).foreach {
+      batch =>
+        if (batch.numRows > 0) {
+          val col = batch.column(0).asInstanceOf[CHColumnVector]
+          datasourceJniWrapper.foreach(_.write(col.getBlockAddress))
+        } // else ignore this empty block
+    }
   }
 
   override def close(): Unit = {

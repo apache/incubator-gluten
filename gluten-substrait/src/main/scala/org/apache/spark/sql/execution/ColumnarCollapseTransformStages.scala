@@ -46,7 +46,6 @@ import scala.collection.JavaConverters._
  * would be transformed to `ValueStreamNode` at native side.
  */
 case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupport {
-  assert(child.isInstanceOf[ColumnarInputAdapter])
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
@@ -68,10 +67,12 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   override def doExecuteBroadcast[T](): Broadcast[T] = {
+    assert(child.isInstanceOf[ColumnarInputAdapter])
     child.doExecuteBroadcast()
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
+    assert(child.isInstanceOf[ColumnarInputAdapter])
     val operatorId = context.nextOperatorId(nodeName)
     val readRel = RelBuilder.makeReadRelForInputIterator(child.output.asJava, context, operatorId)
     TransformContext(output, readRel)

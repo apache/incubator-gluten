@@ -16,12 +16,14 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.GlutenImplicits._
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
-  sys.props.put("spark.gluten.sql.columnar.tableCache", "true")
+  sys.props.put(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()

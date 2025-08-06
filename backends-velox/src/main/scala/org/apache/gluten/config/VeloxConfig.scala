@@ -72,6 +72,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
 object VeloxConfig {
 
+  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled
+
   def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
   }
@@ -345,6 +347,15 @@ object VeloxConfig {
       .doc("Show velox full task metrics when finished.")
       .booleanConf
       .createWithDefault(false)
+
+  val COLUMNAR_VELOX_TASK_METRICS_TO_EVENT_LOG_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold")
+      .internal()
+      .doc("Sets the threshold in seconds for writing task statistics to the event log if the " +
+        "task runs longer than this value. Configuring the value >=0 can enable the feature. " +
+        "0 means all tasks report and save the metrics to eventlog. value <0 disable the feature.")
+      .timeConf(TimeUnit.SECONDS)
+      .createOptional
 
   val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
     buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")
@@ -627,4 +638,13 @@ object VeloxConfig {
       .doc("Enable check memory usage leak.")
       .booleanConf
       .createWithDefault(true)
+
+  val MEMORY_DUMP_ON_EXIT =
+    buildConf("spark.gluten.monitor.memoryDumpOnExit")
+      .doc(
+        "Whether to trigger native memory dump when executor exits. Currently it uses jemalloc" +
+          " for memory profiling, so if you want to enable it, also need to  build gluten" +
+          " with `--enable_jemalloc_stats=ON`.")
+      .booleanConf
+      .createWithDefault(false)
 }

@@ -16,7 +16,7 @@
  */
 package org.apache.spark.memory;
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.memtarget.{Spillers, TreeMemoryTarget}
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers
@@ -36,13 +36,13 @@ class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
     val conf = SQLConf.get
     conf.setConfString("spark.memory.offHeap.enabled", "true")
     conf.setConfString("spark.memory.offHeap.size", "400")
-    conf.setConfString(GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES.key, "100")
+    conf.setConfString(GlutenCoreConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES.key, "100")
   }
 
   test("Sanity") {
     TaskResources.runUnsafe {
       val factory =
-        TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager())
+        TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP)
       val consumer =
         factory
           .legacyRoot()
@@ -65,7 +65,7 @@ class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
   test("Task OOM by global occupation") {
     TaskResources.runUnsafe {
       val factory =
-        TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager())
+        TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP)
       val consumer =
         factory
           .legacyRoot()
@@ -84,7 +84,7 @@ class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
   test("Release global") {
     TaskResources.runUnsafe {
       val factory =
-        TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager())
+        TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP)
       val consumer =
         factory
           .legacyRoot()
@@ -103,7 +103,7 @@ class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
   test("Release task") {
     TaskResources.runUnsafe {
       val factory =
-        TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager())
+        TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP)
       val consumer =
         factory
           .legacyRoot()

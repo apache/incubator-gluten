@@ -18,12 +18,11 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.backendsapi._
-import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.substrait.rel.LocalFilesNode
@@ -72,15 +71,15 @@ object CHBackend {
   private class ConvFunc() extends ConventionFunc.Override {
     override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
       case a: AdaptiveSparkPlanExec if a.supportsColumnar =>
-        CHBatch
+        CHBatchType
     }
   }
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
-  override def primaryBatchType: Convention.BatchType = CHBatch
+  override def primaryBatchType: Convention.BatchType = CHBatchType
 
-  private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
+  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
 
   // experimental: when the files count per partition exceeds this threshold,
@@ -113,7 +112,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   private val GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("lz4", "zstd", "snappy")
 
   // The algorithm for hash partition of the shuffle
-  private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM: String =
+  val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM: String =
     CHConfig.prefixOf("shuffle.hash.algorithm")
   // valid values are: cityHash64 or sparkMurmurHash3_32
   private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM_DEFAULT = "sparkMurmurHash3_32"
@@ -165,6 +164,10 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     CHConfig.prefixOf("join.aggregate.to.aggregate.union")
   val GLUTEN_ELIMINATE_DEDUPLICATE_AGGREGATE_WITH_ANY_JOIN: String =
     CHConfig.prefixOf("eliminate_deduplicate_aggregate_with_any_join")
+
+  // If the partition keys are high cardinality, the aggregation method is slower.
+  val GLUTEN_ENABLE_WINDOW_GROUP_LIMIT_TO_AGGREGATE: String =
+    CHConfig.prefixOf("runtime_settings.enable_window_group_limit_to_aggregate")
 
   def affinityMode: String = {
     SparkEnv.get.conf
@@ -393,14 +396,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def enablePreProjectionForJoinConditions(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       CHConfig.runtimeConfig("enable_pre_projection_for_join_conditions"),
-      defaultValue = true
-    )
-  }
-
-  // If the partition keys are high cardinality, the aggregation method is slower.
-  def enableConvertWindowGroupLimitToAggregate(): Boolean = {
-    SparkEnv.get.conf.getBoolean(
-      CHConfig.runtimeConfig("enable_window_group_limit_to_aggregate"),
       defaultValue = true
     )
   }

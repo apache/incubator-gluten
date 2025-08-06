@@ -17,9 +17,9 @@
 #include "GlutenKafkaSource.h"
 
 #include <Core/Settings.h>
+#include <Interpreters/Context.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/Kafka/ReadFromGlutenStorageKafka.h>
-
 
 namespace DB
 {
@@ -36,7 +36,7 @@ using namespace DB;
 
 ReadFromGlutenStorageKafka::ReadFromGlutenStorageKafka(
     const Names & column_names_,
-    Header output_header_,
+    const DB::SharedHeader & output_header_,
     // std::shared_ptr<const StorageLimitsList> storage_limits_,
     ContextPtr context_,
     Names & topics,

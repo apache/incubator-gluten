@@ -61,7 +61,9 @@ object NativeMemoryManager {
           // Only respond for shrinking.
           return 0L
         }
-        NativeMemoryManagerJniWrapper.shrink(handle, size)
+        val shrunk = NativeMemoryManagerJniWrapper.shrink(handle, size)
+        LOGGER.info(s"NativeMemoryManager: Shrunk $shrunk / $size bytes of data.")
+        shrunk
       }
     })
     mutableStats += "single" -> new MemoryUsageStatsBuilder {

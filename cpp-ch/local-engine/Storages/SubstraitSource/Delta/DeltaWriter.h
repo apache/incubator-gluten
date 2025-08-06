@@ -26,14 +26,34 @@
 
 namespace local_engine::delta
 {
-static constexpr String UUID_DV_MARKER = "u";
-static constexpr String DELETION_VECTOR_FILE_NAME_CORE = "deletion_vector";
+static constexpr const char * DELETION_VECTOR_FILE_NAME_CORE = "deletion_vector";
+
+struct DeletionVectorDescriptor
+{
+    static constexpr String PATH_DV_MARKER = "p";
+    static constexpr String INLINE_DV_MARKER = "i";
+    static constexpr String UUID_DV_MARKER = "u";
+
+    static DeletionVectorDescriptor deserializeFromBase64(const String & encoded);
+    DB::Tuple createDeletionVectorDescriptorField();
+
+    Int64 cardinality;
+    Int32 size_in_bytes;
+    String storage_type;
+    Int32 offset;
+    String path_or_inline_dv;
+};
+
 
 class DeltaWriter
 {
 public:
     explicit DeltaWriter(
-        const DB::ContextPtr & context_, const String & table_path_, const size_t & prefix_length_, const size_t & packing_target_size_);
+        const DB::ContextPtr & context_,
+        const String & table_path_,
+        const size_t & prefix_length_,
+        const size_t & packing_target_size_,
+        const String & dv_file_name_prefix_);
     void
     writeDeletionVector(const DB::Block & block);
 
@@ -41,18 +61,16 @@ public:
 
 private:
     std::unique_ptr<DB::WriteBuffer> createWriteBuffer(const String & table_path, const String & prefix) const;
-    DeltaDVRoaringBitmapArray deserializeExistingBitmap(
-        const String & existing_path_or_inline_dv,
-        const Int32 & existing_offset,
-        const Int32 & existing_size_in_bytes,
-        const String & table_path) const;
-
+    DeltaDVRoaringBitmapArray
+    deserializeExistingBitmap(const DeletionVectorDescriptor & deletion_vector_descriptor, const String & table_path) const;
+    String assembleDeletionVectorPath(const String & table_path, const String & prefix, const String & uuid) const;
     void initBinPackage();
 
     DB::ContextPtr context;
     const String table_path;
     const size_t prefix_length;
     const size_t packing_target_size;
+    const String dv_file_name_prefix;
 
     DB::MutableColumnPtr file_path_column;
     DB::MutableColumnPtr dv_descriptor_column;

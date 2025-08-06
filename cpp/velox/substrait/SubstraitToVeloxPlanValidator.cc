@@ -59,7 +59,7 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "rlike"};
 
 const std::unordered_set<std::string> kBlackList =
-    {"split_part", "trunc", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
+    {"split_part", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
@@ -211,7 +211,7 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
 
   const auto& function =
-      SubstraitParser::findFunctionSpec(planConverter_.getFunctionMap(), scalarFunction.function_reference());
+      SubstraitParser::findFunctionSpec(planConverter_->getFunctionMap(), scalarFunction.function_reference());
   const auto& name = SubstraitParser::getNameBeforeDelimiter(function);
   std::vector<std::string> types = SubstraitParser::getSubFunctionTypes(function);
 
@@ -239,7 +239,8 @@ bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
   // https://github.com/apache/incubator-gluten/issues/9392
   // is currently WIP to add support for other types.
   if (toType->isVarchar()) {
-    return fromType->isDouble() || fromType->isBoolean() || fromType->isTimestamp();
+    return fromType->isDouble() || fromType->isBoolean() || fromType->isTimestamp()
+     || fromType->isInteger() || fromType->isBigint() || fromType->isDate();
   }
 
   if (toType->isDouble()) {
@@ -308,6 +309,9 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
       return true;
     }
     if (fromType->isVarchar()) {
+      return true;
+    }
+    if (fromType->isBoolean()) {
       return true;
     }
     if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
@@ -502,7 +506,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::TopNRel& topNRel
     return false;
   }
 
-  auto [sortingKeys, sortingOrders] = planConverter_.processSortField(topNRel.sorts(), rowType);
+  auto [sortingKeys, sortingOrders] = planConverter_->processSortField(topNRel.sorts(), rowType);
   folly::F14FastSet<std::string> sortingKeyNames;
   for (const auto& sortingKey : sortingKeys) {
     auto result = sortingKeyNames.insert(sortingKey->name());
@@ -669,7 +673,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   funcSpecs.reserve(windowRel.measures().size());
   for (const auto& smea : windowRel.measures()) {
     const auto& windowFunction = smea.measure();
-    funcSpecs.emplace_back(planConverter_.findFuncSpec(windowFunction.function_reference()));
+    funcSpecs.emplace_back(planConverter_->findFuncSpec(windowFunction.function_reference()));
     SubstraitParser::parseType(windowFunction.output_type());
     for (const auto& arg : windowFunction.arguments()) {
       auto typeCase = arg.value().rex_type_case();
@@ -1070,7 +1074,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
 
   if (joinRel.has_expression()) {
     std::vector<const ::substrait::Expression::FieldReference*> leftExprs, rightExprs;
-    planConverter_.extractJoinKeys(joinRel.expression(), leftExprs, rightExprs);
+    planConverter_->extractJoinKeys(joinRel.expression(), leftExprs, rightExprs);
   }
 
   if (joinRel.has_post_join_filter()) {
@@ -1100,6 +1104,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
   switch (crossRel.type()) {
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT_SEMI:
       break;
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
       if (crossRel.has_expression()) {
@@ -1144,8 +1149,8 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
 
   for (const auto& smea : aggRel.measures()) {
     const auto& aggFunction = smea.measure();
-    const auto& funcStep = planConverter_.toAggregationFunctionStep(aggFunction);
-    auto funcSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
+    const auto& funcStep = planConverter_->toAggregationFunctionStep(aggFunction);
+    auto funcSpec = planConverter_->findFuncSpec(aggFunction.function_reference());
     std::vector<TypePtr> types;
     bool isDecimal = false;
     types = SubstraitParser::sigToTypes(funcSpec);
@@ -1156,7 +1161,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     }
     auto baseFuncName =
         SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
-    auto funcName = planConverter_.toAggregationFunctionName(baseFuncName, funcStep);
+    auto funcName = planConverter_->toAggregationFunctionName(baseFuncName, funcStep);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
       LOG_VALIDATION_MSG("can not find function signature for " + funcName + " in AggregateRel.");
@@ -1240,7 +1245,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
     }
 
     const auto& aggFunction = smea.measure();
-    const auto& functionSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
+    const auto& functionSpec = planConverter_->findFuncSpec(aggFunction.function_reference());
     funcSpecs.emplace_back(functionSpec);
     SubstraitParser::parseType(aggFunction.output_type());
     // Validate the size of arguments.
@@ -1332,7 +1337,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel) {
-  planConverter_.toVeloxPlan(readRel);
+  planConverter_->toVeloxPlan(readRel);
 
   // Validate filter in ReadRel.
   if (readRel.has_filter()) {
@@ -1423,8 +1428,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::RelRoot& relRoot
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
   try {
     // Create plan converter and expression converter to help the validation.
-    planConverter_.constructFunctionMap(plan);
-    exprConverter_ = planConverter_.getExprConverter();
+    planConverter_->constructFunctionMap(plan);
+    exprConverter_ = planConverter_->getExprConverter();
 
     for (const auto& rel : plan.relations()) {
       if (rel.has_root()) {

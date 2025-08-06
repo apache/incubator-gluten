@@ -30,6 +30,7 @@
 #include <Storages/Serializations/ExcelDecimalSerialization.h>
 #include <Storages/Serializations/ExcelSerialization.h>
 #include <Storages/Serializations/ExcelStringReader.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/GlutenSettings.h>
 
 namespace DB
@@ -62,7 +63,8 @@ bool ExcelTextFormatFile::useThis(const DB::ContextPtr & context)
     return settingsEqual(context->getSettingsRef(), USE_EXCEL_PARSER, "true");
 }
 
-FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr
+ExcelTextFormatFile::createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & /*filter_actions_dag*/)
 {
     auto read_buffer = read_buffer_builder->build(file_info);
 
@@ -77,7 +79,7 @@ FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Bloc
         column_names.push_back(item);
 
     auto txt_input_format
-        = std::make_shared<ExcelRowInputFormat>(header, buffer, params, format_settings, column_names, file_info.text().escape());
+        = std::make_shared<ExcelRowInputFormat>(toShared(header), buffer, params, format_settings, column_names, file_info.text().escape());
     return std::make_shared<InputFormat>(std::move(read_buffer), txt_input_format);
 }
 
@@ -144,7 +146,7 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings() const
 
 
 ExcelRowInputFormat::ExcelRowInputFormat(
-    const DB::Block & header_,
+    const DB::SharedHeader & header_,
     std::shared_ptr<DB::PeekableReadBuffer> & buf_,
     const DB::RowInputFormatParams & params_,
     const DB::FormatSettings & format_settings_,

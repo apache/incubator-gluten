@@ -17,6 +17,7 @@
 #pragma once
 
 #include <Core/Block.h>
+#include <Formats/FormatSettings.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
 #include <Storages/Parquet/RowRanges.h>
 #include <base/types.h>
@@ -40,6 +41,7 @@ struct RowGroupInformation
 
 struct ParquetMetaBuilder
 {
+    DB::FormatSettings format_settings;
     // control flag
     bool case_insensitive = false;
     bool allow_missing_columns = false;

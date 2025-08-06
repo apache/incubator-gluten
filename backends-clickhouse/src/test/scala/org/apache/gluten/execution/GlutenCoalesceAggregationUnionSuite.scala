@@ -16,6 +16,9 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
@@ -41,14 +44,14 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.project.union", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.aggregation.union", "true")
+      .set(CHBackendSettings.GLUTEN_ENABLE_COALESCE_PROJECT_UNION, "true")
+      .set(CHBackendSettings.GLUTEN_ENABLE_COALESCE_AGGREGATION_UNION, "true")
   }
 
   def createTestTable(tableName: String, data: DataFrame): Unit = {
@@ -514,5 +517,60 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
         |) order by a
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
+  }
+
+  test("GLUTEN-9646: fix coalesce project union when has subquery") {
+    val schema_fact = StructType(
+      Array(
+        StructField("a", IntegerType, nullable = true),
+        StructField("b", IntegerType, nullable = true)
+      ))
+
+    val schema_order = StructType(
+      Array(
+        StructField("c", IntegerType, nullable = true),
+        StructField("b", IntegerType, nullable = true)
+      ))
+
+    val data_fact = sparkContext.parallelize(
+      Seq(
+        Row(2, 1),
+        Row(3, 2),
+        Row(4, 3),
+        Row(5, 4)
+      ))
+
+    val data_order = sparkContext.parallelize(
+      Seq(
+        Row(1, 1),
+        Row(2, 2),
+        Row(3, 3),
+        Row(4, 4)
+      ))
+
+    val dataFrame1 = spark.createDataFrame(data_fact, schema_fact)
+    val dataFrame2 = spark.createDataFrame(data_order, schema_order)
+    createTestTable("fact", dataFrame1)
+    createTestTable("order", dataFrame2)
+
+    val sql =
+      """
+        |SELECT a
+        |FROM fact
+        |WHERE a =
+        |    (SELECT sum(c) + 2
+        |     FROM order
+        |     WHERE order.b = fact.b
+        |     GROUP BY order.b)
+        |UNION ALL
+        |SELECT a
+        |FROM fact
+        |WHERE a =
+        |    (SELECT sum(c) + 1
+        |     FROM order
+        |     WHERE order.b = fact.b
+        |     GROUP BY order.b)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, checkNoUnion)
   }
 }

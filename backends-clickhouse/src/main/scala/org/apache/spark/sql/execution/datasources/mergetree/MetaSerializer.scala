@@ -31,7 +31,9 @@ import java.util.{Map => jMap}
 case class PartSerializer(
     partList: Seq[String],
     starts: Seq[Long],
-    lengths: Seq[Long]
+    lengths: Seq[Long],
+    rowIndexFilterTypes: Seq[String],
+    rowIndexFilterIdsEncodeded: Seq[String]
 ) {
   def apply(): StringBuilder = {
     val partPathList = new StringBuilder
@@ -43,6 +45,10 @@ case class PartSerializer(
         .append(starts(i))
         .append("\n")
         .append(end)
+        .append("\n")
+        .append(rowIndexFilterTypes(i))
+        .append("\n")
+        .append(rowIndexFilterIdsEncodeded(i))
         .append("\n")
     }
     partPathList
@@ -59,20 +65,24 @@ object PartSerializer {
     val partList = partLists.map(_.name)
     val starts = partLists.map(_.start)
     val lengths = partLists.map(_.length)
-    PartSerializer(partList, starts, lengths)
+    val rowIndexFilterTypes = partLists.map(_.rowIndexFilterType)
+    val rowIndexFilterIdEncodeds = partLists.map(_.rowIndexFilterIdEncoded)
+    PartSerializer(partList, starts, lengths, rowIndexFilterTypes, rowIndexFilterIdEncodeds)
   }
 
   def fromAddMergeTreeParts(parts: Seq[AddMergeTreeParts]): PartSerializer = {
     val partList = parts.map(_.name)
     val starts = parts.map(_ => 0L)
     val lengths = parts.map(_.marks)
-    PartSerializer(partList, starts, lengths)
+    val emptyStrings = Seq.fill[String](parts.length)("")
+    PartSerializer(partList, starts, lengths, emptyStrings, emptyStrings)
   }
 
   def fromPartNames(partNames: Seq[String]): PartSerializer = {
     // starts and lengths is useless for writing
     val partRanges = Seq.range(0L, partNames.length)
-    PartSerializer(partNames, partRanges, partRanges)
+    val emptyStrings = Seq.fill[String](partNames.length)("")
+    PartSerializer(partNames, partRanges, partRanges, emptyStrings, emptyStrings)
   }
 }
 

@@ -16,8 +16,12 @@
  */
 #pragma once
 
-#include <Poco/Util/AbstractConfiguration.h>
+#include <string>
 
+namespace Poco::Util
+{
+class AbstractConfiguration;
+}
 namespace local_engine
 {
 class LoggerExtend

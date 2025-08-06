@@ -18,13 +18,12 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.backendsapi._
-import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster, RoughCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -79,11 +78,11 @@ object VeloxBackend {
   private class ConvFunc() extends ConventionFunc.Override {
     override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
       case a: AdaptiveSparkPlanExec if a.supportsColumnar =>
-        VeloxBatch
+        VeloxBatchType
       case i: InMemoryTableScanExec
           if i.supportsColumnar && i.relation.cacheBuilder.serializer
             .isInstanceOf[ColumnarCachedBatchSerializer] =>
-        VeloxBatch
+        VeloxBatchType
     }
   }
 }
@@ -95,8 +94,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".internal.udfLibraryPaths"
   val GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION = VeloxBackend.CONF_PREFIX + ".udfAllowTypeConversion"
 
-  /** The columnar-batch type this backend is by default using. */
-  override def primaryBatchType: Convention.BatchType = VeloxBatch
+  override def primaryBatchType: Convention.BatchType = VeloxBatchType
 
   override def validateScanExec(
       format: ReadFileFormat,
@@ -352,7 +350,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       // is limited to partitioned tables. Therefore, we should add this condition restriction.
       // After velox supports bucketed non-partitioned tables, we can remove the restriction on
       // partitioned tables.
-      if (bucketSpec.isEmpty || (isHiveCompatibleBucketTable && isPartitionedTable)) {
+      if (bucketSpec.isEmpty || isHiveCompatibleBucketTable) {
         None
       } else {
         Some("Unsupported native write: non-compatible hive bucket write is not supported.")
@@ -371,14 +369,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def supportNativeWrite(fields: Array[StructField]): Boolean = {
-    fields.map {
-      field =>
-        field.dataType match {
-          case _: StructType | _: ArrayType | _: MapType => return false
-          case _ =>
-        }
+    def isNotSupported(dataType: DataType): Boolean = dataType match {
+      case _: StructType | _: ArrayType | _: MapType => true
+      case _ => false
     }
-    true
+    !fields.exists(field => isNotSupported(field.dataType))
   }
 
   override def supportExpandExec(): Boolean = true
@@ -469,10 +464,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportColumnarShuffleExec(): Boolean = {
     val conf = GlutenConfig.get
-    conf.enableColumnarShuffle && (conf.isUseGlutenShuffleManager
-      || conf.isUseColumnarShuffleManager
-      || conf.isUseCelebornShuffleManager
-      || conf.isUseUniffleShuffleManager)
+    conf.enableColumnarShuffle &&
+    (conf.isUseGlutenShuffleManager || conf.shuffleManagerSupportsColumnarShuffle)
   }
 
   override def enableJoinKeysRewrite(): Boolean = false
@@ -517,8 +510,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def skipNativeCtas(ctas: CreateDataSourceTableAsSelectCommand): Boolean = true
 
   override def skipNativeInsertInto(insertInto: InsertIntoHadoopFsRelationCommand): Boolean = {
-    insertInto.partitionColumns.nonEmpty &&
-    insertInto.staticPartitions.size < insertInto.partitionColumns.size ||
     insertInto.bucketSpec.nonEmpty
   }
 
@@ -562,4 +553,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportIcebergEqualityDeleteRead(): Boolean = false
 
+  override def reorderColumnsForPartitionWrite(): Boolean = true
+
+  override def enableEnhancedFeatures(): Boolean = VeloxConfig.enableEnhancedFeatures()
+
+  override def supportAppendDataExec(): Boolean =
+    GlutenConfig.get.enableAppendData && enableEnhancedFeatures()
 }

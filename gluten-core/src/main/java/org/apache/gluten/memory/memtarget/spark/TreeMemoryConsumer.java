@@ -53,8 +53,8 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
   private final Map<String, TreeMemoryTarget> children = new HashMap<>();
   private final String name = MemoryTargetUtil.toUniqueName("Gluten.Tree");
 
-  TreeMemoryConsumer(TaskMemoryManager taskMemoryManager) {
-    super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
+  TreeMemoryConsumer(TaskMemoryManager taskMemoryManager, MemoryMode mode) {
+    super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), mode);
   }
 
   @Override

@@ -181,10 +181,12 @@ VectorizedParquetRecordReader::VectorizedParquetRecordReader(const DB::Block & h
     , arrow_column_to_ch_column_(
           parquet_header_,
           "Parquet",
-          format_settings.parquet.allow_missing_columns,
-          format_settings.null_as_default,
-          format_settings.date_time_overflow_behavior,
-          format_settings.parquet.case_insensitive_column_matching)
+          format_settings_,
+          std::nullopt,
+          format_settings_.parquet.allow_missing_columns,
+          format_settings_.null_as_default,
+          format_settings_.date_time_overflow_behavior,
+          format_settings_.parquet.case_insensitive_column_matching)
 {
 }
 
@@ -309,7 +311,7 @@ ColumnChunkPageRead ParquetFileReaderExt::readColumnChunkPageBase(
 /// input format
 VectorizedParquetBlockInputFormat::VectorizedParquetBlockInputFormat(
     DB::ReadBuffer & in_,
-    const DB::Block & header_,
+    const DB::SharedHeader & header_,
     const ColumnIndexRowRangesProvider & row_ranges_provider,
     const DB::FormatSettings & format_settings)
     : DB::IInputFormat(header_, &in_), record_reader_(getPort().getHeader(), format_settings), row_ranges_provider_(row_ranges_provider)

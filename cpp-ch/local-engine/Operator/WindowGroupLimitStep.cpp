@@ -45,9 +45,8 @@ class WindowGroupLimitTransform : public DB::IProcessor
 public:
     using Status = DB::IProcessor::Status;
     explicit WindowGroupLimitTransform(
-        const DB::Block & header_, const std::vector<size_t> & partition_columns_, const std::vector<size_t> & sort_columns_, size_t limit_)
+        const DB::SharedHeader & header_, const std::vector<size_t> & partition_columns_, const std::vector<size_t> & sort_columns_, size_t limit_)
         : DB::IProcessor({header_}, {header_})
-        , header(header_)
         , partition_columns(partition_columns_)
         , sort_columns(sort_columns_)
         , limit(limit_)
@@ -96,7 +95,7 @@ public:
     {
         if (!has_input) [[unlikely]]
             return;
-        DB::Block block = header.cloneWithColumns(input_chunk.getColumns());
+
         size_t partition_start_row = 0;
         size_t chunk_rows = input_chunk.getNumRows();
         while (partition_start_row < chunk_rows)
@@ -125,7 +124,6 @@ public:
     }
 
 private:
-    DB::Block header;
     // Which columns are used as the partition keys
     std::vector<size_t> partition_columns;
     // which columns are used as the order by keys, excluding partition columns.
@@ -287,7 +285,7 @@ static DB::ITransformingStep::Traits getTraits()
 }
 
 WindowGroupLimitStep::WindowGroupLimitStep(
-    const DB::Block & input_header_,
+    const DB::SharedHeader & input_header_,
     const String & function_name_,
     const std::vector<size_t> & partition_columns_,
     const std::vector<size_t> & sort_columns_,
@@ -317,7 +315,7 @@ void WindowGroupLimitStep::transformPipeline(DB::QueryPipelineBuilder & pipeline
     if (function_name == "row_number")
     {
         pipeline.addSimpleTransform(
-            [&](const DB::Block & header)
+            [&](const DB::SharedHeader & header)
             {
                 return std::make_shared<WindowGroupLimitTransform<WindowGroupLimitFunction::RowNumber>>(
                     header, partition_columns, sort_columns, limit);
@@ -326,7 +324,7 @@ void WindowGroupLimitStep::transformPipeline(DB::QueryPipelineBuilder & pipeline
     else if (function_name == "rank")
     {
         pipeline.addSimpleTransform(
-            [&](const DB::Block & header) {
+            [&](const DB::SharedHeader & header) {
                 return std::make_shared<WindowGroupLimitTransform<WindowGroupLimitFunction::Rank>>(
                     header, partition_columns, sort_columns, limit);
             });
@@ -334,7 +332,7 @@ void WindowGroupLimitStep::transformPipeline(DB::QueryPipelineBuilder & pipeline
     else if (function_name == "dense_rank")
     {
         pipeline.addSimpleTransform(
-            [&](const DB::Block & header)
+            [&](const DB::SharedHeader & header)
             {
                 return std::make_shared<WindowGroupLimitTransform<WindowGroupLimitFunction::DenseRank>>(
                     header, partition_columns, sort_columns, limit);

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer}
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
@@ -167,7 +168,7 @@ class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTest
     def sqlConfs: Seq[(String, String)] = Seq(
       // TODO: remove this change after customized parquet options as `block_size`, `page_size`
       // been fully supported.
-      "spark.gluten.sql.native.writer.enabled" -> "false",
+      GlutenConfig.NATIVE_WRITER_ENABLED.key -> "false",
       SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> useVectorizedReader.toString,
       SQLConf.FILES_MAX_PARTITION_BYTES.key -> filesMaxPartitionBytes.toString
     ) ++ { if (useDataSourceV2) Seq(SQLConf.USE_V1_SOURCE_LIST.key -> "") else Seq.empty }

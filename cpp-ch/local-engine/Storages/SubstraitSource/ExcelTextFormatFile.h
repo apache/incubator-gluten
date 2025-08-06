@@ -47,7 +47,8 @@ public:
 
     ~ExcelTextFormatFile() override = default;
 
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
+    FormatFile::InputFormatPtr
+    createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag = nullptr) override;
 
     bool supportSplit() const override { return true; }
     String getFileFormat() const override { return "ExcelText"; }
@@ -61,7 +62,7 @@ class ExcelRowInputFormat final : public DB::CSVRowInputFormat
 {
 public:
     ExcelRowInputFormat(
-        const DB::Block & header_,
+        const DB::SharedHeader & header_,
         std::shared_ptr<DB::PeekableReadBuffer> & buf_,
         const DB::RowInputFormatParams & params_,
         const DB::FormatSettings & format_settings_,

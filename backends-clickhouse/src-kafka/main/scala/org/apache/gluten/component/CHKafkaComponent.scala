@@ -19,7 +19,6 @@ package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackend
 import org.apache.gluten.execution.OffloadKafkaScan
-import org.apache.gluten.extension.columnar.KafkaMiscColumnarRules.RemoveStreamingTopmostColumnarToRow
 import org.apache.gluten.extension.injector.Injector
 
 class CHKafkaComponent extends Component {
@@ -29,6 +28,5 @@ class CHKafkaComponent extends Component {
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[CHBackend] :: Nil
   override def injectRules(injector: Injector): Unit = {
     OffloadKafkaScan.inject(injector)
-    injector.gluten.legacy.injectPost(c => RemoveStreamingTopmostColumnarToRow(c.session, c.caller.isStreaming()))
   }
 }

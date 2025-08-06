@@ -33,10 +33,12 @@
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
+
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkExprToSubfieldFilterParser.h"
+#include "shuffle/ArrowShuffleDictionaryWriter.h"
 #include "udf/UdfLoader.h"
 #include "utils/Exception.h"
 #include "velox/common/caching/SsdCache.h"
@@ -165,7 +167,6 @@ void VeloxBackend::init(
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
     velox::cudf_velox::registerCudf();
   }
-
 #endif
 
   initJolFilesystem();
@@ -211,6 +212,10 @@ void VeloxBackend::init(
   // local cache persistent relies on the cache pool from root memory pool so we need to init this
   // after the memory manager instanced
   initCache();
+
+  registerShuffleDictionaryWriterFactory([](MemoryManager* memoryManager, arrow::util::Codec* codec) {
+    return std::make_unique<ArrowShuffleDictionaryWriter>(memoryManager, codec);
+  });
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {

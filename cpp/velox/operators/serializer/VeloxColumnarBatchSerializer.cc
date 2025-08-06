@@ -66,12 +66,8 @@ std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBa
   auto serializer = serde_->createIterativeSerializer(rowType, numRows, arena.get(), &options_);
   for (auto& batch : batches) {
     auto rowVector = VeloxColumnarBatch::from(veloxPool_.get(), batch)->getRowVector();
-    numRows = rowVector->size();
-    std::vector<IndexRange> rows(numRows);
-    for (int i = 0; i < numRows; i++) {
-      rows[i] = IndexRange{i, 1};
-    }
-    serializer->append(rowVector, folly::Range(rows.data(), numRows));
+    const IndexRange allRows{0, rowVector->size()};
+    serializer->append(rowVector, folly::Range(&allRows, 1));
   }
 
   std::shared_ptr<arrow::Buffer> valueBuffer;

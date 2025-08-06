@@ -20,10 +20,10 @@ package org.apache.gluten.ras
  * Metadata defines the common traits among nodes in one single cluster. E.g. Schema, statistics.
  */
 trait MetadataModel[T <: AnyRef] {
+  def dummy(): Metadata
   def metadataOf(node: T): Metadata
   def verify(one: Metadata, other: Metadata): Unit
-
-  def dummy(): Metadata
+  def assignToGroup(group: GroupLeafBuilder[T], meta: Metadata): Unit
 }
 
 trait Metadata {}

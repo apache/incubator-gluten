@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -34,7 +34,7 @@ import org.apache.hadoop.conf.Configuration
 
 trait BackendSettingsApi {
 
-  /** The columnar-batch type this backend is by default using. */
+  /** The default columnar-batch type of this backend. */
   def primaryBatchType: Convention.BatchType
 
   def validateScanExec(
@@ -156,4 +156,9 @@ trait BackendSettingsApi {
 
   def supportIcebergEqualityDeleteRead(): Boolean = true
 
+  def reorderColumnsForPartitionWrite(): Boolean = false
+
+  def enableEnhancedFeatures(): Boolean = false
+
+  def supportAppendDataExec(): Boolean = false
 }

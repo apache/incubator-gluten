@@ -205,8 +205,8 @@ object CHExpressionUtil {
     RAISE_ERROR -> DefaultValidator(),
     WIDTH_BUCKET -> DefaultValidator(),
     MAKE_DATE -> DefaultValidator(),
-    MAP_CONCAT -> DefaultValidator(),
     ARRAY_APPEND -> DefaultValidator(),
-    JSON_OBJECT_KEYS -> DefaultValidator()
+    JSON_OBJECT_KEYS -> DefaultValidator(),
+    LUHN_CHECK -> DefaultValidator()
   )
 }

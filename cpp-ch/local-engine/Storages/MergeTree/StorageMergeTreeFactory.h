@@ -90,7 +90,7 @@ public:
             datapart_map_v->clear();
         }
     }
-    static void clear()
+    static void clear_cache_map()
     {
         if (storage_map) storage_map->clear();
         if (datapart_map) datapart_map->clear();

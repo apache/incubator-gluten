@@ -19,6 +19,9 @@ package org.apache.gluten.ras
 import org.apache.gluten.ras.memo.{MemoLike, MemoState}
 import org.apache.gluten.ras.path.{PathFinder, RasPath}
 import org.apache.gluten.ras.property.PropertySet
+import org.apache.gluten.ras.rule.EnforcerRuleFactory
+
+import scala.collection.mutable.ArrayBuffer
 
 object RasSuiteBase {
   trait TestNode {
@@ -49,14 +52,39 @@ object RasSuiteBase {
     def withNewChildren(children: Seq[TestNode]): TestNode = this
   }
 
-  case class Group(id: Int, meta: Metadata, constraintSet: PropertySet[TestNode]) extends LeafLike {
+  case class Group private (id: Int, meta: Metadata, constraintSet: PropertySet[TestNode])
+    extends LeafLike {
     override def selfCost(): Long = Long.MaxValue
     override def makeCopy(): LeafLike = copy()
+    override def toString: String = s"${classOf[Group].getSimpleName} $id"
   }
 
   object Group {
     def apply(id: Int): Group = {
       Group(id, MetadataModelImpl.DummyMetadata, PropertySet(List.empty))
+    }
+
+    def newBuilder(id: Int): Builder = {
+      new Builder(id)
+    }
+
+    class Builder private[Group] (override val id: Int) extends GroupLeafBuilder[TestNode] {
+      private var meta: Metadata = _
+      private val constraints: ArrayBuffer[Property[TestNode]] = ArrayBuffer()
+
+      def withMetadata(meta: Metadata): Builder = {
+        this.meta = meta
+        this
+      }
+
+      def withConstraint(constraint: Property[TestNode]): Builder = {
+        this.constraints += constraint
+        this
+      }
+
+      override def build(): TestNode = {
+        Group(id, meta, PropertySet(constraints.toSeq))
+      }
     }
   }
 
@@ -110,11 +138,7 @@ object RasSuiteBase {
       java.util.Objects.equals(one, other)
     }
 
-    override def newGroupLeaf(
-        groupId: Int,
-        meta: Metadata,
-        constraintSet: PropertySet[TestNode]): TestNode =
-      Group(groupId, meta, constraintSet)
+    override def newGroupLeaf(groupId: Int): Group.Builder = Group.newBuilder(groupId)
 
     override def getGroupId(node: TestNode): Int = node match {
       case ngl: Group => ngl.id
@@ -145,12 +169,19 @@ object RasSuiteBase {
       assert(one == DummyMetadata)
       assert(other == DummyMetadata)
     }
+
+    override def assignToGroup(group: GroupLeafBuilder[TestNode], meta: Metadata): Unit = {
+      (group, meta) match {
+        case (builder: Group.Builder, m: Metadata) =>
+          builder.withMetadata(m)
+      }
+    }
   }
 
   object PropertyModelImpl extends PropertyModel[TestNode] {
-    override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = List.empty
-    override def newEnforcerRuleFactory(propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
-        : EnforcerRuleFactory[TestNode] = (_: Property[TestNode]) => List.empty
+    override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq.empty
+    override def newEnforcerRuleFactory(): EnforcerRuleFactory[TestNode] =
+      (_: PropertySet[TestNode]) => Seq.empty
   }
 
   implicit class GraphvizPrinter[T <: AnyRef](val planner: RasPlanner[T]) {
@@ -163,7 +194,7 @@ object RasSuiteBase {
 
   implicit class MemoLikeImplicits[T <: AnyRef](val memo: MemoLike[T]) {
     def memorize(ras: Ras[T], node: T): RasGroup[T] = {
-      memo.memorize(node, ras.anyPropSet())
+      memo.memorize(node, ras.userConstraintSet())
     }
   }
 
@@ -175,26 +206,26 @@ object RasSuiteBase {
     def collectAllPaths(depth: Int): Iterable[RasPath[T]] = {
       val allClusters = state.allClusters()
       val allGroups = state.allGroups()
+      val hubGroupLookup = state.clusterHubGroupLookup()
 
       val highestFinder = PathFinder
         .builder(state.ras(), state)
         .depth(depth)
         .build()
 
-      allClusters
-        .flatMap(c => c.nodes())
-        .flatMap(
-          node => {
-            val highest = highestFinder.find(node).maxBy(c => c.height())
-            val finder = (1 to highest.height())
-              .foldLeft(PathFinder
-                .builder(state.ras(), state)) {
-                case (builder, d) =>
-                  builder.depth(d)
-              }
-              .build()
-            finder.find(node)
-          })
+      hubGroupLookup.flatMap {
+        case (cKey, hubGroup) =>
+          val hubGroupNode = GroupNode(state.ras(), hubGroup)
+          val highest = highestFinder.find(hubGroupNode).maxBy(c => c.height())
+          val finder = (1 to highest.height())
+            .foldLeft(PathFinder
+              .builder(state.ras(), state)) {
+              case (builder, d) =>
+                builder.depth(d)
+            }
+            .build()
+          finder.find(hubGroupNode)
+      }
     }
   }
 

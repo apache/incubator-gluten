@@ -33,27 +33,47 @@
 static jint jniVersion = JNI_VERSION_1_8;
 
 static inline std::string jStringToCString(JNIEnv* env, jstring string) {
-  int32_t jlen, clen;
-  clen = env->GetStringUTFLength(string);
-  jlen = env->GetStringLength(string);
-  char buffer[clen + 1];
-  env->GetStringUTFRegion(string, 0, jlen, buffer);
-  return std::string(buffer, clen);
+  if (!string) {
+    return {};
+  }
+
+  const char* chars = env->GetStringUTFChars(string, nullptr);
+  if (chars == nullptr) {
+    // OOM During GetStringUTFChars.
+    throw gluten::GlutenException("Error occurred during GetStringUTFChars. Probably OOM.");
+  }
+
+  std::string result(chars);
+  env->ReleaseStringUTFChars(string, chars);
+  return result;
 }
 
 static inline void checkException(JNIEnv* env) {
   if (env->ExceptionCheck()) {
     jthrowable t = env->ExceptionOccurred();
     env->ExceptionClear();
+
     jclass describerClass = env->FindClass("org/apache/gluten/exception/JniExceptionDescriber");
     jmethodID describeMethod =
         env->GetStaticMethodID(describerClass, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
-    std::string description =
-        jStringToCString(env, (jstring)env->CallStaticObjectMethod(describerClass, describeMethod, t));
+
+    std::stringstream message;
+    message << "Error during calling Java code from native code: ";
+
+    const auto description = static_cast<jstring>(env->CallStaticObjectMethod(describerClass, describeMethod, t));
+
     if (env->ExceptionCheck()) {
-      LOG(WARNING) << "Fatal: Uncaught Java exception during calling the Java exception describer method! ";
+      message << "Uncaught Java exception during calling the Java exception describer method!";
+      env->ExceptionClear();
+    } else {
+      try {
+        message << jStringToCString(env, description);
+      } catch (const std::exception& e) {
+        message << e.what();
+      }
     }
-    throw gluten::GlutenException("Error during calling Java code from native code: " + description);
+
+    throw gluten::GlutenException(message.str());
   }
 }
 
@@ -334,18 +354,18 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
   return compressionType;
 }
 
-static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJstr) {
-  if (codecJstr == nullptr) {
+static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecBackendJstr) {
+  if (codecBackendJstr == nullptr) {
     return gluten::CodecBackend::NONE;
   }
-  auto codecBackend = jStringToCString(env, codecJstr);
+  auto codecBackend = jStringToCString(env, codecBackendJstr);
   if (codecBackend == "qat") {
     return gluten::CodecBackend::QAT;
-  } else if (codecBackend == "iaa") {
-    return gluten::CodecBackend::IAA;
-  } else {
-    throw std::invalid_argument("Not support this codec backend " + codecBackend);
   }
+  if (codecBackend == "iaa") {
+    return gluten::CodecBackend::IAA;
+  }
+  throw std::invalid_argument("Not support this codec backend " + codecBackend);
 }
 
 static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring compressionModeJstr) {

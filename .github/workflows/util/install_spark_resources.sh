@@ -68,9 +68,13 @@ function install_spark() {
     echo "Skipping checksum because shasum is not installed." 1>&2
   fi
 
-  tar --strip-components=1 -xf "${local_binary}" spark-"${spark_version}"-bin-hadoop"${hadoop_version}""${scala_suffix_short}"/jars/
+  tar --strip-components=1 -xf "${local_binary}" spark-"${spark_version}"-bin-hadoop"${hadoop_version}""${scala_suffix_short}"/jars/ \
+    spark-"${spark_version}"-bin-hadoop"${hadoop_version}""${scala_suffix_short}"/python \
+    spark-"${spark_version}"-bin-hadoop"${hadoop_version}""${scala_suffix_short}"/bin
   mkdir -p ${INSTALL_DIR}/shims/spark"${spark_version_short}""${scala_suffix}"/spark_home/assembly/target/scala-"${scala_version}"
   mv jars ${INSTALL_DIR}/shims/spark"${spark_version_short}""${scala_suffix}"/spark_home/assembly/target/scala-"${scala_version}"
+  mv python ${INSTALL_DIR}/shims/spark"${spark_version_short}""${scala_suffix}"/spark_home
+  mv bin ${INSTALL_DIR}/shims/spark"${spark_version_short}""${scala_suffix}"/spark_home
 
   tar --strip-components=1 -xf "${local_source}" spark-"${spark_version}"/sql/core/src/test/resources/
   mkdir -p shims/spark"${spark_version_short}${scala_suffix}"/spark_home/
@@ -80,7 +84,9 @@ function install_spark() {
   rm -rf "${local_source}"
 }
 
-INSTALL_DIR=/opt/
+INSTALL_DIR=${2:-/opt/}
+mkdir -p ${INSTALL_DIR}
+
 case "$1" in
 3.2)
     # Spark-3.2

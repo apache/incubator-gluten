@@ -46,4 +46,9 @@ public class DecimalTypeNode implements TypeNode, Serializable {
     builder.setDecimal(decimalBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

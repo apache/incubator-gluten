@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 
@@ -55,8 +57,8 @@ class VeloxTPCDSSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.driver.maxResultSize", "4g")
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.maxBatchSize", "4096")
-      .set("spark.gluten.shuffleWriter.bufferSize", "4096")
+      .set(GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key, "4096")
+      .set(GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE.key, "4096")
       .set("spark.executor.memory", "4g")
       .set("spark.executor.instances", "16")
       .set("spark.executor.cores", "8")

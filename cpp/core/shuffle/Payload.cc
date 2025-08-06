@@ -50,13 +50,10 @@ T* advance(uint8_t** dst) {
   return ptr;
 }
 
-arrow::Result<uint8_t> readType(arrow::io::InputStream* inputStream) {
+arrow::Result<uint8_t> readPayloadType(arrow::io::InputStream* is) {
   uint8_t type;
-  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream->Read(sizeof(Payload::Type), &type));
-  if (bytes == 0) {
-    // Reach EOS.
-    return 0;
-  }
+  ARROW_ASSIGN_OR_RAISE(auto bytes, is->Read(sizeof(Payload::Type), &type));
+  ARROW_RETURN_IF(bytes == 0, arrow::Status::IOError("Failed to read bytes. Reached EOS."));
   return type;
 }
 
@@ -188,25 +185,18 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
     std::vector<std::shared_ptr<arrow::Buffer>> buffers,
     const std::vector<bool>* isValidityBuffer,
     arrow::MemoryPool* pool,
-    arrow::util::Codec* codec,
-    std::shared_ptr<arrow::Buffer> compressed) {
+    arrow::util::Codec* codec) {
+  const uint32_t numBuffers = buffers.size();
+
   if (payloadType == Payload::Type::kCompressed) {
     Timer compressionTime;
     compressionTime.start();
     // Compress.
     auto maxLength = maxCompressedLength(buffers, codec);
     std::shared_ptr<arrow::Buffer> compressedBuffer;
-    uint8_t* output;
-    if (compressed) {
-      ARROW_RETURN_IF(
-          compressed->size() < maxLength,
-          arrow::Status::Invalid(
-              "Compressed buffer length < maxCompressedLength. (", compressed->size(), " vs ", maxLength, ")"));
-      output = const_cast<uint8_t*>(compressed->data());
-    } else {
-      ARROW_ASSIGN_OR_RAISE(compressedBuffer, arrow::AllocateResizableBuffer(maxLength, pool));
-      output = compressedBuffer->mutable_data();
-    }
+
+    ARROW_ASSIGN_OR_RAISE(compressedBuffer, arrow::AllocateResizableBuffer(maxLength, pool));
+    auto* output = compressedBuffer->mutable_data();
 
     int64_t actualLength = 0;
     // Compress buffers one by one.
@@ -219,19 +209,18 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
     }
 
     ARROW_RETURN_IF(actualLength < 0, arrow::Status::Invalid("Writing compressed buffer out of bound."));
-    if (compressed) {
-      compressedBuffer = std::make_shared<arrow::Buffer>(compressed->data(), actualLength);
-    } else {
-      RETURN_NOT_OK(std::dynamic_pointer_cast<arrow::ResizableBuffer>(compressedBuffer)->Resize(actualLength));
-    }
+
+    RETURN_NOT_OK(std::dynamic_pointer_cast<arrow::ResizableBuffer>(compressedBuffer)->Resize(actualLength));
+
     compressionTime.stop();
     auto payload = std::unique_ptr<BlockPayload>(
-        new BlockPayload(Type::kCompressed, numRows, {compressedBuffer}, isValidityBuffer, pool, codec));
+        new BlockPayload(Type::kCompressed, numRows, numBuffers, {compressedBuffer}, isValidityBuffer));
     payload->setCompressionTime(compressionTime.realTimeUsed());
+
     return payload;
   }
   return std::unique_ptr<BlockPayload>(
-      new BlockPayload(payloadType, numRows, std::move(buffers), isValidityBuffer, pool, codec));
+      new BlockPayload(payloadType, numRows, numBuffers, std::move(buffers), isValidityBuffer));
 }
 
 arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
@@ -240,8 +229,7 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
       ScopedTimer timer(&writeTime_);
       RETURN_NOT_OK(outputStream->Write(&kUncompressedType, sizeof(Type)));
       RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-      uint32_t numBuffers = buffers_.size();
-      RETURN_NOT_OK(outputStream->Write(&numBuffers, sizeof(uint32_t)));
+      RETURN_NOT_OK(outputStream->Write(&numBuffers_, sizeof(uint32_t)));
       for (auto& buffer : buffers_) {
         if (!buffer) {
           RETURN_NOT_OK(outputStream->Write(&kNullBuffer, sizeof(int64_t)));
@@ -255,23 +243,29 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
       }
     } break;
     case Type::kToBeCompressed: {
-      {
-        ScopedTimer timer(&writeTime_);
-        RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
-        RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-        uint32_t numBuffers = buffers_.size();
-        RETURN_NOT_OK(outputStream->Write(&numBuffers, sizeof(uint32_t)));
-      }
+      ScopedTimer timer(&writeTime_);
+
+      // No type and rows metadata for kToBeCompressed payload.
+      RETURN_NOT_OK(outputStream->Write(&numBuffers_, sizeof(uint32_t)));
+
       for (auto& buffer : buffers_) {
-        RETURN_NOT_OK(compressAndFlush(std::move(buffer), outputStream, codec_, pool_, compressTime_, writeTime_));
+        if (!buffer) {
+          RETURN_NOT_OK(outputStream->Write(&kNullBuffer, sizeof(int64_t)));
+          continue;
+        }
+
+        int64_t bufferSize = buffer->size();
+        RETURN_NOT_OK(outputStream->Write(&bufferSize, sizeof(int64_t)));
+        if (bufferSize > 0) {
+          RETURN_NOT_OK(outputStream->Write(std::move(buffer)));
+        }
       }
     } break;
     case Type::kCompressed: {
       ScopedTimer timer(&writeTime_);
       RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
       RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-      uint32_t buffers = numBuffers();
-      RETURN_NOT_OK(outputStream->Write(&buffers, sizeof(uint32_t)));
+      RETURN_NOT_OK(outputStream->Write(&numBuffers_, sizeof(uint32_t)));
       RETURN_NOT_OK(outputStream->Write(std::move(buffers_[0])));
     } break;
     case Type::kRaw: {
@@ -301,12 +295,8 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
     int64_t& deserializeTime,
     int64_t& decompressTime) {
   auto timer = std::make_unique<ScopedTimer>(&deserializeTime);
-  static const std::vector<std::shared_ptr<arrow::Buffer>> kEmptyBuffers{};
-  ARROW_ASSIGN_OR_RAISE(auto type, readType(inputStream));
-  if (type == 0) {
-    numRows = 0;
-    return kEmptyBuffers;
-  }
+  ARROW_ASSIGN_OR_RAISE(auto type, readPayloadType(inputStream));
+
   RETURN_NOT_OK(inputStream->Read(sizeof(uint32_t), &numRows));
   uint32_t numBuffers;
   RETURN_NOT_OK(inputStream->Read(sizeof(uint32_t), &numBuffers));
@@ -423,16 +413,12 @@ arrow::Result<std::unique_ptr<InMemoryPayload>> InMemoryPayload::merge(
       }
     }
   }
-  return std::make_unique<InMemoryPayload>(mergedRows, isValidityBuffer, std::move(merged));
+  return std::make_unique<InMemoryPayload>(mergedRows, isValidityBuffer, source->schema(), std::move(merged));
 }
 
-arrow::Result<std::unique_ptr<BlockPayload>> InMemoryPayload::toBlockPayload(
-    Payload::Type payloadType,
-    arrow::MemoryPool* pool,
-    arrow::util::Codec* codec,
-    std::shared_ptr<arrow::Buffer> compressed) {
-  return BlockPayload::fromBuffers(
-      payloadType, numRows_, std::move(buffers_), isValidityBuffer_, pool, codec, std::move(compressed));
+arrow::Result<std::unique_ptr<BlockPayload>>
+InMemoryPayload::toBlockPayload(Payload::Type payloadType, arrow::MemoryPool* pool, arrow::util::Codec* codec) {
+  return BlockPayload::fromBuffers(payloadType, numRows_, std::move(buffers_), isValidityBuffer_, pool, codec);
 }
 
 arrow::Status InMemoryPayload::serialize(arrow::io::OutputStream* outputStream) {
@@ -472,8 +458,25 @@ int64_t InMemoryPayload::rawSize() {
   return getBufferSize(buffers_);
 }
 
+uint32_t InMemoryPayload::numBuffers() const {
+  return buffers_.size();
+}
+
+int64_t InMemoryPayload::rawCapacity() const {
+  return getBufferCapacity(buffers_);
+}
+
 bool InMemoryPayload::mergeable() const {
   return !hasComplexType_;
+}
+
+std::shared_ptr<arrow::Schema> InMemoryPayload::schema() const {
+  return schema_;
+}
+
+arrow::Status InMemoryPayload::createDictionaries(const std::shared_ptr<ShuffleDictionaryWriter>& dictionaryWriter) {
+  ARROW_ASSIGN_OR_RAISE(buffers_, dictionaryWriter->updateAndGet(schema_, numRows_, buffers_));
+  return arrow::Status::OK();
 }
 
 UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(
@@ -494,45 +497,53 @@ arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* o
   ARROW_RETURN_IF(
       inputStream_ == nullptr, arrow::Status::Invalid("inputStream_ is uninitialized before calling serialize()."));
 
-  if (codec_ == nullptr || type_ == Payload::kUncompressed) {
+  if (type_ == Payload::kUncompressed) {
     ARROW_ASSIGN_OR_RAISE(auto block, inputStream_->Read(rawSize_));
     RETURN_NOT_OK(outputStream->Write(block));
     return arrow::Status::OK();
   }
 
-  ARROW_RETURN_IF(
-      type_ != Payload::kToBeCompressed,
-      arrow::Status::Invalid(
-          "Invalid payload type: " + std::to_string(type_) +
-          ", should be either Payload::kUncompressed or Payload::kToBeCompressed"));
+  GLUTEN_DCHECK(
+      type_ == Payload::kToBeCompressed,
+      "Invalid payload type: " + std::to_string(type_) +
+          ", should be either Payload::kUncompressed or Payload::kToBeCompressed");
+
+  GLUTEN_CHECK(codec_ != nullptr, "Codec is null when serializing Payload::kToBeCompressed.");
+
+  uint8_t blockType;
+  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream_->Read(sizeof(blockType), &blockType));
+  ARROW_RETURN_IF(bytes == 0, arrow::Status::Invalid("Cannot serialize payload. Reached EOS."));
+
+  RETURN_NOT_OK(outputStream->Write(&blockType, sizeof(blockType)));
+
   RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(kCompressedType)));
   RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
 
-  ARROW_ASSIGN_OR_RAISE(auto startPos, inputStream_->Tell());
-
-  // Discard original type and rows.
-  Payload::Type type;
-  uint32_t numRows;
-  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream_->Read(sizeof(Payload::Type), &type));
-  ARROW_ASSIGN_OR_RAISE(bytes, inputStream_->Read(sizeof(uint32_t), &numRows));
   uint32_t numBuffers = 0;
   ARROW_ASSIGN_OR_RAISE(bytes, inputStream_->Read(sizeof(uint32_t), &numBuffers));
   ARROW_RETURN_IF(bytes == 0 || numBuffers == 0, arrow::Status::Invalid("Cannot serialize payload with 0 buffers."));
+
   RETURN_NOT_OK(outputStream->Write(&numBuffers, sizeof(uint32_t)));
 
-  // Advance Payload::Type, rows and numBuffers.
-  auto readPos = startPos + sizeof(Payload::Type) + sizeof(uint32_t) + sizeof(uint32_t);
-  while (readPos - startPos < rawSize_) {
+  ARROW_ASSIGN_OR_RAISE(auto start, inputStream_->Tell());
+
+  auto pos = start;
+  auto rawBufferSize = rawSize_ - sizeof(blockType) - sizeof(numBuffers);
+
+  while (pos - start < rawBufferSize) {
     ARROW_ASSIGN_OR_RAISE(auto uncompressed, readUncompressedBuffer());
-    ARROW_ASSIGN_OR_RAISE(readPos, inputStream_->Tell());
+    ARROW_ASSIGN_OR_RAISE(pos, inputStream_->Tell());
     RETURN_NOT_OK(compressAndFlush(std::move(uncompressed), outputStream, codec_, pool_, compressTime_, writeTime_));
   }
+
+  GLUTEN_CHECK(pos - start == rawBufferSize, "Not all data is read from input stream.");
+
   return arrow::Status::OK();
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> UncompressedDiskBlockPayload::readUncompressedBuffer() {
   ScopedTimer timer(&writeTime_);
-  readPos_++;
+
   int64_t bufferLength;
   RETURN_NOT_OK(inputStream_->Read(sizeof(int64_t), &bufferLength));
   if (bufferLength == kNullBuffer) {

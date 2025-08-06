@@ -934,6 +934,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
       val files = directory.listFiles
       val count = files
         .filter(!_.getName.endsWith(".crc"))
+        .filter(!_.getName.endsWith("vacuum_info"))
         .count(_.isFile) + files.filter(_.isDirectory).map(countFiles).sum
       count
     } else {

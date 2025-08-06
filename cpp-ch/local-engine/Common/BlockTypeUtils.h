@@ -20,6 +20,7 @@
 #include <Columns/ColumnString.h>
 #include <Columns/ColumnsNumber.h>
 #include <Core/Block.h>
+#include <Core/Block_fwd.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeString.h>
@@ -28,6 +29,13 @@
 
 namespace local_engine
 {
+
+template <typename T>
+DB::SharedHeader toShared(T && block)
+{
+    return std::make_shared<const DB::Block>(std::forward<T>(block));
+}
+
 /**
  * A simple alias for NamesAndTypesList
  */

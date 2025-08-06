@@ -17,7 +17,6 @@
 package org.apache.spark.shuffle
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.ReservedKeys
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -31,7 +30,6 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
-import java.util.Locale
 
 abstract class CelebornColumnarShuffleWriter[K, V](
     shuffleId: Int,
@@ -71,11 +69,6 @@ abstract class CelebornColumnarShuffleWriter[K, V](
 
   protected val clientPushSortMemoryThreshold: Long = celebornConf.clientPushSortMemoryThreshold
 
-  protected val shuffleWriterType: String =
-    celebornConf.shuffleWriterMode.name
-      .toLowerCase(Locale.ROOT)
-      .replace(ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER, ReservedKeys.GLUTEN_RSS_SORT_SHUFFLE_WRITER)
-
   protected val celebornPartitionPusher = new CelebornPartitionPusher(
     shuffleId,
     numMappers,
@@ -105,9 +98,6 @@ abstract class CelebornColumnarShuffleWriter[K, V](
       .map(codec => GlutenShuffleUtils.getCompressionBufferSize(conf, codec))
       .getOrElse(0)
   }
-
-  protected val bufferCompressThreshold: Int =
-    GlutenConfig.get.columnarShuffleCompressionThreshold
 
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
   // and then call stop() with success = false if they get an exception, we want to make sure

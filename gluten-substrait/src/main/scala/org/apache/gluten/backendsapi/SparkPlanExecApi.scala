@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.backendsapi
 
+import org.apache.gluten.config.{HashShuffleWriterType, ShuffleWriterType}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
@@ -346,10 +347,14 @@ trait SparkPlanExecApi {
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
+      shuffleWriterType: ShuffleWriterType): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
 
   /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
-  def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean
+  def getShuffleWriterType(
+      partitioning: Partitioning,
+      output: Seq[Attribute]): ShuffleWriterType = {
+    HashShuffleWriterType
+  }
 
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
@@ -367,7 +372,7 @@ trait SparkPlanExecApi {
   def createColumnarBatchSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): Serializer
+      shuffleWriterType: ShuffleWriterType): Serializer
 
   /** Create broadcast relation for BroadcastExchangeExec */
   def createBroadcastRelation(
@@ -727,6 +732,8 @@ trait SparkPlanExecApi {
 
   def genColumnarTailExec(limit: Int, plan: SparkPlan): ColumnarCollectTailBaseExec
 
+  def genColumnarToCarrierRow(plan: SparkPlan): SparkPlan
+
   def expressionFlattenSupported(expr: Expression): Boolean = false
 
   def genFlattenedExpressionTransformer(
@@ -748,4 +755,12 @@ trait SparkPlanExecApi {
 
   def deserializeColumnarBatch(input: ObjectInputStream): ColumnarBatch =
     throw new GlutenNotSupportException("Deserialize ColumnarBatch is not supported")
+
+  def genTimestampDiffTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("timestampdiff is not supported")
+  }
 }

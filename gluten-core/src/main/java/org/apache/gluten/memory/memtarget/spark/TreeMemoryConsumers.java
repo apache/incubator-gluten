@@ -16,11 +16,13 @@
  */
 package org.apache.gluten.memory.memtarget.spark;
 
-import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.GlutenCoreConfig;
 import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
+import com.google.common.base.Preconditions;
 import org.apache.commons.collections.map.ReferenceMap;
+import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.Utils;
 
@@ -34,9 +36,17 @@ public final class TreeMemoryConsumers {
   private TreeMemoryConsumers() {}
 
   @SuppressWarnings("unchecked")
-  public static Factory factory(TaskMemoryManager tmm) {
+  public static Factory factory(TaskMemoryManager tmm, MemoryMode mode) {
     synchronized (FACTORIES) {
-      return (Factory) FACTORIES.computeIfAbsent(tmm, m -> new Factory((TaskMemoryManager) m));
+      final Factory factory =
+          (Factory) FACTORIES.computeIfAbsent(tmm, m -> new Factory((TaskMemoryManager) m, mode));
+      final MemoryMode foundMode = factory.sparkConsumer.getMode();
+      Preconditions.checkState(
+          foundMode == mode,
+          "An existing Spark memory consumer already exists but is of the different memory "
+              + "mode: %s",
+          foundMode);
+      return factory;
     }
   }
 
@@ -44,8 +54,8 @@ public final class TreeMemoryConsumers {
     private final TreeMemoryConsumer sparkConsumer;
     private final Map<Long, TreeMemoryTarget> roots = new ConcurrentHashMap<>();
 
-    private Factory(TaskMemoryManager tmm) {
-      this.sparkConsumer = new TreeMemoryConsumer(tmm);
+    private Factory(TaskMemoryManager tmm, MemoryMode mode) {
+      this.sparkConsumer = new TreeMemoryConsumer(tmm, mode);
     }
 
     private TreeMemoryTarget ofCapacity(long capacity) {
@@ -77,7 +87,7 @@ public final class TreeMemoryConsumers {
      * <p>See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
      */
     public TreeMemoryTarget isolatedRoot() {
-      return ofCapacity(GlutenConfig.get().conservativeTaskOffHeapMemorySize());
+      return ofCapacity(GlutenCoreConfig.get().conservativeTaskOffHeapMemorySize());
     }
   }
 }

@@ -167,6 +167,22 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           "url_" + i.functionName,
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i)
+      case i @ StaticInvoke(_, _, "isLuhnNumber", _, _, _, _, _) =>
+        return GenericExpressionTransformer(
+          ExpressionNames.LUHN_CHECK,
+          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
+          i)
+      case i @ StaticInvoke(_, _, "encode" | "decode", Seq(_, _), _, _, _, _)
+          if i.objectName.endsWith("Base64") =>
+        if (!SQLConf.get.getConfString("spark.sql.chunkBase64String.enabled", "true").toBoolean) {
+          throw new GlutenNotSupportException(
+            "Base64 with chunkBase64String disabled is not supported in gluten.")
+        }
+        return GenericExpressionTransformer(
+          ExpressionNames.BASE64,
+          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
+          i
+        )
       case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
         throw new GlutenNotSupportException(
           s"Not supported to transform StaticInvoke with object: ${clz.getName}, " +
@@ -567,6 +583,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           extract.get.last,
           add
         )
+      case tsDiff: BinaryExpression if tsDiff.getClass.getSimpleName.equals("TimestampDiff") =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTimestampDiffTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(tsDiff.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(tsDiff.right, attributeSeq, expressionsMap),
+          tsDiff
+        )
       case e: Transformable =>
         val childrenTransformers =
           e.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
@@ -748,6 +771,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
           j)
+      case u: UnBase64 if SparkShimLoader.getSparkShims.unBase64FunctionFailsOnError(u) =>
+        throw new GlutenNotSupportException("UnBase64 with failOnError is not supported in gluten.")
       case ce if BackendsApiManager.getSparkPlanExecApiInstance.expressionFlattenSupported(ce) =>
         replaceFlattenedExpressionWithExpressionTransformer(
           substraitExprName,

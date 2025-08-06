@@ -19,6 +19,7 @@
 #include <Processors/Port.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
@@ -37,10 +38,9 @@ namespace ErrorCodes
 namespace local_engine
 {
 StreamingAggregatingTransform::StreamingAggregatingTransform(
-    DB::ContextPtr context_, const DB::Block & header_, DB::AggregatingTransformParamsPtr params_)
+    DB::ContextPtr context_, const DB::SharedHeader & header_, DB::AggregatingTransformParamsPtr params_)
     : DB::IProcessor({header_}, {params_->getHeader()})
     , context(context_)
-    , header(header_)
     , key_columns(params_->params.keys_size)
     , aggregate_columns(params_->params.aggregates_size)
     , params(params_)
@@ -281,8 +281,8 @@ static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Ag
     return params_.getHeader(input_header_, false);
 }
 StreamingAggregatingStep::StreamingAggregatingStep(
-    const DB::ContextPtr & context_, const DB::Block & input_header, DB::Aggregator::Params params_)
-    : DB::ITransformingStep(input_header, buildOutputHeader(input_header, params_), getTraits())
+    const DB::ContextPtr & context_, const DB::SharedHeader & input_header, DB::Aggregator::Params params_)
+    : DB::ITransformingStep(input_header, toShared(buildOutputHeader(*input_header, params_)), getTraits())
     , context(context_)
     , params(std::move(params_))
 {
@@ -296,14 +296,14 @@ void StreamingAggregatingStep::transformPipeline(DB::QueryPipelineBuilder & pipe
             DB::ErrorCodes::LOGICAL_ERROR, "max_bytes_before_external_group_by is not supported in StreamingAggregatingStep");
     }
     pipeline.dropTotalsAndExtremes();
-    auto transform_params = std::make_shared<DB::AggregatingTransformParams>(pipeline.getHeader(), params, false);
+    auto transform_params = std::make_shared<DB::AggregatingTransformParams>(pipeline.getSharedHeader(), params, false);
     pipeline.resize(1);
     auto build_transform = [&](DB::OutputPortRawPtrs outputs)
     {
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto op = std::make_shared<StreamingAggregatingTransform>(context, pipeline.getHeader(), transform_params);
+            auto op = std::make_shared<StreamingAggregatingTransform>(context, pipeline.getSharedHeader(), transform_params);
             new_processors.push_back(op);
             DB::connect(*output, op->getInputs().front());
         }
@@ -324,7 +324,7 @@ void StreamingAggregatingStep::describeActions(DB::JSONBuilder::JSONMap & map) c
 
 void StreamingAggregatingStep::updateOutputHeader()
 {
-    output_header = buildOutputHeader(input_headers.front(), params);
+    output_header = toShared(buildOutputHeader(*input_headers.front(), params));
 }
 
 }

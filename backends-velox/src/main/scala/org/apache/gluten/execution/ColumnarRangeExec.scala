@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.columnarbatch.ArrowBatches.ArrowJavaBatch
+import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.ArrowJavaBatchType
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
@@ -57,7 +57,7 @@ case class ColumnarRangeExec(
 ) extends ColumnarRangeBaseExec(start, end, step, numSlices, numElements, outputAttributes, child) {
 
   override def batchType(): Convention.BatchType = {
-    ArrowJavaBatch
+    ArrowJavaBatchType
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {

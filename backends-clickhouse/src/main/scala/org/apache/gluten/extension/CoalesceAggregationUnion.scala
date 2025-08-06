@@ -17,7 +17,6 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
-import org.apache.gluten.exception.GlutenNotSupportException
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -107,9 +106,9 @@ object CoalesceUnionUtil extends Logging {
 
   def buildAttributesMap(
       attributes: Seq[Attribute],
-      expressions: Seq[Expression]): Map[ExprId, Expression] = {
+      expressions: Seq[NamedExpression]): Map[ExprId, NamedExpression] = {
     assert(attributes.length == expressions.length)
-    val map = new mutable.HashMap[ExprId, Expression]()
+    val map = new mutable.HashMap[ExprId, NamedExpression]()
     attributes.zip(expressions).foreach {
       case (attr, expr) =>
         map.put(attr.exprId, expr)
@@ -117,16 +116,35 @@ object CoalesceUnionUtil extends Logging {
     map.toMap
   }
 
-  def replaceAttributes(e: Expression, replaceMap: Map[ExprId, Expression]): Expression = {
+  def replaceAttributes(e: Expression, replaceMap: Map[ExprId, NamedExpression]): Expression = {
     e match {
       case attr: Attribute =>
+        replaceMap.getOrElse(attr.exprId, attr)
+      case attr: OuterReference =>
         replaceMap.get(attr.exprId) match {
-          case Some(replaceAttr) => replaceAttr
-          case None =>
-            throw new GlutenNotSupportException(s"Not found attribute: $attr ${attr.qualifiedName}")
+          case Some(replaceAttr) =>
+            OuterReference.apply(replaceAttr)
+          case _ => attr
         }
+      case subquery: ScalarSubquery =>
+        val plan = replaceSubqueryAttributes(subquery.plan, replaceMap)
+        val outerAttrs = subquery.outerAttrs.map(replaceAttributes(_, replaceMap))
+        subquery.copy(plan, outerAttrs)
       case _ =>
         e.withNewChildren(e.children.map(replaceAttributes(_, replaceMap)))
+    }
+  }
+
+  def replaceSubqueryAttributes(
+      plan: LogicalPlan,
+      replaceMap: Map[ExprId, NamedExpression]): LogicalPlan = {
+    plan match {
+      case filter: Filter =>
+        filter.copy(
+          replaceAttributes(filter.condition, replaceMap),
+          replaceSubqueryAttributes(filter.child, replaceMap))
+      case _ =>
+        plan.withNewChildren(plan.children.map(replaceSubqueryAttributes(_, replaceMap)))
     }
   }
 
@@ -396,9 +414,8 @@ case class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPla
 
           val newFilter = innerProject match {
             case Some(project) =>
-              val replaceMap = CoalesceUnionUtil.buildAttributesMap(
-                project.output,
-                project.projectList.map(_.asInstanceOf[Expression]))
+              val replaceMap =
+                CoalesceUnionUtil.buildAttributesMap(project.output, project.projectList)
               val newCondition = CoalesceUnionUtil.replaceAttributes(filter.condition, replaceMap)
               Filter(newCondition, sourcePlan)
             case None => filter.withNewChildren(Seq(sourcePlan))
@@ -422,9 +439,8 @@ case class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPla
 
         val newAggregate = innerProject match {
           case Some(project) =>
-            val replaceMap = CoalesceUnionUtil.buildAttributesMap(
-              project.output,
-              project.projectList.map(_.asInstanceOf[Expression]))
+            val replaceMap =
+              CoalesceUnionUtil.buildAttributesMap(project.output, project.projectList)
             val newGroupExpressions = originalAggregate.groupingExpressions.map {
               e => CoalesceUnionUtil.replaceAttributes(e, replaceMap)
             }
@@ -517,7 +533,7 @@ case class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPla
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
       spark.conf
-        .get(CHBackendSettings.GLUTEN_ENABLE_COALESCE_AGGREGATION_UNION, "true")
+        .get(CHBackendSettings.GLUTEN_ENABLE_COALESCE_AGGREGATION_UNION, "false")
         .toBoolean && CoalesceUnionUtil.isResolvedPlan(plan)
     ) {
       Try {
@@ -688,7 +704,7 @@ case class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPla
   def collectClauseStructFields(
       analyzedPlan: AnalyzedPlan,
       clauseIndex: Int,
-      attributeReplaceMap: Map[ExprId, Expression]): Seq[Expression] = {
+      attributeReplaceMap: Map[ExprId, NamedExpression]): Seq[Expression] = {
 
     val planAnalyzer = analyzedPlan.planAnalyzer.get.asInstanceOf[PlanAnalyzer]
     val aggregate = planAnalyzer.constructedAggregatePlan.get.asInstanceOf[Aggregate]
@@ -876,14 +892,14 @@ case class CoalesceProjectionUnion(spark: SparkSession) extends Rule[LogicalPlan
               val replaceMap =
                 CoalesceUnionUtil.buildAttributesMap(
                   project.output,
-                  project.projectList.map(_.asInstanceOf[Expression]))
+                  project.projectList.map(_.asInstanceOf[NamedExpression]))
               val newCondition = CoalesceUnionUtil.replaceAttributes(filter.condition, replaceMap)
               Some(Filter(newCondition, source))
             case subquery @ SubqueryAlias(_, project: Project) =>
               val replaceMap =
                 CoalesceUnionUtil.buildAttributesMap(
                   project.output,
-                  project.projectList.map(_.asInstanceOf[Expression]))
+                  project.projectList.map(_.asInstanceOf[NamedExpression]))
               val newCondition = CoalesceUnionUtil.replaceAttributes(filter.condition, replaceMap)
               Some(Filter(newCondition, source))
             case _ => Some(filter)
@@ -898,11 +914,8 @@ case class CoalesceProjectionUnion(spark: SparkSession) extends Rule[LogicalPlan
           val originalFilter = extractFilter().get
           originalFilter.child match {
             case project: Project =>
-              None
               val replaceMap =
-                CoalesceUnionUtil.buildAttributesMap(
-                  project.output,
-                  project.projectList.map(_.asInstanceOf[Expression]))
+                CoalesceUnionUtil.buildAttributesMap(project.output, project.projectList)
               val originalProject = originalPlan.asInstanceOf[Project]
               val newProjectList =
                 originalProject.projectList
@@ -912,9 +925,7 @@ case class CoalesceProjectionUnion(spark: SparkSession) extends Rule[LogicalPlan
               Some(newProject)
             case subquery @ SubqueryAlias(_, project: Project) =>
               val replaceMap =
-                CoalesceUnionUtil.buildAttributesMap(
-                  project.output,
-                  project.projectList.map(_.asInstanceOf[Expression]))
+                CoalesceUnionUtil.buildAttributesMap(project.output, project.projectList)
               val originalProject = originalPlan.asInstanceOf[Project]
               val newProjectList =
                 originalProject.projectList
@@ -942,7 +953,7 @@ case class CoalesceProjectionUnion(spark: SparkSession) extends Rule[LogicalPlan
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
       spark.conf
-        .get(CHBackendSettings.GLUTEN_ENABLE_COALESCE_PROJECT_UNION, "true")
+        .get(CHBackendSettings.GLUTEN_ENABLE_COALESCE_PROJECT_UNION, "false")
         .toBoolean && CoalesceUnionUtil.isResolvedPlan(plan)
     ) {
       Try {

@@ -29,6 +29,8 @@ public class GlutenSplitResult {
   private final long peakBytes;
   private final long sortTime;
   private final long c2rTime;
+  private final double avgDictionaryFields;
+  private final long dictionarySize;
 
   public GlutenSplitResult(
       long totalComputePidTime,
@@ -41,6 +43,8 @@ public class GlutenSplitResult {
       long totalBytesEvicted,
       long totalBytesToEvict, // In-memory bytes(uncompressed) before spill.
       long peakBytes,
+      double avgDictionaryFields,
+      long dictionarySize,
       long[] partitionLengths,
       long[] rawPartitionLengths) {
     this.totalComputePidTime = totalComputePidTime;
@@ -55,6 +59,8 @@ public class GlutenSplitResult {
     this.peakBytes = peakBytes;
     this.sortTime = totalSortTime;
     this.c2rTime = totalC2RTime;
+    this.avgDictionaryFields = avgDictionaryFields;
+    this.dictionarySize = dictionarySize;
   }
 
   public long getTotalComputePidTime() {
@@ -107,5 +113,13 @@ public class GlutenSplitResult {
 
   public long getC2RTime() {
     return c2rTime;
+  }
+
+  public double getAvgDictionaryFields() {
+    return avgDictionaryFields;
+  }
+
+  public long getDictionarySize() {
+    return dictionarySize;
   }
 }

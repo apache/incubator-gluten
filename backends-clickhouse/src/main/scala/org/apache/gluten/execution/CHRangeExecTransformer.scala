@@ -18,7 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.{CHRangeMetricsUpdater, MetricsUpdater}
 import org.apache.gluten.substrait.`type`._
 import org.apache.gluten.substrait.SubstraitContext

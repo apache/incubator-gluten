@@ -30,4 +30,9 @@ public class NothingNode implements TypeNode, Serializable {
     builder.setNothing(nothingBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return true;
+  }
 }

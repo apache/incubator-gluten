@@ -28,11 +28,14 @@
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <Formats/JSONUtils.h>
+#include <IO/ReadBufferFromString.h>
+#include <IO/ReadHelpers.h>
 #include <IO/WriteBuffer.h>
 #include <IO/WriteHelpers.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <rapidjson/document.h>
 #include <Poco/URI.h>
+#include <Common/Base64.h>
 #include <Common/Base85Codec.h>
 
 namespace local_engine::delta
@@ -62,19 +65,6 @@ DB::ColumnTuple::MutablePtr createDeletionVectorDescriptorColumn()
         DB::ColumnNullable::create(DB::ColumnInt64::create(), DB::ColumnUInt8::create())); // maxRowIndex
 
     return DB::ColumnTuple::create(std::move(dv_descriptor_mutable_columns));
-}
-
-DB::Tuple createDeletionVectorDescriptorField(
-    const String & path_or_inline_dv, const Int32 & offset, const Int32 & size_in_bytes, const Int64 & cardinality)
-{
-    DB::Tuple tuple;
-    tuple.emplace_back(UUID_DV_MARKER); // storageType
-    tuple.emplace_back(path_or_inline_dv); // pathOrInlineDv
-    tuple.emplace_back(offset); // offset
-    tuple.emplace_back(size_in_bytes); // sizeInBytes
-    tuple.emplace_back(cardinality); // cardinality
-    tuple.emplace_back(DB::Field{}); // maxRowIndex
-    return tuple;
 }
 
 DB::DataTypePtr getDeletionVectorType()
@@ -107,19 +97,52 @@ DB::DataTypePtr getDeletionVectorType()
     return std::make_shared<DB::DataTypeTuple>(dv_descriptor_types, dv_descriptor_names);
 }
 
-String assembleDeletionVectorPath(const String & table_path, const String & prefix, const String & uuid)
+DeletionVectorDescriptor DeletionVectorDescriptor::deserializeFromBase64(const String & encoded)
 {
-    String path = table_path + "/";
-    if (!prefix.empty())
-        path += prefix + "/";
+    const String decoded = DB::base64Decode(encoded);
 
-    path += DELETION_VECTOR_FILE_NAME_CORE + "_" + uuid + ".bin";
-    return path;
+    DeletionVectorDescriptor descriptor;
+    char storage_type_char;
+
+    DB::ReadBufferFromString rb(decoded);
+
+    DB::readBinaryBigEndian(descriptor.cardinality, rb);
+    DB::readBinaryBigEndian(descriptor.size_in_bytes, rb);
+    DB::readChar(storage_type_char, rb);
+    descriptor.storage_type = String(1, storage_type_char);
+    if (descriptor.storage_type != INLINE_DV_MARKER)
+        DB::readBinaryBigEndian(descriptor.offset, rb);
+
+    UInt16 len;
+    DB::readBinaryBigEndian(len, rb);
+    DB::readString(descriptor.path_or_inline_dv, rb, static_cast<size_t>(len));
+
+    return descriptor;
+}
+
+DB::Tuple DeletionVectorDescriptor::createDeletionVectorDescriptorField()
+{
+    DB::Tuple tuple;
+    tuple.emplace_back(storage_type);
+    tuple.emplace_back(path_or_inline_dv);
+    tuple.emplace_back(offset);
+    tuple.emplace_back(size_in_bytes);
+    tuple.emplace_back(cardinality);
+    tuple.emplace_back(DB::Field{}); // maxRowIndex
+    return tuple;
 }
 
 DeltaWriter::DeltaWriter(
-    const DB::ContextPtr & context_, const String & table_path_, const size_t & prefix_length_, const size_t & packing_target_size_)
-    : context(context_), table_path(table_path_), prefix_length(prefix_length_), packing_target_size(packing_target_size_)
+    const DB::ContextPtr & context_,
+    const String & table_path_,
+    const size_t & prefix_length_,
+    const size_t & packing_target_size_,
+    const String & dv_file_name_prefix_)
+    : context(context_)
+    , table_path(table_path_)
+    , prefix_length(prefix_length_)
+    , packing_target_size(packing_target_size_)
+    , dv_file_name_prefix(dv_file_name_prefix_)
 {
     file_path_column = DB::ColumnString::create();
     dv_descriptor_column = createDeletionVectorDescriptorColumn();
@@ -153,18 +176,11 @@ void DeltaWriter::writeDeletionVector(const DB::Block & block)
 
             if (!existing_deletion_vector_id.empty())
             {
-                rapidjson::Document existingDvDescriptor;
-                existingDvDescriptor.Parse(existing_deletion_vector_id.c_str());
-
-                String existing_path_or_inline_dv = existingDvDescriptor["pathOrInlineDv"].GetString();
-                Int32 existing_offset = existingDvDescriptor["offset"].GetInt();
-                Int32 existing_size_in_bytes = existingDvDescriptor["sizeInBytes"].GetInt();
-                Int64 existing_cardinality = existingDvDescriptor["cardinality"].GetInt64();
-
+                auto existing_deletion_vector_descriptor = DeletionVectorDescriptor::deserializeFromBase64(existing_deletion_vector_id);
                 if (cardinality > 0)
                 {
                     DeltaDVRoaringBitmapArray existing_bitmap
-                        = deserializeExistingBitmap(existing_path_or_inline_dv, existing_offset, existing_size_in_bytes, table_path);
+                        = deserializeExistingBitmap(existing_deletion_vector_descriptor, table_path);
                     existing_bitmap.merge(bitmap);
                     bitmap = existing_bitmap.serialize();
                     cardinality = existing_bitmap.cardinality();
@@ -172,8 +188,7 @@ void DeltaWriter::writeDeletionVector(const DB::Block & block)
                 else
                 {
                     // use already existing deletion vector
-                    auto dv_descriptor_field = createDeletionVectorDescriptorField(
-                        existing_path_or_inline_dv, existing_offset, existing_size_in_bytes, existing_cardinality);
+                    auto dv_descriptor_field = existing_deletion_vector_descriptor.createDeletionVectorDescriptorField();
                     file_path_column->insert(file_path.data);
                     dv_descriptor_column->insert(dv_descriptor_field);
                     matched_row_count_col->insert(cardinality);
@@ -195,7 +210,8 @@ void DeltaWriter::writeDeletionVector(const DB::Block & block)
         DB::writeBinaryBigEndian(checksum_value, *write_buffer);
 
         auto encoded = Base85Codec::encodeUUID(uuid);
-        auto dv_descriptor_field = createDeletionVectorDescriptorField(prefix + encoded, offset, bitmap_size, cardinality);
+        DeletionVectorDescriptor descriptor(cardinality, bitmap_size, DeletionVectorDescriptor::UUID_DV_MARKER, offset, prefix + encoded);
+        auto dv_descriptor_field = descriptor.createDeletionVectorDescriptorField();
 
         file_path_column->insert(file_path.data);
         dv_descriptor_column->insert(dv_descriptor_field);
@@ -229,20 +245,19 @@ std::unique_ptr<DB::WriteBuffer> DeltaWriter::createWriteBuffer(const String & t
     return write_buffer_builder->build(poco_uri.toString());
 }
 
-DeltaDVRoaringBitmapArray DeltaWriter::deserializeExistingBitmap(
-    const String & existing_path_or_inline_dv,
-    const Int32 & existing_offset,
-    const Int32 & existing_size_in_bytes,
-    const String & table_path) const
+DeltaDVRoaringBitmapArray
+DeltaWriter::deserializeExistingBitmap(const DeletionVectorDescriptor & deletion_vector_descriptor, const String & table_path) const
 {
-    static constexpr size_t ENCODED_UUID_LENGTH = 20;
-    const auto random_prefix_length = existing_path_or_inline_dv.length() - ENCODED_UUID_LENGTH;
-    const auto randomPrefix = existing_path_or_inline_dv.substr(0, random_prefix_length);
-    const auto encoded_uuid = existing_path_or_inline_dv.substr(random_prefix_length);
+    const auto random_prefix_length = deletion_vector_descriptor.path_or_inline_dv.length() - Base85Codec::ENCODED_UUID_LENGTH;
+    const auto randomPrefix = deletion_vector_descriptor.path_or_inline_dv.substr(0, random_prefix_length);
+    const auto encoded_uuid = deletion_vector_descriptor.path_or_inline_dv.substr(random_prefix_length);
     const auto existing_decode_uuid = Base85Codec::decodeUUID(encoded_uuid);
     const String existing_dv_file = assembleDeletionVectorPath(table_path, randomPrefix, toString(existing_decode_uuid));
+
+    std::string encoded;
+    Poco::URI::encode(existing_dv_file, "", encoded);
     DeltaDVRoaringBitmapArray existing_bitmap;
-    existing_bitmap.rb_read(existing_dv_file, existing_offset, existing_size_in_bytes, context);
+    existing_bitmap.rb_read(encoded, deletion_vector_descriptor.offset, deletion_vector_descriptor.size_in_bytes, context);
     return existing_bitmap;
 }
 
@@ -257,5 +272,14 @@ void DeltaWriter::initBinPackage()
     offset++;
 }
 
+String DeltaWriter::assembleDeletionVectorPath(const String & table_path, const String & prefix, const String & uuid) const
+{
+    String path = table_path + "/";
+    if (!prefix.empty())
+        path += prefix + "/";
+
+    path += std::string(dv_file_name_prefix + DELETION_VECTOR_FILE_NAME_CORE) + "_" + uuid + ".bin";
+    return path;
+}
 
 }

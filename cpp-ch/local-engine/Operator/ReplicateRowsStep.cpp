@@ -18,6 +18,7 @@
 
 #include <Columns/IColumn.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/BlockTypeUtils.h>
 
 namespace DB
 {
@@ -41,8 +42,8 @@ static DB::ITransformingStep::Traits getTraits()
         }};
 }
 
-ReplicateRowsStep::ReplicateRowsStep(const DB::Block& input_header)
-    : ITransformingStep(input_header, transformHeader(input_header), getTraits())
+ReplicateRowsStep::ReplicateRowsStep(const DB::SharedHeader & input_header)
+    : ITransformingStep(input_header, toShared(transformHeader(*input_header)), getTraits())
 {
 }
 
@@ -58,16 +59,16 @@ DB::Block ReplicateRowsStep::transformHeader(const DB::Block & input)
 
 void ReplicateRowsStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/)
 {
-    pipeline.addSimpleTransform([&](const DB::Block & header) { return std::make_shared<ReplicateRowsTransform>(header); });
+    pipeline.addSimpleTransform([&](const DB::SharedHeader & header) { return std::make_shared<ReplicateRowsTransform>(header); });
 }
 
 void ReplicateRowsStep::updateOutputHeader()
 {
-    output_header = transformHeader(input_headers.front());
+    output_header = toShared(transformHeader(*input_headers.front()));
 }
 
-ReplicateRowsTransform::ReplicateRowsTransform(const DB::Block & input_header_)
-    : ISimpleTransform(input_header_, ReplicateRowsStep::transformHeader(input_header_), true)
+ReplicateRowsTransform::ReplicateRowsTransform(const DB::SharedHeader & input_header_)
+    : ISimpleTransform(input_header_, toShared(ReplicateRowsStep::transformHeader(*input_header_)), true)
 {
 }
 

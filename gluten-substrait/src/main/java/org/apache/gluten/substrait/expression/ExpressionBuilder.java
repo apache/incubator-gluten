@@ -23,9 +23,7 @@ import org.apache.gluten.substrait.type.*;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.UnsafeArrayData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.catalyst.util.MapData;
 import org.apache.spark.sql.types.*;
 
@@ -207,19 +205,6 @@ public class ExpressionBuilder {
 
   public static LiteralNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
     TypeNode typeNode = ConverterUtils.getTypeNode(dataType, nullable);
-    if (obj instanceof UnsafeArrayData) {
-      UnsafeArrayData oldObj = (UnsafeArrayData) obj;
-      int numElements = oldObj.numElements();
-      Object[] elements = new Object[numElements];
-      DataType elementType = ((ArrayType) dataType).elementType();
-
-      for (int i = 0; i < numElements; i++) {
-        elements[i] = oldObj.get(i, elementType);
-      }
-
-      GenericArrayData newObj = new GenericArrayData(elements);
-      return makeListLiteral(newObj, typeNode);
-    }
     return makeLiteral(obj, typeNode);
   }
 
@@ -253,8 +238,8 @@ public class ExpressionBuilder {
   }
 
   public static CastNode makeCast(
-      TypeNode typeNode, ExpressionNode expressionNode, boolean throwOnFailure) {
-    return new CastNode(typeNode, expressionNode, throwOnFailure);
+      TypeNode typeNode, ExpressionNode expressionNode, boolean isTryCast) {
+    return new CastNode(typeNode, expressionNode, isTryCast);
   }
 
   public static StringMapNode makeStringMap(Map<String, String> values) {

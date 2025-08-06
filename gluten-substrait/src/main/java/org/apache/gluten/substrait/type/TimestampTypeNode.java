@@ -40,4 +40,9 @@ public class TimestampTypeNode implements TypeNode, Serializable {
     builder.setTimestamp(timestampBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

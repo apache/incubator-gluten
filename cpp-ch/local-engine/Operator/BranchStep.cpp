@@ -39,7 +39,7 @@ class BranchHookSource : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
-    BranchHookSource(const DB::Block & header_) : DB::IProcessor({}, {header_}) { inner_inputs.emplace_back(header_, this); }
+    BranchHookSource(const DB::SharedHeader & header_) : DB::IProcessor({}, {header_}) { inner_inputs.emplace_back(*header_, this); }
     ~BranchHookSource() override = default;
 
     String getName() const override { return "BranchHookSource"; }
@@ -116,7 +116,7 @@ static DB::ITransformingStep::Traits getTraits()
 class ResizeStep : public DB::ITransformingStep
 {
 public:
-    explicit ResizeStep(const DB::Block & header_, size_t num_streams_)
+    explicit ResizeStep(const DB::SharedHeader & header_, size_t num_streams_)
         : DB::ITransformingStep(header_, header_, getTraits()), num_streams(num_streams_)
     {
     }
@@ -140,7 +140,7 @@ private:
     void updateOutputHeader() override { };
 };
 
-DB::QueryPlanPtr BranchStepHelper::createSubPlan(const DB::Block & header, size_t num_streams)
+DB::QueryPlanPtr BranchStepHelper::createSubPlan(const DB::SharedHeader & header, size_t num_streams)
 {
     auto source = std::make_unique<DB::ReadFromPreparedSource>(DB::Pipe(std::make_shared<BranchHookSource>(header)));
     source->setStepDescription("Hook node connected to one branch output");
@@ -156,7 +156,7 @@ DB::QueryPlanPtr BranchStepHelper::createSubPlan(const DB::Block & header, size_
 }
 
 StaticBranchStep::StaticBranchStep(
-    const DB::ContextPtr & context_, const DB::Block & header_, size_t branches_, size_t sample_rows_, BranchSelector selector_)
+    const DB::ContextPtr & context_, const DB::SharedHeader & header_, size_t branches_, size_t sample_rows_, BranchSelector selector_)
     : DB::ITransformingStep(header_, header_, getTraits())
     , context(context_)
     , header(header_)
@@ -175,7 +175,7 @@ void StaticBranchStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, co
         {
             if (!output)
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Output port is null");
-            auto branch_transform = std::make_shared<StaticBranchTransform>(header, max_sample_rows, branches, selector);
+            auto branch_transform = std::make_shared<StaticBranchTransform>(*header, max_sample_rows, branches, selector);
             DB::connect(*output, branch_transform->getInputs().front());
             new_processors.push_back(branch_transform);
         }
@@ -196,7 +196,7 @@ void StaticBranchStep::updateOutputHeader()
 }
 
 UniteBranchesStep::UniteBranchesStep(
-    const DB::ContextPtr & context_, const DB::Block & header_, std::vector<DB::QueryPlanPtr> && branch_plans_, size_t num_streams_)
+    const DB::ContextPtr & context_, const DB::SharedHeader & header_, std::vector<DB::QueryPlanPtr> && branch_plans_, size_t num_streams_)
     : DB::ITransformingStep(header_, branch_plans_[0]->getCurrentHeader(), getTraits()), context(context_), header(header_)
 {
     branch_plans.swap(branch_plans_);

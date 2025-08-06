@@ -17,8 +17,7 @@
 package org.apache.gluten.vectorized
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.ReservedKeys
+import org.apache.gluten.config.{GlutenConfig, ShuffleWriterType}
 import org.apache.gluten.iterator.ClosableIterator
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
@@ -51,12 +50,9 @@ class ColumnarBatchSerializer(
     numOutputRows: SQLMetric,
     deserializeTime: SQLMetric,
     decompressTime: SQLMetric,
-    isSort: Boolean)
+    shuffleWriterType: ShuffleWriterType)
   extends Serializer
   with Serializable {
-
-  private val shuffleWriterType =
-    if (isSort) ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER else ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
@@ -78,7 +74,7 @@ private class ColumnarBatchSerializerInstance(
     numOutputRows: SQLMetric,
     deserializeTime: SQLMetric,
     decompressTime: SQLMetric,
-    shuffleWriterType: String)
+    shuffleWriterType: ShuffleWriterType)
   extends SerializerInstance
   with Logging {
 
@@ -111,7 +107,7 @@ private class ColumnarBatchSerializerInstance(
       batchSize,
       readerBufferSize,
       deserializerBufferSize,
-      shuffleWriterType)
+      shuffleWriterType.name)
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
     // was used to create all buffers read from shuffle reader. The pool

@@ -30,7 +30,7 @@ class BufferOutputStreamTest : public ::testing::Test, public test::VectorTestBa
   // Velox requires the mem manager to be instanced.
   static void SetUpTestCase() {
     VeloxBackend::create(AllocationListener::noop(), {});
-    memory::MemoryManager::testingSetInstance({});
+    memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 
   std::shared_ptr<memory::MemoryPool> veloxPool_ = defaultLeafVeloxMemoryPool();

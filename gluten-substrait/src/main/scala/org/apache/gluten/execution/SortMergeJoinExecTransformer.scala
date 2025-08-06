@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.{JoinParams, SubstraitContext}
 
@@ -223,10 +222,8 @@ abstract class SortMergeJoinExecTransformerBase(
     )
 
     context.registerJoinParam(operatorId, joinParams)
-
-    JoinUtils.createTransformContext(false, output, joinRel, inputStreamedOutput, inputBuildOutput)
+    TransformContext(output, joinRel)
   }
-
 }
 
 /** Performs a sort merge join of two child relations. */

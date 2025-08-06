@@ -74,7 +74,8 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
       {S3Config::Keys::kMaxAttempts, std::make_pair("retry.limit", std::nullopt)},
       {S3Config::Keys::kRetryMode, std::make_pair("retry.mode", "legacy")},
       {S3Config::Keys::kMaxConnections, std::make_pair("connection.maximum", "15")},
-      {S3Config::Keys::kConnectTimeout, std::make_pair("connection.timeout", "200s")},
+      {S3Config::Keys::kSocketTimeout, std::make_pair("connection.timeout", "200s")},
+      {S3Config::Keys::kConnectTimeout, std::make_pair("connection.establish.timeout", "30s")},
       {S3Config::Keys::kUseInstanceCredentials, std::make_pair("instance.credentials", "false")},
       {S3Config::Keys::kIamRole, std::make_pair("iam.role", std::nullopt)},
       {S3Config::Keys::kIamRoleSessionName, std::make_pair("iam.role.session.name", "gluten-session")},
@@ -130,6 +131,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   setConfigIfPresent(S3Config::Keys::kSSLEnabled);
   setConfigIfPresent(S3Config::Keys::kPathStyleAccess);
   setConfigIfPresent(S3Config::Keys::kMaxConnections);
+  setConfigIfPresent(S3Config::Keys::kSocketTimeout);
   setConfigIfPresent(S3Config::Keys::kConnectTimeout);
   setConfigIfPresent(S3Config::Keys::kEndpointRegion);
 
@@ -186,20 +188,20 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
   auto gsAuthType = conf->get<std::string>("spark.hadoop.fs.gs.auth.type");
-  if (gsAuthType.hasValue()) {
-    std::string type = gsAuthType.value();
-    if (type == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-      auto gsAuthServiceAccountJsonKeyfile =
-          conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
-      if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
-        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
-            gsAuthServiceAccountJsonKeyfile.value();
-      } else {
-        LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
-                        "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
-        throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
-      }
+  auto gsAuthServiceAccountJsonKeyfile = conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
+  if (gsAuthType.hasValue() && gsAuthType.value() == "SERVICE_ACCOUNT_JSON_KEYFILE") {
+    if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
+      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
+          gsAuthServiceAccountJsonKeyfile.value();
+    } else {
+      LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
+                      "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
+      throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
     }
+  } else if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
+    LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is set, "
+                    "but conf spark.hadoop.fs.gs.auth.type is not SERVICE_ACCOUNT_JSON_KEYFILE";
+    throw GlutenException("Conf spark.hadoop.fs.gs.auth.type is missing or incorrect");
   }
 #endif
 

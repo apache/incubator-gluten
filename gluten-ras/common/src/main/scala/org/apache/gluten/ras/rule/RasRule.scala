@@ -35,5 +35,4 @@ object RasRule {
       override def create(): Seq[RasRule[T]] = rules
     }
   }
-
 }

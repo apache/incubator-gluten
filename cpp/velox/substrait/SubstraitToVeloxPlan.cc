@@ -17,14 +17,11 @@
 
 #include "SubstraitToVeloxPlan.h"
 
-#include "utils/StringUtil.h"
-
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/HiveDataSink.h"
 #include "velox/exec/TableWriter.h"
-#include "velox/type/Filter.h"
 #include "velox/type/Type.h"
 
 #include "utils/ConfigExtractor.h"
@@ -32,7 +29,6 @@
 #include "config.pb.h"
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
-#include "operators/plannodes/RowVectorStream.h"
 #include "operators/writer/VeloxParquetDataSource.h"
 
 namespace gluten {
@@ -346,6 +342,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     case ::substrait::CrossRel_JoinType::CrossRel_JoinType_JOIN_TYPE_LEFT:
       joinType = core::JoinType::kLeft;
       break;
+    case ::substrait::CrossRel_JoinType::CrossRel_JoinType_JOIN_TYPE_LEFT_SEMI:
+      if (crossRel.has_advanced_extension() &&
+          SubstraitParser::configSetInOptimization(crossRel.advanced_extension(), "isExistenceJoin=")) {
+        joinType = core::JoinType::kLeftSemiProject;
+      } else {
+        VELOX_NYI("Unsupported Join type: {}", std::to_string(crossRel.type()));
+      }
+      break;
     case ::substrait::CrossRel_JoinType::CrossRel_JoinType_JOIN_TYPE_OUTER:
       joinType = core::JoinType::kFull;
       break;
@@ -500,32 +504,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
-std::string makeUuid() {
-  return generateUuid();
-}
-
-std::string compressionFileNameSuffix(common::CompressionKind kind) {
-  switch (static_cast<int32_t>(kind)) {
-    case common::CompressionKind_ZLIB:
-      return ".zlib";
-    case common::CompressionKind_SNAPPY:
-      return ".snappy";
-    case common::CompressionKind_LZO:
-      return ".lzo";
-    case common::CompressionKind_ZSTD:
-      return ".zstd";
-    case common::CompressionKind_LZ4:
-      return ".lz4";
-    case common::CompressionKind_GZIP:
-      return ".gz";
-    case common::CompressionKind_NONE:
-    default:
-      return "";
-  }
-}
-
 std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
     const std::string& targetDirectory,
+    const std::string& fileName,
     dwio::common::FileFormat fileFormat,
     common::CompressionKind compression,
     const bool& isBucketed,
@@ -534,7 +515,7 @@ std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
         connector::hive::LocationHandle::TableType::kExisting) {
   std::string targetFileName = "";
   if (fileFormat == dwio::common::FileFormat::PARQUET && !isBucketed) {
-    targetFileName = fmt::format("gluten-part-{}{}{}", makeUuid(), compressionFileNameSuffix(compression), ".parquet");
+    targetFileName = fileName;
   }
   return std::make_shared<connector::hive::LocationHandle>(
       targetDirectory, writeDirectory.value_or(targetDirectory), tableType, targetFileName);
@@ -666,6 +647,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     writePath = "";
   }
 
+  std::string fileName;
+  if (writeFileName_.has_value()) {
+    fileName = writeFileName_.value();
+  } else {
+    VELOX_CHECK(validationMode_, "WriteRel should have the write path before initializing the plan.");
+    fileName = "";
+  }
+
   GLUTEN_CHECK(writeRel.named_table().has_advanced_extension(), "Advanced extension not found in WriteRel");
   const auto& ext = writeRel.named_table().advanced_extension();
   GLUTEN_CHECK(ext.has_optimization(), "Extension optimization not found in WriteRel");
@@ -700,7 +689,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               inputType->children(),
               partitionedKey,
               bucketProperty,
-              makeLocationHandle(writePath, fileFormat, compressionKind, bucketProperty != nullptr),
+              makeLocationHandle(writePath, fileName, fileFormat, compressionKind, bucketProperty != nullptr),
               writerOptions,
               fileFormat,
               compressionKind)),
@@ -870,13 +859,18 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 
   std::optional<std::string> ordinalityName = std::nullopt;
-  if (generateRel.has_advanced_extension() &&
-      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
-    ordinalityName = std::make_optional<std::string>("pos");
+  std::optional<std::string> emptyUnnestValueName = std::nullopt;
+  if (generateRel.has_advanced_extension()) {
+    if (SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
+      ordinalityName = std::make_optional<std::string>("pos");
+    }
+    if (SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isOuter=")) {
+      emptyUnnestValueName = std::make_optional<std::string>("empty_unnest");
+    }
   }
 
   return std::make_shared<core::UnnestNode>(
-      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, childNode);
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, emptyUnnestValueName, childNode);
 }
 
 const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(
@@ -978,7 +972,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     windowColumnNames.push_back(windowFunction.column_name());
 
     windowNodeFunctions.push_back(
-        {std::move(windowCall), std::move(createWindowFrame(lowerBound, upperBound, type, inputType)), ignoreNulls});
+        {std::move(windowCall), createWindowFrame(lowerBound, upperBound, type, inputType), ignoreNulls});
   }
 
   // Construct partitionKeys
@@ -1080,6 +1074,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
 
   return std::make_shared<core::TopNRowNumberNode>(
       nextPlanNodeId(),
+      core::TopNRowNumberNode::RankFunction::kRowNumber,
       partitionKeys,
       sortingKeys,
       sortingOrders,
@@ -1254,7 +1249,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto streamIdx = getStreamIndex(readRel);
   if (streamIdx >= 0) {
     // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
-    if (LIKELY(confMap_[kQueryTraceEnabled] != "true")) {
+    if (LIKELY(!veloxCfg_->get<bool>(kQueryTraceEnabled, false))) {
       return constructValueStreamNode(readRel, streamIdx);
     } else {
       return constructValuesNode(readRel, streamIdx);
@@ -1273,9 +1268,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<TypePtr> veloxTypeList;
   std::vector<ColumnType> columnTypes;
   // Convert field names into lower case when not case-sensitive.
-  std::unique_ptr<facebook::velox::config::ConfigBase> veloxCfg =
-      std::make_unique<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap_));
-  bool asLowerCase = !veloxCfg->get<bool>(kCaseSensitive, false);
+  bool asLowerCase = !veloxCfg_->get<bool>(kCaseSensitive, false);
   if (readRel.has_base_schema()) {
     const auto& baseSchema = readRel.base_schema();
     colNameList.reserve(baseSchema.names().size());
@@ -1315,7 +1308,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Get assignments and out names.
   std::vector<std::string> outNames;
   outNames.reserve(colNameList.size());
-  std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>> assignments;
+  connector::ColumnHandleMap assignments;
   for (int idx = 0; idx < colNameList.size(); idx++) {
     auto outName = SubstraitParser::makeNodeName(planNodeId_, idx);
     auto columnType = columnTypes[idx];
@@ -1329,7 +1322,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(readRel, outputType);
   } else {
     auto tableScanNode = std::make_shared<core::TableScanNode>(
-        nextPlanNodeId(), std::move(outputType), std::move(tableHandle), std::move(assignments));
+        nextPlanNodeId(), std::move(outputType), std::move(tableHandle), assignments);
     // Set split info map.
     splitInfoMap_[tableScanNode->id()] = splitInfo;
     return tableScanNode;

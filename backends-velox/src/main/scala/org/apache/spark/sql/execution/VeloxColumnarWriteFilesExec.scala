@@ -18,12 +18,12 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.execution.WriteFilesExecTransformer
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
-import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
+import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, SparkHadoopWriterUtils}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.FetchFailedException
@@ -195,11 +195,14 @@ class VeloxColumnarWriteFilesRDD(
 
     commitProtocol.setupTask()
     val writePath = commitProtocol.newTaskAttemptTempPath()
+    val suffix = description.outputWriterFactory.getFileExtension(commitProtocol.taskAttemptContext)
+    val fileNameSpec = FileNameSpec("", suffix)
+    val fileName = commitProtocol.getFilename(fileNameSpec)
     logDebug(s"Velox staging write path: $writePath")
     var writeTaskResult: WriteTaskResult = null
     try {
       Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
-        BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, "")
+        BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, fileName)
 
         // Initialize the native plan
         val iter = firstParent[ColumnarBatch].iterator(split, context)
@@ -220,7 +223,7 @@ class VeloxColumnarWriteFilesRDD(
       })(
         catchBlock = {
           // If there is an error, abort the task
-          commitProtocol.abortTask()
+          commitProtocol.abortTask(writePath)
           logError(s"Job ${commitProtocol.getJobId} aborted.")
         }
       )

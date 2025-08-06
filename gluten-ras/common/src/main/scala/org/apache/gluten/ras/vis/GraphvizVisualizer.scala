@@ -22,6 +22,7 @@ import org.apache.gluten.ras.memo.MemoState
 import org.apache.gluten.ras.path._
 
 import scala.collection.mutable
+import scala.util.Random
 
 // Visualize the planning procedure using dot language.
 class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best: Best[T]) {
@@ -41,7 +42,8 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
 
     val buf = new StringBuilder()
     buf.append("digraph G {\n")
-    buf.append("  compound=true;\n")
+    buf.append("  compound=true\n")
+    buf.append("  rankdir=TB\n")
 
     object IsBestNode {
       def unapply(nodeAndGroupToTest: (CanonicalNode[T], RasGroup[T])): Boolean = {
@@ -57,6 +59,18 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
 
     val clusterToGroups: mutable.Map[RasClusterKey, mutable.Set[Int]] = mutable.Map()
 
+    def determineGroupColor(group: RasGroup[T]): String = {
+      val isRootGroup = group.id() == rootGroupId
+      if (isRootGroup) {
+        return "lightyellow"
+      }
+      val isHubGroup = group.constraintSet() == ras.hubConstraintSet()
+      if (isHubGroup) {
+        return "lightgrey"
+      }
+      "lightblue"
+    }
+
     allGroups.foreach {
       group => clusterToGroups.getOrElseUpdate(group.clusterKey(), mutable.Set()).add(group.id())
     }
@@ -71,6 +85,8 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
         clusterToGroups(clusterKey).map(allGroups(_)).foreach {
           group =>
             buf.append(s"    subgraph cluster$dotClusterId {\n")
+            buf.append(s"      style=filled\n")
+            buf.append(s"      fillcolor=${determineGroupColor(group)}\n")
             groupToDotClusterId += group.id() -> dotClusterId
             dotClusterId = dotClusterId + 1
             buf.append(s"      label=${'"'}${describeGroupVerbose(group)}${'"'}\n")
@@ -80,9 +96,9 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
                   buf.append(s"      ${'"'}${describeNode(costs, group, node)}${'"'}")
                   (node, group) match {
                     case IsBestNode() =>
-                      buf.append(" [style=filled, fillcolor=green] ")
+                      buf.append(" [style=filled, fillcolor=lightgreen] ")
                     case IsWinnerNode() =>
-                      buf.append(" [style=filled, fillcolor=grey] ")
+                      buf.append(" [style=bold] ")
                     case _ =>
                   }
                   buf.append("\n")
@@ -99,9 +115,9 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
           node =>
             node.getChildrenGroups(allGroups).map(_.group(allGroups)).foreach {
               childGroup =>
-                val childGroupNodes = childGroup.nodes(memoState)
+                val childGroupNodes = childGroup.nodes(memoState).toSeq
                 if (childGroupNodes.nonEmpty) {
-                  val randomChild = childGroupNodes.head
+                  val randomChild = childGroupNodes(Random.nextInt(childGroupNodes.size))
                   buf.append(
                     s"  ${'"'}${describeNode(costs, group, node)}${'"'} -> " +
                       s"${'"'}${describeNode(costs, childGroup, randomChild)}${'"'}  " +
@@ -148,7 +164,7 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
   }
 
   private def describeGroupVerbose(group: RasGroup[T]): String = {
-    s"[Group ${group.id()}: ${group.constraintSet().getMap.values.toIndexedSeq}]"
+    s"[Group ${group.id()}: ${group.constraintSet()}]"
   }
 
   private def describeNode(

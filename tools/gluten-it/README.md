@@ -2,7 +2,7 @@
 
 The project makes it easy to test Gluten build locally.
 
-## Gluten ?
+## Gluten
 
 Gluten is a native Spark SQL implementation as a standard Spark plug-in.
 
@@ -10,11 +10,11 @@ https://github.com/apache/incubator-gluten
 
 ## Getting Started
 
-### 1. Install Gluten in your local machine
+### 1. Build Gluten
 
-See official Gluten build guidance https://github.com/apache/incubator-gluten#how-to-use-gluten
+See official Gluten build guidance https://github.com/apache/incubator-gluten#build-from-source.
 
-### 2. Install and run gluten-it with Spark version
+### 2. Build and run gluten-it
 
 ```sh
 cd gluten/tools/gluten-it
@@ -22,7 +22,7 @@ mvn clean package -P{Spark-Version}
 sbin/gluten-it.sh
 ```
 
-> Note: *Spark-Version* support *spark-3.2* and *spark-3.3* only
+Note: **Spark-Version** can only be **spark-3.2**, **spark-3.3**, **spark-3.4** or **spark-3.5**.
 
 ## Usage
 

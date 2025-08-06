@@ -40,14 +40,14 @@ ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 ENABLE_VCPKG=OFF
 ENABLE_GPU=OFF
+ENABLE_ENHANCED_FEATURES=OFF
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
 VELOX_BRANCH=""
-VELOX_HOME=""
+VELOX_HOME="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
 VELOX_PARAMETER=""
 BUILD_ARROW=ON
 SPARK_VERSION=ALL
-INSTALL_PREFIX=${INSTALL_PREFIX:-}
 
 # set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -121,6 +121,10 @@ do
         ENABLE_GPU=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --enable_enhanced_features=*)
+        ENABLE_ENHANCED_FEATURES=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
         --run_setup_script=*)
         RUN_SETUP_SCRIPT=("${arg#*=}")
         shift # Remove argument name from processing
@@ -164,6 +168,12 @@ do
     esac
 done
 
+if [[ "$(uname)" == "Darwin" ]]; then
+    INSTALL_PREFIX=${INSTALL_PREFIX:-${VELOX_HOME}/deps-install}
+else
+    INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
+fi
+
 function concat_velox_param {
     # check velox repo
     if [[ -n $VELOX_REPO ]]; then
@@ -179,7 +189,14 @@ function concat_velox_param {
     if [[ -n $VELOX_HOME ]]; then
         VELOX_PARAMETER+="--velox_home=$VELOX_HOME "
     fi
+
+    if [ "$ENABLE_ENHANCED_FEATURES" = "ON" ]; then
+        VELOX_PARAMETER+="--enable_enhanced_features=$ENABLE_ENHANCED_FEATURES "
+    fi
+
+    VELOX_PARAMETER+="--run_setup_script=$RUN_SETUP_SCRIPT "
 }
+
 
 if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
@@ -201,7 +218,7 @@ concat_velox_param
 
 function build_arrow {
   cd $GLUTEN_DIR/dev
-  ./build_arrow.sh
+  source ./build_arrow.sh
 }
 
 function build_velox {
@@ -235,15 +252,11 @@ function build_gluten_cpp {
     -DENABLE_S3=$ENABLE_S3 \
     -DENABLE_HDFS=$ENABLE_HDFS \
     -DENABLE_ABFS=$ENABLE_ABFS \
-    -DENABLE_GPU=$ENABLE_GPU"
+    -DENABLE_GPU=$ENABLE_GPU \
+    -DENABLE_ENHANCED_FEATURES=$ENABLE_ENHANCED_FEATURES"
 
   if [ $OS == 'Darwin' ]; then
-    if [ -n "$INSTALL_PREFIX" ]; then
-      DEPS_INSTALL_DIR=$INSTALL_PREFIX
-    else
-      DEPS_INSTALL_DIR=$VELOX_HOME/deps-install
-    fi
-    GLUTEN_CMAKE_OPTIONS+=" -DCMAKE_PREFIX_PATH=$DEPS_INSTALL_DIR"
+    GLUTEN_CMAKE_OPTIONS+=" -DCMAKE_PREFIX_PATH=$INSTALL_PREFIX"
   fi
 
   cmake $GLUTEN_CMAKE_OPTIONS ..
@@ -263,16 +276,13 @@ function build_velox_backend {
   ./get_velox.sh $VELOX_PARAMETER
 )
 
-if [ "$VELOX_HOME" == "" ]; then
-  VELOX_HOME="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
-fi
-
 OS=`uname -s`
 ARCH=`uname -m`
 DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
 mkdir -p ${DEPENDENCY_DIR}
 
 source $GLUTEN_DIR/dev/build_helper_functions.sh
+source ${VELOX_HOME}/scripts/setup-common.sh
 if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
   echo "Start to install dependencies"
   pushd $VELOX_HOME
@@ -285,14 +295,14 @@ if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     exit 1
   fi
   if [ $ENABLE_S3 == "ON" ]; then
-    ${VELOX_HOME}/scripts/setup-adapters.sh aws
+    install_aws_deps
   fi
   if [ $ENABLE_GCS == "ON" ]; then
-    ${VELOX_HOME}/scripts/setup-adapters.sh gcs
+    install_gcs-sdk-cpp
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
     export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
-    ${VELOX_HOME}/scripts/setup-adapters.sh abfs
+    install_azure-storage-sdk-cpp
   fi
   popd
 fi

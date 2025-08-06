@@ -61,6 +61,8 @@ class RowVectorStream {
     if (finished_) {
       return false;
     }
+    VELOX_DCHECK_NOT_NULL(iterator_);
+
     bool hasNext;
     {
       // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
@@ -157,7 +159,6 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
             valueStreamNode->id(),
             valueStreamNode->name().data()) {
     ResultIterator* itr = valueStreamNode->iterator();
-    VELOX_CHECK_NOT_NULL(itr);
     rvStream_ = std::make_unique<RowVectorStream>(driverCtx, pool(), itr, outputType_);
   }
 

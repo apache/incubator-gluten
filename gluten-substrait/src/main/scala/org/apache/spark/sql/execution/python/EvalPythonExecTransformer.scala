@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.api.python
+package org.apache.spark.sql.execution.python
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.{TransformContext, TransformSupport, UnaryTransformSupport}
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`._
 import org.apache.gluten.substrait.SubstraitContext
@@ -28,10 +28,10 @@ import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel._
 
 import org.apache.spark.TaskContext
+import org.apache.spark.api.python.ChainedPythonFunctions
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.types.StructType
 
 import java.util.{ArrayList => JArrayList, List => JList}

@@ -14,52 +14,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
-import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
+import org.apache.gluten.table.runtime.operators.GlutenVectorSourceFunction;
 
 import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
+
 import org.apache.flink.streaming.api.operators.StreamSource;
 
+import java.util.Map;
+
 /** Legacy stream source operator in gluten, which will call Velox to run. */
-public class GlutenStreamSource extends StreamSource
-        implements GlutenOperator {
-    private final GlutenSourceFunction sourceFunction;
+public class GlutenStreamSource extends StreamSource implements GlutenOperator {
+  private final GlutenVectorSourceFunction sourceFunction;
 
-    public GlutenStreamSource(GlutenSourceFunction function) {
-        super(function);
-        sourceFunction = function;
-    }
+  public GlutenStreamSource(GlutenVectorSourceFunction function) {
+    super(function);
+    sourceFunction = function;
+  }
 
-    @Override
-    public void open() throws Exception {
-        super.open();
-    }
+  @Override
+  public void open() throws Exception {
+    super.open();
+  }
 
-    @Override
-    public PlanNode getPlanNode() {
-        return sourceFunction.getPlanNode();
-    }
+  @Override
+  public StatefulPlanNode getPlanNode() {
+    return sourceFunction.getPlanNode();
+  }
 
-    @Override
-    public RowType getInputType() {
-        return null;
-    }
+  @Override
+  public RowType getInputType() {
+    return null;
+  }
 
-    @Override
-    public RowType getOutputType() {
-        return sourceFunction.getOutputType();
-    }
+  @Override
+  public Map<String, RowType> getOutputTypes() {
+    return sourceFunction.getOutputTypes();
+  }
 
-    @Override
-    public String getId() {
-        return sourceFunction.getId();
-    }
+  @Override
+  public String getId() {
+    return sourceFunction.getId();
+  }
 
-    public ConnectorSplit getConnectorSplit() {
-        return sourceFunction.getConnectorSplit();
-    }
+  public ConnectorSplit getConnectorSplit() {
+    return sourceFunction.getConnectorSplit();
+  }
 }

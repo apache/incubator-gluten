@@ -16,13 +16,13 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.execution.CHColumnarToCarrierRowExec
 import org.apache.gluten.extension.columnar.transition.ColumnarToRowLike
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
-import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
 
 // Remove the topmost columnar-to-row conversion
@@ -54,7 +54,7 @@ case class CHRemoveTopmostColumnarToRow(session: SparkSession, isAdaptiveContext
   }
 
   private def wrapperColumnarRowAdaptor(plan: SparkPlan): SparkPlan = {
-    FakeRowAdaptor(plan)
+    CHColumnarToCarrierRowExec.enforce(plan)
   }
 }
 

@@ -16,15 +16,14 @@
  */
 package org.apache.spark.task
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder
-import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.task.TaskListener
 
 import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException, UnknownReason}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.util.{TaskCompletionListener, TaskFailureListener}
+import org.apache.spark.util.{SparkTaskUtil, TaskCompletionListener, TaskFailureListener}
 
 import java.util
 import java.util.{Collections, Properties, UUID}
@@ -43,7 +42,7 @@ object TaskResources extends TaskListener with Logging {
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
   private def newUnsafeTaskContext(properties: Properties): TaskContext = {
-    SparkShimLoader.getSparkShims.createTestTaskContext(properties)
+    SparkTaskUtil.createTestTaskContext(properties)
   }
 
   implicit private class PropertiesOps(properties: Properties) {
@@ -65,8 +64,8 @@ object TaskResources extends TaskListener with Logging {
         properties.put(key, value)
       case _ =>
     }
-    properties.setIfMissing(GlutenConfig.SPARK_OFFHEAP_ENABLED, "true")
-    properties.setIfMissing(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, "1TB")
+    properties.setIfMissing(GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY, "true")
+    properties.setIfMissing(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY, "1TB")
     TaskContext.setTaskContext(newUnsafeTaskContext(properties))
   }
 

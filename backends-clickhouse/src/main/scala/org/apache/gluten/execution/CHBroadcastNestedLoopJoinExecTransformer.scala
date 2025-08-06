@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.ValidationResult
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.GlutenDriverEndpoint
@@ -114,6 +113,8 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
   override def validateJoinTypeAndBuildSide(): ValidationResult = {
     joinType match {
       case _: InnerLike =>
+      case ExistenceJoin(_) =>
+        return ValidationResult.failed("ExistenceJoin is not supported for CH backend.")
       case _ =>
         if (joinType == LeftSemi || condition.isDefined) {
           return ValidationResult.failed(
