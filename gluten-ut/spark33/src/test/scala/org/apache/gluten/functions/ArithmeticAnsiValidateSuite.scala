@@ -19,7 +19,8 @@ package org.apache.gluten.functions
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
-import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.internal.SQLConf
 
 class ArithmeticAnsiValidateSuiteRasOff extends ArithmeticAnsiValidateSuite {
@@ -36,7 +37,7 @@ class ArithmeticAnsiValidateSuiteRasOn extends ArithmeticAnsiValidateSuite {
   }
 }
 
-abstract class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
+abstract class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite with GlutenTestsTrait {
 
   disableFallbackCheck
 
@@ -71,19 +72,18 @@ abstract class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
   }
 
   test("arithmetic addition overflow exception with ansi mode") {
-    intercept[SparkException] {
+    intercept[ArithmeticException] {
       sql("SELECT 2147483647 + 1").collect()
     }
   }
 
   test("arithmetic division by zero exception with ansi mode") {
-    intercept[SparkException] {
-      sql("SELECT 1 / 0").collect()
-    }
+    // Spark 3.3 doesn't throw exception for division by zero
+    sql("SELECT 1 / 0").collect()
   }
 
   test("arithmetic multiplication overflow exception with ansi mode") {
-    intercept[SparkException] {
+    intercept[ArithmeticException] {
       sql("SELECT 2147483647 * 2").collect()
     }
   }
