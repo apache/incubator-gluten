@@ -17,6 +17,8 @@
 package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.table.runtime.rowdata.GlutenStatefulRowData;
+import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
@@ -42,6 +44,7 @@ import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -53,8 +56,8 @@ import java.util.List;
 import java.util.Map;
 
 /** Calculate operator in gluten, which will call Velox to run. */
-public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRecord>
-    implements OneInputStreamOperator<StatefulRecord, StatefulRecord>, GlutenOperator {
+public class GlutenVectorOneInputOperator extends TableStreamOperator<RowData>
+    implements OneInputStreamOperator<RowData, RowData>, GlutenOperator {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlutenVectorOneInputOperator.class);
 
@@ -63,7 +66,7 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
   private final RowType inputType;
   private final Map<String, RowType> outputTypes;
 
-  private StreamRecord<StatefulRecord> outElement = null;
+  private StreamRecord<RowData> outElement = null;
 
   private MemoryManager memoryManager;
   private Session session;
@@ -110,23 +113,29 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
   }
 
   @Override
-  public void processElement(StreamRecord<StatefulRecord> element) {
-    RowVector inRv = element.getValue().getRowVector();
-    inputQueue.put(inRv);
-    while (true) {
-      UpIterator.State state = task.advance();
-      if (state == UpIterator.State.AVAILABLE) {
-        final StatefulElement statefulElement = task.statefulGet();
-        if (statefulElement.isWatermark()) {
-          StatefulWatermark watermark = statefulElement.asWatermark();
-          output.emitWatermark(new Watermark(watermark.getTimestamp()));
+  public void processElement(StreamRecord<RowData> element) {
+    try (RowVector inRv =
+        FlinkRowToVLVectorConvertor.fromElement(element, allocator, session, inputType)) {
+      inputQueue.put(inRv);
+      while (true) {
+        UpIterator.State state = task.advance();
+        if (state == UpIterator.State.AVAILABLE) {
+          final StatefulElement statefulElement = task.statefulGet();
+          if (statefulElement.isWatermark()) {
+            StatefulWatermark watermark = statefulElement.asWatermark();
+            output.emitWatermark(new Watermark(watermark.getTimestamp()));
+          } else {
+            final StatefulRecord statefulRecord = statefulElement.asRecord();
+            for (RowType outputType : outputTypes.values()) {
+              output.collect(
+                  outElement.replace(
+                      new GlutenStatefulRowData(statefulRecord, outputType, allocator)));
+            }
+            statefulRecord.close();
+          }
         } else {
-          final StatefulRecord statefulRecord = statefulElement.asRecord();
-          output.collect(outElement.replace(statefulRecord));
-          statefulRecord.close();
+          break;
         }
-      } else {
-        break;
       }
     }
   }

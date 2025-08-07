@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.table.runtime.typeutils;
 
+import org.apache.gluten.table.runtime.rowdata.GlutenStatefulRowData;
+
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
@@ -36,7 +38,8 @@ import java.io.IOException;
 
 /** Serializer for {@link RowVector}. */
 @Internal
-public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> implements Closeable {
+public class GlutenRowVectorSerializer extends TypeSerializer<GlutenStatefulRowData>
+    implements Closeable {
   private static final long serialVersionUID = 1L;
   private final RowType rowType;
   private transient MemoryManager memoryManager;
@@ -47,24 +50,24 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
   }
 
   @Override
-  public TypeSerializer<StatefulRecord> duplicate() {
+  public TypeSerializer<GlutenStatefulRowData> duplicate() {
     return new GlutenRowVectorSerializer(rowType);
   }
 
   @Override
-  public StatefulRecord createInstance() {
+  public GlutenStatefulRowData createInstance() {
     throw new RuntimeException("Not implemented for gluten");
   }
 
   @Override
-  public void serialize(StatefulRecord record, DataOutputView target) throws IOException {
-    String vectorStr = record.getRowVector().serialize();
+  public void serialize(GlutenStatefulRowData row, DataOutputView target) throws IOException {
+    String vectorStr = ((StatefulRecord) row.getRecord()).getRowVector().serialize();
     target.writeInt(vectorStr.getBytes().length);
     target.write(vectorStr.getBytes());
   }
 
   @Override
-  public StatefulRecord deserialize(DataInputView source) throws IOException {
+  public GlutenStatefulRowData deserialize(DataInputView source) throws IOException {
     if (memoryManager == null) {
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
@@ -75,21 +78,22 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
     RowVector rowVector = session.baseVectorOps().deserializeOne(new String(str)).asRowVector();
     StatefulRecord record = new StatefulRecord(null, 0, 0, false, -1);
     record.setRowVector(rowVector);
-    return record;
+    return new GlutenStatefulRowData(record, rowType, null);
   }
 
   @Override
-  public StatefulRecord deserialize(StatefulRecord reuse, DataInputView source) throws IOException {
+  public GlutenStatefulRowData deserialize(GlutenStatefulRowData reuse, DataInputView source)
+      throws IOException {
     throw new RuntimeException("Not implemented for gluten");
   }
 
   @Override
-  public StatefulRecord copy(StatefulRecord from) {
+  public GlutenStatefulRowData copy(GlutenStatefulRowData from) {
     throw new RuntimeException("Not implemented for gluten");
   }
 
   @Override
-  public StatefulRecord copy(StatefulRecord from, StatefulRecord reuse) {
+  public GlutenStatefulRowData copy(GlutenStatefulRowData from, GlutenStatefulRowData reuse) {
     throw new RuntimeException("Not implemented for gluten");
   }
 
@@ -130,7 +134,7 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
   }
 
   @Override
-  public TypeSerializerSnapshot<StatefulRecord> snapshotConfiguration() {
+  public TypeSerializerSnapshot<GlutenStatefulRowData> snapshotConfiguration() {
     return new RowVectorSerializerSnapshot(rowType);
   }
 
@@ -144,7 +148,7 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   /** {@link TypeSerializerSnapshot} for Gluten RowVector.. */
   public static final class RowVectorSerializerSnapshot
-      implements TypeSerializerSnapshot<StatefulRecord> {
+      implements TypeSerializerSnapshot<GlutenStatefulRowData> {
     private static final int CURRENT_VERSION = 1;
 
     private RowType rowType;
@@ -176,8 +180,8 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
     }
 
     @Override
-    public TypeSerializerSchemaCompatibility<StatefulRecord> resolveSchemaCompatibility(
-        TypeSerializerSnapshot<StatefulRecord> oldSerializerSnapshot) {
+    public TypeSerializerSchemaCompatibility<GlutenStatefulRowData> resolveSchemaCompatibility(
+        TypeSerializerSnapshot<GlutenStatefulRowData> oldSerializerSnapshot) {
       return TypeSerializerSchemaCompatibility.compatibleAsIs();
     }
   }

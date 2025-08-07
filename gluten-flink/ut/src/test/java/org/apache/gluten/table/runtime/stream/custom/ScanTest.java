@@ -33,7 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Disabled("Need to apply for the new interface of gluten operator")
 class ScanTest extends GlutenStreamingTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(ScanTest.class);
 

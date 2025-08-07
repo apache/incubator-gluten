@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.table.runtime.operators;
 
+import org.apache.gluten.table.runtime.rowdata.GlutenStatefulRowData;
+
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
@@ -45,7 +47,7 @@ import java.util.Map;
  * Gluten legacy source function, call velox plan to execute. It sends RowVector to downstream
  * instead of RowData to avoid data convert.
  */
-public class GlutenVectorSourceFunction extends RichParallelSourceFunction<StatefulElement> {
+public class GlutenVectorSourceFunction extends RichParallelSourceFunction<GlutenStatefulRowData> {
   private static final Logger LOG = LoggerFactory.getLogger(GlutenVectorSourceFunction.class);
 
   private final StatefulPlanNode planNode;
@@ -88,7 +90,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   }
 
   @Override
-  public void run(SourceContext<StatefulElement> sourceContext) throws Exception {
+  public void run(SourceContext<GlutenStatefulRowData> sourceContext) throws Exception {
     LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
     memoryManager = MemoryManager.create(AllocationListener.NOOP);
     session = Velox4j.newSession(memoryManager);
@@ -105,7 +107,9 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
         if (element.isWatermark()) {
           sourceContext.emitWatermark(new Watermark(element.asWatermark().getTimestamp()));
         } else {
-          sourceContext.collect(element);
+          for (RowType outputType : outputTypes.values()) {
+            sourceContext.collect(new GlutenStatefulRowData(element, outputType, allocator));
+          }
         }
         element.close();
       } else if (state == UpIterator.State.BLOCKED) {

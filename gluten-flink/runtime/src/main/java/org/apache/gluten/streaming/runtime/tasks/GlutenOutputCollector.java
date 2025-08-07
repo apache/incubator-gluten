@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.streaming.runtime.tasks;
 
+import org.apache.gluten.table.runtime.rowdata.GlutenStatefulRowData;
+
 import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 
 import org.apache.flink.metrics.Counter;
@@ -29,10 +31,8 @@ import org.apache.flink.streaming.runtime.tasks.OutputWithChainingCheck;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
-import org.apache.flink.util.XORShiftRandom;
 
 import java.util.Map;
-import java.util.Random;
 
 /**
  * Collector for gluten, it may contain several outputs, dispatch the record according to node id.
@@ -40,7 +40,6 @@ import java.util.Random;
 public class GlutenOutputCollector<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>> {
 
   protected final Map<String, OutputWithChainingCheck<StreamRecord<T>>> outputs;
-  private final Random random = new XORShiftRandom();
   private final WatermarkGauge watermarkGauge = new WatermarkGauge();
   protected final Counter numRecordsOutForTask;
 
@@ -73,7 +72,8 @@ public class GlutenOutputCollector<T> implements WatermarkGaugeExposingOutput<St
 
   @Override
   public void collect(StreamRecord<T> record) {
-    StatefulElement element = (StatefulElement) record.getValue();
+    GlutenStatefulRowData row = (GlutenStatefulRowData) record.getValue();
+    StatefulElement element = row.getElement();
     OutputWithChainingCheck<StreamRecord<T>> output = outputs.get(element.getNodeId());
     if (element.isWatermark()) {
       output.emitWatermark(new Watermark(element.asWatermark().getTimestamp()));

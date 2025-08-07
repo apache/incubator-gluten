@@ -28,7 +28,6 @@ public class RowDataTestUtils {
   public static void checkEquals(RowData actual, RowData expected, List<LogicalType> fieldTypes) {
     assertEquals("Row arity mismatch", expected.getArity(), actual.getArity());
     assertEquals("Field types count mismatch", fieldTypes.size(), actual.getArity());
-
     for (int i = 0; i < actual.getArity(); i++) {
       RowData.FieldGetter getter = RowData.createFieldGetter(fieldTypes.get(i), i);
       Object actualValue = getter.getFieldOrNull(actual);
