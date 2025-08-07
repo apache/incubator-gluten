@@ -1,13 +1,28 @@
+<!--
+Thanks for submitting a pull request. Here are some tips:
+
+1. For first contribution, please read our contributing guide:
+   https://github.com/apache/incubator-gluten/blob/main/CONTRIBUTING.md
+2. If necessary, please submit a GitHub issue for discussion beforehand and avoiding repeated work.
+3. If the PR is not ready, please make it a draft.
+4. If the PR is only relevant to one specific backend, please add [VL] or [CH] in PR title, which
+   respectively represents Velox backend and ClickHouse backend.
+-->
+
 ## What changes were proposed in this pull request?
 
-(Please fill in changes proposed in this fix)
 
-(Fixes: \#ISSUE-ID)
+<!--
+Please clarify what changes are proposed. Please make sure the PR description aligns with the code
+changes, especially after code is updated.
+You can add "Fixes #<GitHub_Issue_ID>" to auto close the corresponding issue once this PR is merged.
+-->
 
-## How was this patch tested?
-
-(Please explain how this patch was tested. E.g. unit tests, integration tests, manual tests)
+## How was this patch tested? Ignore this section if test is unnecessary.
 
 
-(If this patch involves UI changes, please attach a screenshot; otherwise, remove this)
+<!--
+It would be better to add tests to guard the functionality if necessary.
+If this patch involves UI changes, please attach a screenshot.
+-->
 
