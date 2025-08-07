@@ -1,28 +1,27 @@
 <!--
-Thanks for submitting a pull request. Here are some tips:
+Thank you for submitting a pull request! Here are some tips:
 
-1. For first contribution, please read our contributing guide:
+1. For first-time contributors, please read our contributing guide:
    https://github.com/apache/incubator-gluten/blob/main/CONTRIBUTING.md
-2. If necessary, please submit a GitHub issue for discussion beforehand and avoiding repeated work.
-3. If the PR is not ready, please make it a draft.
-4. If the PR is only relevant to one specific backend, please add [VL] or [CH] in PR title, which
-   respectively represents Velox backend and ClickHouse backend.
+2. If necessary, create a GitHub issue for discussion beforehand to avoid duplicate work.
+3. If the PR is specific to a single backend, include [VL] or [CH] in the PR title to indicate the
+   Velox or ClickHouse backend, respectively.
+4. If the PR is not ready for review, please mark it as a draft.
 -->
 
-## What changes were proposed in this pull request?
-
+## What changes are proposed in this pull request?
 
 <!--
-Please clarify what changes are proposed. Please make sure the PR description aligns with the code
-changes, especially after code is updated.
-You can add "Fixes #<GitHub_Issue_ID>" to auto close the corresponding issue once this PR is merged.
+Provide a clear and concise description of the changes introduced in this PR.
+Ensure the PR description aligns with the code changes, especially after updates.
+If applicable, include "Fixes #<GitHub_Issue_ID>" to automatically close the corresponding issue
+when the PR is merged.
 -->
 
-## How was this patch tested? Ignore this section if test is unnecessary.
-
+## How was this patch tested?
 
 <!--
-It would be better to add tests to guard the functionality if necessary.
-If this patch involves UI changes, please attach a screenshot.
+Describe how the changes were tested, if applicable.
+Include new tests to validate the functionality, if necessary.
+For UI-related changes, attach screenshots to demonstrate the updates.
 -->
-
