@@ -177,7 +177,7 @@ macro(add_memory_tracking_wrappers target_lib)
       OR SANITIZE_COVERAGE
       OR OS_DARWIN
       OR OS_FREEBSD))
-     # Add linker options to wrap standard C memory allocation functions
+    # Add linker options to wrap standard C memory allocation functions
     target_link_options(
       ${target_lib}
       PRIVATE
@@ -191,11 +191,11 @@ macro(add_memory_tracking_wrappers target_lib)
       "LINKER:--wrap=memalign"
       "LINKER:--wrap=reallocarray")
 
-     # Wrap pvalloc only when not using MUSL C library
+    # Wrap pvalloc only when not using MUSL C library
     if(NOT USE_MUSL)
       target_link_options(${target_lib} PRIVATE "LINKER:--wrap=pvalloc")
-     endif()
-   endif()
+    endif()
+  endif()
 endmacro()
 
 add_memory_tracking_wrappers(${LOCALENGINE_SHARED_LIB})
