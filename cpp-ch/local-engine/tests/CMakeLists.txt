@@ -116,10 +116,7 @@ if(ENABLE_BENCHMARKS)
     benchmark_sum.cpp)
   target_link_libraries(
     benchmark_local_engine
-    PRIVATE gluten_clickhouse_backend_libs
-            clickhouse_new_delete
-            ch_contrib::gbenchmark_all
-            loggers
-            ch_parquet)
+    PRIVATE gluten_clickhouse_backend_libs clickhouse_new_delete
+            ch_contrib::gbenchmark_all loggers ch_parquet)
   add_memory_tracking_wrappers(benchmark_local_engine)
 endif()
