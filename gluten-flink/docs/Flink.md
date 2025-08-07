@@ -78,11 +78,7 @@ mvn clean install -DskipTests
 ```shell
 cd /path/to/gluten/gluten-flink
 mvn test
-```
-## Dependency library deployment
-
-You need to get the Velox4j packages and used them with gluten.
-Velox4j jar available now is under velox4j project target/velox4j-0.1.0-SNAPSHOT.jar. 
+``` 
 
 ## Submit the Flink SQL job
 
@@ -90,12 +86,11 @@ Submit test script from `flink run`. You can use the `StreamSQLExample` as an ex
 
 ### Flink local cluster
 
-After deploying flink binaries, please add gluten-flink jar to flink library path,
-including gluten-flink-runtime-1.5.0.jar, gluten-flink-loader-1.5.0.jar and Velox4j jars above.
-Take following command as an example:
+After deploying Flink binaries, please configure the paths of gluten-flink jars and the dependency jars for Flink to use, as follows:
 
 ```shell
-# notice: first set your own specified project home, you may set it mannualy in you .bash_profile so that it can auto take effect. 
+# notice: first set your own specified project home, you may set it
+# mannualy in you .bash_profile so that it can auto take effect. 
 export VELOX4J_HOME=
 export GLUTEN_FLINK_HOME=
 export FLINK_HOME=
@@ -109,10 +104,10 @@ ln -s $GLUTEN_FLINK_HOME/loader/target/gluten-flink-loader-1.5.0-SNAPSHOT.jar $F
 
 And make them loaded before flink libraries.
 
-#### How to make sure gluten packages loaded first in Flink?
+#### How to make sure gluten classes loaded first in Flink?
 
-Gluten packages need to be loaded first in Flink, you can edit the `bin/config.sh` in Flink dir,
-and change the `constructFlinkClassPath` function like this:
+Gluten classes need to be loaded first in Flink, 
+you can modify the constructFlinkClassPath function in `$FLINK_HOME/bin/config.sh` like this: 
 
 ```
 GLUTEN_JAR="$FLINK_HOME/gluten_lib/gluten-flink-loader-1.5.0.jar:$FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar:$FLINK_HOME/gluten_lib/gluten-flink-runtime-1.5.0.jar:"
