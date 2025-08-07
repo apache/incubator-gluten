@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.metrics.GlutenTimeMetric
-import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
@@ -59,9 +58,7 @@ abstract class FileSourceScanExecShim(
 
   protected lazy val driverMetricsAlias = driverMetrics
 
-  def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
-    attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
-  })
+  protected def dataFiltersInScan: Seq[Expression]
 
   def hasUnsupportedColumns: Boolean = {
     // TODO, fallback if user define same name column due to we can't right now

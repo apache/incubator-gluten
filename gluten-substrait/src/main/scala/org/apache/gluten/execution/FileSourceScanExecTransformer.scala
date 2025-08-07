@@ -109,6 +109,10 @@ abstract class FileSourceScanExecTransformerBase(
         output)
   }
 
+  protected def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
+    attr => BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)
+  })
+
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
   override def outputAttributes(): Seq[Attribute] = output
