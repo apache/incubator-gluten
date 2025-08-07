@@ -97,11 +97,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenBloomFilterAggregateQuerySuiteCGOff]
     .excludeCH("Test bloom_filter_agg and might_contain")
   enableSuite[GlutenBroadcastExchangeSuite]
-//  enableSuite[GlutenBroadcastJoinSuite]
-//    .includeCH("Shouldn't change broadcast join buildSide if user clearly specified")
-//    .includeCH("Shouldn't bias towards build right if user didn't specify")
-//    .includeCH("SPARK-23192: broadcast hint should be retained after using the cached data")
-//    .includeCH("broadcast join where streamed side's output partitioning is HashPartitioning")
+  enableSuite[GlutenBroadcastJoinSuite]
+    .includeCH("Shouldn't change broadcast join buildSide if user clearly specified")
+    .includeCH("Shouldn't bias towards build right if user didn't specify")
+    .includeCH("SPARK-23192: broadcast hint should be retained after using the cached data")
+    .includeCH("broadcast join where streamed side's output partitioning is HashPartitioning")
   enableSuite[GlutenBucketedReadWithoutHiveSupportSuite]
     // Exclude the following suite for plan changed from SMJ to SHJ.
     .exclude("avoid shuffle when join 2 bucketed tables")
