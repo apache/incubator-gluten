@@ -76,6 +76,7 @@ if(ENABLE_TESTS)
     unit_tests_local_engine
     ${local_engine_gtest_sources} ${local_engine_udf_sources}
     ${local_engine_function_parser_sources} ${gtest_utils_sources})
+  add_memory_tracking_wrappers(unit_tests_local_engine)
   target_include_directories(
     unit_tests_local_engine
     PRIVATE ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
@@ -85,6 +86,7 @@ if(ENABLE_TESTS)
   target_link_libraries(
     unit_tests_local_engine
     PRIVATE gluten_clickhouse_backend_libs
+            clickhouse_new_delete
             clickhouse_common_config
             clickhouse_common_io
             clickhouse_parsers
@@ -114,6 +116,10 @@ if(ENABLE_BENCHMARKS)
     benchmark_sum.cpp)
   target_link_libraries(
     benchmark_local_engine
-    PRIVATE gluten_clickhouse_backend_libs ch_contrib::gbenchmark_all loggers
+    PRIVATE gluten_clickhouse_backend_libs
+            clickhouse_new_delete
+            ch_contrib::gbenchmark_all
+            loggers
             ch_parquet)
+  add_memory_tracking_wrappers(benchmark_local_engine)
 endif()
