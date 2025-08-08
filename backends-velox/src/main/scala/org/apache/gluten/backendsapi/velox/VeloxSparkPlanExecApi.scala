@@ -855,6 +855,23 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
   }
 
+  /** Handle backend-specific expression transformations. */
+  override def extraExpressionConverter(
+      substraitExprName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): Option[ExpressionTransformer] = {
+    expr match {
+      case a: Abs =>
+        val child = ExpressionConverter.replaceWithExpressionTransformer(a.child, attributeSeq)
+        if (SparkShimLoader.getSparkShims.withAnsiEvalMode(a)) {
+          Some(GenericExpressionTransformer(ExpressionNames.CHECKED_ABS, Seq(child), a))
+        } else {
+          Some(GenericExpressionTransformer(substraitExprName, Seq(child), a))
+        }
+      case _ => None
+    }
+  }
+
   /** Define backend specfic expression mappings. */
   override def extraExpressionMappings: Seq[Sig] = {
     Seq(
