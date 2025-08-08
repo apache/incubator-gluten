@@ -22,7 +22,7 @@ import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan, UnaryExecNode}
 
 case class PartialProjectRule(spark: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
@@ -33,24 +33,25 @@ case class PartialProjectRule(spark: SparkSession) extends Rule[SparkPlan] {
     val newPlan = plan match {
       // If the root node of the plan is a ProjectExec and its child is a gluten columnar op,
       // we try to add a ColumnarPartialProjectExec
-      case p: ProjectExec if PlanUtil.isGlutenColumnarOp(p.child) =>
+      case p: UnaryExecNode if supportPartialProject(p) && PlanUtil.isGlutenColumnarOp(p.child) =>
         tryAddColumnarPartialProjectExec(p)
       case _ => plan
     }
 
     newPlan.transformUp {
       case parent: SparkPlan
-          if parent.children.exists(_.isInstanceOf[ProjectExec]) &&
+          if parent.children.exists(supportPartialProject) &&
             PlanUtil.isGlutenColumnarOp(parent) =>
         parent.mapChildren {
-          case p: ProjectExec if PlanUtil.isGlutenColumnarOp(p.child) =>
+          case p: UnaryExecNode
+              if supportPartialProject(p) && PlanUtil.isGlutenColumnarOp(p.child) =>
             tryAddColumnarPartialProjectExec(p)
           case other => other
         }
     }
   }
 
-  private def tryAddColumnarPartialProjectExec(plan: ProjectExec): SparkPlan = {
+  private def tryAddColumnarPartialProjectExec(plan: SparkPlan): SparkPlan = {
     val transformer = ColumnarPartialProjectExec.create(plan)
     if (
       transformer.doValidate().ok() &&
@@ -58,5 +59,11 @@ case class PartialProjectRule(spark: SparkSession) extends Rule[SparkPlan] {
     ) {
       transformer
     } else plan
+  }
+
+  private def supportPartialProject(plan: SparkPlan): Boolean = plan match {
+    case _: ProjectExec => true
+    case _: FilterExec => true
+    case _ => false
   }
 }
