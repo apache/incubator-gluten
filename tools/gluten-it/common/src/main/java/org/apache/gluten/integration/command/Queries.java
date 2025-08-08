@@ -55,7 +55,7 @@ public class Queries implements Callable<Integer> {
     }
     org.apache.gluten.integration.action.Queries queries =
         new org.apache.gluten.integration.action.Queries(dataGenMixin.getScale(), dataGenMixin.genPartitionedData(), queriesMixin.queries(),
-            queriesMixin.explain(), queriesMixin.iterations(), randomKillTasks, queriesMixin.noSessionReuse(), JavaConverters.asScalaBufferConverter(metricsReporters).asScala());
+            queriesMixin.explain(), queriesMixin.iterations(), randomKillTasks, queriesMixin.noSessionReuse(), queriesMixin.suppressFailureMessages(), JavaConverters.asScalaBufferConverter(metricsReporters).asScala());
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queries));
   }
 }

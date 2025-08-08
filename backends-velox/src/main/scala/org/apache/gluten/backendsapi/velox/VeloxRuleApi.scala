@@ -21,7 +21,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{PreventBatchTypeMismatchInTableCache, RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
-import org.apache.gluten.extension.columnar.enumerated.{RasOffload, RemoveSort}
+import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
 import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.rewrite._
@@ -53,14 +53,24 @@ class VeloxRuleApi extends RuleApi {
 }
 
 object VeloxRuleApi {
+
+  /**
+   * Registers Spark rules or extensions, except for Gluten's columnar rules that are supposed to be
+   * injected through [[injectLegacy]] / [[injectRas]].
+   */
   private def injectSpark(injector: SparkInjector): Unit = {
     // Inject the regular Spark rules directly.
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
     injector.injectOptimizerRule(CollapseGetJsonObjectExpressionRule.apply)
+    injector.injectOptimizerRule(RewriteCastFromArray.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed by default in Gluten for
+   * columnar query planning.
+   */
   private def injectLegacy(injector: LegacyInjector): Unit = {
     // Legacy: Pre-transform rules.
     injector.injectPreTransform(_ => RemoveTransitions)
@@ -132,6 +142,12 @@ object VeloxRuleApi {
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed only when RAS (relational
+   * algebra selector) is enabled by spark.gluten.ras.enabled=true.
+   *
+   * These rules are covered by CI test job spark-test-spark35-ras.
+   */
   private def injectRas(injector: RasInjector): Unit = {
     // Gluten RAS: Pre rules.
     injector.injectPreTransform(_ => RemoveTransitions)
@@ -145,7 +161,6 @@ object VeloxRuleApi {
 
     // Gluten RAS: The RAS rule.
     val validatorBuilder: GlutenConfig => Validator = conf => Validators.newValidator(conf)
-    injector.injectRasRule(_ => RemoveSort)
     val rewrites =
       Seq(
         RewriteIn,

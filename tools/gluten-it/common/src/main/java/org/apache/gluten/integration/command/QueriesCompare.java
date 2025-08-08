@@ -40,7 +40,7 @@ public class QueriesCompare implements Callable<Integer> {
     org.apache.gluten.integration.action.QueriesCompare queriesCompare =
         new org.apache.gluten.integration.action.QueriesCompare(dataGenMixin.getScale(),
             dataGenMixin.genPartitionedData(), queriesMixin.queries(),
-            queriesMixin.explain(), queriesMixin.iterations(), queriesMixin.noSessionReuse());
+            queriesMixin.explain(), queriesMixin.iterations(), queriesMixin.noSessionReuse(), queriesMixin.suppressFailureMessages());
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queriesCompare));
   }
 }
