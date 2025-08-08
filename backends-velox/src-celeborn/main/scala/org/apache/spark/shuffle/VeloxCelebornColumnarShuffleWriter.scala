@@ -19,7 +19,7 @@ package org.apache.spark.shuffle
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, RssSortShuffleWriterType, SortShuffleWriterType}
-import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
 
@@ -179,16 +179,16 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     runtime
       .memoryManager()
       .addSpiller(new Spiller() {
-        override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-          if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-            return 0L
+        override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long =
+          phase match {
+            case Spiller.Phase.SPILL =>
+              logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
+              // fixme pass true when being called by self
+              val pushed = shuffleWriterJniWrapper.reclaim(nativeShuffleWriter, size)
+              logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
+              pushed
+            case _ => 0L
           }
-          logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
-          // fixme pass true when being called by self
-          val pushed = shuffleWriterJniWrapper.reclaim(nativeShuffleWriter, size)
-          logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
-          pushed
-        }
       })
   }
 
