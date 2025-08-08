@@ -1589,7 +1589,7 @@ object GlutenConfig {
       .internal()
       .doc("Experimental: Decrease executor offheap memory when match adjust stage resource rule.")
       .doubleConf
-      .createWithDefault(1.0d)
+      .createWithDefault(0.5d)
 
   val AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD =
     buildConf("spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold")
