@@ -96,7 +96,6 @@ import java.util.stream.IntStream;
  */
 public abstract class CommonExecSink extends ExecNodeBase<Object>
     implements MultipleTransformationTranslator<Object> {
-
   public static final String CONSTRAINT_VALIDATOR_TRANSFORMATION = "constraint-validator";
   public static final String PARTITIONER_TRANSFORMATION = "partitioner";
   public static final String UPSERT_MATERIALIZE_TRANSFORMATION = "upsert-materialize";
@@ -206,7 +205,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     if (targetRowKind.isPresent()) {
       sinkTransform = applyRowKindSetter(sinkTransform, targetRowKind.get(), config);
     }
-
     return (Transformation<Object>)
         applySinkProvider(
             sinkTransform,
@@ -434,7 +432,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
       ExecNodeConfig config,
       ClassLoader classLoader) {
     try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
-
       TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
       if (runtimeProvider instanceof DataStreamSinkProvider) {
         Transformation<RowData> sinkTransformation =
