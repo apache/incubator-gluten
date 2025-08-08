@@ -505,23 +505,6 @@ object GlutenConfig {
     "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
   )
 
-  private lazy val nativeKeyWithDefaults = ImmutableList.of(
-    (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
-    (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
-    (
-      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
-      SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
-    (
-      COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
-      COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
-    (
-      GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
-      GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
-    (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
-    (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
-    (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
-  )
-
   /**
    * Get dynamic configs.
    *
@@ -533,7 +516,23 @@ object GlutenConfig {
     val nativeConfMap = new util.HashMap[String, String]()
     nativeConfMap.putAll(conf.filter(e => nativeKeys.contains(e._1)).asJava)
 
-    nativeKeyWithDefaults.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
+    val keyWithDefault = ImmutableList.of(
+      (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
+      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
+      (
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
+      (
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
+      (
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
+      (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
+      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
+      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
+    )
+    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     GlutenConfigUtil.mapByteConfValue(
       conf,
       SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE,
