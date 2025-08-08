@@ -17,7 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.exception.{GlutenExceptionUtil, GlutenNotSupportException}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.DecimalArithmeticUtil
@@ -176,8 +176,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case i: StaticInvoke
           if Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith("Base64") =>
         if (!SQLConf.get.getConfString("spark.sql.chunkBase64String.enabled", "true").toBoolean) {
-          throw new GlutenNotSupportException(
-            "Base64 with chunkBase64String disabled is not supported in gluten.")
+          GlutenExceptionUtil
+            .throwsNotFullySupportedFunction(
+              ExpressionNames.BASE64,
+              s"${ExpressionNames.BASE64} with chunkBase64String disabled is not supported")
         }
         return GenericExpressionTransformer(
           ExpressionNames.BASE64,
@@ -779,7 +781,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           s
         )
       case u: UnBase64 if SparkShimLoader.getSparkShims.unBase64FunctionFailsOnError(u) =>
-        throw new GlutenNotSupportException("UnBase64 with failOnError is not supported in gluten.")
+        GlutenExceptionUtil
+          .throwsNotFullySupportedFunction(
+            ExpressionNames.UNBASE64,
+            s"${ExpressionNames.UNBASE64} with failOnError is not supported")
       case ce if BackendsApiManager.getSparkPlanExecApiInstance.expressionFlattenSupported(ce) =>
         replaceFlattenedExpressionWithExpressionTransformer(
           substraitExprName,

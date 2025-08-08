@@ -760,6 +760,8 @@ def parse_logs(log_file):
 
     unresolved = []
 
+    restrictions = {}
+
     def filter_fallback_reasons():
         with open(log_file, "r") as f:
             lines = f.readlines()
@@ -905,6 +907,30 @@ def parse_logs(log_file):
             else:
                 function_not_found(r)
 
+        # Partially supported: throws not fully supported exception for certain conditions.
+        elif "is not fully supported" in r:
+            pattern = r"Function '([\w0-9]+)' is not fully supported. Cause: (.*)"
+
+            # Extract the function name and reason
+            match = re.search(pattern, r)
+
+            if match:
+                function_name = match.group(1)
+                if function_name in function_names:
+                    support_list["scalar"]["partial"].add(
+                        function_name_tuple(function_name)
+                    )
+                else:
+                    support_list["scalar"]["unknown"].add(
+                        function_name_tuple(function_name)
+                    )
+                cause = match.group(2)
+                if function_name not in restrictions:
+                    restrictions[function_name] = set()
+                restrictions[function_name].add(cause)
+            else:
+                function_not_found(r)
+
         # Not supported: Special case for unsupported expressions.
         elif "Not support expression" in r:
             pattern = r"Not support expression ([\w0-9]+)"
@@ -933,7 +959,7 @@ def parse_logs(log_file):
             else:
                 function_not_found(r)
 
-        # Not supported: Special case for unsupported functions.
+        # Not supported: Function is in the native blacklist.
         elif "Function is not supported:" in r:
             pattern = r"Function is not supported:\s+([\w0-9]+)"
 
@@ -1051,7 +1077,7 @@ def parse_logs(log_file):
         else:
             unresolved.append(r)
 
-    return support_list, unresolved
+    return support_list, unresolved, restrictions
 
 
 def generate_function_doc(category, output):
@@ -1131,16 +1157,24 @@ def generate_function_doc(category, output):
                     f = "&#124;"
                 elif f == "||":
                     f = "&#124;&#124;"
+
+                r = (
+                    ""
+                    if f not in GLUTEN_RESTRICTIONS[category]
+                    else GLUTEN_RESTRICTIONS[category][f]
+                )
+                if f in restrictions:
+                    r = (
+                        "\n".join(restrictions[f])
+                        if r == ""
+                        else f"{r}\n" + "\n".join(restrictions[f])
+                    )
                 data.append(
                     [
                         f,
                         classname,
                         support,
-                        (
-                            ""
-                            if f not in GLUTEN_RESTRICTIONS[category]
-                            else GLUTEN_RESTRICTIONS[category][f]
-                        ),
+                        r,
                     ]
                 )
             table = tabulate.tabulate(data, headers, tablefmt="github")
@@ -1259,7 +1293,7 @@ if __name__ == "__main__":
 
     spark_function_map = create_spark_function_map()
 
-    support_list, unresolved = parse_logs(
+    support_list, unresolved, restrictions = parse_logs(
         os.path.join(
             gluten_home,
             "gluten-ut",
