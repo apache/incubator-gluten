@@ -377,4 +377,26 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("to_json function") {
+    withTable("t") {
+      spark.sql("create table t (a int, b string, c array<int>, d map<int, string>) using parquet")
+      spark.sql("""insert into t values (1, 'str', array(1,2,3), map(1, 'v')),
+                  |(2, 'str2', array(), map(1, 'v1', 2, 'v2')),
+                  |(3, '', array(1), map())
+                  |""".stripMargin)
+
+      runQueryAndCompare("select to_json(named_struct('a', a, 'b', b, 'c', c, 'd', d)) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+
+      runQueryAndCompare("select to_json(c) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+
+      runQueryAndCompare("select to_json(d) from t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
 }

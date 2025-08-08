@@ -59,7 +59,7 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "rlike"};
 
 const std::unordered_set<std::string> kBlackList =
-    {"split_part", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays", "to_json"};
+    {"split_part", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
