@@ -55,6 +55,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
+  def enableAnsiForce: Boolean = getConf(ANSI_FORCE_ENABLED)
+
   def glutenUiEnabled: Boolean = getConf(GLUTEN_UI_ENABLED)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
@@ -656,6 +658,13 @@ object GlutenConfig {
   }
 
   val GLUTEN_ENABLED = GlutenCoreConfig.GLUTEN_ENABLED
+
+  val ANSI_FORCE_ENABLED = buildConf("spark.gluten.sql.ansi.force.enabled")
+    .doc(
+      "When true, force Gluten to handle ANSI mode queries even when ANSI mode is enabled. " +
+        "When false, Gluten will fallback to vanilla Spark when ANSI mode is enabled.")
+    .booleanConf
+    .createWithDefault(false)
 
   val RAS_ENABLED = GlutenCoreConfig.RAS_ENABLED
 
