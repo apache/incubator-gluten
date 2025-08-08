@@ -28,15 +28,15 @@
 
 namespace gluten {
 
-using namespace facebook;
+using namespace facebook::velox;
+using namespace facebook::velox::parquet;
 using namespace facebook::velox::common;
 
 namespace {
 const int32_t kGzipWindowBits4k = 12;
 }
 
-std::unique_ptr<facebook::velox::parquet::WriterOptions> makeParquetWriteOption(
-    const std::unordered_map<std::string, std::string>& sparkConfs) {
+std::unique_ptr<WriterOptions> makeParquetWriteOption(const std::unordered_map<std::string, std::string>& sparkConfs) {
   int64_t maxRowGroupBytes = 134217728; // 128MB
   int64_t maxRowGroupRows = 100000000; // 100M
   if (auto it = sparkConfs.find(kParquetBlockSize); it != sparkConfs.end()) {
@@ -45,8 +45,8 @@ std::unique_ptr<facebook::velox::parquet::WriterOptions> makeParquetWriteOption(
   if (auto it = sparkConfs.find(kParquetBlockRows); it != sparkConfs.end()) {
     maxRowGroupRows = static_cast<int64_t>(stoi(it->second));
   }
-  auto writeOption = std::make_unique<facebook::velox::parquet::WriterOptions>();
-  writeOption->parquetWriteTimestampUnit = velox::TimestampPrecision::kMicroseconds /*micro*/;
+  auto writeOption = std::make_unique<WriterOptions>();
+  writeOption->parquetWriteTimestampUnit = TimestampPrecision::kMicroseconds /*micro*/;
   auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (auto it = sparkConfs.find(kParquetCompressionCodec); it != sparkConfs.end()) {
     auto compressionCodecStr = it->second;
@@ -58,7 +58,7 @@ std::unique_ptr<facebook::velox::parquet::WriterOptions> makeParquetWriteOption(
       if (sparkConfs.find(kParquetGzipWindowSize) != sparkConfs.end()) {
         auto parquetGzipWindowSizeStr = sparkConfs.find(kParquetGzipWindowSize)->second;
         if (parquetGzipWindowSizeStr == kGzipWindowSize4k) {
-          auto codecOptions = std::make_shared<facebook::velox::parquet::arrow::util::GZipCodecOptions>();
+          auto codecOptions = std::make_shared<parquet::arrow::util::GZipCodecOptions>();
           codecOptions->window_bits = kGzipWindowBits4k;
           writeOption->codecOptions = std::move(codecOptions);
         }
@@ -74,7 +74,7 @@ std::unique_ptr<facebook::velox::parquet::WriterOptions> makeParquetWriteOption(
       compressionCodec = CompressionKind::CompressionKind_ZSTD;
       if (auto it = sparkConfs.find(kParquetZSTDCompressionLevel); it != sparkConfs.end()) {
         auto compressionLevel = std::stoi(it->second);
-        auto codecOptions = std::make_shared<facebook::velox::parquet::arrow::util::CodecOptions>();
+        auto codecOptions = std::make_shared<parquet::arrow::util::CodecOptions>();
         codecOptions->compression_level = compressionLevel;
         writeOption->codecOptions = std::move(codecOptions);
       }
@@ -86,8 +86,7 @@ std::unique_ptr<facebook::velox::parquet::WriterOptions> makeParquetWriteOption(
   }
   writeOption->compressionKind = compressionCodec;
   writeOption->flushPolicyFactory = [maxRowGroupRows, maxRowGroupBytes]() {
-    return std::make_unique<velox::parquet::LambdaFlushPolicy>(
-        maxRowGroupRows, maxRowGroupBytes, [&]() { return false; });
+    return std::make_unique<LambdaFlushPolicy>(maxRowGroupRows, maxRowGroupBytes, [&]() { return false; });
   };
   writeOption->parquetWriteTimestampTimeZone = getConfigValue(sparkConfs, kSessionTimezone, std::nullopt);
   if (auto it = sparkConfs.find(kParquetDataPageSize); it != sparkConfs.end()) {
