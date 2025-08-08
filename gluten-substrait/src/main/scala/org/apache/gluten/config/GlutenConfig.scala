@@ -505,9 +505,7 @@ object GlutenConfig {
     val keyWithDefault = ImmutableList.of(
       (CASE_SENSITIVE.key, CASE_SENSITIVE.defaultValueString),
       (IGNORE_MISSING_FILES.key, IGNORE_MISSING_FILES.defaultValueString),
-      (
-        LEGACY_STATISTICAL_AGGREGATE.key,
-        LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
+      (LEGACY_STATISTICAL_AGGREGATE.key, LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
