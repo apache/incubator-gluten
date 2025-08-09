@@ -266,11 +266,10 @@ abstract class AbstractFileSourceScanExec(
         partition =>
           partition.files.flatMap {
             file =>
-              if (shouldProcess(file.getPath)) {
-                val isSplitable = relation.fileFormat.isSplitable(
-                  relation.sparkSession,
-                  relation.options,
-                  file.getPath)
+              val filePath = file.getPath
+              if (shouldProcess(filePath)) {
+                val isSplitable =
+                  relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
                 PartitionedFileUtilShim.splitFiles(
                   sparkSession = relation.sparkSession,
                   file = file,
