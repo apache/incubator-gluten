@@ -42,6 +42,10 @@ public class StructNode implements TypeNode, Serializable {
     return types;
   }
 
+  public List<String> getNames() {
+    return names;
+  }
+
   @Override
   public Type toProtobuf() {
     Type.Struct.Builder structBuilder = Type.Struct.newBuilder();

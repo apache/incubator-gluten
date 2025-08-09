@@ -584,6 +584,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSparkLegacyStatisticalAggregate] =
         std::to_string(veloxCfg_->get<bool>(kSparkLegacyStatisticalAggregate, false));
 
+    configs[velox::core::QueryConfig::kSparkJsonIgnoreNullFields] =
+        std::to_string(veloxCfg_->get<bool>(kSparkJsonIgnoreNullFields, true));
+
 #ifdef GLUTEN_ENABLE_GPU
     if (veloxCfg_->get<bool>(kCudfEnabled, false)) {
       // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341

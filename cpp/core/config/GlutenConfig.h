@@ -90,6 +90,8 @@ const std::string kSparkMapKeyDedupPolicy = "spark.sql.mapKeyDedupPolicy";
 
 const std::string kSparkLegacyStatisticalAggregate = "spark.sql.legacy.statisticalAggregate";
 
+const std::string kSparkJsonIgnoreNullFields = "spark.sql.jsonGenerator.ignoreNullFields";
+
 // cudf
 #ifdef GLUTEN_ENABLE_GPU
 const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";

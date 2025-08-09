@@ -794,6 +794,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
+  /** Generate an expression transformer to transform StructsToJson to Substrait. */
+  override def genToJsonTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: StructsToJson): ExpressionTransformer = {
+    if (!expr.options.isEmpty) {
+      throw new GlutenNotSupportException("'to_json' with options is not supported in Velox")
+    }
+    ToJsonTransformer(substraitExprName, child, expr)
+  }
+
   /** Generate an expression transformer to transform NamedStruct to Substrait. */
   override def genNamedStructTransformer(
       substraitExprName: String,
