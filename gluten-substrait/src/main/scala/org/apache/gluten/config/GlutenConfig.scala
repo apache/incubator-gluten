@@ -456,7 +456,7 @@ object GlutenConfig {
 
   def prefixOf(backendName: String): String = s"spark.gluten.sql.columnar.backend.$backendName"
 
-  private val nativeKeys = Set(
+  private lazy val nativeKeys = Set(
     DEBUG_ENABLED.key,
     BENCHMARK_SAVE_DIR.key,
     GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
