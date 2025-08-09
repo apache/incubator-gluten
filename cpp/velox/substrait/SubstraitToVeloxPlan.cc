@@ -25,11 +25,11 @@
 #include "velox/type/Type.h"
 
 #include "utils/ConfigExtractor.h"
+#include "utils/VeloxWriterUtils.h"
 
 #include "config.pb.h"
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
-#include "operators/writer/VeloxParquetDataSource.h"
 
 namespace gluten {
 namespace {
@@ -671,8 +671,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   GLUTEN_CHECK(formatShortName == "parquet", "Unsupported file write format: " + formatShortName);
   dwio::common::FileFormat fileFormat = dwio::common::FileFormat::PARQUET;
 
-  const std::shared_ptr<facebook::velox::parquet::WriterOptions> writerOptions =
-      VeloxParquetDataSource::makeParquetWriteOption(writeConfs);
+  const std::shared_ptr<facebook::velox::parquet::WriterOptions> writerOptions = makeParquetWriteOption(writeConfs);
   // Spark's default compression code is snappy.
   const auto& compressionKind =
       writerOptions->compressionKind.value_or(common::CompressionKind::CompressionKind_SNAPPY);

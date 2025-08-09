@@ -193,7 +193,8 @@ set(VELOX_SRCS
     utils/TestAllocationListener.cc
     utils/VeloxArrowUtils.cc
     utils/VeloxBatchResizer.cc
-    utils/VeloxWholeStageDumper.cc)
+    utils/VeloxWholeStageDumper.cc
+    utils/VeloxWriterUtils.cc)
 
 if(ENABLE_S3)
   find_package(ZLIB)
