@@ -550,11 +550,12 @@ private:
         }
         // for AWS CN, the endpoint is like: https://s3.cn-north-1.amazonaws.com.cn, can still work
 
+        unsigned int s3_retry_attempts = static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_retry_attempts]);
         DB::S3::PocoHTTPClientConfiguration client_configuration = DB::S3::ClientFactory::instance().createClientConfiguration(
             region_name,
             context->getRemoteHostFilter(),
             static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_max_redirects]),
-            static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_retry_attempts]),
+            S3::PocoHTTPClientConfiguration::RetryStrategy{.max_retries = s3_retry_attempts},
             context->getSettingsRef()[DB::Setting::s3_slow_all_threads_after_network_error],
             context->getSettingsRef()[Setting::backup_slow_all_threads_after_retryable_s3_error],
             context->getSettingsRef()[DB::Setting::enable_s3_requests_logging],
