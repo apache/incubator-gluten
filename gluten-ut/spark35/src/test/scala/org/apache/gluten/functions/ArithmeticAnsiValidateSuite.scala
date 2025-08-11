@@ -23,21 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.internal.SQLConf
 
-class ArithmeticAnsiValidateSuiteRasOff extends ArithmeticAnsiValidateSuite {
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.RAS_ENABLED.key, "false")
-  }
-}
-
-class ArithmeticAnsiValidateSuiteRasOn extends ArithmeticAnsiValidateSuite {
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.RAS_ENABLED.key, "true")
-  }
-}
-
-abstract class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite with GlutenTestsTrait {
+class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite with GlutenTestsTrait {
 
   disableFallbackCheck
 

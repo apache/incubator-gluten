@@ -783,10 +783,10 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val GLUTEN_ANSI_FALLBACK_ENABLED =
-    buildConf("spark.gluten.sql.enable.ansi.fallback")
+    buildConf("spark.gluten.sql.ansiFallback.enabled")
       .doc(
-        "When true (default), Gluten will fallback to Spark when ANSI mode is enabled. " +
-          "When false, Gluten will attempt to execute in ANSI mode")
+        "When true (default), Gluten will fall back to Spark when ANSI mode is enabled. " +
+          "When false, Gluten will attempt to execute in ANSI mode.")
       .booleanConf
       .createWithDefault(true)
 
