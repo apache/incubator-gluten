@@ -20,10 +20,9 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.internal.SQLConf
 
-class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite with GlutenTestsTrait {
+class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
 
   disableFallbackCheck
 
@@ -63,8 +62,14 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite with GlutenTest
     }
   }
 
-  test("arithmetic division by zero exception with ansi mode") {
-    // Spark 3.3 doesn't throw exception for division by zero
+  testWithMinSparkVersion("arithmetic division by zero exception with ansi mode", "3.4") {
+    intercept[ArithmeticException] {
+      sql("SELECT 1 / 0").collect()
+    }
+  }
+
+  testWithMaxSparkVersion("arithmetic division by zero no exception with ansi mode", "3.3") {
+    // Spark 3.2 and 3.3 don't throw exception for division by zero in ANSI mode
     sql("SELECT 1 / 0").collect()
   }
 
