@@ -244,8 +244,6 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
             jsonPaths.map {
               case jsonPath if jsonPath.foldable =>
                 Option(jsonPath.eval()) match {
-                  case Some(path: UTF8String) =>
-                    GetJsonObject(jsonObj, Literal.create(wrapPath(path.toString)))
                   case Some(path: String) =>
                     GetJsonObject(jsonObj, Literal.create(wrapPath(path)))
                   case _ =>
