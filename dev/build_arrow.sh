@@ -69,7 +69,7 @@ function build_arrow_cpp() {
 
  # Install thrift.
  cd _build/thrift_ep-prefix/src/thrift_ep-build
- sudo cmake --install ./ --prefix /usr/local/
+ sudo --preserve-env cmake --install ./ --prefix /usr/local/
  popd
 }
 
