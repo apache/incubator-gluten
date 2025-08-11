@@ -14,6 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.catalyst
 
-abstract class InternalRowBase extends InternalRow {}
+package org.apache.gluten.expression
+
+/**
+ * A mix-in trait mainly for internal-row's implementations to extend, to ensure
+ * the code is compatible with Spark 3.x and 4.x at the same time.
+ */
+trait SpecializedGettersGetVariantCompatible {
+  def getVariant(ordinal: Int): Nothing = {
+    throw new UnsupportedOperationException()
+  }
+}
