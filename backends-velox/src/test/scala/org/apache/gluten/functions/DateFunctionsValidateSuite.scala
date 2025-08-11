@@ -278,6 +278,20 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithMinSparkVersion("timestampadd", "3.3") {
+    withTempPath {
+      path =>
+        val ts = Timestamp.valueOf("2020-02-29 00:00:00.500")
+        val quantity = 1
+        Seq((ts, quantity)).toDF("ts", "quantity").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select timestampadd(day, quantity, ts) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   testWithMinSparkVersion("timestampdiff", "3.3") {
     withTempPath {
       path =>

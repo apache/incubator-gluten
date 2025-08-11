@@ -569,20 +569,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           m.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
           m)
-      case timestampAdd if timestampAdd.getClass.getSimpleName.equals("TimestampAdd") =>
-        // for spark3.3
-        val extract = SparkShimLoader.getSparkShims.extractExpressionTimestampAddUnit(timestampAdd)
-        if (extract.isEmpty) {
-          throw new UnsupportedOperationException(s"Not support expression TimestampAdd.")
-        }
-        val add = timestampAdd.asInstanceOf[BinaryExpression]
-        TimestampAddTransformer(
+      case tsAdd: BinaryExpression if tsAdd.getClass.getSimpleName.equals("TimestampAdd") =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTimestampAddTransformer(
           substraitExprName,
-          extract.get.head,
-          replaceWithExpressionTransformer0(add.left, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformer0(add.right, attributeSeq, expressionsMap),
-          extract.get.last,
-          add
+          replaceWithExpressionTransformer0(tsAdd.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(tsAdd.right, attributeSeq, expressionsMap),
+          tsAdd
         )
       case tsDiff: BinaryExpression if tsDiff.getClass.getSimpleName.equals("TimestampDiff") =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTimestampDiffTransformer(
