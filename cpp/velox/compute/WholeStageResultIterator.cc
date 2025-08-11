@@ -85,7 +85,7 @@ WholeStageResultIterator::WholeStageResultIterator(
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   bool hasTableWrite = (std::string::npos != veloxPlan_->toString().find("TableWrite"));
   bool hasTableScan = scanInfos.size() > 0;
-  if (hasTableScan || hasTableWrite) {
+  if (1) {
     std::call_once(
         gluten::VeloxBackend::get()->regFlag, [&]() { gluten::VeloxBackend::get()->initConnector(veloxCfg_); });
   }
