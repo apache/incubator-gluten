@@ -1,19 +1,19 @@
 /*
-* Licensed to the Apache Software Foundation (ASF) under one or more
-* contributor license agreements.  See the NOTICE file distributed with
-* this work for additional information regarding copyright ownership.
-  * The ASF licenses this file to You under the Apache License, Version 2.0
-* (the "License"); you may not use this file except in compliance with
-* the License.  You may obtain a copy of the License at
-*
-*    http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-  * limitations under the License.
-  */
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.gluten.vectorized
 
 import org.apache.gluten.exception.GlutenException
@@ -47,22 +47,22 @@ final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector])
       } else {
         val dt = columns(i).dataType()
         dt match {
-          case _: BooleanType    => row.setBoolean(i, getBoolean(i))
-          case _: ByteType       => row.setByte(i, getByte(i))
-          case _: ShortType      => row.setShort(i, getShort(i))
-          case _: IntegerType    => row.setInt(i, getInt(i))
-          case _: LongType       => row.setLong(i, getLong(i))
-          case _: FloatType      => row.setFloat(i, getFloat(i))
-          case _: DoubleType     => row.setDouble(i, getDouble(i))
-          case _: StringType     => row.update(i, getUTF8String(i).copy())
-          case _: BinaryType     => row.update(i, getBinary(i))
-          case t: DecimalType    => row.setDecimal(i, getDecimal(i, t.precision, t.scale), t.precision)
-          case _: DateType       => row.setInt(i, getInt(i))
-          case _: TimestampType  => row.setLong(i, getLong(i))
-          case s: StructType     => row.update(i, getStruct(i, s.fields.length).copy())
-          case _: ArrayType      => row.update(i, getArray(i).copy())
-          case _: MapType        => row.update(i, getMap(i).copy())
-          case _                 => throw new RuntimeException(s"Not implemented. $dt")
+          case _: BooleanType => row.setBoolean(i, getBoolean(i))
+          case _: ByteType => row.setByte(i, getByte(i))
+          case _: ShortType => row.setShort(i, getShort(i))
+          case _: IntegerType => row.setInt(i, getInt(i))
+          case _: LongType => row.setLong(i, getLong(i))
+          case _: FloatType => row.setFloat(i, getFloat(i))
+          case _: DoubleType => row.setDouble(i, getDouble(i))
+          case _: StringType => row.update(i, getUTF8String(i).copy())
+          case _: BinaryType => row.update(i, getBinary(i))
+          case t: DecimalType => row.setDecimal(i, getDecimal(i, t.precision, t.scale), t.precision)
+          case _: DateType => row.setInt(i, getInt(i))
+          case _: TimestampType => row.setLong(i, getLong(i))
+          case s: StructType => row.update(i, getStruct(i, s.fields.length).copy())
+          case _: ArrayType => row.update(i, getArray(i).copy())
+          case _: MapType => row.update(i, getMap(i).copy())
+          case _ => throw new RuntimeException(s"Not implemented. $dt")
         }
       }
       i += 1
@@ -119,22 +119,22 @@ final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector])
     columns(ordinal).getMap(rowId)
 
   override def get(ordinal: Int, dataType: DataType): Any = dataType match {
-    case _: BooleanType   => getBoolean(ordinal)
-    case _: ByteType      => getByte(ordinal)
-    case _: ShortType     => getShort(ordinal)
-    case _: IntegerType   => getInt(ordinal)
-    case _: LongType      => getLong(ordinal)
-    case _: FloatType     => getFloat(ordinal)
-    case _: DoubleType    => getDouble(ordinal)
-    case _: StringType    => getUTF8String(ordinal)
-    case _: BinaryType    => getBinary(ordinal)
-    case t: DecimalType   => getDecimal(ordinal, t.precision, t.scale)
-    case _: DateType      => getInt(ordinal)
+    case _: BooleanType => getBoolean(ordinal)
+    case _: ByteType => getByte(ordinal)
+    case _: ShortType => getShort(ordinal)
+    case _: IntegerType => getInt(ordinal)
+    case _: LongType => getLong(ordinal)
+    case _: FloatType => getFloat(ordinal)
+    case _: DoubleType => getDouble(ordinal)
+    case _: StringType => getUTF8String(ordinal)
+    case _: BinaryType => getBinary(ordinal)
+    case t: DecimalType => getDecimal(ordinal, t.precision, t.scale)
+    case _: DateType => getInt(ordinal)
     case _: TimestampType => getLong(ordinal)
-    case _: ArrayType     => getArray(ordinal)
-    case s: StructType    => getStruct(ordinal, s.fields.length)
-    case _: MapType       => getMap(ordinal)
-    case _                => throw new UnsupportedOperationException(s"Datatype not supported $dataType")
+    case _: ArrayType => getArray(ordinal)
+    case s: StructType => getStruct(ordinal, s.fields.length)
+    case _: MapType => getMap(ordinal)
+    case _ => throw new UnsupportedOperationException(s"Datatype not supported $dataType")
   }
 
   override def update(ordinal: Int, value: Any): Unit = {

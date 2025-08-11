@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.execution
 
 import org.apache.gluten.expression.SpecializedGettersGetVariantCompatible
+
 import org.apache.spark.sql.catalyst.InternalRow
 
-/**
- * An internal-row base implementation that is compatible with both Spark 3.x and 4.x.
- */
-abstract class InternalRowGetVariantCompatible extends InternalRow with SpecializedGettersGetVariantCompatible {
+/** An internal-row base implementation that is compatible with both Spark 3.x and 4.x. */
+abstract class InternalRowGetVariantCompatible
+  extends InternalRow
+  with SpecializedGettersGetVariantCompatible {
   override def getVariant(ordinal: Int): Nothing = throw new UnsupportedOperationException()
 }
