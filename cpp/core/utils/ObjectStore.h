@@ -32,7 +32,7 @@ namespace gluten {
 // for the object in the store.
 using StoreHandle = int32_t;
 using ObjectHandle = int64_t;
-constexpr static ObjectHandle kInvalidObjectHandle = -1;
+static constexpr ObjectHandle kInvalidObjectHandle = -1;
 
 template <typename T>
 struct SafeSizeOf {
