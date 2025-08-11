@@ -696,8 +696,10 @@ class Spark35Shims extends SparkShims {
         Some(timestampDiff.unit)
       case _ => Option.empty
     }
+  }
 
   override def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType = {
     DecimalPrecision.widerDecimalType(d1, d2)
   }
+
 }
