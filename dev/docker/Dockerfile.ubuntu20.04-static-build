@@ -16,8 +16,8 @@
 FROM ubuntu:20.04
 
 RUN apt-get update && apt-get -y upgrade && apt-get install -y software-properties-common && add-apt-repository -y ppa:ubuntu-toolchain-r/test
-RUN apt-get update && apt remove gcc-9 g++-9 && \
-    apt autoremove && apt-get install -y gcc-11 g++-11 && \
+RUN apt-get update && apt remove gcc-9 g++-9
+RUN apt autoremove && apt-get install -y gcc-11 g++-11 && \
     ln -s /usr/bin/gcc-11 /usr/bin/gcc && \
     ln -s /usr/bin/g++-11 /usr/bin/g++ && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 && \
