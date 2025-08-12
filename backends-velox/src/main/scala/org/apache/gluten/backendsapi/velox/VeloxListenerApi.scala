@@ -68,6 +68,15 @@ class VeloxListenerApi extends ListenerApi with Logging {
           s"${COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key} should be enabled together.")
     }
 
+    if (
+      conf.get(COLUMNAR_VELOX_CACHE_ENABLED) &&
+      !conf.get(GLUTEN_SOFT_AFFINITY_ENABLED)
+    ) {
+      logWarning(
+        s"It's recommened to enable ${GLUTEN_SOFT_AFFINITY_ENABLED.key} when " +
+          s"${COLUMNAR_VELOX_CACHE_ENABLED.key} is set to get better locality.")
+    }
+
     if (conf.get(COLUMNAR_VELOX_CACHE_ENABLED) && conf.get(LOAD_QUANTUM) > 8 * 1024 * 1024) {
       throw new IllegalArgumentException(
         s"Velox currently only support up to 8MB load quantum size " +

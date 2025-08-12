@@ -100,7 +100,8 @@ object VeloxConfig {
   val COLUMNAR_VELOX_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
       .internal()
-      .doc("Enable Velox cache, default off")
+      .doc("Enable Velox cache, default off. It's recommended to enable" +
+        "soft-affinity as well when enable velox cache.")
       .booleanConf
       .createWithDefault(false)
 
