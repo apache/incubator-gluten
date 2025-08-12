@@ -28,7 +28,7 @@ public abstract class VeloxBackendTestBase {
 
   @BeforeClass
   public static void setup() {
-    new TestSparkSession(MockVeloxBackend.mockPluginContext().conf());
+    TestSparkSession.builder().config(MockVeloxBackend.mockPluginContext().conf()).getOrCreate();
     API.onExecutorStart(MockVeloxBackend.mockPluginContext());
   }
 
