@@ -476,17 +476,19 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(false)
 
-  val DIRECTORY_SIZE_GUESS =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
+  val FOOTER_ESTIMATED_SIZE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
       .internal()
-      .doc("Set the directory size guess for velox file scan")
+      .doc("Set the footer estimated size for velox file scan, " +
+        "refer to Velox's footer-estimated-size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32KB")
 
   val FILE_PRELOAD_THRESHOLD =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold")
       .internal()
-      .doc("Set the file preload threshold for velox file scan")
+      .doc("Set the file preload threshold for velox file scan, " +
+        "refer to Velox's file-preload-threshold")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
