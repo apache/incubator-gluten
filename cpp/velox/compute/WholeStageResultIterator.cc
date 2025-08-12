@@ -602,7 +602,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     };
     setIfExists(kQueryTraceEnabled, velox::core::QueryConfig::kQueryTraceEnabled);
     setIfExists(kQueryTraceDir, velox::core::QueryConfig::kQueryTraceDir);
-    setIfExists(kQueryTraceNodeIds, velox::core::QueryConfig::kQueryTraceNodeIds);
     setIfExists(kQueryTraceMaxBytes, velox::core::QueryConfig::kQueryTraceMaxBytes);
     setIfExists(kQueryTraceTaskRegExp, velox::core::QueryConfig::kQueryTraceTaskRegExp);
     setIfExists(kOpTraceDirectoryCreateConfig, velox::core::QueryConfig::kOpTraceDirectoryCreateConfig);
