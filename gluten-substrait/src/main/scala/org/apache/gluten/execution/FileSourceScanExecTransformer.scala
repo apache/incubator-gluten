@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -128,7 +129,7 @@ abstract class FileSourceScanExecTransformerBase(
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
       requiredSchema,
-      dynamicallySelectedPartitions,
+      getPartitionArray(),
       output,
       bucketedScan,
       optionalBucketSet,
@@ -212,6 +213,14 @@ abstract class FileSourceScanExecTransformerBase(
     redact(
       s"$nodeNamePrefix$nodeName${truncatedString(output, "[", ",", "]", maxFields)}$metadataStr" +
         s" $nativeFiltersString")
+  }
+
+  // Required for Spark 4.0 to implement a trait method.
+  // The "override" keyword is omitted to maintain compatibility with earlier Spark versions.
+  def getStream: Option[SparkDataStream] = {
+    throw new UnsupportedOperationException(
+      "not supported on streaming"
+    )
   }
 }
 
