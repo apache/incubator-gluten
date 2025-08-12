@@ -20,6 +20,7 @@ import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
 import org.apache.gluten.table.runtime.keyselector.GlutenKeySelector;
+import org.apache.gluten.table.runtime.operators.GlutenValuesSourceFunction;
 import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.table.runtime.operators.GlutenVectorSourceFunction;
 import org.apache.gluten.table.runtime.operators.GlutenVectorTwoInputOperator;
@@ -194,13 +195,27 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
     if (allGluten) {
       if (sourceOperator instanceof GlutenStreamSource) {
         GlutenStreamSource streamSource = (GlutenStreamSource) sourceOperator;
-        taskConfig.setStreamOperator(
-            new GlutenStreamSource(
-                new GlutenVectorSourceFunction(
-                    sourceNode,
-                    nodeToOutTypes,
-                    sourceOperator.getId(),
-                    streamSource.getConnectorSplit())));
+        GlutenVectorSourceFunction sourceFunction = streamSource.getSourceFunction();
+        if (sourceFunction instanceof GlutenValuesSourceFunction) {
+          GlutenValuesSourceFunction valuesSource = (GlutenValuesSourceFunction) sourceFunction;
+          taskConfig.setStreamOperator(
+              new GlutenStreamSource(
+                  new GlutenValuesSourceFunction(
+                      sourceNode,
+                      nodeToOutTypes,
+                      sourceOperator.getId(),
+                      streamSource.getConnectorSplit(),
+                      valuesSource.getValueType(),
+                      valuesSource.getValues())));
+        } else {
+          taskConfig.setStreamOperator(
+              new GlutenStreamSource(
+                  new GlutenVectorSourceFunction(
+                      sourceNode,
+                      nodeToOutTypes,
+                      sourceOperator.getId(),
+                      streamSource.getConnectorSplit())));
+        }
       } else if (sourceOperator instanceof GlutenVectorTwoInputOperator) {
         GlutenVectorTwoInputOperator twoInputOperator =
             (GlutenVectorTwoInputOperator) sourceOperator;

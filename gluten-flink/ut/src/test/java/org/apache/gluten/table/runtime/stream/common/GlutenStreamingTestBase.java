@@ -16,21 +16,31 @@
  */
 package org.apache.gluten.table.runtime.stream.common;
 
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GlutenStreamingTestBase extends StreamingTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(GlutenStreamingTestBase.class);
@@ -47,7 +57,7 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
    */
   protected void createSimpleBoundedValuesTable(String tableName, String schema, List<Row> rows) {
     String myTableDataId = TestValuesTableFactory.registerData(rows);
-    String table =
+    String sourceTable =
         "CREATE TABLE "
             + tableName
             + "(\n"
@@ -59,7 +69,28 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
             + String.format(" 'data-id' = '%s',\n", myTableDataId)
             + " 'nested-projection-supported' = 'true'\n"
             + ")";
-    tEnv().executeSql(table);
+    tEnv().executeSql(sourceTable);
+  }
+
+  protected void createPrintSinkTable(String tableName, ResolvedSchema schema) {
+    List<Column> cols = schema.getColumns();
+    StringBuilder schemaBuilder = new StringBuilder();
+    for (int i = 0; i < cols.size(); ++i) {
+      Column col = cols.get(i);
+      schemaBuilder.append(col.getName()).append(" ").append(col.getDataType().toString());
+      if (i != cols.size() - 1) {
+        schemaBuilder.append(",");
+      }
+    }
+    String sinkTable =
+        "CREATE TABLE "
+            + tableName
+            + "(\n"
+            + schemaBuilder.toString()
+            + "\n"
+            + ") WITH (\n"
+            + " 'connector' = 'print')";
+    tEnv().executeSql(sinkTable);
   }
 
   // Return the execution plan represented by StreamEexcNode
@@ -75,10 +106,43 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
   }
 
   protected void runAndCheck(String query, List<String> expected) {
-    List<String> actual =
-        CollectionUtil.iteratorToList(tEnv().executeSql(query).collect()).stream()
-            .map(Object::toString)
-            .collect(Collectors.toList());
-    assertThat(actual).isEqualTo(expected);
+    String printResultDirPath = System.getProperty("user.dir") + "/log/";
+    tEnv().getConfig().set(CoreOptions.FLINK_LOG_DIR, printResultDirPath);
+    String printResultFilePath = String.format("%s%s", printResultDirPath, "taskmanager.out");
+    File printResultFile = new File(printResultFilePath);
+    boolean deleteResultFile = true;
+    if (printResultFile.exists()) {
+      deleteResultFile = printResultFile.delete();
+    }
+    Table table = tEnv().sqlQuery(query);
+    createPrintSinkTable("printT", table.getResolvedSchema());
+    String newQuery = String.format("insert into %s %s", "printT", query);
+    TableResult tableResult = tEnv().executeSql(newQuery);
+    assertTrue(tableResult.getJobClient().isPresent());
+    try {
+      JobClient jobClient = tableResult.getJobClient().get();
+      if (deleteResultFile) {
+        try {
+          while (!jobClient.getJobStatus().get().equals(JobStatus.FINISHED)) {
+            Thread.sleep(10);
+          }
+        } finally {
+
+        }
+      }
+      List<String> result = new ArrayList<>();
+      try (FileReader fr = new FileReader(printResultFile);
+          BufferedReader br = new BufferedReader(fr)) {
+        String line = null;
+        while ((line = br.readLine()) != null) {
+          result.add(line);
+        }
+      }
+      assertThat(result).isEqualTo(expected);
+    } catch (Exception e) {
+      throw new FlinkRuntimeException(e);
+    } finally {
+      tEnv().executeSql("drop table if exists printT");
+    }
   }
 }

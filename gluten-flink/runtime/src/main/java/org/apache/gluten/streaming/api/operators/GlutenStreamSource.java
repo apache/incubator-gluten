@@ -45,6 +45,10 @@ public class GlutenStreamSource extends StreamSource implements GlutenOperator {
     return sourceFunction.getPlanNode();
   }
 
+  public GlutenVectorSourceFunction getSourceFunction() {
+    return sourceFunction;
+  }
+
   @Override
   public RowType getInputType() {
     return null;
