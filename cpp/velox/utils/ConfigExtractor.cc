@@ -226,8 +226,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
       conf->get<std::string>(kPrefetchRowGroups, "1");
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kLoadQuantum] =
       conf->get<std::string>(kLoadQuantum, "268435456"); // 256M
-  auto footerEstimatedSize =
-      conf->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
+  auto footerEstimatedSize = conf->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kFooterEstimatedSize] =
       conf->get<std::string>(kFooterEstimatedSize, footerEstimatedSize); // 32K
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kFilePreloadThreshold] =

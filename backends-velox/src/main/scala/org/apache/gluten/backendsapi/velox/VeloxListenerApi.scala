@@ -75,7 +75,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
           s"User can set ${LOAD_QUANTUM.key} <= 8MB skip this error.")
     }
 
-    if (conf.get(DIRECTORY_SIZE_GUESS) < 0) {
+    if (conf.get(DIRECTORY_SIZE_GUESS)) {
       logWarning(
         s"${DIRECTORY_SIZE_GUESS.key} is Deprecated " +
           s"replacing it with ${FOOTER_ESTIMATED_SIZE.key} instead.")
