@@ -476,6 +476,13 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val DIRECTORY_SIZE_GUESS =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
+      .internal()
+      .doc("Deprecated, rename to spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("32KB")
+
   val FOOTER_ESTIMATED_SIZE =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
       .internal()
