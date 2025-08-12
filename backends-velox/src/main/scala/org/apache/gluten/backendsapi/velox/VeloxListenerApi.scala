@@ -76,9 +76,9 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     if (conf.get(DIRECTORY_SIZE_GUESS) < 0) {
-        logWarning(
-          s"${DIRECTORY_SIZE_GUESS.key} is Deprecated " +
-            s"replacing it with ${FOOTER_ESTIMATED_SIZE.key} instead.")
+      logWarning(
+        s"${DIRECTORY_SIZE_GUESS.key} is Deprecated " +
+          s"replacing it with ${FOOTER_ESTIMATED_SIZE.key} instead.")
     }
 
     // Generate HDFS client configurations.
