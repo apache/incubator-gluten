@@ -21,7 +21,7 @@ import org.apache.gluten.substrait.`type`.ListNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Expression, StructsToJson}
 
 import com.google.common.collect.Lists
 
@@ -51,5 +51,16 @@ case class JsonTupleExpressionTransformer(
       case _ =>
         ExpressionBuilder.makeScalarFunction(functionId, expressNodes, typeNode)
     }
+  }
+}
+
+case class ToJsonTransformer(
+    substraitExprName: String,
+    child: ExpressionTransformer,
+    original: StructsToJson)
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = {
+    val timeZoneId = original.timeZoneId.map(timeZoneId => LiteralTransformer(timeZoneId))
+    Seq(child) ++ timeZoneId
   }
 }
