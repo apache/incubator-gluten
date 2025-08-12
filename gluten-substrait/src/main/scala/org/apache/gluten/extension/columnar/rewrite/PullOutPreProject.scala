@@ -265,6 +265,10 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
               expressionMap,
               replaceBoundReference = false,
               replaceLiteral = false)))
+
+      // Force evaluation so expressionMap gets populated
+      newProjections.foreach(_.length)
+
       val newProject = ProjectExec(
         eliminateProjectList(expand.child.outputSet, expressionMap.values.toSeq),
         expand.child)
