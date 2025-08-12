@@ -81,12 +81,7 @@ class ObjectStore {
  private:
   static ResourceMap<ObjectStore*>& stores();
 
-  static std::pair<ObjectStore*, ResourceHandle> lookup(ObjectHandle handle) {
-    ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(ResourceHandle) * 8));
-    ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::max());
-    auto store = stores().lookup(storeId);
-    return {store, resourceId};
-  };
+  static std::pair<ObjectStore*, ResourceHandle> lookup(ObjectHandle handle);
 
   struct ObjectDebugInfo {
     const std::string_view typeName;
