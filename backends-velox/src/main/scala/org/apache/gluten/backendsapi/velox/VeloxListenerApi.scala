@@ -70,10 +70,10 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     if (
       conf.get(COLUMNAR_VELOX_CACHE_ENABLED) &&
-      !conf.get(GLUTEN_SOFT_AFFINITY_ENABLED)
+      !conf.get(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED)
     ) {
       logWarning(
-        s"It's recommened to enable ${GLUTEN_SOFT_AFFINITY_ENABLED.key} when " +
+        s"It's recommened to enable ${GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED.key} when " +
           s"${COLUMNAR_VELOX_CACHE_ENABLED.key} is set to get better locality.")
     }
 
