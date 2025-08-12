@@ -35,7 +35,6 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
-import org.apache.spark.sql.connector.catalog.functions.Reducer
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution._
@@ -252,8 +251,7 @@ trait SparkShims {
       commonPartitionValues: Option[Seq[(InternalRow, Int)]],
       applyPartialClustering: Boolean,
       replicatePartitions: Boolean,
-      joinKeyPositions: Option[Seq[Int]] = None,
-      reducers: Option[Seq[Option[Reducer[_, _]]]] = None): Seq[Seq[InputPartition]] =
+      joinKeyPositions: Option[Seq[Int]] = None): Seq[Seq[InputPartition]] =
     filteredPartitions
 
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =

@@ -42,7 +42,6 @@ import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, InternalRowComparableWrapper, TimestampFormatter}
 import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
 import org.apache.spark.sql.connector.catalog.Table
-import org.apache.spark.sql.connector.catalog.functions.Reducer
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.execution._
@@ -471,8 +470,7 @@ class Spark40Shims extends SparkShims {
       commonPartitionValues: Option[Seq[(InternalRow, Int)]],
       applyPartialClustering: Boolean,
       replicatePartitions: Boolean,
-      joinKeyPositions: Option[Seq[Int]] = None,
-      reducers: Option[Seq[Option[Reducer[_, _]]]] = None): Seq[Seq[InputPartition]] = {
+      joinKeyPositions: Option[Seq[Int]] = None): Seq[Seq[InputPartition]] = {
     scan match {
       case _ if keyGroupedPartitioning.isDefined =>
         var finalPartitions = filteredPartitions
@@ -507,20 +505,8 @@ class Spark40Shims extends SparkShims {
             }
 
             // Also re-group the partitions if we are reducing compatible partition expressions
-            val finalGroupedPartitions = reducers match {
-              case Some(reducers) =>
-                val result = groupedPartitions
-                  .groupBy {
-                    case (row, _) =>
-                      KeyGroupedShuffleSpec.reducePartitionValue(row, partExpressions, reducers)
-                  }
-                  .map { case (wrapper, splits) => (wrapper.row, splits.flatMap(_._2)) }
-                  .toSeq
-                val rowOrdering =
-                  RowOrdering.createNaturalAscendingOrdering(partExpressions.map(_.dataType))
-                result.sorted(rowOrdering.on((t: (InternalRow, _)) => t._1))
-              case _ => groupedPartitions
-            }
+            // TODO: Respect Reducer settings?
+            val finalGroupedPartitions = groupedPartitions
 
             // When partially clustered, the input partitions are not grouped by partition
             // values. Here we'll need to check `commonPartitionValues` and decide how to group
@@ -709,4 +695,5 @@ class Spark40Shims extends SparkShims {
   override def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType = {
     DecimalPrecisionTypeCoercion.widerDecimalType(d1, d2)
   }
+
 }
