@@ -32,6 +32,7 @@ import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.util.SparkVersionUtil
 import org.apache.spark.util.collection.BitSet
 
 import org.apache.commons.lang3.StringUtils
@@ -107,6 +108,16 @@ abstract class FileSourceScanExecTransformerBase(
       ExpressionConverter.canReplaceWithExpressionTransformer(
         ExpressionConverter.replaceAttributeReference(expr),
         output)
+  }
+
+  override def dataFiltersInScan: Seq[Expression] = {
+    if (SparkVersionUtil.gteSpark35) {
+      dataFilters.filterNot(_.references.exists {
+        attr => BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)
+      })
+    } else {
+      super.dataFiltersInScan
+    }
   }
 
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
