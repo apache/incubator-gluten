@@ -43,7 +43,8 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarShuffle, NeedCustomColumnarBatchSerializer {
+public class CelebornShuffleManager
+    implements ShuffleManager, SupportsColumnarShuffle, NeedCustomColumnarBatchSerializer {
 
   private static final Logger logger = LoggerFactory.getLogger(CelebornShuffleManager.class);
 
@@ -85,20 +86,25 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
     }
     writerFactory = factoryMap.get(backendName);
 
-    final ServiceLoader<CelebornColumnarBatchSerializerFactory> celebornColumnarBatchSerializerFactoriesLoader =
+    final ServiceLoader<CelebornColumnarBatchSerializerFactory>
+        celebornColumnarBatchSerializerFactoriesLoader =
             ServiceLoader.load(CelebornColumnarBatchSerializerFactory.class);
     final List<CelebornColumnarBatchSerializerFactory> columnarBatchSerializerFactoryList =
-            Arrays.stream(Iterators.toArray(celebornColumnarBatchSerializerFactoriesLoader.iterator(), CelebornColumnarBatchSerializerFactory.class))
-                    .collect(Collectors.toList());
+        Arrays.stream(
+                Iterators.toArray(
+                    celebornColumnarBatchSerializerFactoriesLoader.iterator(),
+                    CelebornColumnarBatchSerializerFactory.class))
+            .collect(Collectors.toList());
     Preconditions.checkState(
-            !columnarBatchSerializerFactoryList.isEmpty(), "No factory found for Celeborn columnar batch serializer");
+        !columnarBatchSerializerFactoryList.isEmpty(),
+        "No factory found for Celeborn columnar batch serializer");
     final Map<String, CelebornColumnarBatchSerializerFactory> columanrBatchSerilizerFactoryMap =
-            columnarBatchSerializerFactoryList.stream()
-                    .collect(Collectors.toMap(CelebornColumnarBatchSerializerFactory::backendName, f -> f));
+        columnarBatchSerializerFactoryList.stream()
+            .collect(Collectors.toMap(CelebornColumnarBatchSerializerFactory::backendName, f -> f));
 
     if (!columanrBatchSerilizerFactoryMap.containsKey(backendName)) {
       throw new UnsupportedOperationException(
-              "No Celeborn columnar batch serializer writer factory found for backend " + backendName);
+          "No Celeborn columnar batch serializer writer factory found for backend " + backendName);
     }
     columnarBatchSerializerFactory = columanrBatchSerilizerFactoryMap.get(backendName);
   }

@@ -23,8 +23,10 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializer}
+import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
+
 import org.apache.spark.{ShuffleDependency, SparkEnv, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
 import org.apache.spark.memory.SparkMemoryUtil
@@ -53,10 +55,11 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
+
 import org.apache.commons.lang3.ClassUtils
-import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 
 import javax.ws.rs.core.UriBuilder
+
 import java.util.Locale
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
