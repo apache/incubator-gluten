@@ -18,14 +18,14 @@
 set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-SUDO=""
+SUDO="sudo env 'PATH=$PATH' "
 source ${CURRENT_DIR}/build_helper_functions.sh
 VELOX_ARROW_BUILD_VERSION=15.0.0
 ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
 BUILD_TYPE=Release
 
 function prepare_arrow_build() {
-  mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && sudo rm -rf arrow_ep/
+  mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && ${SUDO} rm -rf arrow_ep/
   wget_and_untar https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${VELOX_ARROW_BUILD_VERSION}/.tar.gz arrow_ep
   #wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
   cd arrow_ep
@@ -69,7 +69,7 @@ function build_arrow_cpp() {
 
  # Install thrift.
  cd _build/thrift_ep-prefix/src/thrift_ep-build
- sudo --preserve-env cmake --install ./ --prefix /usr/local/
+ ${SUDO} cmake --install ./ --prefix /usr/local/
  popd
 }
 
