@@ -143,4 +143,15 @@ public class Utils {
             .collect(Collectors.toList());
     return new CallTypedExpr(new BooleanType(), equals, "and");
   }
+
+  public static List<FieldAccessTypedExpr> generateFieldAccesses(
+      io.github.zhztheplayer.velox4j.type.RowType inputType, int[] groupings) {
+    List<FieldAccessTypedExpr> groupingKeys = new ArrayList<>(groupings.length);
+    for (int grouping : groupings) {
+      groupingKeys.add(
+          FieldAccessTypedExpr.create(
+              inputType.getChildren().get(grouping), inputType.getNames().get(grouping)));
+    }
+    return groupingKeys;
+  }
 }

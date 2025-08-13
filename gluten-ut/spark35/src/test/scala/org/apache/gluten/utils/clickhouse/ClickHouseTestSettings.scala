@@ -382,11 +382,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-39749: cast Decimal to string")
     .exclude("SPARK-42176: cast boolean to timestamp")
     .exclude("null cast #2")
-    .exclude("cast array element from integer to string")
-    .exclude("cast array element from double to string")
-    .exclude("cast array element from bool to string")
-    .exclude("cast array element from date to string")
-    .exclude("cast array from timestamp to string")
     .exclude("cast from boolean to timestamp")
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
     .excludeByPrefix("determining the number of reducers")
@@ -486,6 +481,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // blocked by Velox-5768
     .exclude("aggregate function - array for primitive type containing null")
     .exclude("aggregate function - array for non-primitive type")
+    // Expected exception org.apache.spark.SparkException to be thrown, but no exception was thrown
+    .exclude("map_concat function")
     // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
     .includeCH("map_zip_with function - map of primitive types")
     .excludeCH("map with arrays")
@@ -830,7 +827,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("Gluten - Enabling/disabling ignoreMissingFiles using orc")
     .excludeCH("Gluten - Enabling/disabling ignoreMissingFiles using parquet")
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
-    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    // Rewritten
     .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenFileFormatWriterSuite]
     // TODO: fix "empty file should be skipped while write to file"

@@ -1051,6 +1051,16 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("Test map_concat") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
+        (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select map_concat(map(1, 'a', 2, 'b'), map(3, null)), map_concat()"
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("Test transform_keys/transform_values") {
     val sql =
       """

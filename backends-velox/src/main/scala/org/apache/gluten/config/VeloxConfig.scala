@@ -68,6 +68,9 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
 
   def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
+
+  def enableRewriteCastArrayToString: Boolean =
+    getConf(ENABLE_REWRITE_CAST_ARRAY_TO_STRING)
 }
 
 object VeloxConfig {
@@ -647,4 +650,12 @@ object VeloxConfig {
           " with `--enable_jemalloc_stats=ON`.")
       .booleanConf
       .createWithDefault(false)
+
+  val ENABLE_REWRITE_CAST_ARRAY_TO_STRING =
+    buildConf("spark.gluten.sql.rewrite.castArrayToString")
+      .internal()
+      .doc("When true, rewrite `cast(array as String)` to" +
+        " `concat('[', array_join(array, ', ', null), ']')` to allow offloading to Velox.")
+      .booleanConf
+      .createWithDefault(true)
 }

@@ -441,8 +441,6 @@ object GlutenConfig {
   val GLUTEN_IAA_BACKEND_NAME = "iaa"
   val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("gzip")
 
-  private val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
-
   // Private Spark configs.
   val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
   val SPARK_OVERHEAD_FACTOR_KEY = "spark.executor.memoryOverheadFactor"
@@ -458,9 +456,57 @@ object GlutenConfig {
     new GlutenConfig(SQLConf.get)
   }
 
-  def prefixOf(backendName: String): String = {
-    GLUTEN_CONFIG_PREFIX + backendName
-  }
+  def prefixOf(backendName: String): String = s"spark.gluten.sql.columnar.backend.$backendName"
+
+  private lazy val nativeKeys = Set(
+    DEBUG_ENABLED.key,
+    BENCHMARK_SAVE_DIR.key,
+    GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
+    COLUMNAR_MAX_BATCH_SIZE.key,
+    SHUFFLE_WRITER_BUFFER_SIZE.key,
+    SQLConf.LEGACY_SIZE_OF_NULL.key,
+    SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
+    SQLConf.JSON_GENERATOR_IGNORE_NULL_FIELDS.key,
+    "spark.io.compression.codec",
+    "spark.sql.decimalOperations.allowPrecisionLoss",
+    "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
+    "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits",
+    "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits",
+    // s3 config
+    SPARK_S3_ACCESS_KEY,
+    SPARK_S3_SECRET_KEY,
+    SPARK_S3_ENDPOINT,
+    SPARK_S3_CONNECTION_SSL_ENABLED,
+    SPARK_S3_PATH_STYLE_ACCESS,
+    SPARK_S3_USE_INSTANCE_CREDENTIALS,
+    SPARK_S3_IAM,
+    SPARK_S3_IAM_SESSION_NAME,
+    SPARK_S3_RETRY_MAX_ATTEMPTS,
+    SPARK_S3_CONNECTION_MAXIMUM,
+    SPARK_S3_ENDPOINT_REGION,
+    "spark.gluten.velox.fs.s3a.connect.timeout",
+    "spark.gluten.velox.fs.s3a.retry.mode",
+    "spark.gluten.velox.awsSdkLogLevel",
+    "spark.gluten.velox.s3UseProxyFromEnv",
+    "spark.gluten.velox.s3PayloadSigningPolicy",
+    "spark.gluten.velox.s3LogLocation",
+    // gcs config
+    SPARK_GCS_STORAGE_ROOT_URL,
+    SPARK_GCS_AUTH_TYPE,
+    SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
+    SPARK_REDACTION_REGEX,
+    "spark.gluten.sql.columnar.backend.velox.queryTraceEnabled",
+    "spark.gluten.sql.columnar.backend.velox.queryTraceDir",
+    "spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds",
+    "spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes",
+    "spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp",
+    "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig",
+    "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace",
+    "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace",
+    "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
+    "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
+    "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
+  )
 
   /**
    * Get dynamic configs.
@@ -471,55 +517,7 @@ object GlutenConfig {
       backendName: String,
       conf: Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
-    val keys = Set(
-      DEBUG_ENABLED.key,
-      BENCHMARK_SAVE_DIR.key,
-      GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
-      COLUMNAR_MAX_BATCH_SIZE.key,
-      SHUFFLE_WRITER_BUFFER_SIZE.key,
-      SQLConf.LEGACY_SIZE_OF_NULL.key,
-      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
-      "spark.io.compression.codec",
-      "spark.sql.decimalOperations.allowPrecisionLoss",
-      "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
-      "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits",
-      "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits",
-      // s3 config
-      SPARK_S3_ACCESS_KEY,
-      SPARK_S3_SECRET_KEY,
-      SPARK_S3_ENDPOINT,
-      SPARK_S3_CONNECTION_SSL_ENABLED,
-      SPARK_S3_PATH_STYLE_ACCESS,
-      SPARK_S3_USE_INSTANCE_CREDENTIALS,
-      SPARK_S3_IAM,
-      SPARK_S3_IAM_SESSION_NAME,
-      SPARK_S3_RETRY_MAX_ATTEMPTS,
-      SPARK_S3_CONNECTION_MAXIMUM,
-      SPARK_S3_ENDPOINT_REGION,
-      "spark.gluten.velox.fs.s3a.connect.timeout",
-      "spark.gluten.velox.fs.s3a.retry.mode",
-      "spark.gluten.velox.awsSdkLogLevel",
-      "spark.gluten.velox.s3UseProxyFromEnv",
-      "spark.gluten.velox.s3PayloadSigningPolicy",
-      "spark.gluten.velox.s3LogLocation",
-      // gcs config
-      SPARK_GCS_STORAGE_ROOT_URL,
-      SPARK_GCS_AUTH_TYPE,
-      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
-      SPARK_REDACTION_REGEX,
-      "spark.gluten.sql.columnar.backend.velox.queryTraceEnabled",
-      "spark.gluten.sql.columnar.backend.velox.queryTraceDir",
-      "spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds",
-      "spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes",
-      "spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp",
-      "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig",
-      "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace",
-      "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace",
-      "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
-      "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
-      "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
-    )
-    nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
+    nativeConfMap.putAll(conf.filter(e => nativeKeys.contains(e._1)).asJava)
 
     val keyWithDefault = ImmutableList.of(
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),

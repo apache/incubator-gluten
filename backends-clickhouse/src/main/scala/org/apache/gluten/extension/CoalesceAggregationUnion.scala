@@ -506,6 +506,7 @@ case class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPla
     }
 
     override def doValidate(): Boolean = {
+      originalAggregate.groupingExpressions.nonEmpty &&
       !hasAggregateWithFilter &&
       constructedAggregatePlan.isDefined &&
       aggregateResultMatchedGroupingKeysPositions.forall(_ >= 0) &&

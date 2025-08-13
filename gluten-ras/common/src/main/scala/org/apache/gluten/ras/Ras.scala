@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.ras
 
-import org.apache.gluten.ras.property.{MemoRole, PropertySet, PropertySetFactory}
-import org.apache.gluten.ras.property.MemoRole.PropertySetFactoryWithMemoRole
+import org.apache.gluten.ras.property.{PropertySet, PropertySetFactory}
+import org.apache.gluten.ras.property.role.MemoRoleAwarePropertySet
 import org.apache.gluten.ras.rule.{EnforcerRuleFactory, RasRule}
 
 /**
@@ -49,16 +49,16 @@ class Ras[T <: AnyRef] private (
     val explain: RasExplain[T],
     val ruleFactory: RasRule.Factory[T])
   extends Optimization[T] {
+
   import Ras._
 
-  private val propSetFactory: PropertySetFactoryWithMemoRole[T] = {
-    val memoRoleDef: MemoRole.Def[T] = MemoRole.newDef(planModel)
-    val baseFactory = PropertySetFactory(propertyModel, planModel)
-    MemoRole.wrapPropertySetFactory(baseFactory, memoRoleDef)
+  private val propSetFactory: PropertySetFactory[T] = {
+    PropertySetFactory(propertyModel, planModel)
   }
+
   // Normal groups start with ID 0, so it's safe to use Int.MinValue to do validation.
   private val dummyGroup: T =
-    newGroupLeaf(Int.MinValue, metadataModel.dummy(), propSetFactory.any())
+    newGroupLeaf(Int.MinValue, metadataModel.dummy(), MemoRoleAwarePropertySet.HubConstraintSet())
   private val infCost: Cost = costModel.makeInfCost()
 
   validateModels()
@@ -111,12 +111,12 @@ class Ras[T <: AnyRef] private (
   }
 
   private[ras] def withUserConstraint(from: PropertySet[T]): PropertySet[T] = {
-    from +: propSetFactory.userConstraint()
+    MemoRoleAwarePropertySet.UserConstraintSet(from)
   }
 
-  private[ras] def userConstraintSet(): PropertySet[T] = propSetFactory.userConstraintSet()
+  private[ras] def userConstraintSet(): PropertySet[T] = propSetFactory.any()
 
-  private[ras] def hubConstraintSet(): PropertySet[T] = propSetFactory.hubConstraintSet()
+  private[ras] def hubConstraintSet(): PropertySet[T] = MemoRoleAwarePropertySet.HubConstraintSet()
 
   private[ras] def propSetOf(plan: T): PropertySet[T] = {
     propSetFactory.get(plan)
@@ -201,15 +201,18 @@ object Ras {
   private object UnsafeHashKey {
     def apply[T <: AnyRef](ras: Ras[T], self: T): UnsafeHashKey[T] =
       new UnsafeHashKeyImpl(ras, self)
+
     private class UnsafeHashKeyImpl[T <: AnyRef](ras: Ras[T], val self: T)
       extends UnsafeHashKey[T] {
       override def hashCode(): Int = ras.planModel.hashCode(self)
+
       override def equals(other: Any): Boolean = {
         other match {
           case that: UnsafeHashKeyImpl[T] => ras.planModel.equals(self, that.self)
           case _ => false
         }
       }
+
       override def toString: String = ras.explain.describeNode(self)
     }
   }

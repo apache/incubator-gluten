@@ -250,9 +250,14 @@ trait SparkShims {
       outputPartitioning: Partitioning,
       commonPartitionValues: Option[Seq[(InternalRow, Int)]],
       applyPartialClustering: Boolean,
-      replicatePartitions: Boolean): Seq[Seq[InputPartition]] = filteredPartitions
+      replicatePartitions: Boolean,
+      joinKeyPositions: Option[Seq[Int]] = None): Seq[Seq[InputPartition]] =
+    filteredPartitions
 
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
+    Option.empty
+
+  def extractExpressionTimestampDiffUnit(timestampDiff: Expression): Option[String] =
     Option.empty
 
   def withTryEvalMode(expr: Expression): Boolean = false
@@ -311,4 +316,6 @@ trait SparkShims {
   def getCollectLimitOffset(plan: CollectLimitExec): Int = 0
 
   def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = false
+
+  def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType
 }
