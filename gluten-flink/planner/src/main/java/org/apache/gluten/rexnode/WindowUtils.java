@@ -18,6 +18,7 @@ package org.apache.gluten.rexnode;
 
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
+import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
@@ -66,6 +67,8 @@ public class WindowUtils {
     } else if (windowing instanceof WindowAttachedWindowingStrategy) {
       rowtimeIndex = ((WindowAttachedWindowingStrategy) windowing).getWindowEnd();
       windowType = 1;
+    } else if (windowing instanceof SliceAttachedWindowingStrategy) {
+      rowtimeIndex = ((SliceAttachedWindowingStrategy) windowing).getSliceEnd();
     }
     return new Tuple5<Long, Long, Long, Integer, Integer>(
         size, slide, offset, rowtimeIndex, windowType);
