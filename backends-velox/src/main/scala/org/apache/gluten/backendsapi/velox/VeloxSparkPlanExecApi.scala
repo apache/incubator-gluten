@@ -631,26 +631,27 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val deserializeTime = metrics("deserializeTime")
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val decompressTime = metrics("decompressTime")
-    // todo: remove isUseCelebornShuffleManager here
-    if (GlutenConfig.get.isUseCelebornShuffleManager) {
-      val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
-      val constructor =
-        clazz.getConstructor(
-          classOf[StructType],
-          classOf[SQLMetric],
-          classOf[SQLMetric],
-          classOf[ShuffleWriterType])
-      constructor
-        .newInstance(schema, readBatchNumRows, numOutputRows, shuffleWriterType)
-        .asInstanceOf[Serializer]
-    } else {
-      new ColumnarBatchSerializer(
-        schema,
-        readBatchNumRows,
-        numOutputRows,
-        deserializeTime,
-        decompressTime,
-        shuffleWriterType)
+    SparkEnv.get.shuffleManager match {
+      case serializer: NeedCustomColumnarBatchSerializer =>
+        val className = serializer.columnarBatchSerializerClass()
+        val clazz = ClassUtils.getClass(className)
+        val constructor =
+          clazz.getConstructor(
+            classOf[StructType],
+            classOf[SQLMetric],
+            classOf[SQLMetric],
+            classOf[ShuffleWriterType])
+        constructor
+          .newInstance(schema, readBatchNumRows, numOutputRows, shuffleWriterType)
+          .asInstanceOf[Serializer]
+      case _ =>
+        new ColumnarBatchSerializer(
+          schema,
+          readBatchNumRows,
+          numOutputRows,
+          deserializeTime,
+          decompressTime,
+          shuffleWriterType)
     }
   }
 
