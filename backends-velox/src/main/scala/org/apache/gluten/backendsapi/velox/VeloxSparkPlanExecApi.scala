@@ -967,6 +967,20 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     VeloxColumnarToCarrierRowExec.enforce(plan)
   }
 
+  override def genTimestampAddTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    // Since spark 3.3.0
+    val extract =
+      SparkShimLoader.getSparkShims.extractExpressionTimestampAddUnit(original)
+    if (extract.isEmpty) {
+      throw new UnsupportedOperationException(s"Not support expression TimestampAdd.")
+    }
+    TimestampAddTransformer(substraitExprName, extract.get.head, left, right, original)
+  }
+
   override def genTimestampDiffTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,

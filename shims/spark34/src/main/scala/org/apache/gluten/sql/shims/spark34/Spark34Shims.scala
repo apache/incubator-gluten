@@ -627,6 +627,14 @@ class Spark34Shims extends SparkShims {
 
   override def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = unBase64.failOnError
 
+  override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
+    exp match {
+      case timestampAdd: TimestampAdd =>
+        Option.apply(Seq(timestampAdd.unit, timestampAdd.timeZoneId.getOrElse("")))
+      case _ => Option.empty
+    }
+  }
+
   override def extractExpressionTimestampDiffUnit(exp: Expression): Option[String] = {
     exp match {
       case timestampDiff: TimestampDiff =>
