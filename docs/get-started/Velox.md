@@ -7,18 +7,18 @@ parent: Getting-Started
 
 # Supported Version
 
-| Type  | Version                      |
-|-------|------------------------------|
-| Spark | 3.2.2, 3.3.1, 3.4.4, 3.5.2   |
-| OS    | Ubuntu20.04/22.04, Centos7/8 |
-| jdk   | openjdk8/jdk17               |
-| scala | 2.12                         |
+| Type  | Version                                         |
+|-------|-------------------------------------------------|
+| Spark | 3.2.2, 3.3.1, 3.4.4, 3.5.2, 4.0.0(Experimental) |
+| OS    | Ubuntu20.04/22.04, Centos7/8                    |
+| jdk   | openjdk8/jdk17                                  |
+| scala | 2.12                                            |
 
 # Prerequisite
 
 Currently, with static build Gluten+Velox backend supports all the Linux OSes, but is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**. With dynamic build, Gluten+Velox backend support **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8** and their variants.
 
-Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.4 and 3.5.2.
+Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.4, 3.5.2 and 4.0.0(Experimental).
 
 We need to set up the `JAVA_HOME` env. Currently, Gluten supports **java 8** and **java 17**.
 
@@ -100,6 +100,11 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
 # For spark3.5.x
 mvn clean package -Pbackends-velox -Pspark-3.5 -DskipTests
+
+# For spark4.0.x
+# Require jdk17, switch java_home accordingly
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 
+mvn clean package -Pbackends-velox -Pspark-4.0 -Pscala-2.13 -DskipTests
 ```
 
 Notes： Building Velox may fail caused by OOM. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox. The recommended minimal memory size is 64G.
