@@ -117,7 +117,7 @@ function wget_and_untar {
 function cmake_install {
   local NAME=$(basename "$(pwd)")
   local BINARY_DIR=_build
-  SUDO="${SUDO:-"sudo --preserve-env"}"
+  SUDO="${SUDO:-""}"
   if [ -d "${BINARY_DIR}" ] && prompt "Do you want to rebuild ${NAME}?"; then
     ${SUDO} rm -rf "${BINARY_DIR}"
   fi
