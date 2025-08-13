@@ -28,7 +28,7 @@ import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
 
-@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
+@SuppressWarnings(Array("org.wartremover.contrib.warts.CaseClassInheritance"))
 class AddMergeTreeParts(
     val database: String,
     val table: String,

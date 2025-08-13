@@ -195,14 +195,14 @@
                   <compilerPlugin>
                     <groupId>org.wartremover</groupId>
                     <artifactId>wartremover_${scala.binary.version}</artifactId>
-                    <version>3.0.6</version>
+                    <version>3.4.0</version>
                   </compilerPlugin>
                 </compilerPlugins>
                 <dependencies>
                   <dependency>
-                    <groupId>io.github.zhztheplayer.scalawarts</groupId>
-                    <artifactId>scalawarts_${scala.binary.version}</artifactId>
-                    <version>0.1.2</version>
+                    <groupId>org.wartremover</groupId>
+                    <artifactId>wartremover-contrib_${scala.binary.version}</artifactId>
+                    <version>2.3.4</version>
                   </dependency>
                 </dependencies>
                 <recompileMode>${scala.recompile.mode}</recompileMode>
@@ -246,7 +246,7 @@
                   <arg>-Wconf:cat=unchecked&amp;msg=outer reference:s</arg>
                   <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
                   <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
-                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                  <arg>-P:wartremover:traverser:org.wartremover.contrib.warts.CaseClassInheritance</arg>
                 </args>
               </configuration>
               <executions>

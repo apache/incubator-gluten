@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
 import org.apache.spark.sql.delta.{DeltaParquetFileFormat, MergeTreeFileFormat}
 import org.apache.spark.sql.delta.actions.Metadata
 
-@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
+@SuppressWarnings(Array("org.wartremover.contrib.warts.CaseClassInheritance"))
 class DeltaMergeTreeFileFormat(metadata: Metadata)
   extends DeltaParquetFileFormat(metadata)
   with MergeTreeFileFormat {

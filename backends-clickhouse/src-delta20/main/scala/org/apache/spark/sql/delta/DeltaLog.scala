@@ -489,7 +489,7 @@ class DeltaLog private (
 
 object DeltaLog extends DeltaLogging {
   // --- modified start
-  @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
+  @SuppressWarnings(Array("org.wartremover.contrib.warts.CaseClassInheritance"))
   private class DeltaHadoopFsRelation(
       location: FileIndex,
       partitionSchema: StructType,
