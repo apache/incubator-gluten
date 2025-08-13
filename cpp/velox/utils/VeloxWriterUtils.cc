@@ -23,6 +23,7 @@
 #include "utils/ConfigExtractor.h"
 #include "utils/Exception.h"
 
+#include "memory/VeloxMemoryManager.h"
 #include "velox/common/compression/Compression.h"
 #include "velox/type/Type.h"
 
@@ -89,6 +90,8 @@ std::unique_ptr<WriterOptions> makeParquetWriteOption(const std::unordered_map<s
     return std::make_unique<LambdaFlushPolicy>(maxRowGroupRows, maxRowGroupBytes, [&]() { return false; });
   };
   writeOption->parquetWriteTimestampTimeZone = getConfigValue(sparkConfs, kSessionTimezone, std::nullopt);
+  writeOption->arrowMemoryPool =
+      getDefaultMemoryManager()->getOrCreateArrowMemoryPool("VeloxParquetWrite.ArrowMemoryPool");
   if (auto it = sparkConfs.find(kParquetDataPageSize); it != sparkConfs.end()) {
     auto dataPageSize = std::stoi(it->second);
     writeOption->dataPageSize = dataPageSize;
