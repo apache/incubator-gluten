@@ -551,7 +551,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       partitioning: Partitioning,
       output: Seq[Attribute]): ShuffleWriterType = {
     val conf = GlutenConfig.get
-    //todo: remove isUseCelebornShuffleManager here
+    // todo: remove isUseCelebornShuffleManager here
     if (conf.isUseCelebornShuffleManager) {
       if (conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER) {
         if (conf.useCelebornRssSort) {
@@ -628,7 +628,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val deserializeTime = metrics("deserializeTime")
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val decompressTime = metrics("decompressTime")
-    //todo: remove isUseCelebornShuffleManager here
+    // todo: remove isUseCelebornShuffleManager here
     if (GlutenConfig.get.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor =
