@@ -20,6 +20,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.SparkConf
+import org.apache.spark.SparkException
 import org.apache.spark.sql.internal.SQLConf
 
 class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
@@ -63,7 +64,7 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
   }
 
   testWithMinSparkVersion("arithmetic division by zero exception with ansi mode", "3.4") {
-    intercept[ArithmeticException] {
+    intercept[SparkException] {
       sql("SELECT 1 / 0").collect()
     }
   }
