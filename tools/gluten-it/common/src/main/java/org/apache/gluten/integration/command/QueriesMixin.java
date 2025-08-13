@@ -45,6 +45,9 @@ public class QueriesMixin {
   @CommandLine.Option(names = {"--no-session-reuse"}, description = "Recreate new Spark session each time a query is about to run", defaultValue = "false")
   private boolean noSessionReuse;
 
+  @CommandLine.Option(names = {"--suppress-failure-messages"}, description = "Do not printing failures on error", defaultValue = "false")
+  private boolean suppressFailureMessages;
+
   public boolean explain() {
     return explain;
   }
@@ -55,6 +58,10 @@ public class QueriesMixin {
 
   public boolean noSessionReuse() {
     return noSessionReuse;
+  }
+
+  public boolean suppressFailureMessages() {
+    return suppressFailureMessages;
   }
 
   public Actions.QuerySelector queries() {

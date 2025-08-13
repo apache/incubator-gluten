@@ -386,9 +386,6 @@ void setQueryTraceConfig(std::unordered_map<std::string, std::string>& configs) 
   if (FLAGS_query_trace_max_bytes) {
     configs[kQueryTraceMaxBytes] = std::to_string(FLAGS_query_trace_max_bytes);
   }
-  if (FLAGS_query_trace_node_ids != "") {
-    configs[kQueryTraceNodeIds] = FLAGS_query_trace_node_ids;
-  }
   if (FLAGS_query_trace_task_reg_exp != "") {
     configs[kQueryTraceTaskRegExp] = FLAGS_query_trace_task_reg_exp;
   }

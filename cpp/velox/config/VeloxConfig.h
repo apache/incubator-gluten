@@ -155,9 +155,6 @@ const uint32_t kGlogSeverityLevelDefault = 1;
 const std::string kQueryTraceEnabled = "spark.gluten.sql.columnar.backend.velox.queryTraceEnabled";
 /// Base dir of a query to store tracing data.
 const std::string kQueryTraceDir = "spark.gluten.sql.columnar.backend.velox.queryTraceDir";
-/// A comma-separated list of plan node ids whose input data will be traced.
-/// Empty string if only want to trace the query metadata.
-const std::string kQueryTraceNodeIds = "spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds";
 /// The max trace bytes limit. Tracing is disabled if zero.
 const std::string kQueryTraceMaxBytes = "spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes";
 /// The regexp of traced task id. We only enable trace on a task if its id

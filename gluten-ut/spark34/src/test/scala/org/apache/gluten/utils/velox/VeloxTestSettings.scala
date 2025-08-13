@@ -61,7 +61,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("ordering and partitioning reporting")
   enableSuite[GlutenDeleteFromTableSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
-    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    // Rewritten
     .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenKeyGroupedPartitioningSuite]
     // NEW SUITE: disable as they check vanilla spark plan
@@ -701,6 +701,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("aggregate function - array for non-primitive type")
     // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
     .exclude("map_zip_with function - map of primitive types")
+    // Exception class different.
+    .exclude("array_insert functions")
   enableSuite[GlutenDataFrameHintSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenDataFrameJoinSuite]

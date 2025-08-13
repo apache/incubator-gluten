@@ -168,6 +168,13 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
+  def genToJsonTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: StructsToJson): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, child, expr)
+  }
+
   /** Transform GetArrayItem to Substrait. */
   def genGetArrayItemTransformer(
       substraitExprName: String,
@@ -637,7 +644,7 @@ trait SparkPlanExecApi {
       val pushedFilters =
         dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
       pushedFilters.filterNot(_.references.exists {
-        attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+        attr => BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)
       })
     }
     sparkExecNode match {
@@ -754,4 +761,16 @@ trait SparkPlanExecApi {
 
   def deserializeColumnarBatch(input: ObjectInputStream): ColumnarBatch =
     throw new GlutenNotSupportException("Deserialize ColumnarBatch is not supported")
+
+  def genTimestampDiffTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("timestampdiff is not supported")
+  }
+
+  def isRowIndexMetadataColumn(columnName: String): Boolean = {
+    SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(columnName)
+  }
 }

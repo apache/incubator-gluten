@@ -34,7 +34,7 @@ import org.apache.hadoop.conf.Configuration
 
 trait BackendSettingsApi {
 
-  /** The columnar-batch type this backend is by default using. */
+  /** The default columnar-batch type of this backend. */
   def primaryBatchType: Convention.BatchType
 
   def validateScanExec(

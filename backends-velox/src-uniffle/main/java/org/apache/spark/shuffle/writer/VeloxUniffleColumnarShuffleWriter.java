@@ -22,7 +22,6 @@ import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.config.SortShuffleWriterType$;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
-import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.vectorized.GlutenSplitResult;
@@ -193,7 +192,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   new Spiller() {
                     @Override
                     public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
-                      if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                      if (!Spiller.Phase.SPILL.equals(phase)) {
                         return 0L;
                       }
                       LOG.info("Gluten shuffle writer: Trying to push {} bytes of data", size);
