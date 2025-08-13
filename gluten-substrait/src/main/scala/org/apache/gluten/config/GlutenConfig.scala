@@ -50,7 +50,7 @@ case object RssSortShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_RSS_SORT_SHUFFLE_WRITER
 }
 
-/* 
+/*
  * Note: Gluten configiguration.md is automatically generated from this code.
  * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
  */
