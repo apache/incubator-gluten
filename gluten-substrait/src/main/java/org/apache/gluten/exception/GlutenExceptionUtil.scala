@@ -18,7 +18,7 @@ package org.apache.gluten.exception
 
 object GlutenExceptionUtil {
   // Utility methods for throwing exceptions for not fully supported functions.
-  def throwsNotFullySupportedFunction(function: String, cause: String) = {
+  def throwsNotFullySupported(function: String, cause: String) = {
     throw new GlutenNotSupportException(
       s"Function '$function' is not fully supported. Cause: $cause")
   }

@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
+import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical._
@@ -732,7 +733,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
         != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
     ) {
-      GlutenExceptionUtil.throwsNotFullySupportedFunction(
+      GlutenExceptionUtil.throwsNotFullySupported(
         ExpressionNames.STR_TO_MAP,
         s"Only ${SQLConf.MAP_KEY_DEDUP_POLICY.key} = " +
           s"${SQLConf.MapKeyDedupPolicy.EXCEPTION.toString} is supported for Velox backend"
@@ -758,22 +759,20 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     if (!enablePartialResults) {
       // Velox only supports partial results mode. We need to fall back this when
       // 'spark.sql.json.enablePartialResults' is set to false or not defined.
-      GlutenExceptionUtil.throwsNotFullySupportedFunction(
+      GlutenExceptionUtil.throwsNotFullySupported(
         ExpressionNames.FROM_JSON,
-        s"${ExpressionNames.FROM_JSON} with 'spark.sql.json.enablePartialResults = false' " +
-          s"is not supported in Velox"
+        FromJsonRestrictions.FROM_JSON_PARTIAL_RESULTS
       )
     }
     if (expr.options.nonEmpty) {
-      GlutenExceptionUtil.throwsNotFullySupportedFunction(
+      GlutenExceptionUtil.throwsNotFullySupported(
         ExpressionNames.FROM_JSON,
-        s"${ExpressionNames.FROM_JSON} with options is not supported in Velox")
+        FromJsonRestrictions.FROM_JSON_WITH_OPTIONS)
     }
     if (SQLConf.get.caseSensitiveAnalysis) {
-      GlutenExceptionUtil.throwsNotFullySupportedFunction(
+      GlutenExceptionUtil.throwsNotFullySupported(
         ExpressionNames.FROM_JSON,
-        s"${ExpressionNames.FROM_JSON} with " +
-          s"'${SQLConf.CASE_SENSITIVE.key} = true' is not supported in Velox")
+        FromJsonRestrictions.FROM_JSON_CASE_SENSITIVE)
     }
 
     val hasDuplicateKey = expr.schema match {
@@ -790,9 +789,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         false
     }
     if (hasDuplicateKey) {
-      GlutenExceptionUtil.throwsNotFullySupportedFunction(
+      GlutenExceptionUtil.throwsNotFullySupported(
         ExpressionNames.FROM_JSON,
-        s"${ExpressionNames.FROM_JSON} with duplicate keys is not supported in Velox")
+        FromJsonRestrictions.FROM_JSON_WITH_DUPLICATE_KEYS)
     }
     val hasCorruptRecord = expr.schema match {
       case s: StructType =>
@@ -801,9 +800,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         false
     }
     if (hasCorruptRecord) {
-      GlutenExceptionUtil.throwsNotFullySupportedFunction(
+      GlutenExceptionUtil.throwsNotFullySupported(
         ExpressionNames.FROM_JSON,
-        s"${ExpressionNames.FROM_JSON} with column corrupt record is not supported in Velox")
+        FromJsonRestrictions.FROM_JSON_WITH_COLUMN_CORRUPT_RECORD)
     }
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
@@ -817,6 +816,37 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       throw new GlutenNotSupportException("'to_json' with options is not supported in Velox")
     }
     ToJsonTransformer(substraitExprName, child, expr)
+  }
+
+  override def genUnbase64Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: UnBase64): ExpressionTransformer = {
+    if (SparkShimLoader.getSparkShims.unBase64FunctionFailsOnError(expr)) {
+      GlutenExceptionUtil
+        .throwsNotFullySupported(
+          ExpressionNames.UNBASE64,
+          Unbase64Restrictions.UNBASE64_FAIL_ON_ERROR
+        )
+    }
+    GenericExpressionTransformer(substraitExprName, child, expr)
+  }
+
+  override def genBase64StaticInvokeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: StaticInvoke): ExpressionTransformer = {
+    if (!SQLConf.get.getConfString("spark.sql.chunkBase64String.enabled", "true").toBoolean) {
+      GlutenExceptionUtil
+        .throwsNotFullySupported(
+          ExpressionNames.BASE64,
+          Base64Restrictions.BASE64_DISABLE_CHUNK_BASE64_STRING)
+    }
+    GenericExpressionTransformer(
+      ExpressionNames.BASE64,
+      child,
+      expr
+    )
   }
 
   /** Generate an expression transformer to transform NamedStruct to Substrait. */

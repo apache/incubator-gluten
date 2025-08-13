@@ -17,7 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.exception.{GlutenExceptionUtil, GlutenNotSupportException}
+import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.DecimalArithmeticUtil
@@ -175,13 +175,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           i)
       case i: StaticInvoke
           if Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith("Base64") =>
-        if (!SQLConf.get.getConfString("spark.sql.chunkBase64String.enabled", "true").toBoolean) {
-          GlutenExceptionUtil
-            .throwsNotFullySupportedFunction(
-              ExpressionNames.BASE64,
-              s"${ExpressionNames.BASE64} with chunkBase64String disabled is not supported")
-        }
-        return GenericExpressionTransformer(
+        return BackendsApiManager.getSparkPlanExecApiInstance.genBase64StaticInvokeTransformer(
           ExpressionNames.BASE64,
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i
@@ -780,11 +774,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(s.child, attributeSeq, expressionsMap),
           s
         )
-      case u: UnBase64 if SparkShimLoader.getSparkShims.unBase64FunctionFailsOnError(u) =>
-        GlutenExceptionUtil
-          .throwsNotFullySupportedFunction(
-            ExpressionNames.UNBASE64,
-            s"${ExpressionNames.UNBASE64} with failOnError is not supported")
+      case u: UnBase64 =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genUnbase64Transformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(u.child, attributeSeq, expressionsMap),
+          u
+        )
       case ce if BackendsApiManager.getSparkPlanExecApiInstance.expressionFlattenSupported(ce) =>
         replaceFlattenedExpressionWithExpressionTransformer(
           substraitExprName,
