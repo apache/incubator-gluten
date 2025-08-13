@@ -24,7 +24,7 @@ import org.apache.gluten.utils.ExceptionUtils
 import org.apache.spark.{ShuffleUtils, SparkContext}
 import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.sql.{AnalysisException, SparkSession}
+import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession, SparkSqlUtils}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -313,6 +313,18 @@ class Spark32Shims extends SparkShims {
 
   override def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType = {
     DecimalPrecision.widerDecimalType(d1, d2)
+  }
+
+  override def cleanupAnyExistingSession(): Unit = {
+    SparkSqlUtils.cleanupAnyExistingSession()
+  }
+
+  override def getLogicalPlanFromDataFrame(df: DataFrame): LogicalPlan = {
+    SparkSqlUtils.getLogicalPlanFromDataFrame(df)
+  }
+
+  override def dataSetOfRows(spark: SparkSession, logicalPlan: LogicalPlan): DataFrame = {
+    SparkSqlUtils.dataSetOfRows(spark, logicalPlan)
   }
 
 }
