@@ -146,7 +146,7 @@ function apply_provided_velox_patch {
      local patch_name="$UPSTREAM_VELOX_PR_ID.patch"
      pushd $velox_home
      rm -f $patch_name
-     wget -nv "https://patch-diff.githubusercontent.com/raw/facebookincubator/velox/pull/$UPSTREAM_VELOX_PR_ID.patch" \
+     wget -nv "https://patch-diff.githubusercontent.com/raw/facebookincubator/velox/pull/$UPSTREAM_VELOX_PR_ID.diff" \
        -O "$patch_name" || {
        echo "Failed to download the Velox patch from GitHub"
        exit 1
