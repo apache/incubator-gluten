@@ -20,6 +20,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.apache.gluten</groupId>
+            <artifactId>${sparkshim.artifactId}</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
             <scope>provided</scope>
@@ -65,66 +71,6 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
-
-<profiles>
-    <profile>
-        <id>spark-4.0</id>
-        <build>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-antrun-plugin</artifactId>
-                    <executions>
-                        <execution>
-                            <phase>generate-sources</phase>
-                            <configuration>
-                                <target>
-                                    <replaceregexp file="src/main/scala/org/apache/spark/sql/execution/ui/GlutenAllExecutionsPage.scala"
-                                                   match="import javax.servlet"
-                                                   replace="import jakarta.servlet"
-                                                   byline="true"/>
-                                </target>
-                            </configuration>
-                            <goals>
-                                <goal>run</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </build>
-    </profile>
-    <profile>
-        <id>!spark-4.0</id>
-        <activation>
-            <activeByDefault>true</activeByDefault>
-        </activation>
-        <build>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-antrun-plugin</artifactId>
-                    <executions>
-                        <execution>
-                            <phase>generate-sources</phase>
-                            <configuration>
-                                <target>
-                                    <replaceregexp file="src/main/scala/org/apache/spark/sql/execution/ui/GlutenAllExecutionsPage.scala"
-                                                   match="import jakarta.servlet"
-                                                   replace="import javax.servlet"
-                                                   byline="true"/>
-                                </target>
-                            </configuration>
-                            <goals>
-                                <goal>run</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </build>
-    </profile>
-</profiles>
 
     <build>
         <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
