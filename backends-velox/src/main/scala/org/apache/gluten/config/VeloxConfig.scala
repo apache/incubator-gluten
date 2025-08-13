@@ -24,6 +24,10 @@ import org.apache.spark.sql.internal.SQLConf
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/* 
+ * Note: Gluten configiguration.md is automatically generated from this code.
+ * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ */
 class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   import VeloxConfig._
 

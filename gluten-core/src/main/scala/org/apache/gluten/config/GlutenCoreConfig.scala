@@ -58,6 +58,10 @@ class GlutenCoreConfig(conf: SQLConf) extends Logging {
     getConf(DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION)
 }
 
+/* 
+ * Note: Gluten configiguration.md is automatically generated from this code.
+ * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ */
 object GlutenCoreConfig {
   def buildConf(key: String): ConfigBuilder = ConfigBuilder(key)
 
