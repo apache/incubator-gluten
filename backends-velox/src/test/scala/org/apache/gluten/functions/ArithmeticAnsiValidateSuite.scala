@@ -33,50 +33,49 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
       .set(SQLConf.ANSI_ENABLED.key, "true")
   }
 
-  test("arithmetic addition with ansi mode") {
+  test("add") {
     runQueryAndCompare("SELECT int_field1 + 100 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-  }
-
-  test("arithmetic subtraction with ansi mode") {
-    runQueryAndCompare("SELECT int_field1 - 50 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic multiplication with ansi mode") {
-    runQueryAndCompare("SELECT int_field1 * 2 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic division with ansi mode") {
-    runQueryAndCompare("SELECT int_field1 / 2 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("arithmetic addition overflow exception with ansi mode") {
+    
+    // Test addition overflow with ANSI mode
     intercept[ArithmeticException] {
       sql("SELECT 2147483647 + 1").collect()
     }
   }
 
-  testWithMinSparkVersion("arithmetic division by zero exception with ansi mode", "3.4") {
-    intercept[SparkException] {
-      sql("SELECT 1 / 0").collect()
+  test("subtract") {
+    runQueryAndCompare("SELECT int_field1 - 50 FROM datatab WHERE int_field1 IS NOT NULL") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  testWithMaxSparkVersion("arithmetic division by zero no exception with ansi mode", "3.3") {
-    // Spark 3.2 and 3.3 don't throw exception for division by zero in ANSI mode
-    sql("SELECT 1 / 0").collect()
-  }
-
-  test("arithmetic multiplication overflow exception with ansi mode") {
+  test("multiply") {
+    runQueryAndCompare("SELECT int_field1 * 2 FROM datatab WHERE int_field1 IS NOT NULL") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    
+    // Test multiplication overflow with ANSI mode
     intercept[ArithmeticException] {
       sql("SELECT 2147483647 * 2").collect()
     }
   }
+
+  test("divide") {
+    runQueryAndCompare("SELECT int_field1 / 2 FROM datatab WHERE int_field1 IS NOT NULL") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    
+    // Test division by zero behavior with ANSI mode
+    if (isSparkVersionGE("3.4")) {
+      // Spark 3.4+ throws exception for division by zero in ANSI mode
+      intercept[SparkException] {
+        sql("SELECT 1 / 0").collect()
+      }
+    } else {
+      // Spark 3.2 and 3.3 don't throw exception for division by zero in ANSI mode
+      sql("SELECT 1 / 0").collect()
+    }
+  }
+
 }
