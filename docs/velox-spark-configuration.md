@@ -2,7 +2,7 @@ layout: page
 title: Spark configurations status in Gluten Velox Backend
 nav_order: 17
 
-The file lists the if Spark configurations are hornored by Gluten velox backend or not. The status are:
+The file lists the if Spark configurations are hornored by Gluten velox backend or not. Table is from Spark4.0 configuration page. The status are:
 - H: hornored
 - P: Transparent to Gluten
 - I: ignored. Gluten doesn't use it.
@@ -1364,10 +1364,10 @@ The file lists the if Spark configurations are hornored by Gluten velox backend 
 </table>
 
 # Executor Metrics
-The configurations in this section are transparent to Gluten
+These configurations are handled by Spark and do not affect Gluten’s behavior.
 
 # Networking
-The configurations in this section are transparent to Gluten
+These configurations are handled by Spark and do not affect Gluten’s behavior.
 
 # Scheduling
 <table class="spark-config">
@@ -1669,20 +1669,20 @@ The configurations in this section are transparent to Gluten
 </table>
 
 # Barrier Execution Mode
-The configurations in this section are transparent to Gluten
+These configurations are handled by Spark and do not affect Gluten’s behavior.
 
 # Dynamic Allocation
-The configurations in this section are transparent to Gluten
+These configurations are handled by Spark and do not affect Gluten’s behavior.
 
 # Thread Configurations
-The configurations in this section are transparent to Gluten
+These configurations are handled by Spark and do not affect Gluten’s behavior.
 
 # Spark Connect
 ## Server Configuration
-The configurations in this section are transparent to Gluten
+These configurations are handled by Spark and do not affect Gluten’s behavior.
 
 # Security
-The configurations in this section are transparent to Gluten
+These configurations are handled by Spark and do not affect Gluten’s behavior.
 
 # Spark SQL
 
@@ -3435,10 +3435,9 @@ The configurations in this section are transparent to Gluten
 </table>
 
 # Cluster Managers
-The configurations in this section are transparent to Gluten
+These configurations are handled by Spark and do not affect Gluten’s behavior.
 
 # Push-based shuffle overview
-
 
 ## External Shuffle service(server) side configuration options
 
@@ -3540,5 +3539,6 @@ The configurations in this section are transparent to Gluten
   <td>3.3.0</td>
 </tr>
 </table>
+
 
 
