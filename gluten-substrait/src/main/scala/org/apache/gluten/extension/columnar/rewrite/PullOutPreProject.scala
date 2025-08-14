@@ -259,15 +259,12 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
       val newProjections =
         expand.projections.map(
-          _.map(
+          _.toIndexedSeq.map(
             replaceExpressionWithAttribute(
               _,
               expressionMap,
               replaceBoundReference = false,
               replaceLiteral = false)))
-
-      // Force evaluation so expressionMap gets populated
-      newProjections.foreach(_.length)
 
       val newProject = ProjectExec(
         eliminateProjectList(expand.child.outputSet, expressionMap.values.toSeq),
