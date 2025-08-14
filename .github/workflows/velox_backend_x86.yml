@@ -102,7 +102,7 @@ jobs:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8", "java-11", "java-17" ]
-        # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
+        # Spark supports JDK17 since 3.3.
         exclude:
           - spark: spark-3.2
             java: java-17
@@ -174,7 +174,7 @@ jobs:
         os: [ "centos:8" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0" ]
         java: [ "java-8", "java-11", "java-17" ]
-        # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
+        # Spark supports JDK17 since 3.3.
         exclude:
           - spark: spark-3.2
             java: java-17
@@ -280,7 +280,6 @@ jobs:
       matrix:
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8" ]
-        # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
