@@ -17,7 +17,7 @@
     <java.version>1.8</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <scala.library.version>2.12.17</scala.library.version>
+    <scala.library.version>2.12.18</scala.library.version>
     <spark.version>3.4.4</spark.version>
     <scala.binary.version>2.12</scala.binary.version>
     <spark.major.version>3</spark.major.version>
@@ -150,21 +150,21 @@
       </activation>
       <properties>
         <spark.version>3.2.2</spark.version>
-        <scala.library.version>2.12.15</scala.library.version>
+        <scala.library.version>2.12.18</scala.library.version>
       </properties>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <properties>
         <spark.version>3.3.1</spark.version>
-        <scala.library.version>2.12.15</scala.library.version>
+        <scala.library.version>2.12.18</scala.library.version>
       </properties>
     </profile>
     <profile>
       <id>spark-3.4</id>
       <properties>
         <spark.version>3.4.4</spark.version>
-        <scala.library.version>2.12.17</scala.library.version>
+        <scala.library.version>2.12.18</scala.library.version>
       </properties>
     </profile>
     <profile>
