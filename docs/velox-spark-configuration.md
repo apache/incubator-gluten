@@ -3532,11 +3532,8 @@ These configurations are handled by Spark and do not affect Gluten’s behavior.
 <tr>
   <td><code>spark.shuffle.push.minCompletedPushRatio</code></td>
   <td><code>1.0</code></td>
-  <td>3.2.0</td>
-  <td></td>
-</tr>
-</table>
   <td>3.3.0</td>
+  <td></td>
 </tr>
 </table>
 
