@@ -220,7 +220,6 @@ jobs:
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
-          yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           $SETUP install_maven
       - name: Set environment variables
         run: |
@@ -290,11 +289,7 @@ jobs:
 
             # Setup java and maven
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget tzdata python3-pip
-          
-            # upgrade tzdata
-            pip3 install tzdata
-            cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
-            
+
             $SETUP install_maven
             export PATH=${PATH}:/usr/lib/maven/bin
 
