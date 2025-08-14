@@ -18,7 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.SparkPlanExecApi
 import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, ReservedKeys, RssSortShuffleWriterType, ShuffleWriterType, SortShuffleWriterType, VeloxConfig}
-import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.exception.{GlutenExceptionUtil, GlutenNotSupportException}
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
+import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical._
@@ -495,6 +496,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       isSkewJoin,
       projectList)
   }
+
   override def genCartesianProductExecTransformer(
       left: SparkPlan,
       right: SparkPlan,
@@ -731,7 +733,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
         != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
     ) {
-      throw new GlutenNotSupportException("Only EXCEPTION policy is supported!")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.STR_TO_MAP,
+        StrToMapRestrictions.ONLY_SUPPORT_MAP_KEY_DEDUP_POLICY
+      )
     }
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
@@ -753,15 +758,20 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     if (!enablePartialResults) {
       // Velox only supports partial results mode. We need to fall back this when
       // 'spark.sql.json.enablePartialResults' is set to false or not defined.
-      throw new GlutenNotSupportException(
-        s"'from_json' with 'spark.sql.json.enablePartialResults = false' is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.MUST_ENABLE_PARTIAL_RESULTS
+      )
     }
-    if (!expr.options.isEmpty) {
-      throw new GlutenNotSupportException("'from_json' with options is not supported in Velox")
+    if (expr.options.nonEmpty) {
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.NOT_SUPPORT_WITH_OPTIONS)
     }
     if (SQLConf.get.caseSensitiveAnalysis) {
-      throw new GlutenNotSupportException(
-        "'from_json' with 'spark.sql.caseSensitive = true' is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.NOT_SUPPORT_CASE_SENSITIVE)
     }
 
     val hasDuplicateKey = expr.schema match {
@@ -778,8 +788,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         false
     }
     if (hasDuplicateKey) {
-      throw new GlutenNotSupportException(
-        "'from_json' with duplicate keys is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.NOT_SUPPORT_DUPLICATE_KEYS)
     }
     val hasCorruptRecord = expr.schema match {
       case s: StructType =>
@@ -788,8 +799,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         false
     }
     if (hasCorruptRecord) {
-      throw new GlutenNotSupportException(
-        "'from_json' with column corrupt record is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.NOT_SUPPORT_COLUMN_CORRUPT_RECORD)
     }
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
@@ -800,9 +812,42 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       child: ExpressionTransformer,
       expr: StructsToJson): ExpressionTransformer = {
     if (!expr.options.isEmpty) {
-      throw new GlutenNotSupportException("'to_json' with options is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.TO_JSON,
+        ToJsonRestrictions.NOT_SUPPORT_WITH_OPTIONS)
     }
     ToJsonTransformer(substraitExprName, child, expr)
+  }
+
+  override def genUnbase64Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: UnBase64): ExpressionTransformer = {
+    if (SparkShimLoader.getSparkShims.unBase64FunctionFailsOnError(expr)) {
+      GlutenExceptionUtil
+        .throwsNotFullySupported(
+          ExpressionNames.UNBASE64,
+          Unbase64Restrictions.NOT_SUPPORT_FAIL_ON_ERROR
+        )
+    }
+    GenericExpressionTransformer(substraitExprName, child, expr)
+  }
+
+  override def genBase64StaticInvokeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: StaticInvoke): ExpressionTransformer = {
+    if (!SQLConf.get.getConfString("spark.sql.chunkBase64String.enabled", "true").toBoolean) {
+      GlutenExceptionUtil
+        .throwsNotFullySupported(
+          ExpressionNames.BASE64,
+          Base64Restrictions.NOT_SUPPORT_DISABLE_CHUNK_BASE64_STRING)
+    }
+    GenericExpressionTransformer(
+      ExpressionNames.BASE64,
+      child,
+      expr
+    )
   }
 
   /** Generate an expression transformer to transform NamedStruct to Substrait. */
