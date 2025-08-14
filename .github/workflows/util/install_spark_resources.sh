@@ -106,12 +106,12 @@ case "$1" in
 3.5)
     # Spark-3.5
     cd ${INSTALL_DIR} && \
-    install_spark "3.5.2" "3" "2.12"
+    install_spark "3.5.5" "3" "2.12"
     ;;
 3.5-scala2.13)
     # Spark-3.5, scala 2.13
     cd ${INSTALL_DIR} && \
-    install_spark "3.5.2" "3" "2.13"
+    install_spark "3.5.5" "3" "2.13"
     ;;
 *)
     echo "Spark version is expected to be specified."

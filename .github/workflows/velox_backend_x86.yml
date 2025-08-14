@@ -910,9 +910,9 @@ jobs:
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -966,9 +966,9 @@ jobs:
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
+      - name: Build and Run unit test for Spark 3.5.5 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
@@ -1011,7 +1011,11 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Prepare Spark Resources for Spark 3.5.5
+        run: |
+          rm -rf /opt/shims/spark35
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+      - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           yum install -y java-17-openjdk-devel
@@ -1058,9 +1062,13 @@ jobs:
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Prepare Spark Resources for Spark 3.5.5
+        run: |
+          rm -rf /opt/shims/spark35
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+      - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -1102,7 +1110,11 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Prepare Spark Resources for Spark 3.5.5
+        run: |
+          rm -rf /opt/shims/spark35
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+      - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           yum install -y java-17-openjdk-devel
@@ -1148,9 +1160,13 @@ jobs:
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Prepare Spark Resources for Spark 3.5.5
+        run: |
+          rm -rf /opt/shims/spark35
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+      - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -1192,7 +1208,11 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Prepare Spark Resources for Spark 3.5.5
+        run: |
+          rm -rf /opt/shims/spark35
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+      - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           yum install -y java-17-openjdk-devel
@@ -1249,8 +1269,13 @@ jobs:
       - name: Run UDF test
         run: |
           # Depends on --build_example=ON.
-          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=org.apache.gluten.tags.EnhancedFeaturesTest \
-          -DtagsToInclude=org.apache.gluten.tags.UDFTest
+          yum install -y java-17-openjdk-devel
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
+          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Pjava-17 -Piceberg -Pdelta -DtagsToExclude=org.apache.gluten.tags.EnhancedFeaturesTest \
+          -DtagsToInclude=org.apache.gluten.tags.UDFTest \
+          -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/"
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
