@@ -9,9 +9,13 @@ The file lists the if Spark configurations are hornored by Gluten velox backend 
 - U: unknown yet
 
 # Application Properties
-
-<table class="spark-config">
-<thead><tr><th>Property Name</th><th>Default</th><th>Since Version</th><th>Gluten Status</th><</tr></thead>
+<table>
+<tr>
+  <th>Property Name</th>
+  <th>Default</th>
+  <th>Since Version</th>
+  <th>Gluten Status</th>  
+</tr>
 <tr>
   <td><code>spark.app.name</code></td>
   <td>(none)</td>
@@ -3535,3 +3539,4 @@ The configurations in this section are transparent to Gluten
   <td>3.3.0</td>
 </tr>
 </table>
+
