@@ -171,7 +171,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "centos:8" ]
-        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
+        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0" ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
         exclude:
@@ -187,10 +187,11 @@ jobs:
             java: java-11
           - spark: spark-3.4
             java: java-11
-          - os: centos:7
-            java: java-17
-          - os: centos:7
+          - spark: spark-4.0
+            java: java-8
+          - spark: spark-4.0
             java: java-11
+
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
@@ -235,11 +236,25 @@ jobs:
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
+            rm -f backends-velox/src/test/scala/org/apache/gluten/execution/VeloxStringFunctionsSuite.scala \
+            backends-velox/src/test/scala/org/apache/spark/sql/execution/GlutenHiveUDFSuite.scala \
+            backends-velox/src/test/scala/org/apache/spark/sql/execution/VeloxParquetWriteForHiveSuite.scala \
+            backends-velox/src/test/scala/org/apache/spark/sql/execution/benchmark/VeloxRasBenchmark.scala \
+            backends-velox/src/test/scala/org/apache/spark/sql/execution/joins/GlutenExistenceJoinSuite.scala
+            # Only verify compilation for now.
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+            exit 0
+          else
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          fi
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H / TPC-DS
         run: |
+          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
+            exit 0
+          fi
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -248,6 +263,9 @@ jobs:
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
       - name: Run TPC-H / TPC-DS with RAS
         run: |
+          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
+            exit 0
+          fi
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
