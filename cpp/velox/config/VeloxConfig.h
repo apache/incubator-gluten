@@ -132,6 +132,7 @@ const bool kVeloxFileHandleCacheEnabledDefault = false;
 
 /* configs for file read in velox*/
 const std::string kDirectorySizeGuess = "spark.gluten.sql.columnar.backend.velox.directorySizeGuess";
+const std::string kFooterEstimatedSize = "spark.gluten.sql.columnar.backend.velox.footerEstimatedSize";
 const std::string kFilePreloadThreshold = "spark.gluten.sql.columnar.backend.velox.filePreloadThreshold";
 const std::string kPrefetchRowGroups = "spark.gluten.sql.columnar.backend.velox.prefetchRowGroups";
 const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQuantum";
