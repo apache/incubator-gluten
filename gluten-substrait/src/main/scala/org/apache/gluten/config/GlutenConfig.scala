@@ -501,6 +501,10 @@ object GlutenConfig {
       conf: Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     nativeConfMap.putAll(conf.filter(e => nativeKeys.contains(e._1)).asJava)
+    // handle ABFS config
+    conf
+      .filter(_._1.contains(ABFS_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
     val keyWithDefault = ImmutableList.of(
       (CASE_SENSITIVE.key, CASE_SENSITIVE.defaultValueString),
       (IGNORE_MISSING_FILES.key, IGNORE_MISSING_FILES.defaultValueString),
