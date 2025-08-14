@@ -37,8 +37,6 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare("SELECT int_field1 + 100 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-    
-    // Test addition overflow with ANSI mode
     intercept[ArithmeticException] {
       sql("SELECT 2147483647 + 1").collect()
     }
@@ -54,8 +52,6 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare("SELECT int_field1 * 2 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-    
-    // Test multiplication overflow with ANSI mode
     intercept[ArithmeticException] {
       sql("SELECT 2147483647 * 2").collect()
     }
@@ -65,8 +61,6 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare("SELECT int_field1 / 2 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-    
-    // Test division by zero behavior with ANSI mode
     if (isSparkVersionGE("3.4")) {
       // Spark 3.4+ throws exception for division by zero in ANSI mode
       intercept[SparkException] {
