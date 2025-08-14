@@ -6,7 +6,8 @@ The file lists the if Spark configurations are hornored by Gluten velox backend 
 - H: hornored
 - P: Transparent to Gluten
 - I: ignored. Gluten doesn't use it.
-- U: unknown yet
+- `<blank>`: unknown yet
+
 
 # Application Properties
 <table>
@@ -3327,19 +3328,19 @@ The configurations in this section are transparent to Gluten
     <td></td>
 </tr>
 
-               <tr>
-                   <td><code>spark.sql.hive.metastore.jars</code></td>
-                   <td>builtin</td>
-                   <td>1.4.0</td>
-                   <td></td>
-               </tr>
+<tr>
+   <td><code>spark.sql.hive.metastore.jars</code></td>
+   <td>builtin</td>
+   <td>1.4.0</td>
+   <td></td>
+</tr>
 
-               <tr>
-                   <td><code>spark.sql.hive.metastore.jars.path</code></td>
-                   <td></td>
-                   <td>3.1.0</td>
-                   <td></td>
-               </tr>
+<tr>
+   <td><code>spark.sql.hive.metastore.jars.path</code></td>
+   <td></td>
+   <td>3.1.0</td>
+   <td></td>
+</tr>
 
 <tr>
     <td><code>spark.sql.hive.metastore.sharedPrefixes</code></td>
@@ -3442,7 +3443,7 @@ The configurations in this section are transparent to Gluten
 ## External Shuffle service(server) side configuration options
 
 <table class="spark-config">
-<thead><tr><th>Property Name</th><th>Default</th><th>Since Version</th><th></th></tr></thead>
+<thead><tr><th>Property Name</th><th>Default</th><th>Since Version</th><th>Gluten Status</th></tr></thead>
 <tr>
   <td><code>spark.shuffle.push.server.mergedShuffleFileManagerImpl</code></td>
   <td>
@@ -3468,7 +3469,7 @@ The configurations in this section are transparent to Gluten
 ### Client side configuration options
 
 <table class="spark-config">
-<thead><tr><th>Property Name</th><th>Default</th><th>Since Version</th><th></th></tr></thead>
+<thead><tr><th>Property Name</th><th>Default</th><th>Since Version</th><th>Gluten Status</th></tr></thead>
 <tr>
   <td><code>spark.shuffle.push.enabled</code></td>
   <td><code>false</code></td>
@@ -3539,4 +3540,5 @@ The configurations in this section are transparent to Gluten
   <td>3.3.0</td>
 </tr>
 </table>
+
 
