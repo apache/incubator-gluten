@@ -596,7 +596,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
       const auto valueOptional = veloxCfg_->get<std::string>(glutenKey);
-      if (valueOptional.hasValue()) {
+      if (valueOptional.has_value()) {
         configs[veloxKey] = valueOptional.value();
       }
     };

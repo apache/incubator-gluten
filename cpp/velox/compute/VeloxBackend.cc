@@ -199,7 +199,7 @@ void VeloxBackend::init(
   // Spark off-heap memory pool will be conducted to cause unexpected OOMs.
   auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
   int64_t memoryManagerCapacity;
-  if (sparkOverhead.hasValue()) {
+  if (sparkOverhead.has_value()) {
     // 0.75 * total overhead memory is used for Velox global memory manager.
     // FIXME: Make this configurable.
     memoryManagerCapacity = sparkOverhead.value() * 0.75;
