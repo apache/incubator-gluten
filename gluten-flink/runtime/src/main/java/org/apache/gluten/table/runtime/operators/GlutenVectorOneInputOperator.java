@@ -129,6 +129,7 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
         break;
       }
     }
+    inRv.close();
   }
 
   @Override
