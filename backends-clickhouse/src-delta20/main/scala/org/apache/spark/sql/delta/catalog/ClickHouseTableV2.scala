@@ -39,7 +39,7 @@ import java.{util => ju}
 
 import scala.collection.JavaConverters._
 
-@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
+@SuppressWarnings(Array("org.wartremover.contrib.warts.CaseClassInheritance"))
 class ClickHouseTableV2(
     override val spark: SparkSession,
     override val path: Path,
@@ -111,7 +111,7 @@ class ClickHouseTableV2(
   cacheThis()
 }
 
-@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
+@SuppressWarnings(Array("org.wartremover.contrib.warts.CaseClassInheritance"))
 class TempClickHouseTableV2(
     override val spark: SparkSession,
     override val catalogTable: Option[CatalogTable] = None)

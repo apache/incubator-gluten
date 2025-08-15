@@ -67,7 +67,7 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <caffeine.version>2.9.3</caffeine.version>
     <scala.binary.version>2.12</scala.binary.version>
-    <scala.version>2.12.15</scala.version>
+    <scala.version>2.12.18</scala.version>
     <scala-xml.version>2.1.0</scala-xml.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
     <spark.major.version>3</spark.major.version>
@@ -173,7 +173,7 @@
          SPARK-34774 Add this property to ensure change-scala-version.sh can replace the public `scala.version`
          property correctly.
         -->
-        <scala.version>2.12.15</scala.version>
+        <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
       </properties>
     </profile>
@@ -195,14 +195,14 @@
                   <compilerPlugin>
                     <groupId>org.wartremover</groupId>
                     <artifactId>wartremover_${scala.binary.version}</artifactId>
-                    <version>3.0.6</version>
+                    <version>3.4.0</version>
                   </compilerPlugin>
                 </compilerPlugins>
                 <dependencies>
                   <dependency>
-                    <groupId>io.github.zhztheplayer.scalawarts</groupId>
-                    <artifactId>scalawarts_${scala.binary.version}</artifactId>
-                    <version>0.1.2</version>
+                    <groupId>org.wartremover</groupId>
+                    <artifactId>wartremover-contrib_${scala.binary.version}</artifactId>
+                    <version>2.3.4</version>
                   </dependency>
                 </dependencies>
                 <recompileMode>${scala.recompile.mode}</recompileMode>
@@ -246,7 +246,7 @@
                   <arg>-Wconf:cat=unchecked&amp;msg=outer reference:s</arg>
                   <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
                   <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
-                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                  <arg>-P:wartremover:traverser:org.wartremover.contrib.warts.CaseClassInheritance</arg>
                 </args>
               </configuration>
               <executions>
@@ -1580,14 +1580,14 @@
               <compilerPlugin>
                 <groupId>org.wartremover</groupId>
                 <artifactId>wartremover_${scala.binary.version}</artifactId>
-                <version>3.0.6</version>
+                <version>3.4.0</version>
               </compilerPlugin>
             </compilerPlugins>
             <dependencies>
               <dependency>
-                <groupId>io.github.zhztheplayer.scalawarts</groupId>
-                <artifactId>scalawarts_${scala.binary.version}</artifactId>
-                <version>0.1.2</version>
+                <groupId>org.wartremover</groupId>
+                <artifactId>wartremover-contrib_${scala.binary.version}</artifactId>
+                <version>2.3.4</version>
               </dependency>
             </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
@@ -1597,7 +1597,7 @@
               <arg>-deprecation</arg>
               <arg>-feature</arg>
               <arg>-Wconf:cat=deprecation:wv,any:e</arg>
-              <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+              <arg>-P:wartremover:traverser:org.wartremover.contrib.warts.CaseClassInheritance</arg>
             </args>
           </configuration>
           <executions>
