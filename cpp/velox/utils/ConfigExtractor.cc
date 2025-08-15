@@ -141,7 +141,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   hiveConfMap[S3Config::kS3PayloadSigningPolicy] =
       conf->get<std::string>(kVeloxS3PayloadSigningPolicy, kVeloxS3PayloadSigningPolicyDefault);
   auto logLocation = conf->get<std::string>(kVeloxS3LogLocation);
-  if (logLocation.hasValue()) {
+  if (logLocation.has_value()) {
     hiveConfMap[S3Config::kS3LogLocation] = logLocation.value();
   };
 
@@ -165,7 +165,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 #ifdef ENABLE_GCS
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
   auto gsStorageRootUrl = conf->get<std::string>("spark.hadoop.fs.gs.storage.root.url");
-  if (gsStorageRootUrl.hasValue()) {
+  if (gsStorageRootUrl.has_value()) {
     std::string gcsEndpoint = gsStorageRootUrl.value();
 
     if (!gcsEndpoint.empty()) {
@@ -176,21 +176,21 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#http-transport-configuration
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedErrorCountRetryPolicy
   auto gsMaxRetryCount = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry");
-  if (gsMaxRetryCount.hasValue()) {
+  if (gsMaxRetryCount.has_value()) {
     hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryCount] = gsMaxRetryCount.value();
   }
 
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedTimeRetryPolicy
   auto gsMaxRetryTime = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry-time");
-  if (gsMaxRetryTime.hasValue()) {
+  if (gsMaxRetryTime.has_value()) {
     hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryTime] = gsMaxRetryTime.value();
   }
 
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
   auto gsAuthType = conf->get<std::string>("spark.hadoop.fs.gs.auth.type");
   auto gsAuthServiceAccountJsonKeyfile = conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
-  if (gsAuthType.hasValue() && gsAuthType.value() == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-    if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
+  if (gsAuthType.has_value() && gsAuthType.value() == "SERVICE_ACCOUNT_JSON_KEYFILE") {
+    if (gsAuthServiceAccountJsonKeyfile.has_value()) {
       hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
           gsAuthServiceAccountJsonKeyfile.value();
     } else {
@@ -198,7 +198,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
                       "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
       throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
     }
-  } else if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
+  } else if (gsAuthServiceAccountJsonKeyfile.has_value()) {
     LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is set, "
                     "but conf spark.hadoop.fs.gs.auth.type is not SERVICE_ACCOUNT_JSON_KEYFILE";
     throw GlutenException("Conf spark.hadoop.fs.gs.auth.type is missing or incorrect");
