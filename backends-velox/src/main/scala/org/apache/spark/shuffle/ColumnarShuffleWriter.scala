@@ -146,7 +146,6 @@ class ColumnarShuffleWriter[K, V](
           val partitionWriterHandle = partitionWriterJniWrapper.createPartitionWriter(
             numPartitions,
             compressionCodec.orNull,
-            GlutenConfig.get.columnarShuffleCodecBackend.orNull,
             compressionLevel,
             compressionBufferSize,
             GlutenConfig.get.columnarShuffleCompressionThreshold,

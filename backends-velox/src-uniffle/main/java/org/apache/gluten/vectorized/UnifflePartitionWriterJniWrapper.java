@@ -38,7 +38,6 @@ public class UnifflePartitionWriterJniWrapper implements RuntimeAware {
   public native long createPartitionWriter(
       int numPartitions,
       String codec,
-      String codecBackend,
       int compressionLevel,
       int compressionBufferSize,
       int pushBufferMaxSize,

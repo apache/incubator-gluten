@@ -52,8 +52,6 @@ gluten_offheap_ratio: 7.0
 spark_codec: lz4
 # spark.gluten.sql.columnar.shuffle.codec
 gluten_codec: lz4
-# spark.gluten.sql.columnar.shuffle.codecBackend
-gluten_codec_backend: ''
 # spark.gluten.sql.columnar.maxBatchSize
 max_batch_size: 4096
 # spark.app.name, empty to use default name.

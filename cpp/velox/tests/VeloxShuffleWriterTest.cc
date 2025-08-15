@@ -108,46 +108,50 @@ std::vector<ShuffleTestParams> getTestParams() {
     for (const auto partitionWriterType : {PartitionWriterType::kLocal, PartitionWriterType::kRss}) {
       for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
         for (const bool useRadixSort : {true, false}) {
-          for (const int64_t deserializerBufferSize : {1L, kDefaultDeserializerBufferSize}) {
-            params.push_back(ShuffleTestParams{
-                .shuffleWriterType = ShuffleWriterType::kSortShuffle,
-                .partitionWriterType = partitionWriterType,
-                .compressionType = compression,
-                .diskWriteBufferSize = diskWriteBufferSize,
-                .useRadixSort = useRadixSort,
-                .deserializerBufferSize = deserializerBufferSize});
+          for (const auto deserializerBufferSize : {static_cast<int64_t>(1L), kDefaultDeserializerBufferSize}) {
+            params.push_back(
+                ShuffleTestParams{
+                    .shuffleWriterType = ShuffleWriterType::kSortShuffle,
+                    .partitionWriterType = partitionWriterType,
+                    .compressionType = compression,
+                    .diskWriteBufferSize = diskWriteBufferSize,
+                    .useRadixSort = useRadixSort,
+                    .deserializerBufferSize = deserializerBufferSize});
           }
         }
       }
     }
 
     // Rss sort-based shuffle.
-    params.push_back(ShuffleTestParams{
-        .shuffleWriterType = ShuffleWriterType::kRssSortShuffle,
-        .partitionWriterType = PartitionWriterType::kRss,
-        .compressionType = compression});
+    params.push_back(
+        ShuffleTestParams{
+            .shuffleWriterType = ShuffleWriterType::kRssSortShuffle,
+            .partitionWriterType = PartitionWriterType::kRss,
+            .compressionType = compression});
 
     // Hash-based shuffle.
     for (const auto compressionThreshold : compressionThresholds) {
       // Local.
       for (const auto mergeBufferSize : mergeBufferSizes) {
         for (const bool enableDictionary : {true, false}) {
-          params.push_back(ShuffleTestParams{
-              .shuffleWriterType = ShuffleWriterType::kHashShuffle,
-              .partitionWriterType = PartitionWriterType::kLocal,
-              .compressionType = compression,
-              .compressionThreshold = compressionThreshold,
-              .mergeBufferSize = mergeBufferSize,
-              .enableDictionary = enableDictionary});
+          params.push_back(
+              ShuffleTestParams{
+                  .shuffleWriterType = ShuffleWriterType::kHashShuffle,
+                  .partitionWriterType = PartitionWriterType::kLocal,
+                  .compressionType = compression,
+                  .compressionThreshold = compressionThreshold,
+                  .mergeBufferSize = mergeBufferSize,
+                  .enableDictionary = enableDictionary});
         }
       }
 
       // Rss.
-      params.push_back(ShuffleTestParams{
-          .shuffleWriterType = ShuffleWriterType::kHashShuffle,
-          .partitionWriterType = PartitionWriterType::kRss,
-          .compressionType = compression,
-          .compressionThreshold = compressionThreshold});
+      params.push_back(
+          ShuffleTestParams{
+              .shuffleWriterType = ShuffleWriterType::kHashShuffle,
+              .partitionWriterType = PartitionWriterType::kRss,
+              .compressionType = compression,
+              .compressionThreshold = compressionThreshold});
     }
   }
 
@@ -163,7 +167,7 @@ std::shared_ptr<PartitionWriter> createPartitionWriter(
     int32_t mergeBufferSize,
     int32_t compressionThreshold,
     bool enableDictionary) {
-  GLUTEN_ASSIGN_OR_THROW(auto codec, arrow::util::Codec::Create(compressionType));
+  auto codec = createCompressionCodec(compressionType);
   switch (partitionWriterType) {
     case PartitionWriterType::kLocal: {
       auto options = std::make_shared<LocalPartitionWriterOptions>();
@@ -292,7 +296,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     const auto veloxCompressionType = arrowCompressionTypeToVelox(compressionType);
     const auto schema = toArrowSchema(rowType, getDefaultMemoryManager()->getLeafMemoryPool().get());
 
-    auto codec = createArrowIpcCodec(compressionType, CodecBackend::NONE);
+    auto codec = createCompressionCodec(compressionType);
 
     // Set batchSize to a large value to make all batches are merged by reader.
     auto deserializerFactory = std::make_unique<gluten::VeloxShuffleReaderDeserializerFactory>(
@@ -501,12 +505,7 @@ TEST_P(HashPartitioningShuffleWriterTest, hashPart1Vector) {
         makeFlatVector<int128_t>({232, 34567235, 1212, 4567}, DECIMAL(20, 4)),
         makeFlatVector<int32_t>(
             4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
-        makeFlatVector<Timestamp>(
-            4,
-            [](vector_size_t row) {
-              return Timestamp{row % 2, 0};
-            },
-            nullEvery(5))};
+        makeFlatVector<Timestamp>(4, [](vector_size_t row) { return Timestamp{row % 2, 0}; }, nullEvery(5))};
 
     const auto vector = makeRowVector(data);
 

@@ -61,7 +61,7 @@ DEFINE_bool(rss, false, "Mocking rss.");
 DEFINE_string(
     compression,
     "lz4",
-    "Specify the compression codec. Valid options are none, lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
+    "Specify the compression codec. Valid options are none, lz4, zstd");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
 DEFINE_bool(shuffle_dictionary, false, "Whether to enable dictionary encoding for shuffle write.");
 
@@ -164,23 +164,13 @@ void cleanupLocalDirs(const std::vector<std::string>& localDirs) {
   }
 }
 
-void setCompressionTypeFromFlag(arrow::Compression::type& compressionType, CodecBackend& codecBackend) {
-  codecBackend = CodecBackend::NONE;
+void setCompressionTypeFromFlag(arrow::Compression::type& compressionType) {
   if (FLAGS_compression == "none") {
     compressionType = arrow::Compression::UNCOMPRESSED;
   } else if (FLAGS_compression == "lz4") {
     compressionType = arrow::Compression::LZ4_FRAME;
   } else if (FLAGS_compression == "zstd") {
     compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "qat_gzip") {
-    codecBackend = CodecBackend::QAT;
-    compressionType = arrow::Compression::GZIP;
-  } else if (FLAGS_compression == "qat_zstd") {
-    codecBackend = CodecBackend::QAT;
-    compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "iaa_gzip") {
-    codecBackend = CodecBackend::IAA;
-    compressionType = arrow::Compression::GZIP;
   } else {
     throw GlutenException("Unrecognized compression type: " + FLAGS_compression);
   }
@@ -193,11 +183,10 @@ std::unique_ptr<arrow::util::Codec> createCodec() {
   }
 
   arrow::Compression::type compressionType;
-  CodecBackend codecBackend;
 
-  setCompressionTypeFromFlag(compressionType, codecBackend);
+  setCompressionTypeFromFlag(compressionType);
 
-  return createArrowIpcCodec(compressionType, codecBackend);
+  return createCompressionCodec(compressionType);
 }
 
 std::shared_ptr<PartitionWriter>
@@ -249,7 +238,7 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
 std::shared_ptr<ShuffleReader> createShuffleReader(Runtime* runtime, const std::shared_ptr<arrow::Schema>& schema) {
   auto readerOptions = ShuffleReaderOptions{};
   readerOptions.shuffleWriterType = ShuffleWriter::stringToType(FLAGS_shuffle_writer),
-  setCompressionTypeFromFlag(readerOptions.compressionType, readerOptions.codecBackend);
+  setCompressionTypeFromFlag(readerOptions.compressionType);
   return runtime->createShuffleReader(schema, readerOptions);
 }
 
