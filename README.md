@@ -89,7 +89,7 @@ Gluten jar will be generated under `/PATH/TO/GLUTEN/package/target/` after the b
 ### Configurations
 Common configurations used by Gluten is listed in [Configuration.md](./docs/Configuration.md). Velox specific configurations is listed in [velox-configuration.md](./docs/velox-configuration.md)
 
-Some of the spark configurations are hornored by Gluten, some of them are ignored, and many are transparent to Gluten. The detail can be found in [velox-spark-configuration.md](./docs/velox-spark-configuration.md) and parquet write ones can be found in [velox-parquet-write-configuration.md](./docs/velox-parquet-write-configuration.md)
+Some of the spark configurations are hornored by Gluten Velox backend, some of them are ignored, and many are transparent to Gluten. The detail can be found in [velox-spark-configuration.md](./docs/velox-spark-configuration.md) and parquet write ones can be found in [velox-parquet-write-configuration.md](./docs/velox-parquet-write-configuration.md)
 
 
 # 4. Gluten Website
