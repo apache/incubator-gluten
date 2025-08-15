@@ -13,9 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if(ENABLE_HBM)
-  add_test_case(hbw_allocator_test SOURCES HbwAllocatorTest.cc)
-endif()
-
 add_test_case(round_robin_partitioner_test SOURCES RoundRobinPartitionerTest.cc)
 add_test_case(object_store_test SOURCES ObjectStoreTest.cc)

@@ -16,7 +16,6 @@
  */
 
 #include "MemoryAllocator.h"
-#include "HbwAllocator.h"
 #include "utils/Macros.h"
 
 namespace gluten {
@@ -200,11 +199,7 @@ int64_t StdMemoryAllocator::peakBytes() const {
 }
 
 std::shared_ptr<MemoryAllocator> defaultMemoryAllocator() {
-#if defined(GLUTEN_ENABLE_HBM)
-  static std::shared_ptr<MemoryAllocator> alloc = HbwMemoryAllocator::newInstance();
-#else
   static std::shared_ptr<MemoryAllocator> alloc = std::make_shared<StdMemoryAllocator>();
-#endif
   return alloc;
 }
 

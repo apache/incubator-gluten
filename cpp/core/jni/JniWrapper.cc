@@ -798,7 +798,6 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
     jobject wrapper,
     jint numPartitions,
     jstring codecJstr,
-    jstring codecBackendJstr,
     jint compressionLevel,
     jint compressionBufferSize,
     jint compressionThreshold,
@@ -827,7 +826,7 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
 
   auto partitionWriter = std::make_shared<LocalPartitionWriter>(
       numPartitions,
-      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      createCompressionCodec(getCompressionType(env, codecJstr), compressionLevel),
       ctx->memoryManager(),
       partitionWriterOptions,
       dataFile,
@@ -1035,7 +1034,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
     jobject wrapper,
     jlong cSchema,
     jstring compressionType,
-    jstring compressionBackend,
     jint batchSize,
     jlong readerBufferSize,
     jlong deserializerBufferSize,
@@ -1045,9 +1043,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
 
   ShuffleReaderOptions options = ShuffleReaderOptions{};
   options.compressionType = getCompressionType(env, compressionType);
-  if (compressionType != nullptr) {
-    options.codecBackend = getCodecBackend(env, compressionBackend);
-  }
   options.batchSize = batchSize;
   options.readerBufferSize = readerBufferSize;
   options.deserializerBufferSize = deserializerBufferSize;
