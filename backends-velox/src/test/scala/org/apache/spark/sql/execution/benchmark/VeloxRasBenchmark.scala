@@ -22,6 +22,7 @@ import org.apache.gluten.utils.Arm
 
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.classic.ExtendedClassicConversions._
 import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File

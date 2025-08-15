@@ -18,10 +18,12 @@ package org.apache.spark.sql.execution.joins
 
 import org.apache.gluten.execution.{VeloxBroadcastNestedLoopJoinExecTransformer, VeloxWholeStageTransformerSuite}
 
-import org.apache.spark.sql.{DataFrame, Dataset, Row}
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.ExistenceJoin
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.classic.ClassicConversions._
+import org.apache.spark.sql.classic.ClassicDataset
 import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.sql.types._
 
@@ -74,7 +76,7 @@ class GlutenExistenceJoinSuite extends VeloxWholeStageTransformerSuite with SQLT
       child = existenceJoin
     )
 
-    val df = Dataset.ofRows(spark, project)
+    val df = ClassicDataset.ofRows(spark, project)
 
     assert(existenceJoin.joinType == ExistenceJoin(existsAttr))
     assert(existenceJoin.condition.contains(joinCondition))
