@@ -61,6 +61,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.common.sink.VeloxSinkBuilder;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -83,6 +84,9 @@ import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -96,7 +100,7 @@ import java.util.stream.IntStream;
  */
 public abstract class CommonExecSink extends ExecNodeBase<Object>
     implements MultipleTransformationTranslator<Object> {
-
+  private static final Logger LOG = LoggerFactory.getLogger(CommonExecSink.class);
   public static final String CONSTRAINT_VALIDATOR_TRANSFORMATION = "constraint-validator";
   public static final String PARTITIONER_TRANSFORMATION = "partitioner";
   public static final String UPSERT_MATERIALIZE_TRANSFORMATION = "upsert-materialize";
@@ -441,9 +445,11 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             applyRowtimeTransformation(inputTransform, rowtimeFieldIndex, sinkParallelism, config);
         final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
         final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
-        return provider
-            .consumeDataStream(createProviderContext(config), dataStream)
-            .getTransformation();
+        Transformation<?> transformation =
+            provider
+                .consumeDataStream(createProviderContext(config), dataStream)
+                .getTransformation();
+        return transformation;
       } else if (runtimeProvider instanceof TransformationSinkProvider) {
         final TransformationSinkProvider provider = (TransformationSinkProvider) runtimeProvider;
         return provider.createTransformation(
@@ -466,8 +472,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
       } else if (runtimeProvider instanceof SinkFunctionProvider) {
         final SinkFunction<RowData> sinkFunction =
             ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
-        return createSinkFunctionTransformation(
-            sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkMeta, sinkParallelism);
+        Transformation sinkTransformation =
+            createSinkFunctionTransformation(
+                sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkMeta, sinkParallelism);
+        return VeloxSinkBuilder.build(env.getConfiguration(), sinkTransformation);
       } else if (runtimeProvider instanceof OutputFormatProvider) {
         OutputFormat<RowData> outputFormat =
             ((OutputFormatProvider) runtimeProvider).createOutputFormat();
