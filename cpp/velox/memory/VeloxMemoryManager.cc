@@ -457,11 +457,17 @@ VeloxMemoryManager::~VeloxMemoryManager() {
       break;
     }
     uint32_t waitMs = 50 * static_cast<uint32_t>(pow(1.5, tryCount)); // 50ms, 75ms, 112.5ms ...
+    waitMs = std::min(2000U, waitMs);
     LOG(INFO) << "There are still outstanding Velox memory allocations. Waiting for " << waitMs
               << " ms to let possible async tasks done... ";
     usleep(waitMs * 1000);
     accumulatedWaitMs += waitMs;
   }
+
+  if (!destructed) {
+    destructed = tryDestructSafe();
+  }
+
   if (!destructed) {
     LOG(ERROR) << "Failed to release Velox memory manager after " << accumulatedWaitMs
                << "ms as there are still outstanding memory resources. ";
