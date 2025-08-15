@@ -47,6 +47,7 @@ import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPreWriteTopology;
 import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
@@ -101,8 +102,17 @@ public class SinkTransformationTranslator<Input, Output>
     return translateInternal(transformation, context, false);
   }
 
+  @SuppressWarnings("rawtypes")
   private Collection<Integer> translateInternal(
       SinkTransformation<Input, Output> transformation, Context context, boolean batch) {
+    DataStream<Input> inputStream = transformation.getInputStream();
+    if (inputStream instanceof SingleOutputStreamOperator) {
+      SingleOutputStreamOperator singleOutput = (SingleOutputStreamOperator) inputStream;
+      if (singleOutput.getName().equals("StreamingFileWriter")
+          || singleOutput.getName().equals("PartitionCommitter")) {
+        return Collections.emptyList();
+      }
+    }
     SinkExpander<Input> expander =
         new SinkExpander<>(
             transformation.getInputStream(),
