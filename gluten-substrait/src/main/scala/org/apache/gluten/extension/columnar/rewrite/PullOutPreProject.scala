@@ -258,7 +258,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
     case expand: ExpandExec if needsPreProject(expand) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
       val newProjections =
-        expand.projections.map(
+        expand.projections.toIndexedSeq.map(
           _.toIndexedSeq.map(
             replaceExpressionWithAttribute(
               _,
