@@ -194,7 +194,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       // partitionSpec.
       var newOrderSpec = getNewSortOrder(window.orderSpec, expressionMap)
       val newPartitionSpec =
-        window.partitionSpec.map(replaceExpressionWithAttribute(_, expressionMap))
+        window.partitionSpec.toIndexedSeq.map(replaceExpressionWithAttribute(_, expressionMap))
 
       // Handle windowExpressions.
       newOrderSpec = rewriteOrderSpecs(window, newOrderSpec, expressionMap)
@@ -233,7 +233,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
 
       // Handle partitionSpec.
       val newPartitionSpec =
-        windowLimit.partitionSpec.map(replaceExpressionWithAttribute(_, expressionMap))
+        windowLimit.partitionSpec.toIndexedSeq.map(replaceExpressionWithAttribute(_, expressionMap))
 
       val newChild = ProjectExec(
         eliminateProjectList(windowLimit.child.outputSet, expressionMap.values.toSeq),

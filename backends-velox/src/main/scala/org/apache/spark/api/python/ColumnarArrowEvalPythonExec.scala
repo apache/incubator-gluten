@@ -453,7 +453,7 @@ object PullOutArrowEvalPythonPreProjectHelper extends PullOutProjectHelper {
     // flatten all the arguments
     val allInputs = new ArrayBuffer[Expression]
     for (input <- inputs) {
-      input.map {
+      input.foreach {
         e =>
           if (!allInputs.exists(_.semanticEquals(e))) {
             allInputs += e
