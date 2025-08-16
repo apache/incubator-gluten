@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.enhanced
 
-import org.apache.gluten.execution.{IcebergAppendDataExec, IcebergSuite}
+import org.apache.gluten.execution.{IcebergAppendDataExec, IcebergSuite, VeloxIcebergReplaceDataExec}
 import org.apache.gluten.tags.EnhancedFeaturesTest
 
 import org.apache.spark.sql.execution.CommandResultExec
@@ -69,6 +69,48 @@ class VeloxIcebergSuite extends IcebergSuite {
       assert(result.length == 1)
       assert(result(0).get(0) == 1098)
       assert(result(0).get(1) == 189)
+    }
+  }
+
+  test("iceberg read cow table - delete") {
+    withTable("iceberg_cow_tb") {
+      spark.sql("""
+                  |create table iceberg_cow_tb (
+                  |  id int,
+                  |  name string,
+                  |  p string
+                  |) using iceberg
+                  |tblproperties (
+                  |  'format-version' = '2',
+                  |  'write.delete.mode' = 'copy-on-write',
+                  |  'write.update.mode' = 'copy-on-writ',
+                  |  'write.merge.mode' = 'copy-on-writ'
+                  |);
+                  |""".stripMargin)
+
+      // Insert some test rows.
+      spark.sql("""
+                  |insert into table iceberg_cow_tb
+                  |values (1, 'a1', 'p1'), (2, 'a2', 'p1'), (3, 'a3', 'p2'),
+                  |       (4, 'a4', 'p1'), (5, 'a5', 'p2'), (6, 'a6', 'p1');
+                  |""".stripMargin)
+
+      // Delete row.
+      val df = spark.sql(
+        """
+          |delete from iceberg_cow_tb where name = 'a1';
+          |""".stripMargin
+      )
+      assert(
+        df.queryExecution.executedPlan
+          .asInstanceOf[CommandResultExec]
+          .commandPhysicalPlan
+          .isInstanceOf[VeloxIcebergReplaceDataExec])
+      val selectDf = spark.sql("""
+                                 |select * from iceberg_cow_tb;
+                                 |""".stripMargin)
+      val result = selectDf.collect()
+      assert(result.length == 5)
     }
   }
 }
