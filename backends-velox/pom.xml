@@ -231,6 +231,32 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>paimon</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.paimon</groupId>
+          <artifactId>paimon-spark-${sparkbundle.version}</artifactId>
+          <version>${paimon.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <dependencies>
