@@ -365,6 +365,10 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def autoAdjustStageRPHeapRatio: Double = getConf(AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO)
 
+  def autoAdjustStageRPOffHeapRatio: Double = getConf(
+    AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO
+  )
+
   def autoAdjustStageFallenNodeThreshold: Double =
     getConf(AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD)
   def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
@@ -1584,6 +1588,13 @@ object GlutenConfig {
       .doc("Experimental: Increase executor heap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(2.0d)
+
+  val AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO =
+    buildConf("spark.gluten.auto.adjustStageResources.offheap.ratio")
+      .internal()
+      .doc("Experimental: Decrease executor offheap memory when match adjust stage resource rule.")
+      .doubleConf
+      .createWithDefault(0.5d)
 
   val AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD =
     buildConf("spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold")
