@@ -48,4 +48,9 @@
               files="sql/catalyst/src/main/java/org/apache/spark/sql/streaming/GroupStateTimeout.java"/>
     <suppress checks="MethodName"
               files="sql/core/src/main/java/org/apache/spark/sql/streaming/Trigger.java"/>
+    <suppress checks="UnusedImports"
+              files="src/test/scala/org/apache/spark/sql/execution/joins/GlutenExistenceJoinSuite.scala"/>
+
+
+
 </suppressions>
