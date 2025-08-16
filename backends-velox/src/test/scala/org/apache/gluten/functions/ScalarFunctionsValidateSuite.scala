@@ -20,8 +20,10 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BatchScanExecTransformer, FilterExecTransformer, ProjectExecTransformer}
 
 import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.NullPropagation
 import org.apache.spark.sql.execution.ProjectExec
+import org.apache.spark.sql.types._
 
 class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
@@ -1175,6 +1177,37 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare("select cast(array(timestamp'2024-01-01 12:00:00') AS array<string>)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
+    // Cast Array[String] to Array
+    runQueryAndCompare("select cast(array('123', '-98', 'abc', null) AS array<tinyint>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array('123', '-98', 'abc', null) AS array<smallint>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array('123', '-98', 'abc', null) AS array<int>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array('123', '-98', 'abc', null) AS array<bigint>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array('123e-2', '-234.548', 'xyz', null) AS array<float>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("select cast(array('123e-2', '-234.548', 'xyz', null) AS array<double>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |select
+                         |  cast(
+                         |    array('2023-01-01 12:00:00', '2023-01-02 12:00:00', 'def', null)
+                         |      AS array<timestamp>)
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare(
+      "select cast(array('2024-01-01', '2024-01-02', 'uvw', null) AS array<date>)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
     // Cast Array as String
     withTempView("cast_table") {
       withTempPath {
@@ -1206,6 +1239,204 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
     runQueryAndCompare("select cast(array(timestamp'2024-01-01 12:00:00') AS string)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    // Cast Map
+    withTempView("byte_map_tbl") {
+      withTempPath {
+        path =>
+          Seq[Map[Byte, Byte]](
+            Map(0.toByte -> 1.toByte, 2.toByte -> 3.toByte, 4.toByte -> 0.toByte))
+            .toDF("c1")
+            .write
+            .parquet(path.getCanonicalPath)
+
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("byte_map_tbl")
+
+          runQueryAndCompare("select cast(c1 as map<tinyint, double>) from byte_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<double, tinyint>) from byte_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<tinyint, string>) from byte_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<string, tinyint>) from byte_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<tinyint, boolean>) from byte_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
+
+    withTempView("small_int_map_tbl") {
+      withTempPath {
+        path =>
+          Seq[Map[Short, Short]](
+            Map(
+              1000.toShort -> 1001.toShort,
+              1002.toShort -> 1003.toShort,
+              1004.toShort -> 0.toShort))
+            .toDF("c1")
+            .write
+            .parquet(path.getCanonicalPath)
+
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("small_int_map_tbl")
+
+          runQueryAndCompare("select cast(c1 as map<smallint, double>) from small_int_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<double, smallint>) from small_int_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<smallint, string>) from small_int_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<string, smallint>) from small_int_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<smallint, boolean>) from small_int_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
+
+    withTempView("int_map_tbl") {
+      withTempPath {
+        path =>
+          Seq[Map[Int, String]](Map(100 -> "101", 102 -> "103", 104 -> "xyz"))
+            .toDF("c1")
+            .write
+            .parquet(path.getCanonicalPath)
+
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("int_map_tbl")
+
+          runQueryAndCompare("select cast(c1 as map<double, int>) from int_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<string, string>) from int_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
+
+    withTempView("float_map_tbl") {
+      withTempPath {
+        path =>
+          Seq[Map[Float, String]](Map(1.0f -> "2.0", -3.0f -> "40e-1", 5.0f -> "xyz"))
+            .toDF("c1")
+            .write
+            .parquet(path.getCanonicalPath)
+
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("float_map_tbl")
+
+          runQueryAndCompare("select cast(c1 as map<float, float>) from float_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(c1 as map<string, string>) from float_map_tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
+
+    runQueryAndCompare("""
+                         |select
+                         |  cast(
+                         |    map(
+                         |      timestamp '2023-01-01 12:00:00', '2023-01-01 13:00:00',
+                         |      timestamp '2023-01-02 12:00:00', 'xyz')
+                         |    as map<string, timestamp>)
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |select
+                         |  cast(
+                         |    map(date '2024-01-01', '2024-01-02', date '2024-02-01', 'xyz')
+                         |      as map<string, date>)
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    // Cast struct
+    withTempView("struct_tbl") {
+      val structData = Seq(
+        Row(
+          Row(
+            Seq("123", "456.7", "2023-01-01 12:00:00", "2024-01-01"),
+            Map(1.toByte -> 2.toShort, 3.toByte -> 4.toShort),
+            Row(
+              123.0,
+              456.1f,
+              0
+            )
+          )))
+
+      val structSchema = new StructType().add(
+        "c1",
+        new StructType()
+          .add("a", ArrayType(StringType))
+          .add("b", MapType(ByteType, ShortType))
+          .add("c", new StructType().add("x", DoubleType).add("y", FloatType).add("z", IntegerType))
+      )
+      withTempPath {
+        path =>
+          spark
+            .createDataFrame(spark.sparkContext.parallelize(structData), structSchema)
+            .write
+            .parquet(path.getCanonicalPath)
+
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("struct_tbl")
+
+          runQueryAndCompare("""
+                               |select
+                               |  cast(
+                               |    c1 as
+                               |      struct<
+                               |        a: array<bigint>,
+                               |        b: map<smallint, int>,
+                               |        c: struct<x: string, y: string, z:boolean>>)
+                               |from struct_tbl
+                               |""".stripMargin) {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("""
+                               |select
+                               |  cast(
+                               |    c1 as
+                               |      struct<
+                               |        a: array<double>,
+                               |        b: map<int, bigint>,
+                               |        c: struct<x: int, y: boolean, z:string>>)
+                               |from struct_tbl
+                               |""".stripMargin) {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("""
+                               |select
+                               |  cast(
+                               |    c1 as
+                               |      struct<
+                               |        a: array<timestamp>,
+                               |        b: map<bigint, boolean>,
+                               |        c: struct<x: tinyint, y: smallint, z:double>>)
+                               |from struct_tbl
+                               |""".stripMargin) {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("""
+                               |select
+                               |  cast(
+                               |    c1 as
+                               |      struct<
+                               |        a: array<date>,
+                               |        b: map<string, double>,
+                               |        c: struct<x: int, y: bigint, z:float>>)
+                               |from struct_tbl
+                               |""".stripMargin) {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
     }
   }
 
