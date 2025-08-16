@@ -48,7 +48,7 @@ abstract class PaimonSuite extends WholeStageTransformerSuite {
               s"TBLPROPERTIES ('file.format'='$format')")
           sql(s"INSERT INTO paimon_${format}_tbl VALUES (1, 'Bob'), (2, 'Blue'), (3, 'Mike')")
           runQueryAndCompare(s"""
-                                |SELECT * from paimon_${format}_tbl;
+                                |SELECT * FROM paimon_${format}_tbl;
                                 |""".stripMargin) {
             checkGlutenOperatorMatch[PaimonScanTransformer]
           }

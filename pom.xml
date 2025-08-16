@@ -59,7 +59,6 @@
     <module>package</module>
     <module>shims</module>
     <module>gluten-ras</module>
-    <module>gluten-paimon</module>
   </modules>
 
   <properties>
