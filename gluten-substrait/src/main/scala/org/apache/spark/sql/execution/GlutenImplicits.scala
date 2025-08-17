@@ -21,7 +21,6 @@ import org.apache.gluten.execution.{GlutenPlan, WholeStageTransformer}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.{Column, Dataset, SparkSession}
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.{CommandResult, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
@@ -34,7 +33,6 @@ import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.BooleanType
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -58,8 +56,9 @@ import scala.collection.mutable.ArrayBuffer
 // format: on
 object GlutenImplicits {
 
-  def noOp(): Unit = {
-    val _ = new ColumnConstructorExt(Column).apply(AttributeReference("fake", BooleanType)())
+  // TODO: remove this if we can suppress unused import error.
+  locally {
+    new ColumnConstructorExt(Column)
   }
 
   case class FallbackSummary(

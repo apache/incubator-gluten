@@ -14,18 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql
+package org.apache.spark.sql.classic
 
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
-object SparkSqlUtils {
-  def cleanupAnyExistingSession(): Unit = {
-    classic.SparkSession.cleanupAnyExistingSession()
-  }
-  def getLogicalPlanFromDataFrame(df: DataFrame): LogicalPlan = {
-    df.asInstanceOf[classic.Dataset[Row]].logicalPlan
-  }
-  def dataSetOfRows(spark: SparkSession, logicalPlan: LogicalPlan): DataFrame = {
-    classic.Dataset.ofRows(spark.asInstanceOf[classic.SparkSession], logicalPlan)
+/** Since Spark 4.0, the method ofRows cannot be invoked directly from sql.Dataset. */
+object ClassicDataset {
+  def ofRows(sparkSession: SparkSession, logicalPlan: LogicalPlan): DataFrame = {
+    Dataset.ofRows(sparkSession, logicalPlan)
   }
 }

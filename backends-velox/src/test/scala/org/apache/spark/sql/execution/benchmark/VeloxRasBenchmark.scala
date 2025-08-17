@@ -18,11 +18,11 @@ package org.apache.spark.sql.execution.benchmark
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.Table
-import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.Arm
 
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.classic.ExtendedClassicConversions._
 import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
@@ -35,6 +35,12 @@ import scala.io.Source
  * is not considered.
  */
 object VeloxRasBenchmark extends SqlBasedBenchmark {
+
+  // TODO: remove this if we can suppress unused import error.
+  locally {
+    new RichSqlSparkSession(SparkSession)
+  }
+
   private val tpchQueries: String =
     getClass
       .getResource("/")
@@ -72,14 +78,14 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
   }
 
   private def createLegacySession(): SparkSession = {
-    SparkShimLoader.getSparkShims.cleanupAnyExistingSession()
+    SparkSession.cleanupAnyExistingSession()
     sessionBuilder()
       .config(GlutenConfig.RAS_ENABLED.key, false)
       .getOrCreate()
   }
 
   private def createRasSession(): SparkSession = {
-    SparkShimLoader.getSparkShims.cleanupAnyExistingSession()
+    SparkSession.cleanupAnyExistingSession()
     sessionBuilder()
       .config(GlutenConfig.RAS_ENABLED.key, true)
       .getOrCreate()

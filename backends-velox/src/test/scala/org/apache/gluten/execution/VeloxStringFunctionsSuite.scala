@@ -17,8 +17,10 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.catalyst.expressions.{Alias, Literal}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
-import org.apache.spark.sql.functions.{col, lit}
+import org.apache.spark.sql.classic.ClassicColumn
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StringType
 
 class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
@@ -33,11 +35,10 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val nullColumn = lit(null).cast(StringType).alias(NULL_STR_COL)
     createTPCHNotNullTables()
     spark
       .table("lineitem")
-      .select(col("*"), nullColumn)
+      .select(col("*"), ClassicColumn(Alias(Literal(null, StringType), NULL_STR_COL)()))
       .createOrReplaceTempView(LINEITEM_TABLE)
   }
 

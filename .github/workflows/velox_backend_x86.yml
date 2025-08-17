@@ -238,11 +238,8 @@ jobs:
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
           if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
-            rm -f backends-velox/src/test/scala/org/apache/gluten/execution/VeloxStringFunctionsSuite.scala \
-            backends-velox/src/test/scala/org/apache/spark/sql/execution/GlutenHiveUDFSuite.scala \
-            backends-velox/src/test/scala/org/apache/spark/sql/execution/VeloxParquetWriteForHiveSuite.scala \
-            backends-velox/src/test/scala/org/apache/spark/sql/execution/benchmark/VeloxRasBenchmark.scala \
-            backends-velox/src/test/scala/org/apache/spark/sql/execution/joins/GlutenExistenceJoinSuite.scala
+            rm -f backends-velox/src/test/scala/org/apache/spark/sql/execution/GlutenHiveUDFSuite.scala \
+            backends-velox/src/test/scala/org/apache/spark/sql/execution/VeloxParquetWriteForHiveSuite.scala
             # Only verify compilation for now.
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
             exit 0

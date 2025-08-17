@@ -16,27 +16,18 @@
  */
 package org.apache.spark.sql.classic
 
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql
 
 /**
- * Just to ensure the code below works for Spark versions earlier than 4.0.
- *
- * import org.apache.spark.sql.classic.ClassicConversions._
- */
-trait ClassicConversions {
-
-  implicit class ColumnConstructorExt(val c: Column.type) {}
-}
-
-object ClassicConversions extends ClassicConversions
-
-/**
- * Just to ensure the code below works for Spark versions earlier than 4.0.
- *
- * import org.apache.spark.sql.classic.ExtendedClassicConversions._
+ * Enables access to the methods in the companion object classic.SparkSession via sql.SparkSession.
+ * Since Spark 4.0, these methods have been moved from sql.SparkSession to sql.classic.SparkSession.
  */
 object ExtendedClassicConversions {
 
-  implicit class RichSqlSparkSession(sqlSparkSession: SparkSession.type) {}
+  implicit class RichSqlSparkSession(sqlSparkSession: sql.SparkSession.type) {
+    def cleanupAnyExistingSession(): Unit = {
+      // Redirect to the classic.SparkSession companion method.
+      sql.classic.SparkSession.cleanupAnyExistingSession()
+    }
+  }
 }
