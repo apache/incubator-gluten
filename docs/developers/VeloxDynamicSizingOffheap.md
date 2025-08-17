@@ -1,3 +1,10 @@
+---
+layout: page
+title: VeloxDynamicSizingOffheap
+nav_order: 16
+parent: Developer Overview
+---
+
 ## Dynamic Off-heap Sizing
 Gluten requires setting both on-heap and off-heap memory sizes, which initializes different memory layouts. Improper configuration of these settings can lead to lower performance. 
 
