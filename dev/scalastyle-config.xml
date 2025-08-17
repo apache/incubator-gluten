@@ -377,12 +377,4 @@ This file is divided into 3 sections:
     <parameters><parameter name="ignore">-1,0,1,2,3</parameter></parameters>
   </check>
 
-  <suppressions>
-    <!-- Suppress unused import (ImportChecker) only in specific test file -->
-    <suppress>
-      <check class="org.scalastyle.scalariform.ImportChecker"/>
-      <files>.*/backends-velox/src/test/scala/org/apache/spark/sql/execution/joins/GlutenExistenceJoinSuite\.scala</files>
-    </suppress>
-  </suppressions>
-
 </scalastyle>
