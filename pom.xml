@@ -486,6 +486,25 @@
               </execution>
             </executions>
           </plugin>
+          <plugin>
+            <groupId>net.alchim31.maven</groupId>
+            <artifactId>scala-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>scala-test-compile-first</id>
+                <phase>process-test-resources</phase>
+                <goals>
+                  <goal>testCompile</goal>
+                </goals>
+                <configuration>
+                  <excludes>
+                    <exclude>**/GlutenHiveUDFSuite.scala</exclude>
+                    <exclude>**/VeloxParquetWriteForHiveSuite.scala</exclude>
+                  </excludes>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
         </plugins>
       </build>
     </profile>
