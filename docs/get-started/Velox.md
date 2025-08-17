@@ -367,6 +367,20 @@ Once built successfully, iceberg features will be included in gluten-velox-bundl
 
 Gluten with velox backend supports [Hudi](https://hudi.apache.org/) table. Currently, only reading COW (Copy-On-Write) tables is supported.
 
+## Paimon Support
+
+Gluten with velox backend supports [Paimon](https://paimon.apache.org/) table. Currently, only non-pk table is supported, and the Spark version needs to be >= 3.3.
+
+### How to use
+
+Compile gluten-paimon module by a `paimon` profile, as follows:
+
+```
+mvn clean package -Pbackends-velox -Pspark-3.5 -Ppaimon -DskipTests
+```
+
+Once built successfully, paimon features will be included in gluten-velox-bundle-X jar. Then you can query paimon non-pk table by gluten/velox without scan's fallback.
+
 ### How to use
 
 First of all, compile gluten-hudi module by a `hudi` profile, as follows:
