@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.joins
 
 import org.apache.gluten.execution.{VeloxBroadcastNestedLoopJoinExecTransformer, VeloxWholeStageTransformerSuite}
 
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.ExistenceJoin
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -28,6 +28,9 @@ import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.sql.types._
 
 class GlutenExistenceJoinSuite extends VeloxWholeStageTransformerSuite with SQLTestUtils {
+
+  // TODO: remove this if we can suppress unused import error.
+  override val _ = new ColumnConstructorExt(Column)
 
   override protected val resourcePath: String = "N/A"
   override protected val fileFormat: String = "N/A"

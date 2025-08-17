@@ -35,6 +35,10 @@ import scala.io.Source
  * is not considered.
  */
 object VeloxRasBenchmark extends SqlBasedBenchmark {
+
+  // TODO: remove this if we can suppress unused import error.
+  val _ = new RichSqlSparkSession(SparkSession)
+
   private val tpchQueries: String =
     getClass
       .getResource("/")
