@@ -298,7 +298,7 @@ object TableRender {
           }
 
           override def data(): Seq[Seq[String]] = {
-            mutableRows.map(_.toSeq)
+            mutableRows.toSeq.map(_.toSeq)
           }
         }
       }
