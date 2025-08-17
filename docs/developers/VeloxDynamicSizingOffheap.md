@@ -30,4 +30,4 @@ With this change, the "quota check" is performed when an allocation in the nativ
 
 ## Limitations
 
-This feature is still in early development stage.
+This feature is in the preliminary stages of development and will be improved in future updates.
