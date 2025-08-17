@@ -24,7 +24,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
+import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
@@ -318,13 +318,4 @@ trait SparkShims {
   def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = false
 
   def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType
-
-  /** For test use only */
-  def cleanupAnyExistingSession(): Unit
-
-  /** For test use only */
-  def getLogicalPlanFromDataFrame(df: DataFrame): LogicalPlan
-
-  /** For test use only */
-  def dataSetOfRows(spark: SparkSession, logicalPlan: LogicalPlan): DataFrame
 }

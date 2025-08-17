@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution.benchmark
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.Table
-import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.Arm
 
 import org.apache.spark.benchmark.Benchmark
@@ -72,14 +71,14 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
   }
 
   private def createLegacySession(): SparkSession = {
-    SparkShimLoader.getSparkShims.cleanupAnyExistingSession()
+    SparkSession.cleanupAnyExistingSession()
     sessionBuilder()
       .config(GlutenConfig.RAS_ENABLED.key, false)
       .getOrCreate()
   }
 
   private def createRasSession(): SparkSession = {
-    SparkShimLoader.getSparkShims.cleanupAnyExistingSession()
+    SparkSession.cleanupAnyExistingSession()
     sessionBuilder()
       .config(GlutenConfig.RAS_ENABLED.key, true)
       .getOrCreate()
