@@ -185,6 +185,92 @@
         <scala.version>2.13.8</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
       </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>net.alchim31.maven</groupId>
+              <artifactId>scala-maven-plugin</artifactId>
+              <configuration>
+                <compilerPlugins>
+                  <compilerPlugin>
+                    <groupId>org.wartremover</groupId>
+                    <artifactId>wartremover_${scala.binary.version}</artifactId>
+                    <version>3.0.6</version>
+                  </compilerPlugin>
+                </compilerPlugins>
+                <dependencies>
+                  <dependency>
+                    <groupId>io.github.zhztheplayer.scalawarts</groupId>
+                    <artifactId>scalawarts_${scala.binary.version}</artifactId>
+                    <version>0.1.2</version>
+                  </dependency>
+                </dependencies>
+                <recompileMode>${scala.recompile.mode}</recompileMode>
+                <args>
+                  <arg>-unchecked</arg>
+                  <arg>-deprecation</arg>
+                  <arg>-feature</arg>
+                  <arg>-explaintypes</arg>
+                  <arg>-target:jvm-1.8</arg>
+                  <arg>-Wconf:cat=deprecation:wv,any:e</arg>
+                  <arg>-Wunused:imports</arg>
+                  <!--
+                    TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed
+                  -->
+                  <arg>-Wconf:cat=scaladoc:wv</arg>
+                  <arg>-Wconf:cat=lint-multiarg-infix:wv</arg>
+                  <arg>-Wconf:cat=other-nullary-override:wv</arg>
+                  <!--
+                    SPARK-33775 Suppress compilation warnings that contain the following contents.
+                    TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed.
+                  -->
+                  <arg>-Wconf:msg=^(?=.*?method|value|type|object|trait|inheritance)(?=.*?deprecated)(?=.*?since 2.13).+$:s</arg>
+                  <arg>-Wconf:msg=^(?=.*?Widening conversion from)(?=.*?is deprecated because it loses precision).+$:s</arg>
+                  <arg>-Wconf:msg=Auto-application to \`\(\)\` is deprecated:s</arg>
+                  <arg>-Wconf:msg=method with a single empty parameter list overrides method without any parameter list:s</arg>
+                  <arg>-Wconf:msg=method without a parameter list overrides a method with a single empty one:s</arg>
+                  <!--
+                    SPARK-35574 Prevent the recurrence of compilation warnings related to
+                    `procedure syntax is deprecated`
+                  -->
+                  <arg>-Wconf:cat=deprecation&amp;msg=procedure syntax is deprecated:e</arg>
+                  <!--
+                    SPARK-35496 Upgrade Scala to 2.13.7 and suppress:
+                    1. `The outer reference in this type test cannot be checked at run time`
+                    2. `the type test for pattern TypeA cannot be checked at runtime because it
+                     has type parameters eliminated by erasure`
+                    3. `abstract type TypeA in type pattern Seq[TypeA] (the underlying of
+                    Seq[TypeA]) is unchecked since it is eliminated by erasure`
+                    4. `fruitless type test: a value of TypeA cannot also be a TypeB`
+                  -->
+                  <arg>-Wconf:cat=unchecked&amp;msg=outer reference:s</arg>
+                  <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
+                  <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
+                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                </args>
+              </configuration>
+              <executions>
+                <execution>
+                  <id>scala-compile-first</id>
+                  <phase>process-resources</phase>
+                  <goals>
+                    <goal>add-source</goal>
+                    <goal>compile</goal>
+                  </goals>
+                </execution>
+                <execution>
+                  <id>scala-test-compile-first</id>
+                  <phase>process-test-resources</phase>
+                  <goals>
+                    <goal>testCompile</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
     </profile>
     <profile>
       <id>celeborn-0.4</id>
