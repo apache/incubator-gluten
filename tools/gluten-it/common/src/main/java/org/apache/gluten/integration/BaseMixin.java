@@ -118,7 +118,7 @@ public class BaseMixin {
     scala.collection.immutable.Map<String, String> extraSparkConfScala =
         JavaConverters.mapAsScalaMapConverter(
             mergeMapSafe(extraSparkConf, runModeEnumeration.extraSparkConf())).asScala().toMap(
-            Predef.conforms());
+            Predef$.MODULE$.conforms());
 
     final MetricMapper baselineMetricMapper = pickMetricMapper(baselinePreset);
     final MetricMapper testMetricMapper = pickMetricMapper(preset);
