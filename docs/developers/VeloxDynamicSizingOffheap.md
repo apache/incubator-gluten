@@ -1,5 +1,7 @@
 ## Dynamic Off-heap Sizing
-Spark requires setting both on-heap and off-heap memory sizes, which initializes different memory layouts. Improper configuration of these settings can lead to lower performance. Dynamic off-heap sizing is an experimental feature designed to simplify this process. When enabled, off-heap settings are ignored, and Velox uses the on-heap size as the memory size.
+Gluten requires setting both on-heap and off-heap memory sizes, which initializes different memory layouts. Improper configuration of these settings can lead to lower performance. 
+
+To fix this issue, Dynamic off-heap sizing is an experimental feature designed to simplify this process. When enabled, off-heap settings are ignored, and Velox uses the on-heap size as the memory size.
 ## Detail implementations
 To understand the details, it's essential to learn the basics of JVM memory management. There are many resources discussing JVM internals:
 - https://exia.dev/blog/2019-12-10/JVM-Memory-Model/
@@ -21,4 +23,4 @@ With this change, the "quota check" is performed when an allocation in the nativ
 
 ## Limitations
 
-This feature is still under heavy development.
+This feature is still in early development stage.
