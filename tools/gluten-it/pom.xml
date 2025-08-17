@@ -153,6 +153,13 @@
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>spark-sql-columnar-shims-spark32</artifactId>
+          <version>1.5.0-SNAPSHOT</version>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-3.3</id>
@@ -161,6 +168,13 @@
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>spark-sql-columnar-shims-spark33</artifactId>
+          <version>1.5.0-SNAPSHOT</version>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-3.4</id>
@@ -169,6 +183,13 @@
         <scala.version>2.12.17</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>spark-sql-columnar-shims-spark34</artifactId>
+          <version>1.5.0-SNAPSHOT</version>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-3.5</id>
@@ -177,6 +198,13 @@
         <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>spark-sql-columnar-shims-spark35</artifactId>
+          <version>1.5.0-SNAPSHOT</version>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-4.0</id>
@@ -185,6 +213,13 @@
         <scala.version>2.13.8</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>spark-sql-columnar-shims-spark40</artifactId>
+          <version>1.5.0-SNAPSHOT</version>
+        </dependency>
+      </dependencies>
       <build>
         <pluginManagement>
           <plugins>
