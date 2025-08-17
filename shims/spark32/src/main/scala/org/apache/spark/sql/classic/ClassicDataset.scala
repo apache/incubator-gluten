@@ -16,27 +16,12 @@
  */
 package org.apache.spark.sql.classic
 
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
-/**
- * Just to ensure the code below works for Spark versions earlier than 4.0.
- *
- * import org.apache.spark.sql.classic.ClassicConversions._
- */
-trait ClassicConversions {
-
-  implicit class ColumnConstructorExt(val c: Column.type) {}
-}
-
-object ClassicConversions extends ClassicConversions
-
-/**
- * Just to ensure the code below works for Spark versions earlier than 4.0.
- *
- * import org.apache.spark.sql.classic.ExtendedClassicConversions._
- */
-object ExtendedClassicConversions {
-
-  implicit class RichSqlSparkSession(sqlSparkSession: SparkSession.type) {}
+/** Since Spark 4.0, the method ofRows cannot be invoked directly from sql.Dataset. */
+object ClassicDataset {
+  def ofRows(sparkSession: SparkSession, logicalPlan: LogicalPlan): DataFrame = {
+    Dataset.ofRows(sparkSession, logicalPlan)
+  }
 }

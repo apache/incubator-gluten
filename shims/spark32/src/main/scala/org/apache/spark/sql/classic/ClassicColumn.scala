@@ -17,26 +17,11 @@
 package org.apache.spark.sql.classic
 
 import org.apache.spark.sql.Column
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions.Expression
 
-/**
- * Just to ensure the code below works for Spark versions earlier than 4.0.
- *
- * import org.apache.spark.sql.classic.ClassicConversions._
- */
-trait ClassicConversions {
-
-  implicit class ColumnConstructorExt(val c: Column.type) {}
-}
-
-object ClassicConversions extends ClassicConversions
-
-/**
- * Just to ensure the code below works for Spark versions earlier than 4.0.
- *
- * import org.apache.spark.sql.classic.ExtendedClassicConversions._
- */
-object ExtendedClassicConversions {
-
-  implicit class RichSqlSparkSession(sqlSparkSession: SparkSession.type) {}
+/** Ensures compatibility with Spark 4.0. */
+object ClassicColumn {
+  def apply(e: Expression): Column = {
+    Column(e)
+  }
 }
