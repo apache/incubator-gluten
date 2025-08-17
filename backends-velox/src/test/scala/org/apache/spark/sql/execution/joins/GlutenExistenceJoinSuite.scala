@@ -30,7 +30,9 @@ import org.apache.spark.sql.types._
 class GlutenExistenceJoinSuite extends VeloxWholeStageTransformerSuite with SQLTestUtils {
 
   // TODO: remove this if we can suppress unused import error.
-  override val _ = new ColumnConstructorExt(Column)
+  locally {
+    new ColumnConstructorExt(Column)
+  }
 
   override protected val resourcePath: String = "N/A"
   override protected val fileFormat: String = "N/A"

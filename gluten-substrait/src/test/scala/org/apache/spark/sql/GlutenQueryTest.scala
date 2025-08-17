@@ -48,7 +48,9 @@ import scala.reflect.runtime.universe
 abstract class GlutenQueryTest extends PlanTest {
 
   // TODO: remove this if we can suppress unused import error.
-  val _ = new ColumnConstructorExt(Column)
+  locally {
+    new ColumnConstructorExt(Column)
+  }
 
   protected def spark: SparkSession
 

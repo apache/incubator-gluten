@@ -57,7 +57,9 @@ import scala.collection.mutable.ArrayBuffer
 object GlutenImplicits {
 
   // TODO: remove this if we can suppress unused import error.
-  val _ = new ColumnConstructorExt(Column)
+  locally {
+    new ColumnConstructorExt(Column)
+  }
 
   case class FallbackSummary(
       numGlutenNodes: Int,
