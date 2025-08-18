@@ -18,7 +18,6 @@
 #include <arrow/c/abi.h>
 
 #include <jni/JniCommon.h>
-#include <iostream>
 #include "JniHashTable.h"
 #include "folly/String.h"
 #include "memory/ColumnarBatch.h"
@@ -113,7 +112,6 @@ std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
 
   for (auto i = 0; i < batches.size(); i++) {
     auto rowVector = VeloxColumnarBatch::from(memoryPool.get(), batches[i])->getRowVector();
-    // std::cout << "the hash table rowVector is " << rowVector->toString(0, rowVector->size()) << "\n";
     hashTableBuilder->addInput(rowVector);
   }
   return hashTableBuilder;
