@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.expression
 
-object TransformerState {
-  private lazy val validationState = new ThreadLocal[Integer] {
-    override def initialValue: Integer = 0
-  }
-  def underValidationState: Boolean = validationState.get() > 0
+import java.util.concurrent.atomic.AtomicInteger
 
-  def enterValidation: Unit = validationState.set(validationState.get() + 1)
-  def finishValidation: Unit = validationState.set(validationState.get() - 1)
+object TransformerState {
+  private val validationState = new AtomicInteger(0)
+
+  def underValidationState: Boolean = validationState.get() > 0
+  def enterValidation(): Unit = validationState.incrementAndGet()
+  def finishValidation(): Unit = validationState.decrementAndGet()
 }

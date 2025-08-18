@@ -94,10 +94,10 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
       }
     }
     val validationResult = failValidationWithException {
-      TransformerState.enterValidation
+      TransformerState.enterValidation()
       doValidateInternal()
     } {
-      TransformerState.finishValidation
+      TransformerState.finishValidation()
     }
     if (!validationResult.ok()) {
       TestStats.addFallBackClassName(this.getClass.toString)
