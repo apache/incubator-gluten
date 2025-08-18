@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <iostream>
 #include <thread>
 #include "velox/exec/HashJoinBridge.h"
 #include "velox/exec/HashTable.h"
@@ -37,9 +36,6 @@ class HashTableBuilder {
       const std::vector<facebook::velox::core::FieldAccessTypedExprPtr>& joinKeys,
       const facebook::velox::RowTypePtr& inputType,
       facebook::velox::memory::MemoryPool* pool);
-  ~HashTableBuilder() {
-    std::cout << "~HashTableBuilder " << this << " and the thread is " << std::this_thread::get_id() << "\n";
-  }
 
   void addInput(facebook::velox::RowVectorPtr input);
 
