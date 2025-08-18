@@ -27,6 +27,21 @@ import org.apache.spark.util.Utils
 import java.util.concurrent.{ConcurrentHashMap, ExecutorService, Future => JFuture}
 import java.util.concurrent.atomic.AtomicLong
 
+/**
+ * BHJ optimization releases the built hash table upon receiving the ExecutionEnd event.
+ *
+ * In GlutenInjectRuntimeFilterSuite's runtime bloom filter join tests, a core dump occurred when
+ * two joins were executed. This was caused by the hash table being released after the ExecutionEnd
+ * event, and then unexpectedly recreated.
+ *
+ * The root cause is that the task was not properly canceled before the ExecutionEnd event was
+ * triggered.
+ *
+ * This code change ensures that tasks are explicitly canceled by invoking `sc.cancelJobsWithTag()`
+ * before passing the ExecutionEnd event, preventing the hash table from being recreated after it
+ * has been released.
+ */
+
 object SQLExecution {
 
   val EXECUTION_ID_KEY = "spark.sql.execution.id"
@@ -43,6 +58,11 @@ object SQLExecution {
   }
 
   private val testing = sys.props.contains(IS_TESTING.key)
+
+  private[sql] def executionIdJobTag(session: SparkSession, id: Long) = {
+    val sessionJobTag = s"spark-session-${session.sessionUUID}"
+    s"$sessionJobTag-execution-root-id-$id"
+  }
 
   private[sql] def checkSQLExecutionId(sparkSession: SparkSession): Unit = {
     val sc = sparkSession.sparkContext
@@ -72,6 +92,7 @@ object SQLExecution {
     // And for the root execution, rootExecutionId == executionId.
     if (sc.getLocalProperty(EXECUTION_ROOT_ID_KEY) == null) {
       sc.setLocalProperty(EXECUTION_ROOT_ID_KEY, executionId.toString)
+      sc.addJobTag(executionIdJobTag(sparkSession, executionId))
     }
     val rootExecutionId = sc.getLocalProperty(EXECUTION_ROOT_ID_KEY).toLong
     executionIdToQueryExecution.put(executionId, queryExecution)
@@ -95,7 +116,6 @@ object SQLExecution {
 
       val planDescriptionMode =
         ExplainMode.fromString(sparkSession.sessionState.conf.uiExplainMode)
-      sparkSession.sparkContext.setJobGroup(executionId.toString, desc, true)
       val globalConfigs = sparkSession.sharedState.conf.getAll.toMap
       val modifiedConfigs = sparkSession.sessionState.conf.getAllConfs
         .filterNot {
@@ -130,7 +150,6 @@ object SQLExecution {
             ex = Some(e)
             throw e
         } finally {
-          sparkSession.sparkContext.cancelJobGroup(executionId.toString)
           val endTime = System.nanoTime()
           val errorMessage = ex.map {
             case e: SparkThrowable =>
@@ -138,6 +157,8 @@ object SQLExecution {
             case e =>
               Utils.exceptionString(e)
           }
+
+          sparkSession.sparkContext.cancelJobsWithTag(executionIdJobTag(sparkSession, executionId))
           val event = SparkListenerSQLExecutionEnd(
             executionId,
             System.currentTimeMillis(),
