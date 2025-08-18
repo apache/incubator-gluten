@@ -18,6 +18,7 @@ package org.apache.gluten.integration.command;
 
 import com.google.common.base.Preconditions;
 import org.apache.gluten.integration.BaseMixin;
+import org.apache.gluten.utils.CollectionConverter;
 import org.apache.commons.lang3.ArrayUtils;
 import picocli.CommandLine;
 import scala.Tuple2;
@@ -118,14 +119,17 @@ public class Parameterized implements Callable<Integer> {
     }
 
     // Convert Map<String, Map<String, List<Map.Entry<String, String>>>> to List<Dim>
-    Seq<org.apache.gluten.integration.action.Parameterized.Dim> parsedDims = JavaConverters.asScalaBufferConverter(
+    Seq<org.apache.gluten.integration.action.Parameterized.Dim> parsedDims = CollectionConverter.toImmutable(
         parsed.entrySet().stream().map(e ->
-            new org.apache.gluten.integration.action.Parameterized.Dim(e.getKey(), JavaConverters.asScalaBufferConverter(
+            new org.apache.gluten.integration.action.Parameterized.Dim(e.getKey(), CollectionConverter.toImmutable(
                 e.getValue().entrySet().stream().map(e2 ->
-                    new org.apache.gluten.integration.action.Parameterized.DimValue(e2.getKey(), JavaConverters.asScalaBufferConverter(
+                    new org.apache.gluten.integration.action.Parameterized.DimValue(e2.getKey(), CollectionConverter.toImmutable(
                         e2.getValue().stream().map(e3 -> new Tuple2<>(e3.getKey(), e3.getValue()))
-                            .collect(Collectors.toList())).asScala())).collect(Collectors.toList())).asScala()
-            )).collect(Collectors.toList())).asScala();
+                            .collect(Collectors.toList())))
+                ).collect(Collectors.toList()))
+            )
+        ).collect(Collectors.toList())
+    );
 
     org.apache.gluten.integration.action.Parameterized parameterized =
         new org.apache.gluten.integration.action.Parameterized(dataGenMixin.getScale(),
