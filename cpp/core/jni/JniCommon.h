@@ -362,9 +362,6 @@ static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecBac
   if (codecBackend == "qat") {
     return gluten::CodecBackend::QAT;
   }
-  if (codecBackend == "iaa") {
-    return gluten::CodecBackend::IAA;
-  }
   throw std::invalid_argument("Not support this codec backend " + codecBackend);
 }
 

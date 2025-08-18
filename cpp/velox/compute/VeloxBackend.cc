@@ -27,9 +27,6 @@
 #ifdef GLUTEN_ENABLE_QAT
 #include "utils/qat/QatCodec.h"
 #endif
-#ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/QplCodec.h"
-#endif
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif

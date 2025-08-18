@@ -207,13 +207,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
     getConf(COLUMNAR_SHUFFLE_COMPRESSION_MODE)
 
   def columnarShuffleCodecBackend: Option[String] = getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
-    .filter(Set(GLUTEN_QAT_BACKEND_NAME, GLUTEN_IAA_BACKEND_NAME).contains(_))
 
   def columnarShuffleEnableQat: Boolean =
     columnarShuffleCodecBackend.contains(GlutenConfig.GLUTEN_QAT_BACKEND_NAME)
-
-  def columnarShuffleEnableIaa: Boolean =
-    columnarShuffleCodecBackend.contains(GlutenConfig.GLUTEN_IAA_BACKEND_NAME)
 
   def columnarShuffleCompressionThreshold: Int =
     getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
@@ -445,9 +441,6 @@ object GlutenConfig {
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
   val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
-  // IAA config
-  val GLUTEN_IAA_BACKEND_NAME = "iaa"
-  val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("gzip")
 
   // Private Spark configs.
   val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
@@ -1037,9 +1030,7 @@ object GlutenConfig {
       .doc(
         "By default, the supported codecs are lz4 and zstd. " +
           "When spark.gluten.sql.columnar.shuffle.codecBackend=qat," +
-          "the supported codecs are gzip and zstd. " +
-          "When spark.gluten.sql.columnar.shuffle.codecBackend=iaa," +
-          "the supported codec is gzip.")
+          "the supported codecs are gzip and zstd.")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
       .createOptional

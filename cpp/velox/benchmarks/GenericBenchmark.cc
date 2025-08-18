@@ -58,10 +58,7 @@ DEFINE_string(
     "rr",
     "Short partitioning name. Valid options are rr, hash, range, single, random (only for test purpose)");
 DEFINE_bool(rss, false, "Mocking rss.");
-DEFINE_string(
-    compression,
-    "lz4",
-    "Specify the compression codec. Valid options are none, lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
+DEFINE_string(compression, "lz4", "Specify the compression codec. Valid options are none, lz4, zstd");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
 DEFINE_bool(shuffle_dictionary, false, "Whether to enable dictionary encoding for shuffle write.");
 
@@ -172,15 +169,6 @@ void setCompressionTypeFromFlag(arrow::Compression::type& compressionType, Codec
     compressionType = arrow::Compression::LZ4_FRAME;
   } else if (FLAGS_compression == "zstd") {
     compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "qat_gzip") {
-    codecBackend = CodecBackend::QAT;
-    compressionType = arrow::Compression::GZIP;
-  } else if (FLAGS_compression == "qat_zstd") {
-    codecBackend = CodecBackend::QAT;
-    compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "iaa_gzip") {
-    codecBackend = CodecBackend::IAA;
-    compressionType = arrow::Compression::GZIP;
   } else {
     throw GlutenException("Unrecognized compression type: " + FLAGS_compression);
   }

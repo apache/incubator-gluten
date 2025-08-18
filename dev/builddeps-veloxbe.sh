@@ -32,7 +32,6 @@ ENABLE_JEMALLOC_STATS=OFF
 BUILD_VELOX_TESTS=OFF
 BUILD_VELOX_BENCHMARKS=OFF
 ENABLE_QAT=OFF
-ENABLE_IAA=OFF
 ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
@@ -86,10 +85,6 @@ do
         ;;
         --enable_qat=*)
         ENABLE_QAT=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_iaa=*)
-        ENABLE_IAA=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_gcs=*)
@@ -241,7 +236,6 @@ function build_gluten_cpp {
     -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS \
     -DENABLE_JEMALLOC_STATS=$ENABLE_JEMALLOC_STATS \
     -DENABLE_QAT=$ENABLE_QAT \
-    -DENABLE_IAA=$ENABLE_IAA \
     -DENABLE_GCS=$ENABLE_GCS \
     -DENABLE_S3=$ENABLE_S3 \
     -DENABLE_HDFS=$ENABLE_HDFS \
