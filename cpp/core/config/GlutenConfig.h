@@ -79,7 +79,6 @@ const std::string kShuffleSpillDiskWriteBufferSize = "spark.shuffle.spill.diskWr
 const std::string kSortShuffleReaderDeserializerBufferSize =
     "spark.gluten.sql.columnar.shuffle.sort.deserializerBufferSize";
 const std::string kQatBackendName = "qat";
-const std::string kIaaBackendName = "iaa";
 
 const std::string kSparkRedactionRegex = "spark.redaction.regex";
 const std::string kSparkRedactionString = "*********(redacted)";
