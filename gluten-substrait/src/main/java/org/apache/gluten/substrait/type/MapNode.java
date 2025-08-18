@@ -18,11 +18,10 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MapNode extends TypeNode implements Serializable {
+public class MapNode extends TypeNode {
   private final TypeNode keyType;
   private final TypeNode valType;
 

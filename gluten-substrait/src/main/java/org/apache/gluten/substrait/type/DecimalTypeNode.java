@@ -18,9 +18,7 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class DecimalTypeNode extends TypeNode implements Serializable {
+public class DecimalTypeNode extends TypeNode {
   public final int precision;
   public final int scale;
 

@@ -18,9 +18,7 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class TimestampTypeNode extends TypeNode implements Serializable {
+public class TimestampTypeNode extends TypeNode {
 
   public TimestampTypeNode(Boolean nullable) {
     super(nullable);

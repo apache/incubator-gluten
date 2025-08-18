@@ -18,9 +18,7 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class ListNode extends TypeNode implements Serializable {
+public class ListNode extends TypeNode {
   private final TypeNode nestedType;
 
   public ListNode(Boolean nullable, TypeNode nestedType) {

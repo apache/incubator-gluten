@@ -18,7 +18,9 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-public abstract class TypeNode {
+import java.io.Serializable;
+
+public abstract class TypeNode implements Serializable {
   protected final Boolean nullable;
 
   protected TypeNode(Boolean nullable) {

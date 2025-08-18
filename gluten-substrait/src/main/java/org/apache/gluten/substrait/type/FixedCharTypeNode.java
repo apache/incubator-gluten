@@ -18,9 +18,7 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class FixedCharTypeNode extends TypeNode implements Serializable {
+public class FixedCharTypeNode extends TypeNode {
   private final int length;
 
   public FixedCharTypeNode(Boolean nullable, int length) {

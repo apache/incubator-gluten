@@ -18,9 +18,7 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class FixedBinaryTypeNode extends TypeNode implements Serializable {
+public class FixedBinaryTypeNode extends TypeNode {
   private final int length;
 
   public FixedBinaryTypeNode(Boolean nullable, int length) {

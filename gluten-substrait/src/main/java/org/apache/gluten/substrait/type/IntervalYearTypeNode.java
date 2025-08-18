@@ -18,9 +18,7 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class IntervalYearTypeNode extends TypeNode implements Serializable {
+public class IntervalYearTypeNode extends TypeNode {
 
   public IntervalYearTypeNode(Boolean nullable) {
     super(nullable);

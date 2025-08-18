@@ -18,9 +18,7 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class BooleanTypeNode extends TypeNode implements Serializable {
+public class BooleanTypeNode extends TypeNode {
 
   public BooleanTypeNode(Boolean nullable) {
     super(nullable);
