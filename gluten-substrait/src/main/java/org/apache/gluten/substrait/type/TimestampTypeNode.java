@@ -20,11 +20,10 @@ import io.substrait.proto.Type;
 
 import java.io.Serializable;
 
-public class TimestampTypeNode implements TypeNode, Serializable {
-  private final Boolean nullable;
+public class TimestampTypeNode extends TypeNode implements Serializable {
 
   public TimestampTypeNode(Boolean nullable) {
-    this.nullable = nullable;
+    super(nullable);
   }
 
   @Override
@@ -39,10 +38,5 @@ public class TimestampTypeNode implements TypeNode, Serializable {
     Type.Builder builder = Type.newBuilder();
     builder.setTimestamp(timestampBuilder.build());
     return builder.build();
-  }
-
-  @Override
-  public Boolean nullable() {
-    return nullable;
   }
 }

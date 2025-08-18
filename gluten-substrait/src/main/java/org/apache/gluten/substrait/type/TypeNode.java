@@ -18,8 +18,16 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-public interface TypeNode {
-  Type toProtobuf();
+public abstract class TypeNode {
+  protected final Boolean nullable;
 
-  Boolean nullable();
+  protected TypeNode(Boolean nullable) {
+    this.nullable = nullable;
+  }
+
+  public abstract Type toProtobuf();
+
+  public Boolean nullable() {
+    return nullable;
+  }
 }

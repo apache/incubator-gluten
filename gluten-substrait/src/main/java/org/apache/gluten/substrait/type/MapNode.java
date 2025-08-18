@@ -22,13 +22,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MapNode implements TypeNode, Serializable {
-  private final Boolean nullable;
+public class MapNode extends TypeNode implements Serializable {
   private final TypeNode keyType;
   private final TypeNode valType;
 
   public MapNode(Boolean nullable, TypeNode keyType, TypeNode valType) {
-    this.nullable = nullable;
+    super(nullable);
     this.keyType = keyType;
     this.valType = valType;
   }
@@ -60,10 +59,5 @@ public class MapNode implements TypeNode, Serializable {
     Type.Builder builder = Type.newBuilder();
     builder.setMap(mapBuilder.build());
     return builder.build();
-  }
-
-  @Override
-  public Boolean nullable() {
-    return nullable;
   }
 }

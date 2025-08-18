@@ -20,11 +20,10 @@ import io.substrait.proto.Type;
 
 import java.io.Serializable;
 
-public class FP32TypeNode implements TypeNode, Serializable {
-  private final Boolean nullable;
+public class FP32TypeNode extends TypeNode implements Serializable {
 
   public FP32TypeNode(Boolean nullable) {
-    this.nullable = nullable;
+    super(nullable);
   }
 
   @Override
@@ -39,10 +38,5 @@ public class FP32TypeNode implements TypeNode, Serializable {
     Type.Builder builder = Type.newBuilder();
     builder.setFp32(doubleBuilder.build());
     return builder.build();
-  }
-
-  @Override
-  public Boolean nullable() {
-    return nullable;
   }
 }

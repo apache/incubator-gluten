@@ -20,11 +20,10 @@ import io.substrait.proto.Type;
 
 import java.io.Serializable;
 
-public class StringTypeNode implements TypeNode, Serializable {
-  private final Boolean nullable;
+public class StringTypeNode extends TypeNode implements Serializable {
 
   public StringTypeNode(Boolean nullable) {
-    this.nullable = nullable;
+    super(nullable);
   }
 
   @Override
@@ -39,10 +38,5 @@ public class StringTypeNode implements TypeNode, Serializable {
     Type.Builder builder = Type.newBuilder();
     builder.setString(stringBuilder.build());
     return builder.build();
-  }
-
-  @Override
-  public Boolean nullable() {
-    return nullable;
   }
 }
