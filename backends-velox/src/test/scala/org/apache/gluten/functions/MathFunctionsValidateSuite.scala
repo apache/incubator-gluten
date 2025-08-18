@@ -42,7 +42,7 @@ class MathFunctionsValidateSuiteAnsiOn extends FunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set(SQLConf.ANSI_ENABLED.key, "true")
-      .set(GlutenConfig.ANSI_FORCE_ENABLED.key, "true")
+      .set(GlutenConfig.GLUTEN_ANSI_FALLBACK_ENABLED.key, "false")
   }
 
   disableFallbackCheck
