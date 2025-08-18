@@ -16,19 +16,17 @@
  */
 package org.apache.spark.sql.execution.datasources.v2
 
+import org.apache.spark.sql.connector.write.Write
+import org.apache.spark.sql.execution.SparkPlan
+
 /** Physical plan node to replace data in existing tables. */
 case class ReplaceDataExec(
     query: SparkPlan,
     refreshCache: () => Unit,
-    projections: ReplaceDataProjections,
     write: Write)
   extends V2ExistingTableWriteExec {
 
   override val stringArgs: Iterator[Any] = Iterator(query, write)
-
-  override def writingTask: WritingSparkTask[_] = {
-    DataWritingSparkTask
-  }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ReplaceDataExec = {
     copy(query = newChild)
