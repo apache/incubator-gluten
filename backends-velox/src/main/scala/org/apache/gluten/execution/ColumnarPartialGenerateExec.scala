@@ -69,7 +69,7 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
     Seq(generateExec.generator))
 
   private lazy val generator = InterpretedArrowGenerate.create(
-    bindReferences(Seq(generateExec.generator), generateAttributes).head)
+    bindReferences(Seq(generateExec.generator), generateAttributes.toSeq).head)
 
   @transient override lazy val metrics = Map(
     "time" -> SQLMetrics.createTimingMetric(sparkContext, "total time of partial project"),
