@@ -44,7 +44,7 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
       case FileFormat.ORC => config.getOrDefault(ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT)
       case _ => throw new UnsupportedOperationException()
     }
-    if (codec.toLowerCase() == "uncompressed") {
+    if (codec.equalsIgnoreCase("uncompressed")) {
       "none"
     } else codec
   }
