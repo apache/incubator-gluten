@@ -257,6 +257,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
   private def shutdown(): Unit = {
     // TODO shutdown implementation in velox to release resources
     VeloxBroadcastBuildSideCache.cleanAll()
+
+    GlutenExecutorEndpoint.executorEndpoint.stop()
   }
 }
 
