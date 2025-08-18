@@ -178,13 +178,6 @@ endif()
 find_arrow_lib(${ARROW_LIB_NAME})
 find_arrow_lib(${ARROW_BUNDLED_DEPS})
 
-if(ENABLE_HBM)
-  include(BuildMemkind)
-  target_sources(gluten PRIVATE memory/HbwAllocator.cc)
-  target_link_libraries(gluten PRIVATE memkind::memkind)
-  add_definitions(-DGLUTEN_ENABLE_HBM)
-endif()
-
 if(ENABLE_QAT)
   include(BuildQATzip)
   include(BuildQATZstd)
