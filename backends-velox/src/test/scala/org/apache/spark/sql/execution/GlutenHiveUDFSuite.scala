@@ -27,7 +27,6 @@ import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
-import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.classic.ClassicTypes._
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
@@ -45,6 +44,7 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
     super.beforeAll()
 
     if (_spark == null) {
+      // By default, the classic SparkSession is constructed.
       _spark = SparkSession.builder().config(sparkConf).enableHiveSupport().getOrCreate()
     }
 
@@ -57,7 +57,7 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
     super.afterAll()
   }
 
-  override protected def spark: ClassicSparkSession = _spark
+  override protected def spark: ClassicSparkSession = _spark.asInstanceOf[ClassicSparkSession]
 
   protected def defaultSparkConf: SparkConf = {
     val conf = new SparkConf()
