@@ -32,7 +32,8 @@ case class IcebergColumnarBatchDataWriter(
     writer: Long,
     jniWrapper: IcebergWriteJniWrapper,
     format: Int,
-    partitionSpec: PartitionSpec)
+    partitionSpec: PartitionSpec,
+    sortOrder: SortOrder)
   extends DataWriter[ColumnarBatch]
   with Logging {
 
@@ -47,7 +48,7 @@ case class IcebergColumnarBatchDataWriter(
   }
 
   override def commit: WriterCommitMessage = {
-    val dataFiles = jniWrapper.commit(writer).map(d => parseDataFile(d, partitionSpec))
+    val dataFiles = jniWrapper.commit(writer).map(d => parseDataFile(d, partitionSpec, sortOrder))
     IcebergWriteUtil.commitDataFiles(dataFiles)
   }
 
@@ -59,7 +60,7 @@ case class IcebergColumnarBatchDataWriter(
     logDebug("Close the ColumnarBatchDataWriter")
   }
 
-  private def parseDataFile(json: String, spec: PartitionSpec): DataFile = {
+  private def parseDataFile(json: String, spec: PartitionSpec, sortOrder: SortOrder): DataFile = {
     val dataFile = mapper.readValue(json, classOf[DataFileJson])
 
     val builder = DataFiles
@@ -70,6 +71,7 @@ case class IcebergColumnarBatchDataWriter(
       .withPartition(PartitionDataJson.fromJson(dataFile.partitionDataJson, partitionSpec))
       .withMetrics(dataFile.metrics.metrics())
       .withSplitOffsets(dataFile.splitOffsets)
+      .withSortOrder(sortOrder)
     builder.build()
   }
 

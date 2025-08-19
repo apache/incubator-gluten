@@ -42,7 +42,9 @@ case class VeloxIcebergAppendDataExec(query: SparkPlan, refreshCache: () => Unit
       IcebergWriteUtil.getDirectory(write),
       getCodec,
       getPartitionSpec,
-      nestedField)
+      IcebergWriteUtil.getSortOrder(write),
+      nestedField
+    )
   }
 }
 

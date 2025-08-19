@@ -93,6 +93,10 @@ object IcebergWriteUtil {
     loc.substring(0, loc.length - 1)
   }
 
+  def getSortOrder(write: Write): SortOrder = {
+    getTable(write).sortOrder()
+  }
+
   def getPartitionSpec(write: Write): PartitionSpec = {
     val field = classOf[SparkWrite].getDeclaredField("table")
     field.setAccessible(true)

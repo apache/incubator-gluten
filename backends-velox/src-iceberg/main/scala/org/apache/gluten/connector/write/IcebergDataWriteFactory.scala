@@ -30,7 +30,7 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.arrow.c.ArrowSchema
-import org.apache.iceberg.PartitionSpec
+import org.apache.iceberg.{PartitionSpec, SortOrder}
 import org.apache.iceberg.transforms.IcebergTransformUtil
 
 import java.util.stream.Collectors
@@ -41,6 +41,7 @@ case class IcebergDataWriteFactory(
     directory: String,
     codec: String,
     partitionSpec: PartitionSpec,
+    sortOrder: SortOrder,
     field: IcebergNestedField)
   extends ColumnarBatchDataWriterFactory {
 
@@ -64,7 +65,7 @@ case class IcebergDataWriteFactory(
       .build()
     val (writerHandle, jniWrapper) =
       getJniWrapper(schema, format, directory, codec, specProto, field)
-    IcebergColumnarBatchDataWriter(writerHandle, jniWrapper, format, partitionSpec)
+    IcebergColumnarBatchDataWriter(writerHandle, jniWrapper, format, partitionSpec, sortOrder)
   }
 
   private def getJniWrapper(
