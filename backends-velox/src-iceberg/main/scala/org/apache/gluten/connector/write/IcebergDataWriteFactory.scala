@@ -81,7 +81,13 @@ case class IcebergDataWriteFactory(
     val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "IcebergWrite#write")
     val jniWrapper = new IcebergWriteJniWrapper(runtime)
     val writer =
-      jniWrapper.init(cSchema.memoryAddress(), format, directory, codec, partitionSpec.toByteArray, field.toByteArray)
+      jniWrapper.init(
+        cSchema.memoryAddress(),
+        format,
+        directory,
+        codec,
+        partitionSpec.toByteArray,
+        field.toByteArray)
     cSchema.close()
     (writer, jniWrapper)
   }
