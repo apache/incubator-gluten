@@ -20,10 +20,7 @@ import org.apache.spark.sql.connector.write.Write
 import org.apache.spark.sql.execution.SparkPlan
 
 /** Physical plan node to replace data in existing tables. */
-case class ReplaceDataExec(
-    query: SparkPlan,
-    refreshCache: () => Unit,
-    write: Write)
+case class ReplaceDataExec(query: SparkPlan, refreshCache: () => Unit, write: Write)
   extends V2ExistingTableWriteExec {
 
   override val stringArgs: Iterator[Any] = Iterator(query, write)
