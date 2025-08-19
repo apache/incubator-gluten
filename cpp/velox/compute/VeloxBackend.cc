@@ -24,9 +24,6 @@
 #include "operators/plannodes/RowVectorStream.h"
 #include "utils/ConfigExtractor.h"
 
-#ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat/QatCodec.h"
-#endif
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif

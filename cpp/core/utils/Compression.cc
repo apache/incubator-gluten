@@ -19,44 +19,21 @@
 
 #include "Exception.h"
 
-#ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat/QatCodec.h"
-#endif
-
 namespace gluten {
 
-std::unique_ptr<arrow::util::Codec>
-createArrowIpcCodec(arrow::Compression::type compressedType, CodecBackend codecBackend, int32_t compressionLevel) {
+std::unique_ptr<arrow::util::Codec> createCompressionCodec(
+    arrow::Compression::type compressedType,
+    int32_t compressionLevel) {
   std::unique_ptr<arrow::util::Codec> codec;
+  // TODO: More compression codecs should be supported.
   switch (compressedType) {
-    case arrow::Compression::LZ4_FRAME: {
-      GLUTEN_ASSIGN_OR_THROW(codec, arrow::util::Codec::Create(compressedType));
-    } break;
+    case arrow::Compression::LZ4_FRAME:
     case arrow::Compression::ZSTD: {
-      if (codecBackend == CodecBackend::NONE) {
-        GLUTEN_ASSIGN_OR_THROW(codec, arrow::util::Codec::Create(compressedType, compressionLevel));
-      } else if (codecBackend == CodecBackend::QAT) {
-#if defined(GLUTEN_ENABLE_QAT)
-        codec = qat::makeDefaultQatZstdCodec();
-#else
-        throw GlutenException("Backend QAT but not compile with option GLUTEN_ENABLE_QAT");
-#endif
-      }
-    } break;
-    case arrow::Compression::GZIP: {
-      if (codecBackend == CodecBackend::NONE) {
-        return nullptr;
-      } else if (codecBackend == CodecBackend::QAT) {
-#if defined(GLUTEN_ENABLE_QAT)
-        codec = qat::makeDefaultQatGZipCodec();
-#else
-        throw GlutenException("Backend QAT but not compile with option GLUTEN_ENABLE_QAT");
-#endif
-      }
-    } break;
+      GLUTEN_ASSIGN_OR_THROW(codec, arrow::util::Codec::Create(compressedType, compressionLevel));
+      return codec;
+    }
     default:
       return nullptr;
   }
-  return codec;
 }
 } // namespace gluten

@@ -93,8 +93,6 @@ private class ColumnarBatchSerializerInstance(
       } else {
         null // uncompressed
       }
-    val compressionCodecBackend =
-      GlutenConfig.get.columnarShuffleCodecBackend.orNull
     val batchSize = GlutenConfig.get.maxBatchSize
     val readerBufferSize = GlutenConfig.get.columnarShuffleReaderBufferSize
     val deserializerBufferSize = GlutenConfig.get.columnarSortShuffleDeserializerBufferSize
@@ -103,7 +101,6 @@ private class ColumnarBatchSerializerInstance(
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
       compressionCodec,
-      compressionCodecBackend,
       batchSize,
       readerBufferSize,
       deserializerBufferSize,

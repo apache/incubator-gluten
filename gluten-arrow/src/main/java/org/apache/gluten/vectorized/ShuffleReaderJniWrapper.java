@@ -38,7 +38,6 @@ public class ShuffleReaderJniWrapper implements RuntimeAware {
   public native long make(
       long cSchema,
       String compressionType,
-      String compressionCodecBackend,
       int batchSize,
       long readerBufferSize,
       long deserializerBufferSize,

@@ -40,7 +40,6 @@
     "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.endpoint": "hdfs://127.0.0.1:8020/",
     "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.max_size": "10Gi",
     "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.metadata_path": "/tmp/metadata/hdfs/3.5/",
-    "spark.gluten.sql.columnar.shuffle.codecBackend": "",
     "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.input_write_timeout": "180000",
     "spark.gluten.memory.task.offHeap.size.in.bytes": "10737418240",
     "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes.main.disk": "hdfs_cache",
