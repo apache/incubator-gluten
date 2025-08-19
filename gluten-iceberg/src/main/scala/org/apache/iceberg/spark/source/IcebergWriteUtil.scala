@@ -47,7 +47,7 @@ object IcebergWriteUtil {
     }
   }
 
-  private def getWriteSchema(write: Write): Schema = {
+  def getWriteSchema(write: Write): Schema = {
     assert(write.isInstanceOf[SparkWrite])
     val field = classOf[SparkWrite].getDeclaredField("writeSchema")
     field.setAccessible(true)

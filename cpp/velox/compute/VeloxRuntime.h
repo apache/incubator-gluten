@@ -29,6 +29,10 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+#include "IcebergNestedField.pb.h"
+#endif
+
 namespace gluten {
 
 class VeloxRuntime final : public Runtime {
@@ -72,6 +76,7 @@ class VeloxRuntime final : public Runtime {
       const std::string& outputDirectory,
       facebook::velox::common::CompressionKind compressionKind,
       std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
+      const gluten::IcebergNestedField& protoField,
       const std::unordered_map<std::string, std::string>& sparkConfs);
 #endif
 

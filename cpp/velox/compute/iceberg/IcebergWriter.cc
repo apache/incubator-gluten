@@ -29,12 +29,26 @@ using namespace facebook::velox::connector::hive;
 using namespace facebook::velox::connector::hive::iceberg;
 namespace {
 
+iceberg::IcebergNestedField convertToIcebergNestedField(const gluten::IcebergNestedField& protoField) {
+  IcebergNestedField result;
+  result.id = protoField.id();
+
+  // Recursively convert children
+  result.children.reserve(protoField.children_size());
+  for (const auto& protoChild : protoField.children()) {
+    result.children.push_back(convertToIcebergNestedField(protoChild));
+  }
+
+  return result;
+}
+
 std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
     const RowTypePtr& outputRowType,
     const std::string& outputDirectoryPath,
     dwio::common::FileFormat fileFormat,
     facebook::velox::common::CompressionKind compressionKind,
     std::shared_ptr<const IcebergPartitionSpec> spec,
+    const iceberg::IcebergNestedField& nestedField,
     facebook::velox::memory::MemoryPool* pool) {
   std::vector<std::shared_ptr<const connector::hive::HiveColumnHandle>> columnHandles;
 
@@ -48,18 +62,20 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
   for (auto i = 0; i < columnNames.size(); ++i) {
     if (std::find(partitionColumns.begin(), partitionColumns.end(), columnNames[i]) != partitionColumns.end()) {
       columnHandles.push_back(
-          std::make_shared<connector::hive::HiveColumnHandle>(
+          std::make_shared<iceberg::IcebergColumnHandle>(
               columnNames.at(i),
               connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
               columnTypes.at(i),
-              columnTypes.at(i)));
+              columnTypes.at(i),
+              nestedField.children[i]));
     } else {
       columnHandles.push_back(
-          std::make_shared<connector::hive::HiveColumnHandle>(
+          std::make_shared<iceberg::IcebergColumnHandle>(
               columnNames.at(i),
               connector::hive::HiveColumnHandle::ColumnType::kRegular,
               columnTypes.at(i),
-              columnTypes.at(i)));
+              columnTypes.at(i),
+              nestedField.children[i]));
     }
   }
   std::shared_ptr<const connector::hive::LocationHandle> locationHandle =
@@ -79,10 +95,11 @@ IcebergWriter::IcebergWriter(
     const std::string& outputDirectory,
     facebook::velox::common::CompressionKind compressionKind,
     std::shared_ptr<const iceberg::IcebergPartitionSpec> spec,
+    const gluten::IcebergNestedField& field,
     const std::unordered_map<std::string, std::string>& sparkConfs,
     std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool,
     std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool)
-    : rowType_(rowType), pool_(memoryPool), connectorPool_(connectorPool) {
+    : rowType_(rowType), field_(convertToIcebergNestedField(field)), pool_(memoryPool), connectorPool_(connectorPool) {
   auto connectorSessionProperties_ = getHiveConfig(
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(sparkConfs)));
   connectorConfig_ = std::make_shared<facebook::velox::connector::hive::HiveConfig>(connectorSessionProperties_);
@@ -103,7 +120,7 @@ IcebergWriter::IcebergWriter(
   dataSink_ = std::make_unique<IcebergDataSink>(
       rowType_,
       createIcebergInsertTableHandle(
-          rowType_, outputDirectory, icebergFormatToVelox(format), compressionKind, spec, pool_.get()),
+          rowType_, outputDirectory, icebergFormatToVelox(format), compressionKind, spec, field_, pool_.get()),
       connectorQueryCtx_.get(),
       facebook::velox::connector::CommitStrategy::kNoCommit,
       connectorConfig_);

@@ -224,11 +224,12 @@ std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
     const std::string& outputDirectory,
     facebook::velox::common::CompressionKind compressionKind,
     std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
+    const gluten::IcebergNestedField& protoField,
     const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto veloxPool = memoryManager()->getLeafMemoryPool();
   auto connectorPool = memoryManager()->getAggregateMemoryPool();
   return std::make_shared<IcebergWriter>(
-      rowType, format, outputDirectory, compressionKind, spec, sparkConfs, veloxPool, connectorPool);
+      rowType, format, outputDirectory, compressionKind, spec, protoField, sparkConfs, veloxPool, connectorPool);
 }
 #endif
 
