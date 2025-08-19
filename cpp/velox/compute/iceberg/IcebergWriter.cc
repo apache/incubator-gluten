@@ -34,8 +34,7 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
     const std::string& outputDirectoryPath,
     dwio::common::FileFormat fileFormat,
     facebook::velox::common::CompressionKind compressionKind,
-    std::shared_ptr<const IcebergPartitionSpec> spec,
-    facebook::velox::memory::MemoryPool* pool) {
+    std::shared_ptr<const IcebergPartitionSpec> spec) {
   std::vector<std::shared_ptr<const connector::hive::HiveColumnHandle>> columnHandles;
 
   std::vector<std::string> columnNames = outputRowType->names();
@@ -65,9 +64,9 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
   std::shared_ptr<const connector::hive::LocationHandle> locationHandle =
       std::make_shared<connector::hive::LocationHandle>(
           outputDirectoryPath, outputDirectoryPath, connector::hive::LocationHandle::TableType::kExisting);
-  const std::vector<IcebergSortingColumn> sortedBy;
+
   return std::make_shared<connector::hive::iceberg::IcebergInsertTableHandle>(
-      columnHandles, locationHandle, spec, pool, fileFormat, sortedBy, compressionKind);
+      columnHandles, locationHandle, spec, fileFormat, nullptr, compressionKind);
 }
 
 } // namespace
@@ -99,11 +98,9 @@ IcebergWriter::IcebergWriter(
       "planNodeId.IcebergDataSink",
       0,
       "");
-
   dataSink_ = std::make_unique<IcebergDataSink>(
       rowType_,
-      createIcebergInsertTableHandle(
-          rowType_, outputDirectory, icebergFormatToVelox(format), compressionKind, spec, pool_.get()),
+      createIcebergInsertTableHandle(rowType_, outputDirectory, icebergFormatToVelox(format), compressionKind, spec),
       connectorQueryCtx_.get(),
       facebook::velox::connector::CommitStrategy::kNoCommit,
       connectorConfig_);
@@ -119,8 +116,9 @@ std::vector<std::string> IcebergWriter::commit() {
   return dataSink_->close();
 }
 
-std::shared_ptr<const iceberg::IcebergPartitionSpec>
-parseIcebergPartitionSpec(const uint8_t* data, const int32_t length, RowTypePtr rowType) {
+std::shared_ptr<const iceberg::IcebergPartitionSpec> parseIcebergPartitionSpec(
+    const uint8_t* data,
+    const int32_t length) {
   gluten::IcebergPartitionSpec protoSpec;
   gluten::parseProtobuf(data, length, &protoSpec);
   std::vector<iceberg::IcebergPartitionSpec::Field> fields;
@@ -161,7 +159,7 @@ parseIcebergPartitionSpec(const uint8_t* data, const int32_t length, RowTypePtr 
       parameter = protoField.parameter();
     }
 
-    fields.emplace_back(protoField.name(), rowType->findChild(protoField.name()), transform, parameter);
+    fields.emplace_back(protoField.name(), transform, parameter);
   }
 
   return std::make_shared<iceberg::IcebergPartitionSpec>(protoSpec.spec_id(), fields);

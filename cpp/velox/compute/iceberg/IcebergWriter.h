@@ -50,6 +50,7 @@ class IcebergWriter {
   std::unique_ptr<facebook::velox::connector::hive::iceberg::IcebergDataSink> dataSink_;
 };
 
-std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec>
-parseIcebergPartitionSpec(const uint8_t* data, const int32_t length, facebook::velox::RowTypePtr rowType);
+std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> parseIcebergPartitionSpec(
+    const uint8_t* data,
+    const int32_t length);
 } // namespace gluten

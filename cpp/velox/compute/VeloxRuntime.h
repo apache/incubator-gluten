@@ -67,7 +67,7 @@ class VeloxRuntime final : public Runtime {
 
 #ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
   std::shared_ptr<IcebergWriter> createIcebergWriter(
-      RowTypePtr rowType,
+      ArrowSchema* cSchema,
       int32_t format,
       const std::string& outputDirectory,
       facebook::velox::common::CompressionKind compressionKind,

@@ -709,12 +709,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
   auto sparkConf = ctx->getConfMap();
   sparkConf.merge(backendConf);
   auto safeArray = gluten::getByteArrayElementsSafe(env, partition);
-  auto arrowSchema = reinterpret_cast<struct ArrowSchema*>(cSchema);
-  auto rowType = asRowType(importFromArrow(*arrowSchema));
-  ArrowSchemaRelease(arrowSchema);
-  auto spec = parseIcebergPartitionSpec(safeArray.elems(), safeArray.length(), rowType);
+  auto spec = parseIcebergPartitionSpec(safeArray.elems(), safeArray.length());
   return ctx->saveObject(runtime->createIcebergWriter(
-      rowType,
+      reinterpret_cast<struct ArrowSchema*>(cSchema),
       format,
       jStringToCString(env, directory),
       facebook::velox::common::stringToCompressionKind(jStringToCString(env, codecJstr)),
