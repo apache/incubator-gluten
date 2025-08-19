@@ -219,7 +219,7 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
 
 #ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
 std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
-    ArrowSchema* cSchema,
+    RowTypePtr rowType,
     int32_t format,
     const std::string& outputDirectory,
     facebook::velox::common::CompressionKind compressionKind,
@@ -227,8 +227,6 @@ std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
     const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto veloxPool = memoryManager()->getLeafMemoryPool();
   auto connectorPool = memoryManager()->getAggregateMemoryPool();
-  auto rowType = asRowType(importFromArrow(*cSchema));
-  ArrowSchemaRelease(cSchema);
   return std::make_shared<IcebergWriter>(
       rowType, format, outputDirectory, compressionKind, spec, sparkConfs, veloxPool, connectorPool);
 }
