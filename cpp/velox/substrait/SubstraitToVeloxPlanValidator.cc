@@ -59,7 +59,7 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "rlike"};
 
 const std::unordered_set<std::string> kBlackList =
-    {"split_part", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays", "to_json"};
+    {"split_part", "sequence", "approx_percentile", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
@@ -235,34 +235,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   return true;
 }
 
-bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
-  // https://github.com/apache/incubator-gluten/issues/9392
-  // is currently WIP to add support for other types.
-  if (toType->isVarchar()) {
-    return fromType->isDouble() || fromType->isBoolean() || fromType->isTimestamp()
-     || fromType->isInteger() || fromType->isBigint() || fromType->isDate();
-  }
-
-  if (toType->isDouble()) {
-    if (fromType->isInteger() || fromType->isBigint() || fromType->isSmallint() || fromType->isTinyint()) {
-      return true;
-    }
-  }
-
-  if (toType->isBoolean()) {
-    if (fromType->isDate() || fromType->isShortDecimal()) {
-      return false;
-    }
-
-    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
-        fromType->isReal() || fromType->isDouble()) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const TypePtr& toType) {
   // Currently cast is not allowed for various categories, code has a bunch of rules
   // which define the cast categories and if we should offload to velox. Currently,
@@ -321,19 +293,42 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
     return false;
   }
 
+  // For complex types recursively check that their children can be cast.
   if (fromType->isArray() && toType->isArray()) {
     const auto& toElem = toType->asArray().elementType();
     const auto& fromElem = fromType->asArray().elementType();
 
-    if (!isAllowedCast(fromElem, toElem)) {
-      return false;
-    }
-
-    return isSupportedArrayCast(fromElem, toElem);
+    return isAllowedCast(fromElem, toElem);
   }
 
-  // Limited support for Complex types.
-  if (fromType->isArray() || fromType->isMap() || fromType->isRow()) {
+  if (fromType->isMap() && toType->isMap()) {
+      const auto& fromKey = fromType->asMap().keyType();
+      const auto& fromValue = fromType->asMap().valueType();
+      const auto& toKey = toType->asMap().keyType();
+      const auto& toValue = toType->asMap().valueType();
+
+      return isAllowedCast(fromKey, toKey) && isAllowedCast(fromValue, toValue);
+  }
+
+  if (fromType->isRow() && toType->isRow()) {
+      const auto& fromChildren = fromType->asRow().children();
+      const auto& toChildren = toType->asRow().children();
+
+      if (fromChildren.size() != toChildren.size()) {
+        return false;
+      }
+
+      for (size_t childIdx = 0; childIdx < fromChildren.size(); ++childIdx) {
+        if (!isAllowedCast(fromChildren[childIdx], toChildren[childIdx])) {
+          return false;
+        }
+      }
+
+      return true;
+  }
+
+  // Casting a complex type to/from any other type is not allowed.
+  if (fromType->isArray() || fromType->isMap() || fromType->isRow() || toType->isArray() || toType->isMap() || toType->isRow()) {
     return false;
   }
 

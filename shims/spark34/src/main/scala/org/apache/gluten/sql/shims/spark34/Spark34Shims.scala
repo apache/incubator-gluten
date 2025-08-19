@@ -29,6 +29,7 @@ import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
@@ -51,7 +52,7 @@ import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy
-import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
+import org.apache.spark.sql.types.{DecimalType, IntegerType, LongType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
@@ -435,7 +436,8 @@ class Spark34Shims extends SparkShims {
       outputPartitioning: Partitioning,
       commonPartitionValues: Option[Seq[(InternalRow, Int)]],
       applyPartialClustering: Boolean,
-      replicatePartitions: Boolean): Seq[Seq[InputPartition]] = {
+      replicatePartitions: Boolean,
+      joinKeyPositions: Option[Seq[Int]] = None): Seq[Seq[InputPartition]] = {
     scan match {
       case _ if keyGroupedPartitioning.isDefined =>
         var finalPartitions = filteredPartitions
@@ -625,6 +627,14 @@ class Spark34Shims extends SparkShims {
 
   override def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = unBase64.failOnError
 
+  override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
+    exp match {
+      case timestampAdd: TimestampAdd =>
+        Option.apply(Seq(timestampAdd.unit, timestampAdd.timeZoneId.getOrElse("")))
+      case _ => Option.empty
+    }
+  }
+
   override def extractExpressionTimestampDiffUnit(exp: Expression): Option[String] = {
     exp match {
       case timestampDiff: TimestampDiff =>
@@ -632,4 +642,9 @@ class Spark34Shims extends SparkShims {
       case _ => Option.empty
     }
   }
+
+  override def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType = {
+    DecimalPrecision.widerDecimalType(d1, d2)
+  }
+
 }

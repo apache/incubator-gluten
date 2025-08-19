@@ -111,20 +111,22 @@ object ConverterUtils extends Logging {
 
   private def collectAttributeNamesDFS(attributes: Seq[Attribute])(
       f: Attribute => String): JList[String] = {
-    val nameList = new JArrayList[String]()
-    attributes.foreach(
-      attr => {
-        nameList.add(f(attr))
-        if (BackendsApiManager.getSettings.supportStructType()) {
+    if (BackendsApiManager.getSettings.supportStructType()) {
+      val nameList = new JArrayList[String]()
+      attributes.foreach {
+        attr =>
+          nameList.add(f(attr))
           attr.dataType match {
             case struct: StructType =>
               val nestedNames = collectStructFieldNames(struct)
               nameList.addAll(nestedNames)
             case _ =>
           }
-        }
-      })
-    nameList
+      }
+      nameList
+    } else {
+      attributes.map(f(_)).asJava
+    }
   }
 
   def collectStructFieldNames(dataType: DataType): JList[String] = {

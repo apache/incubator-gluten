@@ -1,5 +1,5 @@
 FROM ghcr.io/facebookincubator/velox-dev:adapters
-RUN yum install -y sudo patch maven perl
+RUN yum install -y sudo patch maven perl && ln -sf /usr/local/bin/cmake /usr/bin
 
 RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
 

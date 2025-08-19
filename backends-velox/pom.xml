@@ -111,6 +111,20 @@
           <version>${iceberg.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.parquet</groupId>
+              <artifactId>parquet-avro</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.parquet</groupId>
+              <artifactId>parquet-common</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.parquet</groupId>
+              <artifactId>parquet-hadoop</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
@@ -132,6 +146,12 @@
           <version>${iceberg.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.parquet</groupId>
+              <artifactId>parquet-avro</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
@@ -207,6 +227,32 @@
           <groupId>org.apache.hudi</groupId>
           <artifactId>hudi-spark${sparkbundle.version}-bundle_${scala.binary.version}</artifactId>
           <version>${hudi.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>paimon</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.paimon</groupId>
+          <artifactId>paimon-spark-${sparkbundle.version}</artifactId>
+          <version>${paimon.version}</version>
           <scope>provided</scope>
         </dependency>
       </dependencies>

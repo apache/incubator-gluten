@@ -24,6 +24,10 @@ import org.apache.spark.sql.internal.SQLConf
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/*
+ * Note: Gluten configiguration.md is automatically generated from this code.
+ * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ */
 class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   import VeloxConfig._
 
@@ -100,7 +104,8 @@ object VeloxConfig {
   val COLUMNAR_VELOX_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
       .internal()
-      .doc("Enable Velox cache, default off")
+      .doc("Enable Velox cache, default off. It's recommended to enable" +
+        "soft-affinity as well when enable velox cache.")
       .booleanConf
       .createWithDefault(false)
 
@@ -479,14 +484,23 @@ object VeloxConfig {
   val DIRECTORY_SIZE_GUESS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
       .internal()
-      .doc("Set the directory size guess for velox file scan")
+      .doc("Deprecated, rename to spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("32KB")
+
+  val FOOTER_ESTIMATED_SIZE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
+      .internal()
+      .doc("Set the footer estimated size for velox file scan, " +
+        "refer to Velox's footer-estimated-size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32KB")
 
   val FILE_PRELOAD_THRESHOLD =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold")
       .internal()
-      .doc("Set the file preload threshold for velox file scan")
+      .doc("Set the file preload threshold for velox file scan, " +
+        "refer to Velox's file-preload-threshold")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
