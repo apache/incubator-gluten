@@ -31,6 +31,8 @@ const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 
 const std::string kCaseSensitive = "spark.sql.caseSensitive";
 
+const std::string kAnsiEnabled = "spark.sql.ansi.enabled";
+
 const std::string kSessionTimezone = "spark.sql.session.timeZone";
 
 const std::string kAllowPrecisionLoss = "spark.sql.decimalOperations.allowPrecisionLoss";
