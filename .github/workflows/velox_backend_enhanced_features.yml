@@ -218,12 +218,12 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: velox-native-lib-centos-7-${{github.sha}}
+          name: velox-native-lib-enhanced-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
-          name: arrow-jars-centos-7-${{github.sha}}
+          name: arrow-jars-enhanced-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare Spark Resources for Spark 3.5.5
         run: |
