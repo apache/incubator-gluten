@@ -32,8 +32,8 @@ import io.github.zhztheplayer.velox4j.plan.HashPartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
-import io.github.zhztheplayer.velox4j.plan.WindowAggregationNode;
-import io.github.zhztheplayer.velox4j.plan.WindowPartitionFunctionSpec;
+import io.github.zhztheplayer.velox4j.plan.StreamWindowAggregationNode;
+import io.github.zhztheplayer.velox4j.plan.StreamWindowPartitionFunctionSpec;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
@@ -210,7 +210,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     int rowtimeIndex = windowSpecParams.f3;
     int windowType = windowSpecParams.f4;
     PartitionFunctionSpec sliceAssignerSpec =
-        new WindowPartitionFunctionSpec(inputType, rowtimeIndex, size, slide, offset, windowType);
+        new StreamWindowPartitionFunctionSpec(
+            inputType, rowtimeIndex, size, slide, offset, windowType);
     PlanNode aggregation =
         new AggregationNode(
             PlanNodeIdGenerator.newId(),
@@ -236,7 +237,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             null,
             List.of());
     PlanNode windowAgg =
-        new WindowAggregationNode(
+        new StreamWindowAggregationNode(
             PlanNodeIdGenerator.newId(),
             aggregation,
             localAgg,

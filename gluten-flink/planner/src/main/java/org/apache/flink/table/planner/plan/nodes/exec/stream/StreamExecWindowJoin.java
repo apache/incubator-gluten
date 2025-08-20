@@ -30,8 +30,8 @@ import io.github.zhztheplayer.velox4j.plan.NestedLoopJoinNode;
 import io.github.zhztheplayer.velox4j.plan.PartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
+import io.github.zhztheplayer.velox4j.plan.StreamWindowJoinNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
-import io.github.zhztheplayer.velox4j.plan.WindowJoinNode;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
@@ -215,7 +215,7 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
             new EmptyNode(leftInputType),
             outputType);
     PlanNode join =
-        new WindowJoinNode(
+        new StreamWindowJoinNode(
             PlanNodeIdGenerator.newId(),
             leftInput,
             rightInput,
