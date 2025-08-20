@@ -21,7 +21,6 @@ import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher.NONE
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
-import org.apache.spark.sql.classic.ClassicTypes._
 import org.apache.spark.sql.classic.ExtendedClassicConversions._
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 
@@ -35,6 +34,7 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
   }
 
   private val testDefaults = new SparkConf(false)
+
     .setWarningOnOverriding("spark.hadoop.fs.file.impl", classOf[LocalFileSystem].getName)
     .setWarningOnOverriding(SQLConf.CODEGEN_FALLBACK.key, "false")
     .setWarningOnOverriding(
@@ -142,7 +142,7 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     if (hasActiveSession()) {
       throw new IllegalStateException()
     }
-    _spark = new ClassicSparkSession(new SparkContext(masterUrl, appName, conf))
+    _spark = SparkSession.builder().sparkContext(new SparkContext(masterUrl, appName, conf)).getOrCreate()
     _spark.sparkContext.setLogLevel(logLevel)
   }
 
