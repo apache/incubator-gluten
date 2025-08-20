@@ -47,7 +47,7 @@ object IcebergWriteUtil {
     }
   }
 
-  private def getWriteSchema(write: Write): Schema = {
+  def getWriteSchema(write: Write): Schema = {
     assert(write.isInstanceOf[SparkWrite])
     val field = classOf[SparkWrite].getDeclaredField("writeSchema")
     field.setAccessible(true)
@@ -91,6 +91,10 @@ object IcebergWriteUtil {
     field.setAccessible(true)
     val loc = getTable(write).locationProvider().newDataLocation("")
     loc.substring(0, loc.length - 1)
+  }
+
+  def getSortOrder(write: Write): SortOrder = {
+    getTable(write).sortOrder()
   }
 
   def getPartitionSpec(write: Write): PartitionSpec = {
