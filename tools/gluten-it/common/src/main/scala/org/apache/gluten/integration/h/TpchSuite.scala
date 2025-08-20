@@ -19,7 +19,7 @@ package org.apache.gluten.integration.h
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_RELATIVE_PATH}
 import org.apache.gluten.integration.metrics.MetricMapper
-import org.apache.gluten.integration.{DataGen, Suite, TableCreator, TypeModifier}
+import org.apache.gluten.integration.{DataGen, Suite, TableCreator}
 import org.apache.log4j.Level
 import org.apache.spark.SparkConf
 

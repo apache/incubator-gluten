@@ -20,7 +20,7 @@ import org.apache.gluten.integration.BaseMixin;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.gluten.integration.metrics.PlanMetric;
 import picocli.CommandLine;
-import scala.collection.JavaConverters;
+import org.apache.gluten.utils.CollectionConverter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -55,7 +55,7 @@ public class Queries implements Callable<Integer> {
     }
     org.apache.gluten.integration.action.Queries queries =
         new org.apache.gluten.integration.action.Queries(dataGenMixin.getScale(), dataGenMixin.genPartitionedData(), queriesMixin.queries(),
-            queriesMixin.explain(), queriesMixin.iterations(), randomKillTasks, queriesMixin.noSessionReuse(), queriesMixin.suppressFailureMessages(), JavaConverters.asScalaBufferConverter(metricsReporters).asScala());
+            queriesMixin.explain(), queriesMixin.iterations(), randomKillTasks, queriesMixin.noSessionReuse(), queriesMixin.suppressFailureMessages(), CollectionConverter.toImmutable(metricsReporters));
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queries));
   }
 }

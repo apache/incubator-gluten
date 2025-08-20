@@ -31,7 +31,7 @@ object HistoryServerHelper {
     initSecurity()
     val securityManager = createSecurityManager(conf)
     val providerName = conf
-      .get(History.PROVIDER)
+      .getOption(History.PROVIDER.key)
       .getOrElse(classOf[FsHistoryProvider].getName())
     val provider = org.apache.spark.util.Utils
       .classForName[ApplicationHistoryProvider](providerName)

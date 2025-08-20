@@ -19,9 +19,9 @@ package org.apache.gluten.integration.command;
 import com.google.common.base.Preconditions;
 import org.apache.gluten.integration.Suite;
 import org.apache.gluten.integration.action.Actions;
+import org.apache.gluten.utils.CollectionConverter;
 import picocli.CommandLine;
-import scala.collection.Seq;
-import scala.collection.JavaConverters;
+import scala.collection.immutable.Seq;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -72,7 +72,7 @@ public class QueriesMixin {
         final Division div = Division.parse(shard);
         final List<String> out = div(all, div);
         System.out.println("About to run queries: " + out + "... ");
-        return JavaConverters.asScalaBuffer(out);
+        return CollectionConverter.toImmutable(out);
       }
 
       private List<String> div(List<String> from, Division div) {

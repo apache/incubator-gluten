@@ -29,7 +29,7 @@ import org.apache.spark.status.api.v1
 
 import com.google.common.base.Preconditions
 
-import java.net.{ServerSocket, URI, URL}
+import java.net.URI
 import java.util.Locale
 
 import scala.collection.JavaConverters._

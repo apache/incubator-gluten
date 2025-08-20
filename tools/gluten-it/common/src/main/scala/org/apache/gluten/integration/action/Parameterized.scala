@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.integration.action
 
-import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.Field
@@ -28,7 +27,6 @@ import org.apache.spark.sql.SparkSession
 
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 class Parameterized(
     scale: Double,
@@ -320,19 +318,21 @@ object Parameterized {
       metricNames: Seq[String],
       lines: Iterable[TestResultLine]) {
     def print(): Unit = {
-      val fields = ListBuffer[Field](Field.Leaf("Query ID"))
-      val coordFields = coordIds.map(id => Field.Leaf(id.toString))
-
-      fields.append(Field.Branch("Succeeded", coordFields))
-      fields.append(Field.Branch("Row Count", coordFields))
-      metricNames.foreach(metricName => fields.append(Field.Branch(metricName, coordFields)))
-      fields.append(Field.Branch("Planning Time (Millis)", coordFields))
-      fields.append(Field.Branch("Query Time (Millis)", coordFields))
-
+      val coordFields: Seq[Field] = coordIds.map(id => Field.Leaf(id.toString))
+      val fields: Seq[Field] =
+        Seq(
+          Field.Leaf("Query ID")) ++
+          Seq(Field.Branch("Succeeded", coordFields),
+            Field.Branch("Row Count", coordFields)) ++
+          metricNames.map(metricName => Field.Branch(metricName, coordFields)) ++
+          Seq(
+            Field.Branch("Planning Time (Millis)", coordFields),
+            Field.Branch("Query Time (Millis)", coordFields)
+          )
       val render =
         TableRender.create[TestResultLine](fields: _*)(
-          new TestResultLine.Parser(coordIds, metricNames))
-
+          new TestResultLine.Parser(coordIds, metricNames)
+        )
       lines.foreach(line => render.appendRow(line))
 
       render.print(System.out)
