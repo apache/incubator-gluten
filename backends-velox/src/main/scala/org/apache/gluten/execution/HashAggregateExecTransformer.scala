@@ -96,18 +96,10 @@ abstract class HashAggregateExecTransformer(
    * @return
    *   extracting needed or not.
    */
-  private def extractStructNeeded(): Boolean = {
-    aggregateExpressions.exists {
-      expr =>
-        expr.aggregateFunction match {
-          case aggFunc if aggFunc.aggBufferAttributes.size > 1 =>
-            expr.mode match {
-              case Partial | PartialMerge => true
-              case _ => false
-            }
-          case _ => false
-        }
-    }
+  private def extractStructNeeded(): Boolean = aggregateExpressions.exists {
+    case AggregateExpression(aggFunc, Partial | PartialMerge, _, _, _) =>
+      aggFunc.aggBufferAttributes.size > 1
+    case _ => false
   }
 
   /**
