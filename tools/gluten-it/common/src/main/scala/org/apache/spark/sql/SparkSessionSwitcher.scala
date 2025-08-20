@@ -21,17 +21,11 @@ import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher.NONE
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
-import org.apache.spark.sql.classic.ExtendedClassicConversions._
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 
 import org.apache.hadoop.fs.LocalFileSystem
 
 class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends AutoCloseable {
-
-  // TODO: remove this if we can suppress unused import error.
-  locally {
-    new RichSqlSparkSession(SparkSession)
-  }
 
   private val testDefaults = new SparkConf(false)
 
@@ -112,7 +106,6 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
   }
 
   private def activateSession(conf: SparkConf, appName: String): Unit = {
-    SparkSession.cleanupAnyExistingSession()
     if (hasActiveSession()) {
       stopActiveSession()
     }
