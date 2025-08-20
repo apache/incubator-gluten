@@ -207,55 +207,33 @@ abstract class HashAggregateExecTransformer(
       aggregateNodeList: JList[AggregateFunctionNode]): Unit = {
     val modeKeyWord = modeToKeyWord(aggregateMode)
 
-    def generateMergeCompanionNode(): Unit = {
-      aggregateMode match {
-        case Partial | PartialMerge =>
-          val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-            childrenNodeList,
-            modeKeyWord,
-            VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
-          )
-          aggregateNodeList.add(aggFunctionNode)
-        case Final | Complete =>
-          val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-            childrenNodeList,
-            modeKeyWord,
-            ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
-          )
-          aggregateNodeList.add(aggFunctionNode)
-        case other =>
-          throw new GlutenNotSupportException(s"$other is not supported.")
-      }
-    }
-
-    aggregateFunction match {
-      case _ if aggregateFunction.aggBufferAttributes.size > 1 =>
-        generateMergeCompanionNode()
-      case _ =>
-        aggregateMode match {
-          case Partial | PartialMerge =>
-            val partialNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-              childrenNodeList,
-              modeKeyWord,
-              ConverterUtils.getTypeNode(
-                aggregateFunction.inputAggBufferAttributes.head.dataType,
-                aggregateFunction.inputAggBufferAttributes.head.nullable)
-            )
-            aggregateNodeList.add(partialNode)
-          case Final | Complete =>
-            val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-              childrenNodeList,
-              modeKeyWord,
-              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
-            )
-            aggregateNodeList.add(aggFunctionNode)
-          case other =>
-            throw new GlutenNotSupportException(s"$other is not supported.")
-        }
+    aggregateMode match {
+      case Partial | PartialMerge if aggregateFunction.aggBufferAttributes.size > 1 =>
+        val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+          VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
+          childrenNodeList,
+          modeKeyWord,
+          VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
+        )
+        aggregateNodeList.add(aggFunctionNode)
+      case Partial | PartialMerge =>
+        val partialNode = ExpressionBuilder.makeAggregateFunction(
+          VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
+          childrenNodeList,
+          modeKeyWord,
+          ConverterUtils.getTypeNode(
+            aggregateFunction.inputAggBufferAttributes.head.dataType,
+            aggregateFunction.inputAggBufferAttributes.head.nullable)
+        )
+        aggregateNodeList.add(partialNode)
+      case Final | Complete =>
+        val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+          VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
+          childrenNodeList,
+          modeKeyWord,
+          ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
+        )
+        aggregateNodeList.add(aggFunctionNode)
     }
   }
 
