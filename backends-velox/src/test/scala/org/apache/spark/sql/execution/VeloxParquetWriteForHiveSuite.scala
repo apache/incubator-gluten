@@ -26,6 +26,7 @@ import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.classic.ClassicTypes._
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.test.SQLTestUtils
@@ -49,13 +50,14 @@ class VeloxParquetWriteForHiveSuite
     super.beforeAll()
 
     if (_spark == null) {
+      // By default, the classic SparkSession is constructed.
       _spark = SparkSession.builder().config(sparkConf).enableHiveSupport().getOrCreate()
     }
 
     _spark.sparkContext.setLogLevel("warn")
   }
 
-  override protected def spark: SparkSession = _spark
+  override protected def spark: ClassicSparkSession = _spark.asInstanceOf[ClassicSparkSession]
 
   protected def defaultSparkConf: SparkConf = {
     val conf = new SparkConf()
