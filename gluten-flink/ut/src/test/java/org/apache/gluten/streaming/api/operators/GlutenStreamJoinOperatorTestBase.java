@@ -35,7 +35,9 @@ import io.github.zhztheplayer.velox4j.join.JoinType;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
 import io.github.zhztheplayer.velox4j.plan.EmptyNode;
+import io.github.zhztheplayer.velox4j.plan.HashPartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.NestedLoopJoinNode;
+import io.github.zhztheplayer.velox4j.plan.PartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.StreamJoinNode;
@@ -65,6 +67,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -195,22 +198,21 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
             new ExternalStreamTableHandle("connector-external-stream"),
             List.of());
 
-    NestedLoopJoinNode leftNode =
-        new NestedLoopJoinNode(
-            PlanNodeIdGenerator.newId(),
-            veloxJoinType,
-            joinCondition,
-            new EmptyNode(leftVeloxType),
-            new EmptyNode(rightVeloxType),
-            outputVeloxType);
+    List<Integer> leftKeyIndexes = Arrays.stream(leftJoinKeys).boxed().collect(Collectors.toList());
+    List<Integer> rightKeyIndexes =
+        Arrays.stream(rightJoinKeys).boxed().collect(Collectors.toList());
+    PartitionFunctionSpec leftPartFuncSpec =
+        new HashPartitionFunctionSpec(leftVeloxType, leftKeyIndexes);
+    PartitionFunctionSpec rightPartFuncSpec =
+        new HashPartitionFunctionSpec(rightVeloxType, rightKeyIndexes);
 
-    NestedLoopJoinNode rightNode =
+    NestedLoopJoinNode probeNode =
         new NestedLoopJoinNode(
             PlanNodeIdGenerator.newId(),
             veloxJoinType,
             joinCondition,
-            new EmptyNode(rightVeloxType),
             new EmptyNode(leftVeloxType),
+            new EmptyNode(rightVeloxType),
             outputVeloxType);
 
     PlanNode join =
@@ -218,9 +220,11 @@ public abstract class GlutenStreamJoinOperatorTestBase extends StreamingJoinOper
             PlanNodeIdGenerator.newId(),
             leftInput,
             rightInput,
-            leftNode,
-            rightNode,
-            outputVeloxType);
+            leftPartFuncSpec,
+            rightPartFuncSpec,
+            probeNode,
+            outputVeloxType,
+            1024);
 
     return new GlutenVectorTwoInputOperator(
         new StatefulPlanNode(join.getId(), join),
