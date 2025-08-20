@@ -21,7 +21,7 @@ import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 
 // A wrapper for HashPartitioning to remain original hash expressions.
 // Only used by CH backend when shuffle hash expressions contains non-field expression.
-@SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
+@SuppressWarnings(Array("org.wartremover.contrib.warts.CaseClassInheritance"))
 class HashPartitioningWrapper(
     original: Seq[Expression],
     newExpr: Seq[Expression],
