@@ -28,11 +28,9 @@ import org.apache.iceberg.spark.SparkTestBase;
 import org.apache.iceberg.spark.sql.TestAggregatePushDown;
 import org.apache.spark.sql.SparkSession;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 
 import java.util.Map;
 
-@Ignore
 public class TestGlutenAggregatePushDown extends TestAggregatePushDown {
   public TestGlutenAggregatePushDown(
       String catalogName, String implementation, Map<String, String> config) {

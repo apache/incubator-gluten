@@ -254,4 +254,3 @@ jobs:
             **/target/*.log
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
-            
