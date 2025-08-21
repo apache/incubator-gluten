@@ -28,7 +28,6 @@ import org.apache.hadoop.fs.LocalFileSystem
 class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends AutoCloseable {
 
   private val testDefaults = new SparkConf(false)
-
     .setWarningOnOverriding("spark.hadoop.fs.file.impl", classOf[LocalFileSystem].getName)
     .setWarningOnOverriding(SQLConf.CODEGEN_FALLBACK.key, "false")
     .setWarningOnOverriding(
@@ -135,7 +134,8 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     if (hasActiveSession()) {
       throw new IllegalStateException()
     }
-    _spark = SparkSession.builder().sparkContext(new SparkContext(masterUrl, appName, conf)).getOrCreate()
+    _spark =
+      SparkSession.builder().sparkContext(new SparkContext(masterUrl, appName, conf)).getOrCreate()
     _spark.sparkContext.setLogLevel(logLevel)
   }
 

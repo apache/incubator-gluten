@@ -22,6 +22,7 @@ import org.apache.gluten.integration.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE
 import org.apache.gluten.integration.metrics.MetricMapper
 
 import org.apache.spark.SparkConf
+
 import org.apache.log4j.Level
 
 import java.io.File

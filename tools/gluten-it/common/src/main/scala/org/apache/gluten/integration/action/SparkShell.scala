@@ -17,6 +17,7 @@
 package org.apache.gluten.integration.action
 
 import org.apache.gluten.integration.{QueryRunner, Suite}
+
 import org.apache.spark.repl.Main
 
 case class SparkShell(scale: Double, genPartitionedData: Boolean) extends Action {

@@ -17,30 +17,35 @@
 package org.apache.gluten.integration.command;
 
 import org.apache.gluten.integration.BaseMixin;
+
 import org.apache.commons.lang3.ArrayUtils;
 import picocli.CommandLine;
 
 import java.util.concurrent.Callable;
 
-@CommandLine.Command(name = "queries-compare", mixinStandardHelpOptions = true,
+@CommandLine.Command(
+    name = "queries-compare",
+    mixinStandardHelpOptions = true,
     showDefaultValues = true,
     description = "Run queries and do result comparison with baseline preset.")
 public class QueriesCompare implements Callable<Integer> {
-  @CommandLine.Mixin
-  private BaseMixin mixin;
+  @CommandLine.Mixin private BaseMixin mixin;
 
-  @CommandLine.Mixin
-  private DataGenMixin dataGenMixin;
+  @CommandLine.Mixin private DataGenMixin dataGenMixin;
 
-  @CommandLine.Mixin
-  private QueriesMixin queriesMixin;
+  @CommandLine.Mixin private QueriesMixin queriesMixin;
 
   @Override
   public Integer call() throws Exception {
     org.apache.gluten.integration.action.QueriesCompare queriesCompare =
-        new org.apache.gluten.integration.action.QueriesCompare(dataGenMixin.getScale(),
-            dataGenMixin.genPartitionedData(), queriesMixin.queries(),
-            queriesMixin.explain(), queriesMixin.iterations(), queriesMixin.noSessionReuse(), queriesMixin.suppressFailureMessages());
+        new org.apache.gluten.integration.action.QueriesCompare(
+            dataGenMixin.getScale(),
+            dataGenMixin.genPartitionedData(),
+            queriesMixin.queries(),
+            queriesMixin.explain(),
+            queriesMixin.iterations(),
+            queriesMixin.noSessionReuse(),
+            queriesMixin.suppressFailureMessages());
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queriesCompare));
   }
 }

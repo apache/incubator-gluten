@@ -47,9 +47,10 @@ object HistoryServerHelper {
 
   private def findFreePort(): Int = {
     val port = org.apache.spark.util.Utils
-      .tryWithResource(new ServerSocket(0)) { socket =>
-        socket.setReuseAddress(true)
-        socket.getLocalPort
+      .tryWithResource(new ServerSocket(0)) {
+        socket =>
+          socket.setReuseAddress(true)
+          socket.getLocalPort
       }
     if (port > 0) {
       return port
@@ -80,10 +81,11 @@ object HistoryServerHelper {
       conf,
       conf.get(org.apache.spark.internal.config.Worker.SPARK_WORKER_RESOURCE_FILE))
 
-    ShutdownHookManager.addShutdownHook(() => {
-      workerRpcEnv.shutdown()
-      rpcEnv.shutdown()
-    })
+    ShutdownHookManager.addShutdownHook(
+      () => {
+        workerRpcEnv.shutdown()
+        rpcEnv.shutdown()
+      })
     LogServerRpcEnvs(rpcEnv, workerRpcEnv, webUiPort, workerWebUiPort)
   }
 

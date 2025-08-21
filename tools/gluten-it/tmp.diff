@@ -1,0 +1,66 @@
+diff --git a/tools/gluten-it/common/pom.xml b/tools/gluten-it/common/pom.xml
+index 1710a2fa4..25198e393 100644
+--- a/tools/gluten-it/common/pom.xml
++++ b/tools/gluten-it/common/pom.xml
+@@ -172,6 +172,61 @@
+           </execution>
+         </executions>
+       </plugin>
++
++      <plugin>
++        <groupId>com.diffplug.spotless</groupId>
++        <artifactId>spotless-maven-plugin</artifactId>
++        <version>${spotless.version}</version>
++        <configuration>
++          <java>
++            <toggleOffOn/>
++            <googleJavaFormat>
++              <version>1.7</version>
++            </googleJavaFormat>
++
++            <!-- \# refers to the static imports -->
++            <importOrder>
++              <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
++            </importOrder>
++
++            <removeUnusedImports/>
++            <licenseHeader>
++              <content>${spotless.license.header}</content>
++              <delimiter>${spotless.delimiter}</delimiter>
++            </licenseHeader>
++            <includes>
++              <include>src/main/java/**/*.java</include>
++              <include>src/test/java/**/*.java</include>
++            </includes>
++          </java>
++          <scala>
++            <!--  make it works `// spotless:off `  -->
++            <toggleOffOn/>
++            <scalafmt>
++              <version>${spotless.scalafmt.version}</version>
++              <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
++              <file>../../.scalafmt.conf</file>
++            </scalafmt>
++            <licenseHeader>
++              <content>${spotless.license.header}</content>
++              <delimiter>${spotless.delimiter}</delimiter>
++            </licenseHeader>
++            <includes>
++              <include>src/main/scala/**/*.scala</include>
++              <include>src/test/scala/**/*.scala</include>
++            </includes>
++          </scala>
++        </configuration>
++        <executions>
++          <execution>
++            <id>spotless-check</id>
++            <phase>validate</phase>
++            <goals>
++              <goal>check</goal>
++            </goals>
++          </execution>
++        </executions>
++      </plugin>
+     </plugins>
+   </build>
+ 
