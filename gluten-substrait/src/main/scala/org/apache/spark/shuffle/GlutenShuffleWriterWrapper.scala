@@ -16,8 +16,6 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.backendsapi.BackendsApiManager
-
 import org.apache.spark.shuffle.sort.ColumnarShuffleHandle
 
 case class GlutenShuffleWriterWrapper[K, V](shuffleWriter: ShuffleWriter[K, V])
@@ -27,17 +25,3 @@ case class GenShuffleWriterParameters[K, V](
     columnarShuffleHandle: ColumnarShuffleHandle[K, V],
     mapId: Long,
     metrics: ShuffleWriteMetricsReporter)
-
-object GlutenShuffleWriterWrapper {
-
-  def genColumnarShuffleWriter[K, V](
-      shuffleBlockResolver: IndexShuffleBlockResolver,
-      columnarShuffleHandle: ColumnarShuffleHandle[K, V],
-      mapId: Long,
-      metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
-    BackendsApiManager.getSparkPlanExecApiInstance
-      .genColumnarShuffleWriter(
-        GenShuffleWriterParameters(shuffleBlockResolver, columnarShuffleHandle, mapId, metrics))
-      .shuffleWriter
-  }
-}
