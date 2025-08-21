@@ -205,36 +205,24 @@ abstract class HashAggregateExecTransformer(
       childrenNodeList: JList[ExpressionNode],
       aggregateMode: AggregateMode,
       aggregateNodeList: JList[AggregateFunctionNode]): Unit = {
-    val modeKeyWord = modeToKeyWord(aggregateMode)
 
-    aggregateMode match {
+    val outputTypeNode = aggregateMode match {
       case Partial | PartialMerge if aggregateFunction.aggBufferAttributes.size > 1 =>
-        val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-          VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-          childrenNodeList,
-          modeKeyWord,
-          VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
-        )
-        aggregateNodeList.add(aggFunctionNode)
+        VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
       case Partial | PartialMerge =>
-        val partialNode = ExpressionBuilder.makeAggregateFunction(
-          VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-          childrenNodeList,
-          modeKeyWord,
-          ConverterUtils.getTypeNode(
-            aggregateFunction.inputAggBufferAttributes.head.dataType,
-            aggregateFunction.inputAggBufferAttributes.head.nullable)
-        )
-        aggregateNodeList.add(partialNode)
+        ConverterUtils.getTypeNode(
+          aggregateFunction.inputAggBufferAttributes.head.dataType,
+          aggregateFunction.inputAggBufferAttributes.head.nullable)
       case Final | Complete =>
-        val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-          VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-          childrenNodeList,
-          modeKeyWord,
-          ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
-        )
-        aggregateNodeList.add(aggFunctionNode)
+        ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
     }
+    val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+      VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
+      childrenNodeList,
+      modeToKeyWord(aggregateMode),
+      outputTypeNode
+    )
+    aggregateNodeList.add(aggFunctionNode)
   }
 
   /**
