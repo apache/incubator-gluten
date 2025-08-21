@@ -34,8 +34,8 @@ class TpchDataGen(
     partitions: Int,
     path: String,
     typeModifiers: List[TypeModifier] = List())
-    extends Serializable
-    with DataGen {
+  extends Serializable
+  with DataGen {
 
   override def gen(): Unit = {
     generate(path, "lineitem", lineItemSchema, partitions, lineItemGenerator, lineItemParser)
@@ -55,8 +55,8 @@ class TpchDataGen(
   }
 
   // lineitem
-  private def lineItemGenerator = { (part: Int, partCount: Int) =>
-    new LineItemGenerator(scale, part, partCount)
+  private def lineItemGenerator = {
+    (part: Int, partCount: Int) => new LineItemGenerator(scale, part, partCount)
   }
 
   private def lineItemSchema = {
@@ -77,7 +77,8 @@ class TpchDataGen(
         StructField("l_shipinstruct", StringType),
         StructField("l_shipmode", StringType),
         StructField("l_comment", StringType),
-        StructField("l_shipdate", DateType)))
+        StructField("l_shipdate", DateType)
+      ))
   }
 
   private def lineItemParser: LineItem => Row =
@@ -98,11 +99,12 @@ class TpchDataGen(
         lineItem.getShipInstructions,
         lineItem.getShipMode,
         lineItem.getComment,
-        Date.valueOf(GenerateUtils.formatDate(lineItem.getShipDate)))
+        Date.valueOf(GenerateUtils.formatDate(lineItem.getShipDate))
+      )
 
   // customer
-  private def customerGenerator = { (part: Int, partCount: Int) =>
-    new CustomerGenerator(scale, part, partCount)
+  private def customerGenerator = {
+    (part: Int, partCount: Int) => new CustomerGenerator(scale, part, partCount)
   }
 
   private def customerSchema = {
@@ -115,7 +117,8 @@ class TpchDataGen(
         StructField("c_phone", StringType),
         StructField("c_acctbal", DecimalType(12, 2)),
         StructField("c_comment", StringType),
-        StructField("c_mktsegment", StringType)))
+        StructField("c_mktsegment", StringType)
+      ))
   }
 
   private def customerParser: Customer => Row =
@@ -128,11 +131,12 @@ class TpchDataGen(
         customer.getPhone,
         BigDecimal.valueOf(customer.getAccountBalance),
         customer.getComment,
-        customer.getMarketSegment)
+        customer.getMarketSegment
+      )
 
   // orders
-  private def orderGenerator = { (part: Int, partCount: Int) =>
-    new OrderGenerator(scale, part, partCount)
+  private def orderGenerator = {
+    (part: Int, partCount: Int) => new OrderGenerator(scale, part, partCount)
   }
 
   private def orderSchema = {
@@ -146,7 +150,8 @@ class TpchDataGen(
         StructField("o_clerk", StringType),
         StructField("o_shippriority", IntegerType),
         StructField("o_comment", StringType),
-        StructField("o_orderdate", DateType)))
+        StructField("o_orderdate", DateType)
+      ))
   }
 
   private def orderParser: Order => Row =
@@ -160,11 +165,12 @@ class TpchDataGen(
         order.getClerk,
         order.getShipPriority,
         order.getComment,
-        Date.valueOf(GenerateUtils.formatDate(order.getOrderDate)))
+        Date.valueOf(GenerateUtils.formatDate(order.getOrderDate))
+      )
 
   // partsupp
-  private def partSupplierGenerator = { (part: Int, partCount: Int) =>
-    new PartSupplierGenerator(scale, part, partCount)
+  private def partSupplierGenerator = {
+    (part: Int, partCount: Int) => new PartSupplierGenerator(scale, part, partCount)
   }
 
   private def partSupplierSchema = {
@@ -174,7 +180,8 @@ class TpchDataGen(
         StructField("ps_suppkey", LongType),
         StructField("ps_availqty", IntegerType),
         StructField("ps_supplycost", DecimalType(12, 2)),
-        StructField("ps_comment", StringType)))
+        StructField("ps_comment", StringType)
+      ))
   }
 
   private def partSupplierParser: PartSupplier => Row =
@@ -187,8 +194,8 @@ class TpchDataGen(
         ps.getComment)
 
   // supplier
-  private def supplierGenerator = { (part: Int, partCount: Int) =>
-    new SupplierGenerator(scale, part, partCount)
+  private def supplierGenerator = {
+    (part: Int, partCount: Int) => new SupplierGenerator(scale, part, partCount)
   }
 
   private def supplierSchema = {
@@ -200,7 +207,8 @@ class TpchDataGen(
         StructField("s_nationkey", LongType),
         StructField("s_phone", StringType),
         StructField("s_acctbal", DecimalType(12, 2)),
-        StructField("s_comment", StringType)))
+        StructField("s_comment", StringType)
+      ))
   }
 
   private def supplierParser: Supplier => Row =
@@ -215,9 +223,7 @@ class TpchDataGen(
         s.getComment)
 
   // nation
-  private def nationGenerator = { () =>
-    new NationGenerator()
-  }
+  private def nationGenerator = { () => new NationGenerator() }
 
   private def nationSchema = {
     StructType(
@@ -232,8 +238,8 @@ class TpchDataGen(
     nation => Row(nation.getNationKey, nation.getName, nation.getRegionKey, nation.getComment)
 
   // part
-  private def partGenerator = { (part: Int, partCount: Int) =>
-    new PartGenerator(scale, part, partCount)
+  private def partGenerator = {
+    (part: Int, partCount: Int) => new PartGenerator(scale, part, partCount)
   }
 
   private def partSchema = {
@@ -247,7 +253,8 @@ class TpchDataGen(
         StructField("p_container", StringType),
         StructField("p_retailprice", DecimalType(12, 2)),
         StructField("p_comment", StringType),
-        StructField("p_brand", StringType)))
+        StructField("p_brand", StringType)
+      ))
   }
 
   private def partParser: Part => Row =
@@ -261,12 +268,11 @@ class TpchDataGen(
         part.getContainer,
         BigDecimal.valueOf(part.getRetailPrice),
         part.getComment,
-        part.getBrand)
+        part.getBrand
+      )
 
   // region
-  private def regionGenerator = { () =>
-    new RegionGenerator()
-  }
+  private def regionGenerator = { () => new RegionGenerator() }
 
   private def regionSchema = {
     StructType(
@@ -286,9 +292,15 @@ class TpchDataGen(
       schema: StructType,
       gen: () => java.lang.Iterable[U],
       parser: U => Row): Unit = {
-    generate(dir, tableName, schema, 1, (_: Int, _: Int) => {
-      gen.apply()
-    }, parser)
+    generate(
+      dir,
+      tableName,
+      schema,
+      1,
+      (_: Int, _: Int) => {
+        gen.apply()
+      },
+      parser)
   }
 
   private def generate[U](
@@ -303,23 +315,25 @@ class TpchDataGen(
     val modifiedSchema = DataGen.modifySchema(schema, rowModifier)
     spark
       .range(0, partitions, 1L, partitions)
-      .mapPartitions { itr =>
-        val id = itr.toArray
-        if (id.length != 1) {
-          throw new IllegalStateException()
-        }
-        val data = gen.apply(id(0).toInt + 1, partitions)
-        val dataItr = data.iterator()
-        val rows = dataItr.asScala.map { item =>
-          val row = parser(item)
-          val modifiedRow = Row(row.toSeq.zipWithIndex.map {
-            case (v, i) =>
-              val modifier = rowModifier.apply(i)
-              modifier.modValue(v)
-          }.toArray: _*)
-          modifiedRow
-        }
-        rows
+      .mapPartitions {
+        itr =>
+          val id = itr.toArray
+          if (id.length != 1) {
+            throw new IllegalStateException()
+          }
+          val data = gen.apply(id(0).toInt + 1, partitions)
+          val dataItr = data.iterator()
+          val rows = dataItr.asScala.map {
+            item =>
+              val row = parser(item)
+              val modifiedRow = Row(row.toSeq.zipWithIndex.map {
+                case (v, i) =>
+                  val modifier = rowModifier.apply(i)
+                  modifier.modValue(v)
+              }.toArray: _*)
+              modifiedRow
+          }
+          rows
       }(ShimUtils.getExpressionEncoder(modifiedSchema))
       .write
       .mode(SaveMode.Overwrite)

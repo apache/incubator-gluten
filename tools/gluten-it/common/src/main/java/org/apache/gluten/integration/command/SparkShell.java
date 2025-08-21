@@ -17,26 +17,27 @@
 package org.apache.gluten.integration.command;
 
 import org.apache.gluten.integration.BaseMixin;
+
 import org.apache.commons.lang3.ArrayUtils;
 import picocli.CommandLine;
 
 import java.util.concurrent.Callable;
 
-@CommandLine.Command(name = "spark-shell", mixinStandardHelpOptions = true,
+@CommandLine.Command(
+    name = "spark-shell",
+    mixinStandardHelpOptions = true,
     showDefaultValues = true,
     description = "Open a standard Spark shell.")
 public class SparkShell implements Callable<Integer> {
-  @CommandLine.Mixin
-  private BaseMixin mixin;
+  @CommandLine.Mixin private BaseMixin mixin;
 
-  @CommandLine.Mixin
-  private DataGenMixin dataGenMixin;
+  @CommandLine.Mixin private DataGenMixin dataGenMixin;
 
   @Override
   public Integer call() throws Exception {
     org.apache.gluten.integration.action.SparkShell sparkShell =
-        new org.apache.gluten.integration.action.SparkShell(dataGenMixin.getScale(),
-            dataGenMixin.genPartitionedData());
+        new org.apache.gluten.integration.action.SparkShell(
+            dataGenMixin.getScale(), dataGenMixin.genPartitionedData());
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), sparkShell));
   }
 }

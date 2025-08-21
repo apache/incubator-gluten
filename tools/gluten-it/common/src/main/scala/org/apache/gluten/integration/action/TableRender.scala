@@ -14,13 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.integration.action
 
-import org.apache.commons.lang3.StringUtils
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 
+import org.apache.commons.lang3.StringUtils
+
 import java.io.{ByteArrayOutputStream, OutputStream, PrintStream}
+
 import scala.collection.mutable
 
 trait TableRender[ROW <: Any] {
@@ -86,8 +87,7 @@ object TableRender {
     }
   }
 
-  private class Impl[ROW <: Any](schema: Schema, parser: RowParser[ROW])
-      extends TableRender[ROW] {
+  private class Impl[ROW <: Any](schema: Schema, parser: RowParser[ROW]) extends TableRender[ROW] {
     private val appenderFactory = RowParser.FieldAppender.TableAppender.create(schema)
 
     override def appendRow(row: ROW): Unit = {
@@ -107,40 +107,39 @@ object TableRender {
       val widthMap: mutable.Map[Int, Int] = mutable.Map()
 
       val dataWidths = schema.leafs.indices
-        .map { i =>
-          data.map(_(i).length).max
-        }
+        .map(i => data.map(_(i).length).max)
         .map(_ + 2)
 
       schema.leafs.zipWithIndex.foreach {
         case (leaf, i) =>
           val dataWidth = dataWidths(i)
-          widthMap += (leaf.id() -> (dataWidth max (leaf.name.length + 2)))
+          widthMap += (leaf.id() -> (dataWidth.max(leaf.name.length + 2)))
       }
 
-      schema.fields.foreach { root =>
-        def updateWidth(field: Field, lowerBound: Int): Unit = {
-          field match {
-            case branch @ Field.Branch(name, children) =>
-              val leafLowerBound =
-                Math
-                  .ceil((lowerBound max name.length + 2).toDouble / branch.leafs.size.toDouble)
-                  .toInt
-              children.foreach(child => updateWidth(child, leafLowerBound * child.leafs.size))
-              val childrenWidth =
-                children.map(child => widthMap(child.id())).sum
-              val width = childrenWidth + children.size - 1
-              val hash = branch.id()
-              widthMap += hash -> width
-            case leaf @ Field.Leaf(name) =>
-              val hash = leaf.id()
-              val newWidth = widthMap(hash) max lowerBound
-              widthMap.put(hash, newWidth)
-            case _ => new IllegalStateException()
+      schema.fields.foreach {
+        root =>
+          def updateWidth(field: Field, lowerBound: Int): Unit = {
+            field match {
+              case branch @ Field.Branch(name, children) =>
+                val leafLowerBound =
+                  Math
+                    .ceil((lowerBound.max(name.length + 2)).toDouble / branch.leafs.size.toDouble)
+                    .toInt
+                children.foreach(child => updateWidth(child, leafLowerBound * child.leafs.size))
+                val childrenWidth =
+                  children.map(child => widthMap(child.id())).sum
+                val width = childrenWidth + children.size - 1
+                val hash = branch.id()
+                widthMap += hash -> width
+              case leaf @ Field.Leaf(name) =>
+                val hash = leaf.id()
+                val newWidth = widthMap(hash).max(lowerBound)
+                widthMap.put(hash, newWidth)
+              case _ => new IllegalStateException()
+            }
           }
-        }
 
-        updateWidth(root, 0)
+          updateWidth(root, 0)
       }
 
       trait SchemaCell
@@ -162,40 +161,38 @@ object TableRender {
             }
             .mkString("|", "|", "|")
           printer.println(schemaLine)
-          cells.flatMap { f =>
-            f match {
-              case Given(Field.Branch(name, children)) => children.map(Given)
-              case Given(l @ Field.Leaf(name)) => List(PlaceHolder(l))
-              case p: PlaceHolder => List(p)
-              case _ => throw new IllegalStateException()
-            }
+          cells.flatMap {
+            f =>
+              f match {
+                case Given(Field.Branch(name, children)) => children.map(Given)
+                case Given(l @ Field.Leaf(name)) => List(PlaceHolder(l))
+                case p: PlaceHolder => List(p)
+                case _ => throw new IllegalStateException()
+              }
           }
       }
 
       val separationLine = schema.leafs
-        .map { leaf =>
-          widthMap(leaf.id())
-        }
-        .map { width =>
-          new String(Array.tabulate(width)(_ => '-'))
-        }
+        .map(leaf => widthMap(leaf.id()))
+        .map(width => new String(Array.tabulate(width)(_ => '-')))
         .mkString("|", "|", "|")
 
       printer.println(separationLine)
 
-      data.foreach { row =>
-        val dataLine = row
-          .zip(schema.leafs)
-          .map {
-            case (value, leaf) =>
-              (value, widthMap(leaf.id()))
-          }
-          .map {
-            case (value, width) =>
-              StringUtils.leftPad(value, width)
-          }
-          .mkString("|", "|", "|")
-        printer.println(dataLine)
+      data.foreach {
+        row =>
+          val dataLine = row
+            .zip(schema.leafs)
+            .map {
+              case (value, leaf) =>
+                (value, widthMap(leaf.id()))
+            }
+            .map {
+              case (value, width) =>
+                StringUtils.leftPad(value, width)
+            }
+            .mkString("|", "|", "|")
+          printer.println(dataLine)
       }
 
       printer.flush()
@@ -234,9 +231,7 @@ object TableRender {
       }
 
       object RowAppender {
-        def create(
-            schema: Schema,
-            mutableRows: mutable.ListBuffer[Array[String]]): RowAppender = {
+        def create(schema: Schema, mutableRows: mutable.ListBuffer[Array[String]]): RowAppender = {
           new RowAppenderImpl(schema, mutableRows)
         }
 
@@ -247,10 +242,8 @@ object TableRender {
         private class RowAppenderImpl(
             schema: Schema,
             mutableRows: mutable.ListBuffer[Array[String]])
-            extends RowAppender {
-          private val mutableRow = Array.tabulate(schema.leafs.size) { _ =>
-            "UNFILLED"
-          }
+          extends RowAppender {
+          private val mutableRow = Array.tabulate(schema.leafs.size)(_ => "UNFILLED")
           mutableRows += mutableRow
 
           override def field(name: String): FieldAppender = {
@@ -304,7 +297,7 @@ object TableRender {
       }
 
       private class FieldAppenderImpl(field: Field, mutableRow: Array[String], column: Int)
-          extends FieldAppender {
+        extends FieldAppender {
         override def child(name: String): FieldAppender = {
           field match {
             case Field.Branch(_, children) =>
