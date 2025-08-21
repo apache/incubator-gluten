@@ -52,7 +52,6 @@ struct ShuffleReaderOptions {
 
   // Compression options.
   arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME;
-  CodecBackend codecBackend = CodecBackend::NONE;
 
   // Output batch size.
   int32_t batchSize = kDefaultBatchSize;

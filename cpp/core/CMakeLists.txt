@@ -178,15 +178,6 @@ endif()
 find_arrow_lib(${ARROW_LIB_NAME})
 find_arrow_lib(${ARROW_BUNDLED_DEPS})
 
-if(ENABLE_QAT)
-  include(BuildQATzip)
-  include(BuildQATZstd)
-  target_sources(gluten PRIVATE utils/qat/QatCodec.cc)
-  target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR}
-                                           ${QATZSTD_INCLUDE_DIR})
-  target_link_libraries(gluten PUBLIC qatzip::qatzip qatzstd::qatzstd)
-endif()
-
 find_protobuf()
 message(STATUS "Found Protobuf: ${PROTOBUF_LIBRARY}")
 target_link_libraries(gluten LINK_PUBLIC ${PROTOBUF_LIBRARY})
