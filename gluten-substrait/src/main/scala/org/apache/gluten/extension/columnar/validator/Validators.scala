@@ -216,7 +216,8 @@ object Validators {
         case p if HiveTableScanExecTransformer.isHiveTableScan(p) => pass()
         case filter: FilterExec =>
           val childIsScan = filter.child.isInstanceOf[FileSourceScanExec] ||
-            filter.child.isInstanceOf[BatchScanExec]
+            filter.child.isInstanceOf[BatchScanExec] || filter.child
+              .isInstanceOf[BasicScanExecTransformer]
           if (childIsScan) {
             pass()
           } else {
