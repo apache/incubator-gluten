@@ -17,9 +17,10 @@ enum TransformType {
 }
 
 message IcebergPartitionField {
-  string name = 1;
-  TransformType transform = 2;
-  optional int32 parameter = 3;  // Optional parameter for transform config
+  int32 source_id = 1;
+  string name = 2;
+  TransformType transform = 3;
+  optional int32 parameter = 4;  // Optional parameter for transform config
 }
 
 message IcebergPartitionSpec {
