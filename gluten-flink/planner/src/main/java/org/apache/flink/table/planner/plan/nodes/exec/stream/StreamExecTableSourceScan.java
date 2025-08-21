@@ -16,6 +16,8 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.gluten.velox.VeloxSourceBuilder;
+
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.dag.Transformation;
@@ -29,7 +31,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
-import org.apache.flink.table.planner.plan.nodes.exec.common.source.VeloxSourceBuilder;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -99,11 +100,13 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
   @Override
   protected Transformation<RowData> translateToPlanInternal(
       PlannerBase planner, ExecNodeConfig config) {
+    // --- Begin Gluten-specific code changes ---
     final ScanTableSource tableSource =
         getTableSourceSpec()
             .getScanTableSource(
                 planner.getFlinkContext(), ShortcutUtils.unwrapTypeFactory(planner));
     Transformation<RowData> sourceTransformation = super.translateToPlanInternal(planner, config);
     return VeloxSourceBuilder.build(sourceTransformation, tableSource);
+    // --- End Gluten-specific code changes ---
   }
 }

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.nodes.exec.common.sink;
+package org.apache.gluten.velox;
 
 import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
 import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
@@ -40,15 +40,10 @@ import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Map;
 
 public class VeloxSinkBuilder {
-
-  private static final Logger LOG = LoggerFactory.getLogger(VeloxSinkBuilder.class);
 
   public static Transformation build(ReadableConfig config, Transformation transformation) {
     if (transformation instanceof LegacySinkTransformation) {
@@ -89,8 +84,8 @@ public class VeloxSinkBuilder {
       }
     }
     RowType inputColumns = (RowType) LogicalTypeConverter.toVLType(inputTypeInfo.toLogicalType());
-    RowType ignore = new RowType(List.of("num111"), List.of(new BigIntType()));
-    PrintTableHandle tableHandle = new PrintTableHandle("print-table", printPath, inputColumns);
+    RowType ignore = new RowType(List.of("num"), List.of(new BigIntType()));
+    PrintTableHandle tableHandle = new PrintTableHandle("print-table", inputColumns, printPath);
     TableWriteNode tableWriteNode =
         new TableWriteNode(
             PlanNodeIdGenerator.newId(),
