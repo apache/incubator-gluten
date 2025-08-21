@@ -16,16 +16,18 @@
  */
 package org.apache.iceberg.transforms
 
+import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.proto.{IcebergPartitionField, TransformType}
 
-import org.apache.iceberg.PartitionField
+import org.apache.iceberg.{PartitionField, PartitionSpec}
 
 object IcebergTransformUtil {
 
-  def convertPartitionField(field: PartitionField): IcebergPartitionField = {
+  def convertPartitionField(field: PartitionField, spec: PartitionSpec): IcebergPartitionField = {
     val transform = field.transform()
-    // TODO: if the field is in nest column, concat it.
-    var builder = IcebergPartitionField.newBuilder().setName(field.name())
+    val sourceName = spec.schema().asStruct().field(field.sourceId()).name()
+    var builder =
+      IcebergPartitionField.newBuilder().setName(sourceName).setSourceId(field.sourceId())
     builder = transform match {
       case _: Identity[_] => builder.setTransform(TransformType.IDENTITY)
       case _: Years[_] => builder.setTransform(TransformType.YEAR)
@@ -34,7 +36,18 @@ object IcebergTransformUtil {
       case _: Hours[_] => builder.setTransform(TransformType.HOUR)
       case b: Bucket[_] => builder.setTransform(TransformType.BUCKET).setParameter(b.numBuckets())
       case t: Truncate[_] => builder.setTransform(TransformType.TRUNCATE).setParameter(t.width)
+      case t: Timestamps => builder.setTransform(convertTimestamps(t))
     }
     builder.build()
+  }
+
+  private def convertTimestamps(timestamps: Timestamps): TransformType = {
+    timestamps match {
+      case Timestamps.MICROS_TO_HOUR => TransformType.HOUR
+      case Timestamps.MICROS_TO_DAY => TransformType.DAY
+      case Timestamps.MICROS_TO_MONTH => TransformType.MONTH
+      case Timestamps.MICROS_TO_YEAR => TransformType.YEAR
+      case _ => throw new GlutenNotSupportException()
+    }
   }
 }

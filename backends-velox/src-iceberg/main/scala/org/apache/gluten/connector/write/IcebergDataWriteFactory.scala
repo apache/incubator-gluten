@@ -56,7 +56,7 @@ case class IcebergDataWriteFactory(
     val fields = partitionSpec
       .fields()
       .stream()
-      .map[IcebergPartitionField](IcebergTransformUtil.convertPartitionField _)
+      .map[IcebergPartitionField](f => IcebergTransformUtil.convertPartitionField(f, partitionSpec))
       .collect(Collectors.toList[IcebergPartitionField])
     val specProto = IcebergPartitionSpec
       .newBuilder()

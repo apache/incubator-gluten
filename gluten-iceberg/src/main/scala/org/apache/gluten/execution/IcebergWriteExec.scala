@@ -55,7 +55,7 @@ trait IcebergWriteExec extends ColumnarV2TableWriteExec {
 
   private def validatePartitionType(schema: Schema, field: PartitionField): Boolean = {
     val partitionType = schema.findType(field.sourceId())
-    val unSupportType = Seq(TypeID.DOUBLE, TypeID.FLOAT, TypeID.BINARY, TypeID.DECIMAL)
+    val unSupportType = Seq(TypeID.DOUBLE, TypeID.FLOAT, TypeID.DECIMAL)
     !unSupportType.contains(partitionType.typeId())
   }
 
@@ -71,22 +71,15 @@ trait IcebergWriteExec extends ColumnarV2TableWriteExec {
     }
     val spec = IcebergWriteUtil.getTable(write).spec()
     if (spec.isPartitioned) {
-      return ValidationResult.failed("Not support write partition table")
-    }
-    if (spec.isPartitioned) {
       val topIds = spec.schema().columns().asScala.map(c => c.fieldId())
       if (
         spec
           .fields()
           .stream()
-          .anyMatch(
-            f =>
-              !f.transform().isIdentity
-                || !validatePartitionType(spec.schema(), f) || !topIds.contains(f.sourceId()))
+          .anyMatch(f => !validatePartitionType(spec.schema(), f) || !topIds.contains(f.sourceId()))
       ) {
         return ValidationResult.failed(
-          "Not support write non identity partition table," +
-            "or contains unsupported partition type, or is nested partition column")
+          "Not support write unsupported partition type, or is nested partition column")
       }
     }
     if (IcebergWriteUtil.getTable(write).sortOrder().isSorted) {
