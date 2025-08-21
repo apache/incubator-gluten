@@ -18,8 +18,6 @@
 package org.apache.gluten.integration.action
 
 import org.apache.gluten.integration.action.TableRender.Field._
-import org.apache.gluten.integration.action.TableRender.RowParser
-import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender
 
 // The tests are manually run.
 object TableRenderTest {

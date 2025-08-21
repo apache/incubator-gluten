@@ -32,6 +32,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
@@ -172,6 +173,20 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       expr: StructsToJson): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, child, expr)
+  }
+
+  def genUnbase64Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: UnBase64): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, child, expr)
+  }
+
+  def genBase64StaticInvokeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: StaticInvoke): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, child, expr)
   }
 
@@ -761,6 +776,12 @@ trait SparkPlanExecApi {
 
   def deserializeColumnarBatch(input: ObjectInputStream): ColumnarBatch =
     throw new GlutenNotSupportException("Deserialize ColumnarBatch is not supported")
+
+  def genTimestampAddTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer
 
   def genTimestampDiffTransformer(
       substraitExprName: String,

@@ -137,6 +137,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp exception mode")
     // Replaced by a gluten test to pass timezone through config.
     .exclude("from_unixtime")
+    // Vanilla Spark does not have a unified DST Timestamp fastTime. 1320570000000L and
+    // 1320566400000L both represent 2011-11-06 01:00:00.
+    .exclude("SPARK-42635: timestampadd near daylight saving transition")
     // https://github.com/facebookincubator/velox/pull/10563/files#diff-140dc50e6dac735f72d29014da44b045509df0dd1737f458de1fe8cfd33d8145
     .excludeGlutenTest("from_unixtime")
   enableSuite[GlutenDecimalExpressionSuite]
@@ -815,8 +818,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Legacy mode is not supported and velox getTimestamp function does not throw
     // exception when format is "yyyy-dd-aa".
     .exclude("function to_date")
-    // https://github.com/apache/incubator-gluten/issues/10175
-    .exclude("function current_timestamp and now")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
@@ -966,6 +967,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // requires test resources that don't exist in Gluten repo
     .exclude("detect escaped path and report the migration guide")
     .exclude("ignore the escaped path check when the flag is off")
+    .excludeByPrefix("SPARK-51187")
   enableSuite[GlutenQueryExecutionSuite]
     // Rewritten to set root logger level to INFO so that logs can be parsed
     .exclude("Logging plan changes for execution")

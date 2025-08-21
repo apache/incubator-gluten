@@ -18,7 +18,7 @@
     <dependency>
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-library</artifactId>
-      <version>${scala.library.version}</version>
+      <version>${scala.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>

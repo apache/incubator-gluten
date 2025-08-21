@@ -17,7 +17,9 @@
 
 #pragma once
 
+#include "IcebergNestedField.pb.h"
 #include "memory/VeloxColumnarBatch.h"
+#include "velox/connectors/hive/iceberg/IcebergColumnHandle.h"
 #include "velox/connectors/hive/iceberg/IcebergDataSink.h"
 
 namespace gluten {
@@ -30,6 +32,7 @@ class IcebergWriter {
       const std::string& outputDirectory,
       facebook::velox::common::CompressionKind compressionKind,
       std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
+      const gluten::IcebergNestedField& field,
       const std::unordered_map<std::string, std::string>& sparkConfs,
       std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool);
@@ -40,6 +43,7 @@ class IcebergWriter {
 
  private:
   facebook::velox::RowTypePtr rowType_;
+  const facebook::velox::connector::hive::iceberg::IcebergNestedField field_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool_;
   std::shared_ptr<facebook::velox::connector::hive::HiveConfig> connectorConfig_;
@@ -50,7 +54,6 @@ class IcebergWriter {
   std::unique_ptr<facebook::velox::connector::hive::iceberg::IcebergDataSink> dataSink_;
 };
 
-std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> parseIcebergPartitionSpec(
-    const uint8_t* data,
-    const int32_t length);
+std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec>
+parseIcebergPartitionSpec(const uint8_t* data, const int32_t length, facebook::velox::RowTypePtr rowType);
 } // namespace gluten

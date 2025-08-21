@@ -19,10 +19,9 @@ package org.apache.spark.sql.execution.ui
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
 import org.apache.spark.sql.errors.QueryExecutionErrors
+import org.apache.spark.sql.execution.ui.TypeAlias._
 import org.apache.spark.ui.{PagedDataSource, PagedTable, UIUtils, WebUIPage}
 import org.apache.spark.util.Utils
-
-import jakarta.servlet.http.HttpServletRequest
 
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets.UTF_8

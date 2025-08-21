@@ -16,7 +16,9 @@
 name: Velox backend nightly release
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
       - '.github/workflows/velox_nightly.yml'
   schedule:
@@ -148,8 +150,8 @@ jobs:
           cd $GITHUB_WORKSPACE/ && \
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -DskipTests -Dmaven.source.skip
+          mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
@@ -184,6 +186,7 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           df -a
+          export ARM_BUILD_TARGET=false
           bash dev/ci-velox-buildstatic-centos-8.sh
           ccache -s
           mkdir -p $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/

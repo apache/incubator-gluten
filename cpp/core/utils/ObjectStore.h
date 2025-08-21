@@ -52,17 +52,13 @@ class ObjectStore {
   static std::unique_ptr<ObjectStore> create();
 
   static void release(ObjectHandle handle) {
-    ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(ResourceHandle) * 8));
-    ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::max());
-    auto store = stores().lookup(storeId);
+    auto [store, resourceId] = lookup(handle);
     store->releaseInternal(resourceId);
   }
 
   template <typename T>
   static std::shared_ptr<T> retrieve(ObjectHandle handle) {
-    ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(ResourceHandle) * 8));
-    ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::max());
-    auto store = stores().lookup(storeId);
+    auto [store, resourceId] = lookup(handle);
     return store->retrieveInternal<T>(resourceId);
   }
 
@@ -84,6 +80,8 @@ class ObjectStore {
 
  private:
   static ResourceMap<ObjectStore*>& stores();
+
+  static std::pair<ObjectStore*, ResourceHandle> lookup(ObjectHandle handle);
 
   struct ObjectDebugInfo {
     const std::string_view typeName;

@@ -161,4 +161,6 @@ trait BackendSettingsApi {
   def enableEnhancedFeatures(): Boolean = false
 
   def supportAppendDataExec(): Boolean = false
+
+  def supportReplaceDataExec(): Boolean = false
 }

@@ -22,12 +22,11 @@ import org.apache.gluten.integration.command.SparkRunModes;
 import org.apache.gluten.integration.ds.TpcdsSuite;
 import org.apache.gluten.integration.h.TpchSuite;
 import org.apache.gluten.integration.metrics.MetricMapper;
+import org.apache.gluten.utils.CollectionConverter;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
 import picocli.CommandLine;
-import scala.Predef;
-import scala.collection.JavaConverters;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -116,9 +115,7 @@ public class BaseMixin {
     final SparkConf testConf = pickSparkConf(preset);
 
     scala.collection.immutable.Map<String, String> extraSparkConfScala =
-        JavaConverters.mapAsScalaMapConverter(
-            mergeMapSafe(extraSparkConf, runModeEnumeration.extraSparkConf())).asScala().toMap(
-            Predef.conforms());
+        CollectionConverter.toImmutable(mergeMapSafe(extraSparkConf, runModeEnumeration.extraSparkConf()));
 
     final MetricMapper baselineMetricMapper = pickMetricMapper(baselinePreset);
     final MetricMapper testMetricMapper = pickMetricMapper(preset);

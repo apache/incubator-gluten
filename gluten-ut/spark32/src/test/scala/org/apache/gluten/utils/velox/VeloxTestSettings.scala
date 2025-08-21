@@ -107,13 +107,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
   enableSuite[GlutenTryCastSuite]
-    .exclude(
-      // array/map/struct not supported yet.
-      "cast from invalid string array to numeric array should throw NumberFormatException",
-      "cast from array II",
-      "cast from map II",
-      "cast from struct II"
-    )
     // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.

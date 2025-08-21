@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.integration
 
-import org.apache.spark.sql.types.{DataType, DecimalType, DoubleType, StructField, StructType}
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 
 trait DataGen {
   def gen(): Unit
