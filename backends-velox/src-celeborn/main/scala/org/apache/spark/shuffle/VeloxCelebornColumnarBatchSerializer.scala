@@ -125,7 +125,8 @@ private class CelebornColumnarBatchSerializerInstance(
   private class TaskDeserializationStream(in: InputStream)
     extends DeserializationStream
     with TaskResource {
-    private var byteIn: JniByteInputStream = _
+    private val streamReader = ShuffleStreamReader(Iterator((null, in)))
+
     private var wrappedOut: ColumnarBatchOutIterator = _
 
     private var cb: ColumnarBatch = _
@@ -247,23 +248,22 @@ private class CelebornColumnarBatchSerializerInstance(
         readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
       }
       numOutputRows += numRowsTotal
-      if (byteIn != null) {
+      if (wrappedOut != null) {
         wrappedOut.close()
-        byteIn.close()
       }
+      streamReader.close()
       if (cb != null) {
         cb.close()
       }
     }
 
     private def initStream(): Unit = {
-      if (byteIn == null) {
-        byteIn = JniByteInputStreams.create(in)
+      if (wrappedOut == null) {
         wrappedOut = new ColumnarBatchOutIterator(
           runtime,
           ShuffleReaderJniWrapper
             .create(runtime)
-            .readStream(shuffleReaderHandle, byteIn))
+            .read(shuffleReaderHandle, streamReader))
       }
     }
 

@@ -24,6 +24,7 @@
 #include "shuffle/VeloxSortShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
 #include "utils/TestAllocationListener.h"
+#include "utils/TestStreamReader.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 
@@ -303,13 +304,12 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
         kDefaultBatchSize,
         kDefaultReadBufferSize,
         GetParam().deserializerBufferSize,
-        getDefaultMemoryManager()->defaultArrowMemoryPool(),
-        pool_,
+        getDefaultMemoryManager(),
         GetParam().shuffleWriterType);
 
     const auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
 
-    const auto iter = reader->readStream(in);
+    const auto iter = reader->read(std::make_shared<TestStreamReader>(std::move(in)));
     while (iter->hasNext()) {
       auto vector = std::dynamic_pointer_cast<VeloxColumnarBatch>(iter->next())->getRowVector();
       vectors.emplace_back(vector);
