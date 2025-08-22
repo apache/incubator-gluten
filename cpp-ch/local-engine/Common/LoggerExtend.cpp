@@ -22,13 +22,12 @@
 #include <Poco/AutoPtr.h>
 #include <Poco/ConsoleChannel.h>
 #include <Poco/FormattingChannel.h>
-#include <Poco/PatternFormatter.h>
+#include <Loggers/OwnPatternFormatter.h>
 
 using Poco::AsyncChannel;
 using Poco::AutoPtr;
 using Poco::ConsoleChannel;
 using Poco::FormattingChannel;
-using Poco::PatternFormatter;
 
 namespace local_engine
 {
@@ -36,14 +35,14 @@ void LoggerExtend::initConsoleLogger(const std::string & level)
 {
     AutoPtr<ConsoleChannel> chan(new ConsoleChannel);
 
-    AutoPtr<PatternFormatter> formatter(new PatternFormatter);
-    formatter->setProperty("pattern", "%Y-%m-%d %H:%M:%S.%i <%p> %s: %t");
-    formatter->setProperty("times", "local");
+    // AutoPtr<PatternFormatter> formatter(new PatternFormatter);
+    // formatter->setProperty("pattern", "%Y-%m-%d %H:%M:%S.%i <%p> %s: %t");
+    // formatter->setProperty("times", "local");
 
+    AutoPtr<Poco::Formatter> formatter(new OwnPatternFormatter(false));
     AutoPtr<FormattingChannel> format_channel(new FormattingChannel(formatter, chan));
-    AutoPtr<AsyncChannel> async_chann(new AsyncChannel(format_channel));
 
-    Poco::Logger::root().setChannel(async_chann);
+    Poco::Logger::root().setChannel(format_channel);
     Poco::Logger::root().setLevel(level);
 }
 
