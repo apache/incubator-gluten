@@ -1472,7 +1472,7 @@ object GlutenConfig {
 
   val ENABLE_COLUMNAR_PARTIAL_GENERATE =
     buildConf("spark.gluten.sql.columnar.partial.generate")
-      .doc("evaluates the non-offload-able HiveUDTF using vanilla Spark generator")
+      .doc("Evaluates the non-offload-able HiveUDTF using vanilla Spark generator")
       .booleanConf
       .createWithDefault(true)
 

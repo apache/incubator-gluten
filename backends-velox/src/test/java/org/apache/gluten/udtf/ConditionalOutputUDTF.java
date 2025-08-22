@@ -25,9 +25,10 @@ import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
 
-public class SimpleUDTF extends GenericUDTF {
+public class ConditionalOutputUDTF extends GenericUDTF {
 
   static final ObjectInspector LONG_TYPE = PrimitiveObjectInspectorFactory.javaLongObjectInspector;
 
@@ -58,8 +59,11 @@ public class SimpleUDTF extends GenericUDTF {
       return;
     }
 
-    Object[] forwardObj = new Long[1];
-    forwardObj[0] = ((Long) arg0).longValue();
-    forward(forwardObj);
+    long result = ((Long) arg0).longValue();
+    if (result % 2 == 0) {
+      Object[] forwardObj = new Long[1];
+      forwardObj[0] = result;
+      forward(forwardObj);
+    }
   }
 }

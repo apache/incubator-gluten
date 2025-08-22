@@ -29,6 +29,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, GenericInternalRow, Nondeterministic, SpecializedGetters}
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{ExplainUtils, GenerateExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.{ArrayType, BinaryType, DataType, MapType, StringType, StructType}
@@ -53,26 +54,29 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
 
   private val pruneChildAttributes: ListBuffer[Attribute] = ListBuffer()
   private val pruneChildColumnIndices: ListBuffer[Int] = ListBuffer()
-  private val generateAttributes: ListBuffer[Attribute] = ListBuffer()
-  private val rightInputColumnIndices: ListBuffer[Int] = ListBuffer()
+  private val generatorUsedAttributes: ListBuffer[Attribute] = ListBuffer()
+  private val generatorUsedColumnIndices: ListBuffer[Int] = ListBuffer()
+
+  private var attrNotExists = false
+  private var hasUnsupportedDataType = false
 
   private val rightSchema =
     SparkShimLoader.getSparkShims.structFromAttributes(generateExec.generatorOutput)
 
-  private lazy val getLeftIndices = getColumnIndexInChildOutput(
+  getColumnIndexInChildOutput(
     pruneChildAttributes,
     pruneChildColumnIndices,
     generateExec.requiredChildOutput)
-  private lazy val getRightIndices = getColumnIndexInChildOutput(
-    generateAttributes,
-    rightInputColumnIndices,
+  getColumnIndexInChildOutput(
+    generatorUsedAttributes,
+    generatorUsedColumnIndices,
     Seq(generateExec.generator))
 
   private lazy val generator = InterpretedArrowGenerate.create(
-    bindReferences(Seq(generateExec.generator), generateAttributes.toSeq).head)
+    bindReferences(Seq(generateExec.generator), generatorUsedAttributes.toSeq).head)
 
   @transient override lazy val metrics = Map(
-    "time" -> SQLMetrics.createTimingMetric(sparkContext, "total time of partial project"),
+    "time" -> SQLMetrics.createTimingMetric(sparkContext, "total time of partial generate"),
     "velox_to_arrow_time" -> SQLMetrics.createTimingMetric(
       sparkContext,
       "time of velox to Arrow ColumnarBatch"),
@@ -85,34 +89,48 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
       attributes: ListBuffer[Attribute],
       indices: ListBuffer[Int],
       exprs: Seq[Expression]): Unit = {
-    exprs.forall {
+    exprs.foreach {
       case a: AttributeReference =>
         val index = child.output.indexWhere(s => s.exprId.equals(a.exprId))
 
         if (index < 0) {
-          throw new IllegalStateException(
-            s"Couldn't find $a in ${child.output.attrs.mkString("[", ",", "]")}")
+          attrNotExists = true
+          log.debug(s"Couldn't find $a in ${child.output.attrs.mkString("[", ",", "]")}")
+        } else if (
+          BackendsApiManager.getValidatorApiInstance.doSchemaValidate(a.dataType).isDefined
+        ) {
+          log.debug(s"Expression $a contains unsupported data type ${a.dataType}")
+          hasUnsupportedDataType = true
         } else if (!indices.contains(index)) {
           attributes.append(a)
           indices.append(index)
-          true
-        } else true
+        }
       case p =>
         getColumnIndexInChildOutput(attributes, indices, p.children)
-        true
     }
   }
 
+  override def outputPartitioning(): Partitioning = child.outputPartitioning
+
+  override protected def doCanonicalize(): ColumnarPartialGenerateExec = {
+    val canonicalized = generateExec.canonicalized.asInstanceOf[GenerateExec]
+    this.copy(canonicalized, child.canonicalized)
+  }
+
   override protected def doValidateInternal(): ValidationResult = {
+    if (attrNotExists) {
+      return ValidationResult.failed("Attribute in the generator does not exists in its child")
+    }
+    if (hasUnsupportedDataType) {
+      return ValidationResult.failed("Attribute in the generator contains unsupported type")
+    }
     ValidationResult.succeeded
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    getLeftIndices
-    getRightIndices
     val totalTime = longMetric("time")
-    val c2a = longMetric("velox_to_arrow_time")
-    val a2c = longMetric("arrow_to_velox_time")
+    val v2a = longMetric("velox_to_arrow_time")
+    val a2v = longMetric("arrow_to_velox_time")
     child.executeColumnar().mapPartitionsWithIndex {
       (index, batches) =>
         generator.generator.foreach {
@@ -128,24 +146,27 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
               Iterator.empty
             } else {
               val start = System.currentTimeMillis()
-              val leftInputData = ColumnarBatches
+              val pruneChildInputData = ColumnarBatches
                 .select(BackendsApiManager.getBackendName, batch, pruneChildColumnIndices.toArray)
-              val rightInputData = ColumnarBatches
-                .select(BackendsApiManager.getBackendName, batch, rightInputColumnIndices.toArray)
+              val generatorUsedInputData = ColumnarBatches
+                .select(
+                  BackendsApiManager.getBackendName,
+                  batch,
+                  generatorUsedColumnIndices.toArray)
               try {
                 val generatedBatch =
                   getGeneratedResultVeloxArrow(
-                    leftInputData,
-                    rightInputData,
+                    pruneChildInputData,
+                    generatorUsedInputData,
                     batches.hasNext,
-                    c2a,
-                    a2c)
+                    v2a,
+                    a2v)
 
                 totalTime += System.currentTimeMillis() - start
                 generatedBatch
               } finally {
-                leftInputData.close()
-                rightInputData.close()
+                pruneChildInputData.close()
+                generatorUsedInputData.close()
               }
             }
           }
@@ -218,7 +239,7 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
           }
           Math.max(keySize, valueSize)
         }
-      case _ => (_, _) => 0L
+      case _ => (_, _) => 0L // For fixed-width datatype, we let the size be 0.
     }
     (input: SpecializedGetters, i) => {
       if (input.isNullAt(i)) {
@@ -247,10 +268,10 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
       resultLength: Int,
       leftInputData: ColumnarBatch,
       rowId2RowNum: Array[Int],
-      a2c: SQLMetric): ColumnarBatch = {
+      a2v: SQLMetric): ColumnarBatch = {
     val rightTargetBatch =
       new ColumnarBatch(rightResultVectors.map(_.asInstanceOf[ColumnVector]), resultLength)
-    val start2 = System.currentTimeMillis()
+    val start = System.currentTimeMillis()
     val rightVeloxBatch = VeloxColumnarBatches.toVeloxBatch(
       ColumnarBatches
         .offload(ArrowBufferAllocators.contextInstance(), rightTargetBatch))
@@ -264,22 +285,22 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
       ColumnarBatches.retain(leftInputData)
       leftInputData
     }
-    a2c += System.currentTimeMillis() - start2
+    a2v += System.currentTimeMillis() - start
     resultBatch
   }
 
   private def getGeneratedResultVeloxArrow(
-      leftInputData: ColumnarBatch,
-      rightInputData: ColumnarBatch,
+      pruneChildInputData: ColumnarBatch,
+      generatorUsedInputData: ColumnarBatch,
       hasNext: Boolean,
-      c2a: SQLMetric,
-      a2c: SQLMetric): Iterator[ColumnarBatch] = {
+      v2a: SQLMetric,
+      a2v: SQLMetric): Iterator[ColumnarBatch] = {
     // select part of child output and child data
-    val numRows = rightInputData.numRows()
+    val numRows = generatorUsedInputData.numRows()
     val start = System.currentTimeMillis()
-    val rightArrowBatch = loadArrowBatch(rightInputData)
+    val rightArrowBatch = loadArrowBatch(generatorUsedInputData)
 
-    c2a += System.currentTimeMillis() - start
+    v2a += System.currentTimeMillis() - start
 
     val rowId2RowNum = Array.fill(numRows)(0)
     var inputRowId = 0
@@ -290,9 +311,8 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
       val resultRowsOption = generator.apply(row)
       if (resultRowsOption.isDefined) {
         val resultRows = resultRowsOption.get
-        val beforeSize = rowResults.size
         rowResults ++= resultRows
-        rowId2RowNum(inputRowId) = rowResults.size - beforeSize
+        rowId2RowNum(inputRowId) = resultRows.size
       } else if (generateExec.outer) {
         rowResults.append(generatorNullRow)
         rowId2RowNum(inputRowId) = 1
@@ -303,15 +323,14 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
       val resultRowsOption = generator.terminate()
       if (resultRowsOption.isDefined) {
         val resultRows = resultRowsOption.get
-        val beforeSize = rowResults.size
         rowResults ++= resultRows
-        rowId2RowNum(inputRowId - 1) = rowId2RowNum(inputRowId - 1) + rowResults.size - beforeSize
+        rowId2RowNum(inputRowId - 1) = rowId2RowNum(inputRowId - 1) + resultRows.size
       }
     }
 
     if (rowResults.isEmpty) {
-      leftInputData.close()
-      rightInputData.close()
+      pruneChildInputData.close()
+      generatorUsedInputData.close()
       rightArrowBatch.close()
       return Iterator.empty
     }
@@ -335,9 +354,9 @@ case class ColumnarPartialGenerateExec(generateExec: GenerateExec, child: SparkP
       getResultColumnarBatch(
         rightResultVectors,
         rowResults.length,
-        leftInputData,
+        pruneChildInputData,
         rowId2RowNum,
-        a2c)
+        a2v)
 
     Iterators
       .wrap(Iterator.single(resultBatch))
