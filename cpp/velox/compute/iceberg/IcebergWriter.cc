@@ -50,7 +50,7 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
     std::shared_ptr<const IcebergPartitionSpec> spec,
     const iceberg::IcebergNestedField& nestedField,
     facebook::velox::memory::MemoryPool* pool) {
-  std::vector<std::shared_ptr<const connector::hive::HiveColumnHandle>> columnHandles;
+  std::vector<std::shared_ptr<const iceberg::IcebergColumnHandle>> columnHandles;
 
   std::vector<std::string> columnNames = outputRowType->names();
   std::vector<TypePtr> columnTypes = outputRowType->children();
