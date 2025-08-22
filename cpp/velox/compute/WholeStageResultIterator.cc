@@ -83,6 +83,12 @@ WholeStageResultIterator::WholeStageResultIterator(
   // Create task instance.
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
+  bool hasTableWrite = (std::string::npos != veloxPlan_->toString().find("TableWrite"));
+  bool hasTableScan = scanInfos.size() > 0;
+  if (1) {
+    std::call_once(
+        gluten::VeloxBackend::get()->regFlag, [&]() { gluten::VeloxBackend::get()->initConnector(veloxCfg_); });
+  }
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
   task_ = velox::exec::Task::create(
       fmt::format(
