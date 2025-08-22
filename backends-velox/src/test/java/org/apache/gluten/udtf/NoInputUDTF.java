@@ -21,29 +21,27 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
 
-public class SimpleUDTF extends GenericUDTF {
+public class NoInputUDTF extends GenericUDTF {
 
   static final ObjectInspector LONG_TYPE = PrimitiveObjectInspectorFactory.javaLongObjectInspector;
 
-  private PrimitiveObjectInspector arg0OI = null;
+  private long result = 0;
 
   @Override
-  public void close() throws HiveException {}
+  public void close() throws HiveException {
+    Object[] forwardObj = new Long[1];
+    forwardObj[0] = result;
+    forward(forwardObj);
+  }
 
   @Override
   public StructObjectInspector initialize(ObjectInspector[] argOIs) throws UDFArgumentException {
-    // Input
-    if (argOIs.length != 1) {
-      throw new UDFArgumentException(getClass().getSimpleName() + "() takes one arguments");
-    }
-    arg0OI = (PrimitiveObjectInspector) argOIs[0];
-
     // Output
     List<String> fieldNames = Collections.singletonList("longResult");
     List<ObjectInspector> fieldOIs = Collections.singletonList(LONG_TYPE);
@@ -53,13 +51,9 @@ public class SimpleUDTF extends GenericUDTF {
 
   @Override
   public void process(Object[] args) throws HiveException {
-    Object arg0 = arg0OI.getPrimitiveJavaObject(args[0]);
-    if (arg0 == null) {
-      return;
-    }
-
     Object[] forwardObj = new Long[1];
-    forwardObj[0] = ((Long) arg0).longValue();
+    forwardObj[0] = result;
+    result += 1;
     forward(forwardObj);
   }
 }

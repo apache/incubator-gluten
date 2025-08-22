@@ -21,32 +21,34 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, ExpressionsEvaluato
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 
 /**
- * A [[ArrowGenerate]] that is calculated by calling `eval` on the specified generate.
+ * A [[InterpretedArrowGenerate]] that is calculated by calling `eval` on the specified generate.
+ * Because `HiveGenericUDTF` uses `ArrayBuffer` to store results and the actual return type of
+ * `eval` method of `HiveGenericUDTF` is `Seq` , so `eval` and `terminate` just returns `Seq`.
  *
  * @param generate
- *   a expression that determine the value of each column of the output row.
+ *   an expression that determine the value of each column of the output row.
  */
 case class InterpretedArrowGenerate(generator: Generator)
-  extends (InternalRow => Option[Iterator[InternalRow]])
+  extends (InternalRow => Option[Seq[InternalRow]])
   with ExpressionsEvaluator {
   def this(generator: Generator, inputSchema: Seq[Attribute]) =
     this(bindReferences(Seq(generator), inputSchema).head)
 
-  override def apply(input: InternalRow): Option[Iterator[InternalRow]] = {
+  override def apply(input: InternalRow): Option[Seq[InternalRow]] = {
     val resultRows = generator.eval(input)
     if (resultRows.isEmpty) {
       None
     } else {
-      Some(resultRows.toIterator)
+      Some(resultRows.asInstanceOf[Seq[InternalRow]])
     }
   }
 
-  def terminate(): Option[Iterator[InternalRow]] = {
+  def terminate(): Option[Seq[InternalRow]] = {
     val resultRows = generator.terminate()
     if (resultRows.isEmpty) {
       None
     } else {
-      Some(resultRows.toIterator)
+      Some(resultRows.asInstanceOf[Seq[InternalRow]])
     }
   }
 }

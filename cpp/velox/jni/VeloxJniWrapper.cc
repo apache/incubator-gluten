@@ -214,15 +214,12 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_repeatedThenCompose( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlongArray batchHandles,
+    jlong repeatedBatchHandle,
+    jlong nonRepeatedBatchHandle,
     jintArray rowId2RowNums) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
   auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
-
-  int handleCount = env->GetArrayLength(batchHandles);
-  auto safeBatchArray = getLongArrayElementsSafe(env, batchHandles);
-  GLUTEN_CHECK(handleCount == 2, "Expected exactly two handles for VeloxColumnarBatchJniWrapper_repeatedThenCompose");
 
   int rowId2RowNumsSize = env->GetArrayLength(rowId2RowNums);
   auto safeRowId2RowNumsArray = getIntArrayElementsSafe(env, rowId2RowNums);
@@ -244,17 +241,13 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
     lastRowIndexEnd += rowNum;
   }
 
-  std::vector<std::shared_ptr<ColumnarBatch>> batches;
-  for (int i = 0; i < handleCount; ++i) {
-    int64_t handle = safeBatchArray.elems()[i];
-    auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
-    batches.push_back(batch);
-  }
-  GLUTEN_CHECK(rowNums == batches[1]->numRows(),
+  auto repeatedBatch = ObjectStore::retrieve<ColumnarBatch>(repeatedBatchHandle);
+  auto nonRepeatedBatch = ObjectStore::retrieve<ColumnarBatch>(nonRepeatedBatchHandle);
+  GLUTEN_CHECK(rowNums == nonRepeatedBatch->numRows(),
       "Row numbers after repeated do not match the expected size");
 
-  // wrap batches[0]'s rowVector in dictionary vector.
-  auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[0]);
+  // wrap repeatedBatch's rowVector in dictionary vector.
+  auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(repeatedBatch);
   auto rowVector = vb->getRowVector();
   std::vector<VectorPtr> outputs(rowVector->childrenSize());
   for (int i = 0; i < outputs.size(); i++) {
@@ -270,10 +263,10 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
       BufferPtr(nullptr),
       rowNums,
       std::move(outputs));
-  vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[1]);
-  rowVector = vb->getRowVector();
-  batches[0] = std::make_shared<VeloxColumnarBatch>(std::move(newRowVector));
-  auto newBatch = VeloxColumnarBatch::compose(veloxPool.get(), std::move(batches));
+  repeatedBatch = std::make_shared<VeloxColumnarBatch>(std::move(newRowVector));
+  auto newBatch = VeloxColumnarBatch::compose(
+      veloxPool.get(),
+      {std::move(repeatedBatch), std::move(nonRepeatedBatch)});
   return ctx->saveObject(newBatch);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
