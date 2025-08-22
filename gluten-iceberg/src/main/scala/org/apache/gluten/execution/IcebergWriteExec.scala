@@ -76,7 +76,10 @@ trait IcebergWriteExec extends ColumnarV2TableWriteExec {
         spec
           .fields()
           .stream()
-          .anyMatch(f => !validatePartitionType(spec.schema(), f) || !topIds.contains(f.sourceId()))
+          .anyMatch(
+            f =>
+              !validatePartitionType(spec.schema(), f) || !topIds
+                .contains(f.sourceId()) || f.transform().isVoid)
       ) {
         return ValidationResult.failed(
           "Not support write unsupported partition type, or is nested partition column")
