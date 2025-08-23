@@ -8,7 +8,7 @@ parent: Developer Overview
 ## Dynamic Off-heap Sizing
 Gluten requires setting both on-heap and off-heap memory sizes, which initializes different memory layouts. Improper configuration of these settings can lead to lower performance. 
 
-To fix this issue, Dynamic off-heap sizing is an experimental feature designed to simplify this process. When enabled, off-heap settings are ignored, and Velox uses the on-heap size as the memory size.
+To fix this issue, dynamic off-heap sizing is an experimental feature designed to simplify this process. When enabled, off-heap settings are ignored, and Velox uses the on-heap size as the memory size.
 ## Detail implementations
 To understand the details, it's essential to learn the basics of JVM memory management. There are many resources discussing JVM internals:
 - https://exia.dev/blog/2019-12-10/JVM-Memory-Model/
@@ -18,15 +18,15 @@ To understand the details, it's essential to learn the basics of JVM memory mana
 
 In general, the feature works as follows:
 
-- Spark first attempts to allocate memory based on the on-heap size. Note that the maximum memory size is controlled by spark.executor.memory.
+- Spark first attempts to allocate memory based on the on-heap size. Note that the maximum memory size is controlled by `spark.executor.memory`.
 - When Velox tries to allocate memory, Gluten attempts to allocate from system memory and records this in the memory allocator.
 - If there is sufficient memory, allocations proceed normally.
 - If memory is insufficient, Spark performs garbage collection (GC) to free on-heap memory, allowing Velox to allocate memory.
 - If memory remains insufficient after GC, Spark reports an out-of-memory (OOM) issue.
 
-We then enforce a total memory quota, calculated as the sum of committed and in-use memory in the Java heap (using Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) plus tracked off-heap memory in TreeMemoryConsumer. If an allocation exceeds this total committed memory, the allocation fails, triggering an OOM.
+We then enforce a total memory quota, calculated as the sum of committed and in-use memory in the Java heap (using `Runtime.getRuntime().totalMemory()`) plus tracked off-heap memory in `TreeMemoryConsumer`. If an allocation exceeds this total committed memory, the allocation fails and triggers an OOM.
 
-With this change, the "quota check" is performed when an allocation in the native engine is informed to Gluten. In practice, this means the Java codebase can oversubscribe memory within the on-heap quota, even if off-heap usage is sufficient to fail the allocation.
+With this change, the "quota check" is performed when Gluten receives an memory allocation request. In practice, this means the Java codebase can oversubscribe memory within the on-heap quota, even if off-heap usage is sufficient to fail the allocation.
 
 ## Limitations
 
