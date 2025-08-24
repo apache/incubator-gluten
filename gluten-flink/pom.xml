@@ -34,6 +34,8 @@
     <flink.version>1.19.2</flink.version>
     <velox4j.version>0.1.0-SNAPSHOT</velox4j.version>
     <scala.binary.version>2.12</scala.binary.version>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
     <spotless.version>2.27.2</spotless.version>
     <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
