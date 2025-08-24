@@ -18,22 +18,24 @@ package org.apache.gluten.execution
 
 import org.apache.spark.sql.connector.write.Write
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2._
+import org.apache.spark.sql.execution.datasources.v2.OverwriteByExpressionExec
 
-case class VeloxIcebergAppendDataExec(query: SparkPlan, refreshCache: () => Unit, write: Write)
+case class VeloxIcebergOverwriteByExpressionExec(
+    query: SparkPlan,
+    refreshCache: () => Unit,
+    write: Write)
   extends AbstractIcebergWriteExec {
 
   override protected def withNewChildInternal(newChild: SparkPlan): IcebergWriteExec =
     copy(query = newChild)
 }
 
-object VeloxIcebergAppendDataExec {
-  def apply(original: AppendDataExec): IcebergWriteExec = {
-    VeloxIcebergAppendDataExec(
+object VeloxIcebergOverwriteByExpressionExec {
+  def apply(original: OverwriteByExpressionExec): IcebergWriteExec = {
+    VeloxIcebergOverwriteByExpressionExec(
       original.query,
       original.refreshCache,
       original.write
     )
   }
-
 }
