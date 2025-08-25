@@ -251,9 +251,9 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getConnectorSessionConfig(
   configs[facebook::velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
       !veloxCfg.get<bool>(kCaseSensitive, false) ? "true" : "false";
   configs[facebook::velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
-  std::string timestampUnitKey = facebook::velox::parquet::WriterOptions::kParquetSessionWriteTimestampUnit;
+  std::string timestampUnitKey{facebook::velox::parquet::WriterOptions::kParquetSessionWriteTimestampUnit};
   configs[timestampUnitKey] = "6";
-  std::string readTimestampKey = facebook::velox::connector::hive::HiveConfig::kReadTimestampUnitSession;
+  std::string readTimestampKey{facebook::velox::connector::hive::HiveConfig::kReadTimestampUnitSession};
   configs[readTimestampKey] = "6";
   configs[facebook::velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
       std::to_string(veloxCfg.get<int32_t>(kMaxPartitions, 10000));
