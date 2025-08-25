@@ -42,11 +42,13 @@ object IcebergTransformUtil {
   }
 
   private def convertTimestamps(timestamps: Timestamps): TransformType = {
-    timestamps match {
-      case Timestamps.MICROS_TO_HOUR => TransformType.HOUR
-      case Timestamps.MICROS_TO_DAY => TransformType.DAY
-      case Timestamps.MICROS_TO_MONTH => TransformType.MONTH
-      case Timestamps.MICROS_TO_YEAR => TransformType.YEAR
+    // We could not match the enum instance because Iceberg 1.5.0 enum is different, and we fall
+    // back TimestampNano data type
+    timestamps.toString match {
+      case "hour" => TransformType.HOUR
+      case "day" => TransformType.DAY
+      case "month" => TransformType.MONTH
+      case "year" => TransformType.YEAR
       case _ => throw new GlutenNotSupportException()
     }
   }
