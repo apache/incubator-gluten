@@ -64,9 +64,14 @@ object ToJsonRestrictions extends ExpressionRestrictions {
   val NOT_SUPPORT_WITH_OPTIONS: String =
     s"${ExpressionNames.TO_JSON} with options is not supported in Velox"
 
+  val NOT_SUPPORT_UPPERCASE_STRUCT: String =
+    s"${ExpressionNames.TO_JSON} with 'spark.sql.caseSensitive = false' and has struct type" +
+      s" which contains uppercase field name is not supported in Velox"
+
   override val functionName: String = ExpressionNames.TO_JSON
 
-  override val restrictionMessages: Array[String] = Array(NOT_SUPPORT_WITH_OPTIONS)
+  override val restrictionMessages: Array[String] =
+    Array(NOT_SUPPORT_WITH_OPTIONS, NOT_SUPPORT_UPPERCASE_STRUCT)
 }
 
 object Unbase64Restrictions extends ExpressionRestrictions {

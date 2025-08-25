@@ -821,9 +821,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       !SQLConf.get.caseSensitiveAnalysis &&
       ExpressionUtils.hasUppercaseFieldsStruct(child.dataType)
     ) {
-      throw new GlutenNotSupportException(
-        "'to_json' with 'spark.sql.caseSensitive = false' and has struct type which contains" +
-          " uppercase field name is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.TO_JSON,
+        ToJsonRestrictions.NOT_SUPPORT_UPPERCASE_STRUCT)
     }
     ToJsonTransformer(substraitExprName, child, expr)
   }
