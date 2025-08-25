@@ -24,6 +24,7 @@
 #include "utils/Exception.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/storage_adapters/s3fs/S3Config.h"
+#include "velox/dwio/parquet/writer/Writer.h"
 
 namespace gluten {
 
@@ -240,6 +241,26 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
 
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
+}
+
+std::shared_ptr<facebook::velox::config::ConfigBase> getConnectorSessionConfig(
+    const facebook::velox::config::ConfigBase& veloxCfg) {
+  // The configs below are used at session level.
+  std::unordered_map<std::string, std::string> configs = {};
+  // The semantics of reading as lower case is opposite with case-sensitive.
+  configs[facebook::velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
+      !veloxCfg.get<bool>(kCaseSensitive, false) ? "true" : "false";
+  configs[facebook::velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
+  std::string timestampUnitKey{facebook::velox::parquet::WriterOptions::kParquetSessionWriteTimestampUnit};
+  configs[timestampUnitKey] = "6";
+  std::string readTimestampKey{facebook::velox::connector::hive::HiveConfig::kReadTimestampUnitSession};
+  configs[readTimestampKey] = "6";
+  configs[facebook::velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
+      std::to_string(veloxCfg.get<int32_t>(kMaxPartitions, 10000));
+  configs[facebook::velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
+      std::to_string(veloxCfg.get<bool>(kIgnoreMissingFiles, false));
+  configs[facebook::velox::connector::hive::HiveConfig::kEnableRequestedTypeCheckSession] = "false";
+  return std::make_shared<facebook::velox::config::ConfigBase>(std::move(configs));
 }
 
 } // namespace gluten

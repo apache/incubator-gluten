@@ -100,9 +100,10 @@ IcebergWriter::IcebergWriter(
     std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool,
     std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool)
     : rowType_(rowType), field_(convertToIcebergNestedField(field)), pool_(memoryPool), connectorPool_(connectorPool) {
-  auto connectorSessionProperties_ = getHiveConfig(
-      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(sparkConfs)));
-  connectorConfig_ = std::make_shared<facebook::velox::connector::hive::HiveConfig>(connectorSessionProperties_);
+  veloxCfg_ =
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(sparkConfs));
+  auto connectorSessionProperties_ = getConnectorSessionConfig(*veloxCfg_);
+  connectorConfig_ = std::make_shared<facebook::velox::connector::hive::HiveConfig>(getHiveConfig(veloxCfg_));
   connectorQueryCtx_ = std::make_unique<connector::ConnectorQueryCtx>(
       pool_.get(),
       connectorPool_.get(),

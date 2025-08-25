@@ -24,6 +24,7 @@
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
+#include "utils/ConfigExtractor.h"
 
 using namespace facebook;
 
@@ -178,7 +179,7 @@ WholeStageResultIterator::WholeStageResultIterator(
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
-  connectorConfigs[kHiveConnectorId] = createConnectorConfig();
+  connectorConfigs[kHiveConnectorId] = getConnectorSessionConfig(*veloxCfg_);
   std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(
       nullptr,
       facebook::velox::core::QueryConfig{getQueryContextConf()},
@@ -610,23 +611,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     throw std::runtime_error("Invalid conf arg: " + errDetails);
   }
   return configs;
-}
-
-std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConnectorConfig() {
-  // The configs below are used at session level.
-  std::unordered_map<std::string, std::string> configs = {};
-  // The semantics of reading as lower case is opposite with case-sensitive.
-  configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
-      !veloxCfg_->get<bool>(kCaseSensitive, false) ? "true" : "false";
-  configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
-  configs[velox::parquet::WriterOptions::kParquetSessionWriteTimestampUnit] = "6";
-  configs[velox::connector::hive::HiveConfig::kReadTimestampUnitSession] = "6";
-  configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
-      std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
-  configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
-      std::to_string(veloxCfg_->get<bool>(kIgnoreMissingFiles, false));
-  configs[velox::connector::hive::HiveConfig::kEnableRequestedTypeCheckSession] = "false";
-  return std::make_shared<velox::config::ConfigBase>(std::move(configs));
 }
 
 } // namespace gluten

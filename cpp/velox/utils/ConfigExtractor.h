@@ -36,4 +36,7 @@ std::string getConfigValue(
 std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
     std::shared_ptr<facebook::velox::config::ConfigBase> conf);
 
+std::shared_ptr<facebook::velox::config::ConfigBase> getConnectorSessionConfig(
+    const facebook::velox::config::ConfigBase& veloxCfg);
+
 } // namespace gluten
