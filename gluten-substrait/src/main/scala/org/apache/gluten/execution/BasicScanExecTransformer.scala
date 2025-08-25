@@ -41,8 +41,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   /** Returns the filters that can be pushed down to native file scan */
   def filterExprs(): Seq[Expression]
 
-  def outputAttributes(): Seq[Attribute]
-
   def getMetadataColumns(): Seq[AttributeReference]
 
   /** This can be used to report FileFormat for a file based scan operator. */
@@ -117,7 +115,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val output = outputAttributes()
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = output.map {
