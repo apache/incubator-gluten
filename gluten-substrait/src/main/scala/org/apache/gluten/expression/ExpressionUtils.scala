@@ -20,6 +20,8 @@ import org.apache.spark.sql.catalyst.expressions.{Expression, LeafExpression}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
+import java.util.Locale
+
 object ExpressionUtils {
 
   private def getExpressionTreeDepth(expr: Expression): Integer = {
@@ -44,7 +46,8 @@ object ExpressionUtils {
 
   def hasUppercaseFieldsStruct(dataType: DataType): Boolean = {
     dataType match {
-      case StructType(fields) => fields.exists(field => field.name.toLowerCase != field.name)
+      case StructType(fields) =>
+        fields.exists(field => field.name.toLowerCase(Locale.ROOT) != field.name)
       case ArrayType(elementType, _) => hasUppercaseFieldsStruct(elementType)
       case MapType(keyType, valueType, _) =>
         hasUppercaseFieldsStruct(keyType) || hasUppercaseFieldsStruct(valueType)
