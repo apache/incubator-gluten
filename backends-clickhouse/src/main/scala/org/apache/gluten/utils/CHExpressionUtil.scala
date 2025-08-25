@@ -207,6 +207,9 @@ object CHExpressionUtil {
     MAKE_DATE -> DefaultValidator(),
     ARRAY_APPEND -> DefaultValidator(),
     JSON_OBJECT_KEYS -> DefaultValidator(),
-    LUHN_CHECK -> DefaultValidator()
+    LUHN_CHECK -> DefaultValidator(),
+    VARCHAR_TYPE_WRITE_SIDE_CHECK -> DefaultValidator(),
+    CHAR_TYPE_WRITE_SIDE_CHECK -> DefaultValidator(),
+    READ_SIDE_PADDING -> DefaultValidator()
   )
 }
