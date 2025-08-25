@@ -18,6 +18,7 @@ package org.apache.gluten.expression
 
 import org.apache.spark.sql.catalyst.expressions.{Expression, LeafExpression}
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
 object ExpressionUtils {
 
@@ -39,5 +40,15 @@ object ExpressionUtils {
 
   def hasComplexExpressions(plan: SparkPlan, threshold: Int): Boolean = {
     hasComplexExpressions(plan.expressions, threshold)
+  }
+
+  def hasUppercaseFieldsStruct(dataType: DataType): Boolean = {
+    dataType match {
+      case StructType(fields) => fields.exists(field => field.name.toLowerCase != field.name)
+      case ArrayType(elementType, _) => hasUppercaseFieldsStruct(elementType)
+      case MapType(keyType, valueType, _) =>
+        hasUppercaseFieldsStruct(keyType) || hasUppercaseFieldsStruct(valueType)
+      case _ => false
+    }
   }
 }
