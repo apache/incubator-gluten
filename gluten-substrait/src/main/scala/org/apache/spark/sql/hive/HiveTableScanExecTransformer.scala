@@ -23,7 +23,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSeq, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeMap, AttributeReference, AttributeSeq, Expression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
@@ -63,12 +63,12 @@ case class HiveTableScanExecTransformer(
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
-  override def outputAttributes(): Seq[Attribute] = {
-    if (prunedOutput.nonEmpty) {
-      prunedOutput
-    } else {
-      output
-    }
+  override val output: Seq[Attribute] = if (prunedOutput.nonEmpty) {
+    prunedOutput
+  } else {
+    // Retrieve the original attributes based on expression ID so that capitalization matches.
+    val originalAttributes = AttributeMap(relation.output.map(a => a -> a))
+    requestedAttributes.map(attr => originalAttributes.getOrElse(attr, attr)).distinct
   }
 
   override def getPartitions: Seq[InputPartition] = partitions

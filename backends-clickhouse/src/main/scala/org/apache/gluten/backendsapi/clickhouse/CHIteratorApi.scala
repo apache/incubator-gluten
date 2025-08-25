@@ -120,7 +120,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       scan: BasicScanExecTransformer): Unit = {
     if (scan.fileFormat == ReadFileFormat.TextReadFormat) {
       val names =
-        ConverterUtils.collectAttributeNamesWithoutExprId(scan.outputAttributes())
+        ConverterUtils.collectAttributeNamesWithoutExprId(scan.output)
       localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala.toSeq))
     }
   }
