@@ -37,6 +37,7 @@ object IcebergTransformUtil {
       case b: Bucket[_] => builder.setTransform(TransformType.BUCKET).setParameter(b.numBuckets())
       case t: Truncate[_] => builder.setTransform(TransformType.TRUNCATE).setParameter(t.width)
       case t: Timestamps => builder.setTransform(convertTimestamps(t))
+      case d: Dates => builder.setTransform(convertDates(d))
     }
     builder.build()
   }
@@ -49,6 +50,17 @@ object IcebergTransformUtil {
       case "day" => TransformType.DAY
       case "month" => TransformType.MONTH
       case "year" => TransformType.YEAR
+      case _ => throw new GlutenNotSupportException()
+    }
+  }
+
+  private def convertDates(dates: Dates): TransformType = {
+    // We could not match the enum instance because Iceberg 1.5.0 enum is different, and we fall
+    // back TimestampNano data type
+    dates match {
+      case Dates.DAY => TransformType.DAY
+      case Dates.MONTH => TransformType.MONTH
+      case Dates.YEAR => TransformType.YEAR
       case _ => throw new GlutenNotSupportException()
     }
   }
