@@ -148,21 +148,36 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       i: StaticInvoke,
       attributeSeq: Seq[Attribute],
       expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
+    def validateAndTransform(
+        exprName: String,
+        childTransformers: => Seq[ExpressionTransformer]): ExpressionTransformer = {
+      if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(exprName, i)) {
+        throw new GlutenNotSupportException(
+          s"Not supported to map current ${i.getClass} call on function: ${i.functionName}.")
+      }
+      GenericExpressionTransformer(exprName, childTransformers, i)
+    }
+
     if (Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith("UrlCodec")) {
-      return GenericExpressionTransformer(
+      return validateAndTransform(
         "url_" + i.functionName,
-        replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
-        i)
+        Seq(replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap))
+      )
     }
 
     if (i.functionName == "isLuhnNumber") {
-      return GenericExpressionTransformer(
+      return validateAndTransform(
         ExpressionNames.LUHN_CHECK,
-        replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
-        i)
+        Seq(replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap))
+      )
     }
 
     if (Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith("Base64")) {
+      // Respect backend-specific implementation while still validating the expr name
+      if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(ExpressionNames.BASE64, i)) {
+        throw new GlutenNotSupportException(
+          s"Not supported to map current ${i.getClass} call on function: ${i.functionName}.")
+      }
       return BackendsApiManager.getSparkPlanExecApiInstance.genBase64StaticInvokeTransformer(
         ExpressionNames.BASE64,
         replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
@@ -172,16 +187,17 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
     if (
       Set("varcharTypeWriteSideCheck", "charTypeWriteSideCheck", "readSidePadding").contains(
-        i.functionName) && i.objectName.endsWith("CharVarcharCodegenUtils")) {
+        i.functionName) && i.objectName.endsWith("CharVarcharCodegenUtils")
+    ) {
       val exprName = i.functionName match {
         case "varcharTypeWriteSideCheck" => ExpressionNames.VARCHAR_TYPE_WRITE_SIDE_CHECK
         case "charTypeWriteSideCheck" => ExpressionNames.CHAR_TYPE_WRITE_SIDE_CHECK
         case "readSidePadding" => ExpressionNames.READ_SIDE_PADDING
       }
-      return GenericExpressionTransformer(
+      return validateAndTransform(
         exprName,
-        i.arguments.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-        i)
+        i.arguments.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+      )
     }
 
     throw new GlutenNotSupportException(
