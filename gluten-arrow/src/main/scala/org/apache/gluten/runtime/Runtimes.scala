@@ -26,8 +26,7 @@ object Runtimes {
       throw new IllegalStateException("This method must be called in a Spark task.")
     }
 
-    val resourceName = String.format("%s:%s", backendName, name)
-    TaskResources.addResourceIfNotRegistered(resourceName, () => create(backendName, name))
+    TaskResources.addResourceIfNotRegistered(s"$backendName:$name", () => create(backendName, name))
   }
 
   private def create(backendName: String, name: String): Runtime with TaskResource = {
