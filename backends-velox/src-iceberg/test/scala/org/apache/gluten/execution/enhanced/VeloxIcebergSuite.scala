@@ -128,7 +128,7 @@ class VeloxIcebergSuite extends IcebergSuite {
         df.queryExecution.executedPlan
           .asInstanceOf[CommandResultExec]
           .commandPhysicalPlan
-          .isInstanceOf[IcebergAppendDataExec])
+          .isInstanceOf[VeloxIcebergAppendDataExec])
       val selectDf = spark.sql("""
                                  |select * from iceberg_tb2;
                                  |""".stripMargin)
@@ -153,7 +153,7 @@ class VeloxIcebergSuite extends IcebergSuite {
         df.queryExecution.executedPlan
           .asInstanceOf[CommandResultExec]
           .commandPhysicalPlan
-          .isInstanceOf[IcebergAppendDataExec])
+          .isInstanceOf[VeloxIcebergAppendDataExec])
       val selectDf = spark.sql("""
                                  |select * from iceberg_tb2;
                                  |""".stripMargin)
