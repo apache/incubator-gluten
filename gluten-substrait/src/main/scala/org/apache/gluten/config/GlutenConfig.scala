@@ -95,6 +95,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableReplaceData: Boolean = getConf(COLUMNAR_REPLACE_DATA_ENABLED)
 
+  def enableOverwriteByExpression: Boolean = getConf(COLUMNAR_OVERWRIET_BY_EXPRESSION_ENABLED)
+
   def enableColumnarShuffledHashJoin: Boolean = getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
   def shuffledHashJoinOptimizeBuildSide: Boolean =
@@ -884,6 +886,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.replaceData")
       .internal()
       .doc("Enable or disable columnar v2 command replace data.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_OVERWRIET_BY_EXPRESSION_ENABLED =
+    buildConf("spark.gluten.sql.columnar.overwriteByExpression")
+      .internal()
+      .doc("Enable or disable columnar v2 command overwrite by expression.")
       .booleanConf
       .createWithDefault(true)
 

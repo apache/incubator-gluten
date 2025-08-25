@@ -26,7 +26,7 @@ import org.apache.iceberg.types.Type.TypeID
 
 import scala.collection.JavaConverters._
 
-trait IcebergAppendDataExec extends ColumnarAppendDataExec {
+trait IcebergWriteExec extends ColumnarV2TableWriteExec {
 
   protected def getFileFormat(format: FileFormat): Int = {
     format match {

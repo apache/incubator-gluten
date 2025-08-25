@@ -32,7 +32,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.LongAccumulator
 
-trait ColumnarAppendDataExec extends V2ExistingTableWriteExec with ValidatablePlan {
+trait ColumnarV2TableWriteExec extends V2ExistingTableWriteExec with ValidatablePlan {
 
   protected def createFactory(schema: StructType): ColumnarBatchDataWriterFactory
 
