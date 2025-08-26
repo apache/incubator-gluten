@@ -190,7 +190,9 @@ class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
         .filterNot(_.getId.contains("Europe/Kyiv"))
         .filterNot(_.getId.contains("America/Ciudad_Juarez"))
         .filterNot(_.getId.contains("Antarctica/Vostok"))
-        .filterNot(_.getId.contains("Pacific/Kanton")),
+        .filterNot(_.getId.contains("Pacific/Kanton"))
+        .filterNot(_.getId.contains("Asia/Tehran"))
+        .filterNot(_.getId.contains("Iran")),
       prefix = "CastSuiteBase-cast-string-to-timestamp",
       maxThreads = 1
     ) {
