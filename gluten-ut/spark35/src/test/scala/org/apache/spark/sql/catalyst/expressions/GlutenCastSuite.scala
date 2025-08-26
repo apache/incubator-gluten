@@ -26,6 +26,8 @@ import org.apache.spark.util.ThreadUtils
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
 
+import scala.util.{Failure, Success, Try}
+
 class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
 
   override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): Cast = {
@@ -168,8 +170,21 @@ class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
     checkEvaluation(cast(false, TimestampType), tsFalse)
   }
 
+  def parmapWithErrorLogging[I, O](in: Seq[I], prefix: String, maxThreads: Int)(
+      f: I => O): Seq[O] = {
+    ThreadUtils.parmap(in, prefix, maxThreads) {
+      i =>
+        Try(f(i)) match {
+          case Success(result) => result
+          case Failure(exception) =>
+            exception.printStackTrace()
+            throw exception
+        }
+    }
+  }
+
   testGluten("cast string to timestamp") {
-    ThreadUtils.parmap(
+    parmapWithErrorLogging(
       ALL_TIMEZONES
         .filterNot(_.getId.contains("SystemV"))
         .filterNot(_.getId.contains("Europe/Kyiv"))
