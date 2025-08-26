@@ -817,6 +817,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         ExpressionNames.TO_JSON,
         ToJsonRestrictions.NOT_SUPPORT_WITH_OPTIONS)
     }
+    if (
+      !SQLConf.get.caseSensitiveAnalysis &&
+      ExpressionUtils.hasUppercaseStructFieldName(child.dataType)
+    ) {
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.TO_JSON,
+        ToJsonRestrictions.NOT_SUPPORT_UPPERCASE_STRUCT)
+    }
     ToJsonTransformer(substraitExprName, child, expr)
   }
 
