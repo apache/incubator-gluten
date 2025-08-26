@@ -24,11 +24,13 @@ import org.apache.gluten.expression._
 import org.apache.gluten.expression.ExpressionNames.MONOTONICALLY_INCREASING_ID
 import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
+import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.{BlockOutputStream, CHColumnarBatchSerializer, CHNativeBlock, CHStreamReader}
+
 import org.apache.spark.{ShuffleDependency, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.SparkMemoryUtil
@@ -57,11 +59,12 @@ import org.apache.spark.sql.execution.window._
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkVersionUtil
+
 import org.apache.commons.lang3.ClassUtils
-import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 
 import java.io.{ObjectInputStream, ObjectOutputStream}
 import java.util.{ArrayList => JArrayList, List => JList}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
@@ -458,11 +461,16 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
         val constructor =
           clazz.getConstructor(classOf[SQLMetric], classOf[SQLMetric], classOf[SQLMetric])
         constructor.newInstance(readBatchNumRows, numOutputRows, dataSize).asInstanceOf[Serializer]
-      case _ => if (GlutenConfig.get.isUseUniffleShuffleManager) {
-        throw new UnsupportedOperationException("temporarily uniffle not support ch ")
-      } else {
-        new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize, deserializationTime)
-      }
+      case _ =>
+        if (GlutenConfig.get.isUseUniffleShuffleManager) {
+          throw new UnsupportedOperationException("temporarily uniffle not support ch ")
+        } else {
+          new CHColumnarBatchSerializer(
+            readBatchNumRows,
+            numOutputRows,
+            dataSize,
+            deserializationTime)
+        }
     }
   }
 
