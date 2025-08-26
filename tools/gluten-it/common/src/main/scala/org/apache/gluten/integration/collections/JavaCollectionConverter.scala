@@ -14,24 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.integration.collections
 
-import scala.collection.immutable.{Map => IMap}
-import scala.collection.immutable.{Seq => ISeq}
+import scala.collection.JavaConverters._
+import scala.collection.immutable
 
-object CollectionConverter {
-  def toImmutable[K, V](jMap: java.util.Map[K, V]): IMap[K, V] = {
-    import scala.jdk.CollectionConverters._
+object JavaCollectionConverter {
+  def asScalaMap[K, V](jMap: java.util.Map[K, V]): immutable.Map[K, V] = {
     jMap.asScala.toMap
   }
 
-  def toImmutable[T](jList: java.util.List[T]): ISeq[T] = {
-    if (scala.util.Properties.versionNumberString.startsWith("2.12")) {
-      import scala.collection.JavaConverters._
-      jList.asScala.toList
-    } else {
-      import scala.jdk.CollectionConverters._
-      jList.asScala.toList
-    }
+  def asScalaSeq[T](jList: java.util.List[T]): immutable.Seq[T] = {
+    jList.asScala.toList
   }
 }

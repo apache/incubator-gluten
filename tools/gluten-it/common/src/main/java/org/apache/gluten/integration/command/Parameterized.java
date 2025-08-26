@@ -17,7 +17,7 @@
 package org.apache.gluten.integration.command;
 
 import org.apache.gluten.integration.BaseMixin;
-import org.apache.gluten.utils.CollectionConverter;
+import org.apache.gluten.integration.collections.JavaCollectionConverter;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.ArrayUtils;
@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 
 import scala.Tuple2;
 import scala.collection.JavaConverters;
-import scala.collection.immutable.Seq;
 
 @CommandLine.Command(
     name = "parameterized",
@@ -79,11 +78,11 @@ public class Parameterized implements Callable<Integer> {
   public Integer call() throws Exception {
     final Map<String, Map<String, List<Map.Entry<String, String>>>> parsed = new LinkedHashMap<>();
 
-    final Seq<
+    final scala.collection.immutable.Seq<
             scala.collection.immutable.Set<
                 org.apache.gluten.integration.action.Parameterized.DimKv>>
         excludedCombinations =
-            CollectionConverter.toImmutable(
+            JavaCollectionConverter.asScalaSeq(
                 Arrays.stream(excludedDims)
                     .map(
                         d -> {
@@ -149,29 +148,30 @@ public class Parameterized implements Callable<Integer> {
     }
 
     // Convert Map<String, Map<String, List<Map.Entry<String, String>>>> to List<Dim>
-    Seq<org.apache.gluten.integration.action.Parameterized.Dim> parsedDims =
-        CollectionConverter.toImmutable(
-            parsed.entrySet().stream()
-                .map(
-                    e ->
-                        new org.apache.gluten.integration.action.Parameterized.Dim(
-                            e.getKey(),
-                            CollectionConverter.toImmutable(
-                                e.getValue().entrySet().stream()
-                                    .map(
-                                        e2 ->
-                                            new org.apache.gluten.integration.action.Parameterized
-                                                .DimValue(
-                                                e2.getKey(),
-                                                CollectionConverter.toImmutable(
-                                                    e2.getValue().stream()
-                                                        .map(
-                                                            e3 ->
-                                                                new Tuple2<>(
-                                                                    e3.getKey(), e3.getValue()))
-                                                        .collect(Collectors.toList()))))
-                                    .collect(Collectors.toList()))))
-                .collect(Collectors.toList()));
+    scala.collection.immutable.Seq<org.apache.gluten.integration.action.Parameterized.Dim>
+        parsedDims =
+            JavaCollectionConverter.asScalaSeq(
+                parsed.entrySet().stream()
+                    .map(
+                        e ->
+                            new org.apache.gluten.integration.action.Parameterized.Dim(
+                                e.getKey(),
+                                JavaCollectionConverter.asScalaSeq(
+                                    e.getValue().entrySet().stream()
+                                        .map(
+                                            e2 ->
+                                                new org.apache.gluten.integration.action
+                                                    .Parameterized.DimValue(
+                                                    e2.getKey(),
+                                                    JavaCollectionConverter.asScalaSeq(
+                                                        e2.getValue().stream()
+                                                            .map(
+                                                                e3 ->
+                                                                    new Tuple2<>(
+                                                                        e3.getKey(), e3.getValue()))
+                                                            .collect(Collectors.toList()))))
+                                        .collect(Collectors.toList()))))
+                    .collect(Collectors.toList()));
 
     org.apache.gluten.integration.action.Parameterized parameterized =
         new org.apache.gluten.integration.action.Parameterized(
@@ -184,7 +184,7 @@ public class Parameterized implements Callable<Integer> {
             queriesMixin.noSessionReuse(),
             parsedDims,
             excludedCombinations,
-            CollectionConverter.toImmutable(Arrays.asList(metrics)));
+            JavaCollectionConverter.asScalaSeq(Arrays.asList(metrics)));
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), parameterized));
   }
 }
