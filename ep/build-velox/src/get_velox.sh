@@ -189,6 +189,8 @@ function setup_linux {
       ;;
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "openEuler" ]]; then
+    echo "$PWD"
+    sed -i "s|no-unknown-warning-option|no-unknown-warning-option -Wno-restrict|g" ../../src/build_velox.sh
     case "$LINUX_VERSION_ID" in
       24.03) ;;
       *)
