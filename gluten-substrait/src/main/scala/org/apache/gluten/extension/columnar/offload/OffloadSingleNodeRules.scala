@@ -189,11 +189,10 @@ object OffloadOthers {
   private class ReplaceSingleNode extends LogLevelUtil with Logging {
 
     def doReplace(p: SparkPlan): SparkPlan = {
-      val plan = p
-      if (FallbackTags.nonEmpty(plan)) {
-        return plan
+      if (FallbackTags.nonEmpty(p)) {
+        return p
       }
-      plan match {
+      p match {
         case plan: BatchScanExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           ScanTransformerFactory.createBatchScanTransformer(plan)
@@ -204,17 +203,16 @@ object OffloadOthers {
           // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HiveTableScanExecTransformer(plan)
-        case plan: CoalesceExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          ColumnarCoalesceExec(plan.numPartitions, plan.child)
-        case plan: FilterExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        case CoalesceExec(numPartitions, child) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
+          ColumnarCoalesceExec(numPartitions, child)
+        case FilterExec(condition, child) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
           BackendsApiManager.getSparkPlanExecApiInstance
-            .genFilterExecTransformer(plan.condition, plan.child)
-        case plan: ProjectExec =>
-          val columnarChild = plan.child
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          ProjectExecTransformer(plan.projectList, columnarChild)
+            .genFilterExecTransformer(condition, child)
+        case ProjectExec(projectList, child) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
+          ProjectExecTransformer(projectList, child)
         case plan: HashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan)
@@ -224,51 +222,44 @@ object OffloadOthers {
         case plan: ObjectHashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan)
-        case plan: UnionExec =>
-          val children = plan.children
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        case UnionExec(children) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
           ColumnarUnionExec(children)
-        case plan: ExpandExec =>
-          val child = plan.child
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          ExpandExecTransformer(plan.projections, plan.output, child)
-        case plan: WriteFilesExec =>
-          val child = plan.child
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        case ExpandExec(projections, output, child) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
+          ExpandExecTransformer(projections, output, child)
+        case WriteFilesExec(
+              child,
+              fileFormat,
+              partitionColumns,
+              bucketSpec,
+              options,
+              staticPartitions) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
           val writeTransformer = WriteFilesExecTransformer(
             child,
-            plan.fileFormat,
-            plan.partitionColumns,
-            plan.bucketSpec,
-            plan.options,
-            plan.staticPartitions)
+            fileFormat,
+            partitionColumns,
+            bucketSpec,
+            options,
+            staticPartitions)
           ColumnarWriteFilesExec(
             writeTransformer,
-            plan.fileFormat,
-            plan.partitionColumns,
-            plan.bucketSpec,
-            plan.options,
-            plan.staticPartitions)
-        case plan: SortExec =>
-          val child = plan.child
+            fileFormat,
+            partitionColumns,
+            bucketSpec,
+            options,
+            staticPartitions)
+        case SortExec(sortOrder, global, child, testSpillFrequency) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
+          SortExecTransformer(sortOrder, global, child, testSpillFrequency)
+        case plan @ TakeOrderedAndProjectExec(_, sortOrder, projectList, child) =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
-        case plan: TakeOrderedAndProjectExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          val child = plan.child
           val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
-          TakeOrderedAndProjectExecTransformer(
-            limit,
-            plan.sortOrder,
-            plan.projectList,
-            child,
-            offset)
-        case plan: WindowExec =>
-          WindowExecTransformer(
-            plan.windowExpression,
-            plan.partitionSpec,
-            plan.orderSpec,
-            plan.child)
+          TakeOrderedAndProjectExecTransformer(limit, sortOrder, projectList, child, offset)
+        case WindowExec(windowExpression, partitionSpec, orderSpec, child) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
+          WindowExecTransformer(windowExpression, partitionSpec, orderSpec, child)
         case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
           val windowGroupLimitPlan = SparkShimLoader.getSparkShims
             .getWindowGroupLimitExecShim(plan)
@@ -281,45 +272,40 @@ object OffloadOthers {
             windowGroupLimitPlan.mode,
             windowGroupLimitPlan.child
           )
-        case plan: GlobalLimitExec =>
+        case plan @ GlobalLimitExec(_, child) =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          val child = plan.child
           val (limit, offset) =
             SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
           LimitExecTransformer(child, offset, limit)
-        case plan: LocalLimitExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          val child = plan.child
-          LimitExecTransformer(child, 0L, plan.limit)
-        case plan: GenerateExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          val child = plan.child
+        case LocalLimitExec(limit, child) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
+          LimitExecTransformer(child, 0L, limit)
+        case GenerateExec(generator, requiredChildOutput, outer, generatorOutput, child) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
           BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(
-            plan.generator,
-            plan.requiredChildOutput,
-            plan.outer,
-            plan.generatorOutput,
+            generator,
+            requiredChildOutput,
+            outer,
+            generatorOutput,
             child)
-        case plan: BatchEvalPythonExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          val child = plan.child
-          EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
-        case plan: ArrowEvalPythonExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          val child = plan.child
+        case BatchEvalPythonExec(udfs, resultAttrs, child) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
+          EvalPythonExecTransformer(udfs, resultAttrs, child)
+        case ArrowEvalPythonExec(udfs, resultAttrs, child, evalType) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
           // For ArrowEvalPythonExec, CH supports it through EvalPythonExecTransformer while
           // Velox backend uses ColumnarArrowEvalPythonExec.
           if (
             !BackendsApiManager.getSettings.supportColumnarArrowUdf() ||
             !GlutenConfig.get.enableColumnarArrowUDF
           ) {
-            EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
+            EvalPythonExecTransformer(udfs, resultAttrs, child)
           } else {
             BackendsApiManager.getSparkPlanExecApiInstance.createColumnarArrowEvalPythonExec(
-              plan.udfs,
-              plan.resultAttrs,
+              udfs,
+              resultAttrs,
               child,
-              plan.evalType)
+              evalType)
           }
         case plan: RangeExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -332,14 +318,13 @@ object OffloadOthers {
             plan.output,
             plan.children
           )
-        case plan: SampleExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          val child = plan.child
+        case SampleExec(lowerBound, upperBound, withReplacement, seed, child) =>
+          logDebug(s"Columnar Processing for ${p.getClass} is currently supported.")
           BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
-            plan.lowerBound,
-            plan.upperBound,
-            plan.withReplacement,
-            plan.seed,
+            lowerBound,
+            upperBound,
+            withReplacement,
+            seed,
             child)
         case plan: RDDScanExec if RDDScanTransformer.isSupportRDDScanExec(plan) =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
