@@ -281,7 +281,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
 
-  return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
+  return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap), true);
 }
 
 } // namespace gluten

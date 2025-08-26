@@ -20,6 +20,7 @@
 #include "IcebergPartitionSpec.pb.h"
 #include "compute/ProtobufUtils.h"
 #include "compute/iceberg/IcebergFormat.h"
+#include "config/VeloxConfig.h"
 #include "utils/ConfigExtractor.h"
 #include "velox/connectors/hive/iceberg/IcebergDataSink.h"
 #include "velox/connectors/hive/iceberg/IcebergDeleteFile.h"
@@ -100,8 +101,12 @@ IcebergWriter::IcebergWriter(
     std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool,
     std::shared_ptr<facebook::velox::memory::MemoryPool> connectorPool)
     : rowType_(rowType), field_(convertToIcebergNestedField(field)), pool_(memoryPool), connectorPool_(connectorPool) {
-  auto connectorSessionProperties_ = getHiveConfig(
-      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(sparkConfs)));
+  auto veloxCfg =
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(sparkConfs));
+  auto connectorSessionProperties_ = getHiveConfig(veloxCfg);
+  connectorSessionProperties_->set(
+      facebook::velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession,
+      std::to_string(veloxCfg->get<int32_t>(kMaxPartitions, 10000)));
   connectorConfig_ = std::make_shared<facebook::velox::connector::hive::HiveConfig>(connectorSessionProperties_);
   connectorQueryCtx_ = std::make_unique<connector::ConnectorQueryCtx>(
       pool_.get(),
