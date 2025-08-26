@@ -18,15 +18,13 @@ package org.apache.gluten.integration.command;
 
 import org.apache.gluten.integration.Suite;
 import org.apache.gluten.integration.action.Actions;
-import org.apache.gluten.utils.CollectionConverter;
+import org.apache.gluten.integration.collections.JavaCollectionConverter;
 
 import com.google.common.base.Preconditions;
 import picocli.CommandLine;
 
 import java.util.*;
 import java.util.stream.Collectors;
-
-import scala.collection.immutable.Seq;
 
 public class QueriesMixin {
   @CommandLine.Option(
@@ -93,12 +91,12 @@ public class QueriesMixin {
   public Actions.QuerySelector queries() {
     return new Actions.QuerySelector() {
       @Override
-      public Seq<String> select(Suite suite) {
+      public scala.collection.immutable.Seq<String> select(Suite suite) {
         final List<String> all = select0(suite);
         final Division div = Division.parse(shard);
         final List<String> out = div(all, div);
         System.out.println("About to run queries: " + out + "... ");
-        return CollectionConverter.toImmutable(out);
+        return JavaCollectionConverter.asScalaSeq(out);
       }
 
       private List<String> div(List<String> from, Division div) {

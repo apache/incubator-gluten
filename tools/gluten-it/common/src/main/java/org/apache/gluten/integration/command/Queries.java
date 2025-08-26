@@ -17,8 +17,8 @@
 package org.apache.gluten.integration.command;
 
 import org.apache.gluten.integration.BaseMixin;
+import org.apache.gluten.integration.collections.JavaCollectionConverter;
 import org.apache.gluten.integration.metrics.PlanMetric;
-import org.apache.gluten.utils.CollectionConverter;
 
 import org.apache.commons.lang3.ArrayUtils;
 import picocli.CommandLine;
@@ -69,7 +69,7 @@ public class Queries implements Callable<Integer> {
             randomKillTasks,
             queriesMixin.noSessionReuse(),
             queriesMixin.suppressFailureMessages(),
-            CollectionConverter.toImmutable(metricsReporters));
+            JavaCollectionConverter.asScalaSeq(metricsReporters));
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queries));
   }
 }
