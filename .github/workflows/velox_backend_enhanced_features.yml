@@ -31,6 +31,7 @@ on:
       - 'gluten-iceberg/**'
       - 'gluten-hudi/**'
       - 'gluten-ut/**'
+      - 'package/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'

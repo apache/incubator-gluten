@@ -32,6 +32,7 @@ on:
       - 'gluten-hudi/**'
       - 'gluten-paimon/**'
       - 'gluten-ut/**'
+      - 'package/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
