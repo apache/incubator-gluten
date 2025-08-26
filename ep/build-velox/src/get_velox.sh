@@ -25,7 +25,7 @@ VELOX_ENHANCED_BRANCH=ibm-2025_08_26
 ENABLE_ENHANCED_FEATURES=OFF
 
 # Developer use only for testing Velox PR.
-UPSTREAM_VELOX_PR_ID=""
+UPSTREAM_VELOX_PR_ID="7066"
 
 OS=`uname -s`
 
