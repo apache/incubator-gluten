@@ -177,7 +177,7 @@ class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
         Try(f(i)) match {
           case Success(result) => result
           case Failure(exception) =>
-            exception.printStackTrace()
+            logError(s"Failed to test timezone ${i.toString}: ${exception.getMessage}")
             throw exception
         }
     }
