@@ -53,9 +53,12 @@ object TableCreator {
           } else {
             spark.catalog.createTable(tableName, file.getAbsolutePath, source)
             createdTableNames += tableName
-            if (spark.catalog.listColumns(tableName).collect().exists(_.isPartition)) {
+            try {
               spark.catalog.recoverPartitions(tableName)
               recoveredPartitionTableNames += tableName
+            } catch {
+              case _: AnalysisException =>
+                // Swallows analysis exceptions.
             }
           }
         })

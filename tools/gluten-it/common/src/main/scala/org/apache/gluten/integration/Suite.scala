@@ -70,6 +70,15 @@ abstract class Suite(
   sessionSwitcher.addDefaultConf("spark.network.io.preferDirectBufs", "false")
   sessionSwitcher.addDefaultConf("spark.unsafe.exceptionOnMemoryLeak", s"$errorOnMemLeak")
 
+  if (dataSource() == "delta") {
+    sessionSwitcher.addDefaultConf(
+      "spark.sql.extensions",
+      "io.delta.sql.DeltaSparkSessionExtension")
+    sessionSwitcher.addDefaultConf(
+      "spark.sql.catalog.spark_catalog",
+      "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+  }
+
   if (!enableUi) {
     sessionSwitcher.addDefaultConf("spark.ui.enabled", "false")
   }
