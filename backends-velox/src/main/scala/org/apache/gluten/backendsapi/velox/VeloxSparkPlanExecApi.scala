@@ -819,7 +819,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
     if (
       !SQLConf.get.caseSensitiveAnalysis &&
-      ExpressionUtils.hasUppercaseFieldsStruct(child.dataType)
+      ExpressionUtils.hasUppercaseStructFieldName(child.dataType)
     ) {
       GlutenExceptionUtil.throwsNotFullySupported(
         ExpressionNames.TO_JSON,
