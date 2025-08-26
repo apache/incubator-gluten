@@ -678,7 +678,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     dataSize += rawSize
     if (useOffheapBroadcastBuildRelation) {
       TaskResources.runUnsafe {
-        new UnsafeColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
+        UnsafeColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
       }
     } else {
       ColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
