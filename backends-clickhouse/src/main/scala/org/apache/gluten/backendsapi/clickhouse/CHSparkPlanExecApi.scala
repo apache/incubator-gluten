@@ -29,8 +29,7 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.{BlockOutputStream, CHColumnarBatchSerializer, CHNativeBlock, CHStreamReader}
-
-import org.apache.spark.ShuffleDependency
+import org.apache.spark.{ShuffleDependency, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
@@ -58,12 +57,11 @@ import org.apache.spark.sql.execution.window._
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkVersionUtil
-
 import org.apache.commons.lang3.ClassUtils
+import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 
 import java.io.{ObjectInputStream, ObjectOutputStream}
 import java.util.{ArrayList => JArrayList, List => JList}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
@@ -453,15 +451,18 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val numOutputRows = metrics("numOutputRows")
     val dataSize = metrics("dataSize")
     val deserializationTime = metrics("deserializeTime")
-    if (GlutenConfig.get.isUseCelebornShuffleManager) {
-      val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CHCelebornColumnarBatchSerializer")
-      val constructor =
-        clazz.getConstructor(classOf[SQLMetric], classOf[SQLMetric], classOf[SQLMetric])
-      constructor.newInstance(readBatchNumRows, numOutputRows, dataSize).asInstanceOf[Serializer]
-    } else if (GlutenConfig.get.isUseUniffleShuffleManager) {
-      throw new UnsupportedOperationException("temporarily uniffle not support ch ")
-    } else {
-      new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize, deserializationTime)
+    SparkEnv.get.shuffleManager match {
+      case serializer: NeedCustomColumnarBatchSerializer =>
+        val className = serializer.columnarBatchSerializerClass()
+        val clazz = ClassUtils.getClass(className)
+        val constructor =
+          clazz.getConstructor(classOf[SQLMetric], classOf[SQLMetric], classOf[SQLMetric])
+        constructor.newInstance(readBatchNumRows, numOutputRows, dataSize).asInstanceOf[Serializer]
+      case _ => if (GlutenConfig.get.isUseUniffleShuffleManager) {
+        throw new UnsupportedOperationException("temporarily uniffle not support ch ")
+      } else {
+        new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize, deserializationTime)
+      }
     }
   }
 
