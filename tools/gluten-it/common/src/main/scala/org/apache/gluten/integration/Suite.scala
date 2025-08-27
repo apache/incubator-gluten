@@ -173,9 +173,15 @@ abstract class Suite(
 
   protected def historyWritePath(): String
 
-  private[integration] def dataWritePath(scale: Double, genPartitionedData: Boolean): String
+  private[integration] def createDataGen(): DataGen
 
-  private[integration] def createDataGen(scale: Double, genPartitionedData: Boolean): DataGen
+  private[integration] def dataSource(): String
+
+  private[integration] def dataWritePath(): String
+
+  private[integration] def dataScale(): Double
+
+  private[integration] def genPartitionedData(): Boolean
 
   private[integration] def queryResource(): String
 

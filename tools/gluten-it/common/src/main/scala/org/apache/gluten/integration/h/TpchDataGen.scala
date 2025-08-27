@@ -32,26 +32,27 @@ class TpchDataGen(
     val spark: SparkSession,
     scale: Double,
     partitions: Int,
-    path: String,
+    source: String,
+    dir: String,
     typeModifiers: List[TypeModifier] = List())
   extends Serializable
   with DataGen {
 
   override def gen(): Unit = {
-    generate(path, "lineitem", lineItemSchema, partitions, lineItemGenerator, lineItemParser)
-    generate(path, "customer", customerSchema, partitions, customerGenerator, customerParser)
-    generate(path, "orders", orderSchema, partitions, orderGenerator, orderParser)
+    generate(dir, "lineitem", lineItemSchema, partitions, lineItemGenerator, lineItemParser)
+    generate(dir, "customer", customerSchema, partitions, customerGenerator, customerParser)
+    generate(dir, "orders", orderSchema, partitions, orderGenerator, orderParser)
     generate(
-      path,
+      dir,
       "partsupp",
       partSupplierSchema,
       partitions,
       partSupplierGenerator,
       partSupplierParser)
-    generate(path, "supplier", supplierSchema, partitions, supplierGenerator, supplierParser)
-    generate(path, "nation", nationSchema, nationGenerator, nationParser)
-    generate(path, "part", partSchema, partitions, partGenerator, partParser)
-    generate(path, "region", regionSchema, regionGenerator, regionParser)
+    generate(dir, "supplier", supplierSchema, partitions, supplierGenerator, supplierParser)
+    generate(dir, "nation", nationSchema, nationGenerator, nationParser)
+    generate(dir, "part", partSchema, partitions, partGenerator, partParser)
+    generate(dir, "region", regionSchema, regionGenerator, regionParser)
   }
 
   // lineitem
@@ -336,7 +337,8 @@ class TpchDataGen(
           rows
       }(ShimUtils.getExpressionEncoder(modifiedSchema))
       .write
+      .format(source)
       .mode(SaveMode.Overwrite)
-      .parquet(dir + File.separator + tableName)
+      .save(dir + File.separator + tableName)
   }
 }

@@ -31,8 +31,6 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import scala.collection.mutable
 
 class Parameterized(
-    scale: Double,
-    genPartitionedData: Boolean,
     queries: QuerySelector,
     explain: Boolean,
     iterations: Int,
@@ -110,7 +108,7 @@ class Parameterized(
 
   override def execute(suite: Suite): Boolean = {
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
+      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
 
     val sessionSwitcher = suite.sessionSwitcher
     val testConf = suite.getTestConf()
