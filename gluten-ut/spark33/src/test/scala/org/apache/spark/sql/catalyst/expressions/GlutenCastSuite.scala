@@ -21,7 +21,7 @@ import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{withDefaultTimeZone
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{fromJavaTimestamp, millisToMicros, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.util.DebuggableThreadUtils
+import org.apache.spark.util.DebuggableThreadUtils
 
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}

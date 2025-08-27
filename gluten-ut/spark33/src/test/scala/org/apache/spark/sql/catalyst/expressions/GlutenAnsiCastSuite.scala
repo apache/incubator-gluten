@@ -20,7 +20,7 @@ import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{ALL_TIMEZONES, UTC}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StringType, TimestampType}
-import org.apache.spark.sql.util.DebuggableThreadUtils
+import org.apache.spark.util.DebuggableThreadUtils
 
 import java.sql.Timestamp
 import java.time.LocalDateTime

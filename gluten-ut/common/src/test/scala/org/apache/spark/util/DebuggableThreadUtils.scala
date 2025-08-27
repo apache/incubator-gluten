@@ -14,9 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.util
-
-import org.apache.spark.util.ThreadUtils
+package org.apache.spark.util
 
 import org.scalatest.Assertions.fail
 
