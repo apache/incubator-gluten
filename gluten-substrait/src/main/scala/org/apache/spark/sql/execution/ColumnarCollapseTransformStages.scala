@@ -79,7 +79,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
-    copy(child = newChild)
+    copy(child = ColumnarInputAdapter(newChild))
   }
 
   private def forBroadcast(): Boolean = child match {
