@@ -18,7 +18,6 @@ package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
-import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
@@ -103,14 +102,10 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<Statefu
     rightInputQueue = session.externalStreamOps().newBlockingQueue();
     LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
     LOG.debug("OutTypes: {}", outputTypes.keySet());
-<<<<<<< HEAD
     query =
         new Query(
             glutenPlan, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
-=======
     LOG.debug("RuntimeContex: {}", getRuntimeContext().getClass().getName());
-    query = new Query(glutenPlan, Config.empty(), ConnectorConfig.empty());
->>>>>>> main
     allocator = new RootAllocator(Long.MAX_VALUE);
     task = session.queryOps().execute(query);
     ExternalStreamConnectorSplit leftSplit =

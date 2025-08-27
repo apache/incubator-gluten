@@ -183,7 +183,6 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     String query =
         "select a, DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd'), DATE_FORMAT(cast(b as Timestamp(3)), 'yyyy-MM-dd HH:mm:ss') from dateFormatTbl";
     Map<String, String> configs = new HashMap<>();
-    configs.put("config.used-for-test", "true");
     configs.put(TableConfigOptions.LOCAL_TIME_ZONE.key(), "default");
     runAndCheckException(query, configs);
     configs.put(TableConfigOptions.LOCAL_TIME_ZONE.key(), "America/Los_Angeles");
