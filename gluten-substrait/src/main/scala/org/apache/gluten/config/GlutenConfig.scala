@@ -50,10 +50,16 @@ case object RssSortShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_RSS_SORT_SHUFFLE_WRITER
 }
 
+/*
+ * Note: Gluten configiguration.md is automatically generated from this code.
+ * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ */
 class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   import GlutenConfig._
 
   def enableAnsiMode: Boolean = conf.ansiEnabled
+
+  def enableAnsiFallback: Boolean = getConf(GLUTEN_ANSI_FALLBACK_ENABLED)
 
   def glutenUiEnabled: Boolean = getConf(GLUTEN_UI_ENABLED)
 
@@ -86,6 +92,10 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableColumnarWindowGroupLimit: Boolean = getConf(COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED)
 
   def enableAppendData: Boolean = getConf(COLUMNAR_APPEND_DATA_ENABLED)
+
+  def enableReplaceData: Boolean = getConf(COLUMNAR_REPLACE_DATA_ENABLED)
+
+  def enableOverwriteByExpression: Boolean = getConf(COLUMNAR_OVERWRIET_BY_EXPRESSION_ENABLED)
 
   def enableColumnarShuffledHashJoin: Boolean = getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
@@ -201,13 +211,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
     getConf(COLUMNAR_SHUFFLE_COMPRESSION_MODE)
 
   def columnarShuffleCodecBackend: Option[String] = getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
-    .filter(Set(GLUTEN_QAT_BACKEND_NAME, GLUTEN_IAA_BACKEND_NAME).contains(_))
 
   def columnarShuffleEnableQat: Boolean =
     columnarShuffleCodecBackend.contains(GlutenConfig.GLUTEN_QAT_BACKEND_NAME)
-
-  def columnarShuffleEnableIaa: Boolean =
-    columnarShuffleCodecBackend.contains(GlutenConfig.GLUTEN_IAA_BACKEND_NAME)
 
   def columnarShuffleCompressionThreshold: Int =
     getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
@@ -361,6 +367,10 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def autoAdjustStageRPHeapRatio: Double = getConf(AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO)
 
+  def autoAdjustStageRPOffHeapRatio: Double = getConf(
+    AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO
+  )
+
   def autoAdjustStageFallenNodeThreshold: Double =
     getConf(AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD)
   def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
@@ -435,11 +445,6 @@ object GlutenConfig {
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
   val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
-  // IAA config
-  val GLUTEN_IAA_BACKEND_NAME = "iaa"
-  val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("gzip")
-
-  private val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
   val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
@@ -456,9 +461,57 @@ object GlutenConfig {
     new GlutenConfig(SQLConf.get)
   }
 
-  def prefixOf(backendName: String): String = {
-    GLUTEN_CONFIG_PREFIX + backendName
-  }
+  def prefixOf(backendName: String): String = s"spark.gluten.sql.columnar.backend.$backendName"
+
+  private lazy val nativeKeys = Set(
+    DEBUG_ENABLED.key,
+    BENCHMARK_SAVE_DIR.key,
+    GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
+    COLUMNAR_MAX_BATCH_SIZE.key,
+    SHUFFLE_WRITER_BUFFER_SIZE.key,
+    SQLConf.LEGACY_SIZE_OF_NULL.key,
+    SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
+    SQLConf.JSON_GENERATOR_IGNORE_NULL_FIELDS.key,
+    "spark.io.compression.codec",
+    "spark.sql.decimalOperations.allowPrecisionLoss",
+    "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
+    "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits",
+    "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits",
+    // s3 config
+    SPARK_S3_ACCESS_KEY,
+    SPARK_S3_SECRET_KEY,
+    SPARK_S3_ENDPOINT,
+    SPARK_S3_CONNECTION_SSL_ENABLED,
+    SPARK_S3_PATH_STYLE_ACCESS,
+    SPARK_S3_USE_INSTANCE_CREDENTIALS,
+    SPARK_S3_IAM,
+    SPARK_S3_IAM_SESSION_NAME,
+    SPARK_S3_RETRY_MAX_ATTEMPTS,
+    SPARK_S3_CONNECTION_MAXIMUM,
+    SPARK_S3_ENDPOINT_REGION,
+    "spark.gluten.velox.fs.s3a.connect.timeout",
+    "spark.gluten.velox.fs.s3a.retry.mode",
+    "spark.gluten.velox.awsSdkLogLevel",
+    "spark.gluten.velox.s3UseProxyFromEnv",
+    "spark.gluten.velox.s3PayloadSigningPolicy",
+    "spark.gluten.velox.s3LogLocation",
+    // gcs config
+    SPARK_GCS_STORAGE_ROOT_URL,
+    SPARK_GCS_AUTH_TYPE,
+    SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
+    SPARK_REDACTION_REGEX,
+    "spark.gluten.sql.columnar.backend.velox.queryTraceEnabled",
+    "spark.gluten.sql.columnar.backend.velox.queryTraceDir",
+    "spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds",
+    "spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes",
+    "spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp",
+    "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig",
+    "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace",
+    "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace",
+    "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
+    "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
+    "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
+  )
 
   /**
    * Get dynamic configs.
@@ -469,55 +522,7 @@ object GlutenConfig {
       backendName: String,
       conf: Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
-    val keys = Set(
-      DEBUG_ENABLED.key,
-      BENCHMARK_SAVE_DIR.key,
-      GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
-      COLUMNAR_MAX_BATCH_SIZE.key,
-      SHUFFLE_WRITER_BUFFER_SIZE.key,
-      SQLConf.LEGACY_SIZE_OF_NULL.key,
-      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
-      "spark.io.compression.codec",
-      "spark.sql.decimalOperations.allowPrecisionLoss",
-      "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
-      "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits",
-      "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits",
-      // s3 config
-      SPARK_S3_ACCESS_KEY,
-      SPARK_S3_SECRET_KEY,
-      SPARK_S3_ENDPOINT,
-      SPARK_S3_CONNECTION_SSL_ENABLED,
-      SPARK_S3_PATH_STYLE_ACCESS,
-      SPARK_S3_USE_INSTANCE_CREDENTIALS,
-      SPARK_S3_IAM,
-      SPARK_S3_IAM_SESSION_NAME,
-      SPARK_S3_RETRY_MAX_ATTEMPTS,
-      SPARK_S3_CONNECTION_MAXIMUM,
-      SPARK_S3_ENDPOINT_REGION,
-      "spark.gluten.velox.fs.s3a.connect.timeout",
-      "spark.gluten.velox.fs.s3a.retry.mode",
-      "spark.gluten.velox.awsSdkLogLevel",
-      "spark.gluten.velox.s3UseProxyFromEnv",
-      "spark.gluten.velox.s3PayloadSigningPolicy",
-      "spark.gluten.velox.s3LogLocation",
-      // gcs config
-      SPARK_GCS_STORAGE_ROOT_URL,
-      SPARK_GCS_AUTH_TYPE,
-      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
-      SPARK_REDACTION_REGEX,
-      "spark.gluten.sql.columnar.backend.velox.queryTraceEnabled",
-      "spark.gluten.sql.columnar.backend.velox.queryTraceDir",
-      "spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds",
-      "spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes",
-      "spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp",
-      "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig",
-      "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace",
-      "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace",
-      "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
-      "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
-      "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
-    )
-    nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
+    nativeConfMap.putAll(conf.filter(e => nativeKeys.contains(e._1)).asJava)
 
     val keyWithDefault = ImmutableList.of(
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
@@ -780,6 +785,14 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val GLUTEN_ANSI_FALLBACK_ENABLED =
+    buildConf("spark.gluten.sql.ansiFallback.enabled")
+      .doc(
+        "When true (default), Gluten will fall back to Spark when ANSI mode is enabled. " +
+          "When false, Gluten will attempt to execute in ANSI mode.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_BATCHSCAN_ENABLED =
     buildConf("spark.gluten.sql.columnar.batchscan")
       .doc("Enable or disable columnar batchscan.")
@@ -866,6 +879,20 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.appendData")
       .internal()
       .doc("Enable or disable columnar v2 command append data.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_REPLACE_DATA_ENABLED =
+    buildConf("spark.gluten.sql.columnar.replaceData")
+      .internal()
+      .doc("Enable or disable columnar v2 command replace data.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_OVERWRIET_BY_EXPRESSION_ENABLED =
+    buildConf("spark.gluten.sql.columnar.overwriteByExpression")
+      .internal()
+      .doc("Enable or disable columnar v2 command overwrite by expression.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1021,9 +1048,7 @@ object GlutenConfig {
       .doc(
         "By default, the supported codecs are lz4 and zstd. " +
           "When spark.gluten.sql.columnar.shuffle.codecBackend=qat," +
-          "the supported codecs are gzip and zstd. " +
-          "When spark.gluten.sql.columnar.shuffle.codecBackend=iaa," +
-          "the supported codec is gzip.")
+          "the supported codecs are gzip and zstd.")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
       .createOptional
@@ -1582,6 +1607,13 @@ object GlutenConfig {
       .doc("Experimental: Increase executor heap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(2.0d)
+
+  val AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO =
+    buildConf("spark.gluten.auto.adjustStageResources.offheap.ratio")
+      .internal()
+      .doc("Experimental: Decrease executor offheap memory when match adjust stage resource rule.")
+      .doubleConf
+      .createWithDefault(0.5d)
 
   val AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD =
     buildConf("spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold")

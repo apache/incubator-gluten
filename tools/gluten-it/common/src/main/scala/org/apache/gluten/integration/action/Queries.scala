@@ -33,6 +33,7 @@ case class Queries(
     iterations: Int,
     randomKillTasks: Boolean,
     noSessionReuse: Boolean,
+    suppressFailureMessages: Boolean,
     metricsReporters: Seq[PlanMetric.Reporter])
   extends Action {
   import Queries._
@@ -44,31 +45,48 @@ case class Queries(
     val sessionSwitcher = suite.sessionSwitcher
     sessionSwitcher.useSession("test", "Run Queries")
     runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
-    val results = (0 until iterations).flatMap { iteration =>
-      println(s"Running tests (iteration $iteration)...")
-      runQueryIds.map { queryId =>
-        try {
-          Queries.runQuery(
-            runner,
-            suite.tableCreator(),
-            sessionSwitcher.spark(),
-            queryId,
-            suite.desc(),
-            explain,
-            suite.getTestMetricMapper(),
-            randomKillTasks)
-        } finally {
-          if (noSessionReuse) {
-            sessionSwitcher.renewSession()
-            runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
-          }
+    val results = (0 until iterations).flatMap {
+      iteration =>
+        println(s"Running tests (iteration $iteration)...")
+        runQueryIds.map {
+          queryId =>
+            try {
+              Queries.runQuery(
+                runner,
+                suite.tableCreator(),
+                sessionSwitcher.spark(),
+                queryId,
+                suite.desc(),
+                explain,
+                suite.getTestMetricMapper(),
+                randomKillTasks)
+            } finally {
+              if (noSessionReuse) {
+                sessionSwitcher.renewSession()
+                runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+              }
+            }
         }
-      }
     }.toList
 
     val passedCount = results.count(l => l.queryResult.succeeded())
     val count = results.count(_ => true)
-    val succeeded = results.filter(_.queryResult.succeeded())
+    val succeededQueries = results.filter(_.queryResult.succeeded())
+    val failedQueries = results.filter(!_.queryResult.succeeded())
+
+    println()
+
+    if (failedQueries.nonEmpty) {
+      println(s"There are failed queries.")
+      if (!suppressFailureMessages) {
+        println()
+        failedQueries.foreach {
+          failedQuery =>
+            println(
+              s"Query ${failedQuery.queryResult.caseId()} failed by error: ${failedQuery.queryResult.asFailure().error}")
+        }
+      }
+    }
 
     // RAM stats
     println("Performing GC to collect RAM statistics... ")
@@ -82,7 +100,7 @@ case class Queries(
     )
     println("")
 
-    val sqlMetrics = succeeded.flatMap(_.queryResult.asSuccess().runResult.sqlMetrics)
+    val sqlMetrics = succeededQueries.flatMap(_.queryResult.asSuccess().runResult.sqlMetrics)
     metricsReporters.foreach {
       r =>
         val report = r.toString(sqlMetrics)
@@ -94,17 +112,18 @@ case class Queries(
     println("")
     printf("Summary: %d out of %d queries passed. \n", passedCount, count)
     println("")
-    val all = succeeded.map(_.queryResult).asSuccesses().agg("all").map(s => TestResultLine(s))
-    Queries.printResults(succeeded ++ all)
+    val all =
+      succeededQueries.map(_.queryResult).asSuccesses().agg("all").map(s => TestResultLine(s))
+    Queries.printResults(succeededQueries ++ all)
     println("")
 
-    if (passedCount == count) {
+    if (failedQueries.isEmpty) {
       println("No failed queries. ")
       println("")
     } else {
       println("Failed queries: ")
       println("")
-      Queries.printResults(results.filter(!_.queryResult.succeeded()))
+      Queries.printResults(failedQueries)
       println("")
     }
 

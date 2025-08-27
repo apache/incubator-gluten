@@ -17,10 +17,11 @@
 package org.apache.gluten.integration.command;
 
 import org.apache.gluten.integration.BaseMixin;
-import org.apache.commons.lang3.ArrayUtils;
+import org.apache.gluten.integration.collections.JavaCollectionConverter;
 import org.apache.gluten.integration.metrics.PlanMetric;
+
+import org.apache.commons.lang3.ArrayUtils;
 import picocli.CommandLine;
-import scala.collection.JavaConverters;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,23 +29,28 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
-@CommandLine.Command(name = "queries", mixinStandardHelpOptions = true,
+@CommandLine.Command(
+    name = "queries",
+    mixinStandardHelpOptions = true,
     showDefaultValues = true,
     description = "Run queries.")
 public class Queries implements Callable<Integer> {
-  @CommandLine.Mixin
-  private BaseMixin mixin;
+  @CommandLine.Mixin private BaseMixin mixin;
 
-  @CommandLine.Mixin
-  private DataGenMixin dataGenMixin;
+  @CommandLine.Mixin private DataGenMixin dataGenMixin;
 
-  @CommandLine.Mixin
-  private QueriesMixin queriesMixin;
+  @CommandLine.Mixin private QueriesMixin queriesMixin;
 
-  @CommandLine.Option(names = {"--random-kill-tasks"}, description = "Every single task will get killed and retried after running for some time", defaultValue = "false")
+  @CommandLine.Option(
+      names = {"--random-kill-tasks"},
+      description = "Every single task will get killed and retried after running for some time",
+      defaultValue = "false")
   private boolean randomKillTasks;
 
-  @CommandLine.Option(names = {"--sql-metrics"}, description = "Collect SQL metrics from run queries and generate a simple report based on them. Available types: execution-time")
+  @CommandLine.Option(
+      names = {"--sql-metrics"},
+      description =
+          "Collect SQL metrics from run queries and generate a simple report based on them. Available types: execution-time")
   private Set<String> collectSqlMetrics = Collections.emptySet();
 
   @Override
@@ -54,8 +60,16 @@ public class Queries implements Callable<Integer> {
       metricsReporters.add(PlanMetric.newReporter(type));
     }
     org.apache.gluten.integration.action.Queries queries =
-        new org.apache.gluten.integration.action.Queries(dataGenMixin.getScale(), dataGenMixin.genPartitionedData(), queriesMixin.queries(),
-            queriesMixin.explain(), queriesMixin.iterations(), randomKillTasks, queriesMixin.noSessionReuse(), JavaConverters.asScalaBufferConverter(metricsReporters).asScala());
+        new org.apache.gluten.integration.action.Queries(
+            dataGenMixin.getScale(),
+            dataGenMixin.genPartitionedData(),
+            queriesMixin.queries(),
+            queriesMixin.explain(),
+            queriesMixin.iterations(),
+            randomKillTasks,
+            queriesMixin.noSessionReuse(),
+            queriesMixin.suppressFailureMessages(),
+            JavaCollectionConverter.asScalaSeq(metricsReporters));
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queries));
   }
 }

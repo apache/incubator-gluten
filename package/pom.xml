@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.apache.gluten</groupId>
     <artifactId>gluten-parent</artifactId>
-    <version>1.5.0-SNAPSHOT</version>
+    <version>1.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -109,6 +109,16 @@
         <dependency>
           <groupId>org.apache.gluten</groupId>
           <artifactId>gluten-hudi</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>paimon</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -340,6 +350,8 @@
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$ChainedIterator</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.MemoryConsumer</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.TaskMemoryManager </ignoreClass>
+                    <!-- guava -->
+                    <ignoreClass>com.google.thirdparty.publicsuffix* </ignoreClass>
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>

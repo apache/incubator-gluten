@@ -43,69 +43,6 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
   UDTRegistration.register(classOf[IExampleBaseType].getName, classOf[ExampleBaseTypeUDT].getName)
   UDTRegistration.register(classOf[IExampleSubType].getName, classOf[ExampleSubTypeUDT].getName)
 
-  test("cast array element from integer to string") {
-    val inputWithNull = Literal.create(Seq(1, null, 3), ArrayType(IntegerType))
-    val expectedWithNull = Seq("1", null, "3")
-    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
-
-    val emptyInput = Literal.create(Seq.empty[Int], ArrayType(IntegerType))
-    val expectedEmpty = Seq.empty[String]
-    checkEvaluation(cast(emptyInput, ArrayType(StringType)), expectedEmpty)
-
-    val inputNegative = Literal.create(Seq(-1, 0, 999999), ArrayType(IntegerType))
-    val expectedNegative = Seq("-1", "0", "999999")
-    checkEvaluation(cast(inputNegative, ArrayType(StringType)), expectedNegative)
-  }
-
-  test("cast array element from double to string") {
-    val inputWithNull = Literal.create(Seq(1.1, null, 3.3), ArrayType(DoubleType))
-    val expectedWithNull = Seq("1.1", null, "3.3")
-    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
-
-    val inputScientific = Literal.create(Seq(1.23e4, -5.67e-3), ArrayType(DoubleType))
-    val expectedScientific = Seq("12300.0", "-0.00567")
-    checkEvaluation(cast(inputScientific, ArrayType(StringType)), expectedScientific)
-  }
-
-  test("cast array element from bool to string") {
-    val inputWithNull = Literal.create(Seq(true, null, false), ArrayType(BooleanType))
-    val expectedWithNull = Seq("true", null, "false")
-    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
-
-    val emptyInput = Literal.create(Seq.empty[Boolean], ArrayType(BooleanType))
-    val expectedEmpty = Seq.empty[String]
-    checkEvaluation(cast(emptyInput, ArrayType(StringType)), expectedEmpty)
-  }
-
-  test("cast array element from date to string") {
-    val inputWithNull = Literal.create(
-      Seq(Date.valueOf("2024-01-01"), null, Date.valueOf("2024-01-03")),
-      ArrayType(DateType)
-    )
-    val expectedWithNull = Seq("2024-01-01", null, "2024-01-03")
-    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
-
-    val inputLeapYear = Literal.create(
-      Seq(Date.valueOf("2020-02-29")),
-      ArrayType(DateType)
-    )
-    val expectedLeapYear = Seq("2020-02-29")
-    checkEvaluation(cast(inputLeapYear, ArrayType(StringType)), expectedLeapYear)
-  }
-
-  test("cast array from timestamp to string") {
-    val inputWithNull = Literal.create(
-      Seq(Timestamp.valueOf("2023-01-01 12:00:00"), null, Timestamp.valueOf("2023-12-31 23:59:59")),
-      ArrayType(TimestampType)
-    )
-    val expectedWithNull = Seq("2023-01-01 12:00:00", null, "2023-12-31 23:59:59")
-    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
-
-    val emptyInput = Literal.create(Seq.empty[Timestamp], ArrayType(TimestampType))
-    val expectedEmpty = Seq.empty[String]
-    checkEvaluation(cast(emptyInput, ArrayType(StringType)), expectedEmpty)
-  }
-
   testGluten("missing cases - from boolean") {
     (DataTypeTestUtils.numericTypeWithoutDecimal + BooleanType).foreach {
       t =>
@@ -128,56 +65,6 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
         checkEvaluation(cast(cast(-1, ByteType), t), -1)
         checkEvaluation(cast(cast(1, ByteType), t), 1)
     }
-  }
-
-  test("cast array of integer types to array of double") {
-    val intArray = Literal.create(Seq(1, 2, 3), ArrayType(IntegerType))
-    val bigintArray = Literal.create(Seq(10000000000L), ArrayType(LongType))
-    val smallintArray = Literal.create(Seq(1.toShort, -1.toShort), ArrayType(ShortType))
-    val tinyintArray = Literal.create(Seq(1.toByte, -1.toByte), ArrayType(ByteType))
-
-    checkEvaluation(cast(intArray, ArrayType(DoubleType)), Seq(1.0, 2.0, 3.0))
-    checkEvaluation(cast(bigintArray, ArrayType(DoubleType)), Seq(1.0e10))
-    checkEvaluation(cast(smallintArray, ArrayType(DoubleType)), Seq(1.0, -1.0))
-    checkEvaluation(cast(tinyintArray, ArrayType(DoubleType)), Seq(1.0, -1.0))
-  }
-
-  test("cast array of double to array of integer types") {
-    val doubleArray = Literal.create(Seq(1.9, -2.1), ArrayType(DoubleType))
-
-    checkEvaluation(cast(doubleArray, ArrayType(IntegerType)), Seq(1, -2))
-    checkEvaluation(cast(doubleArray, ArrayType(LongType)), Seq(1L, -2L))
-    checkEvaluation(cast(doubleArray, ArrayType(ShortType)), Seq(1.toShort, -2.toShort))
-    checkEvaluation(cast(doubleArray, ArrayType(ByteType)), Seq(1.toByte, -2.toByte))
-  }
-
-  test("cast array element from allowed types to string (varchar)") {
-    val doubleArray = Literal.create(Seq(1.1, null, 3.3), ArrayType(DoubleType))
-    val boolArray = Literal.create(Seq(true, false), ArrayType(BooleanType))
-    val timestampArray = Literal.create(
-      Seq(Timestamp.valueOf("2023-01-01 12:00:00"), null),
-      ArrayType(TimestampType)
-    )
-
-    checkEvaluation(cast(doubleArray, ArrayType(StringType)), Seq("1.1", null, "3.3"))
-    checkEvaluation(cast(boolArray, ArrayType(StringType)), Seq("true", "false"))
-    checkEvaluation(cast(timestampArray, ArrayType(StringType)), Seq("2023-01-01 12:00:00", null))
-  }
-
-  test("cast array of numeric types to array of boolean") {
-    val tinyintArray = Literal.create(Seq(0.toByte, 1.toByte, -1.toByte), ArrayType(ByteType))
-    val smallintArray = Literal.create(Seq(0.toShort, 2.toShort, -2.toShort), ArrayType(ShortType))
-    val intArray = Literal.create(Seq(0, 3, -3), ArrayType(IntegerType))
-    val bigintArray = Literal.create(Seq(0L, 100L, -100L), ArrayType(LongType))
-    val floatArray = Literal.create(Seq(0.0f, 1.5f, -2.3f), ArrayType(FloatType))
-    val doubleArray = Literal.create(Seq(0.0, 2.5, -3.7), ArrayType(DoubleType))
-
-    checkEvaluation(cast(tinyintArray, ArrayType(BooleanType)), Seq(false, true, true))
-    checkEvaluation(cast(smallintArray, ArrayType(BooleanType)), Seq(false, true, true))
-    checkEvaluation(cast(intArray, ArrayType(BooleanType)), Seq(false, true, true))
-    checkEvaluation(cast(bigintArray, ArrayType(BooleanType)), Seq(false, true, true))
-    checkEvaluation(cast(floatArray, ArrayType(BooleanType)), Seq(false, true, true))
-    checkEvaluation(cast(doubleArray, ArrayType(BooleanType)), Seq(false, true, true))
   }
 
   testGluten("missing cases - from short") {

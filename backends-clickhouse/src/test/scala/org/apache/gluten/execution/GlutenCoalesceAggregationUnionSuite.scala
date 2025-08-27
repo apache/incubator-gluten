@@ -519,6 +519,18 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
     compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
   }
 
+  test("no coalesce project union. case 4") {
+    val sql =
+      """
+        |select t, b from (
+        | select 1 as t, sum(b) as b from coalesce_union_t1 where a = 'c'
+        | union all
+        | select 2 as t, sum(b) as b from coalesce_union_t1 where a = 'd'
+        |) order by t, b
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
+  }
+
   test("GLUTEN-9646: fix coalesce project union when has subquery") {
     val schema_fact = StructType(
       Array(

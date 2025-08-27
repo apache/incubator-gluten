@@ -43,6 +43,10 @@
 #include "cudf/CudfPlanValidator.h"
 #endif
 
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+#include "IcebergNestedField.pb.h"
+#endif
+
 using namespace gluten;
 using namespace facebook;
 
@@ -70,11 +74,11 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   initVeloxJniUDF(env);
 
   infoCls = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/validate/NativePlanValidationInfo;");
-  infoClsInitMethod = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
+  infoClsInitMethod = getMethodIdOrError(env, infoCls, "<init>", "(ILjava/lang/String;)V");
 
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-  blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[[B)V");
+  blockStripesConstructor = getMethodIdOrError(env, blockStripesClass, "<init>", "(J[J[II[[B)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
 
@@ -701,7 +705,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
     jint format,
     jstring directory,
     jstring codecJstr,
-    jbyteArray partition) {
+    jbyteArray partition,
+  jbyteArray fieldBytes) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
   auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
@@ -709,13 +714,20 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
   auto sparkConf = ctx->getConfMap();
   sparkConf.merge(backendConf);
   auto safeArray = gluten::getByteArrayElementsSafe(env, partition);
-  auto spec = parseIcebergPartitionSpec(safeArray.elems(), safeArray.length());
+  auto arrowSchema = reinterpret_cast<struct ArrowSchema*>(cSchema);
+  auto rowType = asRowType(importFromArrow(*arrowSchema));
+  ArrowSchemaRelease(arrowSchema);
+  auto spec = parseIcebergPartitionSpec(safeArray.elems(), safeArray.length(), rowType);
+  auto safeArrayField = gluten::getByteArrayElementsSafe(env, fieldBytes);
+  gluten::IcebergNestedField protoField;
+  gluten::parseProtobuf(safeArrayField.elems(), safeArrayField.length(), &protoField);
   return ctx->saveObject(runtime->createIcebergWriter(
-      reinterpret_cast<struct ArrowSchema*>(cSchema),
+      rowType,
       format,
       jStringToCString(env, directory),
       facebook::velox::common::stringToCompressionKind(jStringToCString(env, codecJstr)),
       spec,
+      protoField,
       sparkConf));
   JNI_METHOD_END(kInvalidObjectHandle)
 }

@@ -19,11 +19,13 @@ package org.apache.gluten.integration
 import org.apache.gluten.integration.Constants.TYPE_MODIFIER_DECIMAL_AS_DOUBLE
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
+
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
+
 import org.apache.log4j.{Level, LogManager}
 
 import java.io.File
@@ -96,18 +98,20 @@ abstract class Suite(
 
   if (scanPartitions != -1) {
     // Scan partition number.
-    sessionSwitcher.addDefaultConf("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
+    sessionSwitcher.addDefaultConf(
+      "spark.sql.files.maxPartitionBytes",
+      s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher.addDefaultConf("spark.sql.files.openCostInBytes", "0")
-    sessionSwitcher.addDefaultConf("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1).max(1)}")
+    sessionSwitcher.addDefaultConf(
+      "spark.sql.files.minPartitionNum",
+      s"${(scanPartitions - 1).max(1)}")
   }
 
   // register sessions
   sessionSwitcher.registerSession("test", testConf)
   sessionSwitcher.registerSession("baseline", baselineConf)
 
-  extraSparkConf.toStream.foreach {
-    kv => sessionSwitcher.addExtraConf(kv._1, kv._2)
-  }
+  extraSparkConf.toStream.foreach(kv => sessionSwitcher.addExtraConf(kv._1, kv._2))
 
   private def startHistoryServer(): Int = {
     val hsConf = new SparkConf(false)

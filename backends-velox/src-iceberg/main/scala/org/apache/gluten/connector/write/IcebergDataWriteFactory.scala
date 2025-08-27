@@ -19,7 +19,7 @@ package org.apache.gluten.connector.write
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.IcebergWriteJniWrapper
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.proto.{IcebergPartitionField, IcebergPartitionSpec}
+import org.apache.gluten.proto.{IcebergNestedField, IcebergPartitionField, IcebergPartitionSpec}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
 
@@ -30,7 +30,7 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.arrow.c.ArrowSchema
-import org.apache.iceberg.PartitionSpec
+import org.apache.iceberg.{PartitionSpec, SortOrder}
 import org.apache.iceberg.transforms.IcebergTransformUtil
 
 import java.util.stream.Collectors
@@ -40,7 +40,9 @@ case class IcebergDataWriteFactory(
     format: Integer,
     directory: String,
     codec: String,
-    partitionSpec: PartitionSpec)
+    partitionSpec: PartitionSpec,
+    sortOrder: SortOrder,
+    field: IcebergNestedField)
   extends ColumnarBatchDataWriterFactory {
 
   /**
@@ -61,8 +63,9 @@ case class IcebergDataWriteFactory(
       .setSpecId(partitionSpec.specId())
       .addAllFields(fields)
       .build()
-    val (writerHandle, jniWrapper) = getJniWrapper(schema, format, directory, codec, specProto)
-    IcebergColumnarBatchDataWriter(writerHandle, jniWrapper, format, partitionSpec)
+    val (writerHandle, jniWrapper) =
+      getJniWrapper(schema, format, directory, codec, specProto, field)
+    IcebergColumnarBatchDataWriter(writerHandle, jniWrapper, format, partitionSpec, sortOrder)
   }
 
   private def getJniWrapper(
@@ -70,7 +73,8 @@ case class IcebergDataWriteFactory(
       format: Int,
       directory: String,
       codec: String,
-      partitionSpec: IcebergPartitionSpec): (Long, IcebergWriteJniWrapper) = {
+      partitionSpec: IcebergPartitionSpec,
+      field: IcebergNestedField): (Long, IcebergWriteJniWrapper) = {
     val schema = SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
     val arrowAlloc = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(arrowAlloc)
@@ -78,7 +82,13 @@ case class IcebergDataWriteFactory(
     val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "IcebergWrite#write")
     val jniWrapper = new IcebergWriteJniWrapper(runtime)
     val writer =
-      jniWrapper.init(cSchema.memoryAddress(), format, directory, codec, partitionSpec.toByteArray)
+      jniWrapper.init(
+        cSchema.memoryAddress(),
+        format,
+        directory,
+        codec,
+        partitionSpec.toByteArray,
+        field.toByteArray)
     cSchema.close()
     (writer, jniWrapper)
   }

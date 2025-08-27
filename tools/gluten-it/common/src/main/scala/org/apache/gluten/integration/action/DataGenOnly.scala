@@ -21,11 +21,11 @@ import org.apache.gluten.integration.Suite
 import java.io.File
 
 case class DataGenOnly(strategy: DataGenOnly.Strategy, scale: Double, genPartitionedData: Boolean)
-    extends Action {
+  extends Action {
   override def execute(suite: Suite): Boolean = {
     strategy match {
       case DataGenOnly.Skip =>
-        // Do nothing
+      // Do nothing
       case DataGenOnly.Once =>
         val dataPath = suite.dataWritePath(scale, genPartitionedData)
         val alreadyExists = new File(dataPath).exists()

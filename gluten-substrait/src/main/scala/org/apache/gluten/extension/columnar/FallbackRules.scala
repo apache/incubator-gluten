@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.joins._
 
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (GlutenConfig.get.enableAnsiMode) {
+    if (GlutenConfig.get.enableAnsiMode && GlutenConfig.get.enableAnsiFallback) {
       plan.foreach(FallbackTags.add(_, "does not support ansi mode"))
     }
     plan

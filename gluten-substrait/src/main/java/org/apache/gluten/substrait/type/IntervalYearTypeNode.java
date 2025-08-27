@@ -18,14 +18,10 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class IntervalYearTypeNode implements TypeNode, Serializable {
-
-  private final Boolean nullable;
+public class IntervalYearTypeNode extends TypeNode {
 
   public IntervalYearTypeNode(Boolean nullable) {
-    this.nullable = nullable;
+    super(nullable);
   }
 
   @Override
@@ -39,10 +35,5 @@ public class IntervalYearTypeNode implements TypeNode, Serializable {
     Type.Builder builder = Type.newBuilder();
     builder.setIntervalYear(intervalYearBuilder.build());
     return builder.build();
-  }
-
-  @Override
-  public Boolean nullable() {
-    return nullable;
   }
 }

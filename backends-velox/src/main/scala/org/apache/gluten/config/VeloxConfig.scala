@@ -24,6 +24,10 @@ import org.apache.spark.sql.internal.SQLConf
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/*
+ * Note: Gluten configiguration.md is automatically generated from this code.
+ * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ */
 class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   import VeloxConfig._
 
@@ -68,6 +72,9 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
 
   def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
+
+  def enableRewriteCastArrayToString: Boolean =
+    getConf(ENABLE_REWRITE_CAST_ARRAY_TO_STRING)
 }
 
 object VeloxConfig {
@@ -97,7 +104,8 @@ object VeloxConfig {
   val COLUMNAR_VELOX_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
       .internal()
-      .doc("Enable Velox cache, default off")
+      .doc("Enable Velox cache, default off. It's recommended to enable" +
+        "soft-affinity as well when enable velox cache.")
       .booleanConf
       .createWithDefault(false)
 
@@ -476,14 +484,23 @@ object VeloxConfig {
   val DIRECTORY_SIZE_GUESS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
       .internal()
-      .doc("Set the directory size guess for velox file scan")
+      .doc("Deprecated, rename to spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("32KB")
+
+  val FOOTER_ESTIMATED_SIZE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
+      .internal()
+      .doc("Set the footer estimated size for velox file scan, " +
+        "refer to Velox's footer-estimated-size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32KB")
 
   val FILE_PRELOAD_THRESHOLD =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold")
       .internal()
-      .doc("Set the file preload threshold for velox file scan")
+      .doc("Set the file preload threshold for velox file scan, " +
+        "refer to Velox's file-preload-threshold")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
@@ -647,4 +664,12 @@ object VeloxConfig {
           " with `--enable_jemalloc_stats=ON`.")
       .booleanConf
       .createWithDefault(false)
+
+  val ENABLE_REWRITE_CAST_ARRAY_TO_STRING =
+    buildConf("spark.gluten.sql.rewrite.castArrayToString")
+      .internal()
+      .doc("When true, rewrite `cast(array as String)` to" +
+        " `concat('[', array_join(array, ', ', null), ']')` to allow offloading to Velox.")
+      .booleanConf
+      .createWithDefault(true)
 }

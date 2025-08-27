@@ -35,12 +35,6 @@ public final class Spillers {
       Collections.unmodifiableSet(
           new HashSet<>(Arrays.asList(Spiller.Phase.SHRINK, Spiller.Phase.SPILL)));
 
-  public static final Set<Spiller.Phase> PHASE_SET_SHRINK_ONLY =
-      Collections.singleton(Spiller.Phase.SHRINK);
-
-  public static final Set<Spiller.Phase> PHASE_SET_SPILL_ONLY =
-      Collections.singleton(Spiller.Phase.SPILL);
-
   public static Spiller withMinSpillSize(Spiller spiller, long minSize) {
     return new WithMinSpillSize(spiller, minSize);
   }
