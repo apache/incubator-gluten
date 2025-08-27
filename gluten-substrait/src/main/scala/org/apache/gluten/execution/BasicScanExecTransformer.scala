@@ -155,6 +155,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       typeNodes,
       nameList,
       columnTypeNodes,
+      getDataSchema,
       exprNode,
       extensionNode,
       context,

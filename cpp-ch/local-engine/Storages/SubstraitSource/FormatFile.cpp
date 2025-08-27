@@ -141,7 +141,7 @@ FormatFile::FormatFile(DB::ContextPtr context_, const SubstraitInputFile & file_
 }
 
 FormatFilePtr FormatFileUtil::createFile(
-    DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file)
+    DB::ContextPtr context, const DB::Block& input_header, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file)
 {
 #if USE_PARQUET
     if (file.has_parquet() || (file.has_iceberg() && file.iceberg().has_parquet()))
@@ -160,9 +160,9 @@ FormatFilePtr FormatFileUtil::createFile(
     if (file.has_text())
     {
         if (ExcelTextFormatFile::useThis(context))
-            return std::make_shared<ExcelTextFormatFile>(context, file, read_buffer_builder);
+            return std::make_shared<ExcelTextFormatFile>(context, input_header, file, read_buffer_builder);
         else
-            return std::make_shared<TextFormatFile>(context, file, read_buffer_builder);
+            return std::make_shared<TextFormatFile>(context, input_header, file, read_buffer_builder);
     }
 #endif
 

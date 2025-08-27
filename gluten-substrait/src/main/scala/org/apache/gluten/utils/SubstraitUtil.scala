@@ -24,6 +24,7 @@ import org.apache.gluten.substrait.expression.ExpressionNode
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.types.StructType
 
 import io.substrait.proto.{CrossRel, JoinRel, NamedStruct, Type}
 
@@ -106,5 +107,19 @@ object SubstraitUtil {
     val typeList = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithExprId(output)
     createNameStructBuilder(typeList, nameList, Collections.emptyList()).build()
+  }
+
+  def createNamedStruct(struct: StructType): NamedStruct = {
+    val namedStructBuilder = NamedStruct.newBuilder
+    if (struct != null) {
+      val structBuilder = Type.Struct.newBuilder
+      for (field <- struct.fields) {
+        structBuilder.addTypes(
+          ConverterUtils.getTypeNode(field.dataType, field.nullable).toProtobuf)
+        namedStructBuilder.addNames(ConverterUtils.normalizeColName(field.name))
+      }
+      namedStructBuilder.setStruct(structBuilder.build)
+    }
+    namedStructBuilder.build
   }
 }

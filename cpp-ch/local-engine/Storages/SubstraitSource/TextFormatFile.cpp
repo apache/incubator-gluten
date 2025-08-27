@@ -28,8 +28,9 @@ namespace local_engine
 {
 
 TextFormatFile::TextFormatFile(
-    DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
-    : FormatFile(context_, file_info_, read_buffer_builder_)
+    DB::ContextPtr context_, const DB::Block& input_header, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
+    : FormatFile(context_, file_info_, read_buffer_builder_),
+      schema_(input_header.getNamesAndTypesList())
 {
 }
 
