@@ -21,7 +21,9 @@ package org.apache.spark.sql
  * check the fallback status.
  */
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.WholeStageTransformerSuite
+import org.apache.gluten.test.FallbackUtil
+
+import org.apache.spark.internal.Logging
 
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -125,9 +127,28 @@ trait GlutenQueryComparisonTest extends GlutenQueryTest {
       customCheck: DataFrame => Unit,
       df: DataFrame): Unit = {
     if (needCheckFallback) {
-      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
+      GlutenQueryComparisonTest.checkFallBack(df, noFallBack)
     }
     customCheck(df)
   }
 
+}
+
+object GlutenQueryComparisonTest extends Logging {
+
+  def checkFallBack(
+      df: DataFrame,
+      noFallback: Boolean = true,
+      skipAssert: Boolean = false): Unit = {
+    // When noFallBack is true, it means there is no fallback plan,
+    // otherwise there must be some fallback plans.
+    val hasFallbacks = FallbackUtil.hasFallback(df.queryExecution.executedPlan)
+    if (!skipAssert) {
+      assert(
+        !hasFallbacks == noFallback,
+        s"FallBack $noFallback check error: ${df.queryExecution.executedPlan}")
+    } else {
+      logWarning(s"FallBack $noFallback check error: ${df.queryExecution.executedPlan}")
+    }
+  }
 }

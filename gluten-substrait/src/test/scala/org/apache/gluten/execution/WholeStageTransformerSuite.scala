@@ -17,11 +17,9 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.test.FallbackUtil
 import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, GlutenQueryComparisonTest, Row}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.test.SharedSparkSession
@@ -199,26 +197,6 @@ abstract class WholeStageTransformerSuite
       compareDoubleResult(sqlNum, result, queriesResults)
     } else {
       compareResultStr(sqlNum, result, queriesResults)
-    }
-  }
-}
-
-object WholeStageTransformerSuite extends Logging {
-
-  /** Check whether the sql is fallback */
-  def checkFallBack(
-      df: DataFrame,
-      noFallback: Boolean = true,
-      skipAssert: Boolean = false): Unit = {
-    // When noFallBack is true, it means there is no fallback plan,
-    // otherwise there must be some fallback plans.
-    val hasFallbacks = FallbackUtil.hasFallback(df.queryExecution.executedPlan)
-    if (!skipAssert) {
-      assert(
-        !hasFallbacks == noFallback,
-        s"FallBack $noFallback check error: ${df.queryExecution.executedPlan}")
-    } else {
-      logWarning(s"FallBack $noFallback check error: ${df.queryExecution.executedPlan}")
     }
   }
 }
