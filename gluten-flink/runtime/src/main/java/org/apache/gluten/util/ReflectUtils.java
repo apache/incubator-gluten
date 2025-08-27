@@ -18,7 +18,6 @@ package org.apache.gluten.util;
 
 import org.apache.flink.util.FlinkRuntimeException;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -40,17 +39,6 @@ public class ReflectUtils {
       Method m = clazz.getDeclaredMethod(methodName, paramTypes);
       m.setAccessible(true);
       return m.invoke(obj, paramValues);
-    } catch (Exception e) {
-      throw new FlinkRuntimeException(e);
-    }
-  }
-
-  public static Object invokeConstructor(
-      Class<?> clazz, Class<?>[] paramTypes, Object[] paramValues) {
-    try {
-      Constructor<?> constructor = clazz.getDeclaredConstructor(paramTypes);
-      constructor.setAccessible(true);
-      return constructor.newInstance(paramValues);
     } catch (Exception e) {
       throw new FlinkRuntimeException(e);
     }

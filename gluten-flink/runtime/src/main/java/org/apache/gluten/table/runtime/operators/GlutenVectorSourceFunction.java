@@ -51,13 +51,13 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   private final StatefulPlanNode planNode;
   private final Map<String, RowType> outputTypes;
   private final String id;
+  private ConnectorSplit split;
   private volatile boolean isRunning = true;
 
-  protected ConnectorSplit split;
-  protected Session session;
-  protected Query query;
+  private Session session;
+  private Query query;
   BufferAllocator allocator;
-  protected MemoryManager memoryManager;
+  private MemoryManager memoryManager;
 
   public GlutenVectorSourceFunction(
       StatefulPlanNode planNode,

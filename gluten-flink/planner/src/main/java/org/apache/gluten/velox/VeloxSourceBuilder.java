@@ -46,14 +46,14 @@ public class VeloxSourceBuilder {
       Transformation<RowData> transformation, ScanTableSource scanTableSource) {
     if (transformation instanceof LegacySourceTransformation) {
       if (scanTableSource.getClass().getSimpleName().equals("TestValuesScanLookupTableSource")) {
-        return buildVectorSource(transformation, scanTableSource);
+        return buildFromElementsSource(transformation, scanTableSource);
       }
     }
     return transformation;
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
-  private static Transformation<RowData> buildVectorSource(
+  private static Transformation<RowData> buildFromElementsSource(
       Transformation<RowData> transformation, ScanTableSource tableSource) {
     LegacySourceTransformation<RowData> sourceTransformation =
         (LegacySourceTransformation<RowData>) transformation;

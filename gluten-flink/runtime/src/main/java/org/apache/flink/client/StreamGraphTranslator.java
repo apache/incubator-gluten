@@ -194,7 +194,6 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
     if (allGluten) {
       if (sourceOperator instanceof GlutenStreamSource) {
         GlutenStreamSource streamSource = (GlutenStreamSource) sourceOperator;
-        GlutenVectorSourceFunction sourceFunction = streamSource.getSourceFunction();
         taskConfig.setStreamOperator(
             new GlutenStreamSource(
                 new GlutenVectorSourceFunction(

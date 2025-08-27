@@ -20,7 +20,6 @@ import io.github.zhztheplayer.velox4j.type.*;
 
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 
@@ -314,10 +313,6 @@ class BigIntVectorWriter extends BaseVectorWriter<BigIntVector, Long> {
 
   @Override
   protected Long getValue(RowData rowData, int fieldIndex) {
-    if (rowData instanceof GenericRowData) {
-      Number num = (Number) ((GenericRowData) rowData).getField(fieldIndex);
-      return num.longValue();
-    }
     return rowData.getLong(fieldIndex);
   }
 
