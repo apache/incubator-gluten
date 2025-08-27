@@ -17,15 +17,15 @@
 package org.apache.spark.sql
 
 /**
- * Why we need a GlutenQueryTest when we already have QueryTest?
- *   1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
+ * This test utility allows developer compares the test result with vanilla Spark easily, and can
+ * check the fallback status.
  */
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.WholeStageTransformerSuite
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-abstract class GlutenQueryComparisonTest extends GlutenQueryTest {
+trait GlutenQueryComparisonTest extends GlutenQueryTest {
 
   private val isFallbackCheckDisabled0 = new AtomicBoolean(false)
 
