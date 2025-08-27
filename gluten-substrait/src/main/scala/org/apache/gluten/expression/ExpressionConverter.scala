@@ -279,12 +279,23 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case t: ToUnixTimestamp =>
         // The failOnError depends on the config for ANSI. ANSI is not supported currently.
         // And timeZoneId is passed to backend config.
+        // For timestamp and date inputs, the format parameter is ignored as per Spark behavior.
+        val timeExpTransformer = replaceWithExpressionTransformer0(
+          t.timeExp, attributeSeq, expressionsMap)
+        val children = t.timeExp.dataType match {
+          case _: TimestampType | _: TimestampNTZType | _: DateType =>
+            // For timestamp/date input, format is ignored - only pass timeExp
+            Seq(timeExpTransformer)
+          case _ =>
+            // For string input, format is used - pass both timeExp and format
+            Seq(
+              timeExpTransformer,
+              replaceWithExpressionTransformer0(t.format, attributeSeq, expressionsMap)
+            )
+        }
         GenericExpressionTransformer(
           substraitExprName,
-          Seq(
-            replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap),
-            replaceWithExpressionTransformer0(t.format, attributeSeq, expressionsMap)
-          ),
+          children,
           t
         )
       case u: UnixTimestamp =>
