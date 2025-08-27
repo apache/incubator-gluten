@@ -68,10 +68,28 @@ public class BaseMixin {
   private boolean errorOnMemLeak;
 
   @CommandLine.Option(
+      names = {"--data-source"},
+      description = "Datasource used to generate data and to create tables",
+      defaultValue = "parquet")
+  private String dataSource;
+
+  @CommandLine.Option(
       names = {"--data-dir"},
       description = "Location for storing data used by tests",
       defaultValue = "/tmp")
   private String dataDir;
+
+  @CommandLine.Option(
+      names = {"-s", "--scale"},
+      description = "The scale factor of sample TPC-H dataset",
+      defaultValue = "0.1")
+  private double dataScale;
+
+  @CommandLine.Option(
+      names = {"--gen-partitioned-data"},
+      description = "Generate data with partitions",
+      defaultValue = "false")
+  private boolean genPartitionedData;
 
   @CommandLine.Option(
       names = {"--enable-ui"},
@@ -185,7 +203,10 @@ public class BaseMixin {
                 extraSparkConfScala,
                 level,
                 errorOnMemLeak,
+                dataSource,
                 dataDir,
+                dataScale,
+                genPartitionedData,
                 enableUi,
                 enableHsUi,
                 hsUiPort,
@@ -208,7 +229,10 @@ public class BaseMixin {
                 extraSparkConfScala,
                 level,
                 errorOnMemLeak,
+                dataSource,
                 dataDir,
+                dataScale,
+                genPartitionedData,
                 enableUi,
                 enableHsUi,
                 hsUiPort,
@@ -231,7 +255,10 @@ public class BaseMixin {
                 extraSparkConfScala,
                 level,
                 errorOnMemLeak,
+                dataSource,
                 dataDir,
+                dataScale,
+                genPartitionedData,
                 enableUi,
                 enableHsUi,
                 hsUiPort,

@@ -26,8 +26,6 @@ import org.apache.gluten.integration.stat.RamStat
 import org.apache.spark.sql.{SparkSession, TestUtils}
 
 case class QueriesCompare(
-    scale: Double,
-    genPartitionedData: Boolean,
     queries: QuerySelector,
     explain: Boolean,
     iterations: Int,
@@ -37,7 +35,7 @@ case class QueriesCompare(
 
   override def execute(suite: Suite): Boolean = {
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
+      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
     val runQueryIds = queries.select(suite)
     val sessionSwitcher = suite.sessionSwitcher
 

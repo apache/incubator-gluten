@@ -24,7 +24,6 @@ import org.apache.spark.sql.types.StructType
 import java.io.File
 
 object ClickBenchTableCreator extends TableCreator {
-  private val SPARK_DATA_FILE_NAME = "hits-spark.parquet"
   private val TABLE_NAME = "hits"
   private val SCHEMA: StructType = StructType.fromDDL("""
                                                         |watchid bigint,
@@ -134,14 +133,14 @@ object ClickBenchTableCreator extends TableCreator {
                                                         |clid int
                                                         |""".stripMargin)
 
-  override def create(spark: SparkSession, dataPath: String): Unit = {
+  override def create(spark: SparkSession, source: String, dataPath: String): Unit = {
     if (spark.catalog.tableExists(TABLE_NAME)) {
       println("Table exists: " + TABLE_NAME)
       return
     }
     println("Creating catalog table: " + TABLE_NAME)
     val file = new File(dataPath + File.separator + ClickBenchDataGen.FILE_NAME)
-    spark.catalog.createTable(TABLE_NAME, "parquet", SCHEMA, Map("path" -> file.getAbsolutePath))
+    spark.catalog.createTable(TABLE_NAME, source, SCHEMA, Map("path" -> file.getAbsolutePath))
     try {
       spark.catalog.recoverPartitions(TABLE_NAME)
     } catch {

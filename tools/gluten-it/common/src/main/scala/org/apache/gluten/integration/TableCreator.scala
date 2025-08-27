@@ -23,7 +23,7 @@ import java.io.File
 import scala.collection.mutable
 
 trait TableCreator {
-  def create(spark: SparkSession, dataPath: String): Unit
+  def create(spark: SparkSession, source: String, dataPath: String): Unit
 }
 
 object TableCreator {
@@ -32,7 +32,7 @@ object TableCreator {
   }
 
   private object DiscoverSchema extends TableCreator {
-    override def create(spark: SparkSession, dataPath: String): Unit = {
+    override def create(spark: SparkSession, source: String, dataPath: String): Unit = {
       val files = new File(dataPath).listFiles()
       val tableNames = files.map(_.getName)
       val existedTableNames = mutable.ArrayBuffer[String]()
@@ -51,7 +51,7 @@ object TableCreator {
           if (spark.catalog.tableExists(tableName)) {
             existedTableNames += tableName
           } else {
-            spark.catalog.createTable(tableName, file.getAbsolutePath, "parquet")
+            spark.catalog.createTable(tableName, file.getAbsolutePath, source)
             createdTableNames += tableName
             try {
               spark.catalog.recoverPartitions(tableName)

@@ -26,8 +26,6 @@ import org.apache.gluten.integration.stat.RamStat
 import org.apache.spark.sql.SparkSession
 
 case class Queries(
-    scale: Double,
-    genPartitionedData: Boolean,
     queries: QuerySelector,
     explain: Boolean,
     iterations: Int,
@@ -41,7 +39,7 @@ case class Queries(
   override def execute(suite: Suite): Boolean = {
     val runQueryIds = queries.select(suite)
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
+      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
     val sessionSwitcher = suite.sessionSwitcher
     sessionSwitcher.useSession("test", "Run Queries")
     runner.createTables(suite.tableCreator(), sessionSwitcher.spark())

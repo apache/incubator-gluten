@@ -36,8 +36,7 @@ public class SparkShell implements Callable<Integer> {
   @Override
   public Integer call() throws Exception {
     org.apache.gluten.integration.action.SparkShell sparkShell =
-        new org.apache.gluten.integration.action.SparkShell(
-            dataGenMixin.getScale(), dataGenMixin.genPartitionedData());
+        new org.apache.gluten.integration.action.SparkShell();
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), sparkShell));
   }
 }
