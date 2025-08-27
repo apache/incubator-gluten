@@ -23,5 +23,5 @@ class CHCelebornColumnarBatchSerlizerFactory extends CelebornColumnarBatchSerial
   override def backendName(): String = BackendsApiManager.getBackendName
 
   override def columnarBatchSerializerClass(): String =
-    "org.apache.spark.shuffle.CHColumnarBatchSerializer"
+    "org.apache.spark.shuffle.CHCelebornColumnarBatchSerializer"
 }
