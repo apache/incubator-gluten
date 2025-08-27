@@ -23,6 +23,7 @@ import org.apache.gluten.rexnode.ValidationResult;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 
@@ -80,6 +81,9 @@ class DefaultRexCallConverter extends BaseRexCallConverter {
       if (sourceType instanceof TimestampType && resultType instanceof TimestampType) {
         return sourceExpr;
       }
+    } else if ("unix_timestamp".equals(functionName)) {
+      // TODO: this is a trick here for q12, refine it.
+      resultType = new BigIntType();
     }
     return new CallTypedExpr(resultType, params, functionName);
   }
