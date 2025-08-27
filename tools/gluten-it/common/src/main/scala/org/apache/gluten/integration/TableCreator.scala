@@ -53,14 +53,9 @@ object TableCreator {
           } else {
             spark.catalog.createTable(tableName, file.getAbsolutePath, source)
             createdTableNames += tableName
-            try {
+            if (spark.catalog.listColumns(tableName).collect().exists(_.isPartition)) {
               spark.catalog.recoverPartitions(tableName)
               recoveredPartitionTableNames += tableName
-            } catch {
-              case ae: AnalysisException if !ae.errorClass.contains("NOT_A_PARTITIONED_TABLE") =>
-                throw ae
-              case _ =>
-              // Swallows the `NOT_A_PARTITIONED_TABLE` exception.
             }
           }
         })
