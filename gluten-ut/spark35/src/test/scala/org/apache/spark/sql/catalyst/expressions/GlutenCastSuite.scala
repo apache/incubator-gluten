@@ -21,12 +21,10 @@ import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{withDefaultTimeZone
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{fromJavaTimestamp, millisToMicros, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.util.ThreadUtils
+import org.apache.spark.sql.util.DebuggableThreadUtils
 
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
-
-import scala.util.{Failure, Success, Try}
 
 class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
 
@@ -170,21 +168,8 @@ class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
     checkEvaluation(cast(false, TimestampType), tsFalse)
   }
 
-  def parmapWithErrorLogging[I, O](in: Seq[I], prefix: String, maxThreads: Int)(
-      f: I => O): Seq[O] = {
-    ThreadUtils.parmap(in, prefix, maxThreads) {
-      i =>
-        Try(f(i)) match {
-          case Success(result) => result
-          case Failure(exception) =>
-            logError(s"Failed to test timezone ${i.toString}: ${exception.getMessage}")
-            throw exception
-        }
-    }
-  }
-
   testGluten("cast string to timestamp") {
-    parmapWithErrorLogging(
+    DebuggableThreadUtils.parmap(
       ALL_TIMEZONES
         .filterNot(_.getId.contains("SystemV"))
         .filterNot(_.getId.contains("Europe/Kyiv"))

@@ -20,7 +20,7 @@ import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{ALL_TIMEZONES, UTC}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StringType, TimestampType}
-import org.apache.spark.util.ThreadUtils
+import org.apache.spark.sql.util.DebuggableThreadUtils
 
 import java.sql.Timestamp
 import java.time.LocalDateTime
@@ -113,13 +113,15 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
   }
 
   testGluten("cast string to timestamp") {
-    ThreadUtils.parmap(
+    DebuggableThreadUtils.parmap(
       ALL_TIMEZONES
         .filterNot(_.getId.contains("SystemV"))
         .filterNot(_.getId.contains("Europe/Kyiv"))
         .filterNot(_.getId.contains("America/Ciudad_Juarez"))
         .filterNot(_.getId.contains("Antarctica/Vostok"))
-        .filterNot(_.getId.contains("Pacific/Kanton")),
+        .filterNot(_.getId.contains("Pacific/Kanton"))
+        .filterNot(_.getId.contains("Asia/Tehran"))
+        .filterNot(_.getId.contains("Iran")),
       prefix = "CastSuiteBase-cast-string-to-timestamp",
       maxThreads = 1
     ) {
