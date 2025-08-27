@@ -260,21 +260,17 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def fallbackPreferColumnar: Boolean = getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
 
-  def numaBindingInfo: GlutenNumaBindingInfo = {
-    val enableNumaBinding: Boolean = getConf(COLUMNAR_NUMA_BINDING_ENABLED)
-    if (!enableNumaBinding) {
-      GlutenNumaBindingInfo(enableNumaBinding = false)
-    } else {
-      val tmp = getConf(COLUMNAR_NUMA_BINDING_CORE_RANGE)
-      if (tmp.isEmpty) {
-        GlutenNumaBindingInfo(enableNumaBinding = false)
-      } else {
-        val numCores = conf.getConfString("spark.executor.cores", "1").toInt
-        val coreRangeList: Array[String] = tmp.get.split('|').map(_.trim)
-        GlutenNumaBindingInfo(enableNumaBinding = true, coreRangeList, numCores)
+  def numaBindingInfo: GlutenNumaBindingInfo = if (getConf(COLUMNAR_NUMA_BINDING_ENABLED)) {
+    getConf(COLUMNAR_NUMA_BINDING_CORE_RANGE)
+      .map {
+        coreRange =>
+          val numCores = conf.getConfString("spark.executor.cores", "1").toInt
+          val coreRangeList: Array[String] = coreRange.split('|').map(_.trim)
+          GlutenNumaBindingInfo(enableNumaBinding = true, coreRangeList, numCores)
       }
-
-    }
+      .getOrElse(GlutenNumaBindingInfo(enableNumaBinding = false))
+  } else {
+    GlutenNumaBindingInfo(enableNumaBinding = false)
   }
 
   def cartesianProductTransformerEnabled: Boolean =
