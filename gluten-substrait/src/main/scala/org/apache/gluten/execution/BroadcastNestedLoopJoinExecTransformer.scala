@@ -53,7 +53,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   override def rightKeys: Seq[Expression] = Nil
 
   private lazy val substraitJoinType: CrossRel.JoinType =
-    SubstraitUtil.toCrossRelSubstrait(joinType)
+    SubstraitUtil.toCrossRelSubstrait(joinType, needSwitchChildren)
 
   // Unique ID for builded table
   lazy val buildBroadcastTableId: String = "BuiltBNLJBroadcastTable-" + buildPlan.id
@@ -86,6 +86,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       joinType match {
         case _: InnerLike => right.outputPartitioning
         case RightOuter => right.outputPartitioning
+        case LeftOuter => left.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building left side")
@@ -94,6 +95,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       joinType match {
         case _: InnerLike => left.outputPartitioning
         case LeftOuter | ExistenceJoin(_) => left.outputPartitioning
+        case RightOuter => right.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building right side")
@@ -113,9 +115,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
 
     val operatorId = context.nextOperatorId(this.nodeName)
     val joinParams = new JoinParams
-    if (condition.isDefined) {
-      joinParams.isWithCondition = true
-    }
+    joinParams.isWithCondition = condition.isDefined
 
     val crossRel = JoinUtils.createCrossRel(
       substraitJoinType,
@@ -146,7 +146,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   }
 
   def validateJoinTypeAndBuildSide(): ValidationResult = {
-    val result = joinType match {
+    joinType match {
       case _: InnerLike | LeftOuter | RightOuter => ValidationResult.succeeded
       case FullOuter
           if BackendsApiManager.getSettings.broadcastNestedLoopJoinSupportsFullOuterJoin() =>
@@ -161,13 +161,8 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       case _ =>
         ValidationResult.failed(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
-
-    if (!result.ok()) {
-      return result
-    }
-
     (joinType, buildSide) match {
-      case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) | (ExistenceJoin(_), BuildLeft) =>
+      case (ExistenceJoin(_), BuildLeft) =>
         ValidationResult.failed(s"$joinType join is not supported with $buildSide")
       case _ =>
         ValidationResult.succeeded
