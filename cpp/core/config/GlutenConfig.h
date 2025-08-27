@@ -79,7 +79,6 @@ const std::string kShuffleSpillDiskWriteBufferSize = "spark.shuffle.spill.diskWr
 const std::string kSortShuffleReaderDeserializerBufferSize =
     "spark.gluten.sql.columnar.shuffle.sort.deserializerBufferSize";
 const std::string kQatBackendName = "qat";
-const std::string kIaaBackendName = "iaa";
 
 const std::string kSparkRedactionRegex = "spark.redaction.regex";
 const std::string kSparkRedactionString = "*********(redacted)";
@@ -95,7 +94,7 @@ const std::string kSparkJsonIgnoreNullFields = "spark.sql.jsonGenerator.ignoreNu
 // cudf
 #ifdef GLUTEN_ENABLE_GPU
 const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";
-const bool kCudfEnabledDefault = "false";
+const bool kCudfEnabledDefault = "true";
 const std::string kDebugCudf = "spark.gluten.sql.debug.cudf";
 const bool kDebugCudfDefault = "false";
 #endif

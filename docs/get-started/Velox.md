@@ -594,4 +594,4 @@ This feature has been tested through a series of tests, and we are collecting mo
 
 # Accelerators
 
-Please refer [HBM](VeloxHBM.md) [QAT](VeloxQAT.md) [IAA](VeloxIAA.md) for details
+Please refer [QAT](VeloxQAT.md) for details

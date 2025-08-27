@@ -23,10 +23,11 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
 
-import org.apache.spark.{ShuffleDependency, SparkException}
+import org.apache.spark.{ShuffleDependency, SparkEnv, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
@@ -116,10 +117,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       right: ExpressionTransformer,
       original: TryEval,
       checkArithmeticExprName: String): ExpressionTransformer = {
-    if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original.child)) {
-      throw new GlutenNotSupportException(
-        s"${original.child.prettyName} with ansi mode is not supported")
-    }
     original.child.dataType match {
       case LongType | IntegerType | ShortType | ByteType =>
       case _ => throw new GlutenNotSupportException(s"$substraitExprName is not supported")
@@ -556,6 +553,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       partitioning: Partitioning,
       output: Seq[Attribute]): ShuffleWriterType = {
     val conf = GlutenConfig.get
+    // todo: remove isUseCelebornShuffleManager here
     if (conf.isUseCelebornShuffleManager) {
       if (conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER) {
         if (conf.useCelebornRssSort) {
@@ -632,25 +630,27 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val deserializeTime = metrics("deserializeTime")
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val decompressTime = metrics("decompressTime")
-    if (GlutenConfig.get.isUseCelebornShuffleManager) {
-      val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
-      val constructor =
-        clazz.getConstructor(
-          classOf[StructType],
-          classOf[SQLMetric],
-          classOf[SQLMetric],
-          classOf[ShuffleWriterType])
-      constructor
-        .newInstance(schema, readBatchNumRows, numOutputRows, shuffleWriterType)
-        .asInstanceOf[Serializer]
-    } else {
-      new ColumnarBatchSerializer(
-        schema,
-        readBatchNumRows,
-        numOutputRows,
-        deserializeTime,
-        decompressTime,
-        shuffleWriterType)
+    SparkEnv.get.shuffleManager match {
+      case serializer: NeedCustomColumnarBatchSerializer =>
+        val className = serializer.columnarBatchSerializerClass()
+        val clazz = ClassUtils.getClass(className)
+        val constructor =
+          clazz.getConstructor(
+            classOf[StructType],
+            classOf[SQLMetric],
+            classOf[SQLMetric],
+            classOf[ShuffleWriterType])
+        constructor
+          .newInstance(schema, readBatchNumRows, numOutputRows, shuffleWriterType)
+          .asInstanceOf[Serializer]
+      case _ =>
+        new ColumnarBatchSerializer(
+          schema,
+          readBatchNumRows,
+          numOutputRows,
+          deserializeTime,
+          decompressTime,
+          shuffleWriterType)
     }
   }
 
@@ -816,6 +816,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       GlutenExceptionUtil.throwsNotFullySupported(
         ExpressionNames.TO_JSON,
         ToJsonRestrictions.NOT_SUPPORT_WITH_OPTIONS)
+    }
+    if (
+      !SQLConf.get.caseSensitiveAnalysis &&
+      ExpressionUtils.hasUppercaseStructFieldName(child.dataType)
+    ) {
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.TO_JSON,
+        ToJsonRestrictions.NOT_SUPPORT_UPPERCASE_STRUCT)
     }
     ToJsonTransformer(substraitExprName, child, expr)
   }

@@ -16,8 +16,6 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | build_benchmarks       | Build gluten cpp benchmarks.                                                                       | OFF     |
 | enable_jemalloc_stats  | Print jemalloc stats for debugging.                                                                | OFF     |
 | enable_qat             | Enable QAT for shuffle data de/compression.                                                        | OFF     |
-| enable_iaa             | Enable IAA for shuffle data de/compression.                                                        | OFF     |
-| enable_hbm             | Enable HBM allocator.                                                                              | OFF     |
 | enable_s3              | Build with S3 support.                                                                             | OFF     |
 | enable_gcs             | Build with GCS support.                                                                            | OFF     |
 | enable_hdfs            | Build with HDFS support.                                                                           | OFF     |

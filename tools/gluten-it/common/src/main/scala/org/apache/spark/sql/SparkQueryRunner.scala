@@ -17,6 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.gluten.integration.metrics.{MetricMapper, MetricTag, PlanMetric}
+
 import org.apache.spark.{SparkContext, Success, TaskKilled}
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd, SparkListenerTaskStart}
@@ -25,12 +26,14 @@ import org.apache.spark.sql.catalyst.QueryPlanningTracker
 import org.apache.spark.sql.execution.{QueryExecution, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
+
 import com.google.common.base.Preconditions
 import org.apache.commons.lang3.RandomUtils
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.mutable
 
 object SparkQueryRunner {
@@ -139,7 +142,10 @@ object SparkQueryRunner {
         other.children.foreach(c => collectAllNodes(c, nodes))
     }
 
-  private def collectSQLMetrics(queryPath: String, mapper: MetricMapper, qe: QueryExecution): Seq[PlanMetric] = {
+  private def collectSQLMetrics(
+      queryPath: String,
+      mapper: MetricMapper,
+      qe: QueryExecution): Seq[PlanMetric] = {
     val nodes = mutable.LinkedHashMap[Int, SparkPlan]()
     collectAllNodes(qe.executedPlan, nodes)
     val all = nodes.flatMap {

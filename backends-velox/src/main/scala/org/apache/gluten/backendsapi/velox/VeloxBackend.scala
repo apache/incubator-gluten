@@ -559,4 +559,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportAppendDataExec(): Boolean =
     GlutenConfig.get.enableAppendData && enableEnhancedFeatures()
+
+  override def supportReplaceDataExec(): Boolean =
+    GlutenConfig.get.enableReplaceData && enableEnhancedFeatures()
+
+  override def supportOverwriteByExpression(): Boolean =
+    GlutenConfig.get.enableOverwriteByExpression && enableEnhancedFeatures()
 }

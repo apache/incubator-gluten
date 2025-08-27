@@ -14,22 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.execution
 
-#pragma once
+import org.apache.spark.sql.connector.write.Write
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.datasources.v2.OverwriteByExpressionExec
 
-#include <arrow/util/compression.h>
-#include <utils/qpl/QplJobPool.h>
+case class VeloxIcebergOverwriteByExpressionExec(
+    query: SparkPlan,
+    refreshCache: () => Unit,
+    write: Write)
+  extends AbstractIcebergWriteExec {
 
-namespace gluten {
-namespace qpl {
+  override protected def withNewChildInternal(newChild: SparkPlan): IcebergWriteExec =
+    copy(query = newChild)
+}
 
-static const std::vector<std::string> qpl_supported_codec = {"gzip"};
-
-bool SupportsCodec(const std::string& codec);
-
-std::unique_ptr<arrow::util::Codec> MakeQplGZipCodec(int compressionLevel);
-
-std::unique_ptr<arrow::util::Codec> MakeDefaultQplGZipCodec();
-
-} // namespace qpl
-} // namespace gluten
+object VeloxIcebergOverwriteByExpressionExec {
+  def apply(original: OverwriteByExpressionExec): IcebergWriteExec = {
+    VeloxIcebergOverwriteByExpressionExec(
+      original.query,
+      original.refreshCache,
+      original.write
+    )
+  }
+}

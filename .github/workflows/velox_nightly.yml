@@ -186,6 +186,7 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           df -a
+          export ARM_BUILD_TARGET=false
           bash dev/ci-velox-buildstatic-centos-8.sh
           ccache -s
           mkdir -p $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/

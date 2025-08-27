@@ -18,15 +18,12 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class DecimalTypeNode implements TypeNode, Serializable {
-  public final Boolean nullable;
+public class DecimalTypeNode extends TypeNode {
   public final int precision;
   public final int scale;
 
   public DecimalTypeNode(Boolean nullable, int precision, int scale) {
-    this.nullable = nullable;
+    super(nullable);
     this.precision = precision;
     this.scale = scale;
   }
@@ -45,10 +42,5 @@ public class DecimalTypeNode implements TypeNode, Serializable {
     Type.Builder builder = Type.newBuilder();
     builder.setDecimal(decimalBuilder.build());
     return builder.build();
-  }
-
-  @Override
-  public Boolean nullable() {
-    return nullable;
   }
 }

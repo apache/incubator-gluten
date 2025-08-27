@@ -134,6 +134,9 @@ public class Utils {
   public static TypedExpr generateJoinEqualCondition(
       List<FieldAccessTypedExpr> leftKeys, List<FieldAccessTypedExpr> rightKeys) {
     checkArgument(leftKeys.size() == rightKeys.size());
+    if (leftKeys.isEmpty()) {
+      return null;
+    }
     List<TypedExpr> equals =
         IntStream.range(0, leftKeys.size())
             .mapToObj(

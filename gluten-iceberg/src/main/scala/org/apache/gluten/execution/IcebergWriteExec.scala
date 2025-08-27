@@ -26,7 +26,7 @@ import org.apache.iceberg.types.Type.TypeID
 
 import scala.collection.JavaConverters._
 
-trait IcebergAppendDataExec extends ColumnarAppendDataExec {
+trait IcebergWriteExec extends ColumnarV2TableWriteExec {
 
   protected def getFileFormat(format: FileFormat): Int = {
     format match {
@@ -44,7 +44,7 @@ trait IcebergAppendDataExec extends ColumnarAppendDataExec {
       case FileFormat.ORC => config.getOrDefault(ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT)
       case _ => throw new UnsupportedOperationException()
     }
-    if (codec == "UNCOMPRESSED") {
+    if (codec.equalsIgnoreCase("uncompressed")) {
       "none"
     } else codec
   }

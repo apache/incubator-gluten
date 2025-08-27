@@ -108,7 +108,7 @@ std::vector<ShuffleTestParams> getTestParams() {
     for (const auto partitionWriterType : {PartitionWriterType::kLocal, PartitionWriterType::kRss}) {
       for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
         for (const bool useRadixSort : {true, false}) {
-          for (const int64_t deserializerBufferSize : {1L, kDefaultDeserializerBufferSize}) {
+          for (const auto deserializerBufferSize : {static_cast<int64_t>(1L), kDefaultDeserializerBufferSize}) {
             params.push_back(ShuffleTestParams{
                 .shuffleWriterType = ShuffleWriterType::kSortShuffle,
                 .partitionWriterType = partitionWriterType,

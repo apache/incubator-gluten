@@ -25,7 +25,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.io.File
 
-class QueryRunner(val queryResourceFolder: String, val dataPath: String) {
+class QueryRunner(val queryResourceFolder: String, val source: String, val dataPath: String) {
   import QueryRunner._
 
   Preconditions.checkState(
@@ -34,7 +34,7 @@ class QueryRunner(val queryResourceFolder: String, val dataPath: String) {
     Array(): _*)
 
   def createTables(creator: TableCreator, spark: SparkSession): Unit = {
-    creator.create(spark, dataPath)
+    creator.create(spark, source, dataPath)
   }
 
   def runQuery(

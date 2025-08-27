@@ -32,6 +32,7 @@ on:
       - 'gluten-hudi/**'
       - 'gluten-paimon/**'
       - 'gluten-ut/**'
+      - 'package/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
@@ -44,6 +45,8 @@ env:
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  # spark.sql.ansi.enabled defaults to false.
+  SPARK_ANSI_SQL_MODE: false
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -102,7 +105,7 @@ jobs:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8", "java-11", "java-17" ]
-        # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
+        # Spark supports JDK17 since 3.3.
         exclude:
           - spark: spark-3.2
             java: java-17
@@ -174,7 +177,7 @@ jobs:
         os: [ "centos:8" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0" ]
         java: [ "java-8", "java-11", "java-17" ]
-        # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
+        # Spark supports JDK17 since 3.3.
         exclude:
           - spark: spark-3.2
             java: java-17
@@ -222,7 +225,6 @@ jobs:
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
-          yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           $SETUP install_maven
       - name: Set environment variables
         run: |
@@ -238,11 +240,7 @@ jobs:
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
           if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
-            rm -f backends-velox/src/test/scala/org/apache/spark/sql/execution/GlutenHiveUDFSuite.scala \
-            backends-velox/src/test/scala/org/apache/spark/sql/execution/VeloxParquetWriteForHiveSuite.scala
-            # Only verify compilation for now.
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
-            exit 0
           else
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           fi
@@ -250,14 +248,14 @@ jobs:
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H / TPC-DS
         run: |
-          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
-            exit 0
-          fi
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
+            exit 0
+          fi
+          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
       - name: Run TPC-H / TPC-DS with RAS
         run: |
@@ -280,7 +278,6 @@ jobs:
       matrix:
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8" ]
-        # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -306,11 +303,7 @@ jobs:
 
             # Setup java and maven
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget tzdata python3-pip
-          
-            # upgrade tzdata
-            pip3 install tzdata
-            cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
-            
+
             $SETUP install_maven
             export PATH=${PATH}:/usr/lib/maven/bin
 

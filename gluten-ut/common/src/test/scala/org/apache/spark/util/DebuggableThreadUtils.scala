@@ -14,35 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.util
 
-#pragma once
+import scala.util.{Failure, Success, Try}
 
-#include "MemoryAllocator.h"
+object DebuggableThreadUtils {
 
-namespace gluten {
-
-class HbwMemoryAllocator final : public MemoryAllocator {
- public:
-  static std::shared_ptr<MemoryAllocator> newInstance();
-
-  bool allocate(int64_t size, void** out) override;
-
-  bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
-
-  bool allocateAligned(uint64_t alignment, int64_t size, void** out) override;
-
-  bool reallocate(void* p, int64_t size, int64_t newSize, void** out) override;
-
-  bool reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) override;
-
-  bool free(void* p, int64_t size) override;
-
-  int64_t getBytes() const override;
-
-  int64_t peakBytes() const override;
-
- private:
-  std::atomic_int64_t bytes_{0};
-};
-
-} // namespace gluten
+  /** Logs message for failure occurring during the execution of ThreadUtils.parmap. */
+  def parmap[I, O](in: Seq[I], prefix: String, maxThreads: Int)(f: I => O): Seq[O] = {
+    ThreadUtils.parmap(in, prefix, maxThreads) {
+      i =>
+        Try(f(i)) match {
+          case Success(result) => result
+          case Failure(exception) =>
+            // scalastyle:off println
+            println(s"Test failed for case: ${i.toString}: ${exception.getMessage}")
+            // scalastyle:on println
+            throw exception
+        }
+    }
+  }
+}

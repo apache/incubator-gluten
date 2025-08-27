@@ -32,6 +32,7 @@ on:
       - 'gluten-hudi/**'
       - 'gluten-paimon/**'
       - 'gluten-ut/**'
+      - 'package/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
@@ -115,7 +116,6 @@ jobs:
       - name: Setup java and maven
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           $SETUP install_maven
       - name: Set environment variables
         run: |

@@ -23,10 +23,6 @@
 #include "utils/qat/QatCodec.h"
 #endif
 
-#ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/QplCodec.h"
-#endif
-
 namespace gluten {
 
 std::unique_ptr<arrow::util::Codec>
@@ -45,8 +41,6 @@ createArrowIpcCodec(arrow::Compression::type compressedType, CodecBackend codecB
 #else
         throw GlutenException("Backend QAT but not compile with option GLUTEN_ENABLE_QAT");
 #endif
-      } else {
-        throw GlutenException("Backend IAA not support zstd compression");
       }
     } break;
     case arrow::Compression::GZIP: {
@@ -57,12 +51,6 @@ createArrowIpcCodec(arrow::Compression::type compressedType, CodecBackend codecB
         codec = qat::makeDefaultQatGZipCodec();
 #else
         throw GlutenException("Backend QAT but not compile with option GLUTEN_ENABLE_QAT");
-#endif
-      } else {
-#if defined(GLUTEN_ENABLE_IAA)
-        codec = qpl::MakeDefaultQplGZipCodec();
-#else
-        throw GlutenException("Backend IAA but not compile with option GLUTEN_ENABLE_IAA");
 #endif
       }
     } break;
