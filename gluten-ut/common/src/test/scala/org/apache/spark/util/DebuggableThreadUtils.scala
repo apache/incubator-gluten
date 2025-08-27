@@ -16,20 +16,21 @@
  */
 package org.apache.spark.util
 
-import org.scalatest.Assertions.fail
-
 import scala.util.{Failure, Success, Try}
 
 object DebuggableThreadUtils {
 
-  /** Enhancement for ThreadUtils.parmap to provide more detailed hints on failure. */
+  /** Logs message for failure occurring during the execution of ThreadUtils.parmap. */
   def parmap[I, O](in: Seq[I], prefix: String, maxThreads: Int)(f: I => O): Seq[O] = {
     ThreadUtils.parmap(in, prefix, maxThreads) {
       i =>
         Try(f(i)) match {
           case Success(result) => result
           case Failure(exception) =>
-            fail(s"Test failed for case: ${i.toString}: ${exception.getMessage}")
+            // scalastyle:off println
+            println(s"Test failed for case: ${i.toString}: ${exception.getMessage}")
+            // scalastyle:on println
+            throw exception
         }
     }
   }
