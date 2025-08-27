@@ -283,7 +283,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         val timeExpTransformer =
           replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap)
         val children = t.timeExp.dataType match {
-          case _: TimestampType | _: TimestampNTZType | _: DateType =>
+          case _: TimestampType | _: DateType =>
             // For timestamp/date input, format is ignored - only pass timeExp
             Seq(timeExpTransformer)
           case _ =>
