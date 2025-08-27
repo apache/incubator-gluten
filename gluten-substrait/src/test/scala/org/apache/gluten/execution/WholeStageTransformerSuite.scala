@@ -22,20 +22,19 @@ import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
+import org.apache.spark.sql.{DataFrame, GlutenQueryComparisonTest, Row}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.DoubleType
 
 import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.io.Source
 
 case class Table(name: String, partitionColumns: Seq[String])
 
 abstract class WholeStageTransformerSuite
-  extends GlutenQueryTest
+  extends GlutenQueryComparisonTest
   with SharedSparkSession
   with AdaptiveSparkPlanHelper {
 
@@ -55,13 +54,6 @@ abstract class WholeStageTransformerSuite
   )
 
   protected var TPCHTableDataFrames: Map[String, DataFrame] = _
-
-  private val isFallbackCheckDisabled0 = new AtomicBoolean(false)
-
-  final protected def disableFallbackCheck: Boolean =
-    isFallbackCheckDisabled0.compareAndSet(false, true)
-
-  protected def needCheckFallback: Boolean = !isFallbackCheckDisabled0.get()
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -176,88 +168,6 @@ abstract class WholeStageTransformerSuite
       result
   }
 
-  protected def compareResultsAgainstVanillaSpark(
-      sql: String,
-      compareResult: Boolean = true,
-      customCheck: DataFrame => Unit,
-      noFallBack: Boolean = true,
-      cache: Boolean = false): DataFrame = {
-    compareDfResultsAgainstVanillaSpark(
-      () => spark.sql(sql),
-      compareResult,
-      customCheck,
-      noFallBack,
-      cache)
-  }
-
-  /**
-   * run a query with native engine as well as vanilla spark then compare the result set for
-   * correctness check
-   */
-  protected def compareDfResultsAgainstVanillaSpark(
-      dataframe: () => DataFrame,
-      compareResult: Boolean = true,
-      customCheck: DataFrame => Unit,
-      noFallBack: Boolean = true,
-      cache: Boolean = false): DataFrame = {
-    var expected: Seq[Row] = null
-    withSQLConf(vanillaSparkConfs(): _*) {
-      val df = dataframe()
-      expected = df.collect()
-    }
-    // By default, we will fallback complex type scan but here we should allow
-    // to test support of complex type
-    spark.conf.set("spark.gluten.sql.complexType.scan.fallback.enabled", "false");
-    val df = dataframe()
-    if (cache) {
-      df.cache()
-    }
-    try {
-      if (compareResult) {
-        checkAnswer(df, expected)
-      } else {
-        df.collect()
-      }
-    } finally {
-      if (cache) {
-        df.unpersist()
-      }
-    }
-    checkDataFrame(noFallBack, customCheck, df)
-    df
-  }
-
-  /**
-   * Some rule on LogicalPlan will not only apply in select query, the total df.load() should in
-   * spark environment with gluten disabled config.
-   *
-   * @param sql
-   * @return
-   */
-  protected def runAndCompare(sql: String): DataFrame = {
-    var expected: Seq[Row] = null
-    withSQLConf(vanillaSparkConfs(): _*) {
-      expected = spark.sql(sql).collect()
-    }
-    val df = spark.sql(sql)
-    checkAnswer(df, expected)
-    df
-  }
-
-  protected def runQueryAndCompare(
-      sqlStr: String,
-      compareResult: Boolean = true,
-      noFallBack: Boolean = true,
-      cache: Boolean = false)(customCheck: DataFrame => Unit): DataFrame = {
-
-    compareDfResultsAgainstVanillaSpark(
-      () => spark.sql(sqlStr),
-      compareResult,
-      customCheck,
-      noFallBack,
-      cache)
-  }
-
   /**
    * run a query with native engine as well as vanilla spark then compare the result set for
    * correctness check
@@ -278,19 +188,6 @@ abstract class WholeStageTransformerSuite
       customCheck,
       noFallBack)
 
-  protected def vanillaSparkConfs(): Seq[(String, String)] = {
-    List((GlutenConfig.GLUTEN_ENABLED.key, "false"))
-  }
-
-  protected def checkDataFrame(
-      noFallBack: Boolean,
-      customCheck: DataFrame => Unit,
-      df: DataFrame): Unit = {
-    if (needCheckFallback) {
-      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
-    }
-    customCheck(df)
-  }
   protected def withDataFrame[R](sql: String)(f: DataFrame => R): R = f(spark.sql(sql))
 
   protected def tpchSQL(queryNum: Int, tpchQueries: String): String =
