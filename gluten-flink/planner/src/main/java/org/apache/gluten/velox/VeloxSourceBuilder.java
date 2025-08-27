@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.nodes.exec.common.source;
+package org.apache.gluten.velox;
 
 import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
-import org.apache.gluten.table.runtime.operators.GlutenValuesSourceFunction;
+import org.apache.gluten.table.runtime.operators.GlutenVectorSourceFunction;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 import org.apache.gluten.util.ReflectUtils;
 
-import io.github.zhztheplayer.velox4j.connector.VectorConnectorSplit;
-import io.github.zhztheplayer.velox4j.connector.VectorTableHandle;
+import io.github.zhztheplayer.velox4j.connector.FromElementsConnectorSplit;
+import io.github.zhztheplayer.velox4j.connector.FromElementsTableHandle;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 
@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.transformations.LegacySourceTransformation
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -69,7 +68,7 @@ public class VeloxSourceBuilder {
       io.github.zhztheplayer.velox4j.type.RowType rowType =
           (io.github.zhztheplayer.velox4j.type.RowType)
               LogicalTypeConverter.toVLType(typeInfo.toLogicalType());
-      List<Row> values = new ArrayList<>();
+      List<String> values = new ArrayList<>();
       for (Collection<Row> rows : data.values()) {
         for (Row row : rows) {
           Row projectedRow =
@@ -80,22 +79,21 @@ public class VeloxSourceBuilder {
                       "projectRow",
                       new Class<?>[] {Row.class},
                       new Object[] {row});
-          values.add(projectedRow);
+          values.add(projectedRow.toString());
         }
       }
-      VectorTableHandle tableHandle =
-          new VectorTableHandle("connector-vector", "vector-table", rowType);
+      FromElementsTableHandle tableHandle =
+          new FromElementsTableHandle(
+              "connector-from-elements", "from-elements-table", rowType, values);
       TableScanNode scanNode =
           new TableScanNode(PlanNodeIdGenerator.newId(), rowType, tableHandle, List.of());
       GlutenStreamSource op =
           new GlutenStreamSource(
-              new GlutenValuesSourceFunction(
+              new GlutenVectorSourceFunction(
                   new StatefulPlanNode(scanNode.getId(), scanNode),
                   Map.of(scanNode.getId(), rowType),
                   scanNode.getId(),
-                  new VectorConnectorSplit("connector-vector", 0, false, ""),
-                  (RowType) typeInfo.toLogicalType(),
-                  values));
+                  new FromElementsConnectorSplit("connector-from-elements", 0, false)));
       return new LegacySourceTransformation<RowData>(
           sourceTransformation.getName(),
           op,

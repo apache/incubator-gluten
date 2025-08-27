@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.table.runtime.stream.common;
 
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.ExplainDetail;
@@ -123,11 +122,16 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
       JobClient jobClient = tableResult.getJobClient().get();
       if (deleteResultFile) {
         try {
-          while (!jobClient.getJobStatus().get().equals(JobStatus.FINISHED)) {
+          while (!printResultFile.exists()) {
             Thread.sleep(10);
           }
+          long fileSize = -1L;
+          while (printResultFile.length() > fileSize) {
+            fileSize = printResultFile.length();
+            Thread.sleep(3000);
+          }
         } finally {
-
+          jobClient.cancel();
         }
       }
       List<String> result = new ArrayList<>();
