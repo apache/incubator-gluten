@@ -40,8 +40,9 @@ public:
 
 public:
     explicit ExcelTextFormatFile(
-        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
-        : FormatFile(context_, file_info_, read_buffer_builder_)
+        DB::ContextPtr context_, const DB::Block& input_header, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
+        : FormatFile(context_, file_info_, read_buffer_builder_),
+          schema_(input_header.getNamesAndTypesList())
     {
     }
 
@@ -55,6 +56,8 @@ public:
 
 private:
     DB::FormatSettings createFormatSettings() const;
+
+    const DB::NamesAndTypesList schema_;
 };
 
 

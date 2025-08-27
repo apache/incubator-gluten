@@ -635,6 +635,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         typeNodes,
         nameList,
         columnTypeNodes,
+        tableSchema,
         transformer.map(_.doTransform(substraitContext)).orNull,
         extensionNode,
         substraitContext,

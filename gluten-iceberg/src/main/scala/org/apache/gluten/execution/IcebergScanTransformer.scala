@@ -130,7 +130,7 @@ case class IcebergScanTransformer(
   override lazy val getPartitionSchema: StructType =
     GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
 
-  override def getDataSchema: StructType = new StructType()
+  override def getDataSchema: StructType = GlutenIcebergSourceUtil.getDataSchema(scan)
 
   // TODO: get root paths from table.
   override def getRootPathsInternal: Seq[String] = Seq.empty

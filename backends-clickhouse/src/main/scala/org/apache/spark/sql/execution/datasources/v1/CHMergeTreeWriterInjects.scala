@@ -200,6 +200,7 @@ object CHMergeTreeWriterInjects {
       typeNodes,
       nameList,
       columnTypeNodes,
+      tableSchema,
       null,
       extensionNode,
       substraitContext,

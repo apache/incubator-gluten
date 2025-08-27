@@ -113,17 +113,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     new CloseableCHColumnBatchIterator(iter, Some(pipelineTime))
   }
 
-  // only set file schema for text format table
-  private def setFileSchemaForLocalFiles(
-      localFilesNode: LocalFilesNode,
-      scan: BasicScanExecTransformer): Unit = {
-    if (scan.fileFormat == ReadFileFormat.TextReadFormat) {
-      val names =
-        ConverterUtils.collectAttributeNamesWithoutExprId(scan.output)
-      localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala.toSeq))
-    }
-  }
-
   override def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
@@ -248,9 +237,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           case (split, i) =>
             split match {
               case filesNode: LocalFilesNode if leaves(i).isInstanceOf[BasicScanExecTransformer] =>
-                setFileSchemaForLocalFiles(
-                  filesNode,
-                  leaves(i).asInstanceOf[BasicScanExecTransformer])
                 filesNode.toProtobuf.toByteArray
               case extensionTableNode: ExtensionTableNode =>
                 extensionTableNode.toProtobuf.toByteArray

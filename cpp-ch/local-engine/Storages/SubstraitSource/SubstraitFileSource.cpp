@@ -25,7 +25,7 @@
 namespace local_engine
 {
 
-static std::vector<FormatFilePtr> initializeFiles(const substrait::ReadRel::LocalFiles & file_infos, const DB::ContextPtr & context)
+static std::vector<FormatFilePtr> initializeFiles(const substrait::ReadRel::LocalFiles & file_infos, const DB::ContextPtr & context, const DB::Block & input_header)
 {
     if (file_infos.items().empty())
         return {};
@@ -33,7 +33,7 @@ static std::vector<FormatFilePtr> initializeFiles(const substrait::ReadRel::Loca
     const Poco::URI file_uri(file_infos.items().Get(0).uri_file());
     ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
     for (const auto & item : file_infos.items())
-        files.emplace_back(FormatFileUtil::createFile(context, read_buffer_builder, item));
+        files.emplace_back(FormatFileUtil::createFile(context, input_header, read_buffer_builder, item));
     return files;
 }
 
@@ -53,9 +53,9 @@ static DB::Block initReadHeader(const DB::Block & block, const FormatFiles & fil
 }
 
 SubstraitFileSource::SubstraitFileSource(
-    const DB::ContextPtr & context_, const DB::Block & outputHeader_, const substrait::ReadRel::LocalFiles & file_infos)
+    const DB::ContextPtr & context_, const DB::Block & outputHeader_, const substrait::ReadRel::LocalFiles & file_infos, const DB::Block & input_header_)
     : DB::ISource(toShared(BaseReader::buildRowCountHeader(outputHeader_)), false)
-    , files(initializeFiles(file_infos, context_))
+    , files(initializeFiles(file_infos, context_, input_header_))
     , outputHeader(outputHeader_)
     , readHeader(initReadHeader(outputHeader, files))
 {

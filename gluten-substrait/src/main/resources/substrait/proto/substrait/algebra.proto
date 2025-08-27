@@ -62,6 +62,7 @@ message ReadRel {
   Expression best_effort_filter = 11;
   Expression.MaskExpression projection = 4;
   substrait.extensions.AdvancedExtension advanced_extension = 10;
+  NamedStruct table_schema = 12;
 
   // Definition of which type of scan operation is to be performed
   oneof read_type {
@@ -218,7 +219,7 @@ message ReadRel {
       repeated partitionColumn partition_columns = 17;
 
       /// File schema
-      NamedStruct schema = 18;
+      NamedStruct schema = 18 [deprecated=true];
 
       message metadataColumn {
         string key = 1;

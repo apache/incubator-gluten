@@ -17,13 +17,10 @@
 package org.apache.gluten.substrait.rel;
 
 import org.apache.gluten.config.GlutenConfig;
-import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.substrait.utils.SubstraitUtil;
 
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
-import io.substrait.proto.Type;
-import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
 import java.util.ArrayList;
@@ -106,21 +103,6 @@ public class LocalFilesNode implements SplitInfo {
     this.fileSchema = schema;
   }
 
-  private NamedStruct buildNamedStruct() {
-    NamedStruct.Builder namedStructBuilder = NamedStruct.newBuilder();
-
-    if (fileSchema != null) {
-      Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-      for (StructField field : fileSchema.fields()) {
-        structBuilder.addTypes(
-            ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
-        namedStructBuilder.addNames(ConverterUtils.normalizeColName(field.name()));
-      }
-      namedStructBuilder.setStruct(structBuilder.build());
-    }
-    return namedStructBuilder.build();
-  }
-
   @Override
   public List<String> preferredLocations() {
     return this.preferredLocations;
@@ -195,7 +177,7 @@ public class LocalFilesNode implements SplitInfo {
             ReadRel.LocalFiles.FileOrFiles.metadataColumn.newBuilder();
         fileBuilder.addMetadataColumns(mcBuilder.build());
       }
-      NamedStruct namedStruct = buildNamedStruct();
+      NamedStruct namedStruct = org.apache.gluten.utils.SubstraitUtil.createNamedStruct(fileSchema);
       fileBuilder.setSchema(namedStruct);
 
       if (!otherMetadataColumns.isEmpty()) {

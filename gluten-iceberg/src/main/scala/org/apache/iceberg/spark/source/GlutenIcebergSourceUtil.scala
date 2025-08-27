@@ -195,6 +195,17 @@ object GlutenIcebergSourceUtil {
       throw new UnsupportedOperationException("Only support iceberg SparkBatchQueryScan.")
   }
 
+  def getDataSchema(sparkScan: Scan): StructType = sparkScan match {
+    case scan: SparkBatchQueryScan =>
+      val tasks = scan.tasks().asScala
+      asFileScanTask(tasks.toList).foreach(
+        task => return SparkSchemaUtil.convert(task.spec().schema()))
+      throw new UnsupportedOperationException(
+        "Failed to get data schema from iceberg SparkBatchQueryScan.")
+    case _ =>
+      throw new UnsupportedOperationException("Only support iceberg SparkBatchQueryScan.")
+  }
+
   private def asFileScanTask(tasks: List[ScanTask]): List[FileScanTask] = {
     if (tasks.forall(_.isFileScanTask)) {
       tasks.map(_.asFileScanTask())

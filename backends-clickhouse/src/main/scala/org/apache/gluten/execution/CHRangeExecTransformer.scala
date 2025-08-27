@@ -97,6 +97,7 @@ case class CHRangeExecTransformer(
       nameList,
       columnTypeNodes,
       null,
+      null,
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))

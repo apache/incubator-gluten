@@ -165,6 +165,6 @@ class FormatFileUtil
 {
 public:
     static FormatFilePtr
-    createFile(DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file);
+    createFile(DB::ContextPtr context, const DB::Block& input_header, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file);
 };
 }

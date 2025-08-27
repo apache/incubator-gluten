@@ -191,7 +191,12 @@ QueryPlanStepPtr ReadRelParser::parseReadRelWithLocalFile(const substrait::ReadR
         debug::dumpMessage(local_files, "local_files");
     }
 
-    auto source = std::make_shared<SubstraitFileSource>(getContext(), header, local_files);
+    DB::Block tableHeader = header;
+    if (rel.has_table_schema()) {
+        tableHeader = TypeParser::buildBlockFromNamedStructWithoutDFS(rel.table_schema());
+    }
+
+    auto source = std::make_shared<SubstraitFileSource>(getContext(), header, local_files, tableHeader);
     auto source_pipe = Pipe(source);
     auto source_step = std::make_unique<SubstraitFileSourceStep>(getContext(), std::move(source_pipe), "substrait local files");
     source_step->setStepDescription("read local files");
