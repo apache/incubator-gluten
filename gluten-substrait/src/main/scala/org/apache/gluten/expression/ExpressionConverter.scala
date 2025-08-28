@@ -19,6 +19,8 @@ package org.apache.gluten.expression
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.DecimalArithmeticUtil
 
@@ -33,6 +35,7 @@ import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 trait Transformable {
@@ -282,22 +285,36 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         // For timestamp and date inputs, the format parameter is ignored as per Spark behavior.
         val timeExpTransformer =
           replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap)
-        val children = t.timeExp.dataType match {
-          case _: TimestampType | _: DateType =>
-            // For timestamp/date input, format is ignored - only pass timeExp
-            Seq(timeExpTransformer)
+        t.timeExp.dataType match {
+          case _: TimestampType =>
+            // For timestamp input, use unix_seconds with custom signature
+            new ExpressionTransformer {
+              override def substraitExprName: String = "unix_seconds"
+              override def children: Seq[ExpressionTransformer] = Seq(timeExpTransformer)
+              override def original: Expression = t
+              override def doTransform(context: SubstraitContext): ExpressionNode = {
+                val funcName: String = ConverterUtils.makeFuncName(
+                  substraitExprName, 
+                  Seq(t.timeExp.dataType)
+                )
+                val functionId = context.registerFunction(funcName)
+                val childNodes = children.map(_.doTransform(context)).asJava
+                val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+                ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
+              }
+            }
           case _ =>
-            // For string input, format is used - pass both timeExp and format
-            Seq(
+            // For other inputs (date, string), use original logic
+            val children = Seq(
               timeExpTransformer,
               replaceWithExpressionTransformer0(t.format, attributeSeq, expressionsMap)
             )
+            GenericExpressionTransformer(
+              substraitExprName,
+              children,
+              t
+            )
         }
-        GenericExpressionTransformer(
-          substraitExprName,
-          children,
-          t
-        )
       case u: UnixTimestamp =>
         GenericExpressionTransformer(
           substraitExprName,
