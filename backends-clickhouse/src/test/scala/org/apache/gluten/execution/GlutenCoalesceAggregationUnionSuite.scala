@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row}
@@ -43,7 +44,7 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
@@ -514,6 +515,18 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
         |   union all
         |   select a from coalesce_union_t1 where a in (select a from coalesce_union_t3)
         |) order by a
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
+  }
+
+  test("no coalesce project union. case 4") {
+    val sql =
+      """
+        |select t, b from (
+        | select 1 as t, sum(b) as b from coalesce_union_t1 where a = 'c'
+        | union all
+        | select 2 as t, sum(b) as b from coalesce_union_t1 where a = 'd'
+        |) order by t, b
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
   }

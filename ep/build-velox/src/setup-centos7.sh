@@ -60,7 +60,7 @@ function install_cmake {
 
 function install_ninja {
   cd "${DEPENDENCY_DIR}"
-  github_checkout ninja-build/ninja v1.11.1
+  github_checkout ninja-build/ninja v1.11.1 --depth 1
   ./configure.py --bootstrap
   cmake -Bbuild-cmake
   cmake --build build-cmake
@@ -236,11 +236,6 @@ dnf_install ccache wget which libevent-devel \
   yasm \
   openssl-devel libzstd-devel lz4-devel double-conversion-devel \
   curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel tzdata
-
-# Update tzdata, required by Velox at runtime.
-dnf_install python3-pip
-pip3 install tzdata
-cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
 
 $SUDO dnf remove -y gflags
 

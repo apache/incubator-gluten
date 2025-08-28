@@ -27,16 +27,15 @@
 #ifdef GLUTEN_ENABLE_QAT
 #include "utils/qat/QatCodec.h"
 #endif
-#ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/QplCodec.h"
-#endif
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
+
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkExprToSubfieldFilterParser.h"
+#include "shuffle/ArrowShuffleDictionaryWriter.h"
 #include "udf/UdfLoader.h"
 #include "utils/Exception.h"
 #include "velox/common/caching/SsdCache.h"
@@ -197,7 +196,7 @@ void VeloxBackend::init(
   // Spark off-heap memory pool will be conducted to cause unexpected OOMs.
   auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
   int64_t memoryManagerCapacity;
-  if (sparkOverhead.hasValue()) {
+  if (sparkOverhead.has_value()) {
     // 0.75 * total overhead memory is used for Velox global memory manager.
     // FIXME: Make this configurable.
     memoryManagerCapacity = sparkOverhead.value() * 0.75;
@@ -210,6 +209,10 @@ void VeloxBackend::init(
   // local cache persistent relies on the cache pool from root memory pool so we need to init this
   // after the memory manager instanced
   initCache();
+
+  registerShuffleDictionaryWriterFactory([](MemoryManager* memoryManager, arrow::util::Codec* codec) {
+    return std::make_unique<ArrowShuffleDictionaryWriter>(memoryManager, codec);
+  });
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {

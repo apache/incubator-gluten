@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.gluten.celeborn;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.exception.GlutenException;
+import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer;
 import org.apache.gluten.shuffle.SupportsColumnarShuffle;
 
 import com.google.common.base.Preconditions;
@@ -42,7 +43,8 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarShuffle {
+public class CelebornShuffleManager
+    implements ShuffleManager, SupportsColumnarShuffle, NeedCustomColumnarBatchSerializer {
 
   private static final Logger logger = LoggerFactory.getLogger(CelebornShuffleManager.class);
 
@@ -63,6 +65,8 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
 
   private static final CelebornShuffleWriterFactory writerFactory;
 
+  private static final CelebornColumnarBatchSerializerFactory columnarBatchSerializerFactory;
+
   static {
     final ServiceLoader<CelebornShuffleWriterFactory> loader =
         ServiceLoader.load(CelebornShuffleWriterFactory.class);
@@ -81,6 +85,31 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
           "No Celeborn shuffle writer factory found for backend " + backendName);
     }
     writerFactory = factoryMap.get(backendName);
+
+    final ServiceLoader<CelebornColumnarBatchSerializerFactory>
+        celebornColumnarBatchSerializerFactoriesLoader =
+            ServiceLoader.load(CelebornColumnarBatchSerializerFactory.class);
+    final List<CelebornColumnarBatchSerializerFactory> columnarBatchSerializerFactoryList =
+        Arrays.stream(
+                Iterators.toArray(
+                    celebornColumnarBatchSerializerFactoriesLoader.iterator(),
+                    CelebornColumnarBatchSerializerFactory.class))
+            .collect(Collectors.toList());
+    //   for now, we ignore check since CH backend has not support this feature yet.
+    //    Preconditions.checkState(
+    //        !columnarBatchSerializerFactoryList.isEmpty(),
+    //        "No factory found for Celeborn columnar batch serializer");
+    final Map<String, CelebornColumnarBatchSerializerFactory> columanrBatchSerilizerFactoryMap =
+        columnarBatchSerializerFactoryList.stream()
+            .collect(Collectors.toMap(CelebornColumnarBatchSerializerFactory::backendName, f -> f));
+
+    //   for now, we ignore check since CH backend has not support this feature yet.
+    //    if (!columanrBatchSerilizerFactoryMap.containsKey(backendName)) {
+    //      throw new UnsupportedOperationException(
+    //          "No Celeborn columnar batch serializer writer factory found for backend " +
+    // backendName);
+    //    }
+    columnarBatchSerializerFactory = columanrBatchSerilizerFactoryMap.get(backendName);
   }
 
   private final SparkConf conf;
@@ -103,8 +132,10 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
   // for Celeborn 0.4.0
   private final Object shuffleIdTracker;
 
-  // for Celeborn 0.4.0
-  private final boolean throwsFetchFailure;
+  // for Celeborn 0.6.0
+  private final boolean stageRerunEnabled;
+
+  private Object failedShuffleCleaner = null;
 
   public CelebornShuffleManager(SparkConf conf) {
     if (conf.getBoolean(LOCAL_SHUFFLE_READER_KEY, true)) {
@@ -120,7 +151,7 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
     this.shuffleIdTracker =
         CelebornUtils.createInstance(CelebornUtils.EXECUTOR_SHUFFLE_ID_TRACKER_NAME);
 
-    this.throwsFetchFailure = CelebornUtils.getThrowsFetchFailure(celebornConf);
+    this.stageRerunEnabled = CelebornUtils.getStageRerunEnabled(celebornConf);
 
     this.celebornDefaultCodec = CelebornConf.SHUFFLE_COMPRESSION_CODEC().defaultValueString();
 
@@ -162,7 +193,7 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
     return _vanillaCelebornShuffleManager;
   }
 
-  private void initializeLifecycleManager() {
+  private void initializeLifecycleManager(String appId) {
     // Only create LifecycleManager singleton in Driver. When register shuffle multiple times, we
     // need to ensure that LifecycleManager will only be created once. Parallelism needs to be
     // considered in this place, because if there is one RDD that depends on multiple RDDs
@@ -170,10 +201,14 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
     if (isDriver() && lifecycleManager == null) {
       synchronized (this) {
         if (lifecycleManager == null) {
+          appUniqueId = CelebornUtils.getAppUniqueId(appId, celebornConf);
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
 
-          // for Celeborn 0.4.0
-          CelebornUtils.registerShuffleTrackerCallback(throwsFetchFailure, lifecycleManager);
+          // for Celeborn 0.6.0
+          CelebornUtils.incrementApplicationCount(lifecycleManager);
+          CelebornUtils.registerCancelShuffleCallback(lifecycleManager);
+          CelebornUtils.stageRerun(
+              stageRerunEnabled, lifecycleManager, celebornConf, failedShuffleCleaner);
 
           shuffleClient =
               CelebornUtils.getShuffleClient(
@@ -199,7 +234,7 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
         lifecycleManager.getPort(),
         lifecycleManager.getUserIdentifier(),
         shuffleId,
-        throwsFetchFailure,
+        stageRerunEnabled,
         dependency.rdd().getNumPartitions(),
         dependency);
   }
@@ -207,15 +242,15 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
   @Override
   public <K, V, C> ShuffleHandle registerShuffle(
       int shuffleId, ShuffleDependency<K, V, C> dependency) {
-    appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
-    initializeLifecycleManager();
+    String appId = SparkUtils.appUniqueId(dependency.rdd().context());
+    initializeLifecycleManager(appId);
 
     // Note: generate app unique id at driver side, make sure dependency.rdd.context
     // is the same SparkContext among different shuffleIds.
     // This method may be called many times.
     if (dependency instanceof ColumnarShuffleDependency) {
-      if (fallbackPolicyRunner.applyAllFallbackPolicy(
-          lifecycleManager, dependency.partitioner().numPartitions())) {
+      CelebornUtils.incrementShuffleCount(lifecycleManager);
+      if (CelebornUtils.applyFallbackPolicies(fallbackPolicyRunner, lifecycleManager, dependency)) {
         if (GlutenConfig.get().enableCelebornFallback()) {
           logger.warn("Fallback to ColumnarShuffleManager!");
           columnarShuffleIds.add(shuffleId);
@@ -245,7 +280,7 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
         shuffleIdTracker,
         shuffleId,
         appUniqueId,
-        throwsFetchFailure,
+        stageRerunEnabled,
         isDriver());
   }
 
@@ -272,6 +307,9 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
     if (_vanillaCelebornShuffleManager != null) {
       _vanillaCelebornShuffleManager.stop();
       _vanillaCelebornShuffleManager = null;
+    }
+    if (failedShuffleCleaner != null) {
+      CelebornUtils.resetFailedShuffleCleaner(failedShuffleCleaner);
     }
   }
 
@@ -307,12 +345,18 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
                 false,
                 extension);
 
-        // for Celeborn 0.5.2
         try {
-          Field field = CelebornShuffleHandle.class.getDeclaredField("throwsFetchFailure");
+          Field field;
+          try {
+            // for Celeborn 0.6.0
+            field = CelebornShuffleHandle.class.getDeclaredField("stageRerunEnabled");
+          } catch (NoSuchFieldException e) {
+            // for Celeborn 0.5.2
+            field = CelebornShuffleHandle.class.getDeclaredField("throwsFetchFailure");
+          }
           field.setAccessible(true);
-          boolean throwsFetchFailure = (boolean) field.get(handle);
-          if (throwsFetchFailure) {
+          boolean stageRerunEnabled = (boolean) field.get(handle);
+          if (stageRerunEnabled) {
             Method addFailureListenerMethod =
                 SparkUtils.class.getMethod(
                     "addFailureListenerIfBarrierTask",
@@ -392,5 +436,10 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
     return columnarShuffleManager()
         .getReader(
             handle, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics);
+  }
+
+  @Override
+  public String columnarBatchSerializerClass() {
+    return columnarBatchSerializerFactory.columnarBatchSerializerClass();
   }
 }

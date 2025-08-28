@@ -58,7 +58,7 @@ void TemporaryWriteBufferWrapper::nextImpl()
     BufferBase::set(data_buffer->buffer().begin(), data_buffer->buffer().size(), data_buffer->offset());
 }
 
-void CompactObjectStorageDiskTransaction::commit()
+void CompactObjectStorageDiskTransaction::commit(const DB::TransactionCommitOptionsVariant & options)
 {
     auto metadata_tx = disk.getMetadataStorage()->createTransaction();
     std::filesystem::path data_path = std::filesystem::path(prefix_path) / PART_DATA_FILE_NAME;
@@ -105,7 +105,7 @@ void CompactObjectStorageDiskTransaction::commit()
     merge_files(files | std::ranges::views::filter([](auto file) { return !isMetaDataFile(file.first); }), *data_write_buffer, data_key, data_path);
     merge_files(files | std::ranges::views::filter([](auto file) { return isMetaDataFile(file.first); }), *meta_write_buffer, meta_key, meta_path);
 
-    metadata_tx->commit();
+    metadata_tx->commit(options);
     files.clear();
 }
 

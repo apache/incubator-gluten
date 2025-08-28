@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.api.python
+package org.apache.spark.sql.execution.python
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.{TransformContext, TransformSupport, UnaryTransformSupport}
@@ -27,12 +27,8 @@ import org.apache.gluten.substrait.expression._
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel._
 
-import org.apache.spark.TaskContext
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.python.EvalPythonExec
-import org.apache.spark.sql.types.StructType
 
 import java.util.{ArrayList => JArrayList, List => JList}
 
@@ -40,20 +36,11 @@ case class EvalPythonExecTransformer(
     udfs: Seq[PythonUDF],
     resultAttrs: Seq[Attribute],
     child: SparkPlan)
-  extends EvalPythonExec
+  extends EvalPythonExecBase
   with UnaryTransformSupport {
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
-
-  override protected def evaluate(
-      funcs: Seq[ChainedPythonFunctions],
-      argOffsets: Array[Array[Int]],
-      iter: Iterator[InternalRow],
-      schema: StructType,
-      context: TaskContext): Iterator[InternalRow] = {
-    throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
-  }
 
   override protected def withNewChildInternal(newChild: SparkPlan): EvalPythonExecTransformer =
     copy(udfs, resultAttrs, newChild)

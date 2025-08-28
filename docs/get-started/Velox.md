@@ -9,7 +9,7 @@ parent: Getting-Started
 
 | Type  | Version                      |
 |-------|------------------------------|
-| Spark | 3.2.2, 3.3.1, 3.4.4, 3.5.2   |
+| Spark | 3.2.2, 3.3.1, 3.4.4, 3.5.5   |
 | OS    | Ubuntu20.04/22.04, Centos7/8 |
 | jdk   | openjdk8/jdk17               |
 | scala | 2.12                         |
@@ -18,7 +18,7 @@ parent: Getting-Started
 
 Currently, with static build Gluten+Velox backend supports all the Linux OSes, but is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**. With dynamic build, Gluten+Velox backend support **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8** and their variants.
 
-Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.4 and 3.5.2.
+Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.4 and 3.5.5.
 
 We need to set up the `JAVA_HOME` env. Currently, Gluten supports **java 8** and **java 17**.
 
@@ -284,6 +284,14 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 spark.dynamicAllocation.enabled false
 ```
 
+Additionally, for sort-based shuffle, Celeborn supports two types of shuffle writers: the default row-based sort shuffle writer and the RSS sort shuffle writer.
+By default, Celeborn uses the RSS sort shuffle writer. You can switch to the default row-based sort shuffle writer
+by setting the following configuration:
+
+```
+spark.gluten.sql.columnar.shuffle.celeborn.useRssSort false
+```
+
 ## Uniffle support
 
 Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.9.2`.
@@ -359,6 +367,20 @@ Once built successfully, iceberg features will be included in gluten-velox-bundl
 
 Gluten with velox backend supports [Hudi](https://hudi.apache.org/) table. Currently, only reading COW (Copy-On-Write) tables is supported.
 
+## Paimon Support
+
+Gluten with velox backend supports [Paimon](https://paimon.apache.org/) table. Currently, only non-pk table is supported, and the Spark version needs to be >= 3.3.
+
+### How to use
+
+Compile gluten-paimon module by a `paimon` profile, as follows:
+
+```
+mvn clean package -Pbackends-velox -Pspark-3.5 -Ppaimon -DskipTests
+```
+
+Once built successfully, paimon features will be included in gluten-velox-bundle-X jar. Then you can query paimon non-pk table by gluten/velox without scan's fallback.
+
 ### How to use
 
 First of all, compile gluten-hudi module by a `hudi` profile, as follows:
@@ -396,7 +418,7 @@ With above steps, you will get a physical plan output like:
     +- VeloxColumnarToRowExec (5)
       +- ^ ProjectExecTransformer (3)
         +- GlutenRowToArrowColumnar (2)
-          +- Scan hive default.extracted_db_pins (1)
+          +- Scan hive default.table (1)
 
 ```
 
@@ -572,4 +594,4 @@ This feature has been tested through a series of tests, and we are collecting mo
 
 # Accelerators
 
-Please refer [HBM](VeloxHBM.md) [QAT](VeloxQAT.md) [IAA](VeloxIAA.md) for details
+Please refer [QAT](VeloxQAT.md) for details

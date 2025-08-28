@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.tpcds
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenClickHouseTPCDSAbstractSuite
 
 import org.apache.spark.SparkConf
@@ -30,8 +31,8 @@ class GlutenClickHouseTPCDSParquetRFSuite extends GlutenClickHouseTPCDSAbstractS
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.memory.offHeap.size", "8g")
-      .set("spark.gluten.sql.validation.logLevel", "ERROR")
-      .set("spark.gluten.sql.validation.printStackOnFailure", "true")
+      .set(GlutenConfig.VALIDATION_LOG_LEVEL.key, "ERROR")
+      .set(GlutenConfig.VALIDATION_PRINT_FAILURE_STACK.key, "true")
       // radically small threshold to force runtime bloom filter
       .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB")
       .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")

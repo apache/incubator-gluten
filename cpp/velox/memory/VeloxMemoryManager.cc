@@ -172,8 +172,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     try {
       listener_->allocationChanged(neededBytes);
     } catch (const std::exception&) {
-       VLOG(2) << "ListenableArbitrator growCapacityInternal failed, stacktrace: "
-               << velox::process::StackTrace().toString();
+      VLOG(2) << "ListenableArbitrator growCapacityInternal failed, stacktrace: "
+              << velox::process::StackTrace().toString();
       // if allocationChanged failed, we need to free the reclaimed bytes
       listener_->allocationChanged(-reclaimedFreeBytes);
       std::rethrow_exception(std::current_exception());
@@ -324,9 +324,13 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
 }
 } // namespace
 
-std::shared_ptr<arrow::MemoryPool> VeloxMemoryManager::createArrowMemoryPool(const std::string& name) {
+std::shared_ptr<arrow::MemoryPool> VeloxMemoryManager::getOrCreateArrowMemoryPool(const std::string& name) {
   std::lock_guard<std::mutex> l(mutex_);
-  VELOX_CHECK_EQ(arrowPools_.count(name), 0, "Arrow memory pool {} already exists", name);
+  if (const auto it = arrowPools_.find(name); it != arrowPools_.end()) {
+    auto pool = it->second.lock();
+    VELOX_CHECK_NOT_NULL(pool, "Arrow memory pool {} has been destructed", name);
+    return pool;
+  }
   auto pool = std::make_shared<ArrowMemoryPool>(
       blockListener_.get(), [this, name](arrow::MemoryPool* pool) { this->dropMemoryPool(name); });
   arrowPools_.emplace(name, pool);
@@ -401,7 +405,7 @@ bool VeloxMemoryManager::tryDestructSafe() {
       int32_t spillPoolCount = 0;
       int32_t cachePoolCount = 0;
       int32_t tracePoolCount = 0;
-      veloxMemoryManager_->testingDefaultRoot().visitChildren([&](velox::memory::MemoryPool* child) -> bool {
+      veloxMemoryManager_->deprecatedSysRootPool().visitChildren([&](velox::memory::MemoryPool* child) -> bool {
         if (child == veloxMemoryManager_->spillPool()) {
           spillPoolCount++;
         }

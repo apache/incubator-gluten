@@ -95,6 +95,7 @@ class DeltaLog private(
   with ProvidesUniFormConverters
   with ReadChecksum {
 
+  import DeltaLog._
   import org.apache.spark.sql.delta.files.TahoeFileIndex
 
   /**
@@ -595,26 +596,14 @@ class DeltaLog private(
     // --- modified end
 
     val r = buildHadoopFsRelationWithFileIndex(snapshotToUse, fileIndex, bucketSpec = bucketSpec)
-    new HadoopFsRelation(
+    new DeltaHadoopFsRelation(
       r.location,
       r.partitionSchema,
       r.dataSchema,
       r.bucketSpec,
       r.fileFormat,
       r.options
-    )(spark) with InsertableRelation {
-      def insert(data: DataFrame, overwrite: Boolean): Unit = {
-        val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
-        WriteIntoDelta(
-          deltaLog = DeltaLog.this,
-          mode = mode,
-          new DeltaOptions(Map.empty[String, String], spark.sessionState.conf),
-          partitionColumns = Seq.empty,
-          configuration = Map.empty,
-          data = data,
-          catalogTableOpt = catalogTableOpt).run(spark)
-      }
-    }
+    )(spark, catalogTableOpt, this)
   }
 
   def buildHadoopFsRelationWithFileIndex(snapshot: SnapshotDescriptor, fileIndex: TahoeFileIndex,
@@ -703,7 +692,39 @@ class DeltaLog private(
 }
 
 object DeltaLog extends DeltaLogging {
-
+  @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
+  private class DeltaHadoopFsRelation(
+      location: FileIndex,
+      partitionSchema: StructType,
+      // The top-level columns in `dataSchema` should match the actual physical file schema, otherwise
+      // the ORC data source may not work with the by-ordinal mode.
+      dataSchema: StructType,
+      bucketSpec: Option[BucketSpec],
+      fileFormat: FileFormat,
+      options: Map[String, String])(
+      sparkSession: SparkSession,
+      catalogTableOpt:Option[CatalogTable],
+      deltaLog: DeltaLog)
+    extends HadoopFsRelation(
+      location,
+      partitionSchema,
+      dataSchema,
+      bucketSpec,
+      fileFormat,
+      options
+  )(sparkSession) with InsertableRelation {
+    def insert(data: DataFrame, overwrite: Boolean): Unit = {
+      val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
+      WriteIntoDelta(
+        deltaLog = deltaLog,
+        mode = mode,
+        new DeltaOptions(Map.empty[String, String], sparkSession.sessionState.conf),
+        partitionColumns = Seq.empty,
+        configuration = Map.empty,
+        data = data,
+        catalogTableOpt = catalogTableOpt).run(sparkSession)
+    }
+  }
   /**
    * The key type of `DeltaLog` cache. It's a pair of the canonicalized table path and the file
    * system options (options starting with "fs." or "dfs." prefix) passed into

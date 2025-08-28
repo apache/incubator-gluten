@@ -25,7 +25,7 @@ namespace local_engine
 class DefaultHashAggregateResultStep : public DB::ITransformingStep
 {
 public:
-    explicit DefaultHashAggregateResultStep(const DB::Block & input_header);
+    explicit DefaultHashAggregateResultStep(const DB::SharedHeader & input_header);
     ~DefaultHashAggregateResultStep() override = default;
 
     String getName() const override { return "DefaultHashAggregateResultStep"; }

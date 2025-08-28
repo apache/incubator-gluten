@@ -61,9 +61,9 @@ WindowRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & re
 {
     const auto & win_rel_pb = rel.window();
     current_plan = std::move(current_plan_);
-    input_header = current_plan->getCurrentHeader();
+
     // The output header is : original columns ++ window columns
-    output_header = input_header;
+    output_header = *current_plan->getCurrentHeader();
     for (const auto & measure : win_rel_pb.measures())
     {
         const auto & win_function = measure.measure();
@@ -99,8 +99,8 @@ DB::WindowDescription WindowRelParser::parseWindowDescription(const WindowInfo &
 {
     DB::WindowDescription win_descr;
     win_descr.frame = parseWindowFrame(win_info);
-    win_descr.partition_by = parseSortFields(current_plan->getCurrentHeader(), win_info.partition_exprs);
-    win_descr.order_by = parseSortFields(current_plan->getCurrentHeader(), win_info.sort_fields);
+    win_descr.partition_by = parseSortFields(*current_plan->getCurrentHeader(), win_info.partition_exprs);
+    win_descr.order_by = parseSortFields(*current_plan->getCurrentHeader(), win_info.sort_fields);
     win_descr.full_sort_description = win_descr.partition_by;
     win_descr.full_sort_description.insert(win_descr.full_sort_description.end(), win_descr.order_by.begin(), win_descr.order_by.end());
 
@@ -279,7 +279,7 @@ void WindowRelParser::initWindowsInfos(const substrait::WindowRel & win_rel)
 
 void WindowRelParser::tryAddProjectionBeforeWindow()
 {
-    auto header = current_plan->getCurrentHeader();
+    const auto & header = *current_plan->getCurrentHeader();
     ActionsDAG actions_dag{header.getColumnsWithTypeAndName()};
     auto dag_footprint = actions_dag.dumpDAG();
 
@@ -308,7 +308,7 @@ void WindowRelParser::tryAddProjectionBeforeWindow()
 void WindowRelParser::tryAddProjectionAfterWindow()
 {
     // The final result header is : original header ++ [window aggregate columns]
-    auto header = current_plan->getCurrentHeader();
+    const auto & header = *current_plan->getCurrentHeader();
     ActionsDAG actions_dag{header.getColumnsWithTypeAndName()};
     auto dag_footprint = actions_dag.dumpDAG();
 
@@ -328,7 +328,7 @@ void WindowRelParser::tryAddProjectionAfterWindow()
     }
 
     // This projeciton will remove the const columns from the window function arguments
-    auto current_header = current_plan->getCurrentHeader();
+    const auto & current_header = *current_plan->getCurrentHeader();
     if (!DB::blocksHaveEqualStructure(output_header, current_header))
     {
         ActionsDAG convert_action = ActionsDAG::makeConvertingActions(

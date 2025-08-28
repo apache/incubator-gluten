@@ -150,7 +150,7 @@ bool ExpandRelParser::isLazyAggregateExpand(const substrait::ExpandRel & expand_
 DB::QueryPlanPtr ExpandRelParser::normalParse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
 {
     const auto & expand_rel = rel.expand();
-    const auto & header = query_plan->getCurrentHeader();
+    const auto & header = *query_plan->getCurrentHeader();
     auto expand_field = buildExpandField(header, expand_rel);
     auto expand_step = std::make_unique<ExpandStep>(query_plan->getCurrentHeader(), std::move(expand_field));
     expand_step->setStepDescription("Expand Step");
@@ -162,11 +162,11 @@ DB::QueryPlanPtr ExpandRelParser::normalParse(DB::QueryPlanPtr query_plan, const
 DB::QueryPlanPtr ExpandRelParser::lazyAggregateExpandParse(
     DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
-    DB::Block input_header = query_plan->getCurrentHeader();
+    const auto & input_header = query_plan->getCurrentHeader();
     const auto & expand_rel = rel.expand();
-    auto expand_field = buildExpandField(input_header, expand_rel);
+    auto expand_field = buildExpandField(*input_header, expand_rel);
     auto aggregate_rel = rel.expand().input().aggregate();
-    auto aggregate_descriptions = buildAggregations(input_header, expand_field, aggregate_rel);
+    auto aggregate_descriptions = buildAggregations(*input_header, expand_field, aggregate_rel);
 
     size_t grouping_keys = aggregate_rel.groupings(0).grouping_expressions_size();
 

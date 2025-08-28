@@ -46,6 +46,10 @@ class VeloxHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
   std::shared_ptr<ColumnarBatch> next() override;
 
  private:
+  bool shouldSkipMerge() const;
+
+  void resolveNextBlockType();
+
   std::shared_ptr<arrow::io::InputStream> in_;
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
@@ -61,6 +65,10 @@ class VeloxHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
 
   std::unique_ptr<InMemoryPayload> merged_{nullptr};
   bool reachEos_{false};
+  bool blockTypeResolved_{false};
+
+  std::vector<int32_t> dictionaryFields_{};
+  std::vector<facebook::velox::VectorPtr> dictionaries_{};
 };
 
 class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
@@ -88,6 +96,8 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
   std::shared_ptr<ColumnarBatch> deserializeToBatch();
 
   void readNextRow();
+
+  void reallocateRowBuffer();
 
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;

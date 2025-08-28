@@ -41,6 +41,7 @@ static constexpr int32_t kDefaultSortBufferSize = 4096;
 static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
 static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
+static constexpr bool kDefaultEnableDictionary = false;
 
 enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
 
@@ -141,6 +142,8 @@ struct LocalPartitionWriterOptions {
 
   int32_t numSubDirs = kDefaultNumSubDirs; // spark.diskStore.subDirectories
 
+  bool enableDictionary = kDefaultEnableDictionary;
+
   LocalPartitionWriterOptions() = default;
 
   LocalPartitionWriterOptions(
@@ -149,13 +152,15 @@ struct LocalPartitionWriterOptions {
       int64_t compressionThreshold,
       int32_t mergeBufferSize,
       double mergeThreshold,
-      int32_t numSubDirs)
+      int32_t numSubDirs,
+      bool enableDictionary)
       : shuffleFileBufferSize(shuffleFileBufferSize),
         compressionBufferSize(compressionBufferSize),
         compressionThreshold(compressionThreshold),
         mergeBufferSize(mergeBufferSize),
         mergeThreshold(mergeThreshold),
-        numSubDirs(numSubDirs) {}
+        numSubDirs(numSubDirs),
+        enableDictionary(enableDictionary) {}
 };
 
 struct RssPartitionWriterOptions {
@@ -179,6 +184,8 @@ struct ShuffleWriterMetrics {
   int64_t totalWriteTime{0};
   int64_t totalEvictTime{0};
   int64_t totalCompressTime{0};
+  double avgDictionaryFields{0};
+  int64_t dictionarySize{0};
   std::vector<int64_t> partitionLengths{};
   std::vector<int64_t> rawPartitionLengths{}; // Uncompressed size.
 };

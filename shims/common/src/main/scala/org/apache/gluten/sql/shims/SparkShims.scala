@@ -28,7 +28,7 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression, UnBase64}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -250,9 +250,14 @@ trait SparkShims {
       outputPartitioning: Partitioning,
       commonPartitionValues: Option[Seq[(InternalRow, Int)]],
       applyPartialClustering: Boolean,
-      replicatePartitions: Boolean): Seq[Seq[InputPartition]] = filteredPartitions
+      replicatePartitions: Boolean,
+      joinKeyPositions: Option[Seq[Int]] = None): Seq[Seq[InputPartition]] =
+    filteredPartitions
 
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
+    Option.empty
+
+  def extractExpressionTimestampDiffUnit(timestampDiff: Expression): Option[String] =
     Option.empty
 
   def withTryEvalMode(expr: Expression): Boolean = false
@@ -309,4 +314,8 @@ trait SparkShims {
     Map.empty[String, Any].asJava.asInstanceOf[JMap[String, Object]]
 
   def getCollectLimitOffset(plan: CollectLimitExec): Int = 0
+
+  def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = false
+
+  def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType
 }

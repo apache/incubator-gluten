@@ -33,9 +33,10 @@ VeloxPlanConverter::VeloxPlanConverter(
     velox::memory::MemoryPool* veloxPool,
     const facebook::velox::config::ConfigBase* veloxCfg,
     const std::optional<std::string> writeFilesTempPath,
+    const std::optional<std::string> writeFileName,
     bool validationMode)
     : validationMode_(validationMode),
-      substraitVeloxPlanConverter_(veloxPool, veloxCfg, writeFilesTempPath, validationMode) {
+      substraitVeloxPlanConverter_(veloxPool, veloxCfg, writeFilesTempPath, writeFileName, validationMode) {
   substraitVeloxPlanConverter_.setInputIters(std::move(inputIters));
 }
 

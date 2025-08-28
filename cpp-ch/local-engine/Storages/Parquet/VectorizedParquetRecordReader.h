@@ -214,13 +214,10 @@ class VectorizedParquetBlockInputFormat final : public DB::IInputFormat
 protected:
     void onCancel() noexcept override { is_stopped = 1; }
 
-    // TODO: create ColumnIndexFilter here, currently disable it now.
-    void setKeyCondition(const std::shared_ptr<const DB::KeyCondition> & key_condition_) override { }
-
 public:
     VectorizedParquetBlockInputFormat(
         DB::ReadBuffer & in_,
-        const DB::Block & header_,
+        const DB::SharedHeader & header_,
         const ColumnIndexRowRangesProvider & row_ranges_provider,
         const DB::FormatSettings & format_settings);
     String getName() const override { return "VectorizedParquetBlockInputFormat"; }

@@ -18,25 +18,35 @@
 set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-export SUDO=sudo
+SUDO="${sudo:-""}"
 source ${CURRENT_DIR}/build_helper_functions.sh
 VELOX_ARROW_BUILD_VERSION=15.0.0
 ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
 BUILD_TYPE=Release
 
 function prepare_arrow_build() {
-  mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && sudo rm -rf arrow_ep/
-  wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
+  mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && ${SUDO} rm -rf arrow_ep/
+  wget_and_untar https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${VELOX_ARROW_BUILD_VERSION}/.tar.gz arrow_ep
+  #wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
   cd arrow_ep
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
+  patch -p1 < $CURRENT_DIR/../ep/build-velox/src/cmake-compatibility.patch
   popd
 }
 
 function build_arrow_cpp() {
- pushd $ARROW_PREFIX/cpp
-
- cmake_install \
+  pushd $ARROW_PREFIX/cpp
+  ARROW_WITH_ZLIB=ON
+  # The zlib version bundled with arrow is not compatible with clang 17.
+  # It can be removed after upgrading the arrow version.
+  if [[ "$(uname)" == "Darwin" ]]; then
+    clang_major_version=$(echo | clang -dM -E - | grep __clang_major__ | awk '{print $3}')
+    if [ "${clang_major_version}" -ge 17 ]; then
+      ARROW_WITH_ZLIB=OFF
+    fi
+  fi
+  cmake_install \
        -DARROW_PARQUET=OFF \
        -DARROW_FILESYSTEM=ON \
        -DARROW_PROTOBUF_USE_SHARED=OFF \
@@ -45,7 +55,7 @@ function build_arrow_cpp() {
        -DARROW_WITH_THRIFT=ON \
        -DARROW_WITH_LZ4=ON \
        -DARROW_WITH_SNAPPY=ON \
-       -DARROW_WITH_ZLIB=ON \
+       -DARROW_WITH_ZLIB=${ARROW_WITH_ZLIB} \
        -DARROW_WITH_ZSTD=ON \
        -DARROW_JEMALLOC=OFF \
        -DARROW_SIMD_LEVEL=NONE \
@@ -59,7 +69,7 @@ function build_arrow_cpp() {
 
  # Install thrift.
  cd _build/thrift_ep-prefix/src/thrift_ep-build
- sudo cmake --install ./ --prefix /usr/local/
+ ${SUDO} cmake --install ./ --prefix /usr/local/
  popd
 }
 

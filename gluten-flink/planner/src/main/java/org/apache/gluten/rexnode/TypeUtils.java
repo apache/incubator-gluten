@@ -20,10 +20,8 @@ import io.github.zhztheplayer.velox4j.expression.CastTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.*;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-
+import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class TypeUtils {
   private static final List<Class<?>> NUMERIC_TYPE_PRIORITY_LIST =
@@ -56,25 +54,24 @@ public class TypeUtils {
     return type instanceof IntegerType;
   }
 
-  public static List<TypedExpr> promoteTypeForArithmeticExpressions(List<TypedExpr> expressions) {
-    Type targetType =
-        expressions.stream()
-            .map(
-                expr -> {
-                  Type returnType = expr.getReturnType();
-                  int priority = getNumericTypePriority(returnType);
-                  return new Tuple2<>(priority, returnType);
-                })
-            .max((t1, t2) -> Integer.compare(t1.f0, t2.f0))
-            .orElseThrow(() -> new RuntimeException("No expressions found"))
-            .f1;
+  public static List<TypedExpr> promoteTypeForArithmeticExpressions(
+      TypedExpr leftExpr, TypedExpr rightExpr) {
+    Type leftType = leftExpr.getReturnType();
+    Type rightType = rightExpr.getReturnType();
 
-    return expressions.stream()
-        .map(
-            expr ->
-                expr.getReturnType().equals(targetType)
-                    ? expr
-                    : CastTypedExpr.create(targetType, expr, false))
-        .collect(Collectors.toList());
+    int leftPriority = getNumericTypePriority(leftType);
+    int rightPriority = getNumericTypePriority(rightType);
+
+    Type targetType = leftPriority >= rightPriority ? leftType : rightType;
+
+    TypedExpr promotedLeft =
+        leftType.equals(targetType) ? leftExpr : CastTypedExpr.create(targetType, leftExpr, false);
+
+    TypedExpr promotedRight =
+        rightType.equals(targetType)
+            ? rightExpr
+            : CastTypedExpr.create(targetType, rightExpr, false);
+
+    return Arrays.asList(promotedLeft, promotedRight);
   }
 }

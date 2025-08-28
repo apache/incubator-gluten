@@ -41,6 +41,17 @@ using namespace facebook::velox;
 
 namespace gluten {
 namespace {
+
+arrow::Result<BlockType> readBlockType(arrow::io::InputStream* inputStream) {
+  BlockType type;
+  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream->Read(sizeof(BlockType), &type));
+  if (bytes == 0) {
+    // Reach EOS.
+    return BlockType::kEndOfStream;
+  }
+  return type;
+}
+
 struct BufferViewReleaser {
   BufferViewReleaser() : BufferViewReleaser(nullptr) {}
 
@@ -66,23 +77,25 @@ BufferPtr convertToVeloxBuffer(std::shared_ptr<arrow::Buffer> buffer) {
   return wrapInBufferViewAsOwner(buffer->data(), buffer->size(), buffer);
 }
 
-template <TypeKind kind>
+template <TypeKind Kind, typename T = typename TypeTraits<Kind>::NativeType>
 VectorPtr readFlatVector(
     std::vector<BufferPtr>& buffers,
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   auto nulls = buffers[bufferIdx++];
-  auto values = buffers[bufferIdx++];
-  std::vector<BufferPtr> stringBuffers;
-  using T = typename TypeTraits<kind>::NativeType;
-  if (nulls == nullptr || nulls->size() == 0) {
-    return std::make_shared<FlatVector<T>>(
-        pool, type, BufferPtr(nullptr), length, std::move(values), std::move(stringBuffers));
+  auto valuesOrIndices = buffers[bufferIdx++];
+
+  nulls = nulls == nullptr || nulls->size() == 0 ? BufferPtr(nullptr) : nulls;
+
+  if (dictionary != nullptr) {
+    return BaseVector::wrapInDictionary(nulls, valuesOrIndices, length, dictionary);
   }
+
   return std::make_shared<FlatVector<T>>(
-      pool, type, std::move(nulls), length, std::move(values), std::move(stringBuffers));
+      pool, type, nulls, length, std::move(valuesOrIndices), std::vector<BufferPtr>{});
 }
 
 template <>
@@ -91,6 +104,7 @@ VectorPtr readFlatVector<TypeKind::UNKNOWN>(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   return BaseVector::createNullConstant(type, length, pool);
 }
@@ -101,27 +115,28 @@ VectorPtr readFlatVector<TypeKind::HUGEINT>(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   auto nulls = buffers[bufferIdx++];
-  auto valueBuffer = buffers[bufferIdx++];
+  auto valuesOrIndices = buffers[bufferIdx++];
+
   // Because if buffer does not compress, it will get from netty, the address maynot aligned 16B, which will cause
   // int128_t = xxx coredump by instruction movdqa
-  auto data = valueBuffer->as<int128_t>();
-  BufferPtr values;
-  if ((reinterpret_cast<uintptr_t>(data) & 0xf) == 0) {
-    values = valueBuffer;
-  } else {
-    values = AlignedBuffer::allocate<char>(valueBuffer->size(), pool);
-    gluten::fastCopy(values->asMutable<char>(), valueBuffer->as<char>(), valueBuffer->size());
+  const auto* addr = valuesOrIndices->as<facebook::velox::int128_t>();
+  if ((reinterpret_cast<uintptr_t>(addr) & 0xf) != 0) {
+    auto alignedBuffer = AlignedBuffer::allocate<char>(valuesOrIndices->size(), pool);
+    fastCopy(alignedBuffer->asMutable<char>(), valuesOrIndices->as<char>(), valuesOrIndices->size());
+    valuesOrIndices = alignedBuffer;
   }
-  std::vector<BufferPtr> stringBuffers;
-  if (nulls == nullptr || nulls->size() == 0) {
-    auto vp = std::make_shared<FlatVector<int128_t>>(
-        pool, type, BufferPtr(nullptr), length, std::move(values), std::move(stringBuffers));
-    return vp;
+
+  nulls = nulls == nullptr || nulls->size() == 0 ? BufferPtr(nullptr) : nulls;
+
+  if (dictionary != nullptr) {
+    return BaseVector::wrapInDictionary(nulls, valuesOrIndices, length, dictionary);
   }
+
   return std::make_shared<FlatVector<int128_t>>(
-      pool, type, std::move(nulls), length, std::move(values), std::move(stringBuffers));
+      pool, type, nulls, length, std::move(valuesOrIndices), std::vector<BufferPtr>{});
 }
 
 VectorPtr readFlatVectorStringView(
@@ -129,28 +144,36 @@ VectorPtr readFlatVectorStringView(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   auto nulls = buffers[bufferIdx++];
-  auto lengthBuffer = buffers[bufferIdx++];
-  auto valueBuffer = buffers[bufferIdx++];
-  const auto* rawLength = lengthBuffer->as<StringLengthType>();
+  auto lengthOrIndices = buffers[bufferIdx++];
 
-  std::vector<BufferPtr> stringBuffers;
+  nulls = nulls == nullptr || nulls->size() == 0 ? BufferPtr(nullptr) : nulls;
+
+  if (dictionary != nullptr) {
+    return BaseVector::wrapInDictionary(nulls, lengthOrIndices, length, dictionary);
+  }
+
+  auto valueBuffer = buffers[bufferIdx++];
+
+  const auto* rawLength = lengthOrIndices->as<StringLengthType>();
+  const auto* valueBufferPtr = valueBuffer->as<char>();
+
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
-  auto rawValues = values->asMutable<StringView>();
-  auto rawChars = valueBuffer->as<char>();
+  auto* rawValues = values->asMutable<StringView>();
+
   uint64_t offset = 0;
   for (int32_t i = 0; i < length; ++i) {
-    rawValues[i] = StringView(rawChars + offset, rawLength[i]);
+    rawValues[i] = StringView(valueBufferPtr + offset, rawLength[i]);
     offset += rawLength[i];
   }
+
+  std::vector<BufferPtr> stringBuffers;
   stringBuffers.emplace_back(valueBuffer);
-  if (nulls == nullptr || nulls->size() == 0) {
-    return std::make_shared<FlatVector<StringView>>(
-        pool, type, BufferPtr(nullptr), length, std::move(values), std::move(stringBuffers));
-  }
+
   return std::make_shared<FlatVector<StringView>>(
-      pool, type, std::move(nulls), length, std::move(values), std::move(stringBuffers));
+      pool, type, nulls, length, std::move(values), std::move(stringBuffers));
 }
 
 template <>
@@ -159,8 +182,9 @@ VectorPtr readFlatVector<TypeKind::VARCHAR>(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
-  return readFlatVectorStringView(buffers, bufferIdx, length, type, pool);
+  return readFlatVectorStringView(buffers, bufferIdx, length, type, dictionary, pool);
 }
 
 template <>
@@ -169,8 +193,9 @@ VectorPtr readFlatVector<TypeKind::VARBINARY>(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
-  return readFlatVectorStringView(buffers, bufferIdx, length, type, pool);
+  return readFlatVectorStringView(buffers, bufferIdx, length, type, dictionary, pool);
 }
 
 std::unique_ptr<ByteInputStream> toByteStream(uint8_t* data, int32_t size) {
@@ -209,42 +234,47 @@ RowTypePtr getComplexWriteType(const std::vector<TypePtr>& types) {
   return std::make_shared<const RowType>(std::move(complexTypeColNames), std::move(complexTypeChildrens));
 }
 
-void readColumns(
-    std::vector<BufferPtr>& buffers,
-    memory::MemoryPool* pool,
+RowVectorPtr deserialize(
+    RowTypePtr type,
     uint32_t numRows,
-    const std::vector<TypePtr>& types,
-    std::vector<VectorPtr>& result) {
-  int32_t bufferIdx = 0;
+    std::vector<BufferPtr>& buffers,
+    const std::vector<int32_t>& dictionaryFields,
+    const std::vector<VectorPtr>& dictionaries,
+    memory::MemoryPool* pool) {
+  std::vector<VectorPtr> children;
+  auto types = type->as<TypeKind::ROW>().children();
+
   std::vector<VectorPtr> complexChildren;
   auto complexRowType = getComplexWriteType(types);
   if (complexRowType->children().size() > 0) {
     complexChildren = readComplexType(buffers[buffers.size() - 1], complexRowType, pool)->children();
   }
 
+  int32_t bufferIdx = 0;
   int32_t complexIdx = 0;
-  for (int32_t i = 0; i < types.size(); ++i) {
-    auto kind = types[i]->kind();
+  int32_t dictionaryIdx = 0;
+  for (size_t i = 0; i < types.size(); ++i) {
+    const auto kind = types[i]->kind();
     switch (kind) {
       case TypeKind::ROW:
       case TypeKind::MAP:
       case TypeKind::ARRAY: {
-        result.emplace_back(std::move(complexChildren[complexIdx]));
+        children.emplace_back(std::move(complexChildren[complexIdx]));
         complexIdx++;
       } break;
       default: {
+        VectorPtr dictionary{nullptr};
+        if (!dictionaryFields.empty() && dictionaryIdx < dictionaryFields.size() &&
+            dictionaryFields[dictionaryIdx] == i) {
+          dictionary = dictionaries[dictionaryIdx++];
+        }
         auto res = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
-            readFlatVector, types[i]->kind(), buffers, bufferIdx, numRows, types[i], pool);
-        result.emplace_back(std::move(res));
+            readFlatVector, kind, buffers, bufferIdx, numRows, types[i], dictionary, pool);
+        children.emplace_back(std::move(res));
       } break;
     }
   }
-}
 
-RowVectorPtr deserialize(RowTypePtr type, uint32_t numRows, std::vector<BufferPtr>& buffers, memory::MemoryPool* pool) {
-  std::vector<VectorPtr> children;
-  auto childTypes = type->as<TypeKind::ROW>().children();
-  readColumns(buffers, pool, numRows, childTypes, children);
   return std::make_shared<RowVector>(pool, type, BufferPtr(nullptr), numRows, children);
 }
 
@@ -252,6 +282,8 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     RowTypePtr type,
     uint32_t numRows,
     std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers,
+    const std::vector<int32_t>& dictionaryFields,
+    const std::vector<VectorPtr>& dictionaries,
     memory::MemoryPool* pool,
     int64_t& deserializeTime) {
   ScopedTimer timer(&deserializeTime);
@@ -260,7 +292,7 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
   for (auto& buffer : arrowBuffers) {
     veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
   }
-  auto rowVector = deserialize(type, numRows, veloxBuffers, pool);
+  auto rowVector = deserialize(type, numRows, veloxBuffers, dictionaryFields, dictionaries, pool);
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
@@ -277,10 +309,148 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     GLUTEN_ASSIGN_OR_THROW(auto buffer, payload->readBufferAt(i));
     veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
   }
-  auto rowVector = deserialize(type, payload->numRows(), veloxBuffers, pool);
+  auto rowVector = deserialize(type, payload->numRows(), veloxBuffers, {}, {}, pool);
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
+
+arrow::Result<BufferPtr>
+readDictionaryBuffer(arrow::io::InputStream* in, facebook::velox::memory::MemoryPool* pool, arrow::util::Codec* codec) {
+  size_t bufferSize;
+
+  ARROW_RETURN_NOT_OK(in->Read(sizeof(bufferSize), &bufferSize));
+  auto buffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
+
+  if (bufferSize == 0) {
+    return buffer;
+  }
+
+  if (codec != nullptr) {
+    size_t compressedSize;
+    ARROW_RETURN_NOT_OK(in->Read(sizeof(compressedSize), &compressedSize));
+    auto compressedBuffer = facebook::velox::AlignedBuffer::allocate<char>(compressedSize, pool, std::nullopt, true);
+    ARROW_RETURN_NOT_OK(in->Read(compressedSize, compressedBuffer->asMutable<void>()));
+    ARROW_ASSIGN_OR_RAISE(
+        auto decompressedSize,
+        codec->Decompress(compressedSize, compressedBuffer->as<uint8_t>(), bufferSize, buffer->asMutable<uint8_t>()));
+    ARROW_RETURN_IF(
+        decompressedSize != bufferSize,
+        arrow::Status::IOError(
+            fmt::format("Decompressed size doesn't equal to original size: ({} vs {})", decompressedSize, bufferSize)));
+  } else {
+    ARROW_RETURN_NOT_OK(in->Read(bufferSize, buffer->asMutable<void>()));
+  }
+  return buffer;
+}
+
+arrow::Result<VectorPtr> readDictionaryForBinary(
+    arrow::io::InputStream* in,
+    const TypePtr& type,
+    facebook::velox::memory::MemoryPool* pool,
+    arrow::util::Codec* codec) {
+  // Read length buffer.
+  ARROW_ASSIGN_OR_RAISE(auto lengthBuffer, readDictionaryBuffer(in, pool, codec));
+  const auto* lengthBufferPtr = lengthBuffer->as<StringLengthType>();
+
+  // Read value buffer.
+  ARROW_ASSIGN_OR_RAISE(auto valueBuffer, readDictionaryBuffer(in, pool, codec));
+  const auto* valueBufferPtr = valueBuffer->as<char>();
+
+  // Build StringViews.
+  const auto numElements = lengthBuffer->size() / sizeof(StringLengthType);
+  auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * numElements, pool, std::nullopt, true);
+  auto* rawValues = values->asMutable<StringView>();
+
+  uint64_t offset = 0;
+  for (size_t i = 0; i < numElements; ++i) {
+    rawValues[i] = StringView(valueBufferPtr + offset, lengthBufferPtr[i]);
+    offset += lengthBufferPtr[i];
+  }
+
+  std::vector<BufferPtr> stringBuffers;
+  stringBuffers.emplace_back(valueBuffer);
+
+  return std::make_shared<FlatVector<StringView>>(
+      pool, type, BufferPtr(nullptr), numElements, std::move(values), std::move(stringBuffers));
+}
+
+template <TypeKind Kind, typename NativeType = typename TypeTraits<Kind>::NativeType>
+arrow::Result<VectorPtr> readDictionary(
+    arrow::io::InputStream* in,
+    const TypePtr& type,
+    facebook::velox::memory::MemoryPool* pool,
+    arrow::util::Codec* codec) {
+  ARROW_ASSIGN_OR_RAISE(auto buffer, readDictionaryBuffer(in, pool, codec));
+
+  const auto numElements = buffer->size() / sizeof(NativeType);
+
+  return std::make_shared<FlatVector<NativeType>>(
+      pool, type, BufferPtr(nullptr), numElements, std::move(buffer), std::vector<BufferPtr>{});
+}
+
+template <>
+arrow::Result<VectorPtr> readDictionary<TypeKind::VARCHAR>(
+    arrow::io::InputStream* in,
+    const TypePtr& type,
+    facebook::velox::memory::MemoryPool* pool,
+    arrow::util::Codec* codec) {
+  return readDictionaryForBinary(in, type, pool, codec);
+}
+
+template <>
+arrow::Result<VectorPtr> readDictionary<TypeKind::VARBINARY>(
+    arrow::io::InputStream* in,
+    const TypePtr& type,
+    facebook::velox::memory::MemoryPool* pool,
+    arrow::util::Codec* codec) {
+  return readDictionaryForBinary(in, type, pool, codec);
+}
+
 } // namespace
+
+class VeloxDictionaryReader {
+ public:
+  VeloxDictionaryReader(
+      const facebook::velox::RowTypePtr& rowType,
+      facebook::velox::memory::MemoryPool* veloxPool,
+      arrow::util::Codec* codec)
+      : rowType_(rowType), veloxPool_(veloxPool), codec_(codec) {}
+
+  arrow::Result<std::vector<int32_t>> readFields(arrow::io::InputStream* in) const {
+    // Read bitmap.
+    auto bitMapSize = arrow::bit_util::RoundUpToMultipleOf8(rowType_->size());
+    std::vector<uint8_t> bitMap(bitMapSize);
+
+    RETURN_NOT_OK(in->Read(bitMapSize, bitMap.data()));
+
+    std::vector<int32_t> fields;
+    for (auto i = 0; i < rowType_->size(); ++i) {
+      if (arrow::bit_util::GetBit(bitMap.data(), i)) {
+        fields.push_back(i);
+      }
+    }
+
+    return fields;
+  }
+
+  arrow::Result<std::vector<VectorPtr>> readDictionaries(arrow::io::InputStream* in, const std::vector<int32_t>& fields)
+      const {
+    // Read dictionary buffers.
+    std::vector<VectorPtr> dictionaries;
+    for (const auto i : fields) {
+      auto dictionary = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
+          readDictionary, rowType_->childAt(i)->kind(), in, rowType_->childAt(i), veloxPool_, codec_);
+      dictionaries.emplace_back();
+      ARROW_ASSIGN_OR_RAISE(dictionaries.back(), dictionary);
+    }
+
+    return dictionaries;
+  }
+
+ private:
+  facebook::velox::RowTypePtr rowType_;
+  facebook::velox::memory::MemoryPool* veloxPool_;
+  arrow::util::Codec* codec_;
+};
 
 VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
     std::shared_ptr<arrow::io::InputStream> in,
@@ -308,19 +478,71 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
   GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(bufferSize, memoryPool, std::move(in)));
 }
 
+bool VeloxHashShuffleReaderDeserializer::shouldSkipMerge() const {
+  // Complex type or dictionary encodings do not support merging.
+  return hasComplexType_ || !dictionaryFields_.empty();
+}
+
+void VeloxHashShuffleReaderDeserializer::resolveNextBlockType() {
+  if (blockTypeResolved_) {
+    return;
+  }
+
+  blockTypeResolved_ = true;
+
+  GLUTEN_ASSIGN_OR_THROW(auto blockType, readBlockType(in_.get()));
+  switch (blockType) {
+    case BlockType::kEndOfStream:
+      reachEos_ = true;
+      break;
+    case BlockType::kDictionary: {
+      VeloxDictionaryReader reader(rowType_, veloxPool_, codec_.get());
+      GLUTEN_ASSIGN_OR_THROW(dictionaryFields_, reader.readFields(in_.get()));
+      GLUTEN_ASSIGN_OR_THROW(dictionaries_, reader.readDictionaries(in_.get(), dictionaryFields_));
+
+      GLUTEN_ASSIGN_OR_THROW(blockType, readBlockType(in_.get()));
+      GLUTEN_CHECK(blockType == BlockType::kDictionaryPayload, "Invalid block type for dictionary payload");
+    } break;
+    case BlockType::kDictionaryPayload: {
+      GLUTEN_CHECK(
+          !dictionaryFields_.empty() && !dictionaries_.empty(),
+          "Dictionaries cannot be empty when reading dictionary payload");
+    } break;
+    case BlockType::kPlainPayload: {
+      if (!dictionaryFields_.empty()) {
+        // Clear previous dictionaries if the next block is a plain payload.
+        dictionaryFields_.clear();
+        dictionaries_.clear();
+      }
+    } break;
+  }
+}
+
 std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
-  if (hasComplexType_) {
+  resolveNextBlockType();
+
+  if (shouldSkipMerge()) {
+    // We have leftover rows from the last mergeable read.
+    if (merged_) {
+      return makeColumnarBatch(rowType_, std::move(merged_), veloxPool_, deserializeTime_);
+    }
+
+    if (reachEos_) {
+      return nullptr;
+    }
+
     uint32_t numRows = 0;
     GLUTEN_ASSIGN_OR_THROW(
         auto arrowBuffers,
         BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, deserializeTime_, decompressTime_));
-    if (arrowBuffers.empty()) {
-      // Reach EOS.
-      return nullptr;
-    }
-    return makeColumnarBatch(rowType_, numRows, std::move(arrowBuffers), veloxPool_, deserializeTime_);
+
+    blockTypeResolved_ = false;
+
+    return makeColumnarBatch(
+        rowType_, numRows, std::move(arrowBuffers), dictionaryFields_, dictionaries_, veloxPool_, deserializeTime_);
   }
 
+  // TODO: Remove merging.
   if (reachEos_) {
     if (merged_) {
       return makeColumnarBatch(rowType_, std::move(merged_), veloxPool_, deserializeTime_);
@@ -331,13 +553,19 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers{};
   uint32_t numRows = 0;
   while (!merged_ || merged_->numRows() < batchSize_) {
+    resolveNextBlockType();
+
+    // Break the merging loop once we reach EOS or read a dictionary block.
+    if (reachEos_ || !dictionaryFields_.empty()) {
+      break;
+    }
+
     GLUTEN_ASSIGN_OR_THROW(
         arrowBuffers,
         BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, deserializeTime_, decompressTime_));
-    if (arrowBuffers.empty()) {
-      reachEos_ = true;
-      break;
-    }
+
+    blockTypeResolved_ = false;
+
     if (!merged_) {
       merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, schema_, std::move(arrowBuffers));
       arrowBuffers.clear();
@@ -415,6 +643,9 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
   }
 
   if (lastRowSize_ != 0) {
+    if (lastRowSize_ > rowBuffer_->size()) {
+      reallocateRowBuffer();
+    }
     readNextRow();
   }
 
@@ -422,22 +653,18 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
     GLUTEN_ASSIGN_OR_THROW(auto bytes, in_->Read(sizeof(RowSizeType), &lastRowSize_));
     if (bytes == 0) {
       reachedEos_ = true;
-      if (cachedRows_ > 0) {
+      if (bytesRead_ > 0) {
         return deserializeToBatch();
       }
       return nullptr;
     }
 
-    if (cachedRows_ > 0 && lastRowSize_ + bytesRead_ > rowBuffer_->size()) {
-      return deserializeToBatch();
-    }
-
-    if (lastRowSize_ > deserializerBufferSize_) {
-      auto newSize = facebook::velox::bits::nextPowerOfTwo(lastRowSize_);
-      LOG(WARNING) << "Row size " << lastRowSize_ << " exceeds deserializer buffer size " << rowBuffer_->size()
-                   << ". Resizing buffer to " << newSize;
-      rowBuffer_ = AlignedBuffer::allocate<char>(newSize, veloxPool_, std::nullopt, true /*allocateExact*/);
-      rowBufferPtr_ = rowBuffer_->asMutable<char>();
+    if (lastRowSize_ + bytesRead_ > rowBuffer_->size()) {
+      if (bytesRead_ > 0) {
+        // If we have already read some rows, return the current batch.
+        return deserializeToBatch();
+      }
+      reallocateRowBuffer();
     }
 
     readNextRow();
@@ -455,6 +682,14 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::deserializeTo
   bytesRead_ = 0;
   data_.resize(0);
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
+void VeloxSortShuffleReaderDeserializer::reallocateRowBuffer() {
+  auto newSize = facebook::velox::bits::nextPowerOfTwo(lastRowSize_);
+  LOG(WARNING) << "Row size " << lastRowSize_ << " exceeds current buffer size " << rowBuffer_->size()
+               << ". Resizing buffer to " << newSize;
+  rowBuffer_ = AlignedBuffer::allocate<char>(newSize, veloxPool_, std::nullopt, true /*allocateExact*/);
+  rowBufferPtr_ = rowBuffer_->asMutable<char>();
 }
 
 void VeloxSortShuffleReaderDeserializer::readNextRow() {

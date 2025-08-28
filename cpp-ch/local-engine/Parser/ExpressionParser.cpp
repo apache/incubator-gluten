@@ -199,13 +199,7 @@ std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expr
 
                 DB::DataTypePtr key_type;
                 std::tie(key_type, tuple[0]) = parse(key_value.key());
-                /// Each key should has the same type
-                if (!common_key_type->equals(*key_type))
-                    throw DB::Exception(
-                        DB::ErrorCodes::LOGICAL_ERROR,
-                        "Literal map key type mismatch:{} and {}",
-                        common_key_type->getName(),
-                        key_type->getName());
+                common_key_type = getLeastSupertype(DB::DataTypes{common_key_type, key_type});
 
                 DB::DataTypePtr value_type;
                 std::tie(value_type, tuple[1]) = parse(key_value.value());

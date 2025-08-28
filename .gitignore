@@ -2,51 +2,24 @@
 *.class
 *.iml
 .DS_Store
-
-# logs
 *.log
 **/core$
-
-# cache files
+hs_err_pid*
 *.cache
+*.war
+*.ear
+.clangd
 
-# MacOS dir files
-.DS_Store
-
-# IDEA config files
+# IDEA config
 .idea/
-*.iml
-*.class
-
+!.idea/vcs.xml
 # vscode config
 .vscode
-
 # vscode scala
 .bloop
 .metals
-
-# clangd
-.clangd
-
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
-
-# Package Files #
-*.war
-*.ear
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-
-.idea/
-target/
-*.iml
-
-**/target/**
-**/dependency-reduced-pom.xml
-
-# logs
-*.log
 
 thirdparty/*.tar*
 CMakeFiles/
@@ -58,8 +31,9 @@ build/
 Testing/
 cmake-build-*/
 ep/_ep/
+**/dependency-reduced-pom.xml
 
-# Editor temporary/working/backup files #
+# Editor temporary/working/backup files
 .#*
 *\#*\#
 [#]*#
@@ -74,12 +48,10 @@ scalastyle-output.xml
 # Generated C++ benchmark data
 backends-velox/generated-native-benchmark/
 backends-velox/spark-warehouse/
-
 # Generated C++ benchmark executables
 cpp/**/benchmarks/**/*
 !cpp/**/benchmarks/**/
 !cpp/**/benchmarks/**/*.*
-
 # Generated C++ example executables
 cpp/**/example/**/*
 !cpp/**/example/**/
@@ -89,13 +61,11 @@ cpp/**/example/**/*
 /cpp-ch/cmake-build-*
 /cpp-ch/local-engine/tests/testConfig.h
 /cpp-ch/build_ch
-
 dist/
-
 /cpp-ch/local-engine/Parser/*_udf
 !/cpp-ch/local-engine/Parser/example_udf
 
-# For Hive
+# Hive metastore
 metastore_db/
 
 .ipynb_checkpoints

@@ -64,6 +64,10 @@ private:
     DB::SharedMutex & getMetadataMutex() const;
     rocksdb::DB & getRocksDB() const;
 
+public:
+    bool isReadOnly() const override {return false; };
+
+private:
     using RocksDBPtr = rocksdb::DB *;
     RocksDBPtr rocksdb = nullptr;
     mutable DB::SharedMutex metadata_mutex;
@@ -80,7 +84,7 @@ class MetadataStorageFromRocksDBTransaction final : public DB::IMetadataTransact
 public:
     MetadataStorageFromRocksDBTransaction(const MetadataStorageFromRocksDB & metadata_storage_) : metadata_storage(metadata_storage_) { }
 
-    void commit() override;
+    void commit(const DB::TransactionCommitOptionsVariant & options) override;
     const DB::IMetadataStorage & getStorageForNonTransactionalReads() const override;
     bool supportsChmod() const override;
     void createEmptyMetadataFile(const std::string & path) override;
@@ -92,6 +96,7 @@ public:
     void removeDirectory(const std::string &) override;
     void removeRecursive(const std::string &) override;
     void unlinkFile(const std::string &) override;
+    std::optional<DB::StoredObjects> tryGetBlobsFromTransactionIfExists(const std::string &) const override;
 
 private:
     const MetadataStorageFromRocksDB & metadata_storage;

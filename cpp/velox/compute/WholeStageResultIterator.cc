@@ -21,6 +21,9 @@
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
+#ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/exec/ToCudf.h"
+#endif
 
 using namespace facebook;
 
@@ -75,7 +78,6 @@ WholeStageResultIterator::WholeStageResultIterator(
   if (spillThreadNum > 0) {
     spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
   }
-
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 
   // Create task instance.
@@ -342,6 +344,7 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
+  // Save and print the plan with stats if debug mode is enabled or showTaskMetricsWhenFinished is true.
   if (veloxCfg_->get<bool>(kDebugModeEnabled, false) ||
       veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
     auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
@@ -442,6 +445,16 @@ void WholeStageResultIterator::collectMetrics() {
 
       metricIndex += 1;
     }
+  }
+
+  // Populate the metrics with task stats for long running tasks.
+  if (const int64_t collectTaskStatsThreshold =
+          veloxCfg_->get<int64_t>(kTaskMetricsToEventLogThreshold, kTaskMetricsToEventLogThresholdDefault);
+      collectTaskStatsThreshold >= 0 &&
+      static_cast<int64_t>(taskStats.terminationTimeMs - taskStats.executionStartTimeMs) >
+          collectTaskStatsThreshold * 1'000) {
+    auto jsonStats = velox::exec::toPlanStatsJson(taskStats);
+    metrics_->stats = folly::toJson(jsonStats);
   }
 }
 
@@ -571,15 +584,24 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSparkLegacyStatisticalAggregate] =
         std::to_string(veloxCfg_->get<bool>(kSparkLegacyStatisticalAggregate, false));
 
+    configs[velox::core::QueryConfig::kSparkJsonIgnoreNullFields] =
+        std::to_string(veloxCfg_->get<bool>(kSparkJsonIgnoreNullFields, true));
+
+#ifdef GLUTEN_ENABLE_GPU
+    if (veloxCfg_->get<bool>(kCudfEnabled, false)) {
+      // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
+      // configs[cudf_velox::kCudfEnabled] = "false";
+    }
+#endif
+
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
       const auto valueOptional = veloxCfg_->get<std::string>(glutenKey);
-      if (valueOptional.hasValue()) {
+      if (valueOptional.has_value()) {
         configs[veloxKey] = valueOptional.value();
       }
     };
     setIfExists(kQueryTraceEnabled, velox::core::QueryConfig::kQueryTraceEnabled);
     setIfExists(kQueryTraceDir, velox::core::QueryConfig::kQueryTraceDir);
-    setIfExists(kQueryTraceNodeIds, velox::core::QueryConfig::kQueryTraceNodeIds);
     setIfExists(kQueryTraceMaxBytes, velox::core::QueryConfig::kQueryTraceMaxBytes);
     setIfExists(kQueryTraceTaskRegExp, velox::core::QueryConfig::kQueryTraceTaskRegExp);
     setIfExists(kOpTraceDirectoryCreateConfig, velox::core::QueryConfig::kOpTraceDirectoryCreateConfig);

@@ -51,6 +51,11 @@ class CHRuleApi extends RuleApi {
 }
 
 object CHRuleApi {
+
+  /**
+   * Registers Spark rules or extensions, except for Gluten's columnar rules that are supposed to be
+   * injected through [[injectLegacy]] / [[injectRas]].
+   */
   private def injectSpark(injector: SparkInjector): Unit = {
     // Inject the regular Spark rules directly.
     injector.injectQueryStagePrepRule(FallbackBroadcastHashJoinPrepQueryStage.apply)
@@ -78,6 +83,10 @@ object CHRuleApi {
     injector.injectPreCBORule(spark => new CHOptimizeMetadataOnlyDeltaQuery(spark))
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed by default in Gluten for
+   * columnar query planning.
+   */
   private def injectLegacy(injector: LegacyInjector): Unit = {
     // Legacy: Pre-transform rules.
     injector.injectPreTransform(_ => RemoveTransitions)
@@ -155,6 +164,12 @@ object CHRuleApi {
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed only when RAS (relational
+   * algebra selector) is enabled by spark.gluten.ras.enabled=true.
+   *
+   * These rules are covered by CI test job spark-test-spark35-ras.
+   */
   private def injectRas(injector: RasInjector): Unit = {
     // CH backend doesn't work with RAS at the moment. Inject a rule that aborts any
     // execution calls.

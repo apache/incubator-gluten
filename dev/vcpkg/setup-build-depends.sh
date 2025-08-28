@@ -33,9 +33,12 @@ install_maven_from_source() {
         fi
 
         cd /tmp
-        wget https://archive.apache.org/dist/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
-        tar -xvf apache-maven-$maven_version-bin.tar.gz
-        rm -f apache-maven-$maven_version-bin.tar.gz
+        local_binary="apache-maven-${maven_version}-bin.tar.gz";
+        mirror_host="https://www.apache.org/dyn/closer.lua";
+        url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download";
+        wget -nv -O ${local_binary} ${url};
+        tar -xvf ${local_binary};
+        rm -rf ${local_binary};
         mv apache-maven-$maven_version "${maven_install_dir}"
         ln -s "${maven_install_dir}/bin/mvn" /usr/local/bin/mvn
     fi
@@ -95,9 +98,10 @@ install_centos_7() {
 
     # Requires git >= 2.7.4
     if [[ "$(git --version)" != "git version 2."* ]]; then
-        [ -f /etc/yum.repos.d/ius.repo ] || yum -y install https://repo.ius.io/ius-release-el7.rpm
         yum -y remove git
-        yum -y install git236
+        # Requires 'centos-release-scl' package to be installed.
+        yum -y install rh-git227
+        source /opt/rh/rh-git227/enable
     fi
 
     # flex>=2.6.0
@@ -156,6 +160,24 @@ install_centos_8() {
     pip3 install cmake==3.28.3
 
     dnf -y --enablerepo=powertools install autoconf-archive ninja-build
+
+    install_maven_from_source
+}
+
+install_centos_9() {
+    yum -y install \
+        wget tar zip unzip git which sudo patch \
+        cmake perl-IPC-Cmd autoconf automake libtool \
+        gcc-toolset-12 \
+        flex bison python3 python3-pip \
+        java-17-openjdk java-17-openjdk-devel
+
+    pip3 install --upgrade pip
+
+    # Requires cmake >= 3.28.3
+    pip3 install cmake==3.28.3
+
+    dnf -y --enablerepo=crb install autoconf-archive ninja-build
 
     install_maven_from_source
 }

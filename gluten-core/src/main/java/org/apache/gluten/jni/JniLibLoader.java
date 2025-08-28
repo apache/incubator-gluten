@@ -106,11 +106,11 @@ public class JniLibLoader {
 
   private File moveToWorkDir(String workDir, String libraryToLoad) throws IOException {
     // final File temp = File.createTempFile(workDir, libraryToLoad);
-    final Path libPath = Paths.get(workDir + "/" + libraryToLoad);
+    final Path libPath = Paths.get(workDir, libraryToLoad);
     if (Files.exists(libPath)) {
       Files.delete(libPath);
     }
-    final File temp = new File(workDir + "/" + libraryToLoad);
+    final File temp = libPath.toFile();
     if (!temp.getParentFile().exists()) {
       temp.getParentFile().mkdirs();
     }

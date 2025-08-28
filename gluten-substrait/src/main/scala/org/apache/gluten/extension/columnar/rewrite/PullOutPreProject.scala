@@ -38,7 +38,17 @@ import scala.collection.mutable
  */
 object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
   override def isRewritable(plan: SparkPlan): Boolean = {
-    RewriteEligibility.isRewritable(plan)
+    plan match {
+      case _: SortExec => true
+      case _: TakeOrderedAndProjectExec => true
+      case _: BaseAggregateExec => true
+      case _: WindowExec => true
+      case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) => true
+      case _: ExpandExec => true
+      case _: GenerateExec => true
+      case _: ArrowEvalPythonExec => true
+      case _ => false
+    }
   }
 
   private def needsPreProject(plan: SparkPlan): Boolean = {
@@ -101,7 +111,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
     sortOrders.map {
       originalOrder =>
         val originalOrderExpressions = mutable.ArrayBuffer[Expression]()
-        val newOrder = originalOrder
+        val modifiedOrder = originalOrder
           .mapChildren {
             child =>
               val newChild = replaceExpressionWithAttribute(child, expressionMap)
@@ -117,8 +127,10 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
               newChild
           }
           .asInstanceOf[SortOrder]
-        newOrder.copy(sameOrderExpressions =
-          newOrder.sameOrderExpressions ++ originalOrderExpressions)
+        val newOrder = modifiedOrder.copy(sameOrderExpressions =
+          modifiedOrder.sameOrderExpressions ++ originalOrderExpressions)
+        newOrder.copyTagsFrom(originalOrder)
+        newOrder
     }
   }
 
@@ -134,11 +146,15 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val preProject = ProjectExec(
         eliminateProjectList(sort.child.outputSet, expressionMap.values.toSeq),
         sort.child)
+      sort.child.logicalLink.foreach(preProject.setLogicalLink)
       val newSort = sort.copy(sortOrder = newSortOrder, child = preProject)
+      newSort.copyTagsFrom(sort)
       // The pre-project and post-project of SortExec always appear together, so it's more
       // convenient to handle them together. Therefore, SortExec's post-project will no longer
       // be pulled out separately.
-      ProjectExec(sort.child.output, newSort)
+      val newProject = ProjectExec(sort.child.output, newSort)
+      newSort.logicalLink.foreach(newProject.setLogicalLink)
+      newProject
 
     case topK: TakeOrderedAndProjectExec if needsPreProject(topK) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
@@ -146,7 +162,10 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val preProject = ProjectExec(
         eliminateProjectList(topK.child.outputSet, expressionMap.values.toSeq),
         topK.child)
-      topK.copy(sortOrder = newSortOrder, child = preProject)
+      topK.child.logicalLink.foreach(preProject.setLogicalLink)
+      val newTopK = topK.copy(sortOrder = newSortOrder, child = preProject)
+      newTopK.copyTagsFrom(topK)
+      newTopK
 
     case agg: BaseAggregateExec if supportedAggregate(agg) && needsPreProject(agg) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
@@ -165,6 +184,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       val preProject = ProjectExec(
         eliminateProjectList(agg.child.outputSet, expressionMap.values.toSeq),
         agg.child)
+      agg.child.logicalLink.foreach(preProject.setLogicalLink)
       newAgg.withNewChildren(Seq(preProject))
 
     case window: WindowExec if needsPreProject(window) =>
@@ -174,7 +194,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       // partitionSpec.
       var newOrderSpec = getNewSortOrder(window.orderSpec, expressionMap)
       val newPartitionSpec =
-        window.partitionSpec.map(replaceExpressionWithAttribute(_, expressionMap))
+        window.partitionSpec.toIndexedSeq.map(replaceExpressionWithAttribute(_, expressionMap))
 
       // Handle windowExpressions.
       newOrderSpec = rewriteOrderSpecs(window, newOrderSpec, expressionMap)
@@ -185,16 +205,22 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
         }
       }
 
+      val newChild = ProjectExec(
+        eliminateProjectList(window.child.outputSet, expressionMap.values.toSeq),
+        window.child)
+      window.child.logicalLink.foreach(newChild.setLogicalLink)
+
       val newWindow = window.copy(
         orderSpec = newOrderSpec,
         partitionSpec = newPartitionSpec,
         windowExpression = newWindowExpressions.asInstanceOf[Seq[NamedExpression]],
-        child = ProjectExec(
-          eliminateProjectList(window.child.outputSet, expressionMap.values.toSeq),
-          window.child)
+        child = newChild
       )
+      newWindow.copyTagsFrom(window)
 
-      ProjectExec(window.output, newWindow)
+      val newProject = ProjectExec(window.output, newWindow)
+      newWindow.logicalLink.foreach(newProject.setLogicalLink)
+      newProject
 
     case plan
         if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) && needsPreProject(plan) =>
@@ -207,36 +233,47 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
 
       // Handle partitionSpec.
       val newPartitionSpec =
-        windowLimit.partitionSpec.map(replaceExpressionWithAttribute(_, expressionMap))
+        windowLimit.partitionSpec.toIndexedSeq.map(replaceExpressionWithAttribute(_, expressionMap))
+
+      val newChild = ProjectExec(
+        eliminateProjectList(windowLimit.child.outputSet, expressionMap.values.toSeq),
+        windowLimit.child)
+      windowLimit.child.logicalLink.foreach(newChild.setLogicalLink)
 
       val newWindowLimitShim = windowLimit.copy(
         orderSpec = newOrderSpec,
         partitionSpec = newPartitionSpec,
-        child = ProjectExec(
-          eliminateProjectList(windowLimit.child.outputSet, expressionMap.values.toSeq),
-          windowLimit.child)
+        child = newChild
       )
+      newWindowLimitShim.copyTagsFrom(windowLimit)
 
       val newWindowLimit = SparkShimLoader.getSparkShims
         .getWindowGroupLimitExec(newWindowLimitShim)
+      newWindowLimit.copyTagsFrom(newWindowLimitShim)
 
-      ProjectExec(plan.output, newWindowLimit)
+      val newProject = ProjectExec(plan.output, newWindowLimit)
+      newWindowLimit.logicalLink.foreach(newProject.setLogicalLink)
+      newProject
 
     case expand: ExpandExec if needsPreProject(expand) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
       val newProjections =
-        expand.projections.map(
-          _.map(
+        expand.projections.toIndexedSeq.map(
+          _.toIndexedSeq.map(
             replaceExpressionWithAttribute(
               _,
               expressionMap,
               replaceBoundReference = false,
               replaceLiteral = false)))
-      expand.copy(
-        projections = newProjections,
-        child = ProjectExec(
-          eliminateProjectList(expand.child.outputSet, expressionMap.values.toSeq),
-          expand.child))
+
+      val newProject = ProjectExec(
+        eliminateProjectList(expand.child.outputSet, expressionMap.values.toSeq),
+        expand.child)
+      expand.child.logicalLink.foreach(newProject.setLogicalLink)
+
+      val newExpand = expand.copy(projections = newProjections, child = newProject)
+      newExpand.copyTagsFrom(expand)
+      newExpand
 
     case generate: GenerateExec =>
       BackendsApiManager.getSparkPlanExecApiInstance.genPreProjectForGenerate(generate)

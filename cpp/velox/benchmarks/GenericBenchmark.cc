@@ -58,11 +58,9 @@ DEFINE_string(
     "rr",
     "Short partitioning name. Valid options are rr, hash, range, single, random (only for test purpose)");
 DEFINE_bool(rss, false, "Mocking rss.");
-DEFINE_string(
-    compression,
-    "lz4",
-    "Specify the compression codec. Valid options are none, lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
+DEFINE_string(compression, "lz4", "Specify the compression codec. Valid options are none, lz4, zstd");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
+DEFINE_bool(shuffle_dictionary, false, "Whether to enable dictionary encoding for shuffle write.");
 
 DEFINE_string(plan, "", "Path to input json file of the substrait plan.");
 DEFINE_string(
@@ -171,15 +169,6 @@ void setCompressionTypeFromFlag(arrow::Compression::type& compressionType, Codec
     compressionType = arrow::Compression::LZ4_FRAME;
   } else if (FLAGS_compression == "zstd") {
     compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "qat_gzip") {
-    codecBackend = CodecBackend::QAT;
-    compressionType = arrow::Compression::GZIP;
-  } else if (FLAGS_compression == "qat_zstd") {
-    codecBackend = CodecBackend::QAT;
-    compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "iaa_gzip") {
-    codecBackend = CodecBackend::IAA;
-    compressionType = arrow::Compression::GZIP;
   } else {
     throw GlutenException("Unrecognized compression type: " + FLAGS_compression);
   }
@@ -208,7 +197,9 @@ createPartitionWriter(Runtime* runtime, const std::string& dataFile, const std::
     return std::make_shared<RssPartitionWriter>(
         FLAGS_shuffle_partitions, createCodec(), runtime->memoryManager(), options, std::move(rssClient));
   }
+
   auto options = std::make_shared<LocalPartitionWriterOptions>();
+  options->enableDictionary = FLAGS_shuffle_dictionary;
   return std::make_unique<LocalPartitionWriter>(
       FLAGS_shuffle_partitions, createCodec(), runtime->memoryManager(), options, dataFile, localDirs);
 }
@@ -383,9 +374,6 @@ void setQueryTraceConfig(std::unordered_map<std::string, std::string>& configs) 
   if (FLAGS_query_trace_max_bytes) {
     configs[kQueryTraceMaxBytes] = std::to_string(FLAGS_query_trace_max_bytes);
   }
-  if (FLAGS_query_trace_node_ids != "") {
-    configs[kQueryTraceNodeIds] = FLAGS_query_trace_node_ids;
-  }
   if (FLAGS_query_trace_task_reg_exp != "") {
     configs[kQueryTraceTaskRegExp] = FLAGS_query_trace_task_reg_exp;
   }
@@ -441,8 +429,9 @@ auto BM_Generic = [](::benchmark::State& state,
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
-          inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
-              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
+          inputIters.push_back(
+              FileReaderIterator::getInputIteratorFromFileReader(
+                  readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
         }
         std::transform(
             inputIters.begin(),

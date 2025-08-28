@@ -256,7 +256,7 @@ MergeTreeDataPartPtr mergeParts(
     auto future_part = std::make_shared<DB::FutureMergedMutatedPart>();
     future_part->uuid = UUIDHelpers::generateV4();
 
-    future_part->assign(std::move(selected_parts));
+    future_part->assign(std::move(selected_parts), /*patch_parts_=*/ {});
     future_part->part_info = MergeListElement::FAKE_RESULT_PART_FOR_PROJECTION;
 
     //TODO: name

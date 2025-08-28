@@ -59,6 +59,10 @@ class ShuffleWriter : public Reclaimable {
 
   virtual int64_t totalC2RTime() const;
 
+  double avgDictionaryFields() const;
+
+  int64_t dictionarySize() const;
+
   const std::vector<int64_t>& partitionLengths() const;
 
   const std::vector<int64_t>& rawPartitionLengths() const;
