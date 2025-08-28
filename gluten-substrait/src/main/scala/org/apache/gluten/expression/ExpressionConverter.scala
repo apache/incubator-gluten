@@ -287,22 +287,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap)
         t.timeExp.dataType match {
           case _: TimestampType =>
-            // For timestamp input, use unix_seconds with custom signature
-            new ExpressionTransformer {
-              override def substraitExprName: String = "unix_seconds"
-              override def children: Seq[ExpressionTransformer] = Seq(timeExpTransformer)
-              override def original: Expression = t
-              override def doTransform(context: SubstraitContext): ExpressionNode = {
-                val funcName: String = ConverterUtils.makeFuncName(
-                  substraitExprName, 
-                  Seq(t.timeExp.dataType)
-                )
-                val functionId = context.registerFunction(funcName)
-                val childNodes = children.map(_.doTransform(context)).asJava
-                val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-                ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
-              }
-            }
+            // For timestamp input, use custom transformer to generate correct signature
+            ToUnixTimestampTransformer(
+              substraitExprName,
+              timeExpTransformer,
+              t
+            )
           case _ =>
             // For other inputs (date, string), use original logic
             val children = Seq(

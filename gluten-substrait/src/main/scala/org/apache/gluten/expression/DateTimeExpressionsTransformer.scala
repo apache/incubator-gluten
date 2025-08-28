@@ -17,8 +17,13 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.TimestampType
+
+import scala.collection.JavaConverters._
 
 /** The extract trait for 'GetDateField' from Date */
 case class ExtractDateTransformer(
@@ -101,4 +106,25 @@ object DateTimeExpressionsTransformer {
     scala.reflect.classTag[Minute].runtimeClass -> "MINUTE",
     scala.reflect.classTag[Second].runtimeClass -> "SECOND"
   )
+}
+
+case class ToUnixTimestampTransformer(
+    substraitExprName: String,
+    timeExp: ExpressionTransformer,
+    original: ToUnixTimestamp)
+  extends ExpressionTransformer {
+
+  override def children: Seq[ExpressionTransformer] = Seq(timeExp)
+
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
+    // Generate signature with only timestamp argument
+    val funcName: String = ConverterUtils.makeFuncName(
+      substraitExprName, // "to_unix_timestamp"
+      Seq(original.timeExp.dataType) // Only timestamp type
+    )
+    val functionId = context.registerFunction(funcName)
+    val childNodes = children.map(_.doTransform(context)).asJava
+    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
+  }
 }
