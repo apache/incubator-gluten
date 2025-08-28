@@ -22,6 +22,7 @@
 
 #include "config/VeloxConfig.h"
 #include "utils/Exception.h"
+#include "utils/Macros.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/storage_adapters/s3fs/S3Config.h"
 
@@ -33,146 +34,132 @@ bool contains(FileSystemType fsType, FileSystemType t) {
   return (static_cast<uint8_t>(fsType) & static_cast<uint8_t>(t)) != 0;
 }
 
-} // namespace
-
-std::string getConfigValue(
-    const std::unordered_map<std::string, std::string>& confMap,
-    const std::string& key,
-    const std::optional<std::string>& fallbackValue) {
-  auto got = confMap.find(key);
-  if (got == confMap.end()) {
-    if (fallbackValue == std::nullopt) {
-      throw std::runtime_error("No such config key: " + key);
-    }
-    return fallbackValue.value();
-  }
-  return got->second;
-}
-
-std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
+void getS3HiveConfig(
     std::shared_ptr<facebook::velox::config::ConfigBase> conf,
-    FileSystemType fsType) {
-  std::unordered_map<std::string, std::string> hiveConfMap;
-
+    FileSystemType fsType,
+    std::unordered_map<std::string, std::string>& hiveConfMap) {
 #ifdef ENABLE_S3
-  if (contains(fsType, FileSystemType::kS3)) {
-    using namespace facebook::velox::filesystems;
-    std::string_view kSparkHadoopS3Prefix = "spark.hadoop.fs.s3a.";
-    std::string_view kSparkHadoopS3BucketPrefix = "spark.hadoop.fs.s3a.bucket.";
+  using namespace facebook::velox::filesystems;
+  std::string_view kSparkHadoopS3Prefix = "spark.hadoop.fs.s3a.";
+  std::string_view kSparkHadoopS3BucketPrefix = "spark.hadoop.fs.s3a.bucket.";
 
-    // Log granularity of AWS C++ SDK
-    const std::string kVeloxAwsSdkLogLevel = "spark.gluten.velox.awsSdkLogLevel";
-    const std::string kVeloxAwsSdkLogLevelDefault = "FATAL";
+  // Log granularity of AWS C++ SDK
+  const std::string kVeloxAwsSdkLogLevel = "spark.gluten.velox.awsSdkLogLevel";
+  const std::string kVeloxAwsSdkLogLevelDefault = "FATAL";
 
-    // Whether to use proxy from env for s3 c++ client
-    const std::string kVeloxS3UseProxyFromEnv = "spark.gluten.velox.s3UseProxyFromEnv";
-    const std::string kVeloxS3UseProxyFromEnvDefault = "false";
+  // Whether to use proxy from env for s3 c++ client
+  const std::string kVeloxS3UseProxyFromEnv = "spark.gluten.velox.s3UseProxyFromEnv";
+  const std::string kVeloxS3UseProxyFromEnvDefault = "false";
 
-    // Payload signing policy
-    const std::string kVeloxS3PayloadSigningPolicy = "spark.gluten.velox.s3PayloadSigningPolicy";
-    const std::string kVeloxS3PayloadSigningPolicyDefault = "Never";
+  // Payload signing policy
+  const std::string kVeloxS3PayloadSigningPolicy = "spark.gluten.velox.s3PayloadSigningPolicy";
+  const std::string kVeloxS3PayloadSigningPolicyDefault = "Never";
 
-    // Log location of AWS C++ SDK
-    const std::string kVeloxS3LogLocation = "spark.gluten.velox.s3LogLocation";
+  // Log location of AWS C++ SDK
+  const std::string kVeloxS3LogLocation = "spark.gluten.velox.s3LogLocation";
 
-    const std::unordered_map<S3Config::Keys, std::pair<std::string, std::optional<std::string>>> sparkSuffixes = {
-        {S3Config::Keys::kAccessKey, std::make_pair("access.key", std::nullopt)},
-        {S3Config::Keys::kSecretKey, std::make_pair("secret.key", std::nullopt)},
-        {S3Config::Keys::kEndpoint, std::make_pair("endpoint", std::nullopt)},
-        {S3Config::Keys::kSSLEnabled, std::make_pair("connection.ssl.enabled", "false")},
-        {S3Config::Keys::kPathStyleAccess, std::make_pair("path.style.access", "false")},
-        {S3Config::Keys::kMaxAttempts, std::make_pair("retry.limit", std::nullopt)},
-        {S3Config::Keys::kRetryMode, std::make_pair("retry.mode", "legacy")},
-        {S3Config::Keys::kMaxConnections, std::make_pair("connection.maximum", "15")},
-        {S3Config::Keys::kSocketTimeout, std::make_pair("connection.timeout", "200s")},
-        {S3Config::Keys::kConnectTimeout, std::make_pair("connection.establish.timeout", "30s")},
-        {S3Config::Keys::kUseInstanceCredentials, std::make_pair("instance.credentials", "false")},
-        {S3Config::Keys::kIamRole, std::make_pair("iam.role", std::nullopt)},
-        {S3Config::Keys::kIamRoleSessionName, std::make_pair("iam.role.session.name", "gluten-session")},
-        {S3Config::Keys::kEndpointRegion, std::make_pair("endpoint.region", std::nullopt)},
-    };
+  const std::unordered_map<S3Config::Keys, std::pair<std::string, std::optional<std::string>>> sparkSuffixes = {
+      {S3Config::Keys::kAccessKey, std::make_pair("access.key", std::nullopt)},
+      {S3Config::Keys::kSecretKey, std::make_pair("secret.key", std::nullopt)},
+      {S3Config::Keys::kEndpoint, std::make_pair("endpoint", std::nullopt)},
+      {S3Config::Keys::kSSLEnabled, std::make_pair("connection.ssl.enabled", "false")},
+      {S3Config::Keys::kPathStyleAccess, std::make_pair("path.style.access", "false")},
+      {S3Config::Keys::kMaxAttempts, std::make_pair("retry.limit", std::nullopt)},
+      {S3Config::Keys::kRetryMode, std::make_pair("retry.mode", "legacy")},
+      {S3Config::Keys::kMaxConnections, std::make_pair("connection.maximum", "15")},
+      {S3Config::Keys::kSocketTimeout, std::make_pair("connection.timeout", "200s")},
+      {S3Config::Keys::kConnectTimeout, std::make_pair("connection.establish.timeout", "30s")},
+      {S3Config::Keys::kUseInstanceCredentials, std::make_pair("instance.credentials", "false")},
+      {S3Config::Keys::kIamRole, std::make_pair("iam.role", std::nullopt)},
+      {S3Config::Keys::kIamRoleSessionName, std::make_pair("iam.role.session.name", "gluten-session")},
+      {S3Config::Keys::kEndpointRegion, std::make_pair("endpoint.region", std::nullopt)},
+  };
 
-    // get Velox S3 config key from Spark Suffix.
-    auto getVeloxKey = [&](std::string_view suffix) {
-      for (const auto& [key, value] : sparkSuffixes) {
-        if (value.first == suffix) {
-          return std::optional<S3Config::Keys>(key);
-        }
+  // get Velox S3 config key from Spark Suffix.
+  auto getVeloxKey = [&](std::string_view suffix) {
+    for (const auto& [key, value] : sparkSuffixes) {
+      if (value.first == suffix) {
+        return std::optional<S3Config::Keys>(key);
       }
-      return std::optional<S3Config::Keys>(std::nullopt);
-    };
+    }
+    return std::optional<S3Config::Keys>(std::nullopt);
+  };
 
-    auto sparkBaseConfigValue = [&](S3Config::Keys key) {
-      std::stringstream ss;
-      auto keyValue = sparkSuffixes.find(key)->second;
-      ss << kSparkHadoopS3Prefix << keyValue.first;
-      auto sparkKey = ss.str();
-      if (conf->valueExists(sparkKey)) {
-        return static_cast<std::optional<std::string>>(conf->get<std::string>(sparkKey));
-      }
-      // Return default value.
-      return keyValue.second;
-    };
+  auto sparkBaseConfigValue = [&](S3Config::Keys key) {
+    std::stringstream ss;
+    auto keyValue = sparkSuffixes.find(key)->second;
+    ss << kSparkHadoopS3Prefix << keyValue.first;
+    auto sparkKey = ss.str();
+    if (conf->valueExists(sparkKey)) {
+      return static_cast<std::optional<std::string>>(conf->get<std::string>(sparkKey));
+    }
+    // Return default value.
+    return keyValue.second;
+  };
 
-    auto setConfigIfPresent = [&](S3Config::Keys key) {
-      auto sparkConfig = sparkBaseConfigValue(key);
-      if (sparkConfig.has_value()) {
-        hiveConfMap[S3Config::baseConfigKey(key)] = sparkConfig.value();
-      }
-    };
+  auto setConfigIfPresent = [&](S3Config::Keys key) {
+    auto sparkConfig = sparkBaseConfigValue(key);
+    if (sparkConfig.has_value()) {
+      hiveConfMap[S3Config::baseConfigKey(key)] = sparkConfig.value();
+    }
+  };
 
-    auto setFromEnvOrConfigIfPresent = [&](std::string_view envName, S3Config::Keys key) {
-      const char* envValue = std::getenv(envName.data());
-      if (envValue != nullptr) {
-        hiveConfMap[S3Config::baseConfigKey(key)] = std::string(envValue);
-      } else {
-        setConfigIfPresent(key);
-      }
-    };
+  auto setFromEnvOrConfigIfPresent = [&](std::string_view envName, S3Config::Keys key) {
+    const char* envValue = std::getenv(envName.data());
+    if (envValue != nullptr) {
+      hiveConfMap[S3Config::baseConfigKey(key)] = std::string(envValue);
+    } else {
+      setConfigIfPresent(key);
+    }
+  };
 
-    setFromEnvOrConfigIfPresent("AWS_ENDPOINT", S3Config::Keys::kEndpoint);
-    setFromEnvOrConfigIfPresent("AWS_MAX_ATTEMPTS", S3Config::Keys::kMaxAttempts);
-    setFromEnvOrConfigIfPresent("AWS_RETRY_MODE", S3Config::Keys::kRetryMode);
-    setFromEnvOrConfigIfPresent("AWS_ACCESS_KEY_ID", S3Config::Keys::kAccessKey);
-    setFromEnvOrConfigIfPresent("AWS_SECRET_ACCESS_KEY", S3Config::Keys::kSecretKey);
-    setConfigIfPresent(S3Config::Keys::kUseInstanceCredentials);
-    setConfigIfPresent(S3Config::Keys::kIamRole);
-    setConfigIfPresent(S3Config::Keys::kIamRoleSessionName);
-    setConfigIfPresent(S3Config::Keys::kSSLEnabled);
-    setConfigIfPresent(S3Config::Keys::kPathStyleAccess);
-    setConfigIfPresent(S3Config::Keys::kMaxConnections);
-    setConfigIfPresent(S3Config::Keys::kSocketTimeout);
-    setConfigIfPresent(S3Config::Keys::kConnectTimeout);
-    setConfigIfPresent(S3Config::Keys::kEndpointRegion);
+  setFromEnvOrConfigIfPresent("AWS_ENDPOINT", S3Config::Keys::kEndpoint);
+  setFromEnvOrConfigIfPresent("AWS_MAX_ATTEMPTS", S3Config::Keys::kMaxAttempts);
+  setFromEnvOrConfigIfPresent("AWS_RETRY_MODE", S3Config::Keys::kRetryMode);
+  setFromEnvOrConfigIfPresent("AWS_ACCESS_KEY_ID", S3Config::Keys::kAccessKey);
+  setFromEnvOrConfigIfPresent("AWS_SECRET_ACCESS_KEY", S3Config::Keys::kSecretKey);
+  setConfigIfPresent(S3Config::Keys::kUseInstanceCredentials);
+  setConfigIfPresent(S3Config::Keys::kIamRole);
+  setConfigIfPresent(S3Config::Keys::kIamRoleSessionName);
+  setConfigIfPresent(S3Config::Keys::kSSLEnabled);
+  setConfigIfPresent(S3Config::Keys::kPathStyleAccess);
+  setConfigIfPresent(S3Config::Keys::kMaxConnections);
+  setConfigIfPresent(S3Config::Keys::kSocketTimeout);
+  setConfigIfPresent(S3Config::Keys::kConnectTimeout);
+  setConfigIfPresent(S3Config::Keys::kEndpointRegion);
 
-    hiveConfMap[S3Config::kS3LogLevel] = conf->get<std::string>(kVeloxAwsSdkLogLevel, kVeloxAwsSdkLogLevelDefault);
-    hiveConfMap[S3Config::baseConfigKey(S3Config::Keys::kUseProxyFromEnv)] =
-        conf->get<std::string>(kVeloxS3UseProxyFromEnv, kVeloxS3UseProxyFromEnvDefault);
-    hiveConfMap[S3Config::kS3PayloadSigningPolicy] =
-        conf->get<std::string>(kVeloxS3PayloadSigningPolicy, kVeloxS3PayloadSigningPolicyDefault);
-    auto logLocation = conf->get<std::string>(kVeloxS3LogLocation);
-    if (logLocation.has_value()) {
-      hiveConfMap[S3Config::kS3LogLocation] = logLocation.value();
-    };
+  hiveConfMap[S3Config::kS3LogLevel] = conf->get<std::string>(kVeloxAwsSdkLogLevel, kVeloxAwsSdkLogLevelDefault);
+  hiveConfMap[S3Config::baseConfigKey(S3Config::Keys::kUseProxyFromEnv)] =
+      conf->get<std::string>(kVeloxS3UseProxyFromEnv, kVeloxS3UseProxyFromEnvDefault);
+  hiveConfMap[S3Config::kS3PayloadSigningPolicy] =
+      conf->get<std::string>(kVeloxS3PayloadSigningPolicy, kVeloxS3PayloadSigningPolicyDefault);
+  auto logLocation = conf->get<std::string>(kVeloxS3LogLocation);
+  if (logLocation.has_value()) {
+    hiveConfMap[S3Config::kS3LogLocation] = logLocation.value();
+  };
 
-    // Convert all Spark bucket configs to Velox bucket configs.
-    for (const auto& [key, value] : conf->rawConfigs()) {
-      if (key.find(kSparkHadoopS3BucketPrefix) == 0) {
-        std::string_view skey = key;
-        auto remaining = skey.substr(kSparkHadoopS3BucketPrefix.size());
-        int dot = remaining.find(".");
-        auto bucketName = remaining.substr(0, dot);
-        auto suffix = remaining.substr(dot + 1);
-        auto veloxKey = getVeloxKey(suffix);
+  // Convert all Spark bucket configs to Velox bucket configs.
+  for (const auto& [key, value] : conf->rawConfigs()) {
+    if (key.find(kSparkHadoopS3BucketPrefix) == 0) {
+      std::string_view skey = key;
+      auto remaining = skey.substr(kSparkHadoopS3BucketPrefix.size());
+      int dot = remaining.find(".");
+      auto bucketName = remaining.substr(0, dot);
+      auto suffix = remaining.substr(dot + 1);
+      auto veloxKey = getVeloxKey(suffix);
 
-        if (veloxKey.has_value()) {
-          hiveConfMap[S3Config::bucketConfigKey(veloxKey.value(), bucketName)] = value;
-        }
+      if (veloxKey.has_value()) {
+        hiveConfMap[S3Config::bucketConfigKey(veloxKey.value(), bucketName)] = value;
       }
     }
   }
 #endif
+}
 
+void getGcsHiveConfig(
+    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
+    FileSystemType fsType,
+    std::unordered_map<std::string, std::string>& hiveConfMap) {
 #ifdef ENABLE_GCS
   if (contains(fsType, FileSystemType::kGcs)) {
     // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
@@ -218,7 +205,12 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
     }
   }
 #endif
+}
 
+void getAbfsHiveConfig(
+    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
+    FileSystemType fsType,
+    std::unordered_map<std::string, std::string>& hiveConfMap) {
 #ifdef ENABLE_ABFS
   if (contains(fsType, FileSystemType::kAbfs)) {
     std::string_view kSparkHadoopPrefix = "spark.hadoop.";
@@ -231,6 +223,49 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
     }
   }
 #endif
+}
+
+} // namespace
+
+std::string getConfigValue(
+    const std::unordered_map<std::string, std::string>& confMap,
+    const std::string& key,
+    const std::optional<std::string>& fallbackValue) {
+  auto got = confMap.find(key);
+  if (got == confMap.end()) {
+    if (fallbackValue == std::nullopt) {
+      throw std::runtime_error("No such config key: " + key);
+    }
+    return fallbackValue.value();
+  }
+  return got->second;
+}
+
+std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
+    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
+    FileSystemType fsType) {
+  std::unordered_map<std::string, std::string> hiveConfMap;
+
+  switch (fsType) {
+    case FileSystemType::kS3:
+      getS3HiveConfig(conf, fsType, hiveConfMap);
+      break;
+    case FileSystemType::kAbfs:
+      getAbfsHiveConfig(conf, fsType, hiveConfMap);
+      break;
+    case FileSystemType::kGcs:
+      getGcsHiveConfig(conf, fsType, hiveConfMap);
+      break;
+    case FileSystemType::kHdfs:
+      break;
+    case FileSystemType::kAll:
+      getS3HiveConfig(conf, fsType, hiveConfMap);
+      getAbfsHiveConfig(conf, fsType, hiveConfMap);
+      getGcsHiveConfig(conf, fsType, hiveConfMap);
+      break;
+    default:
+      GLUTEN_UNREACHABLE();
+  }
 
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";

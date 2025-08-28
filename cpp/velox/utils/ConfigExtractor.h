@@ -28,13 +28,7 @@
 
 namespace gluten {
 
-enum class FileSystemType : uint8_t {
-  kHdfs = 1 << 0,
-  kS3 = 1 << 1,
-  kAbfs = 1 << 2,
-  kGcs = 1 << 3,
-  kAll = (1 << 4) - 1
-};
+enum class FileSystemType : uint8_t { kHdfs, kS3, kAbfs, kGcs, kAll };
 
 std::string getConfigValue(
     const std::unordered_map<std::string, std::string>& confMap,
