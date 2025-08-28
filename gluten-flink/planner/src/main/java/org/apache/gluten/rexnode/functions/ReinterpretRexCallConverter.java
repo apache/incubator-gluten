@@ -18,6 +18,7 @@ package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.ValidationResult;
 import org.apache.gluten.util.LogicalTypeConverter;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
@@ -106,7 +107,7 @@ public class ReinterpretRexCallConverter extends BaseRexCallConverter {
     super(FUNCTION_NAME);
   }
 
-  private boolean isSupported(LogicalTypeRoot targetType, LogicalTypeRoot resultType) {
+  private boolean isSuitable(LogicalTypeRoot targetType, LogicalTypeRoot resultType) {
     if (supportedTypes.containsKey(targetType)) {
       Set<LogicalTypeRoot> valueTypes = supportedTypes.get(targetType);
       return valueTypes.contains(resultType);
@@ -116,24 +117,29 @@ public class ReinterpretRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     if (callNode.getOperands().size() != 1) {
-      return false;
+      return ValidationResult.failure("Function reinterpret operands number must be 1.");
     }
     RexNode rexNode = callNode.getOperands().get(0);
     if (!(rexNode instanceof RexCall)) {
-      return false;
+      return ValidationResult.failure("Function reinterpret operand type is not RexCall.");
     }
     LogicalType resultType = FlinkTypeFactory.toLogicalType(callNode.getType());
     LogicalType targetType = FlinkTypeFactory.toLogicalType(rexNode.getType());
     if (PlannerTypeUtils.isInteroperable(targetType, resultType)) {
-      return true;
+      return ValidationResult.success();
     } else if (resultType.getTypeRoot() == targetType.getTypeRoot()) {
-      return true;
+      return ValidationResult.success();
     } else {
       LogicalTypeRoot targetTypeRoot = targetType.getTypeRoot();
       LogicalTypeRoot resultTypeRoot = resultType.getTypeRoot();
-      return isSupported(targetTypeRoot, resultTypeRoot);
+      return isSuitable(targetTypeRoot, resultTypeRoot)
+          ? ValidationResult.success()
+          : ValidationResult.failure(
+              String.format(
+                  "Function reinterpret target type %s and result type %s is not supported",
+                  targetTypeRoot.name(), resultTypeRoot.name()));
     }
   }
 
