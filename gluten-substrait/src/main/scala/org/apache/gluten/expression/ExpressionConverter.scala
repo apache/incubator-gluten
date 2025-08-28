@@ -303,14 +303,28 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             )
         }
       case u: UnixTimestamp =>
-        GenericExpressionTransformer(
-          substraitExprName,
-          Seq(
-            replaceWithExpressionTransformer0(u.timeExp, attributeSeq, expressionsMap),
-            replaceWithExpressionTransformer0(u.format, attributeSeq, expressionsMap)
-          ),
-          ToUnixTimestamp(u.timeExp, u.format, u.timeZoneId, u.failOnError)
-        )
+        val toUnixTimestamp = ToUnixTimestamp(u.timeExp, u.format, u.timeZoneId, u.failOnError)
+        val timeExpTransformer = replaceWithExpressionTransformer0(u.timeExp, attributeSeq, expressionsMap)
+        
+        u.timeExp.dataType match {
+          case _: TimestampType =>
+            // For timestamp input, use custom transformer to generate correct signature
+            ToUnixTimestampTransformer(
+              substraitExprName,
+              timeExpTransformer,
+              toUnixTimestamp
+            )
+          case _ =>
+            // For other inputs (date, string), use original logic
+            GenericExpressionTransformer(
+              substraitExprName,
+              Seq(
+                timeExpTransformer,
+                replaceWithExpressionTransformer0(u.format, attributeSeq, expressionsMap)
+              ),
+              toUnixTimestamp
+            )
+        }
       case t: TruncTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTruncTimestampTransformer(
           substraitExprName,
