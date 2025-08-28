@@ -19,7 +19,7 @@ package org.apache.spark.shuffle
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.spark.shuffle.gluten.celeborn.CelebornColumnarBatchSerializerFactory
 
-class CHCelebornColumnarBatchSerlizerFactory extends CelebornColumnarBatchSerializerFactory {
+class CHCelebornColumnarBatchSerializerFactory extends CelebornColumnarBatchSerializerFactory {
   override def backendName(): String = BackendsApiManager.getBackendName
 
   override def columnarBatchSerializerClass(): String =
