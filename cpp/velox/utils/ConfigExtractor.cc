@@ -30,10 +30,6 @@ namespace gluten {
 
 namespace {
 
-bool contains(FileSystemType fsType, FileSystemType t) {
-  return (static_cast<uint8_t>(fsType) & static_cast<uint8_t>(t)) != 0;
-}
-
 void getS3HiveConfig(
     std::shared_ptr<facebook::velox::config::ConfigBase> conf,
     FileSystemType fsType,
