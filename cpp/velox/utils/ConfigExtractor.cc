@@ -157,48 +157,45 @@ void getGcsHiveConfig(
     FileSystemType fsType,
     std::unordered_map<std::string, std::string>& hiveConfMap) {
 #ifdef ENABLE_GCS
-  if (contains(fsType, FileSystemType::kGcs)) {
-    // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
-    auto gsStorageRootUrl = conf->get<std::string>("spark.hadoop.fs.gs.storage.root.url");
-    if (gsStorageRootUrl.has_value()) {
-      std::string gcsEndpoint = gsStorageRootUrl.value();
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
+  auto gsStorageRootUrl = conf->get<std::string>("spark.hadoop.fs.gs.storage.root.url");
+  if (gsStorageRootUrl.has_value()) {
+    std::string gcsEndpoint = gsStorageRootUrl.value();
 
-      if (!gcsEndpoint.empty()) {
-        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsEndpoint] = gcsEndpoint;
-      }
+    if (!gcsEndpoint.empty()) {
+      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsEndpoint] = gcsEndpoint;
     }
+  }
 
-    // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#http-transport-configuration
-    // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedErrorCountRetryPolicy
-    auto gsMaxRetryCount = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry");
-    if (gsMaxRetryCount.has_value()) {
-      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryCount] = gsMaxRetryCount.value();
-    }
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#http-transport-configuration
+  // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedErrorCountRetryPolicy
+  auto gsMaxRetryCount = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry");
+  if (gsMaxRetryCount.has_value()) {
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryCount] = gsMaxRetryCount.value();
+  }
 
-    // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedTimeRetryPolicy
-    auto gsMaxRetryTime = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry-time");
-    if (gsMaxRetryTime.has_value()) {
-      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryTime] = gsMaxRetryTime.value();
-    }
+  // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedTimeRetryPolicy
+  auto gsMaxRetryTime = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry-time");
+  if (gsMaxRetryTime.has_value()) {
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryTime] = gsMaxRetryTime.value();
+  }
 
-    // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
-    auto gsAuthType = conf->get<std::string>("spark.hadoop.fs.gs.auth.type");
-    auto gsAuthServiceAccountJsonKeyfile =
-        conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
-    if (gsAuthType.has_value() && gsAuthType.value() == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-      if (gsAuthServiceAccountJsonKeyfile.has_value()) {
-        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
-            gsAuthServiceAccountJsonKeyfile.value();
-      } else {
-        LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
-                        "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
-        throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
-      }
-    } else if (gsAuthServiceAccountJsonKeyfile.has_value()) {
-      LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is set, "
-                      "but conf spark.hadoop.fs.gs.auth.type is not SERVICE_ACCOUNT_JSON_KEYFILE";
-      throw GlutenException("Conf spark.hadoop.fs.gs.auth.type is missing or incorrect");
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
+  auto gsAuthType = conf->get<std::string>("spark.hadoop.fs.gs.auth.type");
+  auto gsAuthServiceAccountJsonKeyfile = conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
+  if (gsAuthType.has_value() && gsAuthType.value() == "SERVICE_ACCOUNT_JSON_KEYFILE") {
+    if (gsAuthServiceAccountJsonKeyfile.has_value()) {
+      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
+          gsAuthServiceAccountJsonKeyfile.value();
+    } else {
+      LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
+                      "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
+      throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
     }
+  } else if (gsAuthServiceAccountJsonKeyfile.has_value()) {
+    LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is set, "
+                    "but conf spark.hadoop.fs.gs.auth.type is not SERVICE_ACCOUNT_JSON_KEYFILE";
+    throw GlutenException("Conf spark.hadoop.fs.gs.auth.type is missing or incorrect");
   }
 #endif
 }
@@ -208,14 +205,12 @@ void getAbfsHiveConfig(
     FileSystemType fsType,
     std::unordered_map<std::string, std::string>& hiveConfMap) {
 #ifdef ENABLE_ABFS
-  if (contains(fsType, FileSystemType::kAbfs)) {
-    std::string_view kSparkHadoopPrefix = "spark.hadoop.";
-    std::string_view kSparkHadoopAbfsPrefix = "spark.hadoop.fs.azure.";
-    for (const auto& [key, value] : conf->rawConfigs()) {
-      if (key.find(kSparkHadoopAbfsPrefix) == 0) {
-        // Remove the SparkHadoopPrefix
-        hiveConfMap[key.substr(kSparkHadoopPrefix.size())] = value;
-      }
+  std::string_view kSparkHadoopPrefix = "spark.hadoop.";
+  std::string_view kSparkHadoopAbfsPrefix = "spark.hadoop.fs.azure.";
+  for (const auto& [key, value] : conf->rawConfigs()) {
+    if (key.find(kSparkHadoopAbfsPrefix) == 0) {
+      // Remove the SparkHadoopPrefix
+      hiveConfMap[key.substr(kSparkHadoopPrefix.size())] = value;
     }
   }
 #endif
