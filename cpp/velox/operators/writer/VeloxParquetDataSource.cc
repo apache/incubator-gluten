@@ -23,14 +23,9 @@
 
 #include "arrow/c/bridge.h"
 #include "compute/VeloxRuntime.h"
-#include "config/GlutenConfig.h"
 
-#include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
-#include "velox/common/compression/Compression.h"
-#include "velox/core/QueryConfig.h"
-#include "velox/core/QueryCtx.h"
-#include "velox/dwio/common/Options.h"
+#include "utils/VeloxWriterUtils.h"
 
 using namespace facebook;
 using namespace facebook::velox::dwio::common;
@@ -38,61 +33,6 @@ using namespace facebook::velox::common;
 using namespace facebook::velox::filesystems;
 
 namespace gluten {
-namespace {
-const int32_t kGzipWindowBits4k = 12;
-}
-
-std::unique_ptr<facebook::velox::parquet::WriterOptions> VeloxParquetDataSource::makeParquetWriteOption(
-    const std::unordered_map<std::string, std::string>& sparkConfs) {
-  int64_t maxRowGroupBytes = 134217728; // 128MB
-  int64_t maxRowGroupRows = 100000000; // 100M
-  if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
-    maxRowGroupBytes = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
-  }
-  if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
-    maxRowGroupRows = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
-  }
-  auto writeOption = std::make_unique<facebook::velox::parquet::WriterOptions>();
-  writeOption->parquetWriteTimestampUnit = TimestampPrecision::kMicroseconds /*micro*/;
-  auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
-  if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
-    auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
-    // spark support none, uncompressed, snappy, gzip, lzo, brotli, lz4, zstd.
-    if (boost::iequals(compressionCodecStr, "snappy")) {
-      compressionCodec = CompressionKind::CompressionKind_SNAPPY;
-    } else if (boost::iequals(compressionCodecStr, "gzip")) {
-      compressionCodec = CompressionKind::CompressionKind_GZIP;
-      if (sparkConfs.find(kParquetGzipWindowSize) != sparkConfs.end()) {
-        auto parquetGzipWindowSizeStr = sparkConfs.find(kParquetGzipWindowSize)->second;
-        if (parquetGzipWindowSizeStr == kGzipWindowSize4k) {
-          auto codecOptions = std::make_shared<facebook::velox::parquet::arrow::util::GZipCodecOptions>();
-          codecOptions->window_bits = kGzipWindowBits4k;
-          writeOption->codecOptions = std::move(codecOptions);
-        }
-      }
-    } else if (boost::iequals(compressionCodecStr, "lzo")) {
-      compressionCodec = CompressionKind::CompressionKind_LZO;
-    } else if (boost::iequals(compressionCodecStr, "brotli")) {
-      // please make sure `brotli` is enabled when compiling
-      throw GlutenException("Gluten+velox does not support write parquet using brotli.");
-    } else if (boost::iequals(compressionCodecStr, "lz4")) {
-      compressionCodec = CompressionKind::CompressionKind_LZ4;
-    } else if (boost::iequals(compressionCodecStr, "zstd")) {
-      compressionCodec = CompressionKind::CompressionKind_ZSTD;
-    } else if (boost::iequals(compressionCodecStr, "uncompressed")) {
-      compressionCodec = CompressionKind::CompressionKind_NONE;
-    } else if (boost::iequals(compressionCodecStr, "none")) {
-      compressionCodec = CompressionKind::CompressionKind_NONE;
-    }
-  }
-  writeOption->compressionKind = compressionCodec;
-  writeOption->flushPolicyFactory = [maxRowGroupRows, maxRowGroupBytes]() {
-    return std::make_unique<velox::parquet::LambdaFlushPolicy>(
-        maxRowGroupRows, maxRowGroupBytes, [&]() { return false; });
-  };
-  writeOption->parquetWriteTimestampTimeZone = getConfigValue(sparkConfs, kSessionTimezone, std::nullopt);
-  return writeOption;
-}
 
 void VeloxParquetDataSource::initSink(const std::unordered_map<std::string, std::string>& /* sparkConfs */) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
@@ -105,7 +45,7 @@ void VeloxParquetDataSource::initSink(const std::unordered_map<std::string, std:
 void VeloxParquetDataSource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   initSink(sparkConfs);
   auto schema = gluten::fromArrowSchema(schema_);
-  const auto writeOption = makeParquetWriteOption(sparkConfs);
+  const auto writeOption = gluten::makeParquetWriteOption(sparkConfs);
   parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), *writeOption, pool_, asRowType(schema));
 }
 

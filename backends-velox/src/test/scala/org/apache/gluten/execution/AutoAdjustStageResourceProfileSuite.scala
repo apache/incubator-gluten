@@ -92,7 +92,9 @@ class AutoAdjustStageResourceProfileSuite
   test("stage contains fallback nodes and apply new resource profile") {
     withSQLConf(
       GlutenConfig.COLUMNAR_SHUFFLE_ENABLED.key -> "false",
-      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD.key -> "0.1") {
+      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO.key -> "0.6",
+      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD.key -> "0.1"
+    ) {
       runQueryAndCompare("select c1, count(*) from tmp1 group by c1") {
         df =>
           val plan = df.queryExecution.executedPlan

@@ -190,7 +190,7 @@ function install_duckdb {
 }
 
 function install_stemmer {
-  wget_and_untar https://github.com/snowballstem/snowball/archive/refs/tags/v${STEMMER_VERSION}.tar.gz stemmer
+  wget_and_untar https://snowballstem.org/dist/libstemmer_c-${STEMMER_VERSION}.tar.gz stemmer
   (
     cd ${DEPENDENCY_DIR}/stemmer
     sed -i '/CPPFLAGS=-Iinclude/ s/$/ -fPIC/' Makefile

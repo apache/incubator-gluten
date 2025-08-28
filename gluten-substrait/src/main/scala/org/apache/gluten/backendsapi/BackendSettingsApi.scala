@@ -34,7 +34,7 @@ import org.apache.hadoop.conf.Configuration
 
 trait BackendSettingsApi {
 
-  /** The columnar-batch type this backend is by default using. */
+  /** The default columnar-batch type of this backend. */
   def primaryBatchType: Convention.BatchType
 
   def validateScanExec(
@@ -159,4 +159,10 @@ trait BackendSettingsApi {
   def reorderColumnsForPartitionWrite(): Boolean = false
 
   def enableEnhancedFeatures(): Boolean = false
+
+  def supportAppendDataExec(): Boolean = false
+
+  def supportReplaceDataExec(): Boolean = false
+
+  def supportOverwriteByExpression(): Boolean = false
 }

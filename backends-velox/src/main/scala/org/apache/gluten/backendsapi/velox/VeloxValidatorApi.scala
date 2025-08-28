@@ -71,9 +71,9 @@ class VeloxValidatorApi extends ValidatorApi {
       case map: MapType =>
         doSchemaValidate(map.keyType).orElse(doSchemaValidate(map.valueType))
       case struct: StructType =>
-        struct.fields.foreach {
-          f =>
-            val reason = doSchemaValidate(f.dataType)
+        struct.foreach {
+          field =>
+            val reason = doSchemaValidate(field.dataType)
             if (reason.isDefined) {
               return reason
             }

@@ -474,6 +474,21 @@ public:
         return DB::makeASTFunction("concat", std::move(arguments));
     }
 
+private:
+    static std::shared_ptr<DB::IPartitionStrategy>
+    make_partition_strategy(const DB::ContextPtr & context, const DB::Names & partition_columns, const DB::Block & input_header)
+    {
+        DB::ASTPtr partition_by = make_partition_expression(partition_columns, input_header);
+        return DB::PartitionStrategyFactory::get(
+            DB::PartitionStrategyFactory::StrategyType::WILDCARD,
+            partition_by,
+            input_header.getNamesAndTypesList(),
+            context,
+            "", // format_name => no need
+            false, // globbed_path  => no need
+            true,
+            true);
+    }
     DB::SinkPtr createSinkForPartition(const String & partition_id) override
     {
         if (bucketed_write_)
@@ -499,11 +514,11 @@ public:
         const DB::Names & partition_by,
         const DB::SharedHeader & input_header,
         const std::shared_ptr<WriteStatsBase> & stats)
-        : PartitionedSink(make_partition_expression(partition_by, *input_header), context, input_header)
+        : PartitionedSink(make_partition_strategy(context, partition_by, *input_header), context, input_header)
         , context_(context)
         , stats_(stats)
-        , bucketed_write_(isBucketedWrite(*input_header))
         , empty_delta_stats_(DeltaStats::create(*input_header, partition_by))
+        , bucketed_write_(isBucketedWrite(*input_header))
     {
     }
 };

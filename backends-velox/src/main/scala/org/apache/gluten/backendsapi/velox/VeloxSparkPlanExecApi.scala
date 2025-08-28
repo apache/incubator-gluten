@@ -17,16 +17,17 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.SparkPlanExecApi
-import org.apache.gluten.config.{GlutenConfig, ReservedKeys, VeloxConfig}
-import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, ReservedKeys, RssSortShuffleWriterType, ShuffleWriterType, SortShuffleWriterType, VeloxConfig}
+import org.apache.gluten.exception.{GlutenExceptionUtil, GlutenNotSupportException}
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
 
-import org.apache.spark.{ShuffleDependency, SparkException}
+import org.apache.spark.{ShuffleDependency, SparkEnv, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
@@ -37,6 +38,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
+import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical._
@@ -115,10 +117,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       right: ExpressionTransformer,
       original: TryEval,
       checkArithmeticExprName: String): ExpressionTransformer = {
-    if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original.child)) {
-      throw new GlutenNotSupportException(
-        s"${original.child.prettyName} with ansi mode is not supported")
-    }
     original.child.dataType match {
       case LongType | IntegerType | ShortType | ByteType =>
       case _ => throw new GlutenNotSupportException(s"$substraitExprName is not supported")
@@ -151,19 +149,20 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         ExpressionMappings.expressionsMap(classOf[TryEval]),
         Seq(GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)),
         original)
-    } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
-      throw new GlutenNotSupportException(s"$substraitExprName with ansi mode is not supported")
-    } else {
-      if (
-        left.dataType.isInstanceOf[DecimalType] && right.dataType
-          .isInstanceOf[DecimalType] && !SQLConf.get.decimalOperationsAllowPrecisionLoss
-      ) {
-        // https://github.com/facebookincubator/velox/pull/10383
-        val newName = substraitExprName + "_deny_precision_loss"
-        GenericExpressionTransformer(newName, Seq(left, right), original)
-      } else {
-        GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
+    } else if (
+      left.dataType.isInstanceOf[DecimalType] &&
+      right.dataType.isInstanceOf[DecimalType] &&
+      !SQLConf.get.decimalOperationsAllowPrecisionLoss
+    ) {
+      if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
+        throw new GlutenNotSupportException(s"$substraitExprName with ansi mode is not supported")
       }
+      val newName = substraitExprName + "_deny_precision_loss"
+      GenericExpressionTransformer(newName, Seq(left, right), original)
+    } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
+      GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)
+    } else {
+      GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
     }
   }
 
@@ -495,6 +494,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       isSkewJoin,
       projectList)
   }
+
   override def genCartesianProductExecTransformer(
       left: SparkPlan,
       right: SparkPlan,
@@ -534,7 +534,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      shuffleWriterType: ShuffleWriterType)
+      : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     // scalastyle:on argcount
     ExecUtil.genShuffleDependency(
       rdd,
@@ -543,19 +544,40 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       serializer,
       writeMetrics,
       metrics,
-      isSort)
+      shuffleWriterType)
   }
   // scalastyle:on argcount
 
   /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
-  override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
+  override def getShuffleWriterType(
+      partitioning: Partitioning,
+      output: Seq[Attribute]): ShuffleWriterType = {
     val conf = GlutenConfig.get
-    lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
-      conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
-    partitioning != SinglePartition &&
-    (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
-      output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold) ||
-    isCelebornSortBasedShuffle
+    // todo: remove isUseCelebornShuffleManager here
+    if (conf.isUseCelebornShuffleManager) {
+      if (conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER) {
+        if (conf.useCelebornRssSort) {
+          RssSortShuffleWriterType
+        } else if (partitioning != SinglePartition) {
+          SortShuffleWriterType
+        } else {
+          // If not using rss sort, we still use hash shuffle writer for single partitioning.
+          HashShuffleWriterType
+        }
+      } else {
+        HashShuffleWriterType
+      }
+    } else {
+      if (
+        partitioning != SinglePartition &&
+        (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
+          output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold)
+      ) {
+        SortShuffleWriterType
+      } else {
+        HashShuffleWriterType
+      }
+    }
   }
 
   /**
@@ -603,24 +625,32 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def createColumnarBatchSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): Serializer = {
+      shuffleWriterType: ShuffleWriterType): Serializer = {
     val numOutputRows = metrics("numOutputRows")
     val deserializeTime = metrics("deserializeTime")
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val decompressTime = metrics("decompressTime")
-    if (GlutenConfig.get.isUseCelebornShuffleManager) {
-      val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
-      val constructor =
-        clazz.getConstructor(classOf[StructType], classOf[SQLMetric], classOf[SQLMetric])
-      constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
-    } else {
-      new ColumnarBatchSerializer(
-        schema,
-        readBatchNumRows,
-        numOutputRows,
-        deserializeTime,
-        decompressTime,
-        isSort)
+    SparkEnv.get.shuffleManager match {
+      case serializer: NeedCustomColumnarBatchSerializer =>
+        val className = serializer.columnarBatchSerializerClass()
+        val clazz = ClassUtils.getClass(className)
+        val constructor =
+          clazz.getConstructor(
+            classOf[StructType],
+            classOf[SQLMetric],
+            classOf[SQLMetric],
+            classOf[ShuffleWriterType])
+        constructor
+          .newInstance(schema, readBatchNumRows, numOutputRows, shuffleWriterType)
+          .asInstanceOf[Serializer]
+      case _ =>
+        new ColumnarBatchSerializer(
+          schema,
+          readBatchNumRows,
+          numOutputRows,
+          deserializeTime,
+          decompressTime,
+          shuffleWriterType)
     }
   }
 
@@ -704,7 +734,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
         != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
     ) {
-      throw new GlutenNotSupportException("Only EXCEPTION policy is supported!")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.STR_TO_MAP,
+        StrToMapRestrictions.ONLY_SUPPORT_MAP_KEY_DEDUP_POLICY
+      )
     }
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
@@ -726,15 +759,20 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     if (!enablePartialResults) {
       // Velox only supports partial results mode. We need to fall back this when
       // 'spark.sql.json.enablePartialResults' is set to false or not defined.
-      throw new GlutenNotSupportException(
-        s"'from_json' with 'spark.sql.json.enablePartialResults = false' is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.MUST_ENABLE_PARTIAL_RESULTS
+      )
     }
-    if (!expr.options.isEmpty) {
-      throw new GlutenNotSupportException("'from_json' with options is not supported in Velox")
+    if (expr.options.nonEmpty) {
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.NOT_SUPPORT_WITH_OPTIONS)
     }
     if (SQLConf.get.caseSensitiveAnalysis) {
-      throw new GlutenNotSupportException(
-        "'from_json' with 'spark.sql.caseSensitive = true' is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.NOT_SUPPORT_CASE_SENSITIVE)
     }
 
     val hasDuplicateKey = expr.schema match {
@@ -751,8 +789,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         false
     }
     if (hasDuplicateKey) {
-      throw new GlutenNotSupportException(
-        "'from_json' with duplicate keys is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.NOT_SUPPORT_DUPLICATE_KEYS)
     }
     val hasCorruptRecord = expr.schema match {
       case s: StructType =>
@@ -761,10 +800,63 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         false
     }
     if (hasCorruptRecord) {
-      throw new GlutenNotSupportException(
-        "'from_json' with column corrupt record is not supported in Velox")
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.FROM_JSON,
+        FromJsonRestrictions.NOT_SUPPORT_COLUMN_CORRUPT_RECORD)
     }
     GenericExpressionTransformer(substraitExprName, children, expr)
+  }
+
+  /** Generate an expression transformer to transform StructsToJson to Substrait. */
+  override def genToJsonTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: StructsToJson): ExpressionTransformer = {
+    if (!expr.options.isEmpty) {
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.TO_JSON,
+        ToJsonRestrictions.NOT_SUPPORT_WITH_OPTIONS)
+    }
+    if (
+      !SQLConf.get.caseSensitiveAnalysis &&
+      ExpressionUtils.hasUppercaseStructFieldName(child.dataType)
+    ) {
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.TO_JSON,
+        ToJsonRestrictions.NOT_SUPPORT_UPPERCASE_STRUCT)
+    }
+    ToJsonTransformer(substraitExprName, child, expr)
+  }
+
+  override def genUnbase64Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: UnBase64): ExpressionTransformer = {
+    if (SparkShimLoader.getSparkShims.unBase64FunctionFailsOnError(expr)) {
+      GlutenExceptionUtil
+        .throwsNotFullySupported(
+          ExpressionNames.UNBASE64,
+          Unbase64Restrictions.NOT_SUPPORT_FAIL_ON_ERROR
+        )
+    }
+    GenericExpressionTransformer(substraitExprName, child, expr)
+  }
+
+  override def genBase64StaticInvokeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: StaticInvoke): ExpressionTransformer = {
+    if (!SQLConf.get.getConfString("spark.sql.chunkBase64String.enabled", "true").toBoolean) {
+      GlutenExceptionUtil
+        .throwsNotFullySupported(
+          ExpressionNames.BASE64,
+          Base64Restrictions.NOT_SUPPORT_DISABLE_CHUNK_BASE64_STRING)
+    }
+    GenericExpressionTransformer(
+      ExpressionNames.BASE64,
+      child,
+      expr
+    )
   }
 
   /** Generate an expression transformer to transform NamedStruct to Substrait. */
@@ -927,5 +1019,33 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   override def genColumnarToCarrierRow(plan: SparkPlan): SparkPlan = {
     VeloxColumnarToCarrierRowExec.enforce(plan)
+  }
+
+  override def genTimestampAddTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    // Since spark 3.3.0
+    val extract =
+      SparkShimLoader.getSparkShims.extractExpressionTimestampAddUnit(original)
+    if (extract.isEmpty) {
+      throw new UnsupportedOperationException(s"Not support expression TimestampAdd.")
+    }
+    TimestampAddTransformer(substraitExprName, extract.get.head, left, right, original)
+  }
+
+  override def genTimestampDiffTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    // Since spark 3.3.0
+    val extract =
+      SparkShimLoader.getSparkShims.extractExpressionTimestampDiffUnit(original)
+    if (extract.isEmpty) {
+      throw new UnsupportedOperationException(s"Not support expression TimestampDiff.")
+    }
+    TimestampDiffTransformer(substraitExprName, extract.get, left, right, original)
   }
 }

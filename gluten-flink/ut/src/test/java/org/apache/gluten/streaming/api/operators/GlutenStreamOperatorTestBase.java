@@ -18,7 +18,7 @@ package org.apache.gluten.streaming.api.operators;
 
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.table.runtime.stream.common.Velox4jEnvironment;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
@@ -113,7 +113,7 @@ public abstract class GlutenStreamOperatorTestBase {
   }
 
   protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-      GlutenSingleInputOperator operator,
+      GlutenOneInputOperator operator,
       TypeInformation<RowData> inputTypeInfo,
       TypeInformation<RowData> outputTypeInfo)
       throws Exception {
@@ -151,7 +151,7 @@ public abstract class GlutenStreamOperatorTestBase {
     return actualOutput;
   }
 
-  protected GlutenSingleInputOperator createTestOperator(
+  protected GlutenOneInputOperator createTestOperator(
       PlanNode veloxPlan,
       TypeInformation<RowData> inputTypeInfo,
       TypeInformation<RowData> outputTypeInfo) {
@@ -161,7 +161,7 @@ public abstract class GlutenStreamOperatorTestBase {
     io.github.zhztheplayer.velox4j.type.RowType outputVeloxType =
         convertToVeloxType(((InternalTypeInfo<RowData>) outputTypeInfo).toRowType());
 
-    return new GlutenSingleInputOperator(
+    return new GlutenOneInputOperator(
         new StatefulPlanNode(veloxPlan.getId(), veloxPlan),
         PlanNodeIdGenerator.newId(),
         inputVeloxType,

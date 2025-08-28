@@ -36,10 +36,9 @@ arrow::Status RssPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
       compressTime_ = compressedOs_->compressTime();
       spillTime_ -= compressTime_;
     }
-    RETURN_NOT_OK(rssOs_->Flush());
-    ARROW_ASSIGN_OR_RAISE(const auto evicted, rssOs_->Tell());
-    bytesEvicted_[lastEvictedPartitionId_] += evicted;
-    RETURN_NOT_OK(rssOs_->Close());
+    ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
+    bytesEvicted_[lastEvictedPartitionId_] +=
+        rssClient_->pushPartitionData(lastEvictedPartitionId_, buffer->data_as<char>(), buffer->size());
   }
 
   rssClient_->stop();
@@ -73,19 +72,18 @@ RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayl
   ScopedTimer timer(&spillTime_);
   if (lastEvictedPartitionId_ != partitionId) {
     if (lastEvictedPartitionId_ != -1) {
-      GLUTEN_DCHECK(rssOs_ != nullptr && !rssOs_->closed(), "RssPartitionWriterOutputStream should not be null");
+      GLUTEN_DCHECK(rssOs_ != nullptr && !rssOs_->closed(), "rssOs_ should not be null");
       if (compressedOs_ != nullptr) {
         RETURN_NOT_OK(compressedOs_->Flush());
       }
-      RETURN_NOT_OK(rssOs_->Flush());
-      ARROW_ASSIGN_OR_RAISE(const auto evicted, rssOs_->Tell());
-      bytesEvicted_[lastEvictedPartitionId_] += evicted;
-      RETURN_NOT_OK(rssOs_->Close());
+
+      ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
+      bytesEvicted_[lastEvictedPartitionId_] +=
+          rssClient_->pushPartitionData(lastEvictedPartitionId_, buffer->data_as<char>(), buffer->size());
     }
 
-    rssOs_ =
-        std::make_shared<RssPartitionWriterOutputStream>(partitionId, rssClient_.get(), options_->pushBufferMaxSize);
-    RETURN_NOT_OK(rssOs_->init());
+    ARROW_ASSIGN_OR_RAISE(
+        rssOs_, arrow::io::BufferOutputStream::Create(options_->pushBufferMaxSize, arrow::default_memory_pool()));
     if (codec_ != nullptr) {
       ARROW_ASSIGN_OR_RAISE(
           compressedOs_,

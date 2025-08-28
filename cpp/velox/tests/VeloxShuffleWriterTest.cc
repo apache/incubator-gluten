@@ -43,6 +43,7 @@ struct ShuffleTestParams {
   int32_t diskWriteBufferSize{0};
   bool useRadixSort{false};
   bool enableDictionary{false};
+  int64_t deserializerBufferSize{0};
 
   std::string toString() const {
     std::ostringstream out;
@@ -52,7 +53,8 @@ struct ShuffleTestParams {
         << ", compressionThreshold = " << compressionThreshold << ", mergeBufferSize = " << mergeBufferSize
         << ", compressionBufferSize = " << diskWriteBufferSize
         << ", useRadixSort = " << (useRadixSort ? "true" : "false")
-        << ", enableDictionary = " << (enableDictionary ? "true" : "false");
+        << ", enableDictionary = " << (enableDictionary ? "true" : "false")
+        << ", deserializerBufferSize = " << deserializerBufferSize;
     return out.str();
   }
 };
@@ -106,12 +108,15 @@ std::vector<ShuffleTestParams> getTestParams() {
     for (const auto partitionWriterType : {PartitionWriterType::kLocal, PartitionWriterType::kRss}) {
       for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
         for (const bool useRadixSort : {true, false}) {
-          params.push_back(ShuffleTestParams{
-              .shuffleWriterType = ShuffleWriterType::kSortShuffle,
-              .partitionWriterType = partitionWriterType,
-              .compressionType = compression,
-              .diskWriteBufferSize = diskWriteBufferSize,
-              .useRadixSort = useRadixSort});
+          for (const auto deserializerBufferSize : {static_cast<int64_t>(1L), kDefaultDeserializerBufferSize}) {
+            params.push_back(ShuffleTestParams{
+                .shuffleWriterType = ShuffleWriterType::kSortShuffle,
+                .partitionWriterType = partitionWriterType,
+                .compressionType = compression,
+                .diskWriteBufferSize = diskWriteBufferSize,
+                .useRadixSort = useRadixSort,
+                .deserializerBufferSize = deserializerBufferSize});
+          }
         }
       }
     }
@@ -297,7 +302,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
         rowType,
         kDefaultBatchSize,
         kDefaultReadBufferSize,
-        kDefaultDeserializerBufferSize,
+        GetParam().deserializerBufferSize,
         getDefaultMemoryManager()->defaultArrowMemoryPool(),
         pool_,
         GetParam().shuffleWriterType);

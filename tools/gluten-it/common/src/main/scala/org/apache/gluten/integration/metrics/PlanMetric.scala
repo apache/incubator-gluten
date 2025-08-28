@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.integration.metrics
 
 import org.apache.gluten.integration.action.TableRender
@@ -50,10 +49,12 @@ case class PlanMetric(
 
 object PlanMetric {
   def newReporter(`type`: String): Reporter = `type` match {
-    case "execution-time" => new ChainedReporter(Seq(
-      new NodeTimeReporter(10),
-      new StepTimeReporter(30)
-    ))
+    case "execution-time" =>
+      new ChainedReporter(
+        Seq(
+          new NodeTimeReporter(10),
+          new StepTimeReporter(30)
+        ))
     case other => throw new IllegalArgumentException(s"Metric reporter type $other not defined")
   }
 
@@ -64,7 +65,7 @@ object PlanMetric {
   private class ChainedReporter(reporter: Seq[Reporter]) extends Reporter {
     override def toString(metrics: Seq[PlanMetric]): String = {
       val sb = new StringBuilder()
-      reporter.foreach{
+      reporter.foreach {
         r =>
           sb.append(r.toString(metrics))
           sb.append(System.lineSeparator())
@@ -120,21 +121,21 @@ object PlanMetric {
     override def toString(metrics: Seq[PlanMetric]): String = {
       val sb = new StringBuilder()
       val selfTimes = metrics
-          .filter(_.containsTags[MetricTag.IsSelfTime])
+        .filter(_.containsTags[MetricTag.IsSelfTime])
       val rows: Seq[TableRow] = selfTimes
-          .groupBy(m => m.plan.id)
-          .toSeq
-          .map {
-            perPlanId =>
-              assert(perPlanId._2.map(_.plan.id).distinct.count(_ => true) == 1)
-              assert(perPlanId._2.map(_.queryPath).distinct.count(_ => true) == 1)
-              val head = perPlanId._2.head
-              TableRow(
-                head.queryPath,
-                head.plan,
-                perPlanId._2.map(m => toNanoTime(m.metric)).sum,
-                perPlanId._2.map(m => (m.key, m.metric)))
-          }
+        .groupBy(m => m.plan.id)
+        .toSeq
+        .map {
+          perPlanId =>
+            assert(perPlanId._2.map(_.plan.id).distinct.count(_ => true) == 1)
+            assert(perPlanId._2.map(_.queryPath).distinct.count(_ => true) == 1)
+            val head = perPlanId._2.head
+            TableRow(
+              head.queryPath,
+              head.plan,
+              perPlanId._2.map(m => toNanoTime(m.metric)).sum,
+              perPlanId._2.map(m => (m.key, m.metric)))
+        }
       val sorted = rows.sortBy(m => m.selfTimeNs)(Ordering.Long.reverse)
       sb.append(s"Top $topN plan nodes that took longest time to execute: ")
       sb.append(System.lineSeparator())
@@ -148,12 +149,7 @@ object PlanMetric {
       for (i <- 0 until (topN.min(sorted.size))) {
         val row = sorted(i)
         val f = new File(row.queryPath).toPath.getFileName.toString
-        tr.appendRow(
-          Seq(
-            f,
-            row.plan.id.toString,
-            row.plan.nodeName,
-            s"${row.selfTimeNs}"))
+        tr.appendRow(Seq(f, row.plan.id.toString, row.plan.nodeName, s"${row.selfTimeNs}"))
       }
       val out = new ByteArrayOutputStream()
       tr.print(out)

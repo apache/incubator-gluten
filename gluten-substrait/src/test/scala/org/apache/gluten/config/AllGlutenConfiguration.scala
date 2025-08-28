@@ -191,7 +191,10 @@ object AllGlutenConfiguration {
           s" Please regenerate it by running `${regenScript.stripMargin}`. "
         } else ""
       }
-      var fileLineCount = 0
+      val fileLineCount = fileLinesIter.length
+      withClue(s"Line number is not expected. $regenerationHint") {
+        assertResult(expectedLinesIter.size)(fileLineCount)(prettifier, pos)
+      }
       fileLinesIter.zipWithIndex
         .zip(expectedLinesIter)
         .foreach {
@@ -200,11 +203,7 @@ object AllGlutenConfiguration {
             withClue(s"Line $lineNum is not expected. $regenerationHint") {
               assertResult(expectedLine)(lineInFile)(prettifier, pos)
             }
-            fileLineCount = Math.max(lineNum, fileLineCount)
         }
-      withClue(s"Line number is not expected. $regenerationHint") {
-        assertResult(expectedLinesIter.size)(fileLineCount)(prettifier, pos)
-      }
     } finally {
       fileSource.close()
     }

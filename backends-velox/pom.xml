@@ -5,7 +5,7 @@
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>org.apache.gluten</groupId>
-    <version>1.5.0-SNAPSHOT</version>
+    <version>1.6.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -21,12 +21,12 @@
 
   <profiles>
     <profile>
-      <id>udf</id>
+      <id>exclude-tests</id>
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
-        <tagsToExclude>org.apache.gluten.tags.UDFTest</tagsToExclude>
+        <tagsToExclude>org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.spark.tags.SkipTest</tagsToExclude>
       </properties>
     </profile>
     <profile>
@@ -111,6 +111,20 @@
           <version>${iceberg.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.parquet</groupId>
+              <artifactId>parquet-avro</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.parquet</groupId>
+              <artifactId>parquet-common</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.parquet</groupId>
+              <artifactId>parquet-hadoop</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
@@ -132,6 +146,12 @@
           <version>${iceberg.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.parquet</groupId>
+              <artifactId>parquet-avro</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
@@ -207,6 +227,32 @@
           <groupId>org.apache.hudi</groupId>
           <artifactId>hudi-spark${sparkbundle.version}-bundle_${scala.binary.version}</artifactId>
           <version>${hudi.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>paimon</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.paimon</groupId>
+          <artifactId>paimon-spark-${sparkbundle.version}</artifactId>
+          <version>${paimon.version}</version>
           <scope>provided</scope>
         </dependency>
       </dependencies>
@@ -457,6 +503,28 @@
             <goals>
               <goal>test-jar</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- compile proto buffer files using copied protoc binary -->
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>compile-gluten-proto</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>compile</goal>
+              <goal>test-compile</goal>
+            </goals>
+            <configuration>
+              <protocArtifact>
+                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+              </protocArtifact>
+              <protoSourceRoot>src/main/resources/org/apache/gluten/proto</protoSourceRoot>
+              <clearOutputDirectory>false</clearOutputDirectory>
+            </configuration>
           </execution>
         </executions>
       </plugin>
