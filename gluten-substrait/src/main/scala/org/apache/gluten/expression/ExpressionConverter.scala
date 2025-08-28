@@ -19,8 +19,6 @@ package org.apache.gluten.expression
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.DecimalArithmeticUtil
 
@@ -35,7 +33,6 @@ import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 trait Transformable {

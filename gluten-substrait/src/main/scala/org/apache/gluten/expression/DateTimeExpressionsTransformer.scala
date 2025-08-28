@@ -21,7 +21,6 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.TimestampType
 
 import scala.collection.JavaConverters._
 
