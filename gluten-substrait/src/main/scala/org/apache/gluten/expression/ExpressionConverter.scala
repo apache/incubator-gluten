@@ -276,38 +276,20 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           replaceWithExpressionTransformer0(r.child, attributeSeq, expressionsMap),
           r)
-      case t: ToUnixTimestamp =>
+      case expr @ (_: ToUnixTimestamp | _: UnixTimestamp) =>
+        // Extract common fields - both ToUnixTimestamp and UnixTimestamp have the same fields
+        val (timeExp, format, timeZoneId, failOnError) = expr match {
+          case t: ToUnixTimestamp => (t.timeExp, t.format, t.timeZoneId, t.failOnError)
+          case u: UnixTimestamp => (u.timeExp, u.format, u.timeZoneId, u.failOnError)
+        }
         // The failOnError depends on the config for ANSI. ANSI is not supported currently.
         // And timeZoneId is passed to backend config.
-        // For timestamp and date inputs, the format parameter is ignored as per Spark behavior.
+        val toUnixTimestamp = ToUnixTimestamp(timeExp, format, timeZoneId, failOnError)
         val timeExpTransformer =
-          replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap)
-        t.timeExp.dataType match {
-          case _: TimestampType =>
-            // For timestamp input, use custom transformer to generate correct signature
-            ToUnixTimestampTransformer(
-              substraitExprName,
-              timeExpTransformer,
-              t
-            )
-          case _ =>
-            // For other inputs (date, string), use original logic
-            val children = Seq(
-              timeExpTransformer,
-              replaceWithExpressionTransformer0(t.format, attributeSeq, expressionsMap)
-            )
-            GenericExpressionTransformer(
-              substraitExprName,
-              children,
-              t
-            )
-        }
-      case u: UnixTimestamp =>
-        val toUnixTimestamp = ToUnixTimestamp(u.timeExp, u.format, u.timeZoneId, u.failOnError)
-        val timeExpTransformer =
-          replaceWithExpressionTransformer0(u.timeExp, attributeSeq, expressionsMap)
+          replaceWithExpressionTransformer0(timeExp, attributeSeq, expressionsMap)
 
-        u.timeExp.dataType match {
+        // For timestamp and date inputs, the format parameter is ignored as per Spark behavior.
+        timeExp.dataType match {
           case _: TimestampType =>
             // For timestamp input, use custom transformer to generate correct signature
             ToUnixTimestampTransformer(
@@ -321,7 +303,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
               substraitExprName,
               Seq(
                 timeExpTransformer,
-                replaceWithExpressionTransformer0(u.format, attributeSeq, expressionsMap)
+                replaceWithExpressionTransformer0(format, attributeSeq, expressionsMap)
               ),
               toUnixTimestamp
             )
