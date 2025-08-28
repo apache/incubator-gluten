@@ -16,11 +16,12 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, IdentityBroadcastMode}
 import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, ObjectInputStream, ObjectOutputStream}
 
 /**
  * Provides serialization-safe representations of BroadcastMode to avoid issues with circular
@@ -45,7 +46,7 @@ final case class HashSafeBroadcastMode(ordinals: Array[Int], isNullAware: Boolea
 final case class HashExprSafeBroadcastMode(exprBytes: Array[Byte], isNullAware: Boolean)
   extends SafeBroadcastMode
 
-object BroadcastModeUtils {
+object BroadcastModeUtils extends Logging {
 
   /**
    * Converts a BroadcastMode to its SafeBroadcastMode equivalent. Uses ordinals for simple
@@ -91,6 +92,17 @@ object BroadcastModeUtils {
       oos.writeObject(keys)
       oos.flush()
       bos.toByteArray
+    } catch {
+      case e @ (_: IOException | _: ClassNotFoundException | _: ClassCastException) =>
+        logError(
+          s"Failed to serialize expressions for BroadcastMode. Expression count: ${keys.length}",
+          e)
+        throw new RuntimeException("Failed to serialize expressions for BroadcastMode", e)
+      case e: Exception =>
+        logError(
+          s"Unexpected error during expression serialization. Expression count: ${keys.length}",
+          e)
+        throw e
     } finally {
       if (oos != null) oos.close()
       bos.close()
@@ -103,6 +115,17 @@ object BroadcastModeUtils {
     try {
       ois = new ObjectInputStream(bis)
       ois.readObject().asInstanceOf[Seq[Expression]]
+    } catch {
+      case e @ (_: IOException | _: ClassNotFoundException | _: ClassCastException) =>
+        logError(
+          s"Failed to deserialize expressions for BroadcastMode. Data size: ${bytes.length} bytes",
+          e)
+        throw new RuntimeException("Failed to deserialize expressions for BroadcastMode", e)
+      case e: Exception =>
+        logError(
+          s"Unexpected error during expression deserialization. Data size: ${bytes.length} bytes",
+          e)
+        throw e
     } finally {
       if (ois != null) ois.close()
       bis.close()
