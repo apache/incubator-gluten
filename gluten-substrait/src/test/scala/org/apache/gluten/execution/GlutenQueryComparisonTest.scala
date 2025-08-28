@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql
+package org.apache.gluten.execution
 
 /**
  * This test utility allows developer compares the test result with vanilla Spark easily, and can
@@ -24,6 +24,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.test.FallbackUtil
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
 
 import java.util.concurrent.atomic.AtomicBoolean
 
