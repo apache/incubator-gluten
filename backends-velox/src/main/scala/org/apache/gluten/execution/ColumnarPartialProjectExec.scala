@@ -172,10 +172,15 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
               Iterator.empty
             } else {
               val start = System.currentTimeMillis()
+              val batchType = ColumnarBatches.identifyBatchType(batch)
               val childData = ColumnarBatches
-                .select(BackendsApiManager.getBackendName, batch, projectIndexInChild.toArray)
+                .select(
+                  BackendsApiManager.getBackendName,
+                  batch,
+                  batchType,
+                  projectIndexInChild.toArray)
               try {
-                val projectedBatch = getProjectedBatchArrow(childData, c2a, a2c)
+                val projectedBatch = getProjectedBatchArrow(childData, batchType, c2a, a2c)
                 val batchIterator = projectedBatch.map {
                   b =>
                     if (b.numCols() != 0) {
@@ -184,7 +189,7 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
                       compositeBatch
                     } else {
                       b.close()
-                      ColumnarBatches.retain(batch)
+                      ColumnarBatches.retain(batch, batchType)
                       batch
                     }
                 }
@@ -208,6 +213,7 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
 
   private def getProjectedBatchArrow(
       childData: ColumnarBatch,
+      batchType: ColumnarBatches.BatchType,
       c2a: SQLMetric,
       a2c: SQLMetric): Iterator[ColumnarBatch] = {
     // select part of child output and child data
@@ -217,7 +223,7 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
     val arrowBatch = if (childData.numCols() == 0) {
       childData
     } else {
-      ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
+      ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData, batchType)
     }
     c2a += System.currentTimeMillis() - start
 
@@ -238,8 +244,11 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
     targetRow.finishWriteRow()
     val targetBatch = new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), numRows)
     val start2 = System.currentTimeMillis()
-    val veloxBatch = VeloxColumnarBatches.toVeloxBatch(
-      ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), targetBatch))
+    val targetBatchType = ColumnarBatches.identifyBatchType(targetBatch)
+    val offloaded =
+      ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), targetBatch, targetBatchType)
+    val veloxBatch =
+      VeloxColumnarBatches.toVeloxBatch(offloaded, ColumnarBatches.identifyBatchType(offloaded))
     a2c += System.currentTimeMillis() - start2
     Iterators
       .wrap(Iterator.single(veloxBatch))

@@ -47,7 +47,9 @@ object ExecUtil {
       Runtimes.contextInstance(BackendsApiManager.getBackendName, "ExecUtil#ColumnarToRow")
     val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
     var info: NativeColumnarToRowInfo = null
-    val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
+    val batchType = ColumnarBatches.identifyBatchType(batch)
+    val batchHandle =
+      ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch, batchType)
     val c2rHandle = jniWrapper.nativeColumnarToRowInit()
     info = jniWrapper.nativeColumnarToRowConvert(c2rHandle, batchHandle, 0)
 
@@ -149,10 +151,15 @@ object ExecUtil {
                     val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
                     pidVec.putInt(i, pid)
                 }
+                val targetBatch = new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows)
+                val batchType = ColumnarBatches.identifyBatchType(targetBatch)
                 val pidBatch = VeloxColumnarBatches.toVeloxBatch(
                   ColumnarBatches.offload(
                     ArrowBufferAllocators.contextInstance(),
-                    new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows)))
+                    targetBatch,
+                    batchType
+                  ),
+                  ColumnarBatches.identifyBatchType(targetBatch))
                 val newBatch = VeloxColumnarBatches.compose(pidBatch, cb)
                 // Composed batch already hold pidBatch's shared ref, so close is safe.
                 ColumnarBatches.forceClose(pidBatch)

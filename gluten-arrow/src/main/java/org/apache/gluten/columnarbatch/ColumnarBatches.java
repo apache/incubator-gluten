@@ -49,13 +49,13 @@ public final class ColumnarBatches {
 
   private ColumnarBatches() {}
 
-  private enum BatchType {
+  public enum BatchType {
     LIGHT,
     HEAVY,
     ZERO_COLUMN
   }
 
-  private static BatchType identifyBatchType(ColumnarBatch batch) {
+  public static BatchType identifyBatchType(ColumnarBatch batch) {
     if (batch.numCols() == 0) {
       return BatchType.ZERO_COLUMN;
     }
@@ -105,15 +105,28 @@ public final class ColumnarBatches {
     return identifyBatchType(batch) == BatchType.ZERO_COLUMN;
   }
 
+  static boolean isHeavyBatch(BatchType batchType) {
+    return batchType == BatchType.HEAVY;
+  }
+
+  static boolean isLightBatch(BatchType batchType) {
+    return batchType == BatchType.LIGHT;
+  }
+
+  static boolean isZeroColumnBatch(BatchType batchType) {
+    return batchType == BatchType.ZERO_COLUMN;
+  }
+
   /**
    * This method will always return a velox based ColumnarBatch. This method will close the input
    * column batch.
    */
-  public static ColumnarBatch select(String backendName, ColumnarBatch batch, int[] columnIndices) {
+  public static ColumnarBatch select(
+      String backendName, ColumnarBatch batch, BatchType batchType, int[] columnIndices) {
     final Runtime runtime = Runtimes.contextInstance(backendName, "ColumnarBatches#select");
-    switch (identifyBatchType(batch)) {
+    switch (batchType) {
       case LIGHT:
-        final IndicatorVector iv = getIndicatorVector(batch);
+        final IndicatorVector iv = getIndicatorVector(batch, batchType);
         long outputBatchHandle =
             ColumnarBatchJniWrapper.create(runtime).select(iv.handle(), columnIndices);
         return create(outputBatchHandle);
@@ -130,11 +143,12 @@ public final class ColumnarBatches {
    * Ensure the input batch is offloaded as native-based columnar batch (See {@link IndicatorVector}
    * and {@link PlaceholderVector}). This method will close the input column batch after offloaded.
    */
-  static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
-    if (ColumnarBatches.isLightBatch(batch)) {
+  static ColumnarBatch ensureOffloaded(
+      BufferAllocator allocator, ColumnarBatch batch, ColumnarBatches.BatchType batchType) {
+    if (ColumnarBatches.isLightBatch(batchType)) {
       return batch;
     }
-    return offload(allocator, batch);
+    return offload(allocator, batch, batchType);
   }
 
   /**
@@ -142,15 +156,15 @@ public final class ColumnarBatches {
    * take place if loading is required, which means when the input batch is not loaded yet. This
    * method will close the input column batch after loaded.
    */
-  static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
-    if (isHeavyBatch(batch)) {
+  static ColumnarBatch ensureLoaded(
+      BufferAllocator allocator, ColumnarBatch batch, ColumnarBatches.BatchType batchType) {
+    if (isHeavyBatch(batchType)) {
       return batch;
     }
-    return load(allocator, batch);
+    return load(allocator, batch, batchType);
   }
 
-  public static void checkLoaded(ColumnarBatch batch) {
-    final BatchType type = identifyBatchType(batch);
+  public static void checkLoaded(BatchType type) {
     switch (type) {
       case HEAVY:
       case ZERO_COLUMN:
@@ -160,8 +174,7 @@ public final class ColumnarBatches {
     }
   }
 
-  public static void checkOffloaded(ColumnarBatch batch) {
-    final BatchType type = identifyBatchType(batch);
+  public static void checkOffloaded(BatchType type) {
     switch (type) {
       case LIGHT:
       case ZERO_COLUMN:
@@ -171,11 +184,12 @@ public final class ColumnarBatches {
     }
   }
 
-  public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
-    if (isZeroColumnBatch(input)) {
+  public static ColumnarBatch load(
+      BufferAllocator allocator, ColumnarBatch input, ColumnarBatches.BatchType batchType) {
+    if (isZeroColumnBatch(batchType)) {
       return input;
     }
-    if (!ColumnarBatches.isLightBatch(input)) {
+    if (!ColumnarBatches.isLightBatch(batchType)) {
       throw new IllegalArgumentException(
           "Input is not light columnar batch. "
               + "Please consider to use vanilla spark's row based input by setting one of the below"
@@ -200,7 +214,7 @@ public final class ColumnarBatches {
 
       // Follow input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched.
-      long refCnt = getRefCntLight(input);
+      long refCnt = getRefCntLight(input, batchType);
       for (long i = 0; i < (refCnt - 1); i++) {
         for (int j = 0; j < output.numCols(); j++) {
           final ArrowWritableColumnVector col = (ArrowWritableColumnVector) output.column(j);
@@ -220,11 +234,12 @@ public final class ColumnarBatches {
     }
   }
 
-  public static ColumnarBatch offload(BufferAllocator allocator, ColumnarBatch input) {
-    if (isZeroColumnBatch(input)) {
+  public static ColumnarBatch offload(
+      BufferAllocator allocator, ColumnarBatch input, BatchType batchType) {
+    if (isZeroColumnBatch(batchType)) {
       return input;
     }
-    if (!isHeavyBatch(input)) {
+    if (!isHeavyBatch(batchType)) {
       throw new IllegalArgumentException("batch is not Arrow columnar batch");
     }
     if (input.numCols() == 0) {
@@ -237,7 +252,7 @@ public final class ColumnarBatches {
         Runtimes.contextInstance(INTERNAL_BACKEND_KIND, "ColumnarBatches#offload");
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
-      ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, input, cSchema, cArray);
+      ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, input, batchType, cSchema, cArray);
       long handle =
           ColumnarBatchJniWrapper.create(runtime)
               .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());
@@ -245,7 +260,7 @@ public final class ColumnarBatches {
 
       // Follow input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched.
-      long refCnt = getRefCntHeavy(input);
+      long refCnt = getRefCntHeavy(input, batchType);
       final IndicatorVector giv = (IndicatorVector) output.column(0);
       for (long i = 0; i < (refCnt - 1); i++) {
         giv.retain();
@@ -283,16 +298,16 @@ public final class ColumnarBatches {
     };
   }
 
-  static long getRefCntLight(ColumnarBatch input) {
-    if (!isLightBatch(input)) {
+  static long getRefCntLight(ColumnarBatch input, ColumnarBatches.BatchType batchType) {
+    if (!isLightBatch(batchType)) {
       throw new UnsupportedOperationException("Input batch is not light batch");
     }
     IndicatorVector iv = (IndicatorVector) input.column(0);
     return iv.refCnt();
   }
 
-  static long getRefCntHeavy(ColumnarBatch input) {
-    if (!isHeavyBatch(input)) {
+  static long getRefCntHeavy(ColumnarBatch input, ColumnarBatches.BatchType batchType) {
+    if (!isHeavyBatch(batchType)) {
       throw new UnsupportedOperationException("Input batch is not heavy batch");
     }
     if (input.numCols() == 0) {
@@ -318,22 +333,23 @@ public final class ColumnarBatches {
   }
 
   @VisibleForTesting
-  static long getRefCnt(ColumnarBatch input) {
-    switch (identifyBatchType(input)) {
+  static long getRefCnt(ColumnarBatch input, ColumnarBatches.BatchType batchType) {
+    switch (batchType) {
       case LIGHT:
-        return getRefCntLight(input);
+        return getRefCntLight(input, batchType);
       case HEAVY:
-        return getRefCntHeavy(input);
+        return getRefCntHeavy(input, batchType);
       default:
         throw new IllegalStateException();
     }
   }
 
   public static void forceClose(ColumnarBatch input) {
-    if (isZeroColumnBatch(input)) {
+    BatchType batchType = identifyBatchType(input);
+    if (isZeroColumnBatch(batchType)) {
       return;
     }
-    for (long i = 0; i < getRefCnt(input); i++) {
+    for (long i = 0; i < getRefCnt(input, batchType); i++) {
       input.close();
     }
   }
@@ -358,8 +374,8 @@ public final class ColumnarBatches {
     return create(IndicatorVector.obtain(nativeHandle));
   }
 
-  public static void retain(ColumnarBatch b) {
-    switch (identifyBatchType(b)) {
+  public static void retain(ColumnarBatch b, BatchType type) {
+    switch (type) {
       case LIGHT:
         IndicatorVector iv = (IndicatorVector) b.column(0);
         iv.retain();
@@ -381,29 +397,31 @@ public final class ColumnarBatches {
     b.close();
   }
 
-  private static IndicatorVector getIndicatorVector(ColumnarBatch input) {
-    if (!isLightBatch(input)) {
+  private static IndicatorVector getIndicatorVector(ColumnarBatch input, BatchType batchType) {
+    if (!isLightBatch(batchType)) {
       throw new UnsupportedOperationException("Input batch is not light batch");
     }
     return (IndicatorVector) input.column(0);
   }
 
-  public static long getNativeHandle(String backendName, ColumnarBatch batch) {
-    if (isZeroColumnBatch(batch)) {
+  public static long getNativeHandle(String backendName, ColumnarBatch batch, BatchType batchType) {
+    if (isZeroColumnBatch(batchType)) {
       final ColumnarBatchJniWrapper jniWrapper =
           ColumnarBatchJniWrapper.create(
               Runtimes.contextInstance(backendName, "ColumnarBatches#getNativeHandle"));
       return jniWrapper.getForEmptySchema(batch.numRows());
     }
-    return getIndicatorVector(batch).handle();
+    return getIndicatorVector(batch, batchType).handle();
   }
 
-  static String getComprehensiveLightBatchType(ColumnarBatch batch) {
-    return getIndicatorVector(batch).getType();
+  static String getComprehensiveLightBatchType(ColumnarBatch batch, BatchType batchType) {
+    return getIndicatorVector(batch, batchType).getType();
   }
 
   public static String toString(ColumnarBatch batch, int start, int length) {
-    ColumnarBatch loadedBatch = ensureLoaded(ArrowBufferAllocators.contextInstance(), batch);
+    BatchType batchType = identifyBatchType(batch);
+    ColumnarBatch loadedBatch =
+        ensureLoaded(ArrowBufferAllocators.contextInstance(), batch, batchType);
     StructType type = SparkArrowUtil.fromArrowSchema(ArrowUtil.toSchema(loadedBatch));
     return InternalRowUtl.toString(
         type,

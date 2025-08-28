@@ -162,7 +162,9 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
         val veloxBatches = it.map {
           /* Native code needs a Velox offloaded batch, making sure to offload
              if heavy batch is encountered */
-          batch => VeloxColumnarBatches.ensureVeloxBatch(batch)
+          batch =>
+            val batchType = ColumnarBatches.identifyBatchType(batch)
+            VeloxColumnarBatches.ensureVeloxBatch(batch, batchType)
         }
         new Iterator[CachedBatch] {
           override def hasNext: Boolean = veloxBatches.hasNext
@@ -176,7 +178,10 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
                     BackendsApiManager.getBackendName,
                     "ColumnarCachedBatchSerializer#serialize"))
                 .serialize(
-                  ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch))
+                  ColumnarBatches.getNativeHandle(
+                    BackendsApiManager.getBackendName,
+                    batch,
+                    ColumnarBatches.identifyBatchType(batch)))
             CachedColumnarBatch(batch.numRows(), results.length, results)
           }
         }
@@ -222,9 +227,11 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
               val batch = ColumnarBatches.create(batchHandle)
               if (shouldSelectAttributes) {
                 try {
+                  val batchType = ColumnarBatches.identifyBatchType(batch)
                   ColumnarBatches.select(
                     BackendsApiManager.getBackendName,
                     batch,
+                    batchType,
                     requestedColumnIndices.toArray)
                 } finally {
                   batch.close()
