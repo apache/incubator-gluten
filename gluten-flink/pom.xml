@@ -59,6 +59,20 @@
     </spotless.license.header>
   </properties>
 
+    <profiles>
+        <profile>
+            <id>java-17</id>
+            <activation>
+                <jdk>17</jdk>
+            </activation>
+            <properties>
+                <maven.compiler.source>17</maven.compiler.source>
+                <maven.compiler.target>17</maven.compiler.target>
+            </properties>
+        </profile>
+    </profiles>
+
+
   <build>
     <plugins>
       <plugin>
