@@ -58,7 +58,7 @@ object TableCreator {
               recoveredPartitionTableNames += tableName
             } catch {
               case _: AnalysisException =>
-                // Swallows analysis exceptions.
+              // Swallows analysis exceptions.
             }
           }
         })
