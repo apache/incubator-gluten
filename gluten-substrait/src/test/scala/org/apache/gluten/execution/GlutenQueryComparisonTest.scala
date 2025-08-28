@@ -28,7 +28,7 @@ import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-trait GlutenQueryComparisonTest extends GlutenQueryTest {
+abstract class GlutenQueryComparisonTest extends GlutenQueryTest {
 
   private val isFallbackCheckDisabled0 = new AtomicBoolean(false)
 
