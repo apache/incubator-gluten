@@ -276,13 +276,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   private def findAllLeafTransformers(): Seq[LeafTransformSupport] = {
     val allLeafTransformers = new mutable.ListBuffer[LeafTransformSupport]()
 
-    def transformChildren(
-        plan: SparkPlan,
-        leafTransformers: mutable.ListBuffer[LeafTransformSupport]): Unit = {
+    def transformChildren(plan: SparkPlan): Unit = {
       if (plan != null && plan.isInstanceOf[TransformSupport]) {
         plan match {
           case transformer: LeafTransformSupport =>
-            leafTransformers.append(transformer)
+            allLeafTransformers.append(transformer)
           case _ =>
         }
 
@@ -290,16 +288,15 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         // SHJ may include two leaves in a whole stage.
         plan match {
           case shj: HashJoinLikeExecTransformer =>
-            transformChildren(shj.streamedPlan, leafTransformers)
-            transformChildren(shj.buildPlan, leafTransformers)
+            transformChildren(shj.streamedPlan)
+            transformChildren(shj.buildPlan)
           case t: TransformSupport =>
-            t.children
-              .foreach(transformChildren(_, leafTransformers))
+            t.children.foreach(transformChildren(_))
         }
       }
     }
 
-    transformChildren(child, allLeafTransformers)
+    transformChildren(child)
     allLeafTransformers.toSeq
   }
 
