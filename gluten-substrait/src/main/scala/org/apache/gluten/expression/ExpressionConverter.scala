@@ -304,8 +304,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         }
       case u: UnixTimestamp =>
         val toUnixTimestamp = ToUnixTimestamp(u.timeExp, u.format, u.timeZoneId, u.failOnError)
-        val timeExpTransformer = replaceWithExpressionTransformer0(
-          u.timeExp, attributeSeq, expressionsMap)
+        val timeExpTransformer =
+          replaceWithExpressionTransformer0(u.timeExp, attributeSeq, expressionsMap)
 
         u.timeExp.dataType match {
           case _: TimestampType =>
