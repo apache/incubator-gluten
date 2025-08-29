@@ -123,8 +123,6 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
-  override def outputAttributes(): Seq[Attribute] = output
-
   override def getPartitions: Seq[InputPartition] = {
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
