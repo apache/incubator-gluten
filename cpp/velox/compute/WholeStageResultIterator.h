@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "VeloxBackend.h"
 #include "compute/Runtime.h"
 #include "iceberg/IcebergPlanConverter.h"
 #include "memory/ColumnarBatchIterator.h"
@@ -49,6 +50,10 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
     if (task_ != nullptr && task_->isRunning()) {
       // calling .wait() may take no effect in single thread execution mode
       task_->requestCancel().wait();
+    }
+    {
+      std::lock_guard<std::mutex> l(gluten::VeloxBackend::get()->registerMutex);
+      gluten::VeloxBackend::get()->alreadyRegistered = false;
     }
 #ifdef GLUTEN_ENABLE_GPU
     if (enableCudf_) {
@@ -127,6 +132,8 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
   /// Metrics
   std::unique_ptr<Metrics> metrics_{};
+
+  void doRegister(const std::shared_ptr<facebook::velox::config::ConfigBase>& veloxCfg);
 
   /// All the children plan node ids with postorder traversal.
   std::vector<facebook::velox::core::PlanNodeId> orderedNodeIds_;
