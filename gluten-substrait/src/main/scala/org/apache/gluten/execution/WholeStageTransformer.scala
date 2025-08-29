@@ -447,7 +447,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       new WholeStageZippedPartitionsRDD(
         sparkContext,
         inputRDDs,
-        GlutenConfig.get.numaBindingInfo,
         sparkContext.getConf,
         wsCtx,
         pipelineTime,
