@@ -20,7 +20,7 @@ source "$BASEDIR/builddeps-veloxbe.sh"
 
 function build_for_spark {
   spark_version=$1
-  if ($spark_version = "4.0"); then
+  if [ $spark_version = "4.0" ]; then
     mvn clean install -Pbackends-velox -Pspark-$spark_version -Pjava-17 -Pscala-2.13 -DskipTests
   else
     mvn clean install -Pbackends-velox -Pspark-$spark_version -DskipTests
