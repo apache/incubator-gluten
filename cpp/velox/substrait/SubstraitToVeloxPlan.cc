@@ -680,7 +680,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       nextPlanNodeId(),
       inputType,
       tableColumnNames,
-      nullptr, /*aggregationNode*/
+      std::nullopt, /*columnStatsSpec*/
       std::make_shared<core::InsertTableHandle>(
           kHiveConnectorId,
           makeHiveInsertTableHandle(
@@ -693,7 +693,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               fileFormat,
               compressionKind)),
       (!partitionedKey.empty()),
-      exec::TableWriteTraits::outputType(nullptr),
+      exec::TableWriteTraits::outputType(std::nullopt),
       connector::CommitStrategy::kNoCommit,
       childNode);
 }
