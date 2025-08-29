@@ -38,7 +38,7 @@ using FormatFiles = std::vector<FormatFilePtr>;
 class SubstraitFileSource : public DB::ISource
 {
 public:
-    SubstraitFileSource(const DB::ContextPtr & context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos);
+    SubstraitFileSource(const DB::ContextPtr & context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos, const DB::Block & input_header_);
     ~SubstraitFileSource() override;
 
     String getName() const override { return "SubstraitFileSource"; }
