@@ -304,6 +304,7 @@ void VeloxBackend::initCache() {
 }
 
 void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase>& hiveConf) {
+  auto hiveConf = getHiveConfig(backendConf_);
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   GLUTEN_CHECK(
       ioThreads >= 0,
