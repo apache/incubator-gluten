@@ -99,15 +99,15 @@ public class CelebornShuffleManager
     Preconditions.checkState(
         !columnarBatchSerializerFactoryList.isEmpty(),
         "No factory found for Celeborn columnar batch serializer");
-    final Map<String, CelebornColumnarBatchSerializerFactory> columnarBatchSerilizerFactoryMap =
+    final Map<String, CelebornColumnarBatchSerializerFactory> columnarBatchSerializerFactoryMap =
         columnarBatchSerializerFactoryList.stream()
             .collect(Collectors.toMap(CelebornColumnarBatchSerializerFactory::backendName, f -> f));
 
-    if (!columnarBatchSerilizerFactoryMap.containsKey(backendName)) {
+    if (!columnarBatchSerializerFactoryMap.containsKey(backendName)) {
       throw new UnsupportedOperationException(
           "No Celeborn columnar batch serializer writer factory found for backend " + backendName);
     }
-    columnarBatchSerializerFactory = columnarBatchSerilizerFactoryMap.get(backendName);
+    columnarBatchSerializerFactory = columnarBatchSerializerFactoryMap.get(backendName);
   }
 
   private final SparkConf conf;
