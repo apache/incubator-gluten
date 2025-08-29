@@ -287,7 +287,8 @@ void VeloxBackend::initCache() {
   }
 }
 
-void VeloxBackend::initConnector() {
+void VeloxBackend::initConnector(std::shared_ptr<facebook::velox::config::ConfigBase> newConf) {
+
   auto hiveConf = getHiveConfig(backendConf_);
 
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
