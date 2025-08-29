@@ -21,6 +21,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,5 +82,28 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
             .map(Object::toString)
             .collect(Collectors.toList());
     assertThat(actual).isEqualTo(expected);
+  }
+
+  protected void runAndCheck(String query, List<String> expected, Map<String, String> configs) {
+    for (String key : configs.keySet()) {
+      tEnv().getConfig().set(key, configs.get(key));
+    }
+    runAndCheck(query, expected);
+  }
+
+  protected void runAndCheckException(String query, Map<String, String> configs) {
+    for (String key : configs.keySet()) {
+      tEnv().getConfig().set(key, configs.get(key));
+    }
+    boolean err = false;
+    try {
+      CloseableIterator<Row> rows = tEnv().executeSql(query).collect();
+      while (rows.hasNext()) {
+        rows.next();
+      }
+    } catch (Exception e) {
+      err = true;
+    }
+    assertThat(err).isEqualTo(true);
   }
 }
