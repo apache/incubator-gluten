@@ -458,8 +458,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       val constructor =
         clazz.getConstructor(classOf[SQLMetric], classOf[SQLMetric], classOf[SQLMetric])
       constructor.newInstance(readBatchNumRows, numOutputRows, dataSize).asInstanceOf[Serializer]
-    } else if (GlutenConfig.get.isUseUniffleShuffleManager) {
-      throw new UnsupportedOperationException("temporarily uniffle not support ch ")
     } else {
       new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize, deserializationTime)
     }
