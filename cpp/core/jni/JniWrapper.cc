@@ -197,8 +197,7 @@ class ShuffleStreamReader : public StreamReader {
  public:
   ShuffleStreamReader(JNIEnv* env, jobject reader) {
     if (env->GetJavaVM(&vm_) != JNI_OK) {
-      std::string errorMessage = "Unable to get JavaVM instance";
-      throw GlutenException(errorMessage);
+      throw GlutenException("Unable to get JavaVM instance");
     }
     ref_ = env->NewGlobalRef(reader);
   }

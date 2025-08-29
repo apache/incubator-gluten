@@ -21,8 +21,6 @@
 
 namespace gluten {
 
-class ShuffleReader;
-
 class StreamReader {
  public:
   virtual ~StreamReader() = default;
