@@ -108,7 +108,7 @@ object BroadcastUtils {
               result.getSerialized
           }
           if (useOffheapBuildRelation) {
-            new UnsafeColumnarBuildSideRelation(
+            UnsafeColumnarBuildSideRelation(
               SparkShimLoader.getSparkShims.attributesFromStruct(schema),
               serialized,
               mode)
@@ -134,7 +134,7 @@ object BroadcastUtils {
               result.getSerialized
           }
           if (useOffheapBuildRelation) {
-            new UnsafeColumnarBuildSideRelation(
+            UnsafeColumnarBuildSideRelation(
               SparkShimLoader.getSparkShims.attributesFromStruct(schema),
               serialized,
               mode)
