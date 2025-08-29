@@ -220,5 +220,29 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>delta</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>io.delta</groupId>
+          <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
+          <version>${delta.version}</version>
+          <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.antlr</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.scala-lang</groupId>
+              <artifactId>scala-library</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 </project>
