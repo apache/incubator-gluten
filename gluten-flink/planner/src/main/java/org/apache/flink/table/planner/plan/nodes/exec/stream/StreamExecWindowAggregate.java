@@ -41,6 +41,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
@@ -54,10 +55,16 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowProperty;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -84,21 +91,29 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Stream {@link ExecNode} for window table-valued based local aggregate. */
+/**
+ * Stream {@link ExecNode} for window table-valued based aggregate.
+ *
+ * <p>The differences between {@link StreamExecWindowAggregate} and {@link
+ * StreamExecGroupWindowAggregate} is that, this node is translated from window TVF syntax, but the
+ * other is from the legacy GROUP WINDOW FUNCTION syntax. In the long future, {@link
+ * StreamExecGroupWindowAggregate} will be dropped.
+ */
 @ExecNodeMetadata(
-    name = "stream-exec-local-window-aggregate",
+    name = "stream-exec-window-aggregate",
     version = 1,
     consumedOptions = "table.local-time-zone",
-    producedTransformations = StreamExecLocalWindowAggregate.LOCAL_WINDOW_AGGREGATE_TRANSFORMATION,
+    producedTransformations = StreamExecWindowAggregate.WINDOW_AGGREGATE_TRANSFORMATION,
     minPlanVersion = FlinkVersion.v1_15,
     minStateVersion = FlinkVersion.v1_15)
-public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBase {
+public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
 
-  public static final String LOCAL_WINDOW_AGGREGATE_TRANSFORMATION = "local-window-aggregate";
+  public static final String WINDOW_AGGREGATE_TRANSFORMATION = "window-aggregate";
 
   private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 
   public static final String FIELD_NAME_WINDOWING = "windowing";
+  public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
 
   @JsonProperty(FIELD_NAME_GROUPING)
   private final int[] grouping;
@@ -109,25 +124,30 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
   @JsonProperty(FIELD_NAME_WINDOWING)
   private final WindowingStrategy windowing;
 
+  @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
+  private final NamedWindowProperty[] namedWindowProperties;
+
   @JsonProperty(FIELD_NAME_NEED_RETRACTION)
   private final boolean needRetraction;
 
-  public StreamExecLocalWindowAggregate(
+  public StreamExecWindowAggregate(
       ReadableConfig tableConfig,
       int[] grouping,
       AggregateCall[] aggCalls,
       WindowingStrategy windowing,
+      NamedWindowProperty[] namedWindowProperties,
       Boolean needRetraction,
       InputProperty inputProperty,
       RowType outputType,
       String description) {
     this(
         ExecNodeContext.newNodeId(),
-        ExecNodeContext.newContext(StreamExecLocalWindowAggregate.class),
-        ExecNodeContext.newPersistedConfig(StreamExecLocalWindowAggregate.class, tableConfig),
+        ExecNodeContext.newContext(StreamExecWindowAggregate.class),
+        ExecNodeContext.newPersistedConfig(StreamExecWindowAggregate.class, tableConfig),
         grouping,
         aggCalls,
         windowing,
+        namedWindowProperties,
         needRetraction,
         Collections.singletonList(inputProperty),
         outputType,
@@ -135,13 +155,14 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
   }
 
   @JsonCreator
-  public StreamExecLocalWindowAggregate(
+  public StreamExecWindowAggregate(
       @JsonProperty(FIELD_NAME_ID) int id,
       @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
       @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
       @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
       @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
       @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
+      @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES) NamedWindowProperty[] namedWindowProperties,
       @Nullable @JsonProperty(FIELD_NAME_NEED_RETRACTION) Boolean needRetraction,
       @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
       @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
@@ -150,6 +171,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
     this.grouping = checkNotNull(grouping);
     this.aggCalls = checkNotNull(aggCalls);
     this.windowing = checkNotNull(windowing);
+    this.namedWindowProperties = checkNotNull(namedWindowProperties);
     this.needRetraction = Optional.ofNullable(needRetraction).orElse(false);
   }
 
@@ -161,9 +183,11 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
     final Transformation<RowData> inputTransform =
         (Transformation<RowData>) inputEdge.translateToPlan(planner);
     final RowType inputRowType = (RowType) inputEdge.getOutputType();
+
     final ZoneId shiftTimeZone =
         TimeWindowUtil.getShiftTimeZone(
             windowing.getTimeAttributeType(), TableConfigUtils.getLocalTimeZone(config));
+    final WindowAssigner windowAssigner = createWindowAssigner(windowing, shiftTimeZone);
 
     // --- Begin Gluten-specific code changes ---
     // TODO: velox window not equal to flink window.
@@ -205,23 +229,35 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
             List.of(new EmptyNode(inputType)),
             null,
             List.of());
+    PlanNode localAgg =
+        new AggregationNode(
+            PlanNodeIdGenerator.newId(),
+            AggregateStep.SINGLE,
+            groupingKeys,
+            groupingKeys,
+            aggNames,
+            aggregates,
+            false,
+            List.of(new EmptyNode(inputType)),
+            null,
+            List.of());
     PlanNode windowAgg =
         new StreamWindowAggregationNode(
             PlanNodeIdGenerator.newId(),
             aggregation,
-            null,
+            localAgg,
             keySelectorSpec,
             sliceAssignerSpec,
             ArithmeticUtils.gcd(size, slide),
             TimeZone.getTimeZone(shiftTimeZone).useDaylightTime(),
-            true,
+            false,
             size,
             slide,
             offset,
             windowType,
             outputType,
             rowtimeIndex);
-    final OneInputStreamOperator localAggOperator =
+    final OneInputStreamOperator windowOperator =
         new GlutenVectorOneInputOperator(
             new StatefulPlanNode(windowAgg.getId(), windowAgg),
             PlanNodeIdGenerator.newId(),
@@ -229,19 +265,30 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
             Map.of(windowAgg.getId(), outputType));
     // --- End Gluten-specific code changes ---
 
-    return ExecNodeUtil.createOneInputTransformation(
-        inputTransform,
-        createTransformationMeta(LOCAL_WINDOW_AGGREGATE_TRANSFORMATION, config),
-        SimpleOperatorFactory.of(localAggOperator),
-        InternalTypeInfo.of(getOutputType()),
-        inputTransform.getParallelism(),
-        // use less memory here to let the chained head operator can have more memory
-        WINDOW_AGG_MEMORY_RATIO / 2,
-        false);
+    final RowDataKeySelector selector =
+        KeySelectorUtil.getRowDataSelector(
+            planner.getFlinkContext().getClassLoader(),
+            grouping,
+            InternalTypeInfo.of(inputRowType));
+
+    final OneInputTransformation<RowData, RowData> transform =
+        ExecNodeUtil.createOneInputTransformation(
+            inputTransform,
+            createTransformationMeta(WINDOW_AGGREGATE_TRANSFORMATION, config),
+            SimpleOperatorFactory.of(windowOperator),
+            InternalTypeInfo.of(getOutputType()),
+            inputTransform.getParallelism(),
+            WINDOW_AGG_MEMORY_RATIO,
+            false);
+
+    // set KeyType and Selector for state
+    transform.setStateKeySelector(selector);
+    transform.setStateKeyType(selector.getProducedType());
+    return transform;
   }
 
-  private GeneratedNamespaceAggsHandleFunction<Long> createAggsHandler(
-      SliceAssigner sliceAssigner,
+  private GeneratedNamespaceAggsHandleFunction<?> createAggsHandler(
+      WindowAssigner windowAssigner,
       AggregateInfoList aggInfoList,
       ExecNodeConfig config,
       ClassLoader classLoader,
@@ -253,21 +300,34 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                 new CodeGeneratorContext(config, classLoader),
                 relBuilder,
                 JavaScalaConversionUtil.toScala(fieldTypes),
-                true) // copyInputField
-            .needAccumulate()
-            .needMerge(0, true, null);
+                false) // copyInputField
+            .needAccumulate();
+
+    if (windowAssigner instanceof SliceSharedAssigner || !isAlignedWindow(windowing.getWindow())) {
+      generator.needMerge(0, false, null);
+    }
 
     if (needRetraction) {
       generator.needRetract();
     }
 
+    final List<WindowProperty> windowProperties =
+        Arrays.asList(
+            Arrays.stream(namedWindowProperties)
+                .map(NamedWindowProperty::getProperty)
+                .toArray(WindowProperty[]::new));
+
+    // We use window end timestamp to indicate a slicing window, see SliceAssigner. And
+    // use window start and window end to indicate a unslicing window, see UnsliceAssigner
+    final Class<?> windowClass =
+        isAlignedWindow(windowing.getWindow()) ? Long.class : TimeWindow.class;
+
     return generator.generateNamespaceAggsHandler(
-        "LocalWindowAggsHandler",
+        "WindowAggsHandler",
         aggInfoList,
-        JavaScalaConversionUtil.toScala(Collections.emptyList()),
-        sliceAssigner,
-        // we use window end timestamp to indicate a slicing window, see SliceAssigner
-        Long.class,
+        JavaScalaConversionUtil.toScala(windowProperties),
+        windowAssigner,
+        windowClass,
         shiftTimeZone);
   }
 }
