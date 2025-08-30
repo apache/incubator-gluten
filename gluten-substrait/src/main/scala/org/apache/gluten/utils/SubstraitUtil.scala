@@ -25,6 +25,7 @@ import org.apache.gluten.substrait.expression.ExpressionNode
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 
+import com.google.protobuf.{Any, DoubleValue, Int32Value, Int64Value, Message, StringValue}
 import io.substrait.proto.{CrossRel, JoinRel, NamedStruct, Type}
 
 import java.util.{Collections, List => JList}
@@ -106,5 +107,21 @@ object SubstraitUtil {
     val typeList = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithExprId(output)
     createNameStructBuilder(typeList, nameList, Collections.emptyList()).build()
+  }
+
+  def convertJavaObjectToAny(obj: AnyRef): Any = {
+    if (obj == null) return null
+    var msg: Message = null
+    obj match {
+      case Some(s: String) => msg = StringValue.newBuilder.setValue(s).build
+      case Some(i: Int) => msg = Int32Value.newBuilder.setValue(i).build
+      case Some(l: Long) => msg = Int64Value.newBuilder.setValue(l).build
+      case Some(d: Double) => msg = DoubleValue.newBuilder.setValue(d).build
+      case _ =>
+        // TODO: generate the message according to the object type
+        msg = StringValue.newBuilder.setValue(obj.toString).build
+    }
+    if (msg == null) return null
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(msg)
   }
 }
