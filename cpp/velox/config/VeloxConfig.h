@@ -166,4 +166,15 @@ const std::string kQueryTraceTaskRegExp = "spark.gluten.sql.columnar.backend.vel
 /// defined by the underlying file system.
 const std::string kOpTraceDirectoryCreateConfig =
     "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig";
+
+// Cudf config.
+// GPU RMM memory resource
+const std::string kCudfMemoryResource = "spark.gluten.sql.columnar.backend.velox.cudf.memoryResource";
+const std::string kCudfMemoryResourceDefault =
+    "async"; // Allowed: "cuda", "pool", "async", "arena", "managed", "managed_pool"
+
+// Initial percent of GPU memory to allocate for memory resource for one thread
+const std::string kCudfMemoryPercent = "spark.gluten.sql.columnar.backend.velox.cudf.memoryPercent";
+const int32_t kCudfMemoryPercentDefault = 50;
+
 } // namespace gluten

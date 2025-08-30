@@ -656,6 +656,19 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val CUDF_MEMORY_RESOURCE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.memoryResource")
+      .doc("GPU RMM memory resource.")
+      .stringConf
+      .checkValues(Set("cuda", "pool", "async", "arena", "managed", "managed_pool"))
+      .createWithDefault("async")
+
+  val CUDF_MEMORY_PERCENT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.memoryPercent")
+      .doc("The initial percent of GPU memory to allocate for memory resource for one thread.")
+      .intConf
+      .createWithDefault(50)
+
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
       .doc(
