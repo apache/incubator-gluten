@@ -14,30 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.shuffle
 
-#pragma once
+import org.apache.spark.TaskContext
+import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-#include "compute/ResultIterator.h"
+case class GlutenShuffleReaderWrapper[K, C](shuffleReader: ShuffleReader[K, C])
 
-namespace gluten {
-
-class StreamReader {
- public:
-  virtual ~StreamReader() = default;
-
-  virtual std::shared_ptr<arrow::io::InputStream> readNextStream(arrow::MemoryPool* pool) = 0;
-};
-
-class ShuffleReader {
- public:
-  virtual ~ShuffleReader() = default;
-
-  // FIXME iterator should be unique_ptr or un-copyable singleton
-  virtual std::shared_ptr<ResultIterator> read(const std::shared_ptr<StreamReader>& streamReader) = 0;
-
-  virtual int64_t getDecompressTime() const = 0;
-
-  virtual int64_t getDeserializeTime() const = 0;
-};
-
-} // namespace gluten
+case class GenShuffleReaderParameters[K, C](
+    handle: BaseShuffleHandle[K, _, C],
+    blocksByAddress: Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])],
+    context: TaskContext,
+    readMetrics: ShuffleReadMetricsReporter,
+    shouldBatchFetch: Boolean = false)
