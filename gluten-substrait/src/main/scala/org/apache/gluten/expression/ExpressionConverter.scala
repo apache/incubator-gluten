@@ -276,26 +276,38 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           replaceWithExpressionTransformer0(r.child, attributeSeq, expressionsMap),
           r)
-      case t: ToUnixTimestamp =>
+      case expr @ (_: ToUnixTimestamp | _: UnixTimestamp) =>
+        // Extract common fields - both ToUnixTimestamp and UnixTimestamp have the same fields
+        val (timeExp, format, timeZoneId, failOnError) = expr match {
+          case t: ToUnixTimestamp => (t.timeExp, t.format, t.timeZoneId, t.failOnError)
+          case u: UnixTimestamp => (u.timeExp, u.format, u.timeZoneId, u.failOnError)
+        }
         // The failOnError depends on the config for ANSI. ANSI is not supported currently.
         // And timeZoneId is passed to backend config.
-        GenericExpressionTransformer(
-          substraitExprName,
-          Seq(
-            replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap),
-            replaceWithExpressionTransformer0(t.format, attributeSeq, expressionsMap)
-          ),
-          t
-        )
-      case u: UnixTimestamp =>
-        GenericExpressionTransformer(
-          substraitExprName,
-          Seq(
-            replaceWithExpressionTransformer0(u.timeExp, attributeSeq, expressionsMap),
-            replaceWithExpressionTransformer0(u.format, attributeSeq, expressionsMap)
-          ),
-          ToUnixTimestamp(u.timeExp, u.format, u.timeZoneId, u.failOnError)
-        )
+        val toUnixTimestamp = ToUnixTimestamp(timeExp, format, timeZoneId, failOnError)
+        val timeExpTransformer =
+          replaceWithExpressionTransformer0(timeExp, attributeSeq, expressionsMap)
+
+        // For timestamp and date inputs, the format parameter is ignored as per Spark behavior.
+        timeExp.dataType match {
+          case _: TimestampType =>
+            // For timestamp input, use custom transformer to generate correct signature
+            ToUnixTimestampTransformer(
+              substraitExprName,
+              timeExpTransformer,
+              toUnixTimestamp
+            )
+          case _ =>
+            // For other inputs (date, string), use original logic
+            GenericExpressionTransformer(
+              substraitExprName,
+              Seq(
+                timeExpTransformer,
+                replaceWithExpressionTransformer0(format, attributeSeq, expressionsMap)
+              ),
+              toUnixTimestamp
+            )
+        }
       case t: TruncTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTruncTimestampTransformer(
           substraitExprName,
