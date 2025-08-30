@@ -59,6 +59,37 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("get_json_object for number type") {
+    withTable("t") {
+      spark.sql("create table t (json string) using parquet")
+      spark.sql("""
+                  |insert into t values
+                  | ('{"a":+INF}'),
+                  | ('{"a":-INF}'),
+                  | ('{"a": NaN}'),
+                  | ('{"a": Infinity}'),
+                  | ('{"a": +21.00}'),
+                  | ('{"a":-21.00}'),
+                  | ('{"a": +0.00}'),
+                  | ('{"a": -0.00}'),
+                  | ('{"a": 0.00}'),
+                  | ('{"a":-21.001}'),
+                  | ('{"a": 21e3}'),
+                  | ('{"a": -21E-3}'),
+                  | ('{"a": +0}'),
+                  | ('{"a":-00}'),
+                  | ('{"a": 00}'),
+                  | ('{"a": 001}'),
+                  | ('{"a": -0}'),
+                  | ('{"a": 0}'),
+                  | ('{"a": 98765432109876543210987654321098765432 }'),
+                  | ('{"a":-98765432109876543210987654321098765432}')
+                  |""".stripMargin)
+      val sql = "select get_json_object(json, '$.a') from t"
+      runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("json_array_length") {
     runQueryAndCompare(
       s"select *, json_array_length(string_field1) " +
