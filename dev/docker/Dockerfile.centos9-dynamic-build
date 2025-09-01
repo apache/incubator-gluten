@@ -43,7 +43,7 @@ RUN set -ex; \
     wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.6.0/apache-celeborn-0.6.0-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/incubator/uniffle/0.9.2/apache-uniffle-0.9.2-incubating-bin.tar.gz -P /opt/; \
     wget -nv https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz -P /opt/; \
-    git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
+    git clone --depth=1 -b wip_fix_centos7_docker_build  https://github.com/zhouyuan/gluten /opt/gluten; \
     cd /opt/gluten/.github/workflows/util/; \
     ./install_spark_resources.sh 3.2; \
     ./install_spark_resources.sh 3.3; \

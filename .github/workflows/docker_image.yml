@@ -16,6 +16,9 @@
 name: Build and Push Docker Image
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/docker_image.yml
   push:
     branches:
       - main
@@ -45,11 +48,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v2
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USER }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -191,7 +194,7 @@ jobs:
           retention-days: 1
 
   build-centos-8:
-    if: ${{ startsWith(github.repository, 'apache/') }}
+    # if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -223,11 +226,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v2
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USER }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push by digest
         id: build
@@ -254,7 +257,7 @@ jobs:
           retention-days: 1
 
   build-centos-9:
-    if: ${{ startsWith(github.repository, 'apache/') }}
+    # if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -286,11 +289,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v2
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USER }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push by digest
         id: build
