@@ -62,7 +62,7 @@ VeloxWholeStageDumper::VeloxWholeStageDumper(
     : taskInfo_(taskInfo), saveDir_(saveDir), batchSize_(batchSize), pool_(aggregatePool) {}
 
 void VeloxWholeStageDumper::dumpConf(const std::unordered_map<std::string, std::string>& confMap) {
-  const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->rawConfigs();
+  const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->rawConfigsCopy();
   auto allConfMap = backendConfMap;
 
   for (const auto& pair : confMap) {
