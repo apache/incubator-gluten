@@ -143,6 +143,8 @@ void VeloxBackend::init(
   // Set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
+  auto hiveConf = getHiveConfig(backendConf_);
+
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
@@ -157,6 +159,7 @@ void VeloxBackend::init(
 #endif
 #ifdef ENABLE_ABFS
   velox::filesystems::registerAbfsFileSystem();
+  velox::filesystems::registerAzureClientProvider(*hiveConf);
 #endif
 
 #ifdef GLUTEN_ENABLE_GPU
@@ -167,7 +170,7 @@ void VeloxBackend::init(
 #endif
 
   initJolFilesystem();
-  initConnector();
+  initConnector(hiveConf);
 
   velox::dwio::common::registerFileSinks();
   velox::parquet::registerParquetReaderFactory();
@@ -287,9 +290,7 @@ void VeloxBackend::initCache() {
   }
 }
 
-void VeloxBackend::initConnector() {
-  auto hiveConf = getHiveConfig(backendConf_);
-
+void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase>& hiveConf) {
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   GLUTEN_CHECK(
       ioThreads >= 0,

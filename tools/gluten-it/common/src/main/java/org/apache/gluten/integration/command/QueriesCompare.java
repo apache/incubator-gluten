@@ -39,8 +39,6 @@ public class QueriesCompare implements Callable<Integer> {
   public Integer call() throws Exception {
     org.apache.gluten.integration.action.QueriesCompare queriesCompare =
         new org.apache.gluten.integration.action.QueriesCompare(
-            dataGenMixin.getScale(),
-            dataGenMixin.genPartitionedData(),
             queriesMixin.queries(),
             queriesMixin.explain(),
             queriesMixin.iterations(),

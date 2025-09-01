@@ -17,11 +17,11 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_08_26
+VELOX_BRANCH=2025_08_31
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
 VELOX_ENHANCED_REPO=https://github.com/IBM/velox.git
-VELOX_ENHANCED_BRANCH=ibm-2025_08_26
+VELOX_ENHANCED_BRANCH=ibm-2025_08_31
 ENABLE_ENHANCED_FEATURES=OFF
 
 # Developer use only for testing Velox PR.
@@ -189,6 +189,9 @@ function setup_linux {
       ;;
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "openEuler" ]]; then
+    # this is workaround for gcc-12.3.1
+    # https://github.com/facebookincubator/velox/blob/b263d9dd8b8910dc642d8fdb0c0adee4b2a1fb29/CMakeLists.txt#L433
+    sed -i "s|no-unknown-warning-option|no-unknown-warning-option -Wno-restrict|g" ../../src/build_velox.sh
     case "$LINUX_VERSION_ID" in
       24.03) ;;
       *)

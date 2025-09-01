@@ -31,6 +31,7 @@ class TpcdsDataGen(
     val spark: SparkSession,
     scale: Double,
     partitions: Int,
+    source: String,
     dir: String,
     typeModifiers: List[TypeModifier] = List(),
     val genPartitionedData: Boolean)
@@ -120,9 +121,10 @@ class TpcdsDataGen(
       }(ShimUtils.getExpressionEncoder(stringSchema))
       .select(columns: _*)
       .write
-      .mode(SaveMode.Overwrite)
+      .format(source)
       .partitionBy(partitionBy.toArray: _*)
-      .parquet(tablePath)
+      .mode(SaveMode.Overwrite)
+      .save(dir + File.separator + tableName)
   }
 
   override def gen(): Unit = {

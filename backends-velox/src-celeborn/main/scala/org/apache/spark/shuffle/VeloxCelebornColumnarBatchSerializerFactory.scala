@@ -14,29 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.shuffle
 
-// This File includes common helper functions with Arrow dependency.
+import org.apache.gluten.backendsapi.velox.VeloxBackend
 
-#pragma once
+import org.apache.spark.shuffle.gluten.celeborn.CelebornColumnarBatchSerializerFactory
 
-#include <optional>
-#include <string>
-#include <unordered_map>
+class VeloxCelebornColumnarBatchSerializerFactory extends CelebornColumnarBatchSerializerFactory {
+  override def backendName(): String = VeloxBackend.BACKEND_NAME
 
-#include "config/GlutenConfig.h"
-#include "velox/common/config/Config.h"
-
-namespace gluten {
-
-enum class FileSystemType : uint8_t { kHdfs, kS3, kAbfs, kGcs, kAll };
-
-std::string getConfigValue(
-    const std::unordered_map<std::string, std::string>& confMap,
-    const std::string& key,
-    const std::optional<std::string>& fallbackValue);
-
-std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
-    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
-    FileSystemType fsType = FileSystemType::kAll);
-
-} // namespace gluten
+  override def columnarBatchSerializerClass(): String =
+    "org.apache.spark.shuffle.CelebornColumnarBatchSerializer"
+}

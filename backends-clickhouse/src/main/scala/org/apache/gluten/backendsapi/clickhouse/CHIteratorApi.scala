@@ -17,7 +17,6 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.IteratorApi
-import org.apache.gluten.config.GlutenNumaBindingInfo
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.logging.LogLevelUtil
@@ -316,7 +315,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   override def genFinalStageIterator(
       context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
-      numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,
       rootNode: PlanNode,
       pipelineTime: SQLMetric,

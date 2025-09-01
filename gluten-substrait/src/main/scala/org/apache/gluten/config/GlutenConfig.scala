@@ -29,11 +29,6 @@ import java.util.Locale
 
 import scala.collection.JavaConverters._
 
-case class GlutenNumaBindingInfo(
-    enableNumaBinding: Boolean,
-    totalCoreRange: Array[String] = null,
-    numCoresPerExecutor: Int = -1) {}
-
 trait ShuffleWriterType {
   val name: String
 }
@@ -259,23 +254,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def fallbackExpressionsThreshold: Int = getConf(COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD)
 
   def fallbackPreferColumnar: Boolean = getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
-
-  def numaBindingInfo: GlutenNumaBindingInfo = {
-    val enableNumaBinding: Boolean = getConf(COLUMNAR_NUMA_BINDING_ENABLED)
-    if (!enableNumaBinding) {
-      GlutenNumaBindingInfo(enableNumaBinding = false)
-    } else {
-      val tmp = getConf(COLUMNAR_NUMA_BINDING_CORE_RANGE)
-      if (tmp.isEmpty) {
-        GlutenNumaBindingInfo(enableNumaBinding = false)
-      } else {
-        val numCores = conf.getConfString("spark.executor.cores", "1").toInt
-        val coreRangeList: Array[String] = tmp.get.split('|').map(_.trim)
-        GlutenNumaBindingInfo(enableNumaBinding = true, coreRangeList, numCores)
-      }
-
-    }
-  }
 
   def cartesianProductTransformerEnabled: Boolean =
     getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
@@ -1204,18 +1182,6 @@ object GlutenConfig {
           "ColumnarToRow number is not smaller than Gluten plan.")
       .booleanConf
       .createWithDefault(true)
-
-  val COLUMNAR_NUMA_BINDING_ENABLED =
-    buildConf("spark.gluten.sql.columnar.numaBinding")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
-
-  val COLUMNAR_NUMA_BINDING_CORE_RANGE =
-    buildConf("spark.gluten.sql.columnar.coreRange")
-      .internal()
-      .stringConf
-      .createOptional
 
   val COLUMNAR_MEMORY_BACKTRACE_ALLOCATION =
     buildConf("spark.gluten.memory.backtrace.allocation")
