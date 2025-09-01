@@ -207,6 +207,10 @@ if(ENABLE_ENHANCED_FEATURES)
        compute/iceberg/IcebergWriter.cc)
 endif()
 
+if(BUILD_TESTS OR BUILD_BENCHMARKS)
+  set(BUILD_TEST_UTILS ON)
+endif()
+
 if(BUILD_TEST_UTILS)
   list(APPEND VELOX_SRCS tests/utils/LocalRssClient.cc
        tests/utils/TestAllocationListener.cc)
@@ -370,10 +374,6 @@ find_package(
   COMPONENTS i18n uc data
   REQUIRED)
 target_link_libraries(velox PUBLIC ICU::i18n ICU::uc ICU::data)
-
-if(BUILD_TESTS OR BUILD_BENCHMARKS)
-  set(BUILD_TEST_UTILS ON)
-endif()
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
