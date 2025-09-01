@@ -99,9 +99,9 @@ install_centos_7() {
     # Requires git >= 2.7.4
     if [[ "$(git --version)" != "git version 2."* ]]; then
         yum -y remove git
-        # Requires 'centos-release-scl' package to be installed.
-        yum -y install rh-git227
-        source /opt/rh/rh-git227/enable
+       yum install -y https://mirrors.ibiblio.org/IUS/ius-release-el7.rpm
+        sed -i -e "s|https://repo.ius.io/7|https://vault.ius.io/el7|g" /etc/yum.repos.d/ius*repo
+        yum install -y git236
     fi
 
     # flex>=2.6.0
