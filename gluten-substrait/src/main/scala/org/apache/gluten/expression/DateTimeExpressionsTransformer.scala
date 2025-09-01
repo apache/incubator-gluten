@@ -21,6 +21,7 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.TimestampType
 
 import scala.collection.JavaConverters._
 
@@ -109,21 +110,15 @@ object DateTimeExpressionsTransformer {
 
 case class ToUnixTimestampTransformer(
     substraitExprName: String,
-    timeExp: ExpressionTransformer,
-    original: ToUnixTimestamp)
+    timeExpTransformer: ExpressionTransformer,
+    formatTransformer: ExpressionTransformer,
+    original: Expression)
   extends ExpressionTransformer {
 
-  override def children: Seq[ExpressionTransformer] = Seq(timeExp)
-
-  override def doTransform(context: SubstraitContext): ExpressionNode = {
-    // Generate signature with only timestamp argument
-    val funcName: String = ConverterUtils.makeFuncName(
-      substraitExprName, // "to_unix_timestamp"
-      Seq(original.timeExp.dataType) // Only timestamp type
-    )
-    val functionId = context.registerFunction(funcName)
-    val childNodes = children.map(_.doTransform(context)).asJava
-    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
+  override def children: Seq[ExpressionTransformer] = {
+    timeExpTransformer.dataType match {
+      case _: TimestampType => Seq(timeExpTransformer)
+      case _ => Seq(timeExpTransformer, formatTransformer)
+    }
   }
 }
