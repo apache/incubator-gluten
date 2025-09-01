@@ -189,8 +189,6 @@ set(VELOX_SRCS
     udf/UdfLoader.cc
     utils/Common.cc
     utils/ConfigExtractor.cc
-    utils/LocalRssClient.cc
-    utils/TestAllocationListener.cc
     utils/VeloxArrowUtils.cc
     utils/VeloxBatchResizer.cc
     utils/VeloxWholeStageDumper.cc
@@ -207,6 +205,11 @@ endif()
 if(ENABLE_ENHANCED_FEATURES)
   list(APPEND VELOX_SRCS compute/iceberg/IcebergFormat.cc
        compute/iceberg/IcebergWriter.cc)
+endif()
+
+if(BUILD_TEST_UTILS)
+  list(APPEND VELOX_SRCS tests/utils/LocalRssClient.cc
+       tests/utils/TestAllocationListener.cc)
 endif()
 
 add_library(velox SHARED ${VELOX_SRCS})
@@ -367,6 +370,10 @@ find_package(
   COMPONENTS i18n uc data
   REQUIRED)
 target_link_libraries(velox PUBLIC ICU::i18n ICU::uc ICU::data)
+
+if(BUILD_TESTS OR BUILD_BENCHMARKS)
+  set(BUILD_TEST_UTILS ON)
+endif()
 
 if(BUILD_TESTS)
   add_subdirectory(tests)

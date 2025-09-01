@@ -21,15 +21,12 @@
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/VeloxRssSortShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
-#include "utils/TestAllocationListener.h"
-#include "utils/TestUtils.h"
+#include "tests/utils/TestUtils.h"
 
 #include "velox/buffer/Buffer.h"
 #include "velox/type/Type.h"
 #include "velox/vector/tests/VectorTestUtils.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
-
-#include <cstdint>
 
 using namespace facebook::velox;
 using namespace facebook::velox::test;

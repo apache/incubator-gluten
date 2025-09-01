@@ -20,8 +20,8 @@
 #include "config/GlutenConfig.h"
 #include "shuffle/VeloxHashShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
+#include "tests/utils/TestUtils.h"
 #include "utils/TestAllocationListener.h"
-#include "utils/TestUtils.h"
 
 using namespace facebook::velox;
 
