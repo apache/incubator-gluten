@@ -181,7 +181,6 @@ void VeloxBackend::init(
 #endif
 
   initJolFilesystem();
-  initConnector(hiveConf);
 
   velox::dwio::common::registerFileSinks();
   velox::parquet::registerParquetReaderFactory();
@@ -304,7 +303,7 @@ void VeloxBackend::initCache() {
 }
 
 void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase>& hiveConf) {
-  auto hiveConf = getHiveConfig(backendConf_);
+  auto newConf = getHiveConfig(backendConf_);
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   GLUTEN_CHECK(
       ioThreads >= 0,
@@ -313,7 +312,7 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
   velox::connector::registerConnector(
-      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
+      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, newConf, ioExecutor_.get()));
 #ifdef GLUTEN_ENABLE_GPU
   if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
       backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
