@@ -160,7 +160,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
       .contains("celeborn")
 
   // Whether to use UniffleShuffleManager.
-  // TODO: Deprecate the API: https://github.com/apache/incubator-gluten/issues/10107.
+  @deprecated
   def isUseUniffleShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
