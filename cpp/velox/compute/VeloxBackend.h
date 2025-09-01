@@ -76,6 +76,9 @@ class VeloxBackend {
     }
   }
 
+  void initConnector(const std::shared_ptr<facebook::velox::config::ConfigBase>& hiveConf);
+  std::once_flag regFlag;
+
  private:
   explicit VeloxBackend(
       std::unique_ptr<AllocationListener> listener,
@@ -85,7 +88,6 @@ class VeloxBackend {
 
   void init(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf);
   void initCache();
-  void initConnector(const std::shared_ptr<facebook::velox::config::ConfigBase>& hiveConf);
   void initUdf();
   std::unique_ptr<facebook::velox::cache::SsdCache> initSsdCache(uint64_t ssdSize);
 

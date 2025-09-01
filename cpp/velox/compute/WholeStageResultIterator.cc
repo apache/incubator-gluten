@@ -84,6 +84,7 @@ WholeStageResultIterator::WholeStageResultIterator(
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
+
   task_ = velox::exec::Task::create(
       fmt::format(
           "Gluten_Stage_{}_TID_{}_VTID_{}",
@@ -101,6 +102,10 @@ WholeStageResultIterator::WholeStageResultIterator(
   GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
   fileSystem->mkdir(spillDir);
   task_->setSpillDirectory(spillDir);
+
+  // register the hive connectors
+  std::call_once(
+      gluten::VeloxBackend::get()->regFlag, [&]() { gluten::VeloxBackend::get()->initConnector(veloxCfg_); });
 
   // Generate splits for all scan nodes.
   splits_.reserve(scanInfos.size());
