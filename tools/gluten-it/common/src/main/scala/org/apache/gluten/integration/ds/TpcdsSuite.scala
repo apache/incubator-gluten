@@ -224,7 +224,7 @@ object TpcdsSuite {
       scale: Double,
       genPartitionedData: Boolean): Unit = {
     require(
-      Set("parquet").contains(dataSource),
+      Set("parquet", "delta").contains(dataSource),
       s"Data source type $dataSource is not supported by TPC-DS suite")
   }
 }
