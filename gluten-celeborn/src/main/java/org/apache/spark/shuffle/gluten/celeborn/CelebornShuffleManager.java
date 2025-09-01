@@ -38,7 +38,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -68,46 +67,37 @@ public class CelebornShuffleManager
   private static final CelebornColumnarBatchSerializerFactory columnarBatchSerializerFactory;
 
   static {
+    final String backendName = BackendsApiManager.getBackendName();
     final ServiceLoader<CelebornShuffleWriterFactory> loader =
         ServiceLoader.load(CelebornShuffleWriterFactory.class);
     final List<CelebornShuffleWriterFactory> factoryList =
         Arrays.stream(Iterators.toArray(loader.iterator(), CelebornShuffleWriterFactory.class))
+            .filter(f -> f.backendName().equalsIgnoreCase(backendName))
             .collect(Collectors.toList());
     Preconditions.checkState(
-        !factoryList.isEmpty(), "No factory found for Celeborn shuffle writer");
-    final Map<String, CelebornShuffleWriterFactory> factoryMap =
-        factoryList.stream()
-            .collect(Collectors.toMap(CelebornShuffleWriterFactory::backendName, f -> f));
+        !factoryList.isEmpty(),
+        "No Celeborn shuffle writer factory found for backend " + backendName);
+    Preconditions.checkState(
+        factoryList.size() == 1,
+        "Multiple factory found for Celeborn shuffle writer for backend " + backendName);
+    writerFactory = factoryList.get(0);
 
-    final String backendName = BackendsApiManager.getBackendName();
-    if (!factoryMap.containsKey(backendName)) {
-      throw new UnsupportedOperationException(
-          "No Celeborn shuffle writer factory found for backend " + backendName);
-    }
-    writerFactory = factoryMap.get(backendName);
-
-    final ServiceLoader<CelebornColumnarBatchSerializerFactory>
-        celebornColumnarBatchSerializerFactoriesLoader =
-            ServiceLoader.load(CelebornColumnarBatchSerializerFactory.class);
-    final List<CelebornColumnarBatchSerializerFactory> columnarBatchSerializerFactoryList =
+    final ServiceLoader<CelebornColumnarBatchSerializerFactory> serializerLoader =
+        ServiceLoader.load(CelebornColumnarBatchSerializerFactory.class);
+    final List<CelebornColumnarBatchSerializerFactory> serializerFactoryList =
         Arrays.stream(
                 Iterators.toArray(
-                    celebornColumnarBatchSerializerFactoriesLoader.iterator(),
-                    CelebornColumnarBatchSerializerFactory.class))
+                    serializerLoader.iterator(), CelebornColumnarBatchSerializerFactory.class))
+            .filter(f -> f.backendName().equalsIgnoreCase(backendName))
             .collect(Collectors.toList());
 
     Preconditions.checkState(
-        !columnarBatchSerializerFactoryList.isEmpty(),
-        "No factory found for Celeborn columnar batch serializer");
-    final Map<String, CelebornColumnarBatchSerializerFactory> columnarBatchSerializerFactoryMap =
-        columnarBatchSerializerFactoryList.stream()
-            .collect(Collectors.toMap(CelebornColumnarBatchSerializerFactory::backendName, f -> f));
-
-    if (!columnarBatchSerializerFactoryMap.containsKey(backendName)) {
-      throw new UnsupportedOperationException(
-          "No Celeborn columnar batch serializer writer factory found for backend " + backendName);
-    }
-    columnarBatchSerializerFactory = columnarBatchSerializerFactoryMap.get(backendName);
+        !serializerFactoryList.isEmpty(),
+        "No factory found for Celeborn columnar batch serializer for backend " + backendName);
+    Preconditions.checkState(
+        serializerFactoryList.size() == 1,
+        "Multiple factory found for Celeborn columnar batch serializer for backend " + backendName);
+    columnarBatchSerializerFactory = serializerFactoryList.get(0);
   }
 
   private final SparkConf conf;
