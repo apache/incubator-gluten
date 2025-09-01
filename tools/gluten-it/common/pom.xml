@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -16,9 +14,16 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-library</artifactId>
-      <version>${scala.version}</version>
+      <groupId>org.apache.gluten</groupId>
+      <artifactId>gluten-it-3rd</artifactId>
+      <version>1.6.0-SNAPSHOT</version>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
@@ -53,49 +58,25 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>
-      <scope>compile</scope>
       <type>test-jar</type>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
-      <scope>compile</scope>
       <type>test-jar</type>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_${scala.binary.version}</artifactId>
-      <scope>compile</scope>
       <type>test-jar</type>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
       <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.trino.tpcds</groupId>
-      <artifactId>tpcds</artifactId>
-      <version>${tpcds.version}</version>
-      <scope>compile</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>io.trino.tpch</groupId>
-      <artifactId>tpch</artifactId>
-      <version>${tpch.version}</version>
-      <scope>compile</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>info.picocli</groupId>
@@ -104,9 +85,9 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+      <version>${scala.version}</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -123,18 +104,18 @@
         <executions>
           <execution>
             <id>scala-compile-first</id>
-            <phase>process-resources</phase>
             <goals>
               <goal>add-source</goal>
               <goal>compile</goal>
             </goals>
+            <phase>process-resources</phase>
           </execution>
           <execution>
             <id>scala-test-compile</id>
-            <phase>process-test-resources</phase>
             <goals>
               <goal>testCompile</goal>
             </goals>
+            <phase>process-test-resources</phase>
           </execution>
         </executions>
       </plugin>
