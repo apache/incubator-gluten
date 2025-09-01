@@ -156,6 +156,11 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::unordered_map<std::string, std::string>& sessionConf) {
   LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
+  const auto writeFilesTempPath = *localWriteFilesTempPath();
+  if (writeFilesTempPath.has_value()) {
+    VeloxBackend::get()->addHdfsFilePaths(writeFilesTempPath.value());
+  }
+
   VeloxPlanConverter veloxPlanConverter(
       inputs,
       memoryManager()->getLeafMemoryPool().get(),
