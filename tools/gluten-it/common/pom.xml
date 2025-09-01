@@ -74,6 +74,12 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>io.trino.tpcds</groupId>
       <artifactId>tpcds</artifactId>
       <version>${tpcds.version}</version>
@@ -101,12 +107,6 @@
       <groupId>javax.inject</groupId>
       <artifactId>javax.inject</artifactId>
       <version>1</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
@@ -141,40 +141,6 @@
             <goals>
               <goal>testCompile</goal>
             </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>3.4.1</version>
-        <configuration>
-          <shadedArtifactAttached>false</shadedArtifactAttached>
-          <artifactSet>
-            <includes>
-              <include>io.trino.tpcds:tpcds</include>
-              <include>io.trino.tpch:tpch</include>
-              <include>com.google.guava:guava</include>
-              <include>org.apache.gluten:gluten-it-common</include>
-            </includes>
-          </artifactSet>
-          <relocations>
-            <relocation>
-              <pattern>com.google.common</pattern>
-              <shadedPattern>org.apache.gluten.it.com.google.common</shadedPattern>
-              <includes>
-                <include>com.google.common.**</include>
-              </includes>
-            </relocation>
-          </relocations>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <phase>package</phase>
           </execution>
         </executions>
       </plugin>

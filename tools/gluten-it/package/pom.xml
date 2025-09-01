@@ -16,20 +16,6 @@
       <groupId>org.apache.gluten</groupId>
       <artifactId>gluten-it-common</artifactId>
       <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.trino.tpch</groupId>
-          <artifactId>tpch</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.trino.tpcds</groupId>
-          <artifactId>tpcds</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
   </dependencies>
 
