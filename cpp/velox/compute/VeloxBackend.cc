@@ -94,8 +94,8 @@ void veloxRuntimeReleaser(Runtime* runtime) {
 void VeloxBackend::init(
     std::unique_ptr<AllocationListener> listener,
     const std::unordered_map<std::string, std::string>& conf) {
-  backendConf_ =
-      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf), true);
+  backendConf_ = std::make_shared<facebook::velox::config::ConfigBase>(
+      std::unordered_map<std::string, std::string>(conf), true /*mutable*/);
 
   globalMemoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener), *backendConf_);
 
@@ -316,8 +316,10 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
-  velox::connector::registerConnector(
-      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, newConf, ioExecutor_.get()));
+  auto hiveConnector =
+      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, newConf, ioExecutor_.get());
+  velox::connector::unregisterConnector(kHiveConnectorId);
+  velox::connector::registerConnector(hiveConnector);
 #ifdef GLUTEN_ENABLE_GPU
   if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
       backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
