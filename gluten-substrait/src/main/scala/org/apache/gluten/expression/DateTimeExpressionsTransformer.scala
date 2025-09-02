@@ -19,7 +19,6 @@ package org.apache.gluten.expression
 import org.apache.gluten.exception.GlutenNotSupportException
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.TimestampType
 
 /** The extract trait for 'GetDateField' from Date */
 case class ExtractDateTransformer(
@@ -102,19 +101,4 @@ object DateTimeExpressionsTransformer {
     scala.reflect.classTag[Minute].runtimeClass -> "MINUTE",
     scala.reflect.classTag[Second].runtimeClass -> "SECOND"
   )
-}
-
-case class ToUnixTimestampTransformer(
-    substraitExprName: String,
-    timeExpTransformer: ExpressionTransformer,
-    formatTransformer: ExpressionTransformer,
-    original: Expression)
-  extends ExpressionTransformer {
-
-  override def children: Seq[ExpressionTransformer] = {
-    timeExpTransformer.dataType match {
-      case _: TimestampType => Seq(timeExpTransformer)
-      case _ => Seq(timeExpTransformer, formatTransformer)
-    }
-  }
 }
