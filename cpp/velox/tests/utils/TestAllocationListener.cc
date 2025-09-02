@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "utils/TestAllocationListener.h"
+#include "tests/utils/TestAllocationListener.h"
 #include "velox/common/base/SuccinctPrinter.h"
 
 #include <fmt/format.h>

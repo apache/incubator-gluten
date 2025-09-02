@@ -35,10 +35,10 @@
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
+#include "tests/utils/LocalRssClient.h"
+#include "tests/utils/TestAllocationListener.h"
 #include "utils/Exception.h"
-#include "utils/LocalRssClient.h"
 #include "utils/StringUtil.h"
-#include "utils/TestAllocationListener.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/exec/PlanNodeStats.h"
@@ -429,9 +429,8 @@ auto BM_Generic = [](::benchmark::State& state,
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
-          inputIters.push_back(
-              FileReaderIterator::getInputIteratorFromFileReader(
-                  readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
+          inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
+              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
         }
         std::transform(
             inputIters.begin(),
