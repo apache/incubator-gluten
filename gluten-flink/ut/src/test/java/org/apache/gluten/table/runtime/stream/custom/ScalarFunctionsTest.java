@@ -150,7 +150,8 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     String query3 =
         "select "
             + " split_index(c, 'I', 2), split_index(c, 'I', -1), split_index(c, cast(null as VARCHAR), 0), "
-            + " split_index(c, 'I', cast(null as INT)), split_index(c, 73, 0), split_index(c, 256, 0) from tblSplitIndexFlink where a = 1";
+            + " split_index(c, 'I', cast(null as INT)), split_index(c, 73, 0), split_index(c, 256, 0) "
+            + " from tblSplitIndexFlink where a = 1";
     runAndCheck(query3, Arrays.asList("+I[null, null, null, null, 'AQ', null]"));
     String query4 = "select split_index(c, 'I', 0) from tblSplitIndexFlink where a = 2";
     runAndCheck(query4, Arrays.asList("+I[null]"));
