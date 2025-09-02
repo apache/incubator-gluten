@@ -75,11 +75,12 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def enableRewriteCastArrayToString: Boolean =
     getConf(ENABLE_REWRITE_CAST_ARRAY_TO_STRING)
+
+  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled &&
+    getConf(ENABLE_ENHANCED_FEATURES)
 }
 
 object VeloxConfig {
-
-  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled
 
   def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
@@ -683,6 +684,12 @@ object VeloxConfig {
       .internal()
       .doc("When true, rewrite `cast(array as String)` to" +
         " `concat('[', array_join(array, ', ', null), ']')` to allow offloading to Velox.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_ENHANCED_FEATURES =
+    buildConf("spark.gluten.sql.enable.enhancedFeatures")
+      .doc("Enable some features including iceberg native write and other features.")
       .booleanConf
       .createWithDefault(true)
 }
