@@ -101,7 +101,7 @@ install_centos_7() {
         yum -y remove git
         yum -y install rh-git227
         source /opt/rh/rh-git227/enable
-        ln -s /opt/rh/rh-git227/root/usr/bin/git /usr/local/bin/git
+        echo "source /opt/rh/rh-git227/enable" >> ~/.bashrc
     fi
 
     # flex>=2.6.0
