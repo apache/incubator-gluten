@@ -692,7 +692,6 @@ object GlutenConfig {
 
   val GLUTEN_SUPPORTED_FLATTENED_FUNCTIONS =
     buildConf("spark.gluten.sql.supported.flattenNestedFunctions")
-      .internal()
       .doc("Flatten nested functions as one for optimization.")
       .stringConf
       .createWithDefault("and,or");
@@ -751,7 +750,6 @@ object GlutenConfig {
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
     buildConf("spark.gluten.sql.enable.native.validation")
-      .internal()
       .doc(
         "This is tmp config to specify whether to enable the native validation based on " +
           "Substrait plan. After the validations in all backends are correctly implemented, " +
@@ -787,14 +785,12 @@ object GlutenConfig {
 
   val COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED =
     buildConf("spark.gluten.sql.columnar.enableNestedColumnPruningInHiveTableScan")
-      .internal()
       .doc("Enable or disable nested column pruning in hivetablescan.")
       .booleanConf
       .createWithDefault(true)
 
   val VANILLA_VECTORIZED_READERS_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
-      .internal()
       .doc("Enable or disable vanilla vectorized scan.")
       .booleanConf
       .createWithDefault(true)
@@ -807,14 +803,12 @@ object GlutenConfig {
 
   val COLUMNAR_FORCE_HASHAGG_ENABLED =
     buildConf("spark.gluten.sql.columnar.force.hashagg")
-      .internal()
       .doc("Whether to force to use gluten's hash agg for replacing vanilla spark's sort agg.")
       .booleanConf
       .createWithDefault(true)
 
   val MERGE_TWO_PHASES_ENABLED =
     buildConf("spark.gluten.sql.mergeTwoPhasesAggregate.enabled")
-      .internal()
       .doc("Whether to merge two phases aggregate if there are no other operators between them.")
       .booleanConf
       .createWithDefault(true)
@@ -851,28 +845,24 @@ object GlutenConfig {
 
   val COLUMNAR_APPEND_DATA_ENABLED =
     buildConf("spark.gluten.sql.columnar.appendData")
-      .internal()
       .doc("Enable or disable columnar v2 command append data.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_REPLACE_DATA_ENABLED =
     buildConf("spark.gluten.sql.columnar.replaceData")
-      .internal()
       .doc("Enable or disable columnar v2 command replace data.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_OVERWRIET_BY_EXPRESSION_ENABLED =
     buildConf("spark.gluten.sql.columnar.overwriteByExpression")
-      .internal()
       .doc("Enable or disable columnar v2 command overwrite by expression.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_PREFER_STREAMING_AGGREGATE =
     buildConf("spark.gluten.sql.columnar.preferStreamingAggregate")
-      .internal()
       .doc(
         "Velox backend supports `StreamingAggregate`. `StreamingAggregate` uses the less " +
           "memory as it does not need to hold all groups in memory, so it could avoid spill. " +
@@ -882,9 +872,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED =
-    buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin").booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED =
@@ -895,7 +883,6 @@ object GlutenConfig {
 
   val COLUMNAR_SHUFFLED_HASH_JOIN_OPTIMIZE_BUILD_SIDE =
     buildConf("spark.gluten.sql.columnar.shuffledHashJoin.optimizeBuildSide")
-      .internal()
       .doc("Whether to allow Gluten to choose an optimal build side for shuffled hash join.")
       .booleanConf
       .createWithDefault(true)
@@ -916,7 +903,6 @@ object GlutenConfig {
 
   val NATIVE_UNION_ENABLED =
     buildConf("spark.gluten.sql.native.union")
-      .internal()
       .doc("Enable or disable native union where computation is completely offloaded to backend.")
       .booleanConf
       .createWithDefault(false)
@@ -941,7 +927,6 @@ object GlutenConfig {
 
   val COLUMNAR_ARROW_UDF_ENABLED =
     buildConf("spark.gluten.sql.columnar.arrowUdf")
-      .internal()
       .doc("Enable or disable columnar arrow udf.")
       .booleanConf
       .createWithDefault(true)
@@ -960,65 +945,57 @@ object GlutenConfig {
 
   val COLUMNAR_SHUFFLE_SORT_PARTITIONS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.sort.partitions.threshold")
-      .internal()
-      .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
-        "shuffle will be used if the number of partitions is greater than this threshold.")
+      .doc(
+        "The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
+          "shuffle will be used if the number of partitions is greater than this threshold.")
       .intConf
       .createWithDefault(4000)
 
   val COLUMNAR_SHUFFLE_SORT_COLUMNS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.sort.columns.threshold")
-      .internal()
-      .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
-        "shuffle will be used if the number of columns is greater than this threshold.")
+      .doc(
+        "The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
+          "shuffle will be used if the number of columns is greater than this threshold.")
       .intConf
       .createWithDefault(100000)
 
   val COLUMNAR_TABLE_CACHE_ENABLED =
     buildConf("spark.gluten.sql.columnar.tableCache")
-      .internal()
       .doc("Enable or disable columnar table cache.")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE =
     buildConf("spark.gluten.sql.columnar.physicalJoinOptimizationLevel")
-      .internal()
       .doc("Fallback to row operators if there are several continuous joins.")
       .intConf
       .createWithDefault(12)
 
   val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_ENABLED =
     buildConf("spark.gluten.sql.columnar.physicalJoinOptimizeEnable")
-      .internal()
       .doc("Enable or disable columnar physicalJoinOptimize.")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_SCAN_ONLY_ENABLED =
     buildConf("spark.gluten.sql.columnar.scanOnly")
-      .internal()
       .doc("When enabled, only scan and the filter after scan will be offloaded to native.")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_TEMP_DIR =
     buildConf("spark.gluten.sql.columnar.tmp_dir")
-      .internal()
       .doc("A folder to store the codegen files.")
       .stringConf
       .createOptional
 
   val COLUMNAR_SHUFFLE_REALLOC_THRESHOLD =
-    buildConf("spark.gluten.sql.columnar.shuffle.realloc.threshold")
-      .internal()
-      .doubleConf
+    buildConf("spark.gluten.sql.columnar.shuffle.realloc.threshold").doubleConf
       .checkValue(v => v >= 0 && v <= 1, "Buffer reallocation threshold must between [0, 1]")
       .createWithDefault(0.25)
 
   val COLUMNAR_SHUFFLE_CODEC =
     buildConf("spark.gluten.sql.columnar.shuffle.codec")
-      .internal()
       .doc(
         "By default, the supported codecs are lz4 and zstd. " +
           "When spark.gluten.sql.columnar.shuffle.codecBackend=qat," +
@@ -1028,37 +1005,31 @@ object GlutenConfig {
       .createOptional
 
   val COLUMNAR_SHUFFLE_CODEC_BACKEND =
-    buildConf("spark.gluten.sql.columnar.shuffle.codecBackend")
-      .internal()
-      .stringConf
+    buildConf("spark.gluten.sql.columnar.shuffle.codecBackend").stringConf
       .transform(_.toLowerCase(Locale.ROOT))
       .createOptional
 
   val COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.compression.threshold")
-      .internal()
-      .doc("If number of rows in a batch falls below this threshold," +
-        " will copy all buffers into one buffer to compress.")
+      .doc(
+        "If number of rows in a batch falls below this threshold," +
+          " will copy all buffers into one buffer to compress.")
       .intConf
       .createWithDefault(100)
 
   val SHUFFLE_WRITER_MERGE_THRESHOLD =
-    buildConf("spark.gluten.sql.columnar.shuffle.merge.threshold")
-      .internal()
-      .doubleConf
+    buildConf("spark.gluten.sql.columnar.shuffle.merge.threshold").doubleConf
       .checkValue(v => v >= 0 && v <= 1, "Shuffle writer merge threshold must between [0, 1]")
       .createWithDefault(0.25)
 
   val COLUMNAR_SHUFFLE_READER_BUFFER_SIZE =
     buildConf("spark.gluten.sql.columnar.shuffle.readerBufferSize")
-      .internal()
       .doc("Buffer size in bytes for shuffle reader reading input stream from local or remote.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
   val COLUMNAR_SORT_SHUFFLE_DESERIALIZER_BUFFER_SIZE =
     buildConf("spark.gluten.sql.columnar.shuffle.sort.deserializerBufferSize")
-      .internal()
       .doc("Buffer size in bytes for sort-based shuffle reader deserializing raw input to " +
         "columnar batch.")
       .bytesConf(ByteUnit.BYTE)
@@ -1066,29 +1037,23 @@ object GlutenConfig {
 
   val SHUFFLE_ENABLE_DICTIONARY =
     buildConf("spark.gluten.sql.columnar.shuffle.dictionary.enabled")
-      .internal()
       .doc("Enable dictionary in hash-based shuffle.")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_MAX_BATCH_SIZE =
-    buildConf("spark.gluten.sql.columnar.maxBatchSize")
-      .internal()
-      .intConf
+    buildConf("spark.gluten.sql.columnar.maxBatchSize").intConf
       .checkValue(_ > 0, s"must be positive.")
       .createWithDefault(4096)
 
   val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD =
     buildConf("spark.gluten.sql.columnarToRowMemoryThreshold")
-      .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64MB")
 
   // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
   val SHUFFLE_WRITER_BUFFER_SIZE =
-    buildConf("spark.gluten.shuffleWriter.bufferSize")
-      .internal()
-      .intConf
+    buildConf("spark.gluten.shuffleWriter.bufferSize").intConf
       .checkValue(_ > 0, s"must be positive.")
       .createOptional
 
@@ -1105,48 +1070,40 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val COLUMNAR_NATIVE_BLOOMFILTER_ENABLED =
-    buildConf("spark.gluten.sql.native.bloomFilter")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.native.bloomFilter").booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED =
-    buildConf("spark.gluten.sql.native.hyperLogLog.Aggregate")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.native.hyperLogLog.Aggregate").booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_PARQUET_WRITE_BLOCK_SIZE =
     buildConf("spark.gluten.sql.columnar.parquet.write.blockSize")
-      .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("128MB")
 
   val COLUMNAR_PARQUET_WRITE_BLOCK_ROWS =
-    buildConf("spark.gluten.sql.native.parquet.write.blockRows")
-      .internal()
-      .longConf
+    buildConf("spark.gluten.sql.native.parquet.write.blockRows").longConf
       .createWithDefault(100 * 1000 * 1000)
 
   val COLUMNAR_QUERY_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.query.fallback.threshold")
-      .internal()
-      .doc("The threshold for whether query will fall back " +
-        "by counting the number of ColumnarToRow & vanilla leaf node.")
+      .doc(
+        "The threshold for whether query will fall back " +
+          "by counting the number of ColumnarToRow & vanilla leaf node.")
       .intConf
       .createWithDefault(-1)
 
   val COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.wholeStage.fallback.threshold")
-      .internal()
-      .doc("The threshold for whether whole stage will fall back in AQE supported case " +
-        "by counting the number of ColumnarToRow & vanilla leaf node.")
+      .doc(
+        "The threshold for whether whole stage will fall back in AQE supported case " +
+          "by counting the number of ColumnarToRow & vanilla leaf node.")
       .intConf
       .createWithDefault(-1)
 
   val COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR =
     buildConf("spark.gluten.sql.columnar.fallback.ignoreRowToColumnar")
-      .internal()
       .doc(
         "When true, the fallback policy ignores the RowToColumnar when counting fallback number.")
       .booleanConf
@@ -1154,15 +1111,14 @@ object GlutenConfig {
 
   val COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.fallback.expressions.threshold")
-      .internal()
-      .doc("Fall back filter/project if number of nested expressions reaches this threshold," +
-        " considering Spark codegen can bring better performance for such case.")
+      .doc(
+        "Fall back filter/project if number of nested expressions reaches this threshold," +
+          " considering Spark codegen can bring better performance for such case.")
       .intConf
       .createWithDefault(50)
 
   val COLUMNAR_FALLBACK_PREFER_COLUMNAR =
     buildConf("spark.gluten.sql.columnar.fallback.preferColumnar")
-      .internal()
       .doc(
         "When true, the fallback policy prefers to use Gluten plan rather than vanilla " +
           "Spark plan if the both of them contains ColumnarToRow and the vanilla Spark plan " +
@@ -1172,16 +1128,14 @@ object GlutenConfig {
 
   val COLUMNAR_MEMORY_BACKTRACE_ALLOCATION =
     buildConf("spark.gluten.memory.backtrace.allocation")
-      .internal()
-      .doc("Print backtrace information for large memory allocations. This helps debugging when " +
-        "Spark OOM happens due to large acquire requests.")
+      .doc(
+        "Print backtrace information for large memory allocations. This helps debugging when " +
+          "Spark OOM happens due to large acquire requests.")
       .booleanConf
       .createWithDefault(false)
 
   val TRANSFORM_PLAN_LOG_LEVEL =
-    buildConf("spark.gluten.sql.transform.logLevel")
-      .internal()
-      .stringConf
+    buildConf("spark.gluten.sql.transform.logLevel").stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
@@ -1189,9 +1143,7 @@ object GlutenConfig {
       .createWithDefault("DEBUG")
 
   val SUBSTRAIT_PLAN_LOG_LEVEL =
-    buildConf("spark.gluten.sql.substrait.plan.logLevel")
-      .internal()
-      .stringConf
+    buildConf("spark.gluten.sql.substrait.plan.logLevel").stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
@@ -1199,9 +1151,7 @@ object GlutenConfig {
       .createWithDefault("DEBUG")
 
   val VALIDATION_LOG_LEVEL =
-    buildConf("spark.gluten.sql.validation.logLevel")
-      .internal()
-      .stringConf
+    buildConf("spark.gluten.sql.validation.logLevel").stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
@@ -1209,21 +1159,15 @@ object GlutenConfig {
       .createWithDefault("WARN")
 
   val VALIDATION_PRINT_FAILURE_STACK =
-    buildConf("spark.gluten.sql.validation.printStackOnFailure")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.validation.printStackOnFailure").booleanConf
       .createWithDefault(false)
 
   val VALIDATION_FAIL_FAST =
-    buildConf("spark.gluten.sql.validation.failFast")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.validation.failFast").booleanConf
       .createWithDefault(true)
 
   val SOFT_AFFINITY_LOG_LEVEL =
-    buildConf("spark.gluten.soft-affinity.logLevel")
-      .internal()
-      .stringConf
+    buildConf("spark.gluten.soft-affinity.logLevel").stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
@@ -1231,9 +1175,7 @@ object GlutenConfig {
       .createWithDefault("DEBUG")
 
   val DEBUG_ENABLED =
-    buildConf("spark.gluten.sql.debug")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.debug").booleanConf
       .createWithDefault(false)
 
   val DEBUG_KEEP_JNI_WORKSPACE =
@@ -1286,14 +1228,12 @@ object GlutenConfig {
 
   val NATIVE_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.writer.enabled")
-      .internal()
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createOptional
 
   val NATIVE_HIVEFILEFORMAT_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.hive.writer.enabled")
-      .internal()
       .doc(
         "This is config to specify whether to enable the native columnar writer for " +
           "HiveFileFormat. Currently only supports HiveFileFormat with Parquet as the output " +
@@ -1303,7 +1243,6 @@ object GlutenConfig {
 
   val NATIVE_ARROW_READER_ENABLED =
     buildConf("spark.gluten.sql.native.arrow.reader.enabled")
-      .internal()
       .doc("This is config to specify whether to enable the native columnar csv reader")
       .booleanConf
       .createWithDefault(false)
@@ -1318,9 +1257,9 @@ object GlutenConfig {
 
   val REMOVE_NATIVE_WRITE_FILES_SORT_AND_PROJECT =
     buildConf("spark.gluten.sql.removeNativeWriteFilesSortAndProject")
-      .internal()
-      .doc("When true, Gluten will remove the vanilla Spark V1Writes added sort and project " +
-        "for velox backend.")
+      .doc(
+        "When true, Gluten will remove the vanilla Spark V1Writes added sort and project " +
+          "for velox backend.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1369,43 +1308,38 @@ object GlutenConfig {
 
   val TEXT_INPUT_ROW_MAX_BLOCK_SIZE =
     buildConf("spark.gluten.sql.text.input.max.block.size")
-      .internal()
       .doc("the max block size for text input rows")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8KB");
 
   val TEXT_INPUT_EMPTY_AS_DEFAULT =
     buildConf("spark.gluten.sql.text.input.empty.as.default")
-      .internal()
       .doc("treat empty fields in CSV input as default values.")
       .booleanConf
       .createWithDefault(false);
 
   val ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX =
     buildConf("spark.gluten.sql.parquet.maxmin.index")
-      .internal()
       .doc("Enable row group max min index for parquet file scan")
       .booleanConf
       .createWithDefault(false)
 
   val ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON =
     buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")
-      .internal()
-      .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
-        + "For example `from_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
+      .doc(
+        "Rewrite the comparision between date and timestamp to timestamp comparison."
+          + "For example `from_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
       .booleanConf
       .createWithDefault(true)
 
   val ENABLE_COLLAPSE_GET_JSON_OBJECT =
     buildConf("spark.gluten.sql.collapseGetJsonObject.enabled")
-      .internal()
       .doc("Collapse nested get_json_object functions as one for optimization.")
       .booleanConf
       .createWithDefault(false)
 
   val ENABLE_COLUMNAR_PROJECT_COLLAPSE =
     buildConf("spark.gluten.sql.columnar.project.collapse")
-      .internal()
       .doc("Combines two columnar project operators into one and perform alias substitution")
       .booleanConf
       .createWithDefault(true)
@@ -1423,7 +1357,6 @@ object GlutenConfig {
 
   val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
     buildConf("spark.gluten.sql.commonSubexpressionEliminate")
-      .internal()
       .doc(
         "Eliminate common subexpressions in logical plan to avoid multiple evaluation of the same"
           + "expression, may improve performance")
@@ -1432,7 +1365,6 @@ object GlutenConfig {
 
   val ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND =
     buildConf("spark.gluten.sql.countDistinctWithoutExpand")
-      .internal()
       .doc(
         "Convert Count Distinct to a UDAF called count_distinct to " +
           "prevent SparkPlanner converting it to Expand+Count. WARNING: " +
@@ -1442,7 +1374,6 @@ object GlutenConfig {
 
   val ENABLE_EXTENDED_COLUMN_PRUNING =
     buildConf("spark.gluten.sql.extendedColumnPruning.enabled")
-      .internal()
       .doc("Do extended nested column pruning for cases ignored by vanilla Spark.")
       .booleanConf
       .createWithDefault(true)
@@ -1467,29 +1398,26 @@ object GlutenConfig {
 
   val CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT =
     buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")
-      .internal()
-      .doc("When true, `WholeStageTransformer` will cache the `WholeStageTransformerContext` " +
-        "when executing. It is used to get substrait plan node and native plan string.")
+      .doc(
+        "When true, `WholeStageTransformer` will cache the `WholeStageTransformerContext` " +
+          "when executing. It is used to get substrait plan node and native plan string.")
       .booleanConf
       .createWithDefault(false)
 
   val INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN =
     buildConf("spark.gluten.sql.injectNativePlanStringToExplain")
-      .internal()
       .doc("When true, Gluten will inject native plan tree to Spark's explain output.")
       .booleanConf
       .createWithDefault(false)
 
   val VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK =
     buildConf("spark.gluten.sql.orc.charType.scan.fallback.enabled")
-      .internal()
       .doc("Force fallback for orc char type scan.")
       .booleanConf
       .createWithDefault(true)
 
   val VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED =
     buildConf("spark.gluten.sql.scan.fileSchemeValidation.enabled")
-      .internal()
       .doc(
         "When true, enable file path scheme validation for scan. Validation will fail if" +
           " file scheme is not supported by registered file systems, which will cause scan " +
@@ -1498,14 +1426,11 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED =
-    buildConf("spark.gluten.sql.columnar.cast.avg")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.columnar.cast.avg").booleanConf
       .createWithDefault(true)
 
   val COST_EVALUATOR_ENABLED =
     buildStaticConf("spark.gluten.sql.adaptive.costEvaluator.enabled")
-      .internal()
       .doc(
         "If true, use " +
           "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator as custom cost " +
@@ -1516,15 +1441,14 @@ object GlutenConfig {
 
   val CELEBORN_FALLBACK_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.shuffle.celeborn.fallback.enabled")
-      .internal()
-      .doc("If enabled, fall back to ColumnarShuffleManager when celeborn service is unavailable." +
-        "Otherwise, throw an exception.")
+      .doc(
+        "If enabled, fall back to ColumnarShuffleManager when celeborn service is unavailable." +
+          "Otherwise, throw an exception.")
       .booleanConf
       .createWithDefault(true)
 
   val CELEBORN_USE_RSS_SORT =
     buildConf("spark.gluten.sql.columnar.shuffle.celeborn.useRssSort")
-      .internal()
       .doc(
         "If true, use RSS sort implementation for Celeborn sort-based shuffle." +
           "If false, use Gluten's row-based sort implementation. " +
@@ -1534,51 +1458,46 @@ object GlutenConfig {
 
   val HDFS_VIEWFS_ENABLED =
     buildStaticConf("spark.gluten.storage.hdfsViewfs.enabled")
-      .internal()
       .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala side")
       .booleanConf
       .createWithDefault(false)
 
   val ENCRYPTED_PARQUET_FALLBACK_ENABLED =
     buildConf("spark.gluten.sql.fallbackEncryptedParquet")
-      .internal()
       .doc("If enabled, gluten will not offload scan when encrypted parquet files are detected")
       .booleanConf
       .createWithDefault(false)
 
   val AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED =
     buildConf("spark.gluten.auto.adjustStageResource.enabled")
-      .internal()
-      .doc("Experimental: If enabled, gluten will try to set the stage resource according " +
-        "to stage execution plan. Only worked when aqe is enabled at the same time!!")
+      .doc(
+        "Experimental: If enabled, gluten will try to set the stage resource according " +
+          "to stage execution plan. Only worked when aqe is enabled at the same time!!")
       .booleanConf
       .createWithDefault(false)
 
   val AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO =
     buildConf("spark.gluten.auto.adjustStageResources.heap.ratio")
-      .internal()
       .doc("Experimental: Increase executor heap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(2.0d)
 
   val AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO =
     buildConf("spark.gluten.auto.adjustStageResources.offheap.ratio")
-      .internal()
       .doc("Experimental: Decrease executor offheap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(0.5d)
 
   val AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD =
     buildConf("spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold")
-      .internal()
-      .doc("Experimental: Increase executor heap memory when stage contains fallen node " +
-        "count exceeds the total node count ratio.")
+      .doc(
+        "Experimental: Increase executor heap memory when stage contains fallen node " +
+          "count exceeds the total node count ratio.")
       .doubleConf
       .createWithDefault(0.5d)
 
   val ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT =
     buildConf("spark.gluten.sql.fallbackEncryptedParquet.limit")
-      .internal()
       .doc("If supplied, `limit` number of files will be checked to determine encryption " +
         "and falling back java scan")
       .intConf
