@@ -208,8 +208,9 @@ fi
 concat_velox_param
 
 function build_arrow {
-  get_velox
-  setup_dependencies
+  if [ ! -d "$GLUTEN_DIR/ep/build-velox/build/velox_ep" ]; then
+    get_velox && setup_dependencies
+  fi
   cd $GLUTEN_DIR/dev
   source ./build_arrow.sh
 }
