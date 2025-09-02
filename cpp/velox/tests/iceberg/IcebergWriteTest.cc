@@ -43,7 +43,8 @@ class VeloxIcebergWriteTest : public ::testing::Test, public test::VectorTestBas
 TEST_F(VeloxIcebergWriteTest, write) {
   auto vector = makeRowVector({makeFlatVector<int8_t>({1, 2}), makeFlatVector<int16_t>({1, 2})});
   auto tmpPath = tmpDir_->getPath();
-  auto partitionSpec = std::make_shared<const connector::hive::iceberg::IcebergPartitionSpec>(0, {});
+  std::vector<connector::hive::iceberg::IcebergPartitionSpec::Field> fields;
+  auto partitionSpec = std::make_shared<const connector::hive::iceberg::IcebergPartitionSpec>(0, fields);
 
   gluten::IcebergNestedField root;
   root.set_id(0);
@@ -57,7 +58,7 @@ TEST_F(VeloxIcebergWriteTest, write) {
       1,
       tmpPath + "/iceberg_write_test_table",
       common::CompressionKind::CompressionKind_ZSTD,
-      spec,
+      partitionSpec,
       root,
       std::unordered_map<std::string, std::string>(),
       pool_,
