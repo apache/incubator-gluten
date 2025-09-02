@@ -99,6 +99,7 @@ install_centos_7() {
     # Requires git >= 2.7.4
     if [[ "$(git --version)" != "git version 2."* ]]; then
         yum -y remove git
+        # Requires 'centos-release-scl' package to be installed.
         yum -y install rh-git227
         source /opt/rh/rh-git227/enable
         echo "source /opt/rh/rh-git227/enable" >> ~/.bashrc
