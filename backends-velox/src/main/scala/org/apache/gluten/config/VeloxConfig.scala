@@ -695,7 +695,7 @@ object VeloxConfig {
       .doc("When true, rewrite unbounded window to an equivalent aggregate join operation" +
         " to avoid OOM.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val ENABLE_ENHANCED_FEATURES =
     buildConf("spark.gluten.sql.enable.enhancedFeatures")

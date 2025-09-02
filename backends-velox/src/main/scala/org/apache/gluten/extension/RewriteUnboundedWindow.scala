@@ -48,12 +48,11 @@ case class RewriteUnboundedWindow(spark: SparkSession) extends Rule[LogicalPlan]
       return plan
     }
     plan.transformUpWithPruning(_.containsPattern(WINDOW)) {
-      case w @ Window(windowExprs, partitionSpec, orderSpec, child)
-          if orderSpec.isEmpty && isUnboundedWindow(windowExprs) =>
-        val partitionAliases = partitionSpec.zipWithIndex.map {
+      case w: Window if w.orderSpec.isEmpty && isUnboundedWindow(w.windowExpressions) =>
+        val partitionAliases = w.partitionSpec.zipWithIndex.map {
           case (expr, idx) => Alias(expr, s"part_$idx")()
         }
-        val aggregateExprs = partitionAliases ++ windowExprs.map {
+        val aggregateExprs = partitionAliases ++ w.windowExpressions.map {
           case alias @ Alias(WindowExpression(agg: AggregateExpression, _), _) =>
             alias.copy(child = agg)(
               alias.exprId,
@@ -61,12 +60,12 @@ case class RewriteUnboundedWindow(spark: SparkSession) extends Rule[LogicalPlan]
               alias.explicitMetadata,
               alias.nonInheritableMetadataKeys)
         }
-        val aggregate = Aggregate(partitionSpec, aggregateExprs, child)
-        val joinCondition = partitionSpec
+        val aggregate = Aggregate(w.partitionSpec, aggregateExprs, w.child)
+        val joinCondition = w.partitionSpec
           .zip(partitionAliases)
           .map(exprs => EqualNullSafe(exprs._1, exprs._2.toAttribute))
           .reduceOption(And)
-        val join = Join(child, aggregate, Inner, joinCondition, JoinHint(None, None))
+        val join = Join(w.child, aggregate, Inner, joinCondition, JoinHint(None, None))
         Project(w.output, join)
     }
   }
