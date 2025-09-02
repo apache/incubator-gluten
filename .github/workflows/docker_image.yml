@@ -36,6 +36,7 @@ env:
 
 jobs:
   build-vcpkg-centos-7:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
 
     steps:
