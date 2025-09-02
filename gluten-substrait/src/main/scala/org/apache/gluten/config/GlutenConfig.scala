@@ -29,11 +29,6 @@ import java.util.Locale
 
 import scala.collection.JavaConverters._
 
-case class GlutenNumaBindingInfo(
-    enableNumaBinding: Boolean,
-    totalCoreRange: Array[String] = null,
-    numCoresPerExecutor: Int = -1) {}
-
 trait ShuffleWriterType {
   val name: String
 }
@@ -165,7 +160,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
       .contains("celeborn")
 
   // Whether to use UniffleShuffleManager.
-  // TODO: Deprecate the API: https://github.com/apache/incubator-gluten/issues/10107.
+  @deprecated
   def isUseUniffleShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
@@ -259,23 +254,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def fallbackExpressionsThreshold: Int = getConf(COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD)
 
   def fallbackPreferColumnar: Boolean = getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
-
-  def numaBindingInfo: GlutenNumaBindingInfo = {
-    val enableNumaBinding: Boolean = getConf(COLUMNAR_NUMA_BINDING_ENABLED)
-    if (!enableNumaBinding) {
-      GlutenNumaBindingInfo(enableNumaBinding = false)
-    } else {
-      val tmp = getConf(COLUMNAR_NUMA_BINDING_CORE_RANGE)
-      if (tmp.isEmpty) {
-        GlutenNumaBindingInfo(enableNumaBinding = false)
-      } else {
-        val numCores = conf.getConfString("spark.executor.cores", "1").toInt
-        val coreRangeList: Array[String] = tmp.get.split('|').map(_.trim)
-        GlutenNumaBindingInfo(enableNumaBinding = true, coreRangeList, numCores)
-      }
-
-    }
-  }
 
   def cartesianProductTransformerEnabled: Boolean =
     getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
@@ -525,11 +503,9 @@ object GlutenConfig {
     nativeConfMap.putAll(conf.filter(e => nativeKeys.contains(e._1)).asJava)
 
     val keyWithDefault = ImmutableList.of(
-      (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
-      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
-      (
-        SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
-        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
+      (CASE_SENSITIVE.key, CASE_SENSITIVE.defaultValueString),
+      (IGNORE_MISSING_FILES.key, IGNORE_MISSING_FILES.defaultValueString),
+      (LEGACY_STATISTICAL_AGGREGATE.key, LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
@@ -537,8 +513,9 @@ object GlutenConfig {
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
       (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
-      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
-      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
+      (MAP_KEY_DEDUP_POLICY.key, MAP_KEY_DEDUP_POLICY.defaultValueString),
+      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString),
+      (ANSI_ENABLED.key, ANSI_ENABLED.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     GlutenConfigUtil.mapByteConfValue(
@@ -1204,18 +1181,6 @@ object GlutenConfig {
           "ColumnarToRow number is not smaller than Gluten plan.")
       .booleanConf
       .createWithDefault(true)
-
-  val COLUMNAR_NUMA_BINDING_ENABLED =
-    buildConf("spark.gluten.sql.columnar.numaBinding")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
-
-  val COLUMNAR_NUMA_BINDING_CORE_RANGE =
-    buildConf("spark.gluten.sql.columnar.coreRange")
-      .internal()
-      .stringConf
-      .createOptional
 
   val COLUMNAR_MEMORY_BACKTRACE_ALLOCATION =
     buildConf("spark.gluten.memory.backtrace.allocation")

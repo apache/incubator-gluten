@@ -43,8 +43,9 @@ class VeloxParquetDataSourceABFS final : public VeloxParquetDataSource {
       : VeloxParquetDataSource(filePath, veloxPool, sinkPool, schema) {}
 
   void initSink(const std::unordered_map<std::string, std::string>& sparkConfs) override {
-    auto hiveConf = getHiveConfig(std::make_shared<facebook::velox::config::ConfigBase>(
-        std::unordered_map<std::string, std::string>(sparkConfs)));
+    auto hiveConf = getHiveConfig(
+        std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(sparkConfs)),
+        FileSystemType::kAbfs);
     auto fileSystem = filesystems::getFileSystem(filePath_, hiveConf);
     auto* abfsFileSystem = dynamic_cast<filesystems::AbfsFileSystem*>(fileSystem.get());
     sink_ = std::make_unique<dwio::common::WriteFileSink>(

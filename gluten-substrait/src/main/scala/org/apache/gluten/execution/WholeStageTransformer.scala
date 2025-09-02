@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.{GlutenConfig, GlutenNumaBindingInfo}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -162,10 +162,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
-
-  val sparkConf: SparkConf = sparkContext.getConf
-
-  val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   @transient
   private var wholeStageTransformerContext: Option[WholeStageTransformContext] = None
@@ -451,8 +447,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       new WholeStageZippedPartitionsRDD(
         sparkContext,
         inputRDDs,
-        numaBindingInfo,
-        sparkConf,
+        sparkContext.getConf,
         wsCtx,
         pipelineTime,
         BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(

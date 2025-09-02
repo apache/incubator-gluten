@@ -95,21 +95,19 @@ public class CelebornShuffleManager
                     celebornColumnarBatchSerializerFactoriesLoader.iterator(),
                     CelebornColumnarBatchSerializerFactory.class))
             .collect(Collectors.toList());
-    //   for now, we ignore check since CH backend has not support this feature yet.
-    //    Preconditions.checkState(
-    //        !columnarBatchSerializerFactoryList.isEmpty(),
-    //        "No factory found for Celeborn columnar batch serializer");
-    final Map<String, CelebornColumnarBatchSerializerFactory> columanrBatchSerilizerFactoryMap =
+
+    Preconditions.checkState(
+        !columnarBatchSerializerFactoryList.isEmpty(),
+        "No factory found for Celeborn columnar batch serializer");
+    final Map<String, CelebornColumnarBatchSerializerFactory> columnarBatchSerializerFactoryMap =
         columnarBatchSerializerFactoryList.stream()
             .collect(Collectors.toMap(CelebornColumnarBatchSerializerFactory::backendName, f -> f));
 
-    //   for now, we ignore check since CH backend has not support this feature yet.
-    //    if (!columanrBatchSerilizerFactoryMap.containsKey(backendName)) {
-    //      throw new UnsupportedOperationException(
-    //          "No Celeborn columnar batch serializer writer factory found for backend " +
-    // backendName);
-    //    }
-    columnarBatchSerializerFactory = columanrBatchSerilizerFactoryMap.get(backendName);
+    if (!columnarBatchSerializerFactoryMap.containsKey(backendName)) {
+      throw new UnsupportedOperationException(
+          "No Celeborn columnar batch serializer writer factory found for backend " + backendName);
+    }
+    columnarBatchSerializerFactory = columnarBatchSerializerFactoryMap.get(backendName);
   }
 
   private final SparkConf conf;
