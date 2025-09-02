@@ -85,7 +85,19 @@ case class WindowExecTransformer(
     val windowParametersStr = new StringBuffer("WindowParameters:")
     // isStreaming: 1 for streaming, 0 for sort
     val isStreaming: Int =
-      if (BackendsApiManager.getSettings.requiredChildOrderingForWindow()) 1 else 0
+      if (BackendsApiManager.getSettings.requiredChildOrderingForWindow()) {
+        1
+      } else {
+        val isAlreadySatisfied = isChildOrderAlreadySatisfied
+        // Optimize sort window to streaming window when child order already match window requirements.
+        if (isAlreadySatisfied) {
+          logInfo("Mark window type to streaming since child order is already satisfied.")
+          1
+        } else {
+          logInfo("Mark window type to sort since child order is not satisfied.")
+          0
+        }
+      }
 
     windowParametersStr
       .append("isStreaming=")
@@ -184,4 +196,21 @@ case class WindowExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =
     copy(child = newChild)
+
+  private def isChildOrderAlreadySatisfied: Boolean = {
+    val requiredOrdering = partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec
+    logInfo(
+      s"Check if child order already satisfied, " +
+        s"current window node is ${this.treeString}, " +
+        s"required ordering is ${requiredOrdering.map(_.treeString).mkString(",")}, " +
+        s"child is ${child.treeString}, " +
+        s"child.outputOrder is ${child.outputOrdering.map(_.treeString).mkString(",")}")
+    if (requiredOrdering.size <= child.outputOrdering.size) {
+      SortOrder.orderingSatisfies(
+        child.outputOrdering.take(requiredOrdering.size),
+        requiredOrdering)
+    } else {
+      false
+    }
+  }
 }
