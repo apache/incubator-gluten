@@ -76,6 +76,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def enableRewriteCastArrayToString: Boolean =
     getConf(ENABLE_REWRITE_CAST_ARRAY_TO_STRING)
 
+  def enableRewriteUnboundedWindow: Boolean = getConf(ENABLE_REWRITE_UNBOUNDED_WINDOW)
+
   def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled &&
     getConf(ENABLE_ENHANCED_FEATURES)
 }
@@ -684,6 +686,14 @@ object VeloxConfig {
       .internal()
       .doc("When true, rewrite `cast(array as String)` to" +
         " `concat('[', array_join(array, ', ', null), ']')` to allow offloading to Velox.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_REWRITE_UNBOUNDED_WINDOW =
+    buildConf("spark.gluten.sql.rewrite.unboundedWindow")
+      .internal()
+      .doc("When true, rewrite unbounded window to an equivalent aggregate join operation" +
+        " to avoid OOM.")
       .booleanConf
       .createWithDefault(true)
 
