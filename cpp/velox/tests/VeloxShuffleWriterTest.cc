@@ -18,7 +18,6 @@
 #include <arrow/c/bridge.h>
 #include <arrow/io/api.h>
 
-#include "../utils/VeloxArrowUtils.h"
 #include "config/GlutenConfig.h"
 #include "shuffle/VeloxHashShuffleWriter.h"
 #include "shuffle/VeloxRssSortShuffleWriter.h"
@@ -26,6 +25,7 @@
 #include "tests/VeloxShuffleWriterTestBase.h"
 #include "tests/utils/TestUtils.h"
 #include "utils/TestAllocationListener.h"
+#include "utils/VeloxArrowUtils.h"
 
 #include "velox/vector/tests/utils/VectorTestBase.h"
 
@@ -292,7 +292,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     const auto veloxCompressionType = arrowCompressionTypeToVelox(compressionType);
     const auto schema = toArrowSchema(rowType, getDefaultMemoryManager()->getLeafMemoryPool().get());
 
-    auto codec = createArrowIpcCodec(compressionType, CodecBackend::NONE);
+    auto codec = createCompressionCodec(compressionType, CodecBackend::NONE);
 
     // Set batchSize to a large value to make all batches are merged by reader.
     auto deserializerFactory = std::make_unique<gluten::VeloxShuffleReaderDeserializerFactory>(
