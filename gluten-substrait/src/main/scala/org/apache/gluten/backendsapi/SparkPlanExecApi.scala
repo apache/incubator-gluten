@@ -470,6 +470,18 @@ trait SparkPlanExecApi {
     TruncTimestampTransformer(substraitExprName, format, timestamp, original)
   }
 
+  def genToUnixTimestampTransformer(
+      substraitExprName: String,
+      timeExp: ExpressionTransformer,
+      format: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(timeExp, format),
+      original
+    )
+  }
+
   def genDateDiffTransformer(
       substraitExprName: String,
       endDate: ExpressionTransformer,

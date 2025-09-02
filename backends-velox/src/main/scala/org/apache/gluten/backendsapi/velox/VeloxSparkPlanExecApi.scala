@@ -1048,4 +1048,12 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
     TimestampDiffTransformer(substraitExprName, extract.get, left, right, original)
   }
+
+  override def genToUnixTimestampTransformer(
+      substraitExprName: String,
+      timeExp: ExpressionTransformer,
+      format: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    ToUnixTimestampTransformer(substraitExprName, timeExp, format, original)
+  }
 }

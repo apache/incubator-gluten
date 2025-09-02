@@ -636,6 +636,18 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
   }
 
+  override def genToUnixTimestampTransformer(
+      substraitExprName: String,
+      timeExp: ExpressionTransformer,
+      format: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(timeExp, format),
+      original
+    )
+  }
+
   override def genDateDiffTransformer(
       substraitExprName: String,
       endDate: ExpressionTransformer,
