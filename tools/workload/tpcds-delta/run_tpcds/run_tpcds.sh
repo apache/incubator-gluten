@@ -14,6 +14,7 @@
 # limitations under the License.
 
 GLUTEN_JAR=/PATH_TO_GLUTEN_HOME/package/target/<gluten-jar>
+DELTA_JARS=/PATHS_TO_DELTA_JARS
 SPARK_HOME=/PATH_TO_SPARK_HOME/
 
 cat tpcds_delta.scala | ${SPARK_HOME}/bin/spark-shell \
@@ -22,8 +23,8 @@ cat tpcds_delta.scala | ${SPARK_HOME}/bin/spark-shell \
   --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension \
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
   --conf spark.plugins=org.apache.gluten.GlutenPlugin \
-  --conf spark.driver.extraClassPath=${GLUTEN_JAR} \
-  --conf spark.executor.extraClassPath=${GLUTEN_JAR} \
+  --conf spark.driver.extraClassPath=${GLUTEN_JAR}:${DELTA_JARS} \
+  --conf spark.executor.extraClassPath=${GLUTEN_JAR}:${DELTA_JARS} \
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=2g \
   --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
