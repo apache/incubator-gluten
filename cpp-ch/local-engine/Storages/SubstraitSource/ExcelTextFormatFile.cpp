@@ -74,8 +74,8 @@ ExcelTextFormatFile::createInputFormat(const DB::Block & header, const std::shar
 
     std::shared_ptr<DB::PeekableReadBuffer> buffer = std::make_unique<DB::PeekableReadBuffer>(*read_buffer);
     DB::Names column_names;
-    column_names.reserve(file_info.schema().names_size());
-    for (const auto & item : file_info.schema().names())
+    column_names.reserve(schema_.getNames().size());
+    for (const auto & item : schema_.getNames())
         column_names.push_back(item);
 
     auto txt_input_format

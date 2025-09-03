@@ -30,6 +30,7 @@ import org.apache.gluten.substrait.type.TypeNode;
 
 import io.substrait.proto.*;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.sql.types.StructType;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -149,12 +150,13 @@ public class RelBuilder {
       List<TypeNode> types,
       List<String> names,
       List<ColumnTypeNode> columnTypeNodes,
+      StructType tableSchema,
       ExpressionNode filter,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new ReadRelNode(types, names, filter, columnTypeNodes, extensionNode);
+    return new ReadRelNode(types, names, tableSchema, filter, columnTypeNodes, extensionNode);
   }
 
   public static RelNode makeReadRelForInputIterator(

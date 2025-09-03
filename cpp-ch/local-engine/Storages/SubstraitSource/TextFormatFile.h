@@ -29,21 +29,19 @@ class TextFormatFile : public FormatFile
 {
 public:
     explicit TextFormatFile(
-        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
+        DB::ContextPtr context_, const DB::Block& input_header, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
     ~TextFormatFile() override = default;
 
     FormatFile::InputFormatPtr
     createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag = nullptr) override;
 
-    DB::NamesAndTypesList getSchema() const
-    {
-        const auto & schema = file_info.schema();
-        auto header = TypeParser::buildBlockFromNamedStructWithoutDFS(schema);
-        return header.getNamesAndTypesList();
-    }
+    DB::NamesAndTypesList getSchema() const { return schema_; }
 
     bool supportSplit() const override { return true; }
     String getFileFormat() const override { return "HiveText"; }
+
+private:
+  const DB::NamesAndTypesList schema_;
 };
 
 }

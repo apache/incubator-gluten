@@ -26,6 +26,7 @@ import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
+import org.apache.spark.sql.types.StructType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ public class ReadRelNode implements RelNode, Serializable {
   private final List<TypeNode> types = new ArrayList<>();
   private final List<String> names = new ArrayList<>();
   private final List<ColumnTypeNode> columnTypeNodes = new ArrayList<>();
+  private final StructType tableSchema;
   private final ExpressionNode filterNode;
   private final AdvancedExtensionNode extensionNode;
   private boolean streamKafka = false;
@@ -42,11 +44,13 @@ public class ReadRelNode implements RelNode, Serializable {
   ReadRelNode(
       List<TypeNode> types,
       List<String> names,
+      StructType tableSchema,
       ExpressionNode filterNode,
       List<ColumnTypeNode> columnTypeNodes,
       AdvancedExtensionNode extensionNode) {
     this.types.addAll(types);
     this.names.addAll(names);
+    this.tableSchema = tableSchema;
     this.filterNode = filterNode;
     this.columnTypeNodes.addAll(columnTypeNodes);
     this.extensionNode = extensionNode;
@@ -68,6 +72,10 @@ public class ReadRelNode implements RelNode, Serializable {
     readBuilder.setCommon(relCommonBuilder.build());
     readBuilder.setBaseSchema(nStructBuilder.build());
     readBuilder.setStreamKafka(streamKafka);
+
+    if (tableSchema != null) {
+      readBuilder.setTableSchema(SubstraitUtil.createNamedStruct(tableSchema));
+    }
 
     if (filterNode != null) {
       readBuilder.setFilter(filterNode.toProtobuf());
