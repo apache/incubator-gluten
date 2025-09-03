@@ -47,6 +47,8 @@ import scala.collection.JavaConverters._
  */
 case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupport {
 
+  assert(child.isInstanceOf[ColumnarInputAdapter])
+
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(
@@ -67,27 +69,22 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   override def doExecuteBroadcast[T](): Broadcast[T] = {
-    assert(child.isInstanceOf[ColumnarInputAdapter])
     child.doExecuteBroadcast()
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    assert(child.isInstanceOf[ColumnarInputAdapter])
     val operatorId = context.nextOperatorId(nodeName)
     val readRel = RelBuilder.makeReadRelForInputIterator(child.output.asJava, context, operatorId)
     TransformContext(output, readRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
-    copy(child = newChild)
+    copy(child = ColumnarInputAdapter(newChild))
   }
 
-  private def forBroadcast(): Boolean = {
-    child match {
-      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastQueryStageExec] => true
-      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastExchangeLike] => true
-      case _ => false
-    }
+  private def forBroadcast(): Boolean = child match {
+    case ColumnarInputAdapter(_: BroadcastQueryStageExec | _: BroadcastExchangeLike) => true
+    case _ => false
   }
 }
 
