@@ -93,6 +93,7 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
 }
 
 class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
+
   override protected def createTPCHNotNullTables(): Unit = {
     TPCHTables.map {
       table =>
@@ -103,8 +104,11 @@ class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
           .repartition(table.partitionColumns.map(col): _*)
           .sortWithinPartitions(table.partitionColumns.map(col): _*)
 
+        // Use ORC to disable native write in case of OOM, velox behavior likes FANOUT_ENABLED true
+        // The number of writers too much.
         tableDF.write
           .format("iceberg")
+          .option(SparkWriteOptions.WRITE_FORMAT, "orc")
           .partitionBy(table.partitionColumns: _*)
           .option(SparkWriteOptions.FANOUT_ENABLED, "false")
           .mode("overwrite")
