@@ -27,9 +27,6 @@
 #ifdef GLUTEN_ENABLE_QAT
 #include "utils/qat/QatCodec.h"
 #endif
-#ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/QplCodec.h"
-#endif
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
@@ -146,6 +143,8 @@ void VeloxBackend::init(
   // Set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
+  auto hiveConf = getHiveConfig(backendConf_);
+
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
@@ -160,17 +159,21 @@ void VeloxBackend::init(
 #endif
 #ifdef ENABLE_ABFS
   velox::filesystems::registerAbfsFileSystem();
+  velox::filesystems::registerAzureClientProvider(*hiveConf);
 #endif
 
 #ifdef GLUTEN_ENABLE_GPU
-  FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-    velox::cudf_velox::registerCudf();
+    FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
+    FLAGS_velox_cudf_memory_resource = backendConf_->get<std::string>(kCudfMemoryResource, kCudfMemoryResourceDefault);
+    auto& options = velox::cudf_velox::CudfOptions::getInstance();
+    options.memoryPercent = backendConf_->get<int32_t>(kCudfMemoryPercent, kCudfMemoryPercentDefault);
+    velox::cudf_velox::registerCudf(options);
   }
 #endif
 
   initJolFilesystem();
-  initConnector();
+  initConnector(hiveConf);
 
   velox::dwio::common::registerFileSinks();
   velox::parquet::registerParquetReaderFactory();
@@ -199,7 +202,7 @@ void VeloxBackend::init(
   // Spark off-heap memory pool will be conducted to cause unexpected OOMs.
   auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
   int64_t memoryManagerCapacity;
-  if (sparkOverhead.hasValue()) {
+  if (sparkOverhead.has_value()) {
     // 0.75 * total overhead memory is used for Velox global memory manager.
     // FIXME: Make this configurable.
     memoryManagerCapacity = sparkOverhead.value() * 0.75;
@@ -290,9 +293,7 @@ void VeloxBackend::initCache() {
   }
 }
 
-void VeloxBackend::initConnector() {
-  auto hiveConf = getHiveConfig(backendConf_);
-
+void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase>& hiveConf) {
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   GLUTEN_CHECK(
       ioThreads >= 0,

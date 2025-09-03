@@ -94,7 +94,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".internal.udfLibraryPaths"
   val GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION = VeloxBackend.CONF_PREFIX + ".udfAllowTypeConversion"
 
-  /** The columnar-batch type this backend is by default using. */
   override def primaryBatchType: Convention.BatchType = VeloxBatchType
 
   override def validateScanExec(
@@ -370,14 +369,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def supportNativeWrite(fields: Array[StructField]): Boolean = {
-    fields.map {
-      field =>
-        field.dataType match {
-          case _: StructType | _: ArrayType | _: MapType => return false
-          case _ =>
-        }
+    def isNotSupported(dataType: DataType): Boolean = dataType match {
+      case _: StructType | _: ArrayType | _: MapType => true
+      case _ => false
     }
-    true
+    !fields.exists(field => isNotSupported(field.dataType))
   }
 
   override def supportExpandExec(): Boolean = true
@@ -559,8 +555,14 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def reorderColumnsForPartitionWrite(): Boolean = true
 
-  override def enableEnhancedFeatures(): Boolean = VeloxConfig.enableEnhancedFeatures()
+  override def enableEnhancedFeatures(): Boolean = VeloxConfig.get.enableEnhancedFeatures()
 
   override def supportAppendDataExec(): Boolean =
     GlutenConfig.get.enableAppendData && enableEnhancedFeatures()
+
+  override def supportReplaceDataExec(): Boolean =
+    GlutenConfig.get.enableReplaceData && enableEnhancedFeatures()
+
+  override def supportOverwriteByExpression(): Boolean =
+    GlutenConfig.get.enableOverwriteByExpression && enableEnhancedFeatures()
 }

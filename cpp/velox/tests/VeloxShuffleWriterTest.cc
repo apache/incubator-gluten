@@ -23,8 +23,8 @@
 #include "shuffle/VeloxRssSortShuffleWriter.h"
 #include "shuffle/VeloxSortShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
+#include "tests/utils/TestUtils.h"
 #include "utils/TestAllocationListener.h"
-#include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 
 #include "velox/vector/tests/utils/VectorTestBase.h"
@@ -108,7 +108,7 @@ std::vector<ShuffleTestParams> getTestParams() {
     for (const auto partitionWriterType : {PartitionWriterType::kLocal, PartitionWriterType::kRss}) {
       for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
         for (const bool useRadixSort : {true, false}) {
-          for (const int64_t deserializerBufferSize : {1L, kDefaultDeserializerBufferSize}) {
+          for (const auto deserializerBufferSize : {static_cast<int64_t>(1L), kDefaultDeserializerBufferSize}) {
             params.push_back(ShuffleTestParams{
                 .shuffleWriterType = ShuffleWriterType::kSortShuffle,
                 .partitionWriterType = partitionWriterType,
@@ -292,7 +292,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     const auto veloxCompressionType = arrowCompressionTypeToVelox(compressionType);
     const auto schema = toArrowSchema(rowType, getDefaultMemoryManager()->getLeafMemoryPool().get());
 
-    auto codec = createArrowIpcCodec(compressionType, CodecBackend::NONE);
+    auto codec = createCompressionCodec(compressionType, CodecBackend::NONE);
 
     // Set batchSize to a large value to make all batches are merged by reader.
     auto deserializerFactory = std::make_unique<gluten::VeloxShuffleReaderDeserializerFactory>(

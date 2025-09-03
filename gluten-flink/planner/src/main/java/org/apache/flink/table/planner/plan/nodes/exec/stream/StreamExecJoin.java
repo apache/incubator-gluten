@@ -28,7 +28,9 @@ import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.plan.EmptyNode;
+import io.github.zhztheplayer.velox4j.plan.HashPartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.NestedLoopJoinNode;
+import io.github.zhztheplayer.velox4j.plan.PartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.StreamJoinNode;
@@ -73,8 +75,10 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -277,30 +281,32 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 rightInputType,
                 new ExternalStreamTableHandle("connector-external-stream"),
                 List.of());
-        NestedLoopJoinNode leftNode =
+        List<Integer> leftKeyIndexes =
+            Arrays.stream(leftJoinKey).boxed().collect(Collectors.toList());
+        List<Integer> rightKeyIndexes =
+            Arrays.stream(rightJoinKey).boxed().collect(Collectors.toList());
+        PartitionFunctionSpec leftPartFuncSpec =
+            new HashPartitionFunctionSpec(leftInputType, leftKeyIndexes);
+        PartitionFunctionSpec rightPartFuncSpec =
+            new HashPartitionFunctionSpec(rightInputType, rightKeyIndexes);
+        NestedLoopJoinNode probeNode =
             new NestedLoopJoinNode(
                 PlanNodeIdGenerator.newId(),
                 Utils.toVLJoinType(joinType),
                 joinCondition,
                 new EmptyNode(leftInputType),
                 new EmptyNode(rightInputType),
-                outputType);
-        NestedLoopJoinNode rightNode =
-            new NestedLoopJoinNode(
-                PlanNodeIdGenerator.newId(),
-                Utils.toVLJoinType(joinType),
-                joinCondition,
-                new EmptyNode(rightInputType),
-                new EmptyNode(leftInputType),
                 outputType);
         PlanNode join =
             new StreamJoinNode(
                 PlanNodeIdGenerator.newId(),
                 leftInput,
                 rightInput,
-                leftNode,
-                rightNode,
-                outputType);
+                leftPartFuncSpec,
+                rightPartFuncSpec,
+                probeNode,
+                outputType,
+                1024);
         operator =
             new GlutenVectorTwoInputOperator(
                 new StatefulPlanNode(join.getId(), join),

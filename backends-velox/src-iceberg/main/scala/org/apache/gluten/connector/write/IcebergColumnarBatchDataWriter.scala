@@ -25,7 +25,6 @@ import org.apache.spark.sql.connector.write.{DataWriter, WriterCommitMessage}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper}
-import com.google.common.collect.ImmutableMap
 import org.apache.iceberg._
 import org.apache.iceberg.spark.source.IcebergWriteUtil
 
@@ -33,7 +32,8 @@ case class IcebergColumnarBatchDataWriter(
     writer: Long,
     jniWrapper: IcebergWriteJniWrapper,
     format: Int,
-    partitionSpec: PartitionSpec)
+    partitionSpec: PartitionSpec,
+    sortOrder: SortOrder)
   extends DataWriter[ColumnarBatch]
   with Logging {
 
@@ -48,7 +48,7 @@ case class IcebergColumnarBatchDataWriter(
   }
 
   override def commit: WriterCommitMessage = {
-    val dataFiles = jniWrapper.commit(writer).map(d => parseDataFile(d, partitionSpec))
+    val dataFiles = jniWrapper.commit(writer).map(d => parseDataFile(d, partitionSpec, sortOrder))
     IcebergWriteUtil.commitDataFiles(dataFiles)
   }
 
@@ -60,23 +60,17 @@ case class IcebergColumnarBatchDataWriter(
     logDebug("Close the ColumnarBatchDataWriter")
   }
 
-  private def parseDataFile(json: String, spec: PartitionSpec): DataFile = {
+  private def parseDataFile(json: String, spec: PartitionSpec, sortOrder: SortOrder): DataFile = {
     val dataFile = mapper.readValue(json, classOf[DataFileJson])
-    // TODO: add partition
-    val metrics = new Metrics(
-      dataFile.metrics.recordCount,
-      ImmutableMap.of(),
-      ImmutableMap.of(),
-      ImmutableMap.of(),
-      ImmutableMap.of())
-
     val builder = DataFiles
       .builder(spec)
       .withPath(dataFile.path)
       .withFormat(getFileFormat)
       .withFileSizeInBytes(dataFile.fileSizeInBytes)
       .withPartition(PartitionDataJson.fromJson(dataFile.partitionDataJson, partitionSpec))
-      .withMetrics(metrics)
+      .withMetrics(dataFile.metrics.metrics())
+      .withSplitOffsets(dataFile.splitOffsets)
+      .withSortOrder(sortOrder)
     builder.build()
   }
 

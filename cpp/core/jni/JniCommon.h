@@ -362,22 +362,7 @@ static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecBac
   if (codecBackend == "qat") {
     return gluten::CodecBackend::QAT;
   }
-  if (codecBackend == "iaa") {
-    return gluten::CodecBackend::IAA;
-  }
   throw std::invalid_argument("Not support this codec backend " + codecBackend);
-}
-
-static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring compressionModeJstr) {
-  GLUTEN_DCHECK(compressionModeJstr != nullptr, "CompressionMode cannot be null");
-  auto compressionMode = jStringToCString(env, compressionModeJstr);
-  if (compressionMode == "buffer") {
-    return gluten::CompressionMode::BUFFER;
-  } else if (compressionMode == "rowvector") {
-    return gluten::CompressionMode::ROWVECTOR;
-  } else {
-    throw std::invalid_argument("Not support this compression mode " + compressionMode);
-  }
 }
 
 /*

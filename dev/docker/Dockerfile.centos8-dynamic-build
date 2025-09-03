@@ -32,7 +32,6 @@ RUN set -ex; \
     dnf install -y --setopt=install_weak_deps=False gcc-toolset-11; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     yum install -y java-${JAVA_VERSION}-openjdk-devel patch wget git perl; \
-    yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y; \
     maven_version=3.9.2; \
     local_binary="apache-maven-${maven_version}-bin.tar.gz"; \
     mirror_host="https://www.apache.org/dyn/closer.lua"; \

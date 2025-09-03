@@ -205,7 +205,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       log.warn(s"query: $queryNum skipped comparing, time cost to collect: ${System
           .currentTimeMillis() - start} ms, ret size: ${ret.length}")
     }
-    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
+    GlutenQueryComparisonTest.checkFallBack(df, noFallBack)
     customCheck(df)
   }
 }

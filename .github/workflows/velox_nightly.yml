@@ -16,7 +16,9 @@
 name: Velox backend nightly release
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
       - '.github/workflows/velox_nightly.yml'
   schedule:
@@ -33,6 +35,7 @@ concurrency:
 
 jobs:
   build-native-lib:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -107,7 +110,7 @@ jobs:
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
       - name: rsync to apache nightly
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
         with:
           switches: -avzr
           path: package/target/gluten-velox-bundle-*.jar
@@ -147,8 +150,8 @@ jobs:
           cd $GITHUB_WORKSPACE/ && \
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -DskipTests -Dmaven.source.skip
+          mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
@@ -156,7 +159,7 @@ jobs:
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
       - name: rsync to apache nightly
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
         with:
           switches: -avzr
           path: package/target/gluten-velox-bundle-*.jar
@@ -183,6 +186,7 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           df -a
+          export ARM_BUILD_TARGET=false
           bash dev/ci-velox-buildstatic-centos-8.sh
           ccache -s
           mkdir -p $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
@@ -297,7 +301,7 @@ jobs:
           name: nightly-gluten-velox-bundle-package-jdk8-arm64-${{ steps.date.outputs.date }}
           path: package/
       - name: rsync to apache nightly
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
         with:
           switches: -avzr
           path: package/gluten-velox-bundle-*.jar
@@ -320,7 +324,7 @@ jobs:
           name: nightly-gluten-velox-bundle-package-jdk17-arm64-${{ steps.date.outputs.date }}
           path: package/
       - name: rsync to apache nightly
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
         with:
           switches: -avzr
           path: package/gluten-velox-bundle-*.jar

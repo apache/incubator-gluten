@@ -17,7 +17,7 @@
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.gluten.rexnode.Utils;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
@@ -79,7 +79,7 @@ public class GlutenStreamProjectTest extends GlutenStreamOperatorTestBase {
             GenericRowData.of(StringData.fromString("Frank"), 44),
             GenericRowData.of(null, null));
 
-    GlutenSingleInputOperator operator =
+    GlutenOneInputOperator operator =
         createTestOperator(veloxPlan, typeInfo, InternalTypeInfo.of(outputRowType));
 
     OneInputStreamOperatorTestHarness<RowData, RowData> harness =

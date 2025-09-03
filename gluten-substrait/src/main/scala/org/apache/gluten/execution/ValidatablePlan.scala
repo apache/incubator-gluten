@@ -42,18 +42,21 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
   // otherwise returns the result of f.
   protected def failValidationWithException(f: => ValidationResult)(
       finallyBlock: => Unit = ()): ValidationResult = {
+    def makeFailed(e: Exception): ValidationResult = {
+      val message = s"Validation failed with exception from: $nodeName, reason: ${e.getMessage}"
+      if (glutenConf.printStackOnValidationFailure) {
+        logOnLevel(glutenConf.validationLogLevel, message, e)
+      }
+      ValidationResult.failed(message)
+    }
     try {
       f
     } catch {
-      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-        if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
-        }
-        val message = s"Validation failed with exception from: $nodeName, reason: ${e.getMessage}"
-        if (glutenConf.printStackOnValidationFailure) {
-          logOnLevel(glutenConf.validationLogLevel, message, e)
-        }
-        ValidationResult.failed(message)
+      case e: GlutenNotSupportException =>
+        logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
+        makeFailed(e)
+      case e: UnsupportedOperationException =>
+        makeFailed(e)
       case t: Throwable =>
         throw t
     } finally {

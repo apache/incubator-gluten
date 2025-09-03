@@ -24,13 +24,14 @@ import org.apache.gluten.expression._
 import org.apache.gluten.expression.ExpressionNames.MONOTONICALLY_INCREASING_ID
 import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
+import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.{BlockOutputStream, CHColumnarBatchSerializer, CHNativeBlock, CHStreamReader}
 
-import org.apache.spark.ShuffleDependency
+import org.apache.spark.{ShuffleDependency, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
@@ -57,6 +58,7 @@ import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
 import org.apache.spark.sql.execution.window._
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.SparkVersionUtil
 
 import org.apache.commons.lang3.ClassUtils
 
@@ -452,15 +454,19 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val numOutputRows = metrics("numOutputRows")
     val dataSize = metrics("dataSize")
     val deserializationTime = metrics("deserializeTime")
-    if (GlutenConfig.get.isUseCelebornShuffleManager) {
-      val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CHCelebornColumnarBatchSerializer")
-      val constructor =
-        clazz.getConstructor(classOf[SQLMetric], classOf[SQLMetric], classOf[SQLMetric])
-      constructor.newInstance(readBatchNumRows, numOutputRows, dataSize).asInstanceOf[Serializer]
-    } else if (GlutenConfig.get.isUseUniffleShuffleManager) {
-      throw new UnsupportedOperationException("temporarily uniffle not support ch ")
-    } else {
-      new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize, deserializationTime)
+    SparkEnv.get.shuffleManager match {
+      case serializer: NeedCustomColumnarBatchSerializer =>
+        val className = serializer.columnarBatchSerializerClass()
+        val clazz = ClassUtils.getClass(className)
+        val constructor =
+          clazz.getConstructor(classOf[SQLMetric], classOf[SQLMetric], classOf[SQLMetric])
+        constructor.newInstance(readBatchNumRows, numOutputRows, dataSize).asInstanceOf[Serializer]
+      case _ =>
+        new CHColumnarBatchSerializer(
+          readBatchNumRows,
+          numOutputRows,
+          dataSize,
+          deserializationTime)
     }
   }
 
@@ -999,4 +1005,30 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
   override def genColumnarToCarrierRow(plan: SparkPlan): SparkPlan =
     CHColumnarToCarrierRowExec.enforce(plan)
+
+  override def isRowIndexMetadataColumn(columnName: String): Boolean = {
+    SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(
+      columnName) || (SparkVersionUtil.gteSpark35 && columnName.equalsIgnoreCase(
+      "__delta_internal_is_row_deleted"))
+  }
+
+  override def genTimestampAddTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    // Since spark 3.3.0
+    val extract =
+      SparkShimLoader.getSparkShims.extractExpressionTimestampAddUnit(original)
+    if (extract.isEmpty) {
+      throw new UnsupportedOperationException(s"Not support expression TimestampAdd.")
+    }
+    CHTimestampAddTransformer(
+      substraitExprName,
+      extract.get.head,
+      left,
+      right,
+      extract.get.last,
+      original)
+  }
 }

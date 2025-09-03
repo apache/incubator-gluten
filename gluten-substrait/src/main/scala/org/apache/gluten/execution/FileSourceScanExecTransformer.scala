@@ -28,10 +28,12 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.util.SparkVersionUtil
 import org.apache.spark.util.collection.BitSet
 
 import org.apache.commons.lang3.StringUtils
@@ -109,15 +111,23 @@ abstract class FileSourceScanExecTransformerBase(
         output)
   }
 
-  override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
+  override def dataFiltersInScan: Seq[Expression] = {
+    if (SparkVersionUtil.gteSpark35) {
+      dataFilters.filterNot(_.references.exists {
+        attr => BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)
+      })
+    } else {
+      super.dataFiltersInScan
+    }
+  }
 
-  override def outputAttributes(): Seq[Attribute] = output
+  override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
   override def getPartitions: Seq[InputPartition] = {
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
       requiredSchema,
-      dynamicallySelectedPartitions,
+      getPartitionArray(),
       output,
       bucketedScan,
       optionalBucketSet,
@@ -201,6 +211,14 @@ abstract class FileSourceScanExecTransformerBase(
     redact(
       s"$nodeNamePrefix$nodeName${truncatedString(output, "[", ",", "]", maxFields)}$metadataStr" +
         s" $nativeFiltersString")
+  }
+
+  // Required for Spark 4.0 to implement a trait method.
+  // The "override" keyword is omitted to maintain compatibility with earlier Spark versions.
+  def getStream: Option[SparkDataStream] = {
+    throw new UnsupportedOperationException(
+      "not supported on streaming"
+    )
   }
 }
 

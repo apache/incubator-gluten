@@ -60,8 +60,6 @@ object GlutenShuffleUtils {
         val glutenCodecKey = GlutenConfig.COLUMNAR_SHUFFLE_CODEC.key
         if (glutenConfig.columnarShuffleEnableQat) {
           checkCodecValues(glutenCodecKey, codec, GlutenConfig.GLUTEN_QAT_SUPPORTED_CODEC)
-        } else if (glutenConfig.columnarShuffleEnableIaa) {
-          checkCodecValues(glutenCodecKey, codec, GlutenConfig.GLUTEN_IAA_SUPPORTED_CODEC)
         } else {
           checkCodecValues(
             glutenCodecKey,

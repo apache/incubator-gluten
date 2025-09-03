@@ -16,18 +16,16 @@
  */
 package org.apache.iceberg.spark.source
 
-import org.apache.spark.sql.connector.write.{BatchWrite, Write, WriterCommitMessage}
+import org.apache.spark.sql.connector.write.{Write, WriterCommitMessage}
 
 import org.apache.iceberg._
+import org.apache.iceberg.spark.SparkWriteConf
 import org.apache.iceberg.spark.source.SparkWrite.TaskCommit
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
 import org.apache.iceberg.types.Types.{ListType, MapType}
 
 object IcebergWriteUtil {
-  def isBatchAppend(write: BatchWrite): Boolean = {
-    write.getClass.getSimpleName.equals("BatchAppend")
-  }
 
   def isDataWrite(write: Write): Boolean = {
     write.isInstanceOf[SparkWrite]
@@ -47,7 +45,7 @@ object IcebergWriteUtil {
     }
   }
 
-  private def getWriteSchema(write: Write): Schema = {
+  def getWriteSchema(write: Write): Schema = {
     assert(write.isInstanceOf[SparkWrite])
     val field = classOf[SparkWrite].getDeclaredField("writeSchema")
     field.setAccessible(true)
@@ -60,30 +58,22 @@ object IcebergWriteUtil {
     field.get(write).asInstanceOf[java.util.Map[String, String]]
   }
 
+  def getWriteConf(write: Write): SparkWriteConf = {
+    val field = classOf[SparkWrite].getDeclaredField("writeConf")
+    field.setAccessible(true)
+    field.get(write).asInstanceOf[SparkWriteConf]
+  }
+
   def getTable(write: Write): Table = {
     val field = classOf[SparkWrite].getDeclaredField("table")
     field.setAccessible(true)
     field.get(write).asInstanceOf[Table]
   }
 
-  def getSparkWrite(write: BatchWrite): SparkWrite = {
-    // Access the enclosing SparkWrite instance from BatchAppend
-    val outerInstanceField = write.getClass.getDeclaredField("this$0")
-    outerInstanceField.setAccessible(true)
-    outerInstanceField.get(write).asInstanceOf[SparkWrite]
-  }
-
   def getFileFormat(write: Write): FileFormat = {
     val field = classOf[SparkWrite].getDeclaredField("format")
     field.setAccessible(true)
     field.get(write).asInstanceOf[FileFormat]
-  }
-
-  def getFileFormat(write: BatchWrite): FileFormat = {
-    val sparkWrite = getSparkWrite(write)
-    val field = classOf[SparkWrite].getDeclaredField("format")
-    field.setAccessible(true)
-    field.get(sparkWrite).asInstanceOf[FileFormat]
   }
 
   def getDirectory(write: Write): String = {
@@ -93,17 +83,14 @@ object IcebergWriteUtil {
     loc.substring(0, loc.length - 1)
   }
 
+  def getSortOrder(write: Write): SortOrder = {
+    getTable(write).sortOrder()
+  }
+
   def getPartitionSpec(write: Write): PartitionSpec = {
     val field = classOf[SparkWrite].getDeclaredField("table")
     field.setAccessible(true)
-    getTable(write).spec()
-  }
-
-  def getDirectory(write: BatchWrite): String = {
-    val sparkWrite = getSparkWrite(write)
-    val field = classOf[SparkWrite].getDeclaredField("table")
-    field.setAccessible(true)
-    getTable(sparkWrite).locationProvider().newDataLocation("")
+    getTable(write).specs().get(getWriteConf(write).outputSpecId())
   }
 
   // Similar to the UnpartitionedDataWriter#commit

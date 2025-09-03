@@ -219,18 +219,17 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
 
 #ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
 std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
-    ArrowSchema* cSchema,
+    RowTypePtr rowType,
     int32_t format,
     const std::string& outputDirectory,
     facebook::velox::common::CompressionKind compressionKind,
     std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
+    const gluten::IcebergNestedField& protoField,
     const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto veloxPool = memoryManager()->getLeafMemoryPool();
   auto connectorPool = memoryManager()->getAggregateMemoryPool();
-  auto rowType = asRowType(importFromArrow(*cSchema));
-  ArrowSchemaRelease(cSchema);
   return std::make_shared<IcebergWriter>(
-      rowType, format, outputDirectory, compressionKind, spec, sparkConfs, veloxPool, connectorPool);
+      rowType, format, outputDirectory, compressionKind, spec, protoField, sparkConfs, veloxPool, connectorPool);
 }
 #endif
 
@@ -288,7 +287,7 @@ std::shared_ptr<VeloxDataSource> VeloxRuntime::createDataSource(
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ShuffleReaderOptions options) {
-  auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
+  auto codec = gluten::createCompressionCodec(options.compressionType, options.codecBackend);
   const auto veloxCompressionKind = arrowCompressionTypeToVelox(options.compressionType);
   const auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
 
