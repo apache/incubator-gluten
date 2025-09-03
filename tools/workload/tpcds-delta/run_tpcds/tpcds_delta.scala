@@ -21,12 +21,12 @@ import java.util.Arrays
 import sys.process._
 
 // Configurations:
-var parquet_file_path = "/PATH/TO/TPCDS_PARQUET_PATH"
+var delta_table_path = "/PATH/TO/TPCDS_DELTA_TABLE_PATH"
 var gluten_root = "/PATH/TO/GLUTEN"
 
 // File root path: file://, hdfs:// , s3 , ...
 // e.g. hdfs://hostname:8020
-var paq_file_root = "/ROOT_PATH"
+var delta_file_root = "/ROOT_PATH"
 
 var tpcds_queries_path = "/tools/gluten-it/common/src/main/resources/tpcds-queries/"
 
@@ -38,57 +38,31 @@ def time[R](block: => R): R = {
     result
 }
 
-// Read TPC-DS Table from parquet files.
-val call_center = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/call_center")
-val catalog_page = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/catalog_page")
-val catalog_returns = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/catalog_returns")
-val catalog_sales = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/catalog_sales")
-val customer = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/customer")
-val customer_address = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/customer_address")
-val customer_demographics = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/customer_demographics")
-val date_dim = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/date_dim")
-val household_demographics = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/household_demographics")
-val income_band = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/income_band")
-val inventory = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/inventory")
-val item = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/item")
-val promotion = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/promotion")
-val reason = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/reason")
-val ship_mode = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/ship_mode")
-val store = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/store")
-val store_returns = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/store_returns")
-val store_sales = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/store_sales")
-val time_dim = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/time_dim")
-val warehouse = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/warehouse")
-val web_page = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/web_page")
-val web_returns = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/web_returns")
-val web_sales = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/web_sales")
-val web_site = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/web_site")
-
-// Create parquet based TPC-DS Table View.
-call_center.createOrReplaceTempView("call_center")
-catalog_page.createOrReplaceTempView("catalog_page")
-catalog_returns.createOrReplaceTempView("catalog_returns")
-catalog_sales.createOrReplaceTempView("catalog_sales")
-customer.createOrReplaceTempView("customer")
-customer_address.createOrReplaceTempView("customer_address")
-customer_demographics.createOrReplaceTempView("customer_demographics")
-household_demographics.createOrReplaceTempView("household_demographics")
-income_band.createOrReplaceTempView("income_band")
-inventory.createOrReplaceTempView("inventory")
-item.createOrReplaceTempView("item")
-promotion.createOrReplaceTempView("promotion")
-reason.createOrReplaceTempView("reason")
-ship_mode.createOrReplaceTempView("ship_mode")
-store.createOrReplaceTempView("store")
-store_returns.createOrReplaceTempView("store_returns")
-store_sales.createOrReplaceTempView("store_sales")
-time_dim.createOrReplaceTempView("time_dim")
-warehouse.createOrReplaceTempView("warehouse")
-web_page.createOrReplaceTempView("web_page")
-web_returns.createOrReplaceTempView("web_returns")
-web_sales.createOrReplaceTempView("web_sales")
-web_site.createOrReplaceTempView("web_site")
-date_dim.createOrReplaceTempView("date_dim")
+// Create TPC-DS Delta Tables.
+spark.catalog.createTable("call_center", delta_file_root + delta_table_path + "/call_center", "delta")
+spark.catalog.createTable("catalog_page", delta_file_root + delta_table_path + "/catalog_page", "delta")
+spark.catalog.createTable("catalog_returns", delta_file_root + delta_table_path + "/catalog_returns", "delta")
+spark.catalog.createTable("catalog_sales", delta_file_root + delta_table_path + "/catalog_sales", "delta")
+spark.catalog.createTable("customer", delta_file_root + delta_table_path + "/customer", "delta")
+spark.catalog.createTable("customer_address", delta_file_root + delta_table_path + "/customer_address", "delta")
+spark.catalog.createTable("customer_demographics", delta_file_root + delta_table_path + "/customer_demographics", "delta")
+spark.catalog.createTable("date_dim", delta_file_root + delta_table_path + "/date_dim", "delta")
+spark.catalog.createTable("household_demographics", delta_file_root + delta_table_path + "/household_demographics", "delta")
+spark.catalog.createTable("income_band", delta_file_root + delta_table_path + "/income_band", "delta")
+spark.catalog.createTable("inventory", delta_file_root + delta_table_path + "/inventory", "delta")
+spark.catalog.createTable("item", delta_file_root + delta_table_path + "/item", "delta")
+spark.catalog.createTable("promotion", delta_file_root + delta_table_path + "/promotion", "delta")
+spark.catalog.createTable("reason", delta_file_root + delta_table_path + "/reason", "delta")
+spark.catalog.createTable("ship_mode", delta_file_root + delta_table_path + "/ship_mode", "delta")
+spark.catalog.createTable("store", delta_file_root + delta_table_path + "/store", "delta")
+spark.catalog.createTable("store_returns", delta_file_root + delta_table_path + "/store_returns", "delta")
+spark.catalog.createTable("store_sales", delta_file_root + delta_table_path + "/store_sales", "delta")
+spark.catalog.createTable("time_dim", delta_file_root + delta_table_path + "/time_dim", "delta")
+spark.catalog.createTable("warehouse", delta_file_root + delta_table_path + "/warehouse", "delta")
+spark.catalog.createTable("web_page", delta_file_root + delta_table_path + "/web_page", "delta")
+spark.catalog.createTable("web_returns", delta_file_root + delta_table_path + "/web_returns", "delta")
+spark.catalog.createTable("web_sales", delta_file_root + delta_table_path + "/web_sales", "delta")
+spark.catalog.createTable("web_site", delta_file_root + delta_table_path + "/web_site", "delta")
 
 def getListOfFiles(dir: String): List[File] = {
      val d = new File(dir)
@@ -112,7 +86,7 @@ val sorted = fileLists.sortBy {
          str.toDouble
      }}
 
-// Main program to run TPC-H testing
+// Main program to run TPC-DS testing
 for (t <- sorted) {
   println(t)
   val fileContents = Source.fromFile(t).getLines.filter(!_.startsWith("--")).mkString(" ")
