@@ -16,14 +16,12 @@
  */
 package org.apache.spark.shuffle.gluten.celeborn;
 
-import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer;
 import org.apache.gluten.shuffle.SupportsColumnarShuffle;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterators;
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
@@ -36,11 +34,9 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Iterator;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public class CelebornShuffleManager
     implements ShuffleManager, SupportsColumnarShuffle, NeedCustomColumnarBatchSerializer {
@@ -67,35 +63,25 @@ public class CelebornShuffleManager
   private static final CelebornColumnarBatchSerializerFactory columnarBatchSerializerFactory;
 
   static {
-    final String backendName = BackendsApiManager.getBackendName();
-    final ServiceLoader<CelebornShuffleWriterFactory> loader =
-        ServiceLoader.load(CelebornShuffleWriterFactory.class);
-    final List<CelebornShuffleWriterFactory> factoryList =
-        Arrays.stream(Iterators.toArray(loader.iterator(), CelebornShuffleWriterFactory.class))
-            .collect(Collectors.toList());
+    final Iterator<CelebornShuffleWriterFactory> shuffleWriterFactoryIterator =
+        ServiceLoader.load(CelebornShuffleWriterFactory.class).iterator();
     Preconditions.checkState(
-        !factoryList.isEmpty(),
-        "No Celeborn shuffle writer factory found for backend " + backendName);
+        shuffleWriterFactoryIterator.hasNext(), "No Celeborn shuffle writer factory found");
+    writerFactory = shuffleWriterFactoryIterator.next();
     Preconditions.checkState(
-        factoryList.size() == 1,
-        "Multiple factory found for Celeborn shuffle writer for backend " + backendName);
-    writerFactory = factoryList.get(0);
+        !shuffleWriterFactoryIterator.hasNext(),
+        "Multiple factory found for Celeborn shuffle writer");
 
-    final ServiceLoader<CelebornColumnarBatchSerializerFactory> serializerLoader =
-        ServiceLoader.load(CelebornColumnarBatchSerializerFactory.class);
-    final List<CelebornColumnarBatchSerializerFactory> serializerFactoryList =
-        Arrays.stream(
-                Iterators.toArray(
-                    serializerLoader.iterator(), CelebornColumnarBatchSerializerFactory.class))
-            .collect(Collectors.toList());
+    final Iterator<CelebornColumnarBatchSerializerFactory> serializerFactoryIterator =
+        ServiceLoader.load(CelebornColumnarBatchSerializerFactory.class).iterator();
 
     Preconditions.checkState(
-        !serializerFactoryList.isEmpty(),
-        "No factory found for Celeborn columnar batch serializer for backend " + backendName);
+        serializerFactoryIterator.hasNext(),
+        "No factory found for Celeborn columnar batch serializer");
+    columnarBatchSerializerFactory = serializerFactoryIterator.next();
     Preconditions.checkState(
-        serializerFactoryList.size() == 1,
-        "Multiple factory found for Celeborn columnar batch serializer for backend " + backendName);
-    columnarBatchSerializerFactory = serializerFactoryList.get(0);
+        !serializerFactoryIterator.hasNext(),
+        "Multiple factory found for Celeborn columnar batch serializer");
   }
 
   private final SparkConf conf;
