@@ -18,6 +18,9 @@ SPARK_HOME=/PATH_TO_SPARK_HOME/
 
 cat tpcds_parquet.scala | ${SPARK_HOME}/bin/spark-shell \
   --master yarn --deploy-mode client \
+  --packages io.delta:delta-spark_2.12:2.4.0 \
+  --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension \
+  --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
   --conf spark.plugins=org.apache.gluten.GlutenPlugin \
   --conf spark.driver.extraClassPath=${GLUTEN_JAR} \
   --conf spark.executor.extraClassPath=${GLUTEN_JAR} \
