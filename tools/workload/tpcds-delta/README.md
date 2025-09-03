@@ -4,30 +4,22 @@ This workload example is verified with JDK 8, Spark 3.4.4 and Delta 2.4.0.
 
 ## Test dataset
 
-A simple way to generate Delta tables is to use the built-in TPC-DS data generator of `gluten-it`.
+Use bash script `tpcds_datagen_delta.sh` to generate the data. The script relies on a already-built gluten-it
+executable. To build it, following the steps:
 
 ```bash
-# 1. Switch to gluten-it folder.
-cd gluten-it/
-# 2. Build gluten-it with Spark 3.4 and Delta support.
+cd ${GLUTEN_HOME}/tools/gluten-it/
 mvn clean install -D spark-3.4,delta
-# 3. Set JAVA_HOME. For example, JDK 17.
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
-# 4. Set JVM heap size. For example, 224G.
-export GLUTEN_IT_JVM_ARGS="-Xmx224G"
-# 5. Generate the tables.
-sbin/gluten-it.sh \
-  data-gen-only \
-  --data-source=delta \
-  --local \
-  --benchmark-type=ds \
-  --threads=112 \
-  -s=100 \
-  --gen-partitioned-data \
-  --data-dir=/tmp/my-data
 ```
 
-Meanings of the commands are explained as follows:
+Then call the data generator script:
+
+```bash
+cd ${GLUTEN_HOME}/tools/workload/tpcds-delta/gen_data
+./tpcds_datagen_delta.sh
+```
+
+Meanings of the commands that are used in the script are explained as follows:
 
 - `--benchmark-type=ds`:  "ds" for TPC-DS, "h" for TPC-H.
 - `--threads=112`: The parallelism. Ideal to set to the core number.
