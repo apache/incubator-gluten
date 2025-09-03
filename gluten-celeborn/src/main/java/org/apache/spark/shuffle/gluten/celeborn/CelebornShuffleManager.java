@@ -72,7 +72,6 @@ public class CelebornShuffleManager
         ServiceLoader.load(CelebornShuffleWriterFactory.class);
     final List<CelebornShuffleWriterFactory> factoryList =
         Arrays.stream(Iterators.toArray(loader.iterator(), CelebornShuffleWriterFactory.class))
-            .filter(f -> f.backendName().equalsIgnoreCase(backendName))
             .collect(Collectors.toList());
     Preconditions.checkState(
         !factoryList.isEmpty(),
@@ -88,7 +87,6 @@ public class CelebornShuffleManager
         Arrays.stream(
                 Iterators.toArray(
                     serializerLoader.iterator(), CelebornColumnarBatchSerializerFactory.class))
-            .filter(f -> f.backendName().equalsIgnoreCase(backendName))
             .collect(Collectors.toList());
 
     Preconditions.checkState(
