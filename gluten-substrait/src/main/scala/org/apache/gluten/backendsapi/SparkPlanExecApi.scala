@@ -474,13 +474,7 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       timeExp: ExpressionTransformer,
       format: ExpressionTransformer,
-      original: Expression): ExpressionTransformer = {
-    GenericExpressionTransformer(
-      substraitExprName,
-      Seq(timeExp, format),
-      original
-    )
-  }
+      original: Expression): ExpressionTransformer
 
   def genDateDiffTransformer(
       substraitExprName: String,
