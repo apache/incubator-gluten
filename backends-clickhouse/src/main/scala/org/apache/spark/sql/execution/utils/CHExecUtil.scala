@@ -20,10 +20,11 @@ import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.row.SparkRowInfo
+import org.apache.gluten.shuffle.SupportsColumnarShuffle
 import org.apache.gluten.vectorized._
 import org.apache.gluten.vectorized.BlockSplitIterator.IteratorOptions
 
-import org.apache.spark.{Partitioner, ShuffleDependency}
+import org.apache.spark.{Partitioner, ShuffleDependency, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -344,10 +345,7 @@ object CHExecUtil extends Logging {
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
     val rddWithPartitionKey: RDD[Product2[Int, ColumnarBatch]] =
-      if (
-        GlutenConfig.get.isUseColumnarShuffleManager
-        || GlutenConfig.get.isUseCelebornShuffleManager
-      ) {
+      if (SparkEnv.get.shuffleManager.isInstanceOf[SupportsColumnarShuffle]) {
         newPartitioning match {
           case _ =>
             rdd.mapPartitionsWithIndexInternal(

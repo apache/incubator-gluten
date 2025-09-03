@@ -23,7 +23,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension.columnar.FallbackTags
-import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
+import org.apache.gluten.shuffle.{NeedCustomColumnarBatchSerializer, NeedCustomShuffleWriterType}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
 
@@ -553,30 +553,19 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       partitioning: Partitioning,
       output: Seq[Attribute]): ShuffleWriterType = {
     val conf = GlutenConfig.get
-    // todo: remove isUseCelebornShuffleManager here
-    if (conf.isUseCelebornShuffleManager) {
-      if (conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER) {
-        if (conf.useCelebornRssSort) {
-          RssSortShuffleWriterType
-        } else if (partitioning != SinglePartition) {
+    SparkEnv.get.shuffleManager match {
+      case shuffleManager: NeedCustomShuffleWriterType =>
+        shuffleManager.customShuffleWriterType(partitioning, conf)
+      case _ =>
+        if (
+          partitioning != SinglePartition &&
+          (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
+            output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold)
+        ) {
           SortShuffleWriterType
         } else {
-          // If not using rss sort, we still use hash shuffle writer for single partitioning.
           HashShuffleWriterType
         }
-      } else {
-        HashShuffleWriterType
-      }
-    } else {
-      if (
-        partitioning != SinglePartition &&
-        (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
-          output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold)
-      ) {
-        SortShuffleWriterType
-      } else {
-        HashShuffleWriterType
-      }
     }
   }
 

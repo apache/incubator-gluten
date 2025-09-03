@@ -16,9 +16,10 @@
  */
 package org.apache.spark.shuffle.gluten.celeborn;
 
-import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.*;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer;
+import org.apache.gluten.shuffle.NeedCustomShuffleWriterType;
 import org.apache.gluten.shuffle.SupportsColumnarShuffle;
 
 import com.google.common.base.Preconditions;
@@ -29,6 +30,8 @@ import org.apache.spark.*;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.celeborn.*;
 import org.apache.spark.shuffle.sort.ColumnarShuffleManager;
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning;
+import org.apache.spark.sql.catalyst.plans.physical.SinglePartition$;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +42,10 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class CelebornShuffleManager
-    implements ShuffleManager, SupportsColumnarShuffle, NeedCustomColumnarBatchSerializer {
+    implements ShuffleManager,
+        SupportsColumnarShuffle,
+        NeedCustomColumnarBatchSerializer,
+        NeedCustomShuffleWriterType {
 
   private static final Logger logger = LoggerFactory.getLogger(CelebornShuffleManager.class);
 
@@ -414,5 +420,31 @@ public class CelebornShuffleManager
   @Override
   public String columnarBatchSerializerClass() {
     return columnarBatchSerializerFactory.columnarBatchSerializerClass();
+  }
+
+  @Override
+  public ShuffleWriterType customShuffleWriterType(Partitioning partitioning, GlutenConfig conf) {
+    if (conf.celebornShuffleWriterType().equals(ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER())) {
+      if (conf.useCelebornRssSort()) {
+        return RssSortShuffleWriterType$.MODULE$;
+      } else if (partitioning != SinglePartition$.MODULE$) {
+        return SortShuffleWriterType$.MODULE$;
+      } else {
+        // If not using rss sort, we still use hash shuffle writer for single partitioning.
+        return HashShuffleWriterType$.MODULE$;
+      }
+    } else {
+      return HashShuffleWriterType$.MODULE$;
+    }
+  }
+
+  @Override
+  public <K, C> ShuffleReader<K, C> getReader(
+      ShuffleHandle handle,
+      int startPartition,
+      int endPartition,
+      TaskContext context,
+      ShuffleReadMetricsReporter metrics) {
+    return ShuffleManager.super.getReader(handle, startPartition, endPartition, context, metrics);
   }
 }
