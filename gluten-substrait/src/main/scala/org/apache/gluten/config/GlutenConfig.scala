@@ -750,6 +750,7 @@ object GlutenConfig {
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
     buildConf("spark.gluten.sql.enable.native.validation")
+      .internal()
       .doc(
         "This is tmp config to specify whether to enable the native validation based on " +
           "Substrait plan. After the validations in all backends are correctly implemented, " +
@@ -985,6 +986,7 @@ object GlutenConfig {
 
   val COLUMNAR_TEMP_DIR =
     buildConf("spark.gluten.sql.columnar.tmp_dir")
+      .internal()
       .doc("A folder to store the codegen files.")
       .stringConf
       .createOptional
@@ -1128,14 +1130,16 @@ object GlutenConfig {
 
   val COLUMNAR_MEMORY_BACKTRACE_ALLOCATION =
     buildConf("spark.gluten.memory.backtrace.allocation")
-      .doc(
-        "Print backtrace information for large memory allocations. This helps debugging when " +
-          "Spark OOM happens due to large acquire requests.")
+      .internal()
+      .doc("Print backtrace information for large memory allocations. This helps debugging when " +
+        "Spark OOM happens due to large acquire requests.")
       .booleanConf
       .createWithDefault(false)
 
   val TRANSFORM_PLAN_LOG_LEVEL =
-    buildConf("spark.gluten.sql.transform.logLevel").stringConf
+    buildConf("spark.gluten.sql.transform.logLevel")
+      .internal()
+      .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
@@ -1143,7 +1147,9 @@ object GlutenConfig {
       .createWithDefault("DEBUG")
 
   val SUBSTRAIT_PLAN_LOG_LEVEL =
-    buildConf("spark.gluten.sql.substrait.plan.logLevel").stringConf
+    buildConf("spark.gluten.sql.substrait.plan.logLevel")
+      .internal()
+      .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
@@ -1151,7 +1157,9 @@ object GlutenConfig {
       .createWithDefault("DEBUG")
 
   val VALIDATION_LOG_LEVEL =
-    buildConf("spark.gluten.sql.validation.logLevel").stringConf
+    buildConf("spark.gluten.sql.validation.logLevel")
+      .internal()
+      .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
@@ -1163,11 +1171,15 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val VALIDATION_FAIL_FAST =
-    buildConf("spark.gluten.sql.validation.failFast").booleanConf
+    buildConf("spark.gluten.sql.validation.failFast")
+      .internal()
+      .booleanConf
       .createWithDefault(true)
 
   val SOFT_AFFINITY_LOG_LEVEL =
-    buildConf("spark.gluten.soft-affinity.logLevel").stringConf
+    buildConf("spark.gluten.soft-affinity.logLevel")
+      .internal()
+      .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
@@ -1175,7 +1187,9 @@ object GlutenConfig {
       .createWithDefault("DEBUG")
 
   val DEBUG_ENABLED =
-    buildConf("spark.gluten.sql.debug").booleanConf
+    buildConf("spark.gluten.sql.debug")
+      .internal()
+      .booleanConf
       .createWithDefault(false)
 
   val DEBUG_KEEP_JNI_WORKSPACE =
@@ -1266,6 +1280,7 @@ object GlutenConfig {
   // FIXME: This only works with CH backend.
   val EXTENDED_COLUMNAR_TRANSFORM_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.transform.rules")
+      .internal()
       .withAlternative("spark.gluten.sql.columnar.extended.columnar.pre.rules")
       .doc("A comma-separated list of classes for the extended columnar transform rules.")
       .stringConf
@@ -1274,6 +1289,7 @@ object GlutenConfig {
   // FIXME: This only works with CH backend.
   val EXTENDED_COLUMNAR_POST_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.post.rules")
+      .internal()
       .doc("A comma-separated list of classes for the extended columnar post rules.")
       .stringConf
       .createWithDefaultString("")
@@ -1281,6 +1297,7 @@ object GlutenConfig {
   // FIXME: This only works with CH backend.
   val EXTENDED_EXPRESSION_TRAN_CONF =
     buildConf("spark.gluten.sql.columnar.extended.expressions.transformer")
+      .internal()
       .doc("A class for the extended expressions transformer.")
       .stringConf
       .createWithDefaultString("")
@@ -1302,6 +1319,7 @@ object GlutenConfig {
 
   val FALLBACK_REPORTER_ENABLED =
     buildConf("spark.gluten.sql.columnar.fallbackReporter")
+      .internal()
       .doc("When true, enable fallback reporter rule to print fallback reason")
       .booleanConf
       .createWithDefault(true)
@@ -1320,6 +1338,7 @@ object GlutenConfig {
 
   val ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX =
     buildConf("spark.gluten.sql.parquet.maxmin.index")
+      .internal()
       .doc("Enable row group max min index for parquet file scan")
       .booleanConf
       .createWithDefault(false)
@@ -1357,6 +1376,7 @@ object GlutenConfig {
 
   val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
     buildConf("spark.gluten.sql.commonSubexpressionEliminate")
+      .internal()
       .doc(
         "Eliminate common subexpressions in logical plan to avoid multiple evaluation of the same"
           + "expression, may improve performance")
@@ -1470,29 +1490,31 @@ object GlutenConfig {
 
   val AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED =
     buildConf("spark.gluten.auto.adjustStageResource.enabled")
-      .doc(
-        "Experimental: If enabled, gluten will try to set the stage resource according " +
-          "to stage execution plan. Only worked when aqe is enabled at the same time!!")
+      .internal()
+      .doc("Experimental: If enabled, gluten will try to set the stage resource according " +
+        "to stage execution plan. Only worked when aqe is enabled at the same time!!")
       .booleanConf
       .createWithDefault(false)
 
   val AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO =
     buildConf("spark.gluten.auto.adjustStageResources.heap.ratio")
+      .internal()
       .doc("Experimental: Increase executor heap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(2.0d)
 
   val AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO =
     buildConf("spark.gluten.auto.adjustStageResources.offheap.ratio")
+      .internal()
       .doc("Experimental: Decrease executor offheap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(0.5d)
 
   val AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD =
     buildConf("spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold")
-      .doc(
-        "Experimental: Increase executor heap memory when stage contains fallen node " +
-          "count exceeds the total node count ratio.")
+      .internal()
+      .doc("Experimental: Increase executor heap memory when stage contains fallen node " +
+        "count exceeds the total node count ratio.")
       .doubleConf
       .createWithDefault(0.5d)
 

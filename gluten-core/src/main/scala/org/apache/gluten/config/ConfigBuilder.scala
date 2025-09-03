@@ -51,6 +51,13 @@ private[gluten] case class ConfigBuilder(key: String) {
     this
   }
 
+  /**
+   * `internal()` method are designed to tag config item as: * internal or experimental
+   * functionality * intended exclusively for developers or advanced users * unstable and not
+   * exposed to external users * allowing for flexibility in development and testing without
+   * compromising the public API's stability
+   * @return
+   */
   def internal(): ConfigBuilder = {
     _public = false
     this

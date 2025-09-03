@@ -111,6 +111,7 @@ object GlutenCoreConfig {
 
   val COLUMNAR_MEMORY_UNTRACKED =
     buildStaticConf("spark.gluten.memory.untracked")
+      .internal()
       .doc(
         "When enabled, turn all native memory allocations in Gluten into untracked. Spark " +
           "will be unaware of the allocations so will not trigger spill-to-disk operations " +
@@ -194,6 +195,7 @@ object GlutenCoreConfig {
   // Since https://github.com/apache/incubator-gluten/issues/5439.
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
+      .internal()
       .doc(
         "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
           "be ignored and instead we will consider onheap and offheap memory in combination, " +
@@ -211,6 +213,7 @@ object GlutenCoreConfig {
   // Since https://github.com/apache/incubator-gluten/issues/5439.
   val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
+      .internal()
       .doc(
         "Experimental: Determines the memory fraction used to determine the total " +
           "memory available for offheap and onheap allocations when the dynamic offheap " +

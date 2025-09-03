@@ -214,12 +214,14 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_GLOG_VERBOSE_LEVEL =
     buildConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
+      .internal()
       .doc("Set glog verbose level in Velox backend, same as FLAGS_v.")
       .intConf
       .createWithDefault(0)
 
   val COLUMNAR_VELOX_GLOG_SEVERITY_LEVEL =
     buildConf("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel")
+      .internal()
       .doc("Set glog severity level in Velox backend, same as FLAGS_minloglevel.")
       .intConf
       .createWithDefault(1)
@@ -315,6 +317,7 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_ENABLE_USER_EXCEPTION_STACKTRACE =
     buildConf("spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace")
+      .internal()
       .doc("Enable the stacktrace for user type of VeloxException")
       .booleanConf
       .createWithDefault(true)
@@ -327,6 +330,7 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_TASK_METRICS_TO_EVENT_LOG_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold")
+      .internal()
       .doc("Sets the threshold in seconds for writing task statistics to the event log if the " +
         "task runs longer than this value. Configuring the value >=0 can enable the feature. " +
         "0 means all tasks report and save the metrics to eventlog. value <0 disable the feature.")
@@ -341,6 +345,7 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_ENABLE_SYSTEM_EXCEPTION_STACKTRACE =
     buildConf("spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace")
+      .internal()
       .doc("Enable the stacktrace for system type of VeloxException")
       .booleanConf
       .createWithDefault(true)
@@ -494,18 +499,21 @@ object VeloxConfig {
 
   val AWS_SDK_LOG_LEVEL =
     buildConf("spark.gluten.velox.awsSdkLogLevel")
+      .internal()
       .doc("Log granularity of AWS C++ SDK in velox.")
       .stringConf
       .createWithDefault("FATAL")
 
   val AWS_S3_RETRY_MODE =
     buildConf("spark.gluten.velox.fs.s3a.retry.mode")
+      .internal()
       .doc("Retry mode for AWS s3 connection error: legacy, standard and adaptive.")
       .stringConf
       .createWithDefault("legacy")
 
   val AWS_S3_CONNECT_TIMEOUT =
     buildConf("spark.gluten.velox.fs.s3a.connect.timeout")
+      .internal()
       .doc("Timeout for AWS s3 connection.")
       .stringConf
       .createWithDefault("200s")
@@ -527,9 +535,9 @@ object VeloxConfig {
 
   val VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP =
     buildConf("spark.gluten.velox.offHeapBroadcastBuildRelation.enabled")
-      .doc(
-        "Experimental: If enabled, broadcast build relation will use offheap memory. " +
-          "Otherwise, broadcast build relation will use onheap memory.")
+      .internal()
+      .doc("Experimental: If enabled, broadcast build relation will use offheap memory. " +
+        "Otherwise, broadcast build relation will use onheap memory.")
       .booleanConf
       .createWithDefault(false)
 
@@ -539,31 +547,35 @@ object VeloxConfig {
     .createWithDefault(false)
 
   val QUERY_TRACE_DIR = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceDir")
+    .internal()
     .doc("Base dir of a query to store tracing data.")
     .stringConf
     .createWithDefault("")
 
   val QUERY_TRACE_NODE_IDS = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds")
-    .doc(
-      "A comma-separated list of plan node ids whose input data will be traced. " +
-        "Empty string if only want to trace the query metadata.")
+    .internal()
+    .doc("A comma-separated list of plan node ids whose input data will be traced. " +
+      "Empty string if only want to trace the query metadata.")
     .stringConf
     .createWithDefault("")
 
   val QUERY_TRACE_MAX_BYTES =
     buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes")
+      .internal()
       .doc("The max trace bytes limit. Tracing is disabled if zero.")
       .longConf
       .createWithDefault(0)
 
   val QUERY_TRACE_TASK_REG_EXP =
     buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp")
+      .internal()
       .doc("The regexp of traced task id. We only enable trace on a task if its id matches.")
       .stringConf
       .createWithDefault("")
 
   val OP_TRACE_DIRECTORY_CREATE_CONFIG =
     buildConf("spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig")
+      .internal()
       .doc(
         "Config used to create operator trace directory. This config is provided to" +
           " underlying file system and the config is free form. The form should be " +
@@ -611,6 +623,7 @@ object VeloxConfig {
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
+      .internal()
       .doc(
         "Whether to trigger native memory dump when executor exits. Currently it uses jemalloc" +
           " for memory profiling, so if you want to enable it, also need to  build gluten" +
