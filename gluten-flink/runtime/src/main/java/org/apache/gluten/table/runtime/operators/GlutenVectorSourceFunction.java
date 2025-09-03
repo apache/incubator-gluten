@@ -32,6 +32,7 @@ import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -101,7 +102,11 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
         final StatefulElement element = task.statefulGet();
-        sourceContext.collect(element);
+        if (element.isWatermark()) {
+          sourceContext.emitWatermark(new Watermark(element.asWatermark().getTimestamp()));
+        } else {
+          sourceContext.collect(element);
+        }
         element.close();
       } else if (state == UpIterator.State.BLOCKED) {
         LOG.debug("Get empty row");

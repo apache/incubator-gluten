@@ -344,6 +344,7 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
+  // Save and print the plan with stats if debug mode is enabled or showTaskMetricsWhenFinished is true.
   if (veloxCfg_->get<bool>(kDebugModeEnabled, false) ||
       veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
     auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
@@ -445,6 +446,16 @@ void WholeStageResultIterator::collectMetrics() {
       metricIndex += 1;
     }
   }
+
+  // Populate the metrics with task stats for long running tasks.
+  if (const int64_t collectTaskStatsThreshold =
+          veloxCfg_->get<int64_t>(kTaskMetricsToEventLogThreshold, kTaskMetricsToEventLogThresholdDefault);
+      collectTaskStatsThreshold >= 0 &&
+      static_cast<int64_t>(taskStats.terminationTimeMs - taskStats.executionStartTimeMs) >
+          collectTaskStatsThreshold * 1'000) {
+    auto jsonStats = velox::exec::toPlanStatsJson(taskStats);
+    metrics_->stats = folly::toJson(jsonStats);
+  }
 }
 
 int64_t WholeStageResultIterator::runtimeMetric(
@@ -476,6 +487,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   configs[velox::core::QueryConfig::kMaxOutputBatchRows] =
       std::to_string(veloxCfg_->get<uint32_t>(kSparkBatchSize, 4096));
   try {
+    configs[velox::core::QueryConfig::kSparkAnsiEnabled] = veloxCfg_->get<std::string>(kAnsiEnabled, "false");
     configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kSessionTimezone, "");
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
@@ -573,6 +585,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSparkLegacyStatisticalAggregate] =
         std::to_string(veloxCfg_->get<bool>(kSparkLegacyStatisticalAggregate, false));
 
+    configs[velox::core::QueryConfig::kSparkJsonIgnoreNullFields] =
+        std::to_string(veloxCfg_->get<bool>(kSparkJsonIgnoreNullFields, true));
+
 #ifdef GLUTEN_ENABLE_GPU
     if (veloxCfg_->get<bool>(kCudfEnabled, false)) {
       // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
@@ -582,13 +597,12 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
       const auto valueOptional = veloxCfg_->get<std::string>(glutenKey);
-      if (valueOptional.hasValue()) {
+      if (valueOptional.has_value()) {
         configs[veloxKey] = valueOptional.value();
       }
     };
     setIfExists(kQueryTraceEnabled, velox::core::QueryConfig::kQueryTraceEnabled);
     setIfExists(kQueryTraceDir, velox::core::QueryConfig::kQueryTraceDir);
-    setIfExists(kQueryTraceNodeIds, velox::core::QueryConfig::kQueryTraceNodeIds);
     setIfExists(kQueryTraceMaxBytes, velox::core::QueryConfig::kQueryTraceMaxBytes);
     setIfExists(kQueryTraceTaskRegExp, velox::core::QueryConfig::kQueryTraceTaskRegExp);
     setIfExists(kOpTraceDirectoryCreateConfig, velox::core::QueryConfig::kOpTraceDirectoryCreateConfig);

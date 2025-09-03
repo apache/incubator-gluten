@@ -18,7 +18,6 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, IteratorApi}
 import org.apache.gluten.backendsapi.velox.VeloxIteratorApi.unescapePathName
-import org.apache.gluten.config.GlutenNumaBindingInfo
 import org.apache.gluten.execution._
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.metrics.{IMetrics, IteratorMetricsJniWrapper}
@@ -39,7 +38,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{ExecutorManager, SparkDirectoryUtil}
+import org.apache.spark.util.SparkDirectoryUtil
 
 import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
@@ -217,7 +216,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
   }
 
   override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
-    NativePlanEvaluator.injectWriteFilesTempPath(path)
+    NativePlanEvaluator.injectWriteFilesTempPath(path, fileName)
   }
 
   /** Generate Iterator[ColumnarBatch] for first stage. */
@@ -279,7 +278,6 @@ class VeloxIteratorApi extends IteratorApi with Logging {
   override def genFinalStageIterator(
       context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
-      numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
@@ -287,8 +285,6 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       partitionIndex: Int,
       materializeInput: Boolean,
       enableCudf: Boolean = false): Iterator[ColumnarBatch] = {
-
-    ExecutorManager.tryTaskSet(numaBindingInfo)
 
     val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
     val columnarNativeIterator =

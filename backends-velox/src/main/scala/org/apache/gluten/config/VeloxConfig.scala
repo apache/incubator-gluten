@@ -24,6 +24,10 @@ import org.apache.spark.sql.internal.SQLConf
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/*
+ * Note: Gluten configiguration.md is automatically generated from this code.
+ * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ */
 class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   import VeloxConfig._
 
@@ -69,7 +73,11 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
 
-  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled
+  def enableRewriteCastArrayToString: Boolean =
+    getConf(ENABLE_REWRITE_CAST_ARRAY_TO_STRING)
+
+  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled &&
+    getConf(ENABLE_ENHANCED_FEATURES)
 }
 
 object VeloxConfig {
@@ -97,7 +105,8 @@ object VeloxConfig {
   val COLUMNAR_VELOX_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
       .internal()
-      .doc("Enable Velox cache, default off")
+      .doc("Enable Velox cache, default off. It's recommended to enable" +
+        "soft-affinity as well when enable velox cache.")
       .booleanConf
       .createWithDefault(false)
 
@@ -348,6 +357,15 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val COLUMNAR_VELOX_TASK_METRICS_TO_EVENT_LOG_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold")
+      .internal()
+      .doc("Sets the threshold in seconds for writing task statistics to the event log if the " +
+        "task runs longer than this value. Configuring the value >=0 can enable the feature. " +
+        "0 means all tasks report and save the metrics to eventlog. value <0 disable the feature.")
+      .timeConf(TimeUnit.SECONDS)
+      .createOptional
+
   val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
     buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")
       .internal()
@@ -467,14 +485,23 @@ object VeloxConfig {
   val DIRECTORY_SIZE_GUESS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
       .internal()
-      .doc("Set the directory size guess for velox file scan")
+      .doc("Deprecated, rename to spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("32KB")
+
+  val FOOTER_ESTIMATED_SIZE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
+      .internal()
+      .doc("Set the footer estimated size for velox file scan, " +
+        "refer to Velox's footer-estimated-size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32KB")
 
   val FILE_PRELOAD_THRESHOLD =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold")
       .internal()
-      .doc("Set the file preload threshold for velox file scan")
+      .doc("Set the file preload threshold for velox file scan, " +
+        "refer to Velox's file-preload-threshold")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
@@ -630,6 +657,19 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val CUDF_MEMORY_RESOURCE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.memoryResource")
+      .doc("GPU RMM memory resource.")
+      .stringConf
+      .checkValues(Set("cuda", "pool", "async", "arena", "managed", "managed_pool"))
+      .createWithDefault("async")
+
+  val CUDF_MEMORY_PERCENT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.memoryPercent")
+      .doc("The initial percent of GPU memory to allocate for memory resource for one thread.")
+      .intConf
+      .createWithDefault(50)
+
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
       .doc(
@@ -638,4 +678,18 @@ object VeloxConfig {
           " with `--enable_jemalloc_stats=ON`.")
       .booleanConf
       .createWithDefault(false)
+
+  val ENABLE_REWRITE_CAST_ARRAY_TO_STRING =
+    buildConf("spark.gluten.sql.rewrite.castArrayToString")
+      .internal()
+      .doc("When true, rewrite `cast(array as String)` to" +
+        " `concat('[', array_join(array, ', ', null), ']')` to allow offloading to Velox.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_ENHANCED_FEATURES =
+    buildConf("spark.gluten.sql.enable.enhancedFeatures")
+      .doc("Enable some features including iceberg native write and other features.")
+      .booleanConf
+      .createWithDefault(true)
 }

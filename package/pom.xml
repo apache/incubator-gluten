@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.apache.gluten</groupId>
     <artifactId>gluten-parent</artifactId>
-    <version>1.5.0-SNAPSHOT</version>
+    <version>1.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -113,9 +113,27 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>paimon</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <build>
+    <resources>
+      <resource>
+        <directory>../gluten-core/target/generated-resources/</directory>
+        <includes>
+          <include>gluten-build-info.properties</include>
+        </includes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -210,6 +228,12 @@
                     <exclude>NOTICE.txt</exclude>
                   </excludes>
                 </filter>
+                <filter>
+                  <artifact>org.apache.gluten:gluten-core</artifact>
+                  <excludes>
+                    <exclude>gluten-build-info.properties</exclude>
+                  </excludes>
+                </filter>
               </filters>
             </configuration>
           </execution>
@@ -300,6 +324,8 @@
                     <ignoreClass>org.apache.commons.logging.*</ignoreClass>
                     <!-- hive -->
                     <ignoreClass>org.apache.hadoop.hive.*</ignoreClass>
+                    <!-- hawtjni -->
+                    <ignoreClass>org.fusesource.hawtjni.runtime.Library</ignoreClass>
                     <!-- The overridden class list by Gluten. Carefully add entries to this list only when you knew exactly what is going to happen -->
                     <ignoreClass>org.apache.spark.sql.hive.execution.HiveFileFormat</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.hive.execution.HiveFileFormat$$$$anon$1</ignoreClass>
@@ -326,6 +352,8 @@
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$ChainedIterator</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.MemoryConsumer</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.TaskMemoryManager </ignoreClass>
+                    <!-- guava -->
+                    <ignoreClass>com.google.thirdparty.publicsuffix* </ignoreClass>
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>

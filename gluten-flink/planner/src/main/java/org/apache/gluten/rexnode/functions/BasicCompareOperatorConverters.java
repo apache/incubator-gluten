@@ -19,6 +19,7 @@ package org.apache.gluten.rexnode.functions;
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.rexnode.TypeUtils;
+import org.apache.gluten.rexnode.ValidationResult;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.CastTypedExpr;
@@ -38,10 +39,19 @@ class StringCompareRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     // This converter supports string comparison functions.
-    return callNode.getOperands().stream()
-        .allMatch(param -> TypeUtils.isStringType(RexNodeConverter.toType(param.getType())));
+    boolean typesValidate =
+        callNode.getOperands().stream()
+            .allMatch(param -> TypeUtils.isStringType(RexNodeConverter.toType(param.getType())));
+    if (!typesValidate) {
+      String message =
+          String.format(
+              "String comparison operation requires all operands to be string types, but found: %s",
+              getFunctionProtoTypeName(callNode));
+      return ValidationResult.failure(message);
+    }
+    return ValidationResult.success();
   }
 
   @Override
@@ -59,18 +69,24 @@ class StringNumberCompareRexCallConverter extends BaseRexCallConverter {
   }
 
   @Override
-  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+  public ValidationResult isSuitable(RexCall callNode, RexConversionContext context) {
     // This converter supports string and numeric comparison functions.
     List<Type> paramTypes =
         callNode.getOperands().stream()
             .map(param -> RexNodeConverter.toType(param.getType()))
             .collect(Collectors.toList());
-    if ((TypeUtils.isNumericType(paramTypes.get(0)) && TypeUtils.isStringType(paramTypes.get(1)))
-        || (TypeUtils.isStringType(paramTypes.get(0))
-            && TypeUtils.isNumericType(paramTypes.get(1)))) {
-      return true;
+    boolean typesValidate =
+        (TypeUtils.isNumericType(paramTypes.get(0)) && TypeUtils.isStringType(paramTypes.get(1)))
+            || (TypeUtils.isStringType(paramTypes.get(0))
+                && TypeUtils.isNumericType(paramTypes.get(1)));
+    if (!typesValidate) {
+      String message =
+          String.format(
+              "String and numeric comparison operation requires one string and one numeric operand, but found: %s",
+              getFunctionProtoTypeName(callNode));
+      return ValidationResult.failure(message);
     }
-    return false;
+    return ValidationResult.success();
   }
 
   @Override

@@ -17,7 +17,6 @@
 package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
-import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
@@ -42,22 +41,21 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
 /**
  * Two input operator in gluten, which will call Velox to run. It receives RowVector from upstream
  * instead of flink RowData.
  */
-public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData>
-    implements TwoInputStreamOperator<StatefulRecord, StatefulRecord, RowData>, GlutenOperator {
+public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<StatefulRecord>
+    implements TwoInputStreamOperator<StatefulRecord, StatefulRecord, StatefulRecord>,
+        GlutenOperator {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlutenVectorTwoInputOperator.class);
 
@@ -68,7 +66,7 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
   private final RowType rightInputType;
   private final Map<String, RowType> outputTypes;
 
-  private StreamRecord<RowData> outElement = null;
+  private StreamRecord<StatefulRecord> outElement = null;
 
   private MemoryManager memoryManager;
   private Session session;
@@ -104,6 +102,7 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
     rightInputQueue = session.externalStreamOps().newBlockingQueue();
     LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
     LOG.debug("OutTypes: {}", outputTypes.keySet());
+    LOG.debug("RuntimeContex: {}", getRuntimeContext().getClass().getName());
     query = new Query(glutenPlan, Config.empty(), ConnectorConfig.empty());
     allocator = new RootAllocator(Long.MAX_VALUE);
     task = session.queryOps().execute(query);
@@ -143,14 +142,8 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
           output.emitWatermark(new Watermark(watermark.getTimestamp()));
         } else {
           final StatefulRecord statefulRecord = element.asRecord();
-          final RowVector outRv = statefulRecord.getRowVector();
-          List<RowData> rows =
-              FlinkRowToVLVectorConvertor.toRowData(
-                  outRv, allocator, outputTypes.get(statefulRecord.getNodeId()));
-          for (RowData row : rows) {
-            output.collect(outElement.replace(row));
-          }
-          outRv.close();
+          output.collect(outElement.replace(statefulRecord));
+          statefulRecord.close();
         }
       } else {
         break;

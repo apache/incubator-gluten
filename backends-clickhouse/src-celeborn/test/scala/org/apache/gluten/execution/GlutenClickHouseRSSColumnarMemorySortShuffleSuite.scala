@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.CHConfig
+
 import org.apache.spark.SparkConf
 
 class GlutenClickHouseRSSColumnarMemorySortShuffleSuite extends MergeTreeSuite  {
@@ -32,7 +34,7 @@ class GlutenClickHouseRSSColumnarMemorySortShuffleSuite extends MergeTreeSuite  
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.shuffle.service.enabled", "false")
       .set("spark.celeborn.client.spark.shuffle.writer", "hash")
-      .set("spark.gluten.sql.columnar.backend.ch.forceMemorySortShuffle", "true")
+      .set(CHConfig.COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE.key, "true")
   }
 
   final override val testCases: Seq[Int] = Seq(

@@ -109,7 +109,7 @@ size_t GlutenKafkaSource::getPollTimeoutMillisecond() const
 }
 
 GlutenKafkaSource::GlutenKafkaSource(
-    const Block & result_header_,
+    const DB::SharedHeader & result_header_,
     const ContextPtr & context_,
     const Names & topics_,
     const size_t & partition_,
@@ -135,7 +135,7 @@ GlutenKafkaSource::GlutenKafkaSource(
     max_block_size = end_offset - start_offset;
     client_id = topics[0] + "_" + std::to_string(partition);
 
-    for (const auto & columns_with_type_and_name : result_header.getColumnsWithTypeAndName())
+    for (const auto & columns_with_type_and_name : result_header->getColumnsWithTypeAndName())
     {
         if (columns_with_type_and_name.name == "value")
         {

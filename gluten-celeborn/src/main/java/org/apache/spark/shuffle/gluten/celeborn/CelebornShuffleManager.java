@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.gluten.celeborn;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.exception.GlutenException;
+import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer;
 import org.apache.gluten.shuffle.SupportsColumnarShuffle;
 
 import com.google.common.base.Preconditions;
@@ -42,7 +43,8 @@ import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarShuffle {
+public class CelebornShuffleManager
+    implements ShuffleManager, SupportsColumnarShuffle, NeedCustomColumnarBatchSerializer {
 
   private static final Logger logger = LoggerFactory.getLogger(CelebornShuffleManager.class);
 
@@ -63,6 +65,8 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
 
   private static final CelebornShuffleWriterFactory writerFactory;
 
+  private static final CelebornColumnarBatchSerializerFactory columnarBatchSerializerFactory;
+
   static {
     final ServiceLoader<CelebornShuffleWriterFactory> loader =
         ServiceLoader.load(CelebornShuffleWriterFactory.class);
@@ -81,6 +85,29 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
           "No Celeborn shuffle writer factory found for backend " + backendName);
     }
     writerFactory = factoryMap.get(backendName);
+
+    final ServiceLoader<CelebornColumnarBatchSerializerFactory>
+        celebornColumnarBatchSerializerFactoriesLoader =
+            ServiceLoader.load(CelebornColumnarBatchSerializerFactory.class);
+    final List<CelebornColumnarBatchSerializerFactory> columnarBatchSerializerFactoryList =
+        Arrays.stream(
+                Iterators.toArray(
+                    celebornColumnarBatchSerializerFactoriesLoader.iterator(),
+                    CelebornColumnarBatchSerializerFactory.class))
+            .collect(Collectors.toList());
+
+    Preconditions.checkState(
+        !columnarBatchSerializerFactoryList.isEmpty(),
+        "No factory found for Celeborn columnar batch serializer");
+    final Map<String, CelebornColumnarBatchSerializerFactory> columnarBatchSerializerFactoryMap =
+        columnarBatchSerializerFactoryList.stream()
+            .collect(Collectors.toMap(CelebornColumnarBatchSerializerFactory::backendName, f -> f));
+
+    if (!columnarBatchSerializerFactoryMap.containsKey(backendName)) {
+      throw new UnsupportedOperationException(
+          "No Celeborn columnar batch serializer writer factory found for backend " + backendName);
+    }
+    columnarBatchSerializerFactory = columnarBatchSerializerFactoryMap.get(backendName);
   }
 
   private final SparkConf conf;
@@ -407,5 +434,10 @@ public class CelebornShuffleManager implements ShuffleManager, SupportsColumnarS
     return columnarShuffleManager()
         .getReader(
             handle, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics);
+  }
+
+  @Override
+  public String columnarBatchSerializerClass() {
+    return columnarBatchSerializerFactory.columnarBatchSerializerClass();
   }
 }

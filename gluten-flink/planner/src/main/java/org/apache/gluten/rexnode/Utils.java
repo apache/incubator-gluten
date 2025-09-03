@@ -134,6 +134,9 @@ public class Utils {
   public static TypedExpr generateJoinEqualCondition(
       List<FieldAccessTypedExpr> leftKeys, List<FieldAccessTypedExpr> rightKeys) {
     checkArgument(leftKeys.size() == rightKeys.size());
+    if (leftKeys.isEmpty()) {
+      return null;
+    }
     List<TypedExpr> equals =
         IntStream.range(0, leftKeys.size())
             .mapToObj(
@@ -142,5 +145,16 @@ public class Utils {
                         new BooleanType(), List.of(leftKeys.get(i), rightKeys.get(i)), "equalto"))
             .collect(Collectors.toList());
     return new CallTypedExpr(new BooleanType(), equals, "and");
+  }
+
+  public static List<FieldAccessTypedExpr> generateFieldAccesses(
+      io.github.zhztheplayer.velox4j.type.RowType inputType, int[] groupings) {
+    List<FieldAccessTypedExpr> groupingKeys = new ArrayList<>(groupings.length);
+    for (int grouping : groupings) {
+      groupingKeys.add(
+          FieldAccessTypedExpr.create(
+              inputType.getChildren().get(grouping), inputType.getNames().get(grouping)));
+    }
+    return groupingKeys;
   }
 }

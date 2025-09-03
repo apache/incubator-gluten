@@ -18,7 +18,6 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
-import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.utils.DebugUtil;
@@ -54,8 +53,9 @@ public class NativePlanEvaluator {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
   }
 
-  public static void injectWriteFilesTempPath(String path) {
-    PlanEvaluatorJniWrapper.injectWriteFilesTempPath(path.getBytes(StandardCharsets.UTF_8));
+  public static void injectWriteFilesTempPath(String path, String fileName) {
+    PlanEvaluatorJniWrapper.injectWriteFilesTempPath(
+        path.getBytes(StandardCharsets.UTF_8), fileName.getBytes(StandardCharsets.UTF_8));
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and
@@ -86,7 +86,7 @@ public class NativePlanEvaluator {
             new Spiller() {
               @Override
               public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
-                if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                if (!Spiller.Phase.SPILL.equals(phase)) {
                   return 0L;
                 }
                 long spilled = out.spill(size);

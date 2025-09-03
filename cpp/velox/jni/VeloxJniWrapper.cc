@@ -43,6 +43,10 @@
 #include "cudf/CudfPlanValidator.h"
 #endif
 
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+#include "IcebergNestedField.pb.h"
+#endif
+
 using namespace gluten;
 using namespace facebook;
 
@@ -70,11 +74,11 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   initVeloxJniUDF(env);
 
   infoCls = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/validate/NativePlanValidationInfo;");
-  infoClsInitMethod = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
+  infoClsInitMethod = getMethodIdOrError(env, infoCls, "<init>", "(ILjava/lang/String;)V");
 
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-  blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[[B)V");
+  blockStripesConstructor = getMethodIdOrError(env, blockStripesClass, "<init>", "(J[J[II[[B)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
 
@@ -255,6 +259,18 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapp
   auto filter = ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
   GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
   bool out = filter->mayContain(folly::hasher<int64_t>()(item));
+  return out;
+  JNI_METHOD_END(false)
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_mightContainLongOnSerializedBloom( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong address,
+    jlong item) {
+  JNI_METHOD_START
+  bool out = velox::BloomFilter<>::mayContain(reinterpret_cast<const char*>(address), folly::hasher<int64_t>()(item));
   return out;
   JNI_METHOD_END(false)
 }
@@ -603,7 +619,8 @@ Java_org_apache_gluten_vectorized_CelebornPartitionWriterJniWrapper_createPartit
 
   auto partitionWriter = std::make_shared<RssPartitionWriter>(
       numPartitions,
-      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      createCompressionCodec(
+          getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
       ctx->memoryManager(),
       partitionWriterOptions,
       celebornClient);
@@ -646,7 +663,8 @@ Java_org_apache_gluten_vectorized_UnifflePartitionWriterJniWrapper_createPartiti
 
   auto partitionWriter = std::make_shared<RssPartitionWriter>(
       numPartitions,
-      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      createCompressionCodec(
+          getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
       ctx->memoryManager(),
       partitionWriterOptions,
       uniffleClient);
@@ -678,6 +696,71 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_cudf_VeloxCudfPlanValidatorJni
   // get the task and driver, validate the plan, if return all operator except table scan is offloaded, validate true.
   return CudfPlanValidator::validate(substraitPlan);
   JNI_METHOD_END(false)
+}
+#endif
+
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_init( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong cSchema,
+    jint format,
+    jstring directory,
+    jstring codecJstr,
+    jbyteArray partition,
+    jbyteArray fieldBytes) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
+  auto backendConf = VeloxBackend::get()->getBackendConf()->rawConfigs();
+  auto sparkConf = ctx->getConfMap();
+  sparkConf.merge(backendConf);
+  auto safeArray = gluten::getByteArrayElementsSafe(env, partition);
+  auto arrowSchema = reinterpret_cast<struct ArrowSchema*>(cSchema);
+  auto rowType = asRowType(importFromArrow(*arrowSchema));
+  ArrowSchemaRelease(arrowSchema);
+  auto spec = parseIcebergPartitionSpec(safeArray.elems(), safeArray.length(), rowType);
+  auto safeArrayField = gluten::getByteArrayElementsSafe(env, fieldBytes);
+  gluten::IcebergNestedField protoField;
+  gluten::parseProtobuf(safeArrayField.elems(), safeArrayField.length(), &protoField);
+  return ctx->saveObject(runtime->createIcebergWriter(
+      rowType,
+      format,
+      jStringToCString(env, directory),
+      facebook::velox::common::stringToCompressionKind(jStringToCString(env, codecJstr)),
+      spec,
+      protoField,
+      sparkConf));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_write( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong writerHandle,
+    jlong batchHandle) {
+  JNI_METHOD_START
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+  auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
+  writer->write(*(std::dynamic_pointer_cast<VeloxColumnarBatch>(batch)));
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jobjectArray JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_commit( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong writerHandle) {
+  JNI_METHOD_START
+  auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
+  auto commitMessages = writer->commit();
+  jobjectArray ret =
+      env->NewObjectArray(commitMessages.size(), env->FindClass("java/lang/String"), env->NewStringUTF(""));
+  for (auto i = 0; i < commitMessages.size(); i++) {
+    env->SetObjectArrayElement(ret, i, env->NewStringUTF(commitMessages[i].data()));
+  }
+  return ret;
+
+  JNI_METHOD_END(nullptr)
 }
 #endif
 

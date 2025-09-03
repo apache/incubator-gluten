@@ -36,7 +36,7 @@ FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     const auto & filter_rel = final_rel.filter();
     std::string filter_name;
 
-    auto input_header = query_plan->getCurrentHeader();
+    const auto & input_header = *query_plan->getCurrentHeader();
     DB::ActionsDAG actions_dag{input_header.getColumnsWithTypeAndName()};
     const auto condition_node = parseExpression(actions_dag, filter_rel.condition());
     if (filter_rel.condition().has_scalar_function() || filter_rel.condition().has_literal())
@@ -46,7 +46,7 @@ FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     filter_name = condition_node->result_name;
 
     bool remove_filter_column = true;
-    auto input_names = query_plan->getCurrentHeader().getNames();
+    auto input_names = query_plan->getCurrentHeader()->getNames();
     DB::NameSet input_with_condition(input_names.begin(), input_names.end());
     if (input_with_condition.contains(condition_node->result_name))
         remove_filter_column = false;
@@ -64,7 +64,7 @@ FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     query_plan->addStep(std::move(filter_step));
 
     // header maybe changed, need to rollback it
-    if (!blocksHaveEqualStructure(input_header, query_plan->getCurrentHeader()))
+    if (!blocksHaveEqualStructure(input_header, *query_plan->getCurrentHeader()))
     {
         steps.emplace_back(PlanUtil::adjustQueryPlanHeader(*query_plan, input_header, "Rollback filter header"));
     }

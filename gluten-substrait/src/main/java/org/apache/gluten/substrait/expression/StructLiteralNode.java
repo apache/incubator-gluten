@@ -93,8 +93,10 @@ public class StructLiteralNode extends LiteralNodeWithValue<InternalRow> {
   @Override
   protected void updateLiteralBuilder(Builder literalBuilder, InternalRow row) {
     Expression.Literal.Struct.Builder structBuilder = Expression.Literal.Struct.newBuilder();
-    for (int i = 0; i < ((StructNode) getTypeNode()).getFieldTypes().size(); ++i) {
+    StructNode structNode = (StructNode) getTypeNode();
+    for (int i = 0; i < structNode.getFieldTypes().size(); ++i) {
       structBuilder.addFields(getFieldLiteral(i).getLiteral());
+      structBuilder.addNames(structNode.getNames().get(i));
     }
     literalBuilder.setStruct(structBuilder.build());
   }

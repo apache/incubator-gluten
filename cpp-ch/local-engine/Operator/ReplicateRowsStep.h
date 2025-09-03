@@ -25,7 +25,7 @@ namespace local_engine
 class ReplicateRowsStep : public DB::ITransformingStep
 {
 public:
-    ReplicateRowsStep(const DB::Block & input_header);
+    ReplicateRowsStep(const DB::SharedHeader & input_header);
 
     static DB::Block transformHeader(const DB::Block & input);
 
@@ -39,7 +39,7 @@ private:
 class ReplicateRowsTransform : public DB::ISimpleTransform
 {
 public:
-    ReplicateRowsTransform(const DB::Block & input_header_);
+    ReplicateRowsTransform(const DB::SharedHeader & input_header_);
 
     String getName() const override { return "ReplicateRowsTransform"; }
     void transform(DB::Chunk &) override;

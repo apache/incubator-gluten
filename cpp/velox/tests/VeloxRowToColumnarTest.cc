@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
+#include "../utils/VeloxArrowUtils.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "operators/serializer//VeloxColumnarToRowConverter.h"
 #include "operators/serializer//VeloxRowToColumnarConverter.h"
-#include "utils/VeloxArrowUtils.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
 
 using namespace facebook;

@@ -17,13 +17,14 @@
 package org.apache.gluten.integration.action
 
 import org.apache.gluten.integration.{QueryRunner, Suite}
+
 import org.apache.spark.repl.Main
 
-case class SparkShell(scale: Double, genPartitionedData: Boolean) extends Action {
+case class SparkShell() extends Action {
   override def execute(suite: Suite): Boolean = {
     suite.sessionSwitcher.useSession("test", "Spark CLI")
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
+      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
     runner.createTables(suite.tableCreator(), suite.sessionSwitcher.spark())
     Main.sparkSession = suite.sessionSwitcher.spark()
     Main.sparkContext = suite.sessionSwitcher.spark().sparkContext

@@ -18,14 +18,11 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class ListNode implements TypeNode, Serializable {
-  private final Boolean nullable;
+public class ListNode extends TypeNode {
   private final TypeNode nestedType;
 
   public ListNode(Boolean nullable, TypeNode nestedType) {
-    this.nullable = nullable;
+    super(nullable);
     this.nestedType = nestedType;
   }
 
@@ -44,10 +41,5 @@ public class ListNode implements TypeNode, Serializable {
     Type.Builder builder = Type.newBuilder();
     builder.setList(listBuilder.build());
     return builder.build();
-  }
-
-  @Override
-  public Boolean nullable() {
-    return nullable;
   }
 }

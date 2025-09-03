@@ -84,7 +84,7 @@ void BlocksBufferPoolTransform::work()
 {
 }
 
-BlocksBufferPoolStep::BlocksBufferPoolStep(const DB::Block & input_header, size_t buffer_size_)
+BlocksBufferPoolStep::BlocksBufferPoolStep(const DB::SharedHeader & input_header, size_t buffer_size_)  
     : DB::ITransformingStep(input_header, input_header, getTraits())
     , buffer_size(buffer_size_)
 {

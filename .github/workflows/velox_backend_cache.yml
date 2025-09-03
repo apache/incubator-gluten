@@ -106,33 +106,30 @@ jobs:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
 
-  cache-enhanced-shared-lib-centos-8:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-22.04 ]
-    container: apache/gluten:centos-8-jdk8
+  cache-enhanced-native-lib-centos-7:
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-enhanced-centos8-release-shared-${{runner.arch}}-${{github.sha}}
+          key: ccache-enhanced-centos7-release-default-${{github.sha}}
           restore-keys: |
-            ccache-enhanced-centos8-release-shared-${{runner.arch}}
-      - name: Build Gluten
+            ccache-enhanced-centos7-release-default
+      - name: Build Gluten native libraries
         run: |
-          df -a
-          source /opt/rh/gcc-toolset-11/enable
-          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_enhanced_features=ON
-          ccache -s
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            export CCACHE_DIR=/work/.ccache
+            mkdir -p /work/.ccache
+            bash dev/ci-velox-buildstatic-centos-7-enhanced-features.sh
+          "
       - name: Save Ccache
         uses: actions/cache/save@v3
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-enhanced-centos8-release-shared-${{runner.arch}}-${{github.sha}}
+          key: ccache-enhanced-centos7-release-default-${{github.sha}}
 
   cache-shared-lib-centos-9:
     runs-on: ${{ matrix.os }}

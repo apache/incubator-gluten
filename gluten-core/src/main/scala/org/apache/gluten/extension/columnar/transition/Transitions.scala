@@ -35,13 +35,10 @@ case class InsertTransitions(convReq: ConventionReq) extends Rule[SparkPlan] {
   }
 
   private def fillWithTransitions(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case p => applyForNode(p)
+    case node if node.children.nonEmpty => applyForNode(node)
   }
 
   private def applyForNode(node: SparkPlan): SparkPlan = {
-    if (node.children.isEmpty) {
-      return node
-    }
     val convReqs = convFunc.conventionReqOf(node)
     val newChildren = node.children.zip(convReqs).map {
       case (child, convReq) =>

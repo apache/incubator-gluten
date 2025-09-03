@@ -36,6 +36,7 @@ import io.github.zhztheplayer.velox4j.variant.VarCharValue;
 import io.github.zhztheplayer.velox4j.variant.Variant;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
@@ -63,6 +64,9 @@ public class RexNodeConverter {
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef inputRef = (RexInputRef) rexNode;
       List<String> inputAttributes = context.getInputAttributeNames();
+      Preconditions.checkArgument(
+          inputAttributes.size() > inputRef.getIndex(),
+          "InputRef index " + inputRef.getIndex() + " not in " + inputAttributes);
       return FieldAccessTypedExpr.create(
           toType(inputRef.getType()), inputAttributes.get(inputRef.getIndex()));
     } else if (rexNode instanceof RexFieldAccess) {

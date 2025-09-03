@@ -138,7 +138,8 @@ void VeloxRuntime::getInfoAndIds(
 std::string VeloxRuntime::planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) {
   std::vector<std::shared_ptr<ResultIterator>> inputs;
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
-  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), veloxCfg_.get(), std::nullopt, true);
+  VeloxPlanConverter veloxPlanConverter(
+      inputs, veloxMemoryPool.get(), veloxCfg_.get(), std::nullopt, std::nullopt, true);
   auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_, localFiles_);
   return veloxPlan->toString(details, true);
 }
@@ -156,7 +157,11 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
   VeloxPlanConverter veloxPlanConverter(
-      inputs, memoryManager()->getLeafMemoryPool().get(), veloxCfg_.get(), *localWriteFilesTempPath());
+      inputs,
+      memoryManager()->getLeafMemoryPool().get(),
+      veloxCfg_.get(),
+      *localWriteFilesTempPath(),
+      *localWriteFileName());
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_, std::move(localFiles_));
   LOG_IF(INFO, debugModeEnabled_ && taskInfo_.has_value())
       << "############### Velox plan for task " << taskInfo_.value() << " ###############" << std::endl
@@ -212,6 +217,22 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
+    RowTypePtr rowType,
+    int32_t format,
+    const std::string& outputDirectory,
+    facebook::velox::common::CompressionKind compressionKind,
+    std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
+    const gluten::IcebergNestedField& protoField,
+    const std::unordered_map<std::string, std::string>& sparkConfs) {
+  auto veloxPool = memoryManager()->getLeafMemoryPool();
+  auto connectorPool = memoryManager()->getAggregateMemoryPool();
+  return std::make_shared<IcebergWriter>(
+      rowType, format, outputDirectory, compressionKind, spec, protoField, sparkConfs, veloxPool, connectorPool);
+}
+#endif
+
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     int32_t numPartitions,
     const std::shared_ptr<PartitionWriter>& partitionWriter,
@@ -266,7 +287,7 @@ std::shared_ptr<VeloxDataSource> VeloxRuntime::createDataSource(
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ShuffleReaderOptions options) {
-  auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
+  auto codec = gluten::createCompressionCodec(options.compressionType, options.codecBackend);
   const auto veloxCompressionKind = arrowCompressionTypeToVelox(options.compressionType);
   const auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
 

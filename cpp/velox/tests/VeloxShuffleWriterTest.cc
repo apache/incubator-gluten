@@ -23,8 +23,8 @@
 #include "shuffle/VeloxRssSortShuffleWriter.h"
 #include "shuffle/VeloxSortShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
+#include "tests/utils/TestUtils.h"
 #include "utils/TestAllocationListener.h"
-#include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 
 #include "velox/vector/tests/utils/VectorTestBase.h"
@@ -43,6 +43,7 @@ struct ShuffleTestParams {
   int32_t diskWriteBufferSize{0};
   bool useRadixSort{false};
   bool enableDictionary{false};
+  int64_t deserializerBufferSize{0};
 
   std::string toString() const {
     std::ostringstream out;
@@ -52,7 +53,8 @@ struct ShuffleTestParams {
         << ", compressionThreshold = " << compressionThreshold << ", mergeBufferSize = " << mergeBufferSize
         << ", compressionBufferSize = " << diskWriteBufferSize
         << ", useRadixSort = " << (useRadixSort ? "true" : "false")
-        << ", enableDictionary = " << (enableDictionary ? "true" : "false");
+        << ", enableDictionary = " << (enableDictionary ? "true" : "false")
+        << ", deserializerBufferSize = " << deserializerBufferSize;
     return out.str();
   }
 };
@@ -106,12 +108,15 @@ std::vector<ShuffleTestParams> getTestParams() {
     for (const auto partitionWriterType : {PartitionWriterType::kLocal, PartitionWriterType::kRss}) {
       for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
         for (const bool useRadixSort : {true, false}) {
-          params.push_back(ShuffleTestParams{
-              .shuffleWriterType = ShuffleWriterType::kSortShuffle,
-              .partitionWriterType = partitionWriterType,
-              .compressionType = compression,
-              .diskWriteBufferSize = diskWriteBufferSize,
-              .useRadixSort = useRadixSort});
+          for (const auto deserializerBufferSize : {static_cast<int64_t>(1L), kDefaultDeserializerBufferSize}) {
+            params.push_back(ShuffleTestParams{
+                .shuffleWriterType = ShuffleWriterType::kSortShuffle,
+                .partitionWriterType = partitionWriterType,
+                .compressionType = compression,
+                .diskWriteBufferSize = diskWriteBufferSize,
+                .useRadixSort = useRadixSort,
+                .deserializerBufferSize = deserializerBufferSize});
+          }
         }
       }
     }
@@ -287,7 +292,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     const auto veloxCompressionType = arrowCompressionTypeToVelox(compressionType);
     const auto schema = toArrowSchema(rowType, getDefaultMemoryManager()->getLeafMemoryPool().get());
 
-    auto codec = createArrowIpcCodec(compressionType, CodecBackend::NONE);
+    auto codec = createCompressionCodec(compressionType, CodecBackend::NONE);
 
     // Set batchSize to a large value to make all batches are merged by reader.
     auto deserializerFactory = std::make_unique<gluten::VeloxShuffleReaderDeserializerFactory>(
@@ -297,7 +302,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
         rowType,
         kDefaultBatchSize,
         kDefaultReadBufferSize,
-        kDefaultDeserializerBufferSize,
+        GetParam().deserializerBufferSize,
         getDefaultMemoryManager()->defaultArrowMemoryPool(),
         pool_,
         GetParam().shuffleWriterType);
@@ -740,6 +745,29 @@ TEST_P(RoundRobinPartitioningShuffleWriterTest, sortMaxRows) {
 
   auto blockPid1 = takeRows({inputVector1_}, {{0, 2, 4, 6, 8}});
   auto blockPid2 = takeRows({inputVector1_}, {{1, 3, 5, 7, 9}});
+  shuffleWriteReadMultiBlocks(*shuffleWriter, 2, {blockPid1, blockPid2});
+}
+
+TEST_P(RoundRobinPartitioningShuffleWriterTest, sortSpill) {
+  if (GetParam().shuffleWriterType != ShuffleWriterType::kSortShuffle) {
+    return;
+  }
+  auto shuffleWriter = createShuffleWriter(2);
+
+  ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_, 0));
+  ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_, 0));
+
+  int64_t evicted;
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(1024, &evicted));
+
+  ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_, 0));
+
+  auto blockPid1 =
+      takeRows({inputVector1_, inputVector1_, inputVector1_}, {{0, 2, 4, 6, 8}, {0, 2, 4, 6, 8}, {0, 2, 4, 6, 8}});
+  auto blockPid2 =
+      takeRows({inputVector1_, inputVector1_, inputVector1_}, {{1, 3, 5, 7, 9}, {1, 3, 5, 7, 9}, {1, 3, 5, 7, 9}});
+
+  // Stop and verify.
   shuffleWriteReadMultiBlocks(*shuffleWriter, 2, {blockPid1, blockPid2});
 }
 

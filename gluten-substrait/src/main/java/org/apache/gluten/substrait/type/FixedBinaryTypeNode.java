@@ -18,14 +18,11 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class FixedBinaryTypeNode implements TypeNode, Serializable {
-  private final Boolean nullable;
+public class FixedBinaryTypeNode extends TypeNode {
   private final int length;
 
   public FixedBinaryTypeNode(Boolean nullable, int length) {
-    this.nullable = nullable;
+    super(nullable);
     this.length = length;
   }
 
@@ -42,10 +39,5 @@ public class FixedBinaryTypeNode implements TypeNode, Serializable {
     Type.Builder builder = Type.newBuilder();
     builder.setFixedBinary(fixedBinaryBuilder.build());
     return builder.build();
-  }
-
-  @Override
-  public Boolean nullable() {
-    return nullable;
   }
 }

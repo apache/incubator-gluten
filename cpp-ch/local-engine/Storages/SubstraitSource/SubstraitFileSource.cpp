@@ -54,7 +54,7 @@ static DB::Block initReadHeader(const DB::Block & block, const FormatFiles & fil
 
 SubstraitFileSource::SubstraitFileSource(
     const DB::ContextPtr & context_, const DB::Block & outputHeader_, const substrait::ReadRel::LocalFiles & file_infos)
-    : DB::ISource(BaseReader::buildRowCountHeader(outputHeader_), false)
+    : DB::ISource(toShared(BaseReader::buildRowCountHeader(outputHeader_)), false)
     , files(initializeFiles(file_infos, context_))
     , outputHeader(outputHeader_)
     , readHeader(initReadHeader(outputHeader, files))

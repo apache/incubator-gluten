@@ -105,10 +105,6 @@ class VeloxMemoryManager final : public MemoryManager {
 
   void dropMemoryPool(const std::string& name);
 
-#ifdef GLUTEN_ENABLE_HBM
-  std::unique_ptr<VeloxMemoryAllocator> wrappedAlloc_;
-#endif
-
   std::unique_ptr<AllocationListener> listener_;
   std::unique_ptr<AllocationListener> blockListener_;
 
