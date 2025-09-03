@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -eux
+set -o pipefail
+
 GLUTEN_JAR=/PATH_TO_GLUTEN_HOME/package/target/<gluten-jar>
 DELTA_JARS=/PATHS_TO_DELTA_JARS
 SPARK_HOME=/PATH_TO_SPARK_HOME/
