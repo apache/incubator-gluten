@@ -74,8 +74,9 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         initShuffleWriter(cb)
+        val batchType = ColumnarBatches.identifyBatchType(cb)
         val columnarBatchHandle =
-          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
+          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb, batchType)
         val startTime = System.nanoTime()
         shuffleWriterJniWrapper.write(
           nativeShuffleWriter,

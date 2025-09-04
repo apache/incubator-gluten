@@ -29,8 +29,10 @@ import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListCon
 
 object SparkVectorUtil {
 
-  def toArrowRecordBatch(batch: ColumnarBatch): ArrowRecordBatch = {
-    ColumnarBatches.checkLoaded(batch)
+  def toArrowRecordBatch(
+      batch: ColumnarBatch,
+      batchType: ColumnarBatches.BatchType): ArrowRecordBatch = {
+    ColumnarBatches.checkLoaded(batchType)
     val numRowsInBatch = batch.numRows()
     val cols = (0 until batch.numCols).toList.map(
       i =>

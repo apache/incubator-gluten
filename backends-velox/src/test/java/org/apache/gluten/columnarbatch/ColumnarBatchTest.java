@@ -45,22 +45,31 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
         () -> {
           final int numRows = 100;
           final ColumnarBatch batch = newArrowBatch("a boolean, b int", numRows);
-          Assert.assertTrue(ColumnarBatches.isHeavyBatch(batch));
-          ColumnarBatches.checkLoaded(batch);
+          final ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(batch);
+          Assert.assertTrue(ColumnarBatches.isHeavyBatch(batchType));
+          ColumnarBatches.checkLoaded(batchType);
           Assert.assertThrows(
-              IllegalArgumentException.class, () -> ColumnarBatches.checkOffloaded(batch));
+              IllegalArgumentException.class, () -> ColumnarBatches.checkOffloaded(batchType));
+
           final ColumnarBatch offloaded =
-              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
-          Assert.assertTrue(ColumnarBatches.isLightBatch(offloaded));
-          ColumnarBatches.checkOffloaded(offloaded);
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch, batchType);
+          final ColumnarBatches.BatchType offloadedBatchType =
+              ColumnarBatches.identifyBatchType(offloaded);
+          Assert.assertTrue(ColumnarBatches.isLightBatch(offloadedBatchType));
+          ColumnarBatches.checkOffloaded(offloadedBatchType);
           Assert.assertThrows(
-              IllegalArgumentException.class, () -> ColumnarBatches.checkLoaded(offloaded));
+              IllegalArgumentException.class,
+              () -> ColumnarBatches.checkLoaded(offloadedBatchType));
           final ColumnarBatch loaded =
-              ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), offloaded);
-          Assert.assertTrue(ColumnarBatches.isHeavyBatch(loaded));
-          ColumnarBatches.checkLoaded(loaded);
+              ColumnarBatches.load(
+                  ArrowBufferAllocators.contextInstance(), offloaded, offloadedBatchType);
+          final ColumnarBatches.BatchType loadedBatchType =
+              ColumnarBatches.identifyBatchType(loaded);
+          Assert.assertTrue(ColumnarBatches.isHeavyBatch(loadedBatchType));
+          ColumnarBatches.checkLoaded(loadedBatchType);
           Assert.assertThrows(
-              IllegalArgumentException.class, () -> ColumnarBatches.checkOffloaded(loaded));
+              IllegalArgumentException.class,
+              () -> ColumnarBatches.checkOffloaded(loadedBatchType));
           long cnt =
               StreamSupport.stream(
                       Spliterators.spliteratorUnknownSize(
@@ -80,19 +89,25 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           final int numRows = 100;
           final ColumnarBatch batch = new ColumnarBatch(new ColumnVector[0]);
           batch.setNumRows(numRows);
-          Assert.assertTrue(ColumnarBatches.isZeroColumnBatch(batch));
-          ColumnarBatches.checkLoaded(batch);
-          ColumnarBatches.checkOffloaded(batch);
+          final ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(batch);
+          Assert.assertTrue(ColumnarBatches.isZeroColumnBatch(batchType));
+          ColumnarBatches.checkLoaded(batchType);
+          ColumnarBatches.checkOffloaded(batchType);
           final ColumnarBatch offloaded =
-              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
-          Assert.assertTrue(ColumnarBatches.isZeroColumnBatch(offloaded));
-          ColumnarBatches.checkLoaded(offloaded);
-          ColumnarBatches.checkOffloaded(offloaded);
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch, batchType);
+          final ColumnarBatches.BatchType offloadedBatchType =
+              ColumnarBatches.identifyBatchType(offloaded);
+          Assert.assertTrue(ColumnarBatches.isZeroColumnBatch(offloadedBatchType));
+          ColumnarBatches.checkLoaded(offloadedBatchType);
+          ColumnarBatches.checkOffloaded(offloadedBatchType);
           final ColumnarBatch loaded =
-              ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), offloaded);
-          Assert.assertTrue(ColumnarBatches.isZeroColumnBatch(loaded));
-          ColumnarBatches.checkLoaded(loaded);
-          ColumnarBatches.checkOffloaded(loaded);
+              ColumnarBatches.load(
+                  ArrowBufferAllocators.contextInstance(), offloaded, offloadedBatchType);
+          final ColumnarBatches.BatchType loadedBatchType =
+              ColumnarBatches.identifyBatchType(loaded);
+          Assert.assertTrue(ColumnarBatches.isZeroColumnBatch(loadedBatchType));
+          ColumnarBatches.checkLoaded(loadedBatchType);
+          ColumnarBatches.checkOffloaded(loadedBatchType);
           long cnt =
               StreamSupport.stream(
                       Spliterators.spliteratorUnknownSize(
@@ -111,33 +126,41 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
         () -> {
           final int numRows = 100;
           final ColumnarBatch batch = newArrowBatch("a boolean, b int", numRows);
-          Assert.assertEquals(1, ColumnarBatches.getRefCnt(batch));
+          final ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(batch);
+          Assert.assertEquals(1, ColumnarBatches.getRefCnt(batch, batchType));
+
           final ColumnarBatch offloaded =
-              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
-          Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded));
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch, batchType);
+          final ColumnarBatches.BatchType offloadedBatchType =
+              ColumnarBatches.identifyBatchType(offloaded);
+          Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded, offloadedBatchType));
           final long handle =
-              ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), offloaded);
+              ColumnarBatches.getNativeHandle(
+                  BackendsApiManager.getBackendName(), offloaded, offloadedBatchType);
           final ColumnarBatch created = ColumnarBatches.create(handle);
+          final ColumnarBatches.BatchType createdBatchType =
+              ColumnarBatches.identifyBatchType(created);
           Assert.assertEquals(
               handle,
-              ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), created));
-          Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded));
-          Assert.assertEquals(1, ColumnarBatches.getRefCnt(created));
-          ColumnarBatches.retain(created);
-          Assert.assertEquals(2, ColumnarBatches.getRefCnt(offloaded));
-          Assert.assertEquals(2, ColumnarBatches.getRefCnt(created));
-          ColumnarBatches.retain(offloaded);
-          Assert.assertEquals(3, ColumnarBatches.getRefCnt(offloaded));
-          Assert.assertEquals(3, ColumnarBatches.getRefCnt(created));
+              ColumnarBatches.getNativeHandle(
+                  BackendsApiManager.getBackendName(), created, createdBatchType));
+          Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded, offloadedBatchType));
+          Assert.assertEquals(1, ColumnarBatches.getRefCnt(created, createdBatchType));
+          ColumnarBatches.retain(created, createdBatchType);
+          Assert.assertEquals(2, ColumnarBatches.getRefCnt(offloaded, offloadedBatchType));
+          Assert.assertEquals(2, ColumnarBatches.getRefCnt(created, createdBatchType));
+          ColumnarBatches.retain(offloaded, offloadedBatchType);
+          Assert.assertEquals(3, ColumnarBatches.getRefCnt(offloaded, offloadedBatchType));
+          Assert.assertEquals(3, ColumnarBatches.getRefCnt(created, createdBatchType));
           created.close();
-          Assert.assertEquals(2, ColumnarBatches.getRefCnt(offloaded));
-          Assert.assertEquals(2, ColumnarBatches.getRefCnt(created));
+          Assert.assertEquals(2, ColumnarBatches.getRefCnt(offloaded, offloadedBatchType));
+          Assert.assertEquals(2, ColumnarBatches.getRefCnt(created, createdBatchType));
           offloaded.close();
-          Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded));
-          Assert.assertEquals(1, ColumnarBatches.getRefCnt(created));
+          Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded, offloadedBatchType));
+          Assert.assertEquals(1, ColumnarBatches.getRefCnt(created, createdBatchType));
           created.close();
-          Assert.assertEquals(0, ColumnarBatches.getRefCnt(offloaded));
-          Assert.assertEquals(0, ColumnarBatches.getRefCnt(created));
+          Assert.assertEquals(0, ColumnarBatches.getRefCnt(offloaded, offloadedBatchType));
+          Assert.assertEquals(0, ColumnarBatches.getRefCnt(created, createdBatchType));
           return null;
         });
   }
@@ -155,12 +178,16 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
             col1.putInt(j, 15 - j);
           }
           col1.putNull(numRows - 1);
-          Assert.assertTrue(ColumnarBatches.isHeavyBatch(batch));
+          final ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(batch);
+          Assert.assertTrue(ColumnarBatches.isHeavyBatch(batchType));
           final ColumnarBatch offloaded =
-              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
-          Assert.assertTrue(ColumnarBatches.isLightBatch(offloaded));
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch, batchType);
+          final ColumnarBatches.BatchType offloadedBatchType =
+              ColumnarBatches.identifyBatchType(offloaded);
+          Assert.assertTrue(ColumnarBatches.isLightBatch(offloadedBatchType));
           final ColumnarBatch loaded =
-              ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), offloaded);
+              ColumnarBatches.load(
+                  ArrowBufferAllocators.contextInstance(), offloaded, offloadedBatchType);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(loaded));
           long cnt =
               StreamSupport.stream(
@@ -192,14 +219,23 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
             col2.putInt(j, 15 - j);
             col3.putBoolean(j, j % 2 == 0);
           }
-          ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch1);
-          ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch2);
-          VeloxColumnarBatches.toVeloxBatch(batch1);
-          VeloxColumnarBatches.toVeloxBatch(batch2);
+          ColumnarBatches.offload(
+              ArrowBufferAllocators.contextInstance(),
+              batch1,
+              ColumnarBatches.identifyBatchType(batch1));
+          ColumnarBatches.offload(
+              ArrowBufferAllocators.contextInstance(),
+              batch2,
+              ColumnarBatches.identifyBatchType(batch2));
+          ColumnarBatches.BatchType offloadedType1 = ColumnarBatches.identifyBatchType(batch1);
+          ColumnarBatches.BatchType offloadedType2 = ColumnarBatches.identifyBatchType(batch2);
+          VeloxColumnarBatches.toVeloxBatch(batch1, offloadedType1);
+          VeloxColumnarBatches.toVeloxBatch(batch2, offloadedType2);
           final ColumnarBatch batch3 = VeloxColumnarBatches.compose(batch1, batch2);
+          final ColumnarBatches.BatchType batchType3 = ColumnarBatches.identifyBatchType(batch3);
           Assert.assertEquals(
               VeloxColumnarBatches.COMPREHENSIVE_TYPE_VELOX,
-              ColumnarBatches.getComprehensiveLightBatchType(batch3));
+              ColumnarBatches.getComprehensiveLightBatchType(batch3, batchType3));
 
           Assert.assertEquals(numRows, batch3.numRows());
           Assert.assertEquals(4, batch3.numCols());
