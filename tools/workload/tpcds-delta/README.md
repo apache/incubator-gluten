@@ -9,7 +9,7 @@ executable. To build it, following the steps:
 
 ```bash
 cd ${GLUTEN_HOME}/tools/gluten-it/
-mvn clean install -D spark-3.4,delta
+mvn clean install -P spark-3.4,delta
 ```
 
 Then call the data generator script:
