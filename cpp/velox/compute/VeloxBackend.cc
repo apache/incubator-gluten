@@ -29,6 +29,7 @@
 #endif
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
+#include "velox/experimental/cudf/connectors/parquet/ParquetConnector.h"
 #endif
 
 #include "compute/VeloxRuntime.h"
@@ -167,6 +168,7 @@ void VeloxBackend::init(
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
     FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
     FLAGS_velox_cudf_memory_resource = backendConf_->get<std::string>(kCudfMemoryResource, kCudfMemoryResourceDefault);
+    FLAGS_velox_cudf_table_scan = backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault);
     auto& options = velox::cudf_velox::CudfOptions::getInstance();
     options.memoryPercent = backendConf_->get<int32_t>(kCudfMemoryPercent, kCudfMemoryPercentDefault);
     velox::cudf_velox::registerCudf(options);
@@ -306,6 +308,20 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
   }
   velox::connector::registerConnector(
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
+#ifdef GLUTEN_ENABLE_GPU
+  if (FLAGS_velox_cudf_table_scan) {
+      facebook::velox::connector::registerConnectorFactory(
+      std::make_shared<cudf_velox::connector::parquet::ParquetConnectorFactory>());
+    auto parquetConnector =
+        facebook::velox::connector::getConnectorFactory(
+            cudf_velox::connector::parquet::ParquetConnectorFactory::kParquetConnectorName)
+            ->newConnector(
+                kCudfHiveConnectorId,
+                hiveConf,
+                ioExecutor_.get());
+    facebook::velox::connector::registerConnector(parquetConnector);
+  }
+#endif
 }
 
 void VeloxBackend::initUdf() {

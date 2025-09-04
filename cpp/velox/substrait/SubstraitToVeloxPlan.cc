@@ -31,8 +31,28 @@
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
 
+#ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/exec/ToCudf.h"
+#include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
+#include "velox/experimental/cudf/connectors/parquet/ParquetDataSink.h"
+#include "velox/experimental/cudf/connectors/parquet/ParquetTableHandle.h"
+#endif
+
 namespace gluten {
 namespace {
+
+  bool useCudfTableHandle(const std::vector<std::shared_ptr<SplitInfo>>& splitInfos) {
+#ifdef GLUTEN_ENABLE_GPU
+  if (splitInfos.empty()) {
+    return false;
+  }
+
+  return splitInfos[0]->canUseCudfConnector();
+
+#else
+  return false;
+#endif  
+}
 
 core::SortOrder toSortOrder(const ::substrait::SortField& sortField) {
   switch (sortField.direction()) {
@@ -143,6 +163,14 @@ RowTypePtr getJoinOutputType(
 }
 
 } // namespace
+
+bool SplitInfo::canUseCudfConnector() {
+  #ifdef GLUTEN_ENABLE_GPU
+  return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && FLAGS_velox_cudf_table_scan;
+  #else
+  return false;
+  #endif
+}
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(
     const ::substrait::RelCommon& relCommon,
@@ -585,6 +613,36 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
       writerOptions);
 }
 
+#ifdef GLUTEN_ENABLE_GPU
+
+std::shared_ptr<cudf_velox::connector::parquet::ParquetInsertTableHandle>
+makeCudfParquetInsertTableHandle(
+    const std::vector<std::string>& tableColumnNames,
+    const std::vector<TypePtr>& tableColumnTypes,
+    std::shared_ptr<cudf_velox::connector::parquet::LocationHandle> locationHandle,
+    const std::optional<common::CompressionKind> compressionKind,
+    const std::unordered_map<std::string, std::string>& serdeParameters,
+    const std::shared_ptr<dwio::common::WriterOptions>& writerOptions) {
+  std::vector<std::shared_ptr<const cudf_velox::connector::parquet::ParquetColumnHandle>>
+      columnHandles;
+
+  for (int i = 0; i < tableColumnNames.size(); ++i) {
+    columnHandles.push_back(
+        std::make_shared<cudf_velox::connector::parquet::ParquetColumnHandle>(
+            tableColumnNames.at(i),
+            tableColumnTypes.at(i),
+            cudf::data_type{cudf_velox::veloxToCudfTypeId(tableColumnTypes.at(i))}));
+  }
+
+  return std::make_shared<cudf_velox::connector::parquet::ParquetInsertTableHandle>(
+      columnHandles,
+      locationHandle,
+      compressionKind,
+      serdeParameters,
+      writerOptions);
+}
+#endif
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::WriteRel& writeRel) {
   core::PlanNodePtr childNode;
   if (writeRel.has_input()) {
@@ -678,13 +736,22 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Spark's default compression code is snappy.
   const auto& compressionKind =
       writerOptions->compressionKind.value_or(common::CompressionKind::CompressionKind_SNAPPY);
-
-  return std::make_shared<core::TableWriteNode>(
-      nextPlanNodeId(),
-      inputType,
-      tableColumnNames,
-      std::nullopt, /*columnStatsSpec*/
-      std::make_shared<core::InsertTableHandle>(
+  std::shared_ptr<core::InsertTableHandle> tableHandle;
+  if (useCudfTableHandle(splitInfos_)) {
+#ifdef GLUTEN_ENABLE_GPU
+    tableHandle =  std::make_shared<core::InsertTableHandle>(
+          kCudfHiveConnectorId,
+          makeCudfParquetInsertTableHandle(
+              tableColumnNames, /*inputType->names() clolumn name is different*/
+              inputType->children(),
+              std::make_shared<cudf_velox::connector::parquet::LocationHandle>(
+              writePath, cudf_velox::connector::parquet::LocationHandle::TableType::kNew, fileName),
+              compressionKind,
+              {},
+              writerOptions));
+#endif
+  } else {
+    tableHandle = std::make_shared<core::InsertTableHandle>(
           kHiveConnectorId,
           makeHiveInsertTableHandle(
               tableColumnNames, /*inputType->names() clolumn name is different*/
@@ -694,7 +761,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               makeLocationHandle(writePath, fileName, fileFormat, compressionKind, bucketProperty != nullptr),
               writerOptions,
               fileFormat,
-              compressionKind)),
+              compressionKind));
+  }
+  return std::make_shared<core::TableWriteNode>(
+      nextPlanNodeId(),
+      inputType,
+      tableColumnNames,
+      std::nullopt, /*columnStatsSpec*/
+      tableHandle,
       (!partitionedKey.empty()),
       exec::TableWriteTraits::outputType(std::nullopt),
       connector::CommitStrategy::kNoCommit,
@@ -1277,14 +1351,21 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto names = colNameList;
   auto types = veloxTypeList;
   auto dataColumns = ROW(std::move(names), std::move(types));
-  std::shared_ptr<connector::hive::HiveTableHandle> tableHandle;
-  if (!readRel.has_filter()) {
-    tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId, "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr, dataColumns);
+  connector::ConnectorTableHandlePtr tableHandle;
+  auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), dataColumns) : nullptr;
+  if (useCudfTableHandle(splitInfos_)) {
+#ifdef GLUTEN_ENABLE_GPU
+  LOG(INFO) << "use gpu read ParquetTableHandle";
+    tableHandle = std::make_shared<cudf_velox::connector::parquet::ParquetTableHandle>(
+          kCudfHiveConnectorId,
+          "hive_table",
+          filterPushdownEnabled,
+          nullptr,
+          remainingFilter,
+          dataColumns);
+#endif
   } else {
     common::SubfieldFilters subfieldFilters;
-    auto remainingFilter = exprConverter_->toVeloxExpr(readRel.filter(), dataColumns);
-
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
         kHiveConnectorId,
         "hive_table",
