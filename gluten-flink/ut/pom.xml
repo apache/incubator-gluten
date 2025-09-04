@@ -156,7 +156,6 @@
                     <classpathDependencyExcludes>
                         <classpathDependencyExclude>org.apache.flink:flink-table-planner-loader</classpathDependencyExclude>
                     </classpathDependencyExcludes>
-                    <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
             <plugin>
