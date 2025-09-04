@@ -30,6 +30,7 @@ import org.apache.spark.*;
 import org.apache.spark.shuffle.*;
 import org.apache.spark.shuffle.celeborn.*;
 import org.apache.spark.shuffle.sort.ColumnarShuffleManager;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning;
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition$;
 import org.slf4j.Logger;
@@ -40,6 +41,8 @@ import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
+
+import scala.collection.immutable.Seq;
 
 public class CelebornShuffleManager
     implements ShuffleManager,
@@ -423,7 +426,8 @@ public class CelebornShuffleManager
   }
 
   @Override
-  public ShuffleWriterType customShuffleWriterType(Partitioning partitioning, GlutenConfig conf) {
+  public ShuffleWriterType customShuffleWriterType(
+      Partitioning partitioning, GlutenConfig conf, Seq<Attribute> output) {
     if (conf.celebornShuffleWriterType().equals(ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER())) {
       if (conf.useCelebornRssSort()) {
         return RssSortShuffleWriterType$.MODULE$;

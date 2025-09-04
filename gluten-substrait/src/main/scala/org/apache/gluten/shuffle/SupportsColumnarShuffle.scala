@@ -18,6 +18,7 @@ package org.apache.gluten.shuffle
 
 import org.apache.gluten.config.{GlutenConfig, ShuffleWriterType}
 
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 
 trait SupportsColumnarShuffle
@@ -27,5 +28,8 @@ trait NeedCustomColumnarBatchSerializer {
 }
 
 trait NeedCustomShuffleWriterType {
-  def customShuffleWriterType(partitioning: Partitioning, conf: GlutenConfig): ShuffleWriterType
+  def customShuffleWriterType(
+      partitioning: Partitioning,
+      conf: GlutenConfig,
+      output: Seq[Attribute]): ShuffleWriterType
 }
