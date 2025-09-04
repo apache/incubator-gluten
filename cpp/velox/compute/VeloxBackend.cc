@@ -92,7 +92,7 @@ void VeloxBackend::init(
     std::unique_ptr<AllocationListener> listener,
     const std::unordered_map<std::string, std::string>& conf) {
   backendConf_ =
-      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf), true);
 
   globalMemoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener), *backendConf_);
 
@@ -101,7 +101,7 @@ void VeloxBackend::init(
   Runtime::registerFactory(kVeloxBackendKind, veloxRuntimeFactory, veloxRuntimeReleaser);
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
-    LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->rawConfigs());
+    LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->rawConfigsCopy());
   }
 
   // Init glog and log level.
@@ -173,7 +173,6 @@ void VeloxBackend::init(
 #endif
 
   initJolFilesystem();
-  initConnector(hiveConf);
 
   velox::dwio::common::registerFileSinks();
   velox::parquet::registerParquetReaderFactory();
@@ -294,6 +293,12 @@ void VeloxBackend::initCache() {
 }
 
 void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase>& hiveConf) {
+  for (const auto& [key, value] : hiveConf->rawConfigs()) {
+    // always update to use new session level conf
+    backendConf_->set(key, value);
+  }
+  auto newConf = getHiveConfig(backendConf_);
+
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   GLUTEN_CHECK(
       ioThreads >= 0,
@@ -302,7 +307,7 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
   velox::connector::registerConnector(
-      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
+      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, newConf, ioExecutor_.get()));
 }
 
 void VeloxBackend::initUdf() {
