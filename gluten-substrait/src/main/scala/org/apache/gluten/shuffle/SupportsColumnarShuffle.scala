@@ -31,5 +31,5 @@ trait NeedCustomShuffleWriterType {
   def customShuffleWriterType(
       partitioning: Partitioning,
       conf: GlutenConfig,
-      output: Seq[Attribute]): ShuffleWriterType
+      output: Array[Attribute]): ShuffleWriterType
 }

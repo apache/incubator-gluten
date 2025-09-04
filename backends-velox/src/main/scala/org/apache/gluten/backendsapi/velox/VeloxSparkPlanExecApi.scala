@@ -555,7 +555,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val conf = GlutenConfig.get
     SparkEnv.get.shuffleManager match {
       case shuffleManager: NeedCustomShuffleWriterType =>
-        shuffleManager.customShuffleWriterType(partitioning, conf, output)
+        shuffleManager.customShuffleWriterType(partitioning, conf, output.toArray)
       case _ =>
         if (
           partitioning != SinglePartition &&
