@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
@@ -103,7 +104,11 @@ public class LogicalTypeConverter {
                 Type keyType = toVLType(mapType.getKeyType());
                 Type valueType = toVLType(mapType.getValueType());
                 return io.github.zhztheplayer.velox4j.type.MapType.create(keyType, valueType);
-              }));
+              }),
+          // TODO: may need precision
+          Map.entry(
+              LocalZonedTimestampType.class,
+              logicalType -> new io.github.zhztheplayer.velox4j.type.TimestampType()));
 
   public static Type toVLType(LogicalType logicalType) {
     VLTypeConverter converter = converters.get(logicalType.getClass());
