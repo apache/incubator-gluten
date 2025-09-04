@@ -53,11 +53,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
-import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -67,7 +65,6 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -174,9 +171,6 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
   protected Transformation<RowData> translateToPlanInternal(
       PlannerBase planner, ExecNodeConfig config) {
     final boolean isCountWindow;
-    System.out.println("Window: " + window);
-    System.out.println("WindowOutput: " + getOutputType());
-    // System.out.println("WindowSpec: " + window.getWindow());
     if (window instanceof TumblingGroupWindow) {
       isCountWindow = hasRowIntervalType(((TumblingGroupWindow) window).size());
     } else if (window instanceof SlidingGroupWindow) {
@@ -210,10 +204,6 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
       inputTimeFieldIndex = -1;
     }
 
-    final ZoneId shiftTimeZone =
-        TimeWindowUtil.getShiftTimeZone(
-            window.timeAttribute().getOutputDataType().getLogicalType(),
-            TableConfigUtils.getLocalTimeZone(config));
     WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(config, window);
 
     // --- Begin Gluten-specific code changes ---

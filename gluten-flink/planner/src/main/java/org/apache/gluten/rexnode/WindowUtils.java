@@ -39,7 +39,6 @@ public class WindowUtils {
     int rowtimeIndex = -1;
     int windowType = -1;
     WindowSpec windowSpec = windowing.getWindow();
-    System.out.println("WindowSpec " + windowSpec);
     if (windowSpec instanceof HoppingWindowSpec) {
       size = ((HoppingWindowSpec) windowSpec).getSize().toMillis();
       slide = ((HoppingWindowSpec) windowSpec).getSlide().toMillis();

@@ -43,8 +43,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
-import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -54,27 +52,18 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
-import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
-import org.apache.flink.table.runtime.groupwindow.WindowProperty;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
-import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.tools.RelBuilder;
 import org.apache.commons.math3.util.ArithmeticUtils;
 
 import javax.annotation.Nullable;
@@ -187,7 +176,6 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
     final ZoneId shiftTimeZone =
         TimeWindowUtil.getShiftTimeZone(
             windowing.getTimeAttributeType(), TableConfigUtils.getLocalTimeZone(config));
-    final WindowAssigner windowAssigner = createWindowAssigner(windowing, shiftTimeZone);
 
     // --- Begin Gluten-specific code changes ---
     // TODO: velox window not equal to flink window.
@@ -285,49 +273,5 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
     transform.setStateKeySelector(selector);
     transform.setStateKeyType(selector.getProducedType());
     return transform;
-  }
-
-  private GeneratedNamespaceAggsHandleFunction<?> createAggsHandler(
-      WindowAssigner windowAssigner,
-      AggregateInfoList aggInfoList,
-      ExecNodeConfig config,
-      ClassLoader classLoader,
-      RelBuilder relBuilder,
-      List<LogicalType> fieldTypes,
-      ZoneId shiftTimeZone) {
-    final AggsHandlerCodeGenerator generator =
-        new AggsHandlerCodeGenerator(
-                new CodeGeneratorContext(config, classLoader),
-                relBuilder,
-                JavaScalaConversionUtil.toScala(fieldTypes),
-                false) // copyInputField
-            .needAccumulate();
-
-    if (windowAssigner instanceof SliceSharedAssigner || !isAlignedWindow(windowing.getWindow())) {
-      generator.needMerge(0, false, null);
-    }
-
-    if (needRetraction) {
-      generator.needRetract();
-    }
-
-    final List<WindowProperty> windowProperties =
-        Arrays.asList(
-            Arrays.stream(namedWindowProperties)
-                .map(NamedWindowProperty::getProperty)
-                .toArray(WindowProperty[]::new));
-
-    // We use window end timestamp to indicate a slicing window, see SliceAssigner. And
-    // use window start and window end to indicate a unslicing window, see UnsliceAssigner
-    final Class<?> windowClass =
-        isAlignedWindow(windowing.getWindow()) ? Long.class : TimeWindow.class;
-
-    return generator.generateNamespaceAggsHandler(
-        "WindowAggsHandler",
-        aggInfoList,
-        JavaScalaConversionUtil.toScala(windowProperties),
-        windowAssigner,
-        windowClass,
-        shiftTimeZone);
   }
 }

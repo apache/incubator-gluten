@@ -16,6 +16,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.gluten.rexnode.Utils;
 import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
@@ -167,6 +168,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
     final RowType inputRowType = (RowType) inputEdge.getOutputType();
+    System.out.println("Deduplicat out: " + inputTransform.getOutputType().getClass().getName());
     final InternalTypeInfo<RowData> rowTypeInfo =
         (InternalTypeInfo<RowData>) inputTransform.getOutputType();
     final TypeSerializer<RowData> rowSerializer =
@@ -180,8 +182,10 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
     io.github.zhztheplayer.velox4j.type.RowType inputType =
         (io.github.zhztheplayer.velox4j.type.RowType) LogicalTypeConverter.toVLType(inputRowType);
     io.github.zhztheplayer.velox4j.type.RowType outputType =
-        (io.github.zhztheplayer.velox4j.type.RowType)
-            LogicalTypeConverter.toVLType(getOutputType());
+        Utils.addRowKind(
+            (io.github.zhztheplayer.velox4j.type.RowType)
+                LogicalTypeConverter.toVLType(getOutputType()));
+    System.out.println("Deduplicate node type:" + outputType.getNames());
     if (isRowtime) {
       int rowtimeIndex = -1;
       for (int i = 0; i < inputRowType.getFieldCount(); ++i) {
@@ -221,13 +225,14 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
       throw new RuntimeException("ProcTime in deduplicate is not supported.");
     }
     // --- End Gluten-specific code changes ---
+    InternalTypeInfo newTypeInfo = Utils.addRowKind(rowTypeInfo);
 
     final OneInputTransformation<RowData, RowData> transform =
         ExecNodeUtil.createOneInputTransformation(
             inputTransform,
             createTransformationMeta(DEDUPLICATE_TRANSFORMATION, config),
             operator,
-            rowTypeInfo,
+            newTypeInfo,
             inputTransform.getParallelism(),
             false);
 
