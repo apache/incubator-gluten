@@ -70,7 +70,7 @@ public class CelebornShuffleManager
     writerFactory = shuffleWriterFactoryIterator.next();
     Preconditions.checkState(
         !shuffleWriterFactoryIterator.hasNext(),
-        "Multiple factory found for Celeborn shuffle writer");
+        "Multiple factories found for Celeborn shuffle writer");
 
     final Iterator<CelebornColumnarBatchSerializerFactory> serializerFactoryIterator =
         ServiceLoader.load(CelebornColumnarBatchSerializerFactory.class).iterator();
@@ -81,7 +81,7 @@ public class CelebornShuffleManager
     columnarBatchSerializerFactory = serializerFactoryIterator.next();
     Preconditions.checkState(
         !serializerFactoryIterator.hasNext(),
-        "Multiple factory found for Celeborn columnar batch serializer");
+        "Multiple factories found for Celeborn columnar batch serializer");
   }
 
   private final SparkConf conf;
