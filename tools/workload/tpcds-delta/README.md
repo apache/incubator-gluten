@@ -26,7 +26,7 @@ Meanings of the commands that are used in the script are explained as follows:
 - `-s=100`: The scale factor.
 - `--data-dir=/tmp/my-data`: The target table folder. If it doesn't exist, it will then be created.
 
-When the command is finished, check the generated table folder:
+When the command is finished, check the data folder:
 
 ```bash
 ls -l /tmp/my-data/
