@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.integration.action
 
-import org.apache.gluten.integration.{QueryRunner, Suite}
+import org.apache.gluten.integration.{Query, QueryRunner, Suite}
 import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.Field
@@ -108,7 +108,7 @@ class Parameterized(
 
   override def execute(suite: Suite): Boolean = {
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
+      new QueryRunner(suite.dataSource(), suite.dataWritePath())
 
     val sessionSwitcher = suite.sessionSwitcher
     val testConf = suite.getTestConf()
@@ -125,7 +125,8 @@ class Parameterized(
         sessionSwitcher.registerSession(coordinate.toString, conf)
     }
 
-    val runQueryIds = queries.select(suite).map(TestResultLine.QueryId(_))
+    val querySet = queries.select(suite)
+    val runQueryIds = querySet.queryIds.map(TestResultLine.QueryId(_))
 
     val marks: Seq[TestResultLine.CoordMark] = coordinates.flatMap {
       entry =>
@@ -143,7 +144,7 @@ class Parameterized(
                   Parameterized.warmUp(
                     runner,
                     sessionSwitcher.spark(),
-                    queryId.id,
+                    querySet.getQuery(queryId.id),
                     coordinate,
                     suite.desc())
                 } finally {
@@ -164,7 +165,7 @@ class Parameterized(
                     Parameterized.runQuery(
                       runner,
                       sessionSwitcher.spark(),
-                      queryId.id,
+                      querySet.getQuery(queryId.id),
                       coordinate,
                       suite.desc(),
                       explain,
@@ -363,22 +364,22 @@ object Parameterized {
   private def runQuery(
       runner: QueryRunner,
       spark: SparkSession,
-      id: String,
+      query: Query,
       coordinate: Coordinate,
       desc: String,
       explain: Boolean,
       metrics: Seq[String]): TestResultLine.Coord = {
-    val testDesc = "Query %s [%s] %s".format(desc, id, coordinate)
-    val result = runner.runQuery(spark, testDesc, id, explain, executorMetrics = metrics)
+    val testDesc = "Query %s [%s] %s".format(desc, query.id, coordinate)
+    val result = runner.runQuery(spark, testDesc, query, explain, executorMetrics = metrics)
     TestResultLine.Coord(coordinate, result)
   }
 
   private def warmUp(
       runner: QueryRunner,
       session: SparkSession,
-      id: String,
+      query: Query,
       coordinate: Coordinate,
       desc: String): Unit = {
-    runQuery(runner, session, id, coordinate, desc, explain = false, Nil)
+    runQuery(runner, session, query, coordinate, desc, explain = false, Nil)
   }
 }
