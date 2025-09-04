@@ -42,8 +42,6 @@ import java.util.Iterator;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 
-import scala.collection.immutable.Seq;
-
 public class CelebornShuffleManager
     implements ShuffleManager,
         SupportsColumnarShuffle,
@@ -427,7 +425,7 @@ public class CelebornShuffleManager
 
   @Override
   public ShuffleWriterType customShuffleWriterType(
-      Partitioning partitioning, GlutenConfig conf, Seq<Attribute> output) {
+      Partitioning partitioning, GlutenConfig conf, Attribute[] output) {
     if (conf.celebornShuffleWriterType().equals(ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER())) {
       if (conf.useCelebornRssSort()) {
         return RssSortShuffleWriterType$.MODULE$;
