@@ -78,6 +78,7 @@ public class RexCallConverterFactory {
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
           Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
           Map.entry("SEARCH", Arrays.asList(() -> new DefaultRexCallConverter("in"))),
+          Map.entry("DATE_FORMAT", Arrays.asList(() -> new DefaultRexCallConverter("date_format"))),
           Map.entry(
               ">=",
               Arrays.asList(
