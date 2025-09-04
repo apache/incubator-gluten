@@ -125,6 +125,14 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
             df2.select(unix_timestamp(col("y"), "yyyy-MM-dd")),
             Seq(Row(secs(ts5.getTime)), Row(null)))
 
+          // Test unix_timestamp(timestamp, format) - format should be ignored
+          checkAnswer(
+            df.select(unix_timestamp(col("ts"), "yyyy-MM-dd")),
+            Seq(Row(secs(ts1.getTime)), Row(secs(ts2.getTime))))
+          checkAnswer(
+            df.selectExpr("unix_timestamp(ts, 'invalid-format')"),
+            Seq(Row(secs(ts1.getTime)), Row(secs(ts2.getTime))))
+
           val now = sql("select unix_timestamp()").collect().head.getLong(0)
           checkAnswer(
             sql(s"select timestamp_seconds($now)"),
@@ -186,6 +194,14 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
           checkAnswer(
             df2.select(unix_timestamp(col("y"), "yyyy-MM-dd")),
             Seq(Row(secs(ts5.getTime)), Row(null)))
+
+          // Test to_unix_timestamp(timestamp, format) - format should be ignored
+          checkAnswer(
+            df.selectExpr("to_unix_timestamp(ts, 'yyyy-MM-dd')"),
+            Seq(Row(secs(ts1.getTime)), Row(secs(ts2.getTime))))
+          checkAnswer(
+            df.selectExpr("to_unix_timestamp(ts, 'invalid-format')"),
+            Seq(Row(secs(ts1.getTime)), Row(secs(ts2.getTime))))
 
           val invalid = df1.selectExpr(s"to_unix_timestamp(x, 'yyyy-MM-dd bb:HH:ss')")
           checkAnswer(invalid, Seq(Row(null), Row(null), Row(null), Row(null)))
