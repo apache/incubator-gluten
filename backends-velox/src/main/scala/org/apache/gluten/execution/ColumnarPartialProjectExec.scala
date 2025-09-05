@@ -19,11 +19,14 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.expression.{ArrowProjection, ExpressionMappings, ExpressionUtils}
+import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.expression.{ArrowProjection, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionUtils}
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.substrait.`type`.TypeBuilder
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.vectorized.{ArrowColumnarRow, ArrowWritableColumnVector}
 
 import org.apache.spark.rdd.RDD
@@ -35,6 +38,7 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.hive.{HiveUDFTransformer, VeloxHiveUDFTransformer}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -345,10 +349,92 @@ object ColumnarPartialProjectExec {
     }
   }
 
+  private def doNativeValidateExpression(
+      expr: Expression,
+      replacedAlias: ListBuffer[Alias],
+      childOutput: Seq[Attribute]): Boolean = {
+    val substraitContext = new SubstraitContext
+    val output = childOutput ++ replacedAlias.map(_.toAttribute)
+    val exprTransformer = ExpressionConverter.replaceWithExpressionTransformer(expr, output)
+    val inputTypeNodeList = TypeBuilder.makeStruct(
+      false,
+      output
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava)
+    BackendsApiManager.getValidatorApiInstance.doNativeValidateExpression(
+      substraitContext,
+      exprTransformer.doTransform(substraitContext),
+      inputTypeNodeList)
+  }
+
+  /**
+   * Traverse up the expression (post-order). If the function finds an expression that is not
+   * supported by the native backend, then the function replaces the expression by `Alias`.
+   *
+   * @return
+   *   the new expression
+   */
+  private def traverseUpExpression(
+      expr: Expression,
+      replacedAlias: ListBuffer[Alias],
+      childOutput: Seq[Attribute]): Expression = {
+    val newExpr = expr.withNewChildren(expr.children.map {
+      case a: AttributeReference => a
+      case child =>
+        val newChild = child.withNewChildren(
+          child.children.map(c => traverseUpExpression(c, replacedAlias, childOutput)))
+        if (!doNativeValidateExpression(child, replacedAlias, childOutput)) {
+          replaceByAlias(child, replacedAlias)
+        } else {
+          newChild
+        }
+    })
+    if (!doNativeValidateExpression(newExpr, replacedAlias, childOutput)) {
+      replaceByAlias(newExpr, replacedAlias)
+    } else {
+      newExpr
+    }
+  }
+
+  private def replaceExpression(
+      expr: Expression,
+      child: SparkPlan,
+      replacedAlias: ListBuffer[Alias]): Expression = {
+    if (expr == null) return null
+    val newExpr = replaceExpression(expr, replacedAlias)
+    if (
+      !GlutenConfig.get.enableNativeValidation ||
+      !GlutenConfig.get.enableFindUnsupportedByValidation
+    ) {
+      return newExpr
+    }
+    newExpr match {
+      case _: AttributeReference => newExpr
+      case p =>
+        try {
+          val childOutput = child.output
+          if (doNativeValidateExpression(p, replacedAlias, childOutput)) {
+            // Fast path: if the expression is supported by the native backend,
+            // then we don't need to traverse up the expression.
+            newExpr
+          } else {
+            // The expression is not supported by the native backend, then we traverse down the
+            // expression to find which expression the native backend does not support。
+            traverseUpExpression(p, replacedAlias, childOutput)
+          }
+        } catch {
+          case _: GlutenNotSupportException | _: UnsupportedOperationException =>
+            // If the process of conversion of the expression throws exception, then we
+            // replace it as a whole.
+            replaceByAlias(newExpr, replacedAlias)
+        }
+    }
+  }
+
   def create(original: ProjectExec): ProjectExecTransformer = {
     val replacedAlias: ListBuffer[Alias] = ListBuffer()
     val newProjectList = original.projectList.map {
-      p => replaceExpression(p, replacedAlias).asInstanceOf[NamedExpression]
+      p => replaceExpression(p, original.child, replacedAlias).asInstanceOf[NamedExpression]
     }
     val partialProject =
       ColumnarPartialProjectExec(original.projectList, original.child)(replacedAlias.toSeq)

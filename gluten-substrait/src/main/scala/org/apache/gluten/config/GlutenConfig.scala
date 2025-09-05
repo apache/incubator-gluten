@@ -325,6 +325,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableColumnarPartialProject: Boolean = getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
 
+  def enableFindUnsupportedByValidation: Boolean = getConf(ENABLE_FIND_UNSUPPORTED_BY_VALIDATION)
+
   def enableCastAvgAggregateFunction: Boolean = getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
 
   def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
@@ -1418,6 +1420,14 @@ object GlutenConfig {
           "evaluates the offload-able expressions in native, " +
           "phase two preserves the output from phase one and evaluates the remaining " +
           "non-offload-able expressions using vanilla Spark projections")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_FIND_UNSUPPORTED_BY_VALIDATION =
+    buildConf("spark.gluten.sql.columnar.partial.validation")
+      .doc(
+        "This is a config to specify whether to use native validation to find all unsupported " +
+          "expressions in the process of applying the `PartialProjectRule`")
       .booleanConf
       .createWithDefault(true)
 
