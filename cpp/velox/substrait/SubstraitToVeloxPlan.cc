@@ -1511,6 +1511,11 @@ void SubstraitToVeloxPlanConverter::constructFunctionMap(const ::substrait::Plan
   exprConverter_ = std::make_unique<SubstraitVeloxExprConverter>(pool_, functionMap_);
 }
 
+void SubstraitToVeloxPlanConverter::constructFunctionMap(std::unordered_map<uint64_t, std::string> substraitPlan) {
+  functionMap_ = std::move(substraitPlan);
+  exprConverter_ = std::make_unique<SubstraitVeloxExprConverter>(pool_, functionMap_);
+}
+
 std::string SubstraitToVeloxPlanConverter::findFuncSpec(uint64_t id) {
   return SubstraitParser::findFunctionSpec(functionMap_, id);
 }
