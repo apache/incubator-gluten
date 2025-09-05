@@ -58,6 +58,10 @@ public class NativePlanEvaluator {
         path.getBytes(StandardCharsets.UTF_8), fileName.getBytes(StandardCharsets.UTF_8));
   }
 
+  public boolean doNativeValidateExpression(byte[] expression, byte[] inputType, byte[][] mapping) {
+    return jniWrapper.nativeValidateExpression(expression, inputType, mapping);
+  }
+
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public ColumnarBatchOutIterator createKernelWithBatchIterator(

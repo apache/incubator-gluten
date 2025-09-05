@@ -51,6 +51,14 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
    */
   native NativePlanValidationInfo nativeValidateWithFailureReason(byte[] subPlan);
 
+  /**
+   * Validate the expression in native compute engine.
+   *
+   * @param expression the expression in binary format
+   * @return whether the expression is supported in native
+   */
+  native boolean nativeValidateExpression(byte[] expression, byte[] inputType, byte[][] mapping);
+
   public native String nativePlanString(byte[] substraitPlan, Boolean details);
 
   /**

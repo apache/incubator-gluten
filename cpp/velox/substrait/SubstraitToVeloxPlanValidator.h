@@ -42,6 +42,12 @@ class SubstraitToVeloxPlanValidator {
   /// Used to validate whether the computing of this Plan is supported.
   bool validate(const ::substrait::Plan& plan);
 
+  /// Used to validate whether the computing of this Expression is supported.
+  bool validate(
+      const ::substrait::Expression& expression,
+      const RowTypePtr& inputType,
+      std::unordered_map<uint64_t, std::string> functionMappings);
+
   const std::vector<std::string>& getValidateLog() const {
     return validateLog_;
   }

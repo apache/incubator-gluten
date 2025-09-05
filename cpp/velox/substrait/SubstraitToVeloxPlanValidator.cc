@@ -1442,4 +1442,19 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
   }
 }
 
+bool SubstraitToVeloxPlanValidator::validate(
+    const ::substrait::Expression& expression,
+    const RowTypePtr& inputType,
+    std::unordered_map<uint64_t, std::string> functionMappings) {
+  try {
+    // Create plan converter and expression converter to help the validation.
+    planConverter_->constructFunctionMap(std::move(functionMappings));
+    exprConverter_ = planConverter_->getExprConverter();
+
+    return validateExpression(expression, inputType);
+  } catch (const VeloxException& err) {
+    return false;
+  }
+}
+
 } // namespace gluten
