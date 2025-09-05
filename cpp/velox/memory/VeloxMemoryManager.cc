@@ -234,14 +234,14 @@ VeloxMemoryManager::VeloxMemoryManager(
   auto checkUsageLeak = backendConf.get<bool>(kCheckUsageLeak, kCheckUsageLeakDefault);
 
   ArbitratorFactoryRegister afr(listener_.get());
-  velox::memory::MemoryManager::Options mmOptions{
-      .alignment = velox::memory::MemoryAllocator::kMaxAlignment,
-      .trackDefaultUsage = true, // memory usage tracking
-      .checkUsageLeak = checkUsageLeak, // leak check
-      .coreOnAllocationFailureEnabled = false,
-      .allocatorCapacity = velox::memory::kMaxMemory,
-      .arbitratorKind = afr.getKind(),
-      .extraArbitratorConfigs = getExtraArbitratorConfigs(backendConf)};
+  velox::memory::MemoryManager::Options mmOptions;
+  mmOptions.alignment = velox::memory::MemoryAllocator::kMaxAlignment;
+  mmOptions.trackDefaultUsage = true; // memory usage tracking
+  mmOptions.checkUsageLeak = checkUsageLeak; // leak check
+  mmOptions.coreOnAllocationFailureEnabled = false;
+  mmOptions.allocatorCapacity = velox::memory::kMaxMemory;
+  mmOptions.arbitratorKind = afr.getKind();
+  mmOptions.extraArbitratorConfigs = getExtraArbitratorConfigs(backendConf);
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
