@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.integration.action
 
-import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
+import org.apache.gluten.integration.{Query, QueryRunner, Suite, TableCreator}
 import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
@@ -37,23 +37,23 @@ case class Queries(
   import Queries._
 
   override def execute(suite: Suite): Boolean = {
-    val runQueryIds = queries.select(suite)
+    val querySet = queries.select(suite)
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
+      new QueryRunner(suite.dataSource(), suite.dataWritePath())
     val sessionSwitcher = suite.sessionSwitcher
     sessionSwitcher.useSession("test", "Run Queries")
     runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
     val results = (0 until iterations).flatMap {
       iteration =>
         println(s"Running tests (iteration $iteration)...")
-        runQueryIds.map {
-          queryId =>
+        querySet.queries.map {
+          query =>
             try {
               Queries.runQuery(
                 runner,
                 suite.tableCreator(),
                 sessionSwitcher.spark(),
-                queryId,
+                query,
                 suite.desc(),
                 explain,
                 suite.getTestMetricMapper(),
@@ -172,18 +172,18 @@ object Queries {
       runner: QueryRunner,
       creator: TableCreator,
       session: SparkSession,
-      id: String,
+      query: Query,
       desc: String,
       explain: Boolean,
       metricMapper: MetricMapper,
       randomKillTasks: Boolean): TestResultLine = {
-    println(s"Running query: $id...")
-    val testDesc = "Query %s [%s]".format(desc, id)
+    println(s"Running query: ${query.id}...")
+    val testDesc = "Query %s [%s]".format(desc, query.id)
     val result =
       runner.runQuery(
         session,
         testDesc,
-        id,
+        query,
         explain = explain,
         sqlMetricMapper = metricMapper,
         randomKillTasks = randomKillTasks)
