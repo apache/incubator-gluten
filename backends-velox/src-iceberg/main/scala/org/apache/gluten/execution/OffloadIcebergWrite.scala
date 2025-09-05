@@ -24,7 +24,7 @@ import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, ReplaceDataExec}
+import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, OverwriteByExpressionExec, ReplaceDataExec}
 
 case class OffloadIcebergWrite() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
@@ -42,12 +42,20 @@ case class OffloadIcebergDelete() extends OffloadSingleNode {
   }
 }
 
+case class OffloadIcebergOverwrite() extends OffloadSingleNode {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
+    case r: OverwriteByExpressionExec =>
+      VeloxIcebergOverwriteByExpressionExec(r)
+    case other => other
+  }
+}
+
 object OffloadIcebergWrite {
   def inject(injector: Injector): Unit = {
     // Inject legacy rule.
     injector.gluten.legacy.injectTransform {
       c =>
-        val offload = Seq(OffloadIcebergWrite(), OffloadIcebergDelete())
+        val offload = Seq(OffloadIcebergWrite(), OffloadIcebergDelete(), OffloadIcebergOverwrite())
         HeuristicTransform.Simple(
           Validators.newValidator(new GlutenConfig(c.sqlConf), offload),
           offload
@@ -56,7 +64,8 @@ object OffloadIcebergWrite {
 
     val offloads: Seq[RasOffload] = Seq(
       RasOffload.from[AppendDataExec](OffloadIcebergWrite()),
-      RasOffload.from[ReplaceDataExec](OffloadIcebergDelete())
+      RasOffload.from[ReplaceDataExec](OffloadIcebergDelete()),
+      RasOffload.from[OverwriteByExpressionExec](OffloadIcebergOverwrite())
     )
     offloads.foreach(
       offload =>

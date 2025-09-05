@@ -48,8 +48,8 @@ As some features have not been committed to upstream, you have to use the follow
 ## fetch velox4j code
 git clone -b gluten-0530 https://github.com/bigo-sg/velox4j.git
 cd velox4j
-git reset --hard a5e3e9d7f11440f8c4eafeff88ae6945186d02c1
-mvn clean install
+git reset --hard 1cdeb1a8384967499919e655d55a66f2daa9d55c
+mvn clean install -DskipTests -Dgpg.skip -Dspotless.skip=true
 ```
 **Get gluten**
 
@@ -98,8 +98,8 @@ export FLINK_HOME=
 cd $FLINK_HOME
 mkdir -p gluten_lib
 ln -s $VELOX4J_HOME/target/velox4j-0.1.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar
-ln -s $GLUTEN_FLINK_HOME/runtime/target/gluten-flink-runtime-1.5.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-runtime-1.5.0.jar
-ln -s $GLUTEN_FLINK_HOME/loader/target/gluten-flink-loader-1.5.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-loader-1.5.0.jar
+ln -s $GLUTEN_FLINK_HOME/runtime/target/gluten-flink-runtime-1.6.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-runtime-1.6.0.jar
+ln -s $GLUTEN_FLINK_HOME/loader/target/gluten-flink-loader-1.6.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-loader-1.6.0.jar
 ```
 
 And make them loaded before flink libraries.
@@ -110,7 +110,7 @@ Gluten classes need to be loaded first in Flink,
 you can modify the constructFlinkClassPath function in `$FLINK_HOME/bin/config.sh` like this: 
 
 ```
-GLUTEN_JAR="$FLINK_HOME/gluten_lib/gluten-flink-loader-1.5.0.jar:$FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar:$FLINK_HOME/gluten_lib/gluten-flink-runtime-1.5.0.jar:"
+GLUTEN_JAR="$FLINK_HOME/gluten_lib/gluten-flink-loader-1.6.0.jar:$FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar:$FLINK_HOME/gluten_lib/gluten-flink-runtime-1.6.0.jar:"
 echo "$GLUTEN_JAR""$FLINK_CLASSPATH""$FLINK_DIST"
 ```
 

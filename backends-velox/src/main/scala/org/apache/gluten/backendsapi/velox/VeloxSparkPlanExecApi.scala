@@ -678,7 +678,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     dataSize += rawSize
     if (useOffheapBroadcastBuildRelation) {
       TaskResources.runUnsafe {
-        new UnsafeColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
+        UnsafeColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
       }
     } else {
       ColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
@@ -816,6 +816,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       GlutenExceptionUtil.throwsNotFullySupported(
         ExpressionNames.TO_JSON,
         ToJsonRestrictions.NOT_SUPPORT_WITH_OPTIONS)
+    }
+    if (
+      !SQLConf.get.caseSensitiveAnalysis &&
+      ExpressionUtils.hasUppercaseStructFieldName(child.dataType)
+    ) {
+      GlutenExceptionUtil.throwsNotFullySupported(
+        ExpressionNames.TO_JSON,
+        ToJsonRestrictions.NOT_SUPPORT_UPPERCASE_STRUCT)
     }
     ToJsonTransformer(substraitExprName, child, expr)
   }
@@ -1039,5 +1047,13 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       throw new UnsupportedOperationException(s"Not support expression TimestampDiff.")
     }
     TimestampDiffTransformer(substraitExprName, extract.get, left, right, original)
+  }
+
+  override def genToUnixTimestampTransformer(
+      substraitExprName: String,
+      timeExp: ExpressionTransformer,
+      format: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    ToUnixTimestampTransformer(substraitExprName, timeExp, format, original)
   }
 }

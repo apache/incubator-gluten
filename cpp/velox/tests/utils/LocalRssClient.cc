@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "utils/LocalRssClient.h"
+#include "tests/utils/LocalRssClient.h"
 #include "utils/Common.h"
 
 #include <arrow/io/file.h>

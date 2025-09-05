@@ -23,10 +23,11 @@ import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import io.github.zhztheplayer.velox4j.aggregate.Aggregate;
-import io.github.zhztheplayer.velox4j.aggregate.AggregateStep;
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
-import io.github.zhztheplayer.velox4j.plan.AggregationNode;
-import io.github.zhztheplayer.velox4j.plan.EmptyNode;
+import io.github.zhztheplayer.velox4j.plan.GroupAggregationNode;
+import io.github.zhztheplayer.velox4j.plan.GroupAggsHandlerNode;
+import io.github.zhztheplayer.velox4j.plan.HashPartitionFunctionSpec;
+import io.github.zhztheplayer.velox4j.plan.PartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 
@@ -60,6 +61,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -194,19 +196,15 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
             .skip(grouping.length)
             .limit(aggCalls.length)
             .collect(Collectors.toList());
+    List<Integer> keyIndexes = Arrays.stream(grouping).boxed().collect(Collectors.toList());
+    PartitionFunctionSpec keySelectorSpec = new HashPartitionFunctionSpec(inputType, keyIndexes);
+    PlanNode aggsHandlerNode =
+        new GroupAggsHandlerNode(
+            PlanNodeIdGenerator.newId(), outputType, generateUpdateBefore, needRetraction);
     // TODO: velox agg may not equal to flink
     PlanNode aggregation =
-        new AggregationNode(
-            PlanNodeIdGenerator.newId(),
-            AggregateStep.SINGLE,
-            groupingKeys,
-            groupingKeys,
-            aggNames,
-            aggregates,
-            false,
-            List.of(new EmptyNode(inputType)),
-            null,
-            List.of());
+        new GroupAggregationNode(
+            PlanNodeIdGenerator.newId(), aggsHandlerNode, keySelectorSpec, outputType);
     final OneInputStreamOperator operator =
         new GlutenVectorOneInputOperator(
             new StatefulPlanNode(aggregation.getId(), aggregation),

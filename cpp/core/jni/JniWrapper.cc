@@ -827,7 +827,8 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
 
   auto partitionWriter = std::make_shared<LocalPartitionWriter>(
       numPartitions,
-      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      createCompressionCodec(
+          getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
       ctx->memoryManager(),
       partitionWriterOptions,
       dataFile,

@@ -14,15 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.shuffle
+package org.apache.spark.util
 
-import org.apache.gluten.backendsapi.velox.VeloxBackend
+import scala.util.{Failure, Success, Try}
 
-import org.apache.spark.shuffle.gluten.celeborn.CelebornColumnarBatchSerializerFactory
+object DebuggableThreadUtils {
 
-class VeloxCelebornColumnarBatchSerlizerFactory extends CelebornColumnarBatchSerializerFactory {
-  override def backendName(): String = VeloxBackend.BACKEND_NAME
-
-  override def columnarBatchSerializerClass(): String =
-    "org.apache.spark.shuffle.CelebornColumnarBatchSerializer"
+  /** Logs message for failure occurring during the execution of ThreadUtils.parmap. */
+  def parmap[I, O](in: Seq[I], prefix: String, maxThreads: Int)(f: I => O): Seq[O] = {
+    ThreadUtils.parmap(in, prefix, maxThreads) {
+      i =>
+        Try(f(i)) match {
+          case Success(result) => result
+          case Failure(exception) =>
+            // scalastyle:off println
+            println(s"Test failed for case: ${i.toString}: ${exception.getMessage}")
+            // scalastyle:on println
+            throw exception
+        }
+    }
+  }
 }

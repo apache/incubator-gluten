@@ -31,6 +31,8 @@ const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 
 const std::string kCaseSensitive = "spark.sql.caseSensitive";
 
+const std::string kAnsiEnabled = "spark.sql.ansi.enabled";
+
 const std::string kSessionTimezone = "spark.sql.session.timeZone";
 
 const std::string kAllowPrecisionLoss = "spark.sql.decimalOperations.allowPrecisionLoss";
@@ -94,7 +96,7 @@ const std::string kSparkJsonIgnoreNullFields = "spark.sql.jsonGenerator.ignoreNu
 // cudf
 #ifdef GLUTEN_ENABLE_GPU
 const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";
-const bool kCudfEnabledDefault = "false";
+const bool kCudfEnabledDefault = "true";
 const std::string kDebugCudf = "spark.gluten.sql.debug.cudf";
 const bool kDebugCudfDefault = "false";
 #endif

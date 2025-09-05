@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.enhanced
 
-import org.apache.gluten.execution.{IcebergAppendDataExec, IcebergSuite, VeloxIcebergReplaceDataExec}
+import org.apache.gluten.execution.{IcebergSuite, VeloxIcebergAppendDataExec, VeloxIcebergOverwriteByExpressionExec, VeloxIcebergReplaceDataExec}
 import org.apache.gluten.tags.EnhancedFeaturesTest
 
 import org.apache.spark.sql.execution.CommandResultExec
@@ -36,7 +36,7 @@ class VeloxIcebergSuite extends IcebergSuite {
         df.queryExecution.executedPlan
           .asInstanceOf[CommandResultExec]
           .commandPhysicalPlan
-          .isInstanceOf[IcebergAppendDataExec])
+          .isInstanceOf[VeloxIcebergAppendDataExec])
       val selectDf = spark.sql("""
                                  |select * from iceberg_tb2;
                                  |""".stripMargin)
@@ -46,8 +46,7 @@ class VeloxIcebergSuite extends IcebergSuite {
     }
   }
 
-  // TODO: support later
-  ignore("iceberg insert partition table identity transform") {
+  test("iceberg insert partition table identity transform") {
     withTable("iceberg_tb2") {
       spark.sql("""
                   |create table if not exists iceberg_tb2(a int, b int)
@@ -61,7 +60,7 @@ class VeloxIcebergSuite extends IcebergSuite {
         df.queryExecution.executedPlan
           .asInstanceOf[CommandResultExec]
           .commandPhysicalPlan
-          .isInstanceOf[IcebergAppendDataExec])
+          .isInstanceOf[VeloxIcebergAppendDataExec])
       val selectDf = spark.sql("""
                                  |select * from iceberg_tb2;
                                  |""".stripMargin)
@@ -111,6 +110,84 @@ class VeloxIcebergSuite extends IcebergSuite {
                                  |""".stripMargin)
       val result = selectDf.collect()
       assert(result.length == 5)
+
+    }
+  }
+
+  test("iceberg insert partition table bucket transform") {
+    withTable("iceberg_tb2") {
+      spark.sql("""
+                  |create table if not exists iceberg_tb2(a int, b int)
+                  |using iceberg
+                  |partitioned by (bucket(16, a));
+                  |""".stripMargin)
+      val df = spark.sql("""
+                           |insert into table iceberg_tb2 values(1098, 189)
+                           |""".stripMargin)
+      assert(
+        df.queryExecution.executedPlan
+          .asInstanceOf[CommandResultExec]
+          .commandPhysicalPlan
+          .isInstanceOf[VeloxIcebergAppendDataExec])
+      val selectDf = spark.sql("""
+                                 |select * from iceberg_tb2;
+                                 |""".stripMargin)
+      val result = selectDf.collect()
+      assert(result.length == 1)
+      assert(result(0).get(0) == 1098)
+      assert(result(0).get(1) == 189)
+    }
+  }
+
+  test("iceberg insert partition table truncate transform") {
+    withTable("iceberg_tb2") {
+      spark.sql("""
+                  |create table if not exists iceberg_tb2(a int, b int)
+                  |using iceberg
+                  |partitioned by (truncate(16, a));
+                  |""".stripMargin)
+      val df = spark.sql("""
+                           |insert into table iceberg_tb2 values(1098, 189)
+                           |""".stripMargin)
+      assert(
+        df.queryExecution.executedPlan
+          .asInstanceOf[CommandResultExec]
+          .commandPhysicalPlan
+          .isInstanceOf[VeloxIcebergAppendDataExec])
+      val selectDf = spark.sql("""
+                                 |select * from iceberg_tb2;
+                                 |""".stripMargin)
+      val result = selectDf.collect()
+      assert(result.length == 1)
+      assert(result(0).get(0) == 1098)
+      assert(result(0).get(1) == 189)
+    }
+  }
+
+  test("iceberg insert overwrite") {
+    withTable("iceberg_tb2") {
+      spark.sql("""
+                  |create table if not exists iceberg_tb2(a int) using iceberg
+                  |""".stripMargin)
+
+      spark.sql("insert into table iceberg_tb2 values (1)")
+
+      // Overwrite table
+      val df = spark.sql("""
+                           |insert overwrite table iceberg_tb2 values (2)
+                           |""".stripMargin)
+      assert(
+        df.queryExecution.executedPlan
+          .asInstanceOf[CommandResultExec]
+          .commandPhysicalPlan
+          .isInstanceOf[VeloxIcebergOverwriteByExpressionExec])
+
+      val selectDf = spark.sql("""
+                                 |select * from iceberg_tb2;
+                                 |""".stripMargin)
+      val result = selectDf.collect()
+      assert(result.length == 1)
+      assert(result(0).get(0) == 2)
     }
   }
 }

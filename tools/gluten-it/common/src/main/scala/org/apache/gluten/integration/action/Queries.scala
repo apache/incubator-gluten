@@ -26,8 +26,6 @@ import org.apache.gluten.integration.stat.RamStat
 import org.apache.spark.sql.SparkSession
 
 case class Queries(
-    scale: Double,
-    genPartitionedData: Boolean,
     queries: QuerySelector,
     explain: Boolean,
     iterations: Int,
@@ -41,30 +39,32 @@ case class Queries(
   override def execute(suite: Suite): Boolean = {
     val runQueryIds = queries.select(suite)
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
+      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
     val sessionSwitcher = suite.sessionSwitcher
     sessionSwitcher.useSession("test", "Run Queries")
     runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
-    val results = (0 until iterations).flatMap { iteration =>
-      println(s"Running tests (iteration $iteration)...")
-      runQueryIds.map { queryId =>
-        try {
-          Queries.runQuery(
-            runner,
-            suite.tableCreator(),
-            sessionSwitcher.spark(),
-            queryId,
-            suite.desc(),
-            explain,
-            suite.getTestMetricMapper(),
-            randomKillTasks)
-        } finally {
-          if (noSessionReuse) {
-            sessionSwitcher.renewSession()
-            runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
-          }
+    val results = (0 until iterations).flatMap {
+      iteration =>
+        println(s"Running tests (iteration $iteration)...")
+        runQueryIds.map {
+          queryId =>
+            try {
+              Queries.runQuery(
+                runner,
+                suite.tableCreator(),
+                sessionSwitcher.spark(),
+                queryId,
+                suite.desc(),
+                explain,
+                suite.getTestMetricMapper(),
+                randomKillTasks)
+            } finally {
+              if (noSessionReuse) {
+                sessionSwitcher.renewSession()
+                runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+              }
+            }
         }
-      }
     }.toList
 
     val passedCount = results.count(l => l.queryResult.succeeded())
@@ -80,7 +80,8 @@ case class Queries(
         println()
         failedQueries.foreach {
           failedQuery =>
-            println(s"Query ${failedQuery.queryResult.caseId()} failed by error: ${failedQuery.queryResult.asFailure().error}")
+            println(
+              s"Query ${failedQuery.queryResult.caseId()} failed by error: ${failedQuery.queryResult.asFailure().error}")
         }
       }
     }
@@ -109,7 +110,8 @@ case class Queries(
     println("")
     printf("Summary: %d out of %d queries passed. \n", passedCount, count)
     println("")
-    val all = succeededQueries.map(_.queryResult).asSuccesses().agg("all").map(s => TestResultLine(s))
+    val all =
+      succeededQueries.map(_.queryResult).asSuccesses().agg("all").map(s => TestResultLine(s))
     Queries.printResults(succeededQueries ++ all)
     println("")
 

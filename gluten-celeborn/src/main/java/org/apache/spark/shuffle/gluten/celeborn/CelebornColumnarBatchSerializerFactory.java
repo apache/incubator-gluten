@@ -17,7 +17,6 @@
 package org.apache.spark.shuffle.gluten.celeborn;
 
 public interface CelebornColumnarBatchSerializerFactory {
-  String backendName();
 
   String columnarBatchSerializerClass();
 }

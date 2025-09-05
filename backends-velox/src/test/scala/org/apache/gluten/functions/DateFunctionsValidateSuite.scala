@@ -471,4 +471,21 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("unix_timestamp with timestamp and format - no fallback") {
+    withTempPath {
+      path =>
+        Seq(
+          (Timestamp.valueOf("2016-04-08 13:10:15"), "yyyy-MM-dd"),
+          (Timestamp.valueOf("2017-05-19 18:25:30"), "MM/dd/yyyy")
+        ).toDF("ts", "fmt").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("unix_timestamp_test")
+
+        // Test unix_timestamp(timestamp, format) - should use native execution without fallback
+        runQueryAndCompare("SELECT unix_timestamp(ts, fmt) FROM unix_timestamp_test") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }

@@ -14,24 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.execution
 
-import scala.collection.immutable.{Map => IMap}
-import scala.collection.immutable.{Seq => ISeq}
+import org.apache.spark.sql.connector.write.Write
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.datasources.v2.OverwriteByExpressionExec
 
-object CollectionConverter {
-  def toImmutable[K, V](jMap: java.util.Map[K, V]): IMap[K, V] = {
-    import scala.jdk.CollectionConverters._
-    jMap.asScala.toMap
-  }
+case class VeloxIcebergOverwriteByExpressionExec(
+    query: SparkPlan,
+    refreshCache: () => Unit,
+    write: Write)
+  extends AbstractIcebergWriteExec {
 
-  def toImmutable[T](jList: java.util.List[T]): ISeq[T] = {
-    if (scala.util.Properties.versionNumberString.startsWith("2.12")) {
-      import scala.collection.JavaConverters._
-      jList.asScala.toList
-    } else {
-      import scala.jdk.CollectionConverters._
-      jList.asScala.toList
-    }
+  override protected def withNewChildInternal(newChild: SparkPlan): IcebergWriteExec =
+    copy(query = newChild)
+}
+
+object VeloxIcebergOverwriteByExpressionExec {
+  def apply(original: OverwriteByExpressionExec): IcebergWriteExec = {
+    VeloxIcebergOverwriteByExpressionExec(
+      original.query,
+      original.refreshCache,
+      original.write
+    )
   }
 }

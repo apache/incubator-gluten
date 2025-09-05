@@ -29,7 +29,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
-import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, BatchScanExec, ReplaceDataExec}
+import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, BatchScanExec, OverwriteByExpressionExec, ReplaceDataExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -138,6 +138,7 @@ object Validators {
       case p: TakeOrderedAndProjectExec if !settings.supportColumnarShuffleExec() => fail(p)
       case p: AppendDataExec if !settings.supportAppendDataExec() => fail(p)
       case p: ReplaceDataExec if !settings.supportReplaceDataExec() => fail(p)
+      case p: OverwriteByExpressionExec if !settings.supportOverwriteByExpression() => fail(p)
       case _ => pass()
     }
   }
@@ -216,7 +217,8 @@ object Validators {
         case p if HiveTableScanExecTransformer.isHiveTableScan(p) => pass()
         case filter: FilterExec =>
           val childIsScan = filter.child.isInstanceOf[FileSourceScanExec] ||
-            filter.child.isInstanceOf[BatchScanExec]
+            filter.child.isInstanceOf[BatchScanExec] || filter.child
+              .isInstanceOf[BasicScanExecTransformer]
           if (childIsScan) {
             pass()
           } else {

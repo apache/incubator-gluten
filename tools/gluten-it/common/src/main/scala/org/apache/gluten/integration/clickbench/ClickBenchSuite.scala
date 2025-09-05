@@ -39,7 +39,10 @@ class ClickBenchSuite(
     val extraSparkConf: Map[String, String],
     val logLevel: Level,
     val errorOnMemLeak: Boolean,
+    val dataSource: String,
     val dataDir: String,
+    val dataScale: Double,
+    val genPartitionedData: Boolean,
     val enableUi: Boolean,
     val enableHsUi: Boolean,
     val hsUiPort: Int,
@@ -75,17 +78,13 @@ class ClickBenchSuite(
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
-  override private[integration] def dataWritePath(
-      scale: Double,
-      genPartitionedData: Boolean): String = {
-    checkDataGenArgs(scale, genPartitionedData)
-    new File(dataDir).toPath.resolve(DATA_WRITE_RELATIVE_PATH + s"-$scale").toFile.getAbsolutePath
+  override private[integration] def dataWritePath(): String = {
+    new File(dataDir).toPath.resolve(DATA_WRITE_RELATIVE_PATH).toFile.getAbsolutePath
   }
 
-  override private[integration] def createDataGen(
-      scale: Double,
-      genPartitionedData: Boolean): DataGen = {
-    new ClickBenchDataGen(sessionSwitcher.spark(), dataWritePath(scale, genPartitionedData))
+  override private[integration] def createDataGen(): DataGen = {
+    checkDataGenArgs(dataSource, dataScale, genPartitionedData)
+    new ClickBenchDataGen(sessionSwitcher.spark(), dataWritePath())
   }
 
   override private[integration] def queryResource(): String = "/clickbench-queries"
@@ -102,8 +101,14 @@ private object ClickBenchSuite {
   private val HISTORY_WRITE_PATH = "/tmp/clickbench-history"
   private val ALL_QUERY_IDS = (1 to 43).map(i => s"q$i").toArray
 
-  private def checkDataGenArgs(scale: Double, genPartitionedData: Boolean): Unit = {
-    assert(scale == 1.0d, "ClickBench suite doesn't support scale factor other than 1")
-    assert(!genPartitionedData, "ClickBench suite doesn't support generating partitioned data")
+  private def checkDataGenArgs(
+      dataSource: String,
+      scale: Double,
+      genPartitionedData: Boolean): Unit = {
+    require(
+      Set("parquet").contains(dataSource),
+      s"Data source type $dataSource is not supported by ClickBench suite")
+    require(scale == 1.0d, "ClickBench suite doesn't support scale factor other than 1")
+    require(!genPartitionedData, "ClickBench suite doesn't support generating partitioned data")
   }
 }

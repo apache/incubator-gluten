@@ -16,77 +16,81 @@
  */
 package org.apache.gluten.integration.action
 
+import org.apache.gluten.integration.{QueryRunner, Suite}
 import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.QueriesCompare.TestResultLine
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 import org.apache.gluten.integration.stat.RamStat
-import org.apache.gluten.integration.{QueryRunner, Suite}
+
 import org.apache.spark.sql.{SparkSession, TestUtils}
 
 case class QueriesCompare(
-    scale: Double,
-    genPartitionedData: Boolean,
     queries: QuerySelector,
     explain: Boolean,
     iterations: Int,
     noSessionReuse: Boolean,
     suppressFailureMessages: Boolean)
-    extends Action {
+  extends Action {
 
   override def execute(suite: Suite): Boolean = {
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
+      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
     val runQueryIds = queries.select(suite)
     val sessionSwitcher = suite.sessionSwitcher
 
     sessionSwitcher.useSession("baseline", "Run Baseline Queries")
     runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
-    val baselineResults = (0 until iterations).flatMap { iteration =>
-      runQueryIds.map { queryId =>
-        println(s"Running baseline query $queryId (iteration $iteration)...")
-        try {
-          QueriesCompare.runBaselineQuery(
-            runner,
-            sessionSwitcher.spark(),
-            suite.desc(),
-            queryId,
-            explain)
-        } finally {
-          if (noSessionReuse) {
-            sessionSwitcher.renewSession()
-            runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
-          }
+    val baselineResults = (0 until iterations).flatMap {
+      iteration =>
+        runQueryIds.map {
+          queryId =>
+            println(s"Running baseline query $queryId (iteration $iteration)...")
+            try {
+              QueriesCompare.runBaselineQuery(
+                runner,
+                sessionSwitcher.spark(),
+                suite.desc(),
+                queryId,
+                explain)
+            } finally {
+              if (noSessionReuse) {
+                sessionSwitcher.renewSession()
+                runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+              }
+            }
         }
-      }
     }.toList
 
     sessionSwitcher.useSession("test", "Run Test Queries")
     runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
-    val testResults = (0 until iterations).flatMap { iteration =>
-      runQueryIds.map { queryId =>
-        println(s"Running test query $queryId (iteration $iteration)...")
-        try {
-          QueriesCompare.runTestQuery(
-            runner,
-            sessionSwitcher.spark(),
-            suite.desc(),
-            queryId,
-            explain)
-        } finally {
-          if (noSessionReuse) {
-            sessionSwitcher.renewSession()
-            runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
-          }
+    val testResults = (0 until iterations).flatMap {
+      iteration =>
+        runQueryIds.map {
+          queryId =>
+            println(s"Running test query $queryId (iteration $iteration)...")
+            try {
+              QueriesCompare.runTestQuery(
+                runner,
+                sessionSwitcher.spark(),
+                suite.desc(),
+                queryId,
+                explain)
+            } finally {
+              if (noSessionReuse) {
+                sessionSwitcher.renewSession()
+                runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+              }
+            }
         }
-      }
     }.toList
 
     assert(baselineResults.size == testResults.size)
 
-    val results: Seq[TestResultLine] = baselineResults.zip(testResults).map { case (b, t) =>
-      assert(b.caseId() == t.caseId())
-      TestResultLine(b.caseId(), b, t)
+    val results: Seq[TestResultLine] = baselineResults.zip(testResults).map {
+      case (b, t) =>
+        assert(b.caseId() == t.caseId())
+        TestResultLine(b.caseId(), b, t)
     }
 
     val passedCount = results.count(l => l.testPassed())
@@ -115,7 +119,8 @@ case class QueriesCompare(
       "RAM statistics: JVM Heap size: %d KiB (total %d KiB), Process RSS: %d KiB\n",
       RamStat.getJvmHeapUsed(),
       RamStat.getJvmHeapTotal(),
-      RamStat.getProcessRamUsed())
+      RamStat.getProcessRamUsed()
+    )
 
     println("")
     println("Test report: ")
@@ -136,8 +141,7 @@ case class QueriesCompare(
       println("No failed queries. ")
       println("")
     } else {
-      println(
-        "Failed queries (a failed query with correct row count indicates value mismatches): ")
+      println("Failed queries (a failed query with correct row count indicates value mismatches): ")
       println("")
       QueriesCompare.printResults(failedQueries)
       println("")
@@ -160,10 +164,10 @@ object QueriesCompare {
         return Some(actual.asFailure().error.toString)
       }
       TestUtils
-          .compareAnswers(
-            expected.asSuccess().runResult.rows,
-            actual.asSuccess().runResult.rows,
-            sort = true)
+        .compareAnswers(
+          expected.asSuccess().runResult.rows,
+          actual.asSuccess().runResult.rows,
+          sort = true)
     }
 
     private val maybeError = tryGetError()
@@ -209,11 +213,10 @@ object QueriesCompare {
       Branch("Row Count", List(Leaf("Vanilla"), Leaf("Gluten"))),
       Branch("Planning Time (Millis)", List(Leaf("Vanilla"), Leaf("Gluten"))),
       Branch("Query Time (Millis)", List(Leaf("Vanilla"), Leaf("Gluten"))),
-      Leaf("Speedup"))
+      Leaf("Speedup")
+    )
 
-    results.foreach { line =>
-      render.appendRow(line)
-    }
+    results.foreach(line => render.appendRow(line))
 
     render.print(System.out)
   }
