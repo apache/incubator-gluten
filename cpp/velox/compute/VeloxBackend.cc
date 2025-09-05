@@ -210,7 +210,9 @@ void VeloxBackend::init(
     memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
-  facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
+  facebook::velox::memory::MemoryManager::Options options;
+  options.allocatorCapacity = memoryManagerCapacity;
+  facebook::velox::memory::initializeMemoryManager(options);
 
   // local cache persistent relies on the cache pool from root memory pool so we need to init this
   // after the memory manager instanced
