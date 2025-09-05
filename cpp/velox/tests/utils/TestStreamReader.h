@@ -17,27 +17,21 @@
 
 #pragma once
 
-#include "compute/ResultIterator.h"
+#include "shuffle/ShuffleReader.h"
+#include "shuffle/ShuffleWriter.h"
 
 namespace gluten {
 
-class StreamReader {
+class TestStreamReader : public StreamReader {
  public:
-  virtual ~StreamReader() = default;
+  explicit TestStreamReader(const std::shared_ptr<arrow::io::InputStream>& inputStream) : inputStream_(inputStream) {}
 
-  virtual std::shared_ptr<arrow::io::InputStream> readNextStream(arrow::MemoryPool* pool) = 0;
-};
+  std::shared_ptr<arrow::io::InputStream> readNextStream(arrow::MemoryPool*) override {
+    return std::move(inputStream_);
+  }
 
-class ShuffleReader {
- public:
-  virtual ~ShuffleReader() = default;
-
-  // FIXME iterator should be unique_ptr or un-copyable singleton
-  virtual std::shared_ptr<ResultIterator> read(const std::shared_ptr<StreamReader>& streamReader) = 0;
-
-  virtual int64_t getDecompressTime() const = 0;
-
-  virtual int64_t getDeserializeTime() const = 0;
+ private:
+  std::shared_ptr<arrow::io::InputStream> inputStream_;
 };
 
 } // namespace gluten
