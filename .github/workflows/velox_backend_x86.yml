@@ -103,7 +103,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
-        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
+        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0"  ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3.
         exclude:
@@ -123,6 +123,11 @@ jobs:
             java: java-17
           - os: ubuntu:22.04
             java: java-11
+          - spark: spark-4.0
+            java: java-8
+          - spark: spark-4.0
+            java: java-11
+
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
@@ -161,7 +166,11 @@ jobs:
           cd $GITHUB_WORKSPACE/
           export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
           echo "JAVA_HOME: $JAVA_HOME"
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+          else
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          fi
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -252,9 +261,6 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
-          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
-            exit 0
-          fi
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
       - name: Run TPC-H / TPC-DS with RAS
