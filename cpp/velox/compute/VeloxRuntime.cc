@@ -287,7 +287,7 @@ std::shared_ptr<VeloxDataSource> VeloxRuntime::createDataSource(
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ShuffleReaderOptions options) {
-  auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
+  auto codec = gluten::createCompressionCodec(options.compressionType, options.codecBackend);
   const auto veloxCompressionKind = arrowCompressionTypeToVelox(options.compressionType);
   const auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
 

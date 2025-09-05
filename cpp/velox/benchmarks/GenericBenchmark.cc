@@ -185,7 +185,7 @@ std::unique_ptr<arrow::util::Codec> createCodec() {
 
   setCompressionTypeFromFlag(compressionType, codecBackend);
 
-  return createArrowIpcCodec(compressionType, codecBackend);
+  return createCompressionCodec(compressionType, codecBackend);
 }
 
 std::shared_ptr<PartitionWriter>

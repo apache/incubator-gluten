@@ -251,10 +251,6 @@ target_include_directories(
          ${PROTO_OUTPUT_DIR}
          ${PROTOBUF_INCLUDE})
 
-if(BUILD_TESTS)
-  target_include_directories(velox PUBLIC ${VELOX_BUILD_PATH})
-endif()
-
 set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                                        ${root_directory}/releases)
 

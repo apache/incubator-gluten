@@ -74,6 +74,7 @@ public class RexCallConverterFactory {
                   () -> new BasicArithmeticOperatorRexCallConverter("add"),
                   () -> new DecimalArithmeticOperatorRexCallConverters("add"))),
           Map.entry("MOD", Arrays.asList(() -> new ModRexCallConverter())),
+          Map.entry("Reinterpret", Arrays.asList(() -> new ReinterpretRexCallConverter())),
           Map.entry("CAST", Arrays.asList(() -> new DefaultRexCallConverter("cast"))),
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
           Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
@@ -91,7 +92,13 @@ public class RexCallConverterFactory {
                   () -> new BasicArithmeticOperatorRexCallConverter("lessthanorequal"),
                   () -> new StringCompareRexCallConverter("lessthanorequal"),
                   () -> new StringNumberCompareRexCallConverter("lessthanorequal"),
-                  () -> new TimestampIntervalRexCallConverter("lessthanorequal"))));
+                  () -> new TimestampIntervalRexCallConverter("lessthanorequal"))),
+          Map.entry("PROCTIME", Arrays.asList(() -> new DefaultRexCallConverter("unix_timestamp"))),
+          Map.entry("OR", Arrays.asList(() -> new DefaultRexCallConverter("or"))),
+          Map.entry("IS NOT NULL", Arrays.asList(() -> new DefaultRexCallConverter("is_not_null"))),
+          Map.entry(
+              "REGEXP_EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("regexp_extract"))),
+          Map.entry("LOWER", Arrays.asList(() -> new DefaultRexCallConverter("lower"))));
 
   public static RexCallConverter getConverter(RexCall callNode, RexConversionContext context) {
     String operatorName = callNode.getOperator().getName();

@@ -23,7 +23,7 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression._
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.{IntegerType, LongType}
+import org.apache.spark.sql.types.{IntegerType, LongType, TimestampType}
 
 import java.lang.{Integer => JInteger}
 import java.util.{ArrayList => JArrayList}
@@ -107,5 +107,20 @@ case class VeloxHashExpressionTransformer(
     val functionId = context.registerFunction(functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
+  }
+}
+
+case class ToUnixTimestampTransformer(
+    substraitExprName: String,
+    timeExpTransformer: ExpressionTransformer,
+    formatTransformer: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer {
+
+  override def children: Seq[ExpressionTransformer] = {
+    timeExpTransformer.dataType match {
+      case _: TimestampType => Seq(timeExpTransformer)
+      case _ => Seq(timeExpTransformer, formatTransformer)
+    }
   }
 }

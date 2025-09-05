@@ -192,9 +192,7 @@ abstract class Suite(
 
   private[integration] def genPartitionedData(): Boolean
 
-  private[integration] def queryResource(): String
-
-  private[integration] def allQueryIds(): Array[String]
+  private[integration] def allQueries(): QuerySet
 
   private[integration] def desc(): String
 }

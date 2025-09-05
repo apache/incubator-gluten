@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.integration.Query
 import org.apache.gluten.integration.metrics.{MetricMapper, MetricTag, PlanMetric}
 
 import org.apache.spark.{SparkContext, Success, TaskKilled}
@@ -59,7 +60,7 @@ object SparkQueryRunner {
   def runQuery(
       spark: SparkSession,
       desc: String,
-      queryPath: String,
+      query: Query,
       explain: Boolean,
       metricMapper: MetricMapper,
       executorMetrics: Seq[String],
@@ -86,12 +87,11 @@ object SparkQueryRunner {
     }
     killTaskListener.foreach(sc.addSparkListener(_))
 
-    println(s"Executing SQL query from resource path $queryPath...")
+    println(s"Executing SQL query from resource path ${query.path}...")
     try {
       val tracker = new QueryPlanningTracker
-      val sql = resourceToString(queryPath)
       val prev = System.nanoTime()
-      val df = spark.sql(sql)
+      val df = spark.sql(query.sql)
       val rows = QueryPlanningTracker.withTracker(tracker) {
         df.collect()
       }
@@ -107,7 +107,7 @@ object SparkQueryRunner {
       val planMillis = sparkRulesMillis + otherRulesMillis
       val collectedExecutorMetrics =
         executorMetrics.map(name => (name, em.getMetricValue(name))).toMap
-      val collectedSQLMetrics = collectSQLMetrics(queryPath, metricMapper, df.queryExecution)
+      val collectedSQLMetrics = collectSQLMetrics(query.path, metricMapper, df.queryExecution)
       RunResult(
         rows,
         planMillis,
@@ -166,26 +166,6 @@ object SparkQueryRunner {
     }
     all.toSeq
   }
-
-  private def resourceToString(resource: String): String = {
-    val inStream = SparkQueryRunner.getClass.getResourceAsStream(resource)
-    Preconditions.checkNotNull(inStream)
-    val outStream = new ByteArrayOutputStream
-    try {
-      var reading = true
-      while (reading) {
-        inStream.read() match {
-          case -1 => reading = false
-          case c => outStream.write(c)
-        }
-      }
-      outStream.flush()
-    } finally {
-      inStream.close()
-    }
-    new String(outStream.toByteArray, StandardCharsets.UTF_8)
-  }
-
 }
 
 case class RunResult(

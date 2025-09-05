@@ -619,7 +619,8 @@ Java_org_apache_gluten_vectorized_CelebornPartitionWriterJniWrapper_createPartit
 
   auto partitionWriter = std::make_shared<RssPartitionWriter>(
       numPartitions,
-      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      createCompressionCodec(
+          getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
       ctx->memoryManager(),
       partitionWriterOptions,
       celebornClient);
@@ -662,7 +663,8 @@ Java_org_apache_gluten_vectorized_UnifflePartitionWriterJniWrapper_createPartiti
 
   auto partitionWriter = std::make_shared<RssPartitionWriter>(
       numPartitions,
-      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      createCompressionCodec(
+          getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
       ctx->memoryManager(),
       partitionWriterOptions,
       uniffleClient);
@@ -706,7 +708,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
     jstring directory,
     jstring codecJstr,
     jbyteArray partition,
-  jbyteArray fieldBytes) {
+    jbyteArray fieldBytes) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
   auto runtime = dynamic_cast<VeloxRuntime*>(ctx);

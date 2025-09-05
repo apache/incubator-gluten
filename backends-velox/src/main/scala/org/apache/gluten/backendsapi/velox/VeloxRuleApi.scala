@@ -65,6 +65,7 @@ object VeloxRuleApi {
     injector.injectOptimizerRule(CollapseGetJsonObjectExpressionRule.apply)
     injector.injectOptimizerRule(RewriteCastFromArray.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
+    injector.injectOptimizerRule(RewriteUnboundedWindow.apply)
   }
 
   /**

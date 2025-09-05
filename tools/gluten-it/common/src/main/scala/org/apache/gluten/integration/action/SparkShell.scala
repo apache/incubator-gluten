@@ -24,7 +24,7 @@ case class SparkShell() extends Action {
   override def execute(suite: Suite): Boolean = {
     suite.sessionSwitcher.useSession("test", "Spark CLI")
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
+      new QueryRunner(suite.dataSource(), suite.dataWritePath())
     runner.createTables(suite.tableCreator(), suite.sessionSwitcher.spark())
     Main.sparkSession = suite.sessionSwitcher.spark()
     Main.sparkContext = suite.sessionSwitcher.spark().sparkContext
