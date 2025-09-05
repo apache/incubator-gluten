@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,21 +15,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: License Header Check
-on:
-  pull_request
-concurrency:
-  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
-  cancel-in-progress: true
+# If a new profile is introduced for new modules, please add it here to ensure
+# the new modules are covered.
+PROFILES="-Pbackends-velox -Pceleborn,uniffle -Piceberg,delta,hudi,paimon \
+          -Pspark-3.2,spark-3.3,spark-3.4,spark-3.5,spark-4.0 -Pspark-ut"
 
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Check License Header
-        run: |
-          git fetch --recurse-submodules=no origin main ${{github.event.pull_request.base.sha}}
-          pip install regex
-          cd $GITHUB_WORKSPACE/
-          ./.github/workflows/util/check.sh ${{github.event.pull_request.base.sha}}
+COMMAND=$1
+
+if [[ "$COMMAND" == "check" ]]; then
+  echo "Checking Scala code style.."
+  mvn -q spotless:check $PROFILES
+elif [[ "$COMMAND" == "apply" ]] || [[ "$COMMAND" == "" ]]; then
+  echo "Fixing Scala code style.."
+  mvn -q spotless:apply $PROFILES
+else
+  echo "Unrecognized option."
+  exit 1
+fi

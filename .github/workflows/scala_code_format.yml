@@ -13,21 +13,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: License Header Check
+name: Code Format Check
 on:
-  pull_request
+  pull_request:
+    paths:
+      - '.github/workflows/scala_code_format.yml'
+      - 'backends-velox/**'
+      - 'gluten-uniffle/**'
+      - 'gluten-celeborn/**'
+      - 'gluten-ras/**'
+      - 'gluten-core/**'
+      - 'gluten-substrait/**'
+      - 'gluten-arrow/**'
+      - 'gluten-delta/**'
+      - 'gluten-iceberg/**'
+      - 'gluten-hudi/**'
+      - 'gluten-paimon/**'
+      - 'gluten-ut/**'
+      - 'shims/**'
+      - 'tools/gluten-it/**'
+
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
+env:
+  SETUP: 'bash .github/workflows/util/setup_helper.sh'
+
 jobs:
-  check:
+
+  scala-format-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Check License Header
+      - uses: actions/checkout@v4
+        with:
+            fetch-depth: 0
+      - name: Check
         run: |
-          git fetch --recurse-submodules=no origin main ${{github.event.pull_request.base.sha}}
-          pip install regex
-          cd $GITHUB_WORKSPACE/
-          ./.github/workflows/util/check.sh ${{github.event.pull_request.base.sha}}
+          ./dev/format-scala-code.sh check
+      - name: Fix
+        if: failure()
+        run: |
+          ./dev/format-scala-code.sh
+          git show
