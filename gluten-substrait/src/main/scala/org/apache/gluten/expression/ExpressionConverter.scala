@@ -277,24 +277,18 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(r.child, attributeSeq, expressionsMap),
           r)
       case t: ToUnixTimestamp =>
-        // The failOnError depends on the config for ANSI. ANSI is not supported currently.
-        // And timeZoneId is passed to backend config.
-        GenericExpressionTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genToUnixTimestampTransformer(
           substraitExprName,
-          Seq(
-            replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap),
-            replaceWithExpressionTransformer0(t.format, attributeSeq, expressionsMap)
-          ),
+          replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(t.format, attributeSeq, expressionsMap),
           t
         )
       case u: UnixTimestamp =>
-        GenericExpressionTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genToUnixTimestampTransformer(
           substraitExprName,
-          Seq(
-            replaceWithExpressionTransformer0(u.timeExp, attributeSeq, expressionsMap),
-            replaceWithExpressionTransformer0(u.format, attributeSeq, expressionsMap)
-          ),
-          ToUnixTimestamp(u.timeExp, u.format, u.timeZoneId, u.failOnError)
+          replaceWithExpressionTransformer0(u.timeExp, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(u.format, attributeSeq, expressionsMap),
+          u
         )
       case t: TruncTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTruncTimestampTransformer(
