@@ -74,6 +74,17 @@ class VeloxBackend {
       }
       asyncDataCache_->shutdown();
     }
+
+    for (const auto& hdfsPath : hdfsPaths_) {
+      auto fileSystem = facebook::velox::filesystems::getFileSystem(hdfsPath, backendConf_);
+      fileSystem->close();
+    }
+  }
+
+  void addHdfsFilePaths(std::string path) {
+    if ((path.find("hdfs://") == 0) || (path.find("viewfs://") == 0)) {
+      hdfsPaths_.emplace_back(path);
+    }
   }
 
  private:
@@ -110,6 +121,8 @@ class VeloxBackend {
   std::string cacheFilePrefix_;
 
   std::shared_ptr<facebook::velox::config::ConfigBase> backendConf_;
+
+  std::vector<std::string> hdfsPaths_;
 };
 
 } // namespace gluten

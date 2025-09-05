@@ -345,7 +345,10 @@ Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_allSupportedByR
     if (!velox::filesystems::isPathSupportedByRegisteredFileSystems(path)) {
       return false;
     }
+
+    VeloxBackend::get()->addHdfsFilePaths(path);
   }
+
   return true;
   JNI_METHOD_END(false)
 }
