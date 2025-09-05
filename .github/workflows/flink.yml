@@ -59,7 +59,7 @@ jobs:
           source /opt/rh/gcc-toolset-11/enable
           sudo dnf install -y patchelf
           git clone -b gluten-0530 https://github.com/bigo-sg/velox4j.git
-          cd velox4j && git reset --hard 1cdeb1a8384967499919e655d55a66f2daa9d55c
+          cd velox4j && git reset --hard 43860ebb2e58147d71388eeacc78042cfcc9593c
           git apply $GITHUB_WORKSPACE/gluten-flink/patches/fix-velox4j.patch
           mvn clean install -DskipTests -Dgpg.skip -Dspotless.skip=true
           cd ..
