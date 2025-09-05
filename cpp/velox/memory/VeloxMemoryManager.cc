@@ -234,7 +234,7 @@ VeloxMemoryManager::VeloxMemoryManager(
   auto checkUsageLeak = backendConf.get<bool>(kCheckUsageLeak, kCheckUsageLeakDefault);
 
   ArbitratorFactoryRegister afr(listener_.get());
-  velox::memory::MemoryManagerOptions mmOptions{
+  velox::memory::MemoryManager::Options mmOptions{
       .alignment = velox::memory::MemoryAllocator::kMaxAlignment,
       .trackDefaultUsage = true, // memory usage tracking
       .checkUsageLeak = checkUsageLeak, // leak check
