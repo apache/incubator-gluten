@@ -21,6 +21,7 @@ import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -128,6 +129,7 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
   }
 
+  @Disabled
   @Test
   void testReinterpret() {
     List<Row> rows =

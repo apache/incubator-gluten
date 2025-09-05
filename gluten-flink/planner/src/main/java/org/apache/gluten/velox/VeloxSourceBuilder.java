@@ -52,6 +52,7 @@ public class VeloxSourceBuilder {
     return transformation;
   }
 
+  /** `FromElementsSource` is designed for ut tests, and we map it to velox source. */
   @SuppressWarnings({"rawtypes", "unchecked"})
   private static Transformation<RowData> buildFromElementsSource(
       Transformation<RowData> transformation, ScanTableSource tableSource) {

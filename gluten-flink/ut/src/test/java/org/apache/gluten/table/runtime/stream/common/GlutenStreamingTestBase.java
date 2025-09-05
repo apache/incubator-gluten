@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -76,7 +77,13 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
     StringBuilder schemaBuilder = new StringBuilder();
     for (int i = 0; i < cols.size(); ++i) {
       Column col = cols.get(i);
-      schemaBuilder.append(col.getName()).append(" ").append(col.getDataType().toString());
+      schemaBuilder.append(col.getName()).append(" ");
+      if (col.getDataType().getLogicalType() instanceof TimestampType) {
+        String typeName = col.getDataType().toString().replace("*ROWTIME*", "");
+        schemaBuilder.append(typeName);
+      } else {
+        schemaBuilder.append(col.getDataType().toString());
+      }
       if (i != cols.size() - 1) {
         schemaBuilder.append(",");
       }
