@@ -89,7 +89,8 @@ case class WindowExecTransformer(
         1
       } else {
         val isAlreadySatisfied = isChildOrderAlreadySatisfied
-        // Optimize sort window to streaming window when child order already match window requirements.
+        // Optimize sort window to streaming window when child order already
+        // match window requirements.
         if (isAlreadySatisfied) {
           logInfo("Mark window type to streaming since child order is already satisfied.")
           1
