@@ -53,6 +53,10 @@ public class NativePlanEvaluator {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
   }
 
+  public boolean doNativeValidateExpression(byte[] expression, byte[] inputType, byte[][] mapping) {
+    return jniWrapper.nativeValidateExpression(expression, inputType, mapping);
+  }
+
   public static void injectWriteFilesTempPath(String path, String fileName) {
     PlanEvaluatorJniWrapper.injectWriteFilesTempPath(
         path.getBytes(StandardCharsets.UTF_8), fileName.getBytes(StandardCharsets.UTF_8));
