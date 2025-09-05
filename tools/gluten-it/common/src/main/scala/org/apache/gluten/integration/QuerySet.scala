@@ -66,7 +66,7 @@ case class QuerySet(queryIds: Seq[String], queryMap: Map[String, Query]) {
     for (i <- shardStart until shardStart + numQueriesInShard) {
       shardQueryIds += queryIds(i)
     }
-    filter(shardQueryIds)
+    filter(shardQueryIds.toSeq)
   }
 
   def getQuery(queryId: String): Query = {
