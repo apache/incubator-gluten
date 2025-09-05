@@ -50,6 +50,10 @@ public class TypeUtils {
     return type instanceof VarCharType;
   }
 
+  public static boolean isIntegerType(Type type) {
+    return type instanceof IntegerType;
+  }
+
   public static List<TypedExpr> promoteTypeForArithmeticExpressions(
       TypedExpr leftExpr, TypedExpr rightExpr) {
     Type leftType = leftExpr.getReturnType();

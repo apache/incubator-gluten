@@ -131,6 +131,33 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
   }
 
   @Test
+  void testSplitIndex() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, 1L, "http://testflink/a/b/c"),
+            Row.of(2, 2L, "http://testflink/a1/b1/c1"),
+            Row.of(3, 3L, "http://testflink/a2/b2/c2"));
+    createSimpleBoundedValuesTable("tblSplitIndex", "a int, b bigint, c string", rows);
+    String query1 = "select split_index(c, '/', 3) from tblSplitIndex";
+    runAndCheck(query1, Arrays.asList("+I[testflink]", "+I[testflink]", "+I[testflink]"));
+    String query2 = "select split_index(c, '//', 2) from tblSplitIndex";
+    runAndCheck(
+        query2,
+        Arrays.asList("+I[testflink/a/b/c]", "+I[testflink/a1/b1/c1]", "+I[testflink/a2/b2/c2]"));
+    // Add some corner case tests from `ScalarFunctionsTest`#testSplitIndex in flink.
+    rows = Arrays.asList(Row.of(1, 1L, "AQIDBA=="), Row.of(1, 2L, null));
+    createSimpleBoundedValuesTable("tblSplitIndexFlink", "a int, b bigint, c string", rows);
+    String query3 =
+        "select "
+            + " split_index(c, 'I', 2), split_index(c, 'I', -1), split_index(c, cast(null as VARCHAR), 0), "
+            + " split_index(c, 'I', cast(null as INT)), split_index(c, 73, 0), split_index(c, 256, 0) "
+            + " from tblSplitIndexFlink where a = 1";
+    runAndCheck(query3, Arrays.asList("+I[null, null, null, null, 'AQ', null]"));
+    String query4 = "select split_index(c, 'I', 0) from tblSplitIndexFlink where a = 2";
+    runAndCheck(query4, Arrays.asList("+I[null]"));
+  }
+
+  @Test
   void testDecimal() {
     List<Row> rows =
         Arrays.asList(
