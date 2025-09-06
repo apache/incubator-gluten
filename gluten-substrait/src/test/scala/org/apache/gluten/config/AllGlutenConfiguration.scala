@@ -111,6 +111,7 @@ class AllGlutenConfiguration extends AnyFunSuite {
          |"""
 
     ConfigEntry.getAllEntries
+      .filter(_.isPublic)
       .sortBy(_.key)
       .foreach {
         entry =>

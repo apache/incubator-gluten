@@ -51,6 +51,7 @@ class AllVeloxConfiguration extends AnyFunSuite {
 
     ConfigEntry.getAllEntries
       .filter(_.key.contains("velox"))
+      .filter(_.isPublic)
       .sortBy(_.key)
       .foreach {
         entry =>
