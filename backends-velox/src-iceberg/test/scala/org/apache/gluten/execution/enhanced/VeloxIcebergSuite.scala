@@ -19,7 +19,9 @@ package org.apache.gluten.execution.enhanced
 import org.apache.gluten.execution.{IcebergSuite, VeloxIcebergAppendDataExec, VeloxIcebergOverwriteByExpressionExec, VeloxIcebergReplaceDataExec}
 import org.apache.gluten.tags.EnhancedFeaturesTest
 
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.CommandResultExec
+import org.apache.spark.sql.gluten.TestUtils
 
 @EnhancedFeaturesTest
 class VeloxIcebergSuite extends IcebergSuite {
@@ -188,6 +190,31 @@ class VeloxIcebergSuite extends IcebergSuite {
       val result = selectDf.collect()
       assert(result.length == 1)
       assert(result(0).get(0) == 2)
+    }
+  }
+
+  test("iceberg create table as select") {
+    withTable("iceberg_tb1", "iceberg_tb2") {
+      spark.sql("""
+                  |create table iceberg_tb1 (a int, pt int) using iceberg
+                  |partitioned by (pt)
+                  |""".stripMargin)
+
+      spark.sql("insert into table iceberg_tb1 values (1, 1), (2, 2)")
+
+      // CTAS
+      val sqlStr = """
+                     |create table iceberg_tb2 using iceberg
+                     |partitioned by (pt)
+                     |as select * from iceberg_tb1
+                     |""".stripMargin
+
+      TestUtils.checkExecutedPlanContains[VeloxIcebergAppendDataExec](spark, sqlStr)
+
+      checkAnswer(
+        spark.sql("select * from iceberg_tb2 order by a"),
+        Seq(Row(1, 1), Row(2, 2))
+      )
     }
   }
 }
