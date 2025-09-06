@@ -66,6 +66,7 @@ object VeloxRuleApi {
     injector.injectOptimizerRule(RewriteCastFromArray.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
     injector.injectOptimizerRule(RewriteUnboundedWindow.apply)
+    injector.injectPlannerStrategy(SparkShimLoader.getSparkShims.getRewriteCreateTableAsSelect(_))
   }
 
   /**
