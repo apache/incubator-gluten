@@ -9,6 +9,7 @@ hs_err_pid*
 *.war
 *.ear
 .clangd
+.java-version
 
 # IDEA config
 .idea/
