@@ -37,6 +37,7 @@
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "tests/utils/LocalRssClient.h"
 #include "tests/utils/TestAllocationListener.h"
+#include "tests/utils/TestStreamReader.h"
 #include "utils/Exception.h"
 #include "utils/StringUtil.h"
 #include "utils/Timer.h"
@@ -304,8 +305,9 @@ void runShuffle(
     const auto reader = createShuffleReader(runtime, schema);
 
     GLUTEN_ASSIGN_OR_THROW(auto in, arrow::io::ReadableFile::Open(dataFile));
+    auto streamReader = std::make_shared<TestStreamReader>(std::move(in));
     // Read all partitions.
-    auto iter = reader->readStream(in);
+    auto iter = reader->read(streamReader);
     while (iter->hasNext()) {
       // Read and discard.
       auto cb = iter->next();
