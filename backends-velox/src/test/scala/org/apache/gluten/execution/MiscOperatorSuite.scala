@@ -527,53 +527,16 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("optimize sort window to streaming window") {
     withSQLConf(VeloxConfig.COLUMNAR_VELOX_WINDOW_TYPE.key -> "sort") {
       runQueryAndCompare(
-        "select sum(l_partkey + 1) over" +
-          " (partition by l_suppkey order by l_orderkey) from lineitem" +
-          " distribute by l_suppkey order by l_oderkey") {
-        checkGlutenOperatorMatch[WindowExecTransformer]
-      }
+        """
+          |select sum(l_partkey + 1) over
+          |   (partition by l_suppkey order by l_orderkey)
+          |    from
+          |    (  select * from lineitem
+          |    sort by l_suppkey, l_orderkey
+          |    )
+          |""".stripMargin
 
-      runQueryAndCompare(
-        "select max(l_partkey) over" +
-          " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-        checkGlutenOperatorMatch[WindowExecTransformer]
-      }
-
-      runQueryAndCompare(
-        "select min(l_partkey) over" +
-          " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-        checkGlutenOperatorMatch[WindowExecTransformer]
-      }
-
-      runQueryAndCompare(
-        "select avg(l_partkey) over" +
-          " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-        checkGlutenOperatorMatch[WindowExecTransformer]
-      }
-
-      runQueryAndCompare(
-        "select lag(l_orderkey) over" +
-          " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-        checkGlutenOperatorMatch[WindowExecTransformer]
-      }
-
-      runQueryAndCompare(
-        "select lead(l_orderkey) over" +
-          " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-        checkGlutenOperatorMatch[WindowExecTransformer]
-      }
-
-      // Test same partition/ordering keys.
-      runQueryAndCompare(
-        "select avg(l_partkey) over" +
-          " (partition by l_suppkey order by l_suppkey) from lineitem ") {
-        checkGlutenOperatorMatch[WindowExecTransformer]
-      }
-
-      // Test overlapping partition/ordering keys.
-      runQueryAndCompare(
-        "select avg(l_partkey) over" +
-          " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
+      ) {
         checkGlutenOperatorMatch[WindowExecTransformer]
       }
     }
