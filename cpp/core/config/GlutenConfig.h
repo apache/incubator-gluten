@@ -93,9 +93,6 @@ const std::string kSparkLegacyStatisticalAggregate = "spark.sql.legacy.statistic
 
 const std::string kSparkJsonIgnoreNullFields = "spark.sql.jsonGenerator.ignoreNullFields";
 
-const std::string kAbandonBuildNoDupHashMinRows = "abandon_build_no_dup_hash_min_rows";
-const std::string kAbandonBuildNoDupHashMinPct = "abandon_build_no_dup_hash_min_pct";
-
 // cudf
 #ifdef GLUTEN_ENABLE_GPU
 const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";
