@@ -1023,10 +1023,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1076,10 +1072,6 @@ jobs:
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1122,10 +1114,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1174,10 +1162,6 @@ jobs:
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1220,10 +1204,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
