@@ -64,19 +64,13 @@ class VeloxMetricsApi extends MetricsApi with Logging {
 
     val wallNanosMetric = if (forShuffle) {
       // For input from shuffle, the time of shuffle read is inclusive to the metrics.
-      SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "time of input iterator (shuffle read time inclusive)")
+      SQLMetrics.createNanoTimingMetric(sparkContext, "time of reducer input")
     } else if (forBroadcast) {
       // For input from broadcast, the time of broadcasting is exclusive.
-      SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "time of input iterator (broadcast time exclusive)")
+      SQLMetrics.createNanoTimingMetric(sparkContext, "time of broadcast input")
     } else {
       // For other occasions, e.g. fallback, union, the time of the previous pipeline is inclusive.
-      SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "time of input iterator (previous pipeline time inclusive)")
+      SQLMetrics.createNanoTimingMetric(sparkContext, "time of operator input")
     }
 
     Map(
