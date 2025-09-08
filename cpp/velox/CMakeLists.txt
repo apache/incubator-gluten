@@ -278,10 +278,6 @@ import_library(facebook::velox ${VELOX_BUILD_PATH}/lib/libvelox.a)
 if(BUILD_TESTS)
   add_duckdb()
 
-  import_library(facebook::velox::dbgen
-                 ${VELOX_BUILD_PATH}/velox/tpch/gen/dbgen/libdbgen.a)
-  target_link_libraries(facebook::velox INTERFACE facebook::velox::dbgen)
-
   import_library(
     facebook::velox::vector_test_lib
     ${VELOX_BUILD_PATH}/velox/vector/tests/utils/libvelox_vector_test_lib.a)
