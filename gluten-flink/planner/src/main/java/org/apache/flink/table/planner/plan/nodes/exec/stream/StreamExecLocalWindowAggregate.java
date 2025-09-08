@@ -219,7 +219,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
             slide,
             offset,
             windowType,
-            outputType);
+            outputType,
+            rowtimeIndex);
     final OneInputStreamOperator localAggOperator =
         new GlutenVectorOneInputOperator(
             new StatefulPlanNode(windowAgg.getId(), windowAgg),

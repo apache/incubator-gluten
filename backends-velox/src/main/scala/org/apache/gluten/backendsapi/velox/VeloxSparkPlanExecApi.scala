@@ -32,7 +32,7 @@ import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEva
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.{GenShuffleReaderParameters, GenShuffleWriterParameters, GlutenShuffleReaderWrapper, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
@@ -590,6 +590,11 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     ShuffleUtil.genColumnarShuffleWriter(parameters)
   }
 
+  override def genColumnarShuffleReader[K, C](
+      parameters: GenShuffleReaderParameters[K, C]): GlutenShuffleReaderWrapper[K, C] = {
+    ShuffleUtil.genColumnarShuffleReader(parameters)
+  }
+
   override def createColumnarWriteFilesExec(
       child: WriteFilesExecTransformer,
       noop: SparkPlan,
@@ -1047,5 +1052,13 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       throw new UnsupportedOperationException(s"Not support expression TimestampDiff.")
     }
     TimestampDiffTransformer(substraitExprName, extract.get, left, right, original)
+  }
+
+  override def genToUnixTimestampTransformer(
+      substraitExprName: String,
+      timeExp: ExpressionTransformer,
+      format: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    ToUnixTimestampTransformer(substraitExprName, timeExp, format, original)
   }
 }

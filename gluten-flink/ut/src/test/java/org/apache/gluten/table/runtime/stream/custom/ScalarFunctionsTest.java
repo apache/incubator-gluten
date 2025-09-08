@@ -162,6 +162,25 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
   }
 
   @Test
+  void testReinterpret() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, 1L, "2025-06-24 10:00:01", "1991-01-01 00:00:01"),
+            Row.of(2, 2L, "2025-06-24 10:00:02", "1991-01-01 00:00:01"),
+            Row.of(3, 3L, "2025-06-24 10:00:03", "1991-01-01 00:00:01"));
+    createSimpleBoundedValuesTable(
+        "tblReinterpret",
+        "a int, b bigint, c string, d string, "
+            + "e as case when a = 1 then cast(c as Timestamp(3)) else cast(d as Timestamp(3)) end, "
+            + "WATERMARK FOR e AS e - INTERVAL '1' SECOND",
+        rows);
+    String query1 = "select e from tblReinterpret where a = 1";
+    runAndCheck(query1, Arrays.asList("+I[2025-06-24T10:00:01]"));
+    String query2 = "select e from tblReinterpret where a = 2";
+    runAndCheck(query2, Arrays.asList("+I[1991-01-01T00:00:01]"));
+  }
+
+  @Test
   void testDecimal() {
     List<Row> rows =
         Arrays.asList(

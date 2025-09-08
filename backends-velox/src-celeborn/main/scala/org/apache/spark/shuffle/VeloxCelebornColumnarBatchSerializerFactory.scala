@@ -16,12 +16,9 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.backendsapi.velox.VeloxBackend
-
 import org.apache.spark.shuffle.gluten.celeborn.CelebornColumnarBatchSerializerFactory
 
 class VeloxCelebornColumnarBatchSerializerFactory extends CelebornColumnarBatchSerializerFactory {
-  override def backendName(): String = VeloxBackend.BACKEND_NAME
 
   override def columnarBatchSerializerClass(): String =
     "org.apache.spark.shuffle.CelebornColumnarBatchSerializer"

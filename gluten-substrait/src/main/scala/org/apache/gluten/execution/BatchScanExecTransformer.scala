@@ -128,8 +128,6 @@ abstract class BatchScanExecTransformerBase(
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
-  override def outputAttributes(): Seq[Attribute] = output
-
   // With storage partition join, the return partition type is changed, so as SplitInfo
   def getPartitionsWithIndex: Seq[Seq[InputPartition]] = finalPartitions
 

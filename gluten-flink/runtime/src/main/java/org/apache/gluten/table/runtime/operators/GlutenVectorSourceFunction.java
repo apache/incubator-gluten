@@ -31,6 +31,11 @@ import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
+import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
@@ -45,7 +50,8 @@ import java.util.Map;
  * Gluten legacy source function, call velox plan to execute. It sends RowVector to downstream
  * instead of RowData to avoid data convert.
  */
-public class GlutenVectorSourceFunction extends RichParallelSourceFunction<StatefulElement> {
+public class GlutenVectorSourceFunction extends RichParallelSourceFunction<StatefulElement>
+    implements CheckpointedFunction, CheckpointListener {
   private static final Logger LOG = LoggerFactory.getLogger(GlutenVectorSourceFunction.class);
 
   private final StatefulPlanNode planNode;
@@ -56,8 +62,9 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
 
   private Session session;
   private Query query;
-  BufferAllocator allocator;
+  private BufferAllocator allocator;
   private MemoryManager memoryManager;
+  private SerialTask task;
 
   public GlutenVectorSourceFunction(
       StatefulPlanNode planNode,
@@ -88,16 +95,23 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   }
 
   @Override
+  public void open(Configuration parameters) throws Exception {
+    System.out.println("InitializeState GlutenSourceFunction");
+    if (memoryManager == null) {
+      memoryManager = MemoryManager.create(AllocationListener.NOOP);
+      session = Velox4j.newSession(memoryManager);
+      query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
+      allocator = new RootAllocator(Long.MAX_VALUE);
+
+      task = session.queryOps().execute(query);
+      task.addSplit(id, split);
+      task.noMoreSplits(id);
+    }
+  }
+
+  @Override
   public void run(SourceContext<StatefulElement> sourceContext) throws Exception {
     LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
-    memoryManager = MemoryManager.create(AllocationListener.NOOP);
-    session = Velox4j.newSession(memoryManager);
-    query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
-    allocator = new RootAllocator(Long.MAX_VALUE);
-
-    SerialTask task = session.queryOps().execute(query);
-    task.addSplit(id, split);
-    task.noMoreSplits(id);
     while (isRunning) {
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
@@ -125,5 +139,40 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   @Override
   public void cancel() {
     isRunning = false;
+  }
+
+  @Override
+  public void snapshotState(FunctionSnapshotContext context) throws Exception {
+    // TODO: implement it
+    this.task.snapshotState(0);
+  }
+
+  @Override
+  public void initializeState(FunctionInitializationContext context) throws Exception {
+    if (memoryManager == null) {
+      memoryManager = MemoryManager.create(AllocationListener.NOOP);
+      session = Velox4j.newSession(memoryManager);
+      query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
+      allocator = new RootAllocator(Long.MAX_VALUE);
+
+      task = session.queryOps().execute(query);
+      task.addSplit(id, split);
+      task.noMoreSplits(id);
+    }
+    System.out.println("InitializeState GlutenSourceFunction");
+    // TODO: implement it
+    this.task.initializeState(0);
+  }
+
+  @Override
+  public void notifyCheckpointComplete(long checkpointId) throws Exception {
+    // TODO: notify velox
+    this.task.notifyCheckpointComplete(checkpointId);
+  }
+
+  @Override
+  public void notifyCheckpointAborted(long checkpointId) throws Exception {
+    // TODO: notify velox
+    this.task.notifyCheckpointAborted(checkpointId);
   }
 }

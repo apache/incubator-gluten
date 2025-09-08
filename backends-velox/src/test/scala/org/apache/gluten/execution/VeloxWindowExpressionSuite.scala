@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.VeloxConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
@@ -25,6 +27,7 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
+  import testImplicits._
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -136,6 +139,35 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
           |""".stripMargin
       ) {
         checkGlutenOperatorMatch[WindowExecTransformer]
+      }
+    }
+  }
+
+  test("rewrite unbounded window") {
+    withSQLConf(VeloxConfig.ENABLE_REWRITE_UNBOUNDED_WINDOW.key -> "true") {
+      withTable("t") {
+        Seq((1, "a", 1), (2, "a", 1), (3, null, 2), (4, "b", 3))
+          .toDF("c1", "c2", "c3")
+          .write
+          .saveAsTable("t")
+        runQueryAndCompare("SELECT c1, c2, SUM(c1) OVER (PARTITION BY c2) as sum FROM t") {
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+        }
+        runQueryAndCompare("SELECT c1, c2, SUM(c1) OVER (PARTITION BY c2, c3) as sum FROM t") {
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+        }
+        runQueryAndCompare("SELECT c1, c2, SUM(c1) OVER () as sum FROM t") {
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+        }
+        runQueryAndCompare("SELECT c1, c2, SUM(c1) OVER (PARTITION BY c3/2) as sum FROM t") {
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+        }
+        runQueryAndCompare("""
+                             |SELECT c1, c2, SUM(c1) OVER (PARTITION BY c2) as sum1,
+                             | SUM(c1) OVER (PARTITION BY c2) as sum2 FROM t
+                             |""".stripMargin) {
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+        }
       }
     }
   }
