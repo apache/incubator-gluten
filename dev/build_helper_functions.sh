@@ -137,11 +137,6 @@ function cmake_install {
     "$@"
 
   cmake --build "${BINARY_DIR}"
-  if [ -z "${SUDO}" ]; then
-    if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-      SUDO="sudo"
-    fi
-  fi
   ${SUDO} cmake --install "${BINARY_DIR}"
 }
 
