@@ -541,7 +541,7 @@ object VeloxConfig {
       .internal()
       .doc("Experimental: abandon hashmap build if duplicated rows are more than this pct.")
       .doubleConf
-      .createWithDefault(0)
+      .createWithDefault(100)
 
   val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
     .doc("Enable query tracing flag.")
