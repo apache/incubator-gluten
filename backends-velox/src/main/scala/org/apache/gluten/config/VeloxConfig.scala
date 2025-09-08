@@ -513,7 +513,6 @@ object VeloxConfig {
 
   val AWS_S3_CONNECT_TIMEOUT =
     buildConf("spark.gluten.velox.fs.s3a.connect.timeout")
-      .internal()
       .doc("Timeout for AWS s3 connection.")
       .stringConf
       .createWithDefault("200s")
