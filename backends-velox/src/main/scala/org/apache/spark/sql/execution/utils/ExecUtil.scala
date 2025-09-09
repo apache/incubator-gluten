@@ -156,8 +156,7 @@ object ExecUtil {
                     ArrowBufferAllocators.contextInstance(),
                     targetBatch,
                     batchType
-                  ),
-                  ColumnarBatches.identifyBatchType(targetBatch))
+                  ))
                 val newBatch = VeloxColumnarBatches.compose(pidBatch, cb)
                 // Composed batch already hold pidBatch's shared ref, so close is safe.
                 ColumnarBatches.forceClose(pidBatch)

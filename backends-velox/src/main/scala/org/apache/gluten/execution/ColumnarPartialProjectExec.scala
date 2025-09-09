@@ -245,10 +245,10 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
     val targetBatch = new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), numRows)
     val start2 = System.currentTimeMillis()
     val targetBatchType = ColumnarBatches.identifyBatchType(targetBatch)
-    val offloaded =
-      ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), targetBatch, targetBatchType)
     val veloxBatch =
-      VeloxColumnarBatches.toVeloxBatch(offloaded, ColumnarBatches.identifyBatchType(offloaded))
+      VeloxColumnarBatches.toVeloxBatch(
+        ColumnarBatches
+          .offload(ArrowBufferAllocators.contextInstance(), targetBatch, targetBatchType))
     a2c += System.currentTimeMillis() - start2
     Iterators
       .wrap(Iterator.single(veloxBatch))

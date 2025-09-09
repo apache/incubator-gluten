@@ -49,6 +49,11 @@ public final class VeloxColumnarBatches {
             ColumnarBatches.getComprehensiveLightBatchType(batch, batchType)));
   }
 
+  public static ColumnarBatch toVeloxBatch(ColumnarBatch input) {
+    ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(input);
+    return toVeloxBatch(input, batchType);
+  }
+
   public static ColumnarBatch toVeloxBatch(
       ColumnarBatch input, ColumnarBatches.BatchType batchType) {
     ColumnarBatches.checkOffloaded(batchType);

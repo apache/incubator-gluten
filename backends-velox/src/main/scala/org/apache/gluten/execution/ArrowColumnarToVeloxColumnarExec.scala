@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.ArrowNativeBatchType
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
-import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
+import org.apache.gluten.columnarbatch.VeloxColumnarBatches
 
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -26,12 +26,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class ArrowColumnarToVeloxColumnarExec(override val child: SparkPlan)
   extends ColumnarToColumnarExec(ArrowNativeBatchType, VeloxBatchType) {
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    in.map {
-      b =>
-        val batchType = ColumnarBatches.identifyBatchType(b)
-        val out = VeloxColumnarBatches.toVeloxBatch(b, batchType)
-        out
-    }
+    in.map(VeloxColumnarBatches.toVeloxBatch(_))
   }
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     ArrowColumnarToVeloxColumnarExec(child = newChild)

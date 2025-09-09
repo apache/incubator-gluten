@@ -219,20 +219,12 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
             col2.putInt(j, 15 - j);
             col3.putBoolean(j, j % 2 == 0);
           }
-          ColumnarBatch offloadedBatch1 =
-              ColumnarBatches.offload(
-                  ArrowBufferAllocators.contextInstance(),
-                  batch1,
-                  ColumnarBatches.identifyBatchType(batch1));
-          ColumnarBatch offloadedBatch2 =
-              ColumnarBatches.offload(
-                  ArrowBufferAllocators.contextInstance(),
-                  batch2,
-                  ColumnarBatches.identifyBatchType(batch2));
-          VeloxColumnarBatches.toVeloxBatch(
-              batch1, ColumnarBatches.identifyBatchType(offloadedBatch1));
-          VeloxColumnarBatches.toVeloxBatch(
-              batch2, ColumnarBatches.identifyBatchType(offloadedBatch2));
+          ColumnarBatches.BatchType batchType1 = ColumnarBatches.identifyBatchType(batch1);
+          ColumnarBatches.BatchType batchType2 = ColumnarBatches.identifyBatchType(batch2);
+          ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch1, batchType1);
+          ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch2, batchType2);
+          VeloxColumnarBatches.toVeloxBatch(batch1);
+          VeloxColumnarBatches.toVeloxBatch(batch2);
           final ColumnarBatch batch3 = VeloxColumnarBatches.compose(batch1, batch2);
           final ColumnarBatches.BatchType batchType3 = ColumnarBatches.identifyBatchType(batch3);
           Assert.assertEquals(
