@@ -51,6 +51,13 @@ private[gluten] case class ConfigBuilder(key: String) {
     this
   }
 
+  /**
+   * This method marks a config as internal for any of the following reasons:
+   *   - Intended exclusively for developers or advanced users
+   *   - Experimental or unstable, not yet exposed to end users
+   *   - Allows for flexibility in development and testing without compromising the public API's
+   *     stability
+   */
   def internal(): ConfigBuilder = {
     _public = false
     this
