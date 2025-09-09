@@ -18,12 +18,7 @@
 set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-SUDO="${sudo:-""}"
-if [ -z "${SUDO}" ]; then
-  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-    SUDO="sudo"
-  fi
-fi
+SUDO="${SUDO:-""}"
 source ${CURRENT_DIR}/build_helper_functions.sh
 VELOX_ARROW_BUILD_VERSION=15.0.0
 ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
