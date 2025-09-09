@@ -485,7 +485,8 @@ object GlutenConfig {
     "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace",
     "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
     "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
-    "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
+    "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks",
+    "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes"
   )
 
   /**

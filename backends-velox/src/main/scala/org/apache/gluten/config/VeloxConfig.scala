@@ -80,6 +80,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled &&
     getConf(ENABLE_ENHANCED_FEATURES)
+
+  def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
 }
 
 object VeloxConfig {
@@ -702,4 +704,10 @@ object VeloxConfig {
       .doc("Enable some features including iceberg native write and other features.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_VELOX_PREFERRED_BATCH_BYTES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.preferredBatchBytes")
+      .internal()
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("10MB")
 }
