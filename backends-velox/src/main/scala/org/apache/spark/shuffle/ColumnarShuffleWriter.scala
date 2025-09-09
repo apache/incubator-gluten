@@ -200,9 +200,8 @@ class ColumnarShuffleWriter[K, V](
         }
 
         val rows = cb.numRows()
-        val batchType = ColumnarBatches.identifyBatchType(cb)
         val columnarBatchHandle =
-          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb, batchType)
+          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
         val startTime = System.nanoTime()
         shuffleWriterJniWrapper.write(
           nativeShuffleWriter,

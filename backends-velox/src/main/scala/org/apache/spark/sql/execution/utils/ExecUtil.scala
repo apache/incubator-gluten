@@ -47,9 +47,7 @@ object ExecUtil {
       Runtimes.contextInstance(BackendsApiManager.getBackendName, "ExecUtil#ColumnarToRow")
     val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
     var info: NativeColumnarToRowInfo = null
-    val batchType = ColumnarBatches.identifyBatchType(batch)
-    val batchHandle =
-      ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch, batchType)
+    val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
     val c2rHandle = jniWrapper.nativeColumnarToRowInit()
     info = jniWrapper.nativeColumnarToRowConvert(c2rHandle, batchHandle, 0)
 

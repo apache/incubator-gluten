@@ -43,9 +43,7 @@ case class IcebergColumnarBatchDataWriter(
   }
 
   override def write(batch: ColumnarBatch): Unit = {
-    val batchType = ColumnarBatches.identifyBatchType(batch)
-    val batchHandle =
-      ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch, batchType)
+    val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
     jniWrapper.write(writer, batchHandle)
   }
 

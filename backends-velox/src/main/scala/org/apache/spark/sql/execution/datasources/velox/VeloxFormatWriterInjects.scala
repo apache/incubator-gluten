@@ -114,9 +114,7 @@ class VeloxRowSplitter extends GlutenRowSplitter {
       partitionColIndice: Array[Int],
       hasBucket: Boolean,
       reservePartitionColumns: Boolean = false): BlockStripes = {
-    val batchType = ColumnarBatches.identifyBatchType(batch)
-    val handler =
-      ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch, batchType)
+    val handler = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
     val runtime =
       Runtimes.contextInstance(BackendsApiManager.getBackendName, "VeloxRowSplitter")
     val datasourceJniWrapper = VeloxDataSourceJniWrapper.create(runtime)

@@ -404,6 +404,11 @@ public final class ColumnarBatches {
     return (IndicatorVector) input.column(0);
   }
 
+  public static long getNativeHandle(String backendName, ColumnarBatch batch) {
+    BatchType batchType = ColumnarBatches.identifyBatchType(batch);
+    return getNativeHandle(backendName, batch, batchType);
+  }
+
   public static long getNativeHandle(String backendName, ColumnarBatch batch, BatchType batchType) {
     if (isZeroColumnBatch(batchType)) {
       final ColumnarBatchJniWrapper jniWrapper =

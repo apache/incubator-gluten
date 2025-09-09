@@ -204,8 +204,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
         }
         long startTime = System.nanoTime();
         long columnarBatchHandle =
-            ColumnarBatches.getNativeHandle(
-                BackendsApiManager.getBackendName(), cb, ColumnarBatches.identifyBatchType(cb));
+            ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), cb);
         long bytes =
             shuffleWriterJniWrapper.write(
                 nativeShuffleWriter, cb.numRows(), columnarBatchHandle, availableOffHeapPerTask());

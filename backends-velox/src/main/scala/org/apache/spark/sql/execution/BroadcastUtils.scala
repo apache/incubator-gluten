@@ -172,9 +172,7 @@ object BroadcastUtils {
     val values = filtered
       .map(
         b => {
-          val batchType = ColumnarBatches.identifyBatchType(b)
-          val handle =
-            ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b, batchType)
+          val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
           numRows += b.numRows()
           try {
             ColumnarBatchSerializerJniWrapper
