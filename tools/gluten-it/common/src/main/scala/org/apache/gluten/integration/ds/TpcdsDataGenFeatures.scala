@@ -22,7 +22,7 @@ import org.apache.spark.sql.SparkSession
 
 object TpcdsDataGenFeatures {
   object EnableDeltaDeletionVector extends DataGen.Feature {
-    override def name(): String = "dv_enabled"
+    override def name(): String = "enable_dv"
     override def run(spark: SparkSession, source: String): Unit = {
       require(
         source == "delta",
@@ -42,7 +42,7 @@ object TpcdsDataGenFeatures {
   }
 
   object DeleteTenPercentData extends DataGen.Feature {
-    override def name(): String = "10pc_deleted"
+    override def name(): String = "delete_10pc"
     override def run(spark: SparkSession, source: String): Unit = {
       require(
         source == "delta",

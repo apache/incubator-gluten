@@ -95,7 +95,7 @@ public class BaseMixin {
   @CommandLine.Option(
       names = {"--data-gen-features"},
       description =
-          "Set a comma-separated list of data generator features to enable. Example: --queries=dv_enabled,10pc_deleted",
+          "Set a comma-separated list of data generator features to enable. Example: --queries=enable_dv,delete_10pc",
       split = ",")
   private String[] dataGenFeatures = new String[0];
 
