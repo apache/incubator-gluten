@@ -96,7 +96,6 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    System.out.println("InitializeState GlutenSourceFunction");
     if (memoryManager == null) {
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
@@ -159,7 +158,6 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
       task.addSplit(id, split);
       task.noMoreSplits(id);
     }
-    System.out.println("InitializeState GlutenSourceFunction");
     // TODO: implement it
     this.task.initializeState(0);
   }

@@ -438,11 +438,14 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     } else {
 
       /**
-       * the whole stage contains NO [[LeafTransformSupport]]. this the default case for:
-       *   1. SCAN with clickhouse backend (check ColumnarCollapseTransformStages#separateScanRDD())
-       *      2. test case where query plan is constructed from simple dataframes (e.g.
-       *      GlutenDataFrameAggregateSuite) in these cases, separate RDDs takes care of SCAN as a
-       *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked
+       * the whole stage contains NO [[LeafTransformSupport]]. This is the default case for:
+       *   - SCAN of clickhouse backend. See
+       *     BackendsApiManager.getSettings.excludeScanExecFromCollapsedStage.
+       *   - Test case where query plan is constructed from simple DataFrames, e.g.
+       *     GlutenDataFrameAggregateSuite.
+       *
+       * In these cases, separate RDDs take care of SCAN. As a result, genFinalStageIterator rather
+       * than genFirstStageIterator will be invoked.
        */
       new WholeStageZippedPartitionsRDD(
         sparkContext,

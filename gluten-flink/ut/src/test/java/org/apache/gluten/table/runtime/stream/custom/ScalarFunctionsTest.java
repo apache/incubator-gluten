@@ -28,7 +28,6 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
-@Disabled("Need to apply for the new interface of gluten operator")
 class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
   @Override
@@ -130,6 +129,7 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
   }
 
+  @Disabled
   @Test
   void testReinterpret() {
     List<Row> rows =
