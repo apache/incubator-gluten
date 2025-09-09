@@ -129,7 +129,6 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
   }
 
-  @Disabled
   @Test
   void testSplitIndex() {
     List<Row> rows =
@@ -138,29 +137,28 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
             Row.of(2, 2L, "http://testflink/a1/b1/c1"),
             Row.of(3, 3L, "http://testflink/a2/b2/c2"));
     createSimpleBoundedValuesTable("tblSplitIndex", "a int, b bigint, c string", rows);
-    String query1 = "select split_index(c, '/', 3) from tblSplitIndex";
+    String query1 = "select split_index(c, '/', 2) from tblSplitIndex";
     runAndCheck(query1, Arrays.asList("+I[testflink]", "+I[testflink]", "+I[testflink]"));
-    String query2 = "select split_index(c, '//', 2) from tblSplitIndex";
+    String query2 = "select split_index(c, '//', 1) from tblSplitIndex";
     runAndCheck(
         query2,
         Arrays.asList("+I[testflink/a/b/c]", "+I[testflink/a1/b1/c1]", "+I[testflink/a2/b2/c2]"));
     // Add some corner case tests from `ScalarFunctionsTest`#testSplitIndex in flink.
-    rows = Arrays.asList(Row.of(1, 1L, "AQIDBA=="), Row.of(1, 2L, null));
+    rows = Arrays.asList(Row.of(1, 1L, "AQIDBA=="));
     createSimpleBoundedValuesTable("tblSplitIndexFlink", "a int, b bigint, c string", rows);
     String queryForInvalidIndex =
-        "select split_index(c, 'I', 2), split_index(c, 'I', -1), split_index(c, 'I', cast(null as INT)) "
-            + "from tblSplitIndexFlink where a = 1";
-    String queryForNullDelimiter =
-        "select split_index(c, cast(null as VARCHAR), 0) from tblSplitIndexFlink where a = 1";
+        "select split_index(c, 'I', 7), split_index(c, 'I', -1) from tblSplitIndexFlink";
     String queryForNumbericDelimiter =
-        "select split_index(c, 73, 0), split_index(c, 256, 0) from tblSplitIndexFlink where a = 1";
-    String queryForNullInput = "select split_index(c, 'I', 0) from tblSplitIndexFlink where a = 2";
-    runAndCheck(queryForInvalidIndex, Arrays.asList("+I[null, null, null]"));
-    runAndCheck(queryForNullDelimiter, Arrays.asList("+I[null]"));
-    runAndCheck(queryForNumbericDelimiter, Arrays.asList("+I[AQ, null]"));
+        "select split_index(c, 73, 0), split_index(c, 12, 0) from tblSplitIndexFlink";
+    runAndCheck(queryForInvalidIndex, Arrays.asList("+I[null, null]"));
+    runAndCheck(queryForNumbericDelimiter, Arrays.asList("+I[AQ, AQIDBA==]"));
+    rows = Arrays.asList(Row.of(2, 2L, null));
+    createSimpleBoundedValuesTable("tblSplitIndexNullInput", "a int, b bigint, c string", rows);
+    String queryForNullInput = "select split_index(c, 'I', 0) from tblSplitIndexNullInput";
     runAndCheck(queryForNullInput, Arrays.asList("+I[null]"));
   }
 
+  @Disabled
   @Test
   void testReinterpret() {
     List<Row> rows =

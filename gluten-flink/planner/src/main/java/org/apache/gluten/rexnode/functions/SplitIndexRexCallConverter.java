@@ -25,8 +25,10 @@ import io.github.zhztheplayer.velox4j.expression.ConstantTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.Type;
+import io.github.zhztheplayer.velox4j.type.VarCharType;
 import io.github.zhztheplayer.velox4j.variant.BigIntValue;
 import io.github.zhztheplayer.velox4j.variant.IntegerValue;
+import io.github.zhztheplayer.velox4j.variant.VarCharValue;
 
 import org.apache.calcite.rex.RexCall;
 
@@ -34,7 +36,7 @@ import java.util.List;
 
 public class SplitIndexRexCallConverter extends BaseRexCallConverter {
 
-  private static final String FUNCTION_NAME = "split_part";
+  private static final String FUNCTION_NAME = "split_index";
 
   public SplitIndexRexCallConverter() {
     super(FUNCTION_NAME);
@@ -43,12 +45,25 @@ public class SplitIndexRexCallConverter extends BaseRexCallConverter {
   @Override
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
-    ConstantTypedExpr indexExpr = (ConstantTypedExpr) params.get(params.size() - 1);
+    ConstantTypedExpr delimiterExpr = (ConstantTypedExpr) params.get(1);
+    ConstantTypedExpr indexExpr = (ConstantTypedExpr) params.get(2);
+    // The delimiter may be input by its ascii, so here we need to judge it and convert it
+    // from ascii to string.
+    if (TypeUtils.isIntegerType(delimiterExpr.getReturnType())) {
+      IntegerValue intValue = (IntegerValue) delimiterExpr.getValue();
+      int val = intValue.getValue();
+      VarCharValue varcharValue = new VarCharValue(Character.toString((char) val));
+      delimiterExpr = new ConstantTypedExpr(new VarCharType(), varcharValue, null);
+      params.set(1, delimiterExpr);
+    }
+
     if (TypeUtils.isIntegerType(indexExpr.getReturnType())) {
       IntegerValue intValue = (IntegerValue) indexExpr.getValue();
-      BigIntValue bigintValue = new BigIntValue(intValue.getValue());
+      // The `Index` parameter start from 0, and it is `Int` type in flink; while it start from 1,
+      // and it is `BigInt(int64_t)` type in velox. So we need convert the `Index` parameter here.
+      BigIntValue bigintValue = new BigIntValue(intValue.getValue() + 1);
       indexExpr = new ConstantTypedExpr(new BigIntType(), bigintValue, null);
-      params = List.of(params.get(0), params.get(1), indexExpr);
+      params.set(2, indexExpr);
     }
     Type resultType = RexNodeConverter.toType(callNode.getType());
     return new CallTypedExpr(resultType, params, functionName);
