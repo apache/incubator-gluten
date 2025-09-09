@@ -29,14 +29,18 @@ import java.sql.Date
 import scala.collection.JavaConverters._
 
 class TpchDataGen(
-    val spark: SparkSession,
+    spark: SparkSession,
     scale: Double,
     partitions: Int,
     source: String,
     dir: String,
-    typeModifiers: List[TypeModifier] = List())
+    featureNames: Seq[String],
+    typeModifiers: Seq[TypeModifier])
   extends Serializable
   with DataGen {
+
+  private val featureRegistry = new DataGen.FeatureRegistry
+  private val features = featureNames.map(featureRegistry.getFeature)
 
   override def gen(): Unit = {
     generate(dir, "lineitem", lineItemSchema, partitions, lineItemGenerator, lineItemParser)
@@ -53,6 +57,12 @@ class TpchDataGen(
     generate(dir, "nation", nationSchema, nationGenerator, nationParser)
     generate(dir, "part", partSchema, partitions, partGenerator, partParser)
     generate(dir, "region", regionSchema, regionGenerator, regionParser)
+
+    features.foreach {
+      feature =>
+        println(s"Execute feature: ${feature.name()}")
+        feature.run(spark, source)
+    }
   }
 
   // lineitem
@@ -339,6 +349,7 @@ class TpchDataGen(
       .write
       .format(source)
       .mode(SaveMode.Overwrite)
-      .save(dir + File.separator + tableName)
+      .option("path", dir + File.separator + tableName) // storage location
+      .saveAsTable(tableName)
   }
 }
