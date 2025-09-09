@@ -33,6 +33,7 @@ private[gluten] case class ConfigBuilder(key: String) {
   private[config] var _version = ""
   private[config] var _backend = BackendType.COMMON
   private[config] var _public = true
+  private[config] var _experimental = false
   private[config] var _alternatives = List.empty[String]
   private[config] var _onCreate: Option[ConfigEntry[_] => Unit] = None
 
@@ -60,6 +61,11 @@ private[gluten] case class ConfigBuilder(key: String) {
    */
   def internal(): ConfigBuilder = {
     _public = false
+    this
+  }
+
+  def experimental(): ConfigBuilder = {
+    _experimental = true
     this
   }
 
@@ -103,7 +109,15 @@ private[gluten] case class ConfigBuilder(key: String) {
 
   def fallbackConf[T](fallback: ConfigEntry[T]): ConfigEntry[T] = {
     val entry =
-      new ConfigEntryFallback[T](key, _doc, _version, _backend, _public, _alternatives, fallback)
+      new ConfigEntryFallback[T](
+        key,
+        _doc,
+        _version,
+        _backend,
+        _public,
+        _experimental,
+        _alternatives,
+        fallback)
     _onCreate.foreach(_(entry))
     entry
   }
@@ -189,6 +203,7 @@ private[gluten] class TypedConfigBuilder[T](
       parent._version,
       parent._backend,
       parent._public,
+      parent._experimental,
       parent._alternatives,
       converter,
       stringConverter)
@@ -208,10 +223,12 @@ private[gluten] class TypedConfigBuilder[T](
           parent._version,
           parent._backend,
           parent._public,
+          parent._experimental,
           parent._alternatives,
           converter,
           stringConverter,
-          transformedDefault)
+          transformedDefault
+        )
         parent._onCreate.foreach(_(entry))
         entry
     }
@@ -224,6 +241,7 @@ private[gluten] class TypedConfigBuilder[T](
       parent._version,
       parent._backend,
       parent._public,
+      parent._experimental,
       parent._alternatives,
       converter,
       stringConverter,

@@ -70,3 +70,9 @@ nav_order: 16
 | spark.gluten.velox.castFromVarcharAddTrimNode                                    | false             | If true, will add a trim node which has the same sementic as vanilla Spark to CAST-from-varchar.Otherwise, do nothing.                                                                                                                                                                                                                                                                                                                                |
 | spark.gluten.velox.fs.s3a.connect.timeout                                        | 200s              | Timeout for AWS s3 connection.                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
+## Gluten Velox backend *experimental* configurations
+
+|                           Key                            | Default |                                                               Description                                                               |
+|----------------------------------------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| spark.gluten.velox.offHeapBroadcastBuildRelation.enabled | false   | Experimental: If enabled, broadcast build relation will use offheap memory. Otherwise, broadcast build relation will use onheap memory. |
+

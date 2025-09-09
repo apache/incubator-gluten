@@ -1491,6 +1491,7 @@ object GlutenConfig {
   val AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED =
     buildConf("spark.gluten.auto.adjustStageResource.enabled")
       .internal()
+      .experimental()
       .doc("Experimental: If enabled, gluten will try to set the stage resource according " +
         "to stage execution plan. Only worked when aqe is enabled at the same time!!")
       .booleanConf
@@ -1499,6 +1500,7 @@ object GlutenConfig {
   val AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO =
     buildConf("spark.gluten.auto.adjustStageResources.heap.ratio")
       .internal()
+      .experimental()
       .doc("Experimental: Increase executor heap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(2.0d)
@@ -1506,6 +1508,7 @@ object GlutenConfig {
   val AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO =
     buildConf("spark.gluten.auto.adjustStageResources.offheap.ratio")
       .internal()
+      .experimental()
       .doc("Experimental: Decrease executor offheap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(0.5d)
@@ -1513,6 +1516,7 @@ object GlutenConfig {
   val AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD =
     buildConf("spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold")
       .internal()
+      .experimental()
       .doc("Experimental: Increase executor heap memory when stage contains fallen node " +
         "count exceeds the total node count ratio.")
       .doubleConf
@@ -1541,6 +1545,7 @@ object GlutenConfig {
   val COLUMNAR_CUDF_ENABLED =
     buildConf("spark.gluten.sql.columnar.cudf")
       .internal()
+      .experimental()
       .doc("Enable or disable cudf support. This is an experimental feature.")
       .booleanConf
       .createWithDefault(false)

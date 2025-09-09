@@ -196,6 +196,7 @@ object GlutenCoreConfig {
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
       .internal()
+      .experimental()
       .doc(
         "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
           "be ignored and instead we will consider onheap and offheap memory in combination, " +
@@ -214,6 +215,7 @@ object GlutenCoreConfig {
   val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
       .internal()
+      .experimental()
       .doc(
         "Experimental: Determines the memory fraction used to determine the total " +
           "memory available for offheap and onheap allocations when the dynamic offheap " +
