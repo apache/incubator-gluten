@@ -121,6 +121,11 @@ public final class ColumnarBatches {
    * This method will always return a velox based ColumnarBatch. This method will close the input
    * column batch.
    */
+  public static ColumnarBatch select(String backendName, ColumnarBatch batch, int[] columnIndices) {
+    BatchType batchType = identifyBatchType(batch);
+    return select(backendName, batch, batchType, columnIndices);
+  }
+
   public static ColumnarBatch select(
       String backendName, ColumnarBatch batch, BatchType batchType, int[] columnIndices) {
     final Runtime runtime = Runtimes.contextInstance(backendName, "ColumnarBatches#select");
@@ -143,8 +148,8 @@ public final class ColumnarBatches {
    * Ensure the input batch is offloaded as native-based columnar batch (See {@link IndicatorVector}
    * and {@link PlaceholderVector}). This method will close the input column batch after offloaded.
    */
-  static ColumnarBatch ensureOffloaded(
-      BufferAllocator allocator, ColumnarBatch batch, ColumnarBatches.BatchType batchType) {
+  static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
+    ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(batch);
     if (ColumnarBatches.isLightBatch(batchType)) {
       return batch;
     }
@@ -182,6 +187,11 @@ public final class ColumnarBatches {
       default:
         throw new IllegalArgumentException("Input batch is not offloaded");
     }
+  }
+
+  public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
+    ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(input);
+    return load(allocator, input, batchType);
   }
 
   public static ColumnarBatch load(
@@ -232,6 +242,11 @@ public final class ColumnarBatches {
 
       return output;
     }
+  }
+
+  public static ColumnarBatch offload(BufferAllocator allocator, ColumnarBatch input) {
+    BatchType batchType = ColumnarBatches.identifyBatchType(input);
+    return offload(allocator, input, batchType);
   }
 
   public static ColumnarBatch offload(
@@ -374,6 +389,11 @@ public final class ColumnarBatches {
     return create(IndicatorVector.obtain(nativeHandle));
   }
 
+  public static void retain(ColumnarBatch b) {
+    BatchType batchType = ColumnarBatches.identifyBatchType(b);
+    retain(b, batchType);
+  }
+
   public static void retain(ColumnarBatch b, BatchType type) {
     switch (type) {
       case LIGHT:
@@ -417,6 +437,11 @@ public final class ColumnarBatches {
       return jniWrapper.getForEmptySchema(batch.numRows());
     }
     return getIndicatorVector(batch, batchType).handle();
+  }
+
+  static String getComprehensiveLightBatchType(ColumnarBatch batch) {
+    ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(batch);
+    return getComprehensiveLightBatchType(batch, batchType);
   }
 
   static String getComprehensiveLightBatchType(ColumnarBatch batch, BatchType batchType) {

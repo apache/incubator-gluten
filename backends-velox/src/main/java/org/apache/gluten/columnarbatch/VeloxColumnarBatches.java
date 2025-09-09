@@ -99,10 +99,9 @@ public final class VeloxColumnarBatches {
    * Spark directly calls API ColumnarCachedBatchSerializer#convertColumnarBatchToCachedBatch for
    * query plan that returns supportsColumnar=true without generating a cache-write query plan node.
    */
-  public static ColumnarBatch ensureVeloxBatch(
-      ColumnarBatch input, ColumnarBatches.BatchType batchType) {
+  public static ColumnarBatch ensureVeloxBatch(ColumnarBatch input) {
     final ColumnarBatch light =
-        ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), input, batchType);
+        ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), input);
     ColumnarBatches.BatchType rightBatchType = ColumnarBatches.identifyBatchType(light);
     if (isVeloxBatch(light, rightBatchType)) {
       return light;
@@ -137,8 +136,7 @@ public final class VeloxColumnarBatches {
    * @return a new pruned [[ColumnarBatch]] with row count = `limit`, or the original batch if no
    *     pruning is required
    */
-  public static ColumnarBatch slice(
-      ColumnarBatch batch, ColumnarBatches.BatchType batchType, int offset, int limit) {
+  public static ColumnarBatch slice(ColumnarBatch batch, int offset, int limit) {
     int totalRows = batch.numRows();
     if (limit >= totalRows) {
       // No need to prune
@@ -148,7 +146,7 @@ public final class VeloxColumnarBatches {
           Runtimes.contextInstance(
               BackendsApiManager.getBackendName(), "VeloxColumnarBatches#sliceBatch");
       long nativeHandle =
-          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), batch, batchType);
+          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), batch);
       long handle = VeloxColumnarBatchJniWrapper.create(runtime).slice(nativeHandle, offset, limit);
       return ColumnarBatches.create(handle);
     }

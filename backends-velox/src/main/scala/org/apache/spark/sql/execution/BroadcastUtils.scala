@@ -165,7 +165,7 @@ object BroadcastUtils {
       .filter(_.numRows() != 0)
       .map(
         b => {
-          ColumnarBatches.retain(b, ColumnarBatches.identifyBatchType(b))
+          ColumnarBatches.retain(b)
           b
         })
     var numRows: Long = 0

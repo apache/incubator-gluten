@@ -149,14 +149,10 @@ object ExecUtil {
                     val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
                     pidVec.putInt(i, pid)
                 }
-                val targetBatch = new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows)
-                val batchType = ColumnarBatches.identifyBatchType(targetBatch)
                 val pidBatch = VeloxColumnarBatches.toVeloxBatch(
                   ColumnarBatches.offload(
                     ArrowBufferAllocators.contextInstance(),
-                    targetBatch,
-                    batchType
-                  ))
+                    new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows)))
                 val newBatch = VeloxColumnarBatches.compose(pidBatch, cb)
                 // Composed batch already hold pidBatch's shared ref, so close is safe.
                 ColumnarBatches.forceClose(pidBatch)

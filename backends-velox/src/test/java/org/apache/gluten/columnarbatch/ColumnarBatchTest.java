@@ -226,10 +226,9 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           VeloxColumnarBatches.toVeloxBatch(batch1);
           VeloxColumnarBatches.toVeloxBatch(batch2);
           final ColumnarBatch batch3 = VeloxColumnarBatches.compose(batch1, batch2);
-          final ColumnarBatches.BatchType batchType3 = ColumnarBatches.identifyBatchType(batch3);
           Assert.assertEquals(
               VeloxColumnarBatches.COMPREHENSIVE_TYPE_VELOX,
-              ColumnarBatches.getComprehensiveLightBatchType(batch3, batchType3));
+              ColumnarBatches.getComprehensiveLightBatchType(batch3));
 
           Assert.assertEquals(numRows, batch3.numRows());
           Assert.assertEquals(4, batch3.numCols());

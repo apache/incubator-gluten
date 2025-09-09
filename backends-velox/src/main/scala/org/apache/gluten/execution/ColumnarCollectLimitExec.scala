@@ -77,13 +77,12 @@ case class ColumnarCollectLimitExec(
 
             val needed = math.min(rowsToCollect, leftoverAfterSkip)
 
-            val batchType = ColumnarBatches.identifyBatchType(batch)
             val prunedBatch =
               if (startIndex == 0 && needed == batchSize) {
-                ColumnarBatches.retain(batch, batchType)
+                ColumnarBatches.retain(batch)
                 batch
               } else {
-                VeloxColumnarBatches.slice(batch, batchType, startIndex, needed)
+                VeloxColumnarBatches.slice(batch, startIndex, needed)
               }
 
             rowsToCollect -= needed

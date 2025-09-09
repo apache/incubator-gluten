@@ -315,12 +315,7 @@ object ArrowCSVFileFormat {
       batchSize
     )
     veloxBatch
-      .map(
-        v =>
-          ColumnarBatches.load(
-            ArrowBufferAllocators.contextInstance(),
-            v,
-            ColumnarBatches.identifyBatchType(v)))
+      .map(v => ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), v))
   }
 
   private def toAttribute(field: StructField): AttributeReference =

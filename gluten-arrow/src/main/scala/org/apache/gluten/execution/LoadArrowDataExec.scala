@@ -27,11 +27,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class LoadArrowDataExec(override val child: SparkPlan)
   extends ColumnarToColumnarExec(ArrowNativeBatchType, ArrowJavaBatchType) {
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    in.map {
-      batch =>
-        val batchType = ColumnarBatches.identifyBatchType(batch)
-        ColumnarBatches.load(ArrowBufferAllocators.contextInstance, batch, batchType)
-    }
+    in.map(b => ColumnarBatches.load(ArrowBufferAllocators.contextInstance, b))
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
