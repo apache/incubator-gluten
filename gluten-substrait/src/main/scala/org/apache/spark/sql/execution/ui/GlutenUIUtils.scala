@@ -28,16 +28,13 @@ object GlutenUIUtils {
    * Check if enabled the gluten ui, Please note that, developer should pass the gluten config if
    * call from sql module to prevent misjudgment caused by users directly setting sparkConf.
    */
-  def uiEnabled(sc: SparkContext, glutenConfig: Option[GlutenConfig] = None): Boolean = {
-    val glutenTabEnabled = if (glutenConfig.isDefined) {
-      glutenConfig.get.glutenUiEnabled
-    } else {
-      sc.getConf.getBoolean(
-        GlutenConfig.GLUTEN_UI_ENABLED.key,
-        GlutenConfig.GLUTEN_UI_ENABLED.defaultValue.get)
-    }
-    sc.ui.isDefined && glutenTabEnabled
-  }
+  def uiEnabled(sc: SparkContext, glutenConfig: Option[GlutenConfig] = None): Boolean =
+    sc.ui.isDefined && glutenConfig
+      .map(_.glutenUiEnabled)
+      .getOrElse(
+        sc.getConf.getBoolean(
+          GlutenConfig.GLUTEN_UI_ENABLED.key,
+          GlutenConfig.GLUTEN_UI_ENABLED.defaultValue.get))
 
   def postEvent(sc: SparkContext, event: GlutenEvent): Unit = {
     sc.listenerBus.post(event)
