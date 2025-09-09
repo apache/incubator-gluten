@@ -28,12 +28,15 @@
 
 namespace gluten {
 
+enum class FileSystemType : uint8_t { kHdfs, kS3, kAbfs, kGcs, kAll };
+
 std::string getConfigValue(
     const std::unordered_map<std::string, std::string>& confMap,
     const std::string& key,
     const std::optional<std::string>& fallbackValue);
 
 std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
-    std::shared_ptr<facebook::velox::config::ConfigBase> conf);
+    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
+    FileSystemType fsType = FileSystemType::kAll);
 
 } // namespace gluten

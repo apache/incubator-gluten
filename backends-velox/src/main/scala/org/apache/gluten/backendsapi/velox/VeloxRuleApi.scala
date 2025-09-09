@@ -53,14 +53,25 @@ class VeloxRuleApi extends RuleApi {
 }
 
 object VeloxRuleApi {
+
+  /**
+   * Registers Spark rules or extensions, except for Gluten's columnar rules that are supposed to be
+   * injected through [[injectLegacy]] / [[injectRas]].
+   */
   private def injectSpark(injector: SparkInjector): Unit = {
     // Inject the regular Spark rules directly.
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
     injector.injectOptimizerRule(CollapseGetJsonObjectExpressionRule.apply)
+    injector.injectOptimizerRule(RewriteCastFromArray.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
+    injector.injectOptimizerRule(RewriteUnboundedWindow.apply)
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed by default in Gluten for
+   * columnar query planning.
+   */
   private def injectLegacy(injector: LegacyInjector): Unit = {
     // Legacy: Pre-transform rules.
     injector.injectPreTransform(_ => RemoveTransitions)
@@ -132,6 +143,12 @@ object VeloxRuleApi {
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed only when RAS (relational
+   * algebra selector) is enabled by spark.gluten.ras.enabled=true.
+   *
+   * These rules are covered by CI test job spark-test-spark35-ras.
+   */
   private def injectRas(injector: RasInjector): Unit = {
     // Gluten RAS: Pre rules.
     injector.injectPreTransform(_ => RemoveTransitions)

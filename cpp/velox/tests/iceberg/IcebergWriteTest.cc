@@ -29,7 +29,7 @@ namespace gluten {
 class VeloxIcebergWriteTest : public ::testing::Test, public test::VectorTestBase {
  protected:
   static void SetUpTestCase() {
-    memory::MemoryManager::testingSetInstance({});
+    memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
     parquet::registerParquetWriterFactory();
     Type::registerSerDe();
     dwio::common::registerFileSinks();
@@ -43,11 +43,23 @@ class VeloxIcebergWriteTest : public ::testing::Test, public test::VectorTestBas
 TEST_F(VeloxIcebergWriteTest, write) {
   auto vector = makeRowVector({makeFlatVector<int8_t>({1, 2}), makeFlatVector<int16_t>({1, 2})});
   auto tmpPath = tmpDir_->getPath();
+  std::vector<connector::hive::iceberg::IcebergPartitionSpec::Field> fields;
+  auto partitionSpec = std::make_shared<const connector::hive::iceberg::IcebergPartitionSpec>(0, fields);
+
+  gluten::IcebergNestedField root;
+  root.set_id(0);
+  gluten::IcebergNestedField* child1 = root.add_children();
+  child1->set_id(1);
+  gluten::IcebergNestedField* child2 = root.add_children();
+  child2->set_id(2);
+
   auto writer = std::make_unique<IcebergWriter>(
       asRowType(vector->type()),
       1,
       tmpPath + "/iceberg_write_test_table",
       common::CompressionKind::CompressionKind_ZSTD,
+      partitionSpec,
+      root,
       std::unordered_map<std::string, std::string>(),
       pool_,
       connectorPool_);

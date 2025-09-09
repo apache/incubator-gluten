@@ -87,9 +87,10 @@ abstract class BatchScanExecTransformerBase(
     keyGroupedPartitioning,
     ordering,
     table,
-    commonPartitionValues,
-    applyPartialClustering,
-    replicatePartitions)
+    commonPartitionValues = commonPartitionValues,
+    applyPartialClustering = applyPartialClustering,
+    replicatePartitions = replicatePartitions
+  )
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -126,8 +127,6 @@ abstract class BatchScanExecTransformerBase(
   override def filterExprs(): Seq[Expression] = pushdownFilters
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
-
-  override def outputAttributes(): Seq[Attribute] = output
 
   // With storage partition join, the return partition type is changed, so as SplitInfo
   def getPartitionsWithIndex: Seq[Seq[InputPartition]] = finalPartitions

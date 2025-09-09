@@ -18,7 +18,7 @@ package org.apache.gluten.substrait.rel;
 
 import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.expression.ConverterUtils;
-import org.apache.gluten.substrait.utils.SubstraitUtil;
+import org.apache.gluten.utils.SubstraitUtil;
 
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;

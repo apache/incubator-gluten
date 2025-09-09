@@ -17,3 +17,7 @@
 package org.apache.gluten.shuffle
 
 trait SupportsColumnarShuffle
+
+trait NeedCustomColumnarBatchSerializer {
+  def columnarBatchSerializerClass(): String
+}

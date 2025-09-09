@@ -520,19 +520,19 @@ STATIC_INVOKES = {
 # Known Restrictions in Gluten.
 LOOKAROUND_UNSUPPORTED = "Lookaround unsupported"
 BINARY_TYPE_UNSUPPORTED = "BinaryType unsupported"
-GLUTEN_RESTRICTIONS = {
+KNOWN_RESTRICTIONS = {
     "scalar": {
-        "regexp": LOOKAROUND_UNSUPPORTED,
-        "regexp_like": LOOKAROUND_UNSUPPORTED,
-        "rlike": LOOKAROUND_UNSUPPORTED,
-        "regexp_extract": LOOKAROUND_UNSUPPORTED,
-        "regexp_extract_all": LOOKAROUND_UNSUPPORTED,
-        "regexp_replace": LOOKAROUND_UNSUPPORTED,
-        "contains": BINARY_TYPE_UNSUPPORTED,
-        "startswith": BINARY_TYPE_UNSUPPORTED,
-        "endswith": BINARY_TYPE_UNSUPPORTED,
-        "lpad": BINARY_TYPE_UNSUPPORTED,
-        "rpad": BINARY_TYPE_UNSUPPORTED,
+        "regexp": {LOOKAROUND_UNSUPPORTED},
+        "regexp_like": {LOOKAROUND_UNSUPPORTED},
+        "rlike": {LOOKAROUND_UNSUPPORTED},
+        "regexp_extract": {LOOKAROUND_UNSUPPORTED},
+        "regexp_extract_all": {LOOKAROUND_UNSUPPORTED},
+        "regexp_replace": {LOOKAROUND_UNSUPPORTED},
+        "contains": {BINARY_TYPE_UNSUPPORTED},
+        "startswith": {BINARY_TYPE_UNSUPPORTED},
+        "endswith": {BINARY_TYPE_UNSUPPORTED},
+        "lpad": {BINARY_TYPE_UNSUPPORTED},
+        "rpad": {BINARY_TYPE_UNSUPPORTED},
     },
     "aggregate": {},
     "window": {},
@@ -760,6 +760,29 @@ def parse_logs(log_file):
 
     unresolved = []
 
+    pkg = jvm.org.apache.gluten.expression
+    cls = getattr(pkg, "ExpressionRestrictions$")
+    obj = getattr(cls, "MODULE$")
+
+    jrestrictions = {
+        r.functionName(): set(m for m in r.restrictionMessages())
+        for r in obj.listAllRestrictions()
+    }
+
+    restrictions = KNOWN_RESTRICTIONS.copy()
+    print(restrictions)
+    for f, v in jrestrictions.items():
+        print(v)
+        for c in FUNCTION_CATEGORIES:
+            if f in functions[c]:
+                if f in KNOWN_RESTRICTIONS[c]:
+                    restrictions[c][f].union(v)
+                else:
+                    restrictions[c][f] = v
+                break
+
+    print(restrictions)
+
     def filter_fallback_reasons():
         with open(log_file, "r") as f:
             lines = f.readlines()
@@ -832,7 +855,7 @@ def parse_logs(log_file):
                     )
                     support_list[category]["unsupported"].add(function_name_tuple(f))
 
-        for f in GLUTEN_RESTRICTIONS[category].keys():
+        for f in restrictions[category].keys():
             support_list[category]["partial"].add(function_name_tuple(f))
 
     for r in filter_fallback_reasons():
@@ -905,6 +928,39 @@ def parse_logs(log_file):
             else:
                 function_not_found(r)
 
+        # Partially supported: throws not fully supported exception for certain conditions.
+        elif "is not fully supported" in r:
+            pattern = r"Function '([\w0-9]+)' is not fully supported. Cause: (.*)"
+
+            # Extract the function name and reason
+            match = re.search(pattern, r)
+
+            if match:
+                function_name = match.group(1)
+                if function_name in function_names:
+                    support_list["scalar"]["partial"].add(
+                        function_name_tuple(function_name)
+                    )
+                else:
+                    support_list["scalar"]["unknown"].add(
+                        function_name_tuple(function_name)
+                    )
+                cause = match.group(2)
+                not_listed = False
+                if function_name not in restrictions["scalar"]:
+                    restrictions["scalar"][function_name] = set()
+                    not_listed = True
+                elif cause not in restrictions["scalar"][function_name]:
+                    not_listed = True
+                if not_listed:
+                    restrictions["scalar"][function_name].add(cause)
+                    logging.log(
+                        logging.WARNING,
+                        f"Restriction for function {function_name} found in logs but not listed in the ExpressionRestrictions: {cause}",
+                    )
+            else:
+                function_not_found(r)
+
         # Not supported: Special case for unsupported expressions.
         elif "Not support expression" in r:
             pattern = r"Not support expression ([\w0-9]+)"
@@ -933,7 +989,7 @@ def parse_logs(log_file):
             else:
                 function_not_found(r)
 
-        # Not supported: Special case for unsupported functions.
+        # Not supported: Function is in the native blacklist.
         elif "Function is not supported:" in r:
             pattern = r"Function is not supported:\s+([\w0-9]+)"
 
@@ -1051,7 +1107,7 @@ def parse_logs(log_file):
         else:
             unresolved.append(r)
 
-    return support_list, unresolved
+    return support_list, unresolved, restrictions
 
 
 def generate_function_doc(category, output):
@@ -1131,16 +1187,16 @@ def generate_function_doc(category, output):
                     f = "&#124;"
                 elif f == "||":
                     f = "&#124;&#124;"
+
+                r = ""
+                if f in restrictions[category]:
+                    r = "<br>".join(sorted(restrictions[category][f]))
                 data.append(
                     [
                         f,
                         classname,
                         support,
-                        (
-                            ""
-                            if f not in GLUTEN_RESTRICTIONS[category]
-                            else GLUTEN_RESTRICTIONS[category][f]
-                        ),
+                        r,
                     ]
                 )
             table = tabulate.tabulate(data, headers, tablefmt="github")
@@ -1259,7 +1315,7 @@ if __name__ == "__main__":
 
     spark_function_map = create_spark_function_map()
 
-    support_list, unresolved = parse_logs(
+    support_list, unresolved, restrictions = parse_logs(
         os.path.join(
             gluten_home,
             "gluten-ut",

@@ -36,6 +36,14 @@ gluten::ResourceMap<gluten::ObjectStore*>& gluten::ObjectStore::stores() {
   return stores;
 }
 
+// static
+std::pair<gluten::ObjectStore*, gluten::ResourceHandle> gluten::ObjectStore::lookup(gluten::ObjectHandle handle) {
+  ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(gluten::ResourceHandle) * 8));
+  ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::max());
+  auto store = stores().lookup(storeId);
+  return {store, resourceId};
+};
+
 gluten::ObjectStore::~ObjectStore() {
   for (;;) {
     if (aliveObjects_.empty()) {

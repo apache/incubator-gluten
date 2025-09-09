@@ -32,7 +32,6 @@ RUN set -ex; \
     dnf install -y --setopt=install_weak_deps=False gcc-toolset-11; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     yum install -y java-1.8.0-openjdk-devel patch wget git perl; \
-    yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y; \
     rpm -qa | grep tzdata; \
     dnf clean all; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \

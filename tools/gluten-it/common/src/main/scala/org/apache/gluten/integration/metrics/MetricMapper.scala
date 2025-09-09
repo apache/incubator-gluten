@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.integration.metrics
 
 import org.apache.spark.sql.execution.SparkPlan
@@ -27,8 +26,7 @@ trait MetricMapper {
 object MetricMapper {
   val dummy: MetricMapper = (node: SparkPlan, key: String, metric: SQLMetric) => Nil
 
-  case class SelfTimeMapper(selfTimeKeys: Map[String, Set[String]])
-    extends MetricMapper {
+  case class SelfTimeMapper(selfTimeKeys: Map[String, Set[String]]) extends MetricMapper {
     override def map(node: SparkPlan, key: String, metric: SQLMetric): Seq[MetricTag[_]] = {
       val className = node.getClass.getSimpleName
       if (selfTimeKeys.contains(className)) {
@@ -41,21 +39,18 @@ object MetricMapper {
   }
 
   implicit class TypedMetricMapperOps(mapper: MetricMapper) {
-    private def unwrap(
-        mapper: MetricMapper): Seq[MetricMapper] =
+    private def unwrap(mapper: MetricMapper): Seq[MetricMapper] =
       mapper match {
         case c: ChainedTypeMetricMapper => c.mappers
         case other => Seq(other)
       }
 
-    def and(
-        other: MetricMapper): MetricMapper = {
+    def and(other: MetricMapper): MetricMapper = {
       new ChainedTypeMetricMapper(unwrap(mapper) ++ unwrap(other))
     }
   }
 
-  private class ChainedTypeMetricMapper(val mappers: Seq[MetricMapper])
-    extends MetricMapper {
+  private class ChainedTypeMetricMapper(val mappers: Seq[MetricMapper]) extends MetricMapper {
     assert(!mappers.exists(_.isInstanceOf[ChainedTypeMetricMapper]))
     override def map(node: SparkPlan, key: String, metric: SQLMetric): Seq[MetricTag[_]] = {
       mappers.flatMap(m => m.map(node, key, metric))

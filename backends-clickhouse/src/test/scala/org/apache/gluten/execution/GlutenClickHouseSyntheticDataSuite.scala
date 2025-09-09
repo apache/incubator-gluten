@@ -163,7 +163,7 @@ class GlutenClickHouseSyntheticDataSuite
     }
     val df = spark.sql(sqlStr)
     df.collect()
-    WholeStageTransformerSuite.checkFallBack(df)
+    GlutenQueryComparisonTest.checkFallBack(df)
     checkAnswer(df, expected)
   }
 
@@ -195,7 +195,7 @@ class GlutenClickHouseSyntheticDataSuite
     }
     val df = spark.sql(sqlStr)
     df.collect()
-    WholeStageTransformerSuite.checkFallBack(df)
+    GlutenQueryComparisonTest.checkFallBack(df)
     checkAnswer(df, expected)
   }
 
@@ -225,7 +225,7 @@ class GlutenClickHouseSyntheticDataSuite
     }
     val df = spark.sql(sqlStr)
     df.collect()
-    WholeStageTransformerSuite.checkFallBack(df)
+    GlutenQueryComparisonTest.checkFallBack(df)
     checkAnswer(df, expected)
   }
 

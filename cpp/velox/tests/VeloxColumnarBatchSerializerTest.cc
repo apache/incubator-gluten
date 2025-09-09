@@ -17,11 +17,11 @@
 
 #include <gtest/gtest.h>
 
+#include "../utils/VeloxArrowUtils.h"
 #include "compute/VeloxBackend.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
-#include "utils/VeloxArrowUtils.h"
 
 #include "velox/vector/arrow/Bridge.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"

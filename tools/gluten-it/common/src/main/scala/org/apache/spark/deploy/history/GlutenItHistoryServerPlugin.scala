@@ -20,16 +20,12 @@ import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper.LogServerRpcEnvs
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.sql.ConfUtils.ConfImplicits.SparkConfWrapper
-import org.apache.spark.status.{
-  AppHistoryServerPlugin,
-  ElementTrackingStore,
-  ExecutorSummaryWrapper
-}
+import org.apache.spark.status.{AppHistoryServerPlugin, ElementTrackingStore, ExecutorSummaryWrapper}
 import org.apache.spark.status.api.v1
 
 import com.google.common.base.Preconditions
 
-import java.net.{ServerSocket, URI, URL}
+import java.net.URI
 import java.util.Locale
 
 import scala.collection.JavaConverters._
@@ -64,53 +60,52 @@ class GlutenItHistoryServerPlugin extends AppHistoryServerPlugin {
     }
   }
 
-  override def createListeners(
-      conf: SparkConf,
-      store: ElementTrackingStore): Seq[SparkListener] = {
+  override def createListeners(conf: SparkConf, store: ElementTrackingStore): Seq[SparkListener] = {
     store.onFlush {
 
       val wrappers = org.apache.spark.util.Utils
         .tryWithResource(store.view(classOf[ExecutorSummaryWrapper]).closeableIterator()) {
-          iter =>
-            iter.asScala.toList
+          iter => iter.asScala.toList
         }
       // create new executor summaries
       wrappers
-        .map { wrapper =>
-          Preconditions.checkArgument(wrapper.info.attributes.isEmpty)
-          new ExecutorSummaryWrapper(
-            new v1.ExecutorSummary(
-              id = wrapper.info.id,
-              hostPort = wrapper.info.hostPort,
-              isActive = wrapper.info.isActive,
-              rddBlocks = wrapper.info.rddBlocks,
-              memoryUsed = wrapper.info.memoryUsed,
-              diskUsed = wrapper.info.diskUsed,
-              totalCores = wrapper.info.totalCores,
-              maxTasks = wrapper.info.maxTasks,
-              activeTasks = wrapper.info.activeTasks,
-              failedTasks = wrapper.info.failedTasks,
-              completedTasks = wrapper.info.completedTasks,
-              totalTasks = wrapper.info.totalTasks,
-              totalDuration = wrapper.info.totalDuration,
-              totalGCTime = wrapper.info.totalGCTime,
-              totalInputBytes = wrapper.info.totalInputBytes,
-              totalShuffleRead = wrapper.info.totalShuffleRead,
-              totalShuffleWrite = wrapper.info.totalShuffleWrite,
-              isBlacklisted = wrapper.info.isBlacklisted,
-              maxMemory = wrapper.info.maxMemory,
-              addTime = wrapper.info.addTime,
-              removeTime = wrapper.info.removeTime,
-              removeReason = wrapper.info.removeReason,
-              executorLogs = rewriteLogs(wrapper.info.executorLogs, logServerRpcEnvs),
-              memoryMetrics = wrapper.info.memoryMetrics,
-              blacklistedInStages = wrapper.info.blacklistedInStages,
-              peakMemoryMetrics = wrapper.info.peakMemoryMetrics,
-              attributes = wrapper.info.attributes,
-              resources = wrapper.info.resources,
-              resourceProfileId = wrapper.info.resourceProfileId,
-              isExcluded = wrapper.info.isExcluded,
-              excludedInStages = wrapper.info.excludedInStages))
+        .map {
+          wrapper =>
+            Preconditions.checkArgument(wrapper.info.attributes.isEmpty)
+            new ExecutorSummaryWrapper(
+              new v1.ExecutorSummary(
+                id = wrapper.info.id,
+                hostPort = wrapper.info.hostPort,
+                isActive = wrapper.info.isActive,
+                rddBlocks = wrapper.info.rddBlocks,
+                memoryUsed = wrapper.info.memoryUsed,
+                diskUsed = wrapper.info.diskUsed,
+                totalCores = wrapper.info.totalCores,
+                maxTasks = wrapper.info.maxTasks,
+                activeTasks = wrapper.info.activeTasks,
+                failedTasks = wrapper.info.failedTasks,
+                completedTasks = wrapper.info.completedTasks,
+                totalTasks = wrapper.info.totalTasks,
+                totalDuration = wrapper.info.totalDuration,
+                totalGCTime = wrapper.info.totalGCTime,
+                totalInputBytes = wrapper.info.totalInputBytes,
+                totalShuffleRead = wrapper.info.totalShuffleRead,
+                totalShuffleWrite = wrapper.info.totalShuffleWrite,
+                isBlacklisted = wrapper.info.isBlacklisted,
+                maxMemory = wrapper.info.maxMemory,
+                addTime = wrapper.info.addTime,
+                removeTime = wrapper.info.removeTime,
+                removeReason = wrapper.info.removeReason,
+                executorLogs = rewriteLogs(wrapper.info.executorLogs, logServerRpcEnvs),
+                memoryMetrics = wrapper.info.memoryMetrics,
+                blacklistedInStages = wrapper.info.blacklistedInStages,
+                peakMemoryMetrics = wrapper.info.peakMemoryMetrics,
+                attributes = wrapper.info.attributes,
+                resources = wrapper.info.resources,
+                resourceProfileId = wrapper.info.resourceProfileId,
+                isExcluded = wrapper.info.isExcluded,
+                excludedInStages = wrapper.info.excludedInStages
+              ))
         }
         .foreach(store.write(_))
     }

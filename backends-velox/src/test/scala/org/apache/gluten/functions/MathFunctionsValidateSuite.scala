@@ -21,6 +21,7 @@ import org.apache.gluten.execution.{BatchScanExecTransformer, ProjectExecTransfo
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.internal.SQLConf
 
 class MathFunctionsValidateSuiteRasOff extends MathFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
@@ -33,6 +34,49 @@ class MathFunctionsValidateSuiteRasOn extends MathFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set(GlutenConfig.RAS_ENABLED.key, "true")
+  }
+}
+
+class MathFunctionsValidateSuiteAnsiOn extends FunctionsValidateSuite {
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(SQLConf.ANSI_ENABLED.key, "true")
+      .set(GlutenConfig.GLUTEN_ANSI_FALLBACK_ENABLED.key, "false")
+  }
+
+  disableFallbackCheck
+
+  test("try_add") {
+    runQueryAndCompare(
+      "select try_add(cast(l_orderkey as int), 1), try_add(cast(l_orderkey as int), 2147483647)" +
+        " from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("try_divide") {
+    runQueryAndCompare(
+      "select try_divide(cast(l_orderkey as int), 0) from lineitem",
+      noFallBack = false) {
+      _ => // Spark would always cast inputs to double for this function.
+    }
+  }
+
+  testWithMinSparkVersion("try_multiply", "3.3") {
+    runQueryAndCompare(
+      "select try_multiply(2147483647, cast(l_orderkey as int)), " +
+        "try_multiply(-2147483648, cast(l_orderkey as int)) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  testWithMinSparkVersion("try_subtract", "3.3") {
+    runQueryAndCompare(
+      "select try_subtract(2147483647, cast(l_orderkey as int)), " +
+        "try_subtract(-2147483648, cast(l_orderkey as int)) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
   }
 }
 

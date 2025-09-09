@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.vectorized;
 
-import io.github.zhztheplayer.velox4j.type.*;
-
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;

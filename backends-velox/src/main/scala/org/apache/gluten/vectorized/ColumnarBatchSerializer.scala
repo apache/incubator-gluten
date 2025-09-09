@@ -32,6 +32,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.storage.BlockId
 import org.apache.spark.task.{TaskResource, TaskResources}
 
 import org.apache.arrow.c.ArrowSchema
@@ -56,7 +57,7 @@ class ColumnarBatchSerializer(
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
-    new ColumnarBatchSerializerInstance(
+    new ColumnarBatchSerializerInstanceImpl(
       schema,
       readBatchNumRows,
       numOutputRows,
@@ -68,15 +69,20 @@ class ColumnarBatchSerializer(
   override def supportsRelocationOfSerializedObjects: Boolean = true
 }
 
-private class ColumnarBatchSerializerInstance(
+private class ColumnarBatchSerializerInstanceImpl(
     schema: StructType,
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
     deserializeTime: SQLMetric,
     decompressTime: SQLMetric,
     shuffleWriterType: ShuffleWriterType)
-  extends SerializerInstance
+  extends ColumnarBatchSerializerInstance
   with Logging {
+
+  private val runtime =
+    Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleReader")
+
+  private val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
 
   private val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
@@ -98,8 +104,6 @@ private class ColumnarBatchSerializerInstance(
     val batchSize = GlutenConfig.get.maxBatchSize
     val readerBufferSize = GlutenConfig.get.columnarShuffleReaderBufferSize
     val deserializerBufferSize = GlutenConfig.get.columnarSortShuffleDeserializerBufferSize
-    val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleReader")
-    val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
       compressionCodec,
@@ -128,20 +132,23 @@ private class ColumnarBatchSerializerInstance(
   }
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
-    new TaskDeserializationStream(in)
+    new TaskDeserializationStream(Iterator((null, in)))
   }
 
-  private class TaskDeserializationStream(in: InputStream)
+  override def deserializeStreams(
+      streams: Iterator[(BlockId, InputStream)]): DeserializationStream = {
+    new TaskDeserializationStream(streams)
+  }
+
+  private class TaskDeserializationStream(streams: Iterator[(BlockId, InputStream)])
     extends DeserializationStream
     with TaskResource {
-    private val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
-    private val runtime =
-      Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleReader")
+    private val streamReader = ShuffleStreamReader(streams)
+
     private val wrappedOut: ClosableIterator = new ColumnarBatchOutIterator(
       runtime,
-      ShuffleReaderJniWrapper
-        .create(runtime)
-        .readStream(shuffleReaderHandle, byteIn))
+      jniWrapper
+        .read(shuffleReaderHandle, streamReader))
 
     private var cb: ColumnarBatch = _
 
@@ -232,7 +239,7 @@ private class ColumnarBatchSerializerInstance(
       }
       numOutputRows += numRowsTotal
       wrappedOut.close()
-      byteIn.close()
+      streamReader.close()
       if (cb != null) {
         cb.close()
       }

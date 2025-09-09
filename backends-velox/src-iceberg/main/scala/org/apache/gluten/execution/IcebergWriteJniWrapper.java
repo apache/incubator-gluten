@@ -31,7 +31,8 @@ public class IcebergWriteJniWrapper implements RuntimeAware {
   public native long init(long cSchema, int format,
                           String directory,
                           String codec,
-                          byte[] partitionSpec);
+                          byte[] partitionSpec,
+                          byte[] field);
 
   // Returns the json iceberg Datafile represent
   public native void write(long writerHandle, long batch);

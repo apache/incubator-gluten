@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.metrics.{GlutenTimeMetric, IMetrics}
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
@@ -26,7 +25,6 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.ExecutorManager
 
 trait BaseGlutenPartition extends Partition with InputPartition {
   def plan: Array[Byte]
@@ -59,12 +57,10 @@ class GlutenWholeStageColumnarRDD(
     updateNativeMetrics: IMetrics => Unit,
     enableCudf: Boolean = false)
   extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
-  private val numaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     GlutenTimeMetric.millis(pipelineTime) {
       _ =>
-        ExecutorManager.tryTaskSet(numaBindingInfo)
         val (inputPartition, inputColumnarRDDPartitions) = castNativePartition(split)
         val inputIterators = rdds.getIterators(inputColumnarRDDPartitions, context)
         BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(

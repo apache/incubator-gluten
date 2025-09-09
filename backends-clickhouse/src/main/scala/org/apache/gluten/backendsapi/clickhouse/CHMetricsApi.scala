@@ -43,7 +43,8 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   override def genInputIteratorTransformerMetrics(
       child: SparkPlan,
       sparkContext: SparkContext,
-      forBroadcast: Boolean): Map[String, SQLMetric] = {
+      forBroadcast: Boolean,
+      forShuffle: Boolean): Map[String, SQLMetric] = {
     def metricsPlan(plan: SparkPlan): SparkPlan = {
       plan match {
         case ColumnarInputAdapter(child) => metricsPlan(child)

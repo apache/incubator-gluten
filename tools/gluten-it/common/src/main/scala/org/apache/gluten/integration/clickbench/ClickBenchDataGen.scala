@@ -16,11 +16,14 @@
  */
 package org.apache.gluten.integration.clickbench
 
-import org.apache.commons.io.FileUtils
 import org.apache.gluten.integration.DataGen
-import org.apache.spark.sql.{SparkSession, functions}
+
+import org.apache.spark.sql.{functions, SparkSession}
+
+import org.apache.commons.io.FileUtils
 
 import java.io.File
+
 import scala.language.postfixOps
 import scala.sys.process._
 
@@ -42,13 +45,15 @@ class ClickBenchDataGen(val spark: SparkSession, dir: String) extends DataGen {
 
     val sparkDataFile = new File(dir + File.separator + FILE_NAME)
     println(s"Starting to write a data file $sparkDataFile that is compatible with Spark... ")
-    spark.read.parquet(tempFile.getAbsolutePath)
+    spark.read
+      .parquet(tempFile.getAbsolutePath)
       .withColumn("eventtime", functions.col("eventtime").cast("timestamp"))
       .withColumn("clienteventtime", functions.col("clienteventtime").cast("timestamp"))
       .withColumn("localeventtime", functions.col("localeventtime").cast("timestamp"))
       .write
       .parquet(sparkDataFile.getAbsolutePath)
-    println(s"ClickBench Parquet dataset (Spark compatible) successfully created at $sparkDataFile.")
+    println(
+      s"ClickBench Parquet dataset (Spark compatible) successfully created at $sparkDataFile.")
   }
 }
 

@@ -32,8 +32,6 @@ ENABLE_JEMALLOC_STATS=OFF
 BUILD_VELOX_TESTS=OFF
 BUILD_VELOX_BENCHMARKS=OFF
 ENABLE_QAT=OFF
-ENABLE_IAA=OFF
-ENABLE_HBM=OFF
 ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
@@ -87,14 +85,6 @@ do
         ;;
         --enable_qat=*)
         ENABLE_QAT=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_iaa=*)
-        ENABLE_IAA=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_hbm=*)
-        ENABLE_HBM=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_gcs=*)
@@ -207,6 +197,7 @@ fi
 
 if [ "$SPARK_VERSION" = "3.2" ] || [ "$SPARK_VERSION" = "3.3" ] \
   || [ "$SPARK_VERSION" = "3.4" ] || [ "$SPARK_VERSION" = "3.5" ] \
+  || [ "$SPARK_VERSION" = "4.0" ] \
   || [ "$SPARK_VERSION" = "ALL" ]; then
   echo "Building for Spark $SPARK_VERSION"
 else
@@ -217,6 +208,9 @@ fi
 concat_velox_param
 
 function build_arrow {
+  if [ ! -d "$GLUTEN_DIR/ep/build-velox/build/velox_ep" ]; then
+    get_velox && setup_dependencies
+  fi
   cd $GLUTEN_DIR/dev
   source ./build_arrow.sh
 }
@@ -245,9 +239,7 @@ function build_gluten_cpp {
     -DBUILD_EXAMPLES=$BUILD_EXAMPLES \
     -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS \
     -DENABLE_JEMALLOC_STATS=$ENABLE_JEMALLOC_STATS \
-    -DENABLE_HBM=$ENABLE_HBM \
     -DENABLE_QAT=$ENABLE_QAT \
-    -DENABLE_IAA=$ENABLE_IAA \
     -DENABLE_GCS=$ENABLE_GCS \
     -DENABLE_S3=$ENABLE_S3 \
     -DENABLE_HDFS=$ENABLE_HDFS \
@@ -271,45 +263,49 @@ function build_velox_backend {
   build_gluten_cpp
 }
 
-(
+function get_velox {
   cd $GLUTEN_DIR/ep/build-velox/src
   ./get_velox.sh $VELOX_PARAMETER
-)
+}
+
+function setup_dependencies {
+  DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
+  mkdir -p ${DEPENDENCY_DIR}
+
+  source $GLUTEN_DIR/dev/build_helper_functions.sh
+  source ${VELOX_HOME}/scripts/setup-common.sh
+  if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
+    echo "Start to install dependencies"
+    pushd $VELOX_HOME
+    if [ $OS == 'Linux' ]; then
+      setup_linux
+    elif [ $OS == 'Darwin' ]; then
+      setup_macos
+    else
+      echo "Unsupported kernel: $OS"
+      exit 1
+    fi
+    if [ $ENABLE_S3 == "ON" ]; then
+      install_aws_deps
+    fi
+    if [ $ENABLE_GCS == "ON" ]; then
+      install_gcs-sdk-cpp
+    fi
+    if [ $ENABLE_ABFS == "ON" ]; then
+      export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
+      install_azure-storage-sdk-cpp
+    fi
+    popd
+  fi
+}
 
 OS=`uname -s`
 ARCH=`uname -m`
-DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
-mkdir -p ${DEPENDENCY_DIR}
-
-source $GLUTEN_DIR/dev/build_helper_functions.sh
-source ${VELOX_HOME}/scripts/setup-common.sh
-if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
-  echo "Start to install dependencies"
-  pushd $VELOX_HOME
-  if [ $OS == 'Linux' ]; then
-    setup_linux
-  elif [ $OS == 'Darwin' ]; then
-    setup_macos
-  else
-    echo "Unsupported kernel: $OS"
-    exit 1
-  fi
-  if [ $ENABLE_S3 == "ON" ]; then
-    install_aws_deps
-  fi
-  if [ $ENABLE_GCS == "ON" ]; then
-    install_gcs-sdk-cpp
-  fi
-  if [ $ENABLE_ABFS == "ON" ]; then
-    export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
-    install_azure-storage-sdk-cpp
-  fi
-  popd
-fi
-
 commands_to_run=${OTHER_ARGUMENTS:-}
 (
   if [[ "x$commands_to_run" == "x" ]]; then
+    get_velox
+    setup_dependencies
     build_velox_backend
   else
     echo "Commands to run: $commands_to_run"

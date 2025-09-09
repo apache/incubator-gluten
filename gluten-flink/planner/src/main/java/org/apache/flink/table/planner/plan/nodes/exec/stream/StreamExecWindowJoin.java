@@ -25,10 +25,12 @@ import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.plan.EmptyNode;
+import io.github.zhztheplayer.velox4j.plan.HashPartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.NestedLoopJoinNode;
+import io.github.zhztheplayer.velox4j.plan.PartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
-import io.github.zhztheplayer.velox4j.plan.StreamJoinNode;
+import io.github.zhztheplayer.velox4j.plan.StreamWindowJoinNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 
 import org.apache.flink.FlinkVersion;
@@ -60,8 +62,10 @@ import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -195,15 +199,14 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
             rightInputType,
             new ExternalStreamTableHandle("connector-external-stream"),
             List.of());
-    NestedLoopJoinNode leftNode =
-        new NestedLoopJoinNode(
-            PlanNodeIdGenerator.newId(),
-            Utils.toVLJoinType(joinSpec.getJoinType()),
-            joinCondition,
-            new EmptyNode(leftInputType),
-            new EmptyNode(rightInputType),
-            outputType);
-    NestedLoopJoinNode rightNode =
+    List<Integer> leftKeyIndexes = Arrays.stream(leftJoinKey).boxed().collect(Collectors.toList());
+    List<Integer> rightKeyIndexes =
+        Arrays.stream(rightJoinKey).boxed().collect(Collectors.toList());
+    PartitionFunctionSpec leftPartFuncSpec =
+        new HashPartitionFunctionSpec(leftInputType, leftKeyIndexes);
+    PartitionFunctionSpec rightPartFuncSpec =
+        new HashPartitionFunctionSpec(rightInputType, rightKeyIndexes);
+    NestedLoopJoinNode probeNode =
         new NestedLoopJoinNode(
             PlanNodeIdGenerator.newId(),
             Utils.toVLJoinType(joinSpec.getJoinType()),
@@ -212,8 +215,17 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
             new EmptyNode(leftInputType),
             outputType);
     PlanNode join =
-        new StreamJoinNode(
-            PlanNodeIdGenerator.newId(), leftInput, rightInput, leftNode, rightNode, outputType);
+        new StreamWindowJoinNode(
+            PlanNodeIdGenerator.newId(),
+            leftInput,
+            rightInput,
+            leftPartFuncSpec,
+            rightPartFuncSpec,
+            probeNode,
+            outputType,
+            1024,
+            leftWindowEndIndex,
+            rightWindowEndIndex);
     final TwoInputStreamOperator operator =
         new GlutenVectorTwoInputOperator(
             new StatefulPlanNode(join.getId(), join),

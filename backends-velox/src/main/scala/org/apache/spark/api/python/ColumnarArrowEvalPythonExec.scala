@@ -27,11 +27,10 @@ import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.{ContextAwareIterator, SparkEnv, TaskContext}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
-import org.apache.spark.sql.execution.metric.SQLMetrics
-import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BasePythonRunnerShim, EvalPythonExec, PythonUDFRunner}
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BasePythonRunnerShim, EvalPythonExecBase}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.sql.utils.{SparkArrowUtil, SparkSchemaUtil, SparkVectorUtil}
@@ -42,20 +41,20 @@ import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 
 import java.io.{DataInputStream, DataOutputStream}
-import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class ColumnarArrowPythonRunner(
-    funcs: Seq[ChainedPythonFunctions],
+    funcs: Seq[(ChainedPythonFunctions, Long)],
     evalType: Int,
     argOffsets: Array[Array[Int]],
     schema: StructType,
     timeZoneId: String,
-    conf: Map[String, String])
-  extends BasePythonRunnerShim(funcs.toSeq, evalType, argOffsets) {
+    conf: Map[String, String],
+    pythonMetrics: Map[String, SQLMetric])
+  extends BasePythonRunnerShim(funcs, evalType, argOffsets, pythonMetrics) {
 
   override val simplifiedTraceback: Boolean = SQLConf.get.pysparkSimplifiedTraceback
 
@@ -67,23 +66,15 @@ class ColumnarArrowPythonRunner(
 
   protected def newReaderIterator(
       stream: DataInputStream,
-      writerThread: WriterThread,
+      writer: Writer,
       startTime: Long,
       env: SparkEnv,
-      worker: Socket,
+      worker: PythonWorker,
       pid: scala.Option[scala.Int],
       releasedOrClosed: AtomicBoolean,
       context: TaskContext): Iterator[ColumnarBatch] = {
 
-    new ReaderIterator(
-      stream,
-      writerThread,
-      startTime,
-      env,
-      worker,
-      None,
-      releasedOrClosed,
-      context) {
+    new ReaderIterator(stream, writer, startTime, env, worker, pid, releasedOrClosed, context) {
       private val allocator = ArrowBufferAllocators.contextInstance()
 
       private var reader: ArrowStreamReader = _
@@ -104,8 +95,8 @@ class ColumnarArrowPythonRunner(
       private var batchLoaded = true
 
       override protected def read(): ColumnarBatch = {
-        if (writerThread.exception.isDefined) {
-          throw writerThread.exception.get
+        if (writer.exception.isDefined) {
+          throw writer.exception.get
         }
         try {
           if (reader != null && batchLoaded) {
@@ -144,13 +135,13 @@ class ColumnarArrowPythonRunner(
     }
   }
 
-  override protected def newWriterThread(
+  override def createNewWriter(
       env: SparkEnv,
-      worker: Socket,
+      worker: PythonWorker,
       inputIterator: Iterator[ColumnarBatch],
       partitionIndex: Int,
-      context: TaskContext): WriterThread = {
-    new WriterThread(env, worker, inputIterator, partitionIndex, context) {
+      context: TaskContext): Writer = {
+    new Writer(env, worker, inputIterator, partitionIndex, context) {
       override protected def writeCommand(dataOut: DataOutputStream): Unit = {
         // Write config for the worker as a number of key -> value pairs of strings
         dataOut.writeInt(conf.size)
@@ -158,10 +149,22 @@ class ColumnarArrowPythonRunner(
           PythonRDD.writeUTF(k, dataOut)
           PythonRDD.writeUTF(v, dataOut)
         }
-        PythonUDFRunner.writeUDFs(dataOut, funcs, argOffsets)
+        ColumnarArrowPythonRunner.this.writeUdf(dataOut, argOffsets)
       }
 
-      override protected def writeIteratorToStream(dataOut: DataOutputStream): Unit = {
+      // For Spark earlier than 4.0. It overrides the corresponding abstract method
+      // in Writer class. We omitted the override keyword for compatibility consideration.
+      def writeIteratorToStream(dataOut: DataOutputStream): Unit = {
+        writeToStreamHelper(dataOut)
+      }
+
+      // For Spark 4.0. It overrides the corresponding abstract method in Writer class.
+      // We omitted the override keyword for compatibility consideration.
+      def writeNextInputToStream(dataOut: DataOutputStream): Boolean = {
+        writeToStreamHelper(dataOut)
+      }
+
+      def writeToStreamHelper(dataOut: DataOutputStream): Boolean = {
         var numRows: Long = 0
         val arrowSchema = SparkSchemaUtil.toArrowSchema(schema, timeZoneId)
         val allocator = ArrowBufferAllocators.contextInstance()
@@ -194,6 +197,7 @@ class ColumnarArrowPythonRunner(
           // It could throw exception if the output stream is closed, so it should be
           // in the try block.
           writer.end()
+          true
         } {
           root.close()
           // allocator can't close now or the data will loss
@@ -202,6 +206,7 @@ class ColumnarArrowPythonRunner(
       }
     }
   }
+
 }
 
 case class ColumnarArrowEvalPythonExec(
@@ -209,7 +214,7 @@ case class ColumnarArrowEvalPythonExec(
     resultAttrs: Seq[Attribute],
     child: SparkPlan,
     evalType: Int)
-  extends EvalPythonExec
+  extends EvalPythonExecBase
   with ValidatablePlan {
 
   override def batchType(): Convention.BatchType = ArrowJavaBatchType
@@ -217,7 +222,7 @@ case class ColumnarArrowEvalPythonExec(
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override protected def doValidateInternal(): ValidationResult = {
-    val (_, inputs) = udfs.map(collectFunctions).unzip
+    val (_, inputs) = udfs.map(ColumnarArrowEvalPythonExec.collectFunctions).unzip
     inputs.foreach {
       input =>
         input.foreach {
@@ -242,16 +247,6 @@ case class ColumnarArrowEvalPythonExec(
     "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime_arrow_udf")
   )
 
-  override protected def evaluate(
-      funcs: Seq[ChainedPythonFunctions],
-      argOffsets: Array[Array[Int]],
-      iter: Iterator[InternalRow],
-      schema: StructType,
-      context: TaskContext): Iterator[InternalRow] = {
-    throw new IllegalStateException(
-      "ColumnarArrowEvalPythonExec doesn't support evaluate InternalRow.")
-  }
-
   private val sessionLocalTimeZone = conf.sessionLocalTimeZone
 
   private def getPythonRunnerConfMap(conf: SQLConf): Map[String, String] = {
@@ -268,7 +263,7 @@ case class ColumnarArrowEvalPythonExec(
   private val pythonRunnerConf = getPythonRunnerConfMap(conf)
 
   protected def evaluateColumnar(
-      funcs: Seq[ChainedPythonFunctions],
+      funcs: Seq[(ChainedPythonFunctions, Long)],
       argOffsets: Array[Array[Int]],
       iter: Iterator[ColumnarBatch],
       schema: StructType,
@@ -282,7 +277,8 @@ case class ColumnarArrowEvalPythonExec(
       argOffsets,
       schema,
       sessionLocalTimeZone,
-      pythonRunnerConf).compute(iter, context.partitionId(), context)
+      pythonRunnerConf,
+      Map()).compute(iter, context.partitionId(), context)
 
     columnarBatchIter.map {
       batch =>
@@ -295,18 +291,6 @@ case class ColumnarArrowEvalPythonExec(
     }
   }
 
-  private def collectFunctions(udf: PythonUDF): (ChainedPythonFunctions, Seq[Expression]) = {
-    udf.children match {
-      case Seq(u: PythonUDF) =>
-        val (chained, children) = collectFunctions(u)
-        (ChainedPythonFunctions(chained.funcs ++ Seq(udf.func)), children)
-      case children =>
-        // There should not be any other UDFs, or the children can't be evaluated directly.
-        assert(children.forall(_.find(_.isInstanceOf[PythonUDF]).isEmpty))
-        (ChainedPythonFunctions(Seq(udf.func).toSeq), udf.children)
-    }
-  }
-
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("numOutputRows")
     val numOutputBatches = longMetric("numOutputBatches")
@@ -316,7 +300,7 @@ case class ColumnarArrowEvalPythonExec(
     inputRDD.mapPartitions {
       iter =>
         val context = TaskContext.get()
-        val (pyFuncs, inputs) = udfs.map(collectFunctions).unzip
+        val (pyFuncs, inputs) = udfs.map(ColumnarArrowEvalPythonExec.collectFunctions).unzip
         // We only write the referred cols by UDFs to python worker. So we need
         // get corresponding offsets
         val allInputs = new ArrayBuffer[Expression]
@@ -416,16 +400,22 @@ case class ColumnarArrowEvalPythonExec(
     copy(udfs, resultAttrs, newChild)
 }
 
-object PullOutArrowEvalPythonPreProjectHelper extends PullOutProjectHelper {
-  private def collectFunctions(udf: PythonUDF): (ChainedPythonFunctions, Seq[Expression]) = {
+object ColumnarArrowEvalPythonExec {
+
+  def collectFunctions(udf: PythonUDF): ((ChainedPythonFunctions, Long), Seq[Expression]) = {
     udf.children match {
       case Seq(u: PythonUDF) =>
-        val (chained, children) = collectFunctions(u)
-        (ChainedPythonFunctions(chained.funcs ++ Seq(udf.func)), children)
+        val ((chained, _), children) = collectFunctions(u)
+        ((ChainedPythonFunctions(chained.funcs ++ Seq(udf.func)), udf.resultId.id), children)
       case children =>
-        (ChainedPythonFunctions(Seq(udf.func).toSeq), udf.children)
+        // There should be no PythonUDF, or the children can't be evaluated directly.
+        assert(!children.exists(_.isInstanceOf[PythonUDF]))
+        ((ChainedPythonFunctions(Seq(udf.func)), udf.resultId.id), udf.children)
     }
   }
+}
+
+object PullOutArrowEvalPythonPreProjectHelper extends PullOutProjectHelper {
 
   private def rewriteUDF(
       udf: PythonUDF,
@@ -448,12 +438,13 @@ object PullOutArrowEvalPythonPreProjectHelper extends PullOutProjectHelper {
 
   def pullOutPreProject(arrowEvalPythonExec: ArrowEvalPythonExec): SparkPlan = {
     // pull out preproject
-    val (_, inputs) = arrowEvalPythonExec.udfs.map(collectFunctions).unzip
+    val (_, inputs) =
+      arrowEvalPythonExec.udfs.map(ColumnarArrowEvalPythonExec.collectFunctions).unzip
     val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
     // flatten all the arguments
     val allInputs = new ArrayBuffer[Expression]
     for (input <- inputs) {
-      input.map {
+      input.foreach {
         e =>
           if (!allInputs.exists(_.semanticEquals(e))) {
             allInputs += e

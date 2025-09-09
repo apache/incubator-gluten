@@ -23,7 +23,6 @@
 #include <arrow/type.h>
 #include <arrow/type_fwd.h>
 #include <arrow/util/type_fwd.h>
-#include <boost/algorithm/string.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "memory/ColumnarBatch.h"
@@ -87,9 +86,6 @@ class VeloxParquetDataSource : public VeloxDataSource {
       std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool,
       std::shared_ptr<arrow::Schema> schema)
       : VeloxDataSource(filePath, schema), filePath_(filePath), schema_(schema), pool_(std::move(veloxPool)) {}
-
-  static std::unique_ptr<facebook::velox::parquet::WriterOptions> makeParquetWriteOption(
-      const std::unordered_map<std::string, std::string>& sparkConfs);
 
   void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
   virtual void initSink(const std::unordered_map<std::string, std::string>& sparkConfs);

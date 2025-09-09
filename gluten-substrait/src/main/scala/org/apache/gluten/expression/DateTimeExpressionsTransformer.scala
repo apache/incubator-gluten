@@ -66,11 +66,10 @@ case class TimestampAddTransformer(
     unit: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
-    timeZoneId: String,
     original: Expression)
   extends ExpressionTransformer {
   override def children: Seq[ExpressionTransformer] = {
-    Seq(LiteralTransformer(unit), left, right, LiteralTransformer(timeZoneId))
+    Seq(LiteralTransformer(unit), left, right)
   }
 }
 

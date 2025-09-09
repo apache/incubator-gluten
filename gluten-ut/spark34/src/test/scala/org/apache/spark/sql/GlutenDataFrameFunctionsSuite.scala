@@ -16,7 +16,11 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.exception.GlutenException
+
+import org.apache.spark.SparkException
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.internal.SQLConf
 
 class GlutenDataFrameFunctionsSuite extends DataFrameFunctionsSuite with GlutenSQLTestsTrait {
   import testImplicits._
@@ -48,5 +52,63 @@ class GlutenDataFrameFunctionsSuite extends DataFrameFunctionsSuite with GlutenS
         Row(null)),
       false
     )
+  }
+
+  testGluten("array_insert functions") {
+    val fiveShort: Short = 5
+
+    val df1 = Seq((Array[Integer](3, 2, 5, 1, 2), 6, 3)).toDF("a", "b", "c")
+    val df2 = Seq((Array[Short](1, 2, 3, 4), 5, fiveShort)).toDF("a", "b", "c")
+    val df3 = Seq((Array[Double](3.0, 2.0, 5.0, 1.0, 2.0), 2, 3.0)).toDF("a", "b", "c")
+    val df4 = Seq((Array[Boolean](true, false), 3, false)).toDF("a", "b", "c")
+    val df5 = Seq((Array[String]("a", "b", "c"), 0, "d")).toDF("a", "b", "c")
+    val df6 = Seq((Array[String]("a", null, "b", "c"), 5, "d")).toDF("a", "b", "c")
+
+    checkAnswer(df1.selectExpr("array_insert(a, b, c)"), Seq(Row(Seq(3, 2, 5, 1, 2, 3))))
+    checkAnswer(df2.selectExpr("array_insert(a, b, c)"), Seq(Row(Seq[Short](1, 2, 3, 4, 5))))
+    checkAnswer(
+      df3.selectExpr("array_insert(a, b, c)"),
+      Seq(Row(Seq[Double](3.0, 3.0, 2.0, 5.0, 1.0, 2.0)))
+    )
+    checkAnswer(df4.selectExpr("array_insert(a, b, c)"), Seq(Row(Seq(true, false, false))))
+
+    val e1 = intercept[SparkException] {
+      df5.selectExpr("array_insert(a, b, c)").show()
+    }
+    assert(e1.getCause.isInstanceOf[GlutenException])
+//    checkError(
+//      exception = e1.getCause.asInstanceOf[SparkRuntimeException],
+//      errorClass = "INVALID_INDEX_OF_ZERO",
+//      parameters = Map.empty,
+//      context = ExpectedContext(
+//        fragment = "array_insert(a, b, c)",
+//        start = 0,
+//        stop = 20)
+//    )
+
+    checkAnswer(
+      df5.select(array_insert(col("a"), lit(1), col("c"))),
+      Seq(Row(Seq("d", "a", "b", "c")))
+    )
+    // null checks
+    checkAnswer(df6.selectExpr("array_insert(a, b, c)"), Seq(Row(Seq("a", null, "b", "c", "d"))))
+    checkAnswer(
+      df6.select(array_insert(col("a"), col("b"), lit(null).cast("string"))),
+      Seq(Row(Seq("a", null, "b", "c", null)))
+    )
+    checkAnswer(
+      df5.select(array_insert(col("a"), lit(null).cast("integer"), col("c"))),
+      Seq(Row(null))
+    )
+    checkAnswer(
+      df5.select(array_insert(lit(null).cast("array<string>"), col("b"), col("c"))),
+      Seq(Row(null))
+    )
+    checkAnswer(df1.selectExpr("array_insert(a, 7, c)"), Seq(Row(Seq(3, 2, 5, 1, 2, null, 3))))
+    checkAnswer(df1.selectExpr("array_insert(a, -6, c)"), Seq(Row(Seq(3, 3, 2, 5, 1, 2))))
+
+    withSQLConf(SQLConf.LEGACY_NEGATIVE_INDEX_IN_ARRAY_INSERT.key -> "true") {
+      checkAnswer(df1.selectExpr("array_insert(a, -6, c)"), Seq(Row(Seq(3, null, 3, 2, 5, 1, 2))))
+    }
   }
 }

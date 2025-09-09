@@ -17,19 +17,20 @@
 package org.apache.gluten.integration.command;
 
 import org.apache.gluten.integration.BaseMixin;
+
 import picocli.CommandLine;
 
 import java.util.concurrent.Callable;
 
-@CommandLine.Command(name = "data-gen-only", mixinStandardHelpOptions = true,
+@CommandLine.Command(
+    name = "data-gen-only",
+    mixinStandardHelpOptions = true,
     showDefaultValues = true,
     description = "Generate data only.")
 public class DataGenOnly implements Callable<Integer> {
-  @CommandLine.Mixin
-  private BaseMixin mixin;
+  @CommandLine.Mixin private BaseMixin mixin;
 
-  @CommandLine.Mixin
-  private DataGenMixin dataGenMixin;
+  @CommandLine.Mixin private DataGenMixin dataGenMixin;
 
   @Override
   public Integer call() throws Exception {

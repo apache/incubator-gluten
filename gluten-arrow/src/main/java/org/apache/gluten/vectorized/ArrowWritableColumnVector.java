@@ -1930,7 +1930,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
 
     @Override
     final void setInt(int rowId, int value) {
-      writer.set(rowId, value);
+      writer.setSafe(rowId, value);
     }
 
     @Override
