@@ -24,17 +24,11 @@ import org.apache.spark.status.ElementTrackingStore
 
 object GlutenUIUtils {
 
-  /**
-   * Check if enabled the gluten ui, Please note that, developer should pass the gluten config if
-   * call from sql module to prevent misjudgment caused by users directly setting sparkConf.
-   */
-  def uiEnabled(sc: SparkContext, glutenConfig: Option[GlutenConfig] = None): Boolean =
-    sc.ui.isDefined && glutenConfig
-      .map(_.glutenUiEnabled)
-      .getOrElse(
-        sc.getConf.getBoolean(
-          GlutenConfig.GLUTEN_UI_ENABLED.key,
-          GlutenConfig.GLUTEN_UI_ENABLED.defaultValue.get))
+  /** Check if enabled the gluten ui. */
+  def uiEnabled(sc: SparkContext): Boolean =
+    sc.ui.isDefined && sc.getConf.getBoolean(
+      GlutenConfig.GLUTEN_UI_ENABLED.key,
+      GlutenConfig.GLUTEN_UI_ENABLED.defaultValue.get)
 
   def postEvent(sc: SparkContext, event: GlutenEvent): Unit = {
     sc.listenerBus.post(event)
