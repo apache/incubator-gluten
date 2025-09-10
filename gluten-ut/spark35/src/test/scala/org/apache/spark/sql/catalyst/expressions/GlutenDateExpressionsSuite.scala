@@ -53,6 +53,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     checkResult(Short.MaxValue)
     checkResult(Short.MinValue)
     // Spark collect causes integer overflow.
+    // For test.
     // checkResult(Int.MaxValue)
     // checkResult(Int.MinValue)
     // checkResult(Int.MaxValue.toLong + 100)
