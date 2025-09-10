@@ -528,16 +528,66 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     withSQLConf(VeloxConfig.COLUMNAR_VELOX_WINDOW_TYPE.key -> "sort") {
       runQueryAndCompare(
         """
-          |select sum(l_partkey + 1) over
-          |   (partition by l_suppkey order by l_orderkey)
-          |    from
-          |    (  select * from lineitem
-          |    sort by l_suppkey, l_orderkey
-          |    )
+          |SELECT  avg(sum_part_key) OVER (
+          |            PARTITION BY
+          |                    l_suppkey
+          |            ORDER BY
+          |                    l_orderkey
+          |        ) AS avg_sum_part_key
+          |FROM    (
+          |            SELECT  l_suppkey,
+          |                    l_orderkey,
+          |                    sum(l_partkey+1) OVER (
+          |                        PARTITION BY
+          |                                l_suppkey
+          |                        ORDER BY
+          |                                l_orderkey
+          |                    ) AS sum_part_key
+          |            FROM    lineitem
+          |        )
           |""".stripMargin
-
       ) {
-        checkGlutenOperatorMatch[WindowExecTransformer]
+        df =>
+          {
+            val executedPlan = getExecutedPlan(df)
+            val windowPlans = executedPlan
+              .filter(_.isInstanceOf[WindowExecTransformer])
+              .asInstanceOf[Seq[WindowExecTransformer]]
+            assert(windowPlans.size == 2)
+            assert(windowPlans.count(_.isChildOrderAlreadySatisfied) == 1)
+            assert(windowPlans.count(!_.isChildOrderAlreadySatisfied) == 1)
+          }
+      }
+
+      runQueryAndCompare(
+        """
+          |SELECT  l_suppkey,
+          |        l_orderkey,
+          |        sum(l_partkey+1) OVER (
+          |            PARTITION BY
+          |                    l_suppkey
+          |            ORDER BY
+          |                    l_orderkey, l_comment
+          |        ) AS sum_part_key,
+          |        avg(l_partkey+1) OVER (
+          |            PARTITION BY
+          |                    l_suppkey
+          |            ORDER BY
+          |                    l_orderkey
+          |        ) AS avg_part_key
+          |FROM    lineitem
+          |""".stripMargin
+      ) {
+        df =>
+          {
+            val executedPlan = getExecutedPlan(df)
+            val windowPlans = executedPlan
+              .filter(_.isInstanceOf[WindowExecTransformer])
+              .asInstanceOf[Seq[WindowExecTransformer]]
+            assert(windowPlans.size == 2)
+            assert(windowPlans.count(_.isChildOrderAlreadySatisfied) == 1)
+            assert(windowPlans.count(!_.isChildOrderAlreadySatisfied) == 1)
+          }
       }
     }
   }

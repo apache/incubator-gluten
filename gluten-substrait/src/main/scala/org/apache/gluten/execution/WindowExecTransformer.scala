@@ -76,7 +76,14 @@ case class WindowExecTransformer(
     }
   }
 
-  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+  override def outputOrdering: Seq[SortOrder] = {
+    if (!BackendsApiManager.getSettings.requiredChildOrderingForWindow()) {
+      // Velox SortWindow can make sure the output order.
+      partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec
+    } else {
+      child.outputOrdering
+    }
+  }
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
@@ -198,7 +205,8 @@ case class WindowExecTransformer(
   override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =
     copy(child = newChild)
 
-  private def isChildOrderAlreadySatisfied: Boolean = {
+  // We make this method public for test purpose.
+  def isChildOrderAlreadySatisfied: Boolean = {
     val requiredOrdering = partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec
     logInfo(
       s"Check if child order already satisfied, " +
