@@ -94,16 +94,13 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<Statefu
   private void initGlutenTask() {
     memoryManager = MemoryManager.create(AllocationListener.NOOP);
     session = Velox4j.newSession(memoryManager);
-    query = new Query(glutenPlan, Config.empty(), ConnectorConfig.empty());
-    task = session.queryOps().execute(query);
-    LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
-    LOG.debug("OutTypes: {}", outputTypes.keySet());
     query =
         new Query(
             glutenPlan, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
-    LOG.debug("RuntimeContext: {}", getRuntimeContext().getClass().getName());
-    allocator = new RootAllocator(Long.MAX_VALUE);
     task = session.queryOps().execute(query);
+    LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
+    LOG.debug("OutTypes: {}", outputTypes.keySet());
+    LOG.debug("RuntimeContext: {}", getRuntimeContext().getClass().getName());
   }
 
   @Override

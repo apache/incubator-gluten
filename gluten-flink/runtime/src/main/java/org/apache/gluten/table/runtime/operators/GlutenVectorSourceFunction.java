@@ -100,7 +100,9 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
     if (memoryManager == null) {
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
-      query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
+      query =
+          new Query(
+              planNode, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
       allocator = new RootAllocator(Long.MAX_VALUE);
 
       task = session.queryOps().execute(query);
@@ -112,16 +114,6 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   @Override
   public void run(SourceContext<StatefulElement> sourceContext) throws Exception {
     LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
-    memoryManager = MemoryManager.create(AllocationListener.NOOP);
-    session = Velox4j.newSession(memoryManager);
-    query =
-        new Query(
-            planNode, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
-    allocator = new RootAllocator(Long.MAX_VALUE);
-
-    SerialTask task = session.queryOps().execute(query);
-    task.addSplit(id, split);
-    task.noMoreSplits(id);
     while (isRunning) {
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {

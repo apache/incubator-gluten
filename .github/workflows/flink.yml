@@ -57,9 +57,7 @@ jobs:
       - name: Prepare
         run: |
           source /opt/rh/gcc-toolset-11/enable
-          sudo yum update -y
           sudo dnf install -y patchelf
-          sudo yum install tzdata -y
           git clone -b gluten-0530 https://github.com/bigo-sg/velox4j.git
           cd velox4j && git reset --hard ea2ca5755ae91a8703717a85b77f9eb1620899de
           git apply $GITHUB_WORKSPACE/gluten-flink/patches/fix-velox4j.patch
