@@ -373,6 +373,12 @@ trait SparkPlanExecApi {
   /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
   def getShuffleWriterType(
       partitioning: Partitioning,
+      output: Array[Attribute]): ShuffleWriterType = {
+    HashShuffleWriterType
+  }
+
+  def getShuffleWriterTypeForCeleborn(
+      partitioning: Partitioning,
       output: Seq[Attribute]): ShuffleWriterType = {
     HashShuffleWriterType
   }

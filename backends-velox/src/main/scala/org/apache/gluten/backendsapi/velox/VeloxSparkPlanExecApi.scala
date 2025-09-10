@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.SparkPlanExecApi
-import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, ShuffleWriterType, SortShuffleWriterType, VeloxConfig}
+import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, HashShuffleWriterType$, ReservedKeys, RssSortShuffleWriterType, RssSortShuffleWriterType$, ShuffleWriterType, SortShuffleWriterType, SortShuffleWriterType$, VeloxConfig}
 import org.apache.gluten.exception.{GlutenExceptionUtil, GlutenNotSupportException}
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
@@ -41,7 +41,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.catalyst.plans.physical.{SinglePartition$, _}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
@@ -62,6 +62,8 @@ import org.apache.commons.lang3.ClassUtils
 import javax.ws.rs.core.UriBuilder
 
 import java.util.Locale
+
+import scala.collection.Seq
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
@@ -566,6 +568,24 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         } else {
           HashShuffleWriterType
         }
+    }
+  }
+
+  override def getShuffleWriterTypeForCeleborn(
+      partitioning: Partitioning,
+      output: Array[Attribute]): ShuffleWriterType = {
+    val conf = GlutenConfig.get
+    if (conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER) {
+      if (conf.useCelebornRssSort) {
+        RssSortShuffleWriterType
+      } else if (partitioning != SinglePartition) {
+        SortShuffleWriterType
+      } else {
+        // If not using rss sort, we still use hash shuffle writer for single partitioning.
+        HashShuffleWriterType
+      }
+    } else {
+      HashShuffleWriterType
     }
   }
 

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.shuffle.gluten.celeborn;
 
+import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.config.*;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer;
@@ -32,7 +33,6 @@ import org.apache.spark.shuffle.celeborn.*;
 import org.apache.spark.shuffle.sort.ColumnarShuffleManager;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning;
-import org.apache.spark.sql.catalyst.plans.physical.SinglePartition$;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -426,18 +426,8 @@ public class CelebornShuffleManager
   @Override
   public ShuffleWriterType customShuffleWriterType(
       Partitioning partitioning, GlutenConfig conf, Attribute[] output) {
-    if (conf.celebornShuffleWriterType().equals(ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER())) {
-      if (conf.useCelebornRssSort()) {
-        return RssSortShuffleWriterType$.MODULE$;
-      } else if (partitioning != SinglePartition$.MODULE$) {
-        return SortShuffleWriterType$.MODULE$;
-      } else {
-        // If not using rss sort, we still use hash shuffle writer for single partitioning.
-        return HashShuffleWriterType$.MODULE$;
-      }
-    } else {
-      return HashShuffleWriterType$.MODULE$;
-    }
+    return BackendsApiManager.getSparkPlanExecApiInstance()
+        .getShuffleWriterTypeForCeleborn(partitioning, output);
   }
 
   @Override
