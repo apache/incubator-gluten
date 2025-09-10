@@ -56,11 +56,10 @@ public class SplitIndexRexCallConverter extends BaseRexCallConverter {
       delimiterExpr = new ConstantTypedExpr(new VarCharType(), varcharValue, null);
       params.set(1, delimiterExpr);
     }
-
+    // The `Index` parameter start from 0, and it is `Int` type in flink; while it start from 1,
+    // and it is `BigInt(int64_t)` type in velox. So we need convert the `Index` parameter here.
     if (TypeUtils.isIntegerType(indexExpr.getReturnType())) {
       IntegerValue intValue = (IntegerValue) indexExpr.getValue();
-      // The `Index` parameter start from 0, and it is `Int` type in flink; while it start from 1,
-      // and it is `BigInt(int64_t)` type in velox. So we need convert the `Index` parameter here.
       BigIntValue bigintValue = new BigIntValue(intValue.getValue() + 1);
       indexExpr = new ConstantTypedExpr(new BigIntType(), bigintValue, null);
       params.set(2, indexExpr);

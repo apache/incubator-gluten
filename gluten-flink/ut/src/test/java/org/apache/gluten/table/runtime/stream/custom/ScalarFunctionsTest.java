@@ -156,6 +156,13 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     createSimpleBoundedValuesTable("tblSplitIndexNullInput", "a int, b bigint, c string", rows);
     String queryForNullInput = "select split_index(c, 'I', 0) from tblSplitIndexNullInput";
     runAndCheck(queryForNullInput, Arrays.asList("+I[null]"));
+    // TODO: The cases when index or delimeter parameters is null can not be supported currently.
+    // String queryForIndexNull = "select split_index(c, 'I', cast(null as INT)) from
+    // tblSplitIndexFlink";
+    // runAndCheck(queryForIndexNull, Arrays.asList("+I[null]"));
+    // String queryForDelimiterNull = "select split_index(c, cast(null as VARCHAR), 0) from
+    // tblSplitIndexFlink";
+    // runAndCheck(queryForDelimiterNull, Arrays.asList("+I[null]"));
   }
 
   @Disabled
