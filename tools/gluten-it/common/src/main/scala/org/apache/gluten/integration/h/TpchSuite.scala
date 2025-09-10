@@ -16,9 +16,8 @@
  */
 package org.apache.gluten.integration.h
 
-import org.apache.gluten.integration.{DataGen, Suite, TableCreator}
+import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableCreator}
 import org.apache.gluten.integration.action.Action
-import org.apache.gluten.integration.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_RELATIVE_PATH}
 import org.apache.gluten.integration.metrics.MetricMapper
 
 import org.apache.spark.SparkConf
@@ -91,11 +90,9 @@ class TpchSuite(
       typeModifiers())
   }
 
-  override private[integration] def queryResource(): String = {
-    "/tpch-queries"
+  override private[integration] def allQueries(): QuerySet = {
+    QuerySet.readFromResource("/tpch-queries", TpchSuite.ALL_QUERY_IDS)
   }
-
-  override private[integration] def allQueryIds(): Array[String] = TpchSuite.ALL_QUERY_IDS
 
   override private[integration] def desc(): String = "TPC-H"
 
@@ -134,7 +131,7 @@ object TpchSuite {
       scale: Double,
       genPartitionedData: Boolean): Unit = {
     require(
-      Set("parquet").contains(dataSource),
+      Set("parquet", "delta").contains(dataSource),
       s"Data source type $dataSource is not supported by TPC-H suite")
     require(!genPartitionedData, "TPC-H suite doesn't support generating partitioned data")
   }

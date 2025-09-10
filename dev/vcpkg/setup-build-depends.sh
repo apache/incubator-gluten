@@ -102,6 +102,7 @@ install_centos_7() {
         # Requires 'centos-release-scl' package to be installed.
         yum -y install rh-git227
         source /opt/rh/rh-git227/enable
+        echo "source /opt/rh/rh-git227/enable" >> ~/.bashrc
     fi
 
     # flex>=2.6.0

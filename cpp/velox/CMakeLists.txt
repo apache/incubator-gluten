@@ -189,8 +189,6 @@ set(VELOX_SRCS
     udf/UdfLoader.cc
     utils/Common.cc
     utils/ConfigExtractor.cc
-    utils/LocalRssClient.cc
-    utils/TestAllocationListener.cc
     utils/VeloxArrowUtils.cc
     utils/VeloxBatchResizer.cc
     utils/VeloxWholeStageDumper.cc
@@ -207,6 +205,15 @@ endif()
 if(ENABLE_ENHANCED_FEATURES)
   list(APPEND VELOX_SRCS compute/iceberg/IcebergFormat.cc
        compute/iceberg/IcebergWriter.cc)
+endif()
+
+if(BUILD_TESTS OR BUILD_BENCHMARKS)
+  set(BUILD_TEST_UTILS ON)
+endif()
+
+if(BUILD_TEST_UTILS)
+  list(APPEND VELOX_SRCS tests/utils/LocalRssClient.cc
+       tests/utils/TestAllocationListener.cc)
 endif()
 
 add_library(velox SHARED ${VELOX_SRCS})
@@ -243,10 +250,6 @@ target_include_directories(
          ${VELOX_HOME}
          ${PROTO_OUTPUT_DIR}
          ${PROTOBUF_INCLUDE})
-
-if(BUILD_TESTS)
-  target_include_directories(velox PUBLIC ${VELOX_BUILD_PATH})
-endif()
 
 set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                                        ${root_directory}/releases)

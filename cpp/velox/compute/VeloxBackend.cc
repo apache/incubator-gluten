@@ -163,9 +163,12 @@ void VeloxBackend::init(
 #endif
 
 #ifdef GLUTEN_ENABLE_GPU
-  FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-    velox::cudf_velox::registerCudf();
+    FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
+    FLAGS_velox_cudf_memory_resource = backendConf_->get<std::string>(kCudfMemoryResource, kCudfMemoryResourceDefault);
+    auto& options = velox::cudf_velox::CudfOptions::getInstance();
+    options.memoryPercent = backendConf_->get<int32_t>(kCudfMemoryPercent, kCudfMemoryPercentDefault);
+    velox::cudf_velox::registerCudf(options);
   }
 #endif
 
@@ -207,7 +210,9 @@ void VeloxBackend::init(
     memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
-  facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
+  facebook::velox::memory::MemoryManager::Options options;
+  options.allocatorCapacity = memoryManagerCapacity;
+  facebook::velox::memory::initializeMemoryManager(options);
 
   // local cache persistent relies on the cache pool from root memory pool so we need to init this
   // after the memory manager instanced

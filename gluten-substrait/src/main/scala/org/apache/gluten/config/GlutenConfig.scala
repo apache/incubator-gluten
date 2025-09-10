@@ -160,7 +160,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
       .contains("celeborn")
 
   // Whether to use UniffleShuffleManager.
-  // TODO: Deprecate the API: https://github.com/apache/incubator-gluten/issues/10107.
+  @deprecated
   def isUseUniffleShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
@@ -201,9 +201,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def columnarShuffleMergeThreshold: Double = getConf(SHUFFLE_WRITER_MERGE_THRESHOLD)
 
   def columnarShuffleCodec: Option[String] = getConf(COLUMNAR_SHUFFLE_CODEC)
-
-  def columnarShuffleCompressionMode: String =
-    getConf(COLUMNAR_SHUFFLE_COMPRESSION_MODE)
 
   def columnarShuffleCodecBackend: Option[String] = getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
 
@@ -503,11 +500,9 @@ object GlutenConfig {
     nativeConfMap.putAll(conf.filter(e => nativeKeys.contains(e._1)).asJava)
 
     val keyWithDefault = ImmutableList.of(
-      (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
-      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
-      (
-        SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
-        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
+      (CASE_SENSITIVE.key, CASE_SENSITIVE.defaultValueString),
+      (IGNORE_MISSING_FILES.key, IGNORE_MISSING_FILES.defaultValueString),
+      (LEGACY_STATISTICAL_AGGREGATE.key, LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
@@ -515,8 +510,9 @@ object GlutenConfig {
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
       (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
-      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
-      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
+      (MAP_KEY_DEDUP_POLICY.key, MAP_KEY_DEDUP_POLICY.defaultValueString),
+      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString),
+      (ANSI_ENABLED.key, ANSI_ENABLED.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     GlutenConfigUtil.mapByteConfValue(
@@ -1037,15 +1033,6 @@ object GlutenConfig {
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
       .createOptional
-
-  val COLUMNAR_SHUFFLE_COMPRESSION_MODE =
-    buildConf("spark.gluten.sql.columnar.shuffle.compressionMode")
-      .internal()
-      .doc("buffer means compress each buffer to pre allocated big buffer," +
-        "rowvector means to copy the buffers to a big buffer, and then compress the buffer")
-      .stringConf
-      .checkValues(Set("buffer", "rowvector"))
-      .createWithDefault("buffer")
 
   val COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.compression.threshold")

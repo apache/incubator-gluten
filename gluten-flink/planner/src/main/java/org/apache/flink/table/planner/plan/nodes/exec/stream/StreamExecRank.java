@@ -23,8 +23,13 @@ import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
 import io.github.zhztheplayer.velox4j.plan.EmptyNode;
+import io.github.zhztheplayer.velox4j.plan.HashPartitionFunctionSpec;
+import io.github.zhztheplayer.velox4j.plan.PartitionFunctionSpec;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
+import io.github.zhztheplayer.velox4j.plan.StreamRankNode;
+import io.github.zhztheplayer.velox4j.plan.StreamTopNNode;
+import io.github.zhztheplayer.velox4j.plan.TopNNode;
 import io.github.zhztheplayer.velox4j.plan.TopNRowNumberNode;
 import io.github.zhztheplayer.velox4j.sort.SortOrder;
 
@@ -64,10 +69,13 @@ import javax.annotation.Nullable;
 import javax.swing.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RANK_TOPN_CACHE_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -200,6 +208,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
     RowType inputRowType = (RowType) inputEdge.getOutputType();
     InternalTypeInfo<RowData> inputRowTypeInfo = InternalTypeInfo.of(inputRowType);
     int[] sortFields = sortSpec.getFieldIndices();
+    long cacheSize = config.get(TABLE_EXEC_RANK_TOPN_CACHE_SIZE);
 
     // --- Begin Gluten-specific code changes ---
     io.github.zhztheplayer.velox4j.type.RowType inputType =
@@ -215,21 +224,55 @@ public class StreamExecRank extends ExecNodeBase<RowData>
             LogicalTypeConverter.toVLType(getOutputType());
     // TODO: velox RowNumber may not equal to flink
     int limit = 1;
-    final PlanNode rowNumberNode =
-        new TopNRowNumberNode(
+    final PlanNode topNNode;
+    if (outputRankNumber) {
+      topNNode =
+          new TopNRowNumberNode(
+              PlanNodeIdGenerator.newId(),
+              partitionKeys,
+              sortKeys,
+              sortOrders,
+              null,
+              limit,
+              List.of(new EmptyNode(inputType)));
+    } else {
+      topNNode =
+          new TopNNode(
+              PlanNodeIdGenerator.newId(),
+              sortKeys,
+              sortOrders,
+              limit,
+              false,
+              List.of(new EmptyNode(inputType)));
+    }
+    List<Integer> keyIndexes = Arrays.stream(partitionFields).boxed().collect(Collectors.toList());
+    PartitionFunctionSpec keySelectorSpec = new HashPartitionFunctionSpec(inputType, keyIndexes);
+    List<Integer> sortKeyIndexes = Arrays.stream(sortFields).boxed().collect(Collectors.toList());
+    PartitionFunctionSpec sortKeySelectorSpec =
+        new HashPartitionFunctionSpec(inputType, sortKeyIndexes);
+    final PlanNode streamTopNNode =
+        new StreamTopNNode(
             PlanNodeIdGenerator.newId(),
-            partitionKeys,
-            sortKeys,
-            sortOrders,
-            null,
-            limit,
-            List.of(new EmptyNode(inputType)));
+            List.of(new EmptyNode(inputType)), // sources
+            topNNode,
+            sortKeySelectorSpec,
+            outputType,
+            generateUpdateBefore,
+            outputRankNumber,
+            cacheSize);
+    final PlanNode streamRankNode =
+        new StreamRankNode(
+            PlanNodeIdGenerator.newId(),
+            List.of(new EmptyNode(inputType)), // sources
+            keySelectorSpec,
+            streamTopNNode,
+            outputType);
     final OneInputStreamOperator operator =
         new GlutenVectorOneInputOperator(
-            new StatefulPlanNode(rowNumberNode.getId(), rowNumberNode),
+            new StatefulPlanNode(streamRankNode.getId(), streamRankNode),
             PlanNodeIdGenerator.newId(),
             inputType,
-            Map.of(rowNumberNode.getId(), outputType));
+            Map.of(streamRankNode.getId(), outputType));
     // --- End Gluten-specific code changes ---
 
     OneInputTransformation<RowData, RowData> transform =

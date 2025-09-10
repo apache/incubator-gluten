@@ -16,10 +16,8 @@
  */
 package org.apache.gluten.integration.ds
 
-import org.apache.gluten.integration.{DataGen, Suite, TableCreator}
+import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableCreator}
 import org.apache.gluten.integration.action.Action
-import org.apache.gluten.integration.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE_PATH, TPCDS_WRITE_RELATIVE_PATH}
-import org.apache.gluten.integration.h.TpchSuite.checkDataGenArgs
 import org.apache.gluten.integration.metrics.MetricMapper
 
 import org.apache.spark.SparkConf
@@ -99,11 +97,9 @@ class TpcdsSuite(
       genPartitionedData)
   }
 
-  override private[integration] def queryResource(): String = {
-    "/tpcds-queries"
+  override private[integration] def allQueries(): QuerySet = {
+    QuerySet.readFromResource("/tpcds-queries", TpcdsSuite.ALL_QUERY_IDS)
   }
-
-  override private[integration] def allQueryIds(): Array[String] = ALL_QUERY_IDS
 
   override private[integration] def desc(): String = "TPC-DS"
 
@@ -224,7 +220,7 @@ object TpcdsSuite {
       scale: Double,
       genPartitionedData: Boolean): Unit = {
     require(
-      Set("parquet").contains(dataSource),
+      Set("parquet", "delta").contains(dataSource),
       s"Data source type $dataSource is not supported by TPC-DS suite")
   }
 }

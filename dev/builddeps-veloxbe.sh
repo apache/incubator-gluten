@@ -197,6 +197,7 @@ fi
 
 if [ "$SPARK_VERSION" = "3.2" ] || [ "$SPARK_VERSION" = "3.3" ] \
   || [ "$SPARK_VERSION" = "3.4" ] || [ "$SPARK_VERSION" = "3.5" ] \
+  || [ "$SPARK_VERSION" = "4.0" ] \
   || [ "$SPARK_VERSION" = "ALL" ]; then
   echo "Building for Spark $SPARK_VERSION"
 else
@@ -207,6 +208,9 @@ fi
 concat_velox_param
 
 function build_arrow {
+  if [ ! -d "$GLUTEN_DIR/ep/build-velox/build/velox_ep" ]; then
+    get_velox && setup_dependencies
+  fi
   cd $GLUTEN_DIR/dev
   source ./build_arrow.sh
 }
@@ -260,10 +264,8 @@ function build_velox_backend {
 }
 
 function get_velox {
-  (
-    cd $GLUTEN_DIR/ep/build-velox/src
-    ./get_velox.sh $VELOX_PARAMETER
-  )
+  cd $GLUTEN_DIR/ep/build-velox/src
+  ./get_velox.sh $VELOX_PARAMETER
 }
 
 function setup_dependencies {

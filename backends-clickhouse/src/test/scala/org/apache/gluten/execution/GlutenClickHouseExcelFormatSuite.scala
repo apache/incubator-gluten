@@ -79,7 +79,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
            |""".stripMargin
       val df2 = spark.sql(sql)
       df2.collect()
-      WholeStageTransformerSuite.checkFallBack(df2)
+      GlutenQueryComparisonTest.checkFallBack(df2)
       checkAnswer(df2, df1)
     }
   }
@@ -103,7 +103,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
            |""".stripMargin
       val df2 = spark.sql(sql)
       df2.collect()
-      WholeStageTransformerSuite.checkFallBack(df2)
+      GlutenQueryComparisonTest.checkFallBack(df2)
       checkAnswer(df2, df1)
     }
   }
@@ -136,7 +136,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
            |""".stripMargin
       val df2 = spark.sql(sql)
       df2.collect()
-      WholeStageTransformerSuite.checkFallBack(df2)
+      GlutenQueryComparisonTest.checkFallBack(df2)
       checkAnswer(df2, df1)
     }
   }

@@ -59,6 +59,8 @@ public class WindowUtils {
       if (windowOffset != null) {
         offset = windowOffset.toMillis();
       }
+    } else {
+      throw new RuntimeException("Not support window spec " + windowSpec);
     }
 
     if (windowing instanceof TimeAttributeWindowingStrategy && windowing.isRowtime()) {
@@ -69,6 +71,8 @@ public class WindowUtils {
       windowType = 1;
     } else if (windowing instanceof SliceAttachedWindowingStrategy) {
       rowtimeIndex = ((SliceAttachedWindowingStrategy) windowing).getSliceEnd();
+    } else {
+      throw new RuntimeException("Not support window strategy " + windowing);
     }
     return new Tuple5<Long, Long, Long, Integer, Integer>(
         size, slide, offset, rowtimeIndex, windowType);

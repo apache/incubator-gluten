@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.integration.clickbench
 
-import org.apache.gluten.integration.{DataGen, Suite, TableCreator}
+import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableCreator}
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
 
@@ -87,9 +87,9 @@ class ClickBenchSuite(
     new ClickBenchDataGen(sessionSwitcher.spark(), dataWritePath())
   }
 
-  override private[integration] def queryResource(): String = "/clickbench-queries"
-
-  override private[integration] def allQueryIds(): Array[String] = ALL_QUERY_IDS
+  override private[integration] def allQueries(): QuerySet = {
+    QuerySet.readFromResource("/clickbench-queries", ClickBenchSuite.ALL_QUERY_IDS)
+  }
 
   override private[integration] def desc(): String = "ClickBench"
 

@@ -35,10 +35,11 @@
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
+#include "tests/utils/LocalRssClient.h"
+#include "tests/utils/TestAllocationListener.h"
+#include "tests/utils/TestStreamReader.h"
 #include "utils/Exception.h"
-#include "utils/LocalRssClient.h"
 #include "utils/StringUtil.h"
-#include "utils/TestAllocationListener.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/exec/PlanNodeStats.h"
@@ -185,7 +186,7 @@ std::unique_ptr<arrow::util::Codec> createCodec() {
 
   setCompressionTypeFromFlag(compressionType, codecBackend);
 
-  return createArrowIpcCodec(compressionType, codecBackend);
+  return createCompressionCodec(compressionType, codecBackend);
 }
 
 std::shared_ptr<PartitionWriter>
@@ -304,8 +305,9 @@ void runShuffle(
     const auto reader = createShuffleReader(runtime, schema);
 
     GLUTEN_ASSIGN_OR_THROW(auto in, arrow::io::ReadableFile::Open(dataFile));
+    auto streamReader = std::make_shared<TestStreamReader>(std::move(in));
     // Read all partitions.
-    auto iter = reader->readStream(in);
+    auto iter = reader->read(streamReader);
     while (iter->hasNext()) {
       // Read and discard.
       auto cb = iter->next();
@@ -429,9 +431,8 @@ auto BM_Generic = [](::benchmark::State& state,
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
-          inputIters.push_back(
-              FileReaderIterator::getInputIteratorFromFileReader(
-                  readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
+          inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
+              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
         }
         std::transform(
             inputIters.begin(),

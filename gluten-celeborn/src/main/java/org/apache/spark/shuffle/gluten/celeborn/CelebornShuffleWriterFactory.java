@@ -24,7 +24,6 @@ import org.apache.spark.shuffle.ShuffleWriter;
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle;
 
 public interface CelebornShuffleWriterFactory {
-  String backendName();
 
   <K, V> ShuffleWriter<K, V> createShuffleWriterInstance(
       int shuffleId,
