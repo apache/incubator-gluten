@@ -154,7 +154,9 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
     if (memoryManager == null) {
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
-      query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
+      query =
+          new Query(
+              planNode, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
       allocator = new RootAllocator(Long.MAX_VALUE);
 
       task = session.queryOps().execute(query);
