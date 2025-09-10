@@ -728,7 +728,7 @@ trait SparkPlanExecApi {
       orderSpec: Seq[SortOrder],
       rankLikeFunction: Expression,
       limit: Int,
-      mode: WindowGroupLimitMode,
+      mode: GlutenWindowGroupLimitMode,
       child: SparkPlan): SparkPlan =
     WindowGroupLimitExecTransformer(partitionSpec, orderSpec, rankLikeFunction, limit, mode, child)
 
