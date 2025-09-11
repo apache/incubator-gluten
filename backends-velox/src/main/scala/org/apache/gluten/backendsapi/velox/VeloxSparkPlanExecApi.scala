@@ -63,8 +63,6 @@ import javax.ws.rs.core.UriBuilder
 
 import java.util.Locale
 
-import scala.collection.Seq
-
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   /** Transform GetArrayItem to Substrait. */
