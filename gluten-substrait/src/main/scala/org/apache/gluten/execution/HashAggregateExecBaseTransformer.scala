@@ -51,8 +51,8 @@ abstract class HashAggregateExecBaseTransformer(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genHashAggregateTransformerMetrics(sparkContext)
-
-  protected def isCapableForStreamingAggregation: Boolean = {
+  
+  def isCapableForStreamingAggregation: Boolean = {
     if (!glutenConf.getConf(GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE)) {
       return false
     }
