@@ -290,21 +290,21 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
           }
 
           if (generate.outer) {
-            val isNullOrEmpty =
+            val isPresent =
               AttributeReference(generatePostAliasName, BooleanType, nullable = true)()
 
             val newOutput = (ordinal +: generate.generatorOutput.tail).map {
               attr =>
                 val caseWhen = CaseWhen(
-                  Seq((isNullOrEmpty, Literal(null, attr.dataType))),
-                  attr
+                  Seq((isPresent, attr)),
+                  Literal(null, attr.dataType)
                 )
                 Alias(caseWhen, generatePostAliasName)(attr.exprId, attr.qualifier)
             }
 
             // Reorder the generatorOutput to match the output from the Unnest operator in Velox.
             val newGenerate = generate.copy(generatorOutput =
-              generate.generatorOutput.tail :+ originalOrdinal :+ isNullOrEmpty)
+              generate.generatorOutput.tail :+ originalOrdinal :+ isPresent)
 
             ProjectExec(generate.requiredChildOutput ++ newOutput, newGenerate)
           } else {
@@ -321,15 +321,15 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
             alias.toAttribute
           }
           if (generate.outer) {
-            val isNullOrEmpty =
+            val isPresent =
               AttributeReference(generatePostAliasName, BooleanType, nullable = true)()
-            val newGenerate = generate.copy(generatorOutput = Seq(unnestOutput) :+ isNullOrEmpty)
+            val newGenerate = generate.copy(generatorOutput = Seq(unnestOutput) :+ isPresent)
             val newOutput = generate.generatorOutput.zipWithIndex.map {
               case (attr, i) =>
                 val getStructField = GetStructField(unnestOutput, i, Some(attr.name))
                 val caseWhen = CaseWhen(
-                  Seq((isNullOrEmpty, Literal(null, getStructField.dataType))),
-                  getStructField
+                  Seq((isPresent, getStructField)),
+                  Literal(null, getStructField.dataType)
                 )
                 Alias(caseWhen, generatePostAliasName)(attr.exprId, attr.qualifier)
             }
@@ -347,15 +347,15 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
           // Drop the last column of generatorOutput, which is the boolean representing whether
           // the null value is unnested from the input array/map (e.g. array(1, null)), or the
           // array/map itself is null or empty (e.g. array(), map(), null).
-          val isNullOrEmpty =
+          val isPresent =
             AttributeReference(generatePostAliasName, BooleanType, nullable = true)()
           val newGenerate =
-            generate.copy(generatorOutput = generate.generatorOutput :+ isNullOrEmpty)
+            generate.copy(generatorOutput = generate.generatorOutput :+ isPresent)
           val newOutput = generate.generatorOutput.map {
             attr =>
               val caseWhen = CaseWhen(
-                Seq((isNullOrEmpty, Literal(null, attr.dataType))),
-                attr
+                Seq((isPresent, attr)),
+                Literal(null, attr.dataType)
               )
               Alias(caseWhen, generatePostAliasName)(attr.exprId, attr.qualifier)
           }
