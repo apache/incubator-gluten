@@ -90,10 +90,6 @@ for arg in "$@"; do
     NUM_THREADS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --install_prefix=*)
-    INSTALL_PREFIX=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
   *)
     OTHER_ARGUMENTS+=("$1")
     shift # Remove generic argument from processing
