@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.benchmarks.RandomParquetDataGenerator
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.utils.VeloxFileSystemValidationJniWrapper
 
 import org.apache.spark.SparkConf
@@ -205,6 +205,80 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
           val df = sql("select b from test group by b order by b")
           checkAnswer(df, Seq(Row("10"), Row("11")))
         }
+    }
+  }
+
+  test("parquet index based schema evolution") {
+    withSQLConf(VeloxConfig.PARQUET_USE_COLUMN_NAMES.key -> "false") {
+      withTempDir {
+        dir =>
+          val path = dir.getCanonicalPath
+          spark
+            .range(2)
+            .selectExpr("id as a", "cast(id + 10 as string) as b")
+            .write
+            .mode("overwrite")
+            .parquet(path)
+
+          withTable("test") {
+            sql(s"""create table test (c long, d string, e float) using parquet options
+                   |(path '$path')""".stripMargin)
+            var df = sql("select c, d from test")
+            checkAnswer(df, Seq(Row(0L, "10"), Row(1L, "11")))
+
+            df = sql("select d from test")
+            checkAnswer(df, Seq(Row("10"), Row("11")))
+
+            df = sql("select c from test")
+            checkAnswer(df, Seq(Row(0L), Row(1L)))
+
+            df = sql("select d, c from test")
+            checkAnswer(df, Seq(Row("10", 0L), Row("11", 1L)))
+
+            df = sql("select c, d, e from test")
+            checkAnswer(df, Seq(Row(0L, "10", null), Row(1L, "11", null)))
+
+            df = sql("select e, d, c from test")
+            checkAnswer(df, Seq(Row(null, "10", 0L), Row(null, "11", 1L)))
+          }
+      }
+    }
+  }
+
+  test("ORC index based schema evolution") {
+    withSQLConf(VeloxConfig.ORC_USE_COLUMN_NAMES.key -> "false") {
+      withTempDir {
+        dir =>
+          val path = dir.getCanonicalPath
+          spark
+            .range(2)
+            .selectExpr("id as a", "cast(id + 10 as string) as b")
+            .write
+            .mode("overwrite")
+            .orc(path)
+
+          withTable("test") {
+            sql(s"""create table test (c long, d string, e float) using orc options
+                   |(path '$path')""".stripMargin)
+            var df = sql("select c, d from test")
+            checkAnswer(df, Seq(Row(0L, "10"), Row(1L, "11")))
+
+            df = sql("select d from test")
+            checkAnswer(df, Seq(Row("10"), Row("11")))
+
+            df = sql("select c from test")
+            checkAnswer(df, Seq(Row(0L), Row(1L)))
+
+            df = sql("select d, c from test")
+            checkAnswer(df, Seq(Row("10", 0L), Row("11", 1L)))
+
+            df = sql("select c, d, e from test")
+            checkAnswer(df, Seq(Row(0L, "10", null), Row(1L, "11", null)))
+
+            df = sql("select e, d, c from test")
+            checkAnswer(df, Seq(Row(null, "10", 0L), Row(null, "11", 1L)))
+          }
+      }
     }
   }
 }
