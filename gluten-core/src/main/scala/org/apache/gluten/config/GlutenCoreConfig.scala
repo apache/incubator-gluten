@@ -195,7 +195,6 @@ object GlutenCoreConfig {
   // Since https://github.com/apache/incubator-gluten/issues/5439.
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
-      .internal()
       .experimental()
       .doc(
         "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
@@ -214,7 +213,6 @@ object GlutenCoreConfig {
   // Since https://github.com/apache/incubator-gluten/issues/5439.
   val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
-      .internal()
       .experimental()
       .doc(
         "Experimental: Determines the memory fraction used to determine the total " +

@@ -112,6 +112,7 @@ class AllGlutenConfiguration extends AnyFunSuite {
 
     ConfigEntry.getAllEntries
       .filter(_.isPublic)
+      .filter(!_.isExperimental)
       .sortBy(_.key)
       .foreach {
         entry =>
@@ -129,6 +130,7 @@ class AllGlutenConfiguration extends AnyFunSuite {
          |"""
 
     ConfigEntry.getAllEntries
+      .filter(_.isPublic)
       .filter(_.isExperimental)
       .sortBy(_.key)
       .foreach {
