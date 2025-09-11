@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.benchmarks.RandomParquetDataGenerator
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.utils.VeloxFileSystemValidationJniWrapper
 
 import org.apache.spark.SparkConf
@@ -27,6 +27,8 @@ import org.apache.spark.sql.catalyst.expressions.GreaterThan
 import org.apache.spark.sql.execution.ScalarSubquery
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+
+import scala.reflect.ClassTag
 
 class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -42,6 +44,12 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+  }
+
+  def checkQuery[T <: GlutenPlan: ClassTag](query: String, expectedResults: Seq[Row]): Unit = {
+    val df = sql(query)
+    checkAnswer(df, expectedResults)
+    checkGlutenOperatorMatch[T](df)
   }
 
   test("tpch q22 subquery filter pushdown - v1") {
@@ -202,9 +210,98 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
 
         withTable("test") {
           sql("create table test (a long, b string) using parquet options (path '" + path + "')")
-          val df = sql("select b from test group by b order by b")
-          checkAnswer(df, Seq(Row("10"), Row("11")))
+          checkQuery[FileSourceScanExecTransformer](
+            "select b from test group by b order by b",
+            Seq(Row("10"), Row("11")))
         }
+    }
+  }
+
+  test("parquet index based schema evolution") {
+    withSQLConf(
+      VeloxConfig.PARQUET_USE_COLUMN_NAMES.key -> "false",
+      "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
+      withTempDir {
+        dir =>
+          val path = dir.getCanonicalPath
+          spark
+            .range(2)
+            .selectExpr("id as a", "cast(id + 10 as string) as b")
+            .write
+            .mode("overwrite")
+            .parquet(path)
+
+          withTable("test") {
+            sql(s"""create table test (c long, d string, e float) using parquet options
+                   |(path '$path')""".stripMargin)
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select c, d from test",
+              Seq(Row(0L, "10"), Row(1L, "11")))
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select d from test",
+              Seq(Row("10"), Row("11")))
+
+            checkQuery[FileSourceScanExecTransformer]("select c from test", Seq(Row(0L), Row(1L)))
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select d, c from test",
+              Seq(Row("10", 0L), Row("11", 1L)))
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select c, d, e from test",
+              Seq(Row(0L, "10", null), Row(1L, "11", null)))
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select e, d, c from test",
+              Seq(Row(null, "10", 0L), Row(null, "11", 1L)))
+          }
+      }
+    }
+  }
+
+  test("ORC index based schema evolution") {
+    withSQLConf(
+      VeloxConfig.ORC_USE_COLUMN_NAMES.key -> "false",
+      "spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
+      withTempDir {
+        dir =>
+          val path = dir.getCanonicalPath
+          spark
+            .range(2)
+            .selectExpr("id as a", "cast(id + 10 as string) as b")
+            .write
+            .mode("overwrite")
+            .orc(path)
+
+          withTable("test") {
+            sql(s"""create table test (c long, d string, e float) using orc options
+                   |(path '$path')""".stripMargin)
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select c, d from test",
+              Seq(Row(0L, "10"), Row(1L, "11")))
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select d from test",
+              Seq(Row("10"), Row("11")))
+
+            checkQuery[FileSourceScanExecTransformer]("select c from test", Seq(Row(0L), Row(1L)))
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select d, c from test",
+              Seq(Row("10", 0L), Row("11", 1L)))
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select c, d, e from test",
+              Seq(Row(0L, "10", null), Row(1L, "11", null)))
+
+            checkQuery[FileSourceScanExecTransformer](
+              "select e, d, c from test",
+              Seq(Row(null, "10", 0L), Row(null, "11", 1L)))
+          }
+      }
     }
   }
 }

@@ -1355,13 +1355,18 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   bool filterPushdownEnabled = true;
   auto names = colNameList;
   auto types = veloxTypeList;
-  auto dataColumns = ROW(std::move(names), std::move(types));
+
+  // The columns we project from the file.
+  auto baseSchema = ROW(std::move(names), std::move(types));
+  // The columns present in the table, if not available default to the baseSchema.
+  auto tableSchema = splitInfo->tableSchema ? splitInfo->tableSchema : baseSchema;
+
   connector::ConnectorTableHandlePtr tableHandle;
-  auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), dataColumns) : nullptr;
+  auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), baseSchema) : nullptr;
   if (useCudfTableHandle(splitInfos_)) {
 #ifdef GLUTEN_ENABLE_GPU
     tableHandle = std::make_shared<CudfHiveTableHandle>(
-        kCudfHiveConnectorId, "cudf_hive_table", filterPushdownEnabled, nullptr, remainingFilter, dataColumns);
+        kCudfHiveConnectorId, "cudf_hive_table", filterPushdownEnabled, nullptr, remainingFilter, tableSchema);
 #endif
   } else {
     common::SubfieldFilters subfieldFilters;
@@ -1371,7 +1376,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         filterPushdownEnabled,
         std::move(subfieldFilters),
         remainingFilter,
-        dataColumns);
+        tableSchema);
   }
 
   // Get assignments and out names.
