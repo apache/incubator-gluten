@@ -317,8 +317,8 @@ class Spark40Shims extends SparkShims {
     )
   }
 
-  override def getWindowGroupLimitExec(windowGroupLimitPlan: SparkPlan): SparkPlan = {
-    val windowGroupLimitExecShim = windowGroupLimitPlan.asInstanceOf[WindowGroupLimitExecShim]
+  override def getWindowGroupLimitExec(
+      windowGroupLimitExecShim: WindowGroupLimitExecShim): SparkPlan = {
     val mode = windowGroupLimitExecShim.mode match {
       case GlutenPartial => Partial
       case GlutenFinal => Final
