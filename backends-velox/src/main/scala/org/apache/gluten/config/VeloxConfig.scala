@@ -80,6 +80,10 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled &&
     getConf(ENABLE_ENHANCED_FEATURES)
+
+  def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
+
+  def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
 }
 
 object VeloxConfig {
@@ -652,6 +656,18 @@ object VeloxConfig {
   val ENABLE_ENHANCED_FEATURES =
     buildConf("spark.gluten.sql.enable.enhancedFeatures")
       .doc("Enable some features including iceberg native write and other features.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ORC_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.orcUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for ORC files.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val PARQUET_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.parquetUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for Parquet files.")
       .booleanConf
       .createWithDefault(true)
 }

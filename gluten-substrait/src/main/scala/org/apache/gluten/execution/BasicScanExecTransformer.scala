@@ -68,6 +68,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         .genSplitInfo(
           _,
           getPartitionSchema,
+          getDataSchema,
           fileFormat,
           getMetadataColumns().map(_.name),
           getProperties))
