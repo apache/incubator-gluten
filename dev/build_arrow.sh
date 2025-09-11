@@ -25,21 +25,6 @@ ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
 BUILD_TYPE=Release
 INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
 
-OTHER_ARGUMENTS=""
-
-for arg in "$@"; do
-  case $arg in
-  --install_prefix=*)
-    INSTALL_PREFIX=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  *)
-    OTHER_ARGUMENTS+=("$1")
-    shift # Remove generic argument from processing
-    ;;
-  esac
-done
-
 function prepare_arrow_build() {
   mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && ${SUDO} rm -rf arrow_ep/
   wget_and_untar https://github.com/apache/arrow/archive/refs/tags/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep

@@ -159,9 +159,9 @@ do
 done
 
 if [[ "$(uname)" == "Darwin" ]]; then
-    INSTALL_PREFIX=${INSTALL_PREFIX:-${VELOX_HOME}/deps-install}
+    export INSTALL_PREFIX=${INSTALL_PREFIX:-${VELOX_HOME}/deps-install}
 else
-    INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
+    export INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
 fi
 
 function concat_velox_param {
@@ -212,7 +212,7 @@ function build_arrow {
     get_velox && setup_dependencies
   fi
   cd $GLUTEN_DIR/dev
-  source ./build_arrow.sh --install_prefix=$INSTALL_PREFIX
+  source ./build_arrow.sh
 }
 
 function build_velox {
@@ -222,7 +222,7 @@ function build_velox {
   ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
                    --enable_abfs=$ENABLE_ABFS --enable_gpu=$ENABLE_GPU --build_test_utils=$BUILD_TESTS \
                    --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS \
-                   --velox_home=$VELOX_HOME --install_prefix=$INSTALL_PREFIX
+                   --velox_home=$VELOX_HOME
 }
 
 function build_gluten_cpp {

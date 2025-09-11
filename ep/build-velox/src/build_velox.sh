@@ -38,8 +38,6 @@ ENABLE_TESTS=OFF
 BUILD_TEST_UTILS=OFF
 # Number of threads to use for building.
 NUM_THREADS=""
-# Install prefix for Velox.
-INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
 
 OTHER_ARGUMENTS=""
 
@@ -144,11 +142,6 @@ function compile {
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
-
-  if [ $OS == 'Darwin' ]; then
-    COMPILE_OPTION+=" -DCMAKE_PREFIX_PATH=$INSTALL_PREFIX"
-  fi
-
   echo "COMPILE_OPTION: "$COMPILE_OPTION
 
   NUM_THREADS_OPTS=""
