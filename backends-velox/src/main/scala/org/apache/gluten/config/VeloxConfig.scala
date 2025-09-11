@@ -82,6 +82,10 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(ENABLE_ENHANCED_FEATURES)
 
   def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
+
+  def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
+
+  def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
 }
 
 object VeloxConfig {
@@ -662,4 +666,16 @@ object VeloxConfig {
       .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("10MB")
+
+  val ORC_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.orcUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for ORC files.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val PARQUET_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.parquetUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for Parquet files.")
+      .booleanConf
+      .createWithDefault(true)
 }
