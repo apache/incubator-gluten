@@ -56,8 +56,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableAnsiFallback: Boolean = getConf(GLUTEN_ANSI_FALLBACK_ENABLED)
 
-  def glutenUiEnabled: Boolean = getConf(GLUTEN_UI_ENABLED)
-
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = getConf(NATIVE_VALIDATION_ENABLED)
 
