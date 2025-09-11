@@ -24,7 +24,7 @@ import org.apache.spark.status.ElementTrackingStore
 
 object GlutenUIUtils {
 
-  /** Check if enabled the gluten ui. */
+  /** Check if Gluten UI is enabled. */
   def uiEnabled(sc: SparkContext): Boolean =
     sc.ui.isDefined && sc.getConf.getBoolean(
       GlutenConfig.GLUTEN_UI_ENABLED.key,
