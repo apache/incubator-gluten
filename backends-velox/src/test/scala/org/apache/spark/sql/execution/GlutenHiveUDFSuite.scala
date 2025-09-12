@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{ColumnarPartialGenerateExec, ColumnarPartialProjectExec}
+import org.apache.gluten.execution.{ColumnarPartialGenerateExec, ColumnarPartialProjectExec, GlutenQueryComparisonTest}
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.udf.CustomerUDF
 import org.apache.gluten.udtf.{ConditionalOutputUDTF, CustomerUDTF, NoInputUDTF, SimpleUDTF}
@@ -25,7 +25,7 @@ import org.apache.gluten.udtf.{ConditionalOutputUDTF, CustomerUDTF, NoInputUDTF,
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.UI.UI_ENABLED
-import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.classic.ClassicTypes._
@@ -39,7 +39,7 @@ import java.io.File
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
+class GlutenHiveUDFSuite extends GlutenQueryComparisonTest with SQLTestUtils {
   private var _spark: SparkSession = _
 
   override protected def beforeAll(): Unit = {
@@ -126,12 +126,47 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
 
   test("customer udtf") {
     withTempFunction("testUDTF") {
-      sql(s"CREATE TEMPORARY FUNCTION testUDTF AS '${classOf[CustomerUDTF].getName}'")
-      val df = sql(
+      sql(s"CREATE TEMPORARY FUNCTION testUDTF AS '${classOf[CustomerUDTF].getName}';")
+      runQueryAndCompare(
         "select l_partkey, col0, col1 from lineitem lateral view" +
-          " testUDTF(l_partkey, l_comment) as col0, col1")
-      df.collect()
-      checkOperatorMatch[ColumnarPartialGenerateExec](df)
+          " testUDTF(l_partkey, l_comment) as col0, col1") {
+        checkOperatorMatch[ColumnarPartialGenerateExec]
+      }
+    }
+  }
+
+  test("simple udtf") {
+    withTempFunction("simpleUDTF") {
+      sql(s"CREATE TEMPORARY FUNCTION simpleUDTF AS '${classOf[SimpleUDTF].getName}'")
+      runQueryAndCompare(
+        "select l_partkey, col0 from lineitem lateral view" +
+          " simpleUDTF(l_orderkey) as col0") {
+        checkOperatorMatch[ColumnarPartialGenerateExec]
+      }
+    }
+  }
+
+  test("no argument udtf") {
+    withTempFunction("noInputUDTF") {
+      sql(s"CREATE TEMPORARY FUNCTION noInputUDTF AS '${classOf[NoInputUDTF].getName}'")
+      runQueryAndCompare(
+        "select l_partkey, col0 from lineitem lateral view" +
+          " noInputUDTF() as col0") {
+        checkOperatorMatch[ColumnarPartialGenerateExec]
+      }
+    }
+  }
+
+  test("lateral view outer udtf") {
+    withTempFunction("conditionalOutputUDTF") {
+      sql(
+        s"CREATE TEMPORARY FUNCTION conditionalOutputUDTF" +
+          s" AS '${classOf[ConditionalOutputUDTF].getName}'")
+      runQueryAndCompare(
+        "select l_partkey, col0 from lineitem lateral view outer" +
+          " conditionalOutputUDTF(l_orderkey) as col0") {
+        checkOperatorMatch[ColumnarPartialGenerateExec]
+      }
     }
   }
 
@@ -139,53 +174,23 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
     withTempFunction("testUDTF") {
       val plusOne = udf((x: Long) => x + 1)
       spark.udf.register("plus_one", plusOne)
-      sql(s"CREATE TEMPORARY FUNCTION testUDTF AS '${classOf[CustomerUDTF].getName}'")
       withSQLConf(
         GlutenConfig.ENABLE_COLUMNAR_PARTIAL_PROJECT.key -> "false"
       ) {
-        val df = sql(
+        sql(s"CREATE TEMPORARY FUNCTION testUDTF AS '${classOf[CustomerUDTF].getName}'")
+        runQueryAndCompare(
           "select col0, col1 from (select plus_one(l_partkey) as " +
             "l_partkey, l_comment from lineitem) lateral view" +
-            " testUDTF(l_partkey, l_comment) as col0, col1")
-        df.collect()
-        assert(
-          df.queryExecution.executedPlan.find(_.isInstanceOf[ColumnarPartialGenerateExec]).isEmpty)
+            " testUDTF(l_partkey, l_comment) as col0, col1",
+          noFallBack = false
+        ) {
+          df =>
+            assert(
+              df.queryExecution.executedPlan
+                .find(_.isInstanceOf[ColumnarPartialGenerateExec])
+                .isEmpty)
+        }
       }
-    }
-  }
-
-  test("simple udtf") {
-    withTempFunction("simpleUDTF") {
-      sql(s"CREATE TEMPORARY FUNCTION testUDTF AS '${classOf[SimpleUDTF].getName}'")
-      val df = sql(
-        "select l_partkey, col0 from lineitem lateral view" +
-          " testUDTF(l_orderkey) as col0")
-      df.collect()
-      checkOperatorMatch[ColumnarPartialGenerateExec](df)
-    }
-  }
-
-  test("no argument udtf") {
-    withTempFunction("noInputUDTF") {
-      sql(s"CREATE TEMPORARY FUNCTION noInputUDTF AS '${classOf[NoInputUDTF].getName}'")
-      val df = sql(
-        "select l_partkey, col0 from lineitem lateral view" +
-          " noInputUDTF() as col0")
-      df.collect()
-      checkOperatorMatch[ColumnarPartialGenerateExec](df)
-    }
-  }
-
-  test("lateral view outer udtf") {
-    withTempFunction("conditionalOutputUDTF") {
-      sql(
-        s"CREATE TEMPORARY FUNCTION conditionalOutputUDTF AS" +
-          s"'${classOf[ConditionalOutputUDTF].getName}'")
-      val df = sql(
-        "select l_partkey, col0 from lineitem lateral view outer" +
-          " conditionalOutputUDTF(l_orderkey) as col0")
-      df.collect()
-      checkOperatorMatch[ColumnarPartialGenerateExec](df)
     }
   }
 
