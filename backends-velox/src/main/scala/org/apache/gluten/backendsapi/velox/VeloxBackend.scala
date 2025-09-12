@@ -523,8 +523,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def staticPartitionWriteOnly(): Boolean = true
 
-  override def allowDecimalArithmetic: Boolean = true
-
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.get.enableNativeWriter.getOrElse(
       SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
