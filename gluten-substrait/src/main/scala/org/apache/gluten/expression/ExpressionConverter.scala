@@ -541,8 +541,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case CheckOverflow(b: BinaryArithmetic, decimalType, _)
           if !BackendsApiManager.getSettings.transformCheckOverflow &&
             DecimalArithmeticUtil.isDecimalArithmetic(b) =>
-        DecimalArithmeticUtil.checkAllowDecimalArithmetic()
-        val arithmeticExprName = getAndCheckSubstraitName(b, expressionsMap)
+        val arithmeticExprName =
+          BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
+            getAndCheckSubstraitName(b, expressionsMap))
         val left =
           replaceWithExpressionTransformer0(b.left, attributeSeq, expressionsMap)
         val right =
@@ -558,17 +559,18 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           "CheckOverflowInTableInsert is used in ANSI mode, but Gluten does not support ANSI mode."
         )
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
-        DecimalArithmeticUtil.checkAllowDecimalArithmetic()
+        val exprName = BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
+          substraitExprName)
         if (!BackendsApiManager.getSettings.transformCheckOverflow) {
           GenericExpressionTransformer(
-            substraitExprName,
+            exprName,
             expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
             expr
           )
         } else {
           // Without the rescale and remove cast, result is right for high version Spark,
           // but performance regression in velox
-          genRescaleDecimalTransformer(substraitExprName, b, attributeSeq, expressionsMap)
+          genRescaleDecimalTransformer(exprName, b, attributeSeq, expressionsMap)
         }
       case n: NaNvl =>
         BackendsApiManager.getSparkPlanExecApiInstance.genNaNvlTransformer(

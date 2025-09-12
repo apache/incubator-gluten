@@ -105,8 +105,6 @@ trait BackendSettingsApi {
 
   def rescaleDecimalArithmetic: Boolean = false
 
-  def allowDecimalArithmetic: Boolean = true
-
   /**
    * After https://github.com/apache/spark/pull/36698, every arithmetic should report the accurate
    * result decimal type and implement `CheckOverflow` by itself. <p/> Regardless of whether there
