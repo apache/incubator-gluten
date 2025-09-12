@@ -607,16 +607,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   override def extraExpressionConverter(
       substraitExprName: String,
       expr: Expression,
-      attributeSeq: Seq[Attribute]): Option[ExpressionTransformer] = expr match {
-    case e if ExpressionExtensionTrait.findExpressionExtension(e.getClass).nonEmpty =>
-      // Use extended expression transformer to replace custom expression first
-      Some(
-        ExpressionExtensionTrait
-          .findExpressionExtension(e.getClass)
-          .get
-          .replaceWithExtensionExpressionTransformer(substraitExprName, e, attributeSeq))
-    case _ => None
-  }
+      attributeSeq: Seq[Attribute]): Option[ExpressionTransformer] =
+    // Use extended expression transformer to replace custom expression first
+    ExpressionExtensionTrait
+      .findExpressionExtension(expr.getClass)
+      .map(_.replaceWithExtensionExpressionTransformer(substraitExprName, expr, attributeSeq))
 
   override def genStringTranslateTransformer(
       substraitExprName: String,
