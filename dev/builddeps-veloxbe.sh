@@ -18,7 +18,7 @@
 ####################################################################################################
 #  The main function of this script is to allow developers to build the environment with one click #
 #  Recommended commands for first-time installation:                                               #
-#  ./dev/buildbundle-veloxbe.sh                                                            #
+#  ./dev/buildbundle-veloxbe.sh                                                                    #
 ####################################################################################################
 set -exu
 
@@ -272,7 +272,7 @@ function setup_dependencies {
 
   source $GLUTEN_DIR/dev/build_helper_functions.sh
   source ${VELOX_HOME}/scripts/setup-common.sh
-  if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
+  if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ]; then
     echo "Start to install dependencies"
     pushd $VELOX_HOME
     if [ $OS == 'Linux' ]; then
@@ -303,7 +303,9 @@ commands_to_run=${OTHER_ARGUMENTS:-}
 (
   if [[ "x$commands_to_run" == "x" ]]; then
     get_velox
-    setup_dependencies
+    if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
+      setup_dependencies
+    fi
     build_velox_backend
   else
     echo "Commands to run: $commands_to_run"
