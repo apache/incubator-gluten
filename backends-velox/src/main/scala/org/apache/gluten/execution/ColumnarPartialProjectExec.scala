@@ -21,7 +21,6 @@ import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.{ArrowProjection, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionUtils, TransformerState}
-import org.apache.gluten.expression.{ArrowProjection, ExpressionMappings, ExpressionUtils}
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
@@ -357,7 +356,7 @@ object ColumnarPartialProjectExec {
 
   private def doNativeValidateExpression(
       expr: Expression,
-      replacedAlias: Seq[Alias],
+      replacedAlias: ListBuffer[Alias],
       childOutput: Seq[Attribute]): Boolean = {
     val substraitContext = new SubstraitContext
     val output = childOutput ++ replacedAlias.map(_.toAttribute)
@@ -454,28 +453,13 @@ object ColumnarPartialProjectExec {
     }
   }
 
-  private def getAllAttributeReferences(
-      expr: Expression,
-      attributeReferences: ListBuffer[AttributeReference]): Unit = {
-    if (expr == null) {
-      return
-    }
-    expr match {
-      case a: AttributeReference =>
-        if (!attributeReferences.contains(a)) {
-          attributeReferences.append(a)
-        }
-      case other => other.children.foreach(e => getAllAttributeReferences(e, attributeReferences))
-    }
-  }
-
   def create(original: ProjectExec): ProjectExecTransformer = {
     val replacedAlias: ListBuffer[Alias] = ListBuffer()
     val newProjectList = original.projectList.map {
       p => replaceExpression(p, original.child.output, replacedAlias).asInstanceOf[NamedExpression]
     }
     val partialProject =
-      ColumnarPartialProjectExec(original.projectList, original.child, replacedAlias)
+      ColumnarPartialProjectExec(original.projectList, original.child, replacedAlias.toSeq)
     ProjectExecTransformer(newProjectList, partialProject)
   }
 }

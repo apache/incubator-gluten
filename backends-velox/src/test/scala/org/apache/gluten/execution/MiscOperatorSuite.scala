@@ -2187,6 +2187,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           assert(metrics("numOutputBatches").value == expectedNumBatches)
         }
       })
+  }
 
   test("Expression unsupported by backend can be handled by ColumnarPartialProject") {
     runQueryAndCompare(
