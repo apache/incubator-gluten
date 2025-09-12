@@ -788,14 +788,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     // Check whether Gluten supports this expression
     expressionsMap
       .get(expr.getClass)
-      .flatMap {
-        name =>
-          if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(name, expr)) {
-            None
-          } else {
-            Some(name)
-          }
-      }
+      .filter(BackendsApiManager.getValidatorApiInstance.doExprValidate(_, expr))
       .getOrElse {
         throw new GlutenNotSupportException(
           s"Not supported to map spark function name" +
