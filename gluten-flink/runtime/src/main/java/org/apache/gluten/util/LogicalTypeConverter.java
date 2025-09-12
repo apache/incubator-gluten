@@ -31,7 +31,9 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import java.util.List;
@@ -108,7 +110,13 @@ public class LogicalTypeConverter {
           // TODO: may need precision
           Map.entry(
               LocalZonedTimestampType.class,
-              logicalType -> new io.github.zhztheplayer.velox4j.type.TimestampType()));
+              logicalType -> new io.github.zhztheplayer.velox4j.type.TimestampType()),
+          Map.entry(
+              TinyIntType.class,
+              logicalType -> new io.github.zhztheplayer.velox4j.type.TinyIntType()),
+          Map.entry(
+              SymbolType.class,
+              logicalType -> new io.github.zhztheplayer.velox4j.type.VarCharType()));
 
   public static Type toVLType(LogicalType logicalType) {
     VLTypeConverter converter = converters.get(logicalType.getClass());
