@@ -245,10 +245,11 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
         partitionSpec = newPartitionSpec,
         child = newChild
       )
+      newWindowGroupLimitExecShim.copyTagsFrom(windowGroupLimitExecShim)
 
       val newWindowGroupLimitExec =
         SparkShimLoader.getSparkShims.getWindowGroupLimitExec(newWindowGroupLimitExecShim)
-      newWindowGroupLimitExec.copyTagsFrom(plan)
+      newWindowGroupLimitExec.copyTagsFrom(newWindowGroupLimitExecShim)
 
       val newProject = ProjectExec(plan.output, newWindowGroupLimitExec)
       newWindowGroupLimitExec.logicalLink.foreach(newProject.setLogicalLink)

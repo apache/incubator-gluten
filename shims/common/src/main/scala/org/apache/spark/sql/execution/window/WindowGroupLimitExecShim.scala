@@ -16,8 +16,10 @@
  */
 package org.apache.spark.sql.execution.window
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, SortOrder}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, SortOrder}
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
 sealed trait GlutenWindowGroupLimitMode
 
@@ -32,3 +34,14 @@ case class WindowGroupLimitExecShim(
     limit: Int,
     mode: GlutenWindowGroupLimitMode,
     child: SparkPlan)
+  extends UnaryExecNode {
+  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+    copy(child = newChild)
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    throw new UnsupportedOperationException(
+      s"${this.getClass.getSimpleName} doesn't support doExecute")
+  }
+
+  override def output: Seq[Attribute] = child.output
+}
