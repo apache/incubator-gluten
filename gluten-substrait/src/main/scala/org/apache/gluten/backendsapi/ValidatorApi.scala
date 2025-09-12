@@ -17,6 +17,9 @@
 package org.apache.gluten.backendsapi
 
 import org.apache.gluten.execution.ValidationResult
+import org.apache.gluten.substrait.`type`.TypeNode
+import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.expression.ExpressionNode
 import org.apache.gluten.substrait.plan.PlanNode
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -42,6 +45,13 @@ trait ValidatorApi {
 
   /** Validate against Substrait plan node in native backend. */
   def doNativeValidateWithFailureReason(plan: PlanNode): ValidationResult
+
+  /** Validate expression in native backend. */
+  def doNativeValidateExpression(
+      substraitContext: SubstraitContext,
+      expression: ExpressionNode,
+      inputTypeNode: TypeNode): Boolean =
+    false
 
   /** Validate against Compression method, such as bzip2. */
   def doCompressionSplittableValidate(compressionMethod: String): Boolean = false
