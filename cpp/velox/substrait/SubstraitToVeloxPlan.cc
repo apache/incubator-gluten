@@ -1282,18 +1282,22 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     SubstraitParser::parseColumnTypes(baseSchema, columnTypes);
   }
 
-  // Velox requires Filter Pushdown must being enabled.
-  bool filterPushdownEnabled = true;
   auto names = colNameList;
   auto types = veloxTypeList;
-  auto dataColumns = ROW(std::move(names), std::move(types));
+  // The columns we project from the file.
+  auto baseSchema = ROW(std::move(names), std::move(types));
+  // The columns present in the table, if not available default to the baseSchema.
+  auto tableSchema = splitInfo->tableSchema ? splitInfo->tableSchema : baseSchema;
+
+  // Velox requires Filter Pushdown must being enabled.
+  bool filterPushdownEnabled = true;
   std::shared_ptr<connector::hive::HiveTableHandle> tableHandle;
   if (!readRel.has_filter()) {
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId, "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr, dataColumns);
+        kHiveConnectorId, "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr, tableSchema);
   } else {
     common::SubfieldFilters subfieldFilters;
-    auto remainingFilter = exprConverter_->toVeloxExpr(readRel.filter(), dataColumns);
+    auto remainingFilter = exprConverter_->toVeloxExpr(readRel.filter(), baseSchema);
 
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
         kHiveConnectorId,
@@ -1301,7 +1305,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         filterPushdownEnabled,
         std::move(subfieldFilters),
         remainingFilter,
-        dataColumns);
+        tableSchema);
   }
 
   // Get assignments and out names.
