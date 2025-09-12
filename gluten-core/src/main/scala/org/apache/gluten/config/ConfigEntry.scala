@@ -51,6 +51,8 @@ trait ConfigEntry[T] {
    */
   def isPublic: Boolean
 
+  def isExperimental: Boolean
+
   /** the alternative keys for the configuration. */
   def alternatives: List[String]
 
@@ -90,6 +92,7 @@ private[gluten] class OptionalConfigEntry[T](
     _version: String,
     _backend: BackendType,
     _isPublic: Boolean,
+    _isExperimental: Boolean,
     _alternatives: List[String],
     _valueConverter: String => T,
     _stringConverter: T => String)
@@ -103,6 +106,8 @@ private[gluten] class OptionalConfigEntry[T](
   override def backend: BackendType = _backend
 
   override def isPublic: Boolean = _isPublic
+
+  override def isExperimental: Boolean = _isExperimental
 
   override def alternatives: List[String] = _alternatives
 
@@ -124,6 +129,7 @@ private[gluten] class ConfigEntryWithDefault[T](
     _version: String,
     _backend: BackendType,
     _isPublic: Boolean,
+    _isExperimental: Boolean,
     _alternatives: List[String],
     _valueConverter: String => T,
     _stringConverter: T => String,
@@ -138,6 +144,8 @@ private[gluten] class ConfigEntryWithDefault[T](
   override def backend: BackendType = _backend
 
   override def isPublic: Boolean = _isPublic
+
+  override def isExperimental: Boolean = _isExperimental
 
   override def alternatives: List[String] = _alternatives
 
@@ -160,6 +168,7 @@ private[gluten] class ConfigEntryWithDefaultString[T](
     _version: String,
     _backend: BackendType,
     _isPublic: Boolean,
+    _isExperimental: Boolean,
     _alternatives: List[String],
     _valueConverter: String => T,
     _stringConverter: T => String,
@@ -174,6 +183,8 @@ private[gluten] class ConfigEntryWithDefaultString[T](
   override def backend: BackendType = _backend
 
   override def isPublic: Boolean = _isPublic
+
+  override def isExperimental: Boolean = _isExperimental
 
   override def alternatives: List[String] = _alternatives
 
@@ -197,6 +208,7 @@ private[gluten] class ConfigEntryFallback[T](
     _version: String,
     _backend: BackendType,
     _isPublic: Boolean,
+    _isExperimental: Boolean,
     _alternatives: List[String],
     fallback: ConfigEntry[T])
   extends ConfigEntry[T] {
@@ -209,6 +221,8 @@ private[gluten] class ConfigEntryFallback[T](
   override def backend: BackendType = _backend
 
   override def isPublic: Boolean = _isPublic
+
+  override def isExperimental: Boolean = _isExperimental
 
   override def alternatives: List[String] = _alternatives
 
