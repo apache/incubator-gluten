@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.backendsapi.RuleApi
+import org.apache.gluten.backendsapi.{BackendsApiManager, RuleApi}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
@@ -66,6 +66,9 @@ object VeloxRuleApi {
     injector.injectOptimizerRule(RewriteCastFromArray.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
     injector.injectOptimizerRule(RewriteUnboundedWindow.apply)
+    if (BackendsApiManager.getSettings.supportAppendDataExec()) {
+      injector.injectPlannerStrategy(SparkShimLoader.getSparkShims.getRewriteCreateTableAsSelect(_))
+    }
   }
 
   /**
