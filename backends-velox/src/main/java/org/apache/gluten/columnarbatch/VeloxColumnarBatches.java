@@ -31,38 +31,47 @@ import java.util.Objects;
 public final class VeloxColumnarBatches {
   public static final String COMPREHENSIVE_TYPE_VELOX = "velox";
 
-  private static boolean isVeloxBatch(ColumnarBatch batch) {
-    final String comprehensiveType = ColumnarBatches.getComprehensiveLightBatchType(batch);
+  private static boolean isVeloxBatch(ColumnarBatch batch, ColumnarBatches.BatchType batchType) {
+    final String comprehensiveType =
+        ColumnarBatches.getComprehensiveLightBatchType(batch, batchType);
     return Objects.equals(comprehensiveType, COMPREHENSIVE_TYPE_VELOX);
   }
 
-  public static void checkVeloxBatch(ColumnarBatch batch) {
-    if (ColumnarBatches.isZeroColumnBatch(batch)) {
+  public static void checkVeloxBatch(ColumnarBatch batch, ColumnarBatches.BatchType batchType) {
+    if (ColumnarBatches.isZeroColumnBatch(batchType)) {
       return;
     }
     Preconditions.checkArgument(
-        isVeloxBatch(batch),
+        isVeloxBatch(batch, batchType),
         String.format(
             "Expected comprehensive batch type %s, but got %s",
-            COMPREHENSIVE_TYPE_VELOX, ColumnarBatches.getComprehensiveLightBatchType(batch)));
+            COMPREHENSIVE_TYPE_VELOX,
+            ColumnarBatches.getComprehensiveLightBatchType(batch, batchType)));
   }
 
   public static ColumnarBatch toVeloxBatch(ColumnarBatch input) {
-    ColumnarBatches.checkOffloaded(input);
-    if (ColumnarBatches.isZeroColumnBatch(input)) {
+    ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(input);
+    return toVeloxBatch(input, batchType);
+  }
+
+  public static ColumnarBatch toVeloxBatch(
+      ColumnarBatch input, ColumnarBatches.BatchType batchType) {
+    ColumnarBatches.checkOffloaded(batchType);
+    if (ColumnarBatches.isZeroColumnBatch(batchType)) {
       return input;
     }
-    Preconditions.checkArgument(!isVeloxBatch(input));
+    Preconditions.checkArgument(!isVeloxBatch(input, batchType));
     final Runtime runtime =
         Runtimes.contextInstance(
             BackendsApiManager.getBackendName(), "VeloxColumnarBatches#toVeloxBatch");
-    final long handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), input);
+    final long handle =
+        ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), input, batchType);
     final long outHandle = VeloxColumnarBatchJniWrapper.create(runtime).from(handle);
     final ColumnarBatch output = ColumnarBatches.create(outHandle);
 
     // Follow input's reference count. This might be optimized using
     // automatic clean-up or once the extensibility of ColumnarBatch is enriched
-    final long refCnt = ColumnarBatches.getRefCntLight(input);
+    final long refCnt = ColumnarBatches.getRefCntLight(input, batchType);
     final IndicatorVector giv = (IndicatorVector) output.column(0);
     for (long i = 0; i < (refCnt - 1); i++) {
       giv.retain();
@@ -93,10 +102,11 @@ public final class VeloxColumnarBatches {
   public static ColumnarBatch ensureVeloxBatch(ColumnarBatch input) {
     final ColumnarBatch light =
         ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), input);
-    if (isVeloxBatch(light)) {
+    ColumnarBatches.BatchType rightBatchType = ColumnarBatches.identifyBatchType(light);
+    if (isVeloxBatch(light, rightBatchType)) {
       return light;
     }
-    return toVeloxBatch(light);
+    return toVeloxBatch(light, rightBatchType);
   }
 
   /**

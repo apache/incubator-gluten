@@ -149,11 +149,13 @@ object VeloxColumnarToRowExec {
           return rows
         }
 
-        VeloxColumnarBatches.checkVeloxBatch(batch)
+        val batchType = ColumnarBatches.identifyBatchType(batch)
+        VeloxColumnarBatches.checkVeloxBatch(batch, batchType)
 
         val cols = batch.numCols()
         val rows = batch.numRows()
-        val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
+        val batchHandle =
+          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch, batchType)
         var info: NativeColumnarToRowInfo = null
 
         new Iterator[InternalRow] {

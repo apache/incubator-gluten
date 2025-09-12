@@ -333,8 +333,9 @@ case class ColumnarArrowEvalPythonExec(
         val inputBatchIter = contextAwareIterator.map {
           inputCb =>
             start_time = System.nanoTime()
-            ColumnarBatches.checkLoaded(inputCb)
-            ColumnarBatches.retain(inputCb)
+            val batchType = ColumnarBatches.identifyBatchType(inputCb)
+            ColumnarBatches.checkLoaded(batchType)
+            ColumnarBatches.retain(inputCb, batchType)
             // 0. cache input for later merge
             inputCbCache += inputCb
             numInputRows += inputCb.numRows
@@ -365,7 +366,8 @@ case class ColumnarArrowEvalPythonExec(
               numOutputBatches += 1
               numOutputRows += numRows
               val batch = new ColumnarBatch(joinedVectors, numRows)
-              ColumnarBatches.checkLoaded(batch)
+              val batchType = ColumnarBatches.identifyBatchType(batch)
+              ColumnarBatches.checkLoaded(batchType)
               procTime += (System.nanoTime() - start_time) / 1000000
               batch
           }
