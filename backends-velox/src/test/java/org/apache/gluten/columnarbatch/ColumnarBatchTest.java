@@ -229,7 +229,8 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
               RowToVeloxColumnarExec.toColumnarBatchIterator(
                       JavaConverters.<InternalRow>asScalaIterator(batch.rowIterator()),
                       structType,
-                      numRows)
+                      numRows,
+                      Integer.MAX_VALUE)
                   .next();
           Assert.assertEquals("[true,15]\n[false,14]", ColumnarBatches.toString(veloxBatch, 0, 2));
           Assert.assertEquals(

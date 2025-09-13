@@ -2158,4 +2158,27 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       })
   }
+
+  test("RowToVeloxColumnar preferredBatchBytes") {
+    Seq("1", "80", "100000000").foreach(
+      preferredBatchBytes => {
+        withSQLConf(
+          VeloxConfig.COLUMNAR_VELOX_PREFERRED_BATCH_BYTES.key -> preferredBatchBytes
+        ) {
+          val df = Seq(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).toDF("Col").select($"Col".plus(1))
+          assert(df.collect().length == 10)
+          val ops = collect(df.queryExecution.executedPlan) { case p: RowToVeloxColumnarExec => p }
+          assert(ops.size == 1)
+          val op = ops.head
+          val metrics = op.metrics
+          // Each row consumes 16 bytes as an UnsafeRow.
+          val expectedNumBatches = preferredBatchBytes match {
+            case "1" => 10
+            case "80" => 2
+            case _ => 1
+          }
+          assert(metrics("numOutputBatches").value == expectedNumBatches)
+        }
+      })
+  }
 }
