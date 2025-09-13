@@ -273,16 +273,17 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def extendedExpressionTransformer: String = getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
   def expressionBlacklist: Set[String] = {
-    val blacklist = getConf(EXPRESSION_BLACK_LIST)
-    val blacklistSet: Set[String] = if (blacklist.isDefined) {
-      blacklist.get.toLowerCase(Locale.ROOT).trim.split(",").toSet
-    } else {
-      Set.empty
-    }
+    val blacklistSet = getConf(EXPRESSION_BLACK_LIST)
+      .map(_.toLowerCase(Locale.ROOT).split(",").map(_.trim()).filter(_.nonEmpty).toSet)
+      .getOrElse(Set.empty[String])
 
     if (getConf(FALLBACK_REGEXP_EXPRESSIONS)) {
-      val regexpList = "rlike,regexp_replace,regexp_extract,regexp_extract_all,split"
-      regexpList.trim.split(",").toSet ++ blacklistSet
+      blacklistSet ++ Set(
+        "rlike",
+        "regexp_replace",
+        "regexp_extract",
+        "regexp_extract_all",
+        "split")
     } else {
       blacklistSet
     }
