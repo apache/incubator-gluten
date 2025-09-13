@@ -943,7 +943,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       orderSpec: Seq[SortOrder],
       rankLikeFunction: Expression,
       limit: Int,
-      mode: WindowGroupLimitMode,
+      mode: GlutenWindowGroupLimitMode,
       child: SparkPlan): SparkPlan =
     CHWindowGroupLimitExecTransformer(
       partitionSpec,
