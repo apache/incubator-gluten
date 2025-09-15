@@ -288,9 +288,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
 
     val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
     val columnarNativeIterator =
-      new JArrayList[ColumnarBatchInIterator](inputIterators.map {
+      inputIterators.map {
         iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
-      }.asJava)
+      }
     val spillDirPath = SparkDirectoryUtil
       .get()
       .namespace("gluten-spill")
@@ -301,7 +301,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         rootNode.toProtobuf.toByteArray,
         // Final iterator does not contain scan split, so pass empty split info to native here.
         new Array[Array[Byte]](0),
-        columnarNativeIterator,
+        columnarNativeIterator.asJava,
         partitionIndex,
         BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath),
         enableCudf
