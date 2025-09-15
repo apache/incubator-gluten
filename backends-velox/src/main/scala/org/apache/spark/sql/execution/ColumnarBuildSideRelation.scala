@@ -48,7 +48,9 @@ object ColumnarBuildSideRelation {
   def apply(
       output: Seq[Attribute],
       batches: Array[Array[Byte]],
-      mode: BroadcastMode): ColumnarBuildSideRelation = {
+      mode: BroadcastMode,
+      newBuildKeys: Seq[Expression] = Seq.empty,
+      offload: Boolean = false): ColumnarBuildSideRelation = {
     val boundMode = mode match {
       case HashedRelationBroadcastMode(keys, isNullAware) =>
         // Bind each key to the build-side output so simple cols become BoundReference
@@ -58,7 +60,12 @@ object ColumnarBuildSideRelation {
       case m =>
         m // IdentityBroadcastMode, etc.
     }
-    new ColumnarBuildSideRelation(output, batches, BroadcastModeUtils.toSafe(boundMode))
+    new ColumnarBuildSideRelation(
+      output,
+      batches,
+      BroadcastModeUtils.toSafe(boundMode),
+      newBuildKeys,
+      offload)
   }
 }
 
@@ -66,8 +73,8 @@ case class ColumnarBuildSideRelation(
     output: Seq[Attribute],
     batches: Array[Array[Byte]],
     safeBroadcastMode: SafeBroadcastMode,
-    newBuildKeys: Seq[Expression] = Seq.empty,
-    offload: Boolean = false)
+    newBuildKeys: Seq[Expression],
+    offload: Boolean)
   extends BuildSideRelation
   with Logging {
 

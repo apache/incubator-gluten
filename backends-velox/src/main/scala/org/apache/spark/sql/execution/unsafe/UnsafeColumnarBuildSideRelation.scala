@@ -65,12 +65,19 @@ object UnsafeColumnarBuildSideRelation {
       case m =>
         m // IdentityBroadcastMode, etc.
     }
-    new UnsafeColumnarBuildSideRelation(output, batches, BroadcastModeUtils.toSafe(boundMode))
+    new UnsafeColumnarBuildSideRelation(
+      output,
+      batches,
+      BroadcastModeUtils.toSafe(boundMode),
+      Seq.empty,
+      false)
   }
   def apply(
       output: Seq[Attribute],
       bytesBufferArray: Array[Array[Byte]],
-      mode: BroadcastMode): UnsafeColumnarBuildSideRelation = {
+      mode: BroadcastMode,
+      newBuildKeys: Seq[Expression] = Seq.empty,
+      offload: Boolean = false): UnsafeColumnarBuildSideRelation = {
     val boundMode = mode match {
       case HashedRelationBroadcastMode(keys, isNullAware) =>
         // Bind each key to the build-side output so simple cols become BoundReference
@@ -83,7 +90,9 @@ object UnsafeColumnarBuildSideRelation {
     new UnsafeColumnarBuildSideRelation(
       output,
       bytesBufferArray,
-      BroadcastModeUtils.toSafe(boundMode)
+      BroadcastModeUtils.toSafe(boundMode),
+      newBuildKeys,
+      offload
     )
   }
 }
@@ -103,8 +112,8 @@ case class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
     private var batches: UnsafeBytesBufferArray,
     var safeBroadcastMode: SafeBroadcastMode,
-    newBuildKeys: Seq[Expression] = Seq.empty,
-    offload: Boolean = false)
+    newBuildKeys: Seq[Expression],
+    offload: Boolean)
   extends BuildSideRelation
   with Externalizable
   with Logging
@@ -123,7 +132,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   /** needed for serialization. */
   def this() = {
-    this(null, null.asInstanceOf[UnsafeBytesBufferArray], null)
+    this(null, null.asInstanceOf[UnsafeBytesBufferArray], null, Seq.empty, false)
   }
 
   def this(
@@ -131,29 +140,7 @@ case class UnsafeColumnarBuildSideRelation(
       bytesBufferArray: Array[Array[Byte]],
       safeMode: SafeBroadcastMode,
       newBuildKeys: Seq[Expression],
-      offload: Boolean) = {
-    this(
-      output,
-      UnsafeBytesBufferArray(
-        bytesBufferArray.length,
-        bytesBufferArray.map(_.length),
-        bytesBufferArray.map(_.length.toLong).sum
-      ),
-      mode,
-      newBuildKeys,
-      offload
-    )
-    val batchesSize = bytesBufferArray.length
-    for (i <- 0 until batchesSize) {
-      // copy the bytes to off-heap memory.
-      batches.putBytesBuffer(i, bytesBufferArray(i))
-    }
-  }
-
-  def this(
-      output: Seq[Attribute],
-      bytesBufferArray: Array[Array[Byte]],
-      safeMode: SafeBroadcastMode
+      offload: Boolean
   ) = {
     this(
       output,
@@ -162,7 +149,9 @@ case class UnsafeColumnarBuildSideRelation(
         bytesBufferArray.map(_.length),
         bytesBufferArray.map(_.length.toLong).sum
       ),
-      safeMode
+      safeMode,
+      newBuildKeys,
+      offload
     )
     val batchesSize = bytesBufferArray.length
     for (i <- 0 until batchesSize) {
