@@ -231,6 +231,13 @@ class VeloxIcebergSuite extends IcebergSuite {
                   |partitioned by (pt)
                   |""".stripMargin)
 
+      def checkColumnarToRow(df: DataFrame, num: Int): Unit = {
+        assert(
+          collect(df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan) {
+            case p if p.isInstanceOf[ColumnarToRowExecBase] => p
+          }.size == num)
+      }
+
       // insert partitioned table
       var df = spark.sql("insert into table iceberg_tbl values (1, 1), (2, 1), (3, 1), (4, 2)")
       checkAnswer(
@@ -247,14 +254,10 @@ class VeloxIcebergSuite extends IcebergSuite {
 
       // overwrite partitioned table
       df = spark.sql("insert overwrite table iceberg_tbl values (5, 1)")
+      checkAnswer(
+        spark.sql("select * from iceberg_tbl order by a"),
+        Seq(Row(5, 1)))
       checkColumnarToRow(df, 0)
     }
-  }
-
-  def checkColumnarToRow(df: DataFrame, num: Int): Unit = {
-    assert(
-      collect(df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan) {
-        case p if p.isInstanceOf[ColumnarToRowExecBase] => p
-      }.size == num)
   }
 }
