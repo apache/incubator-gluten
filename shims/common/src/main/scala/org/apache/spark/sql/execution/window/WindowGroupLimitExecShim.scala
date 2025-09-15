@@ -21,12 +21,18 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, SortOrder}
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
+sealed trait GlutenWindowGroupLimitMode
+
+case object GlutenPartial extends GlutenWindowGroupLimitMode
+
+case object GlutenFinal extends GlutenWindowGroupLimitMode
+
 case class WindowGroupLimitExecShim(
     partitionSpec: Seq[Expression],
     orderSpec: Seq[SortOrder],
     rankLikeFunction: Expression,
     limit: Int,
-    mode: WindowGroupLimitMode,
+    mode: GlutenWindowGroupLimitMode,
     child: SparkPlan)
   extends UnaryExecNode {
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
