@@ -791,7 +791,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
     if (useOffheapBroadcastBuildRelation) {
       TaskResources.runUnsafe {
-        new UnsafeColumnarBuildSideRelation(
+        UnsafeColumnarBuildSideRelation(
           newOutput,
           serialized.flatMap(_.getSerialized),
           mode,
