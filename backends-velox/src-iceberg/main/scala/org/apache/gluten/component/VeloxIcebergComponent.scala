@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.component
 import org.apache.gluten.backendsapi.velox.VeloxBackend
-import org.apache.gluten.execution.{IcebergPostTransform, OffloadIcebergScan, OffloadIcebergWrite}
+import org.apache.gluten.extension.{IcebergPostTransform, OffloadIcebergScan, OffloadIcebergWrite}
 import org.apache.gluten.extension.injector.Injector
 
 class VeloxIcebergComponent extends Component {
