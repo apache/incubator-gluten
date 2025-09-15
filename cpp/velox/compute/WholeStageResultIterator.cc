@@ -222,9 +222,6 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   if (numRows == 0) {
     return nullptr;
   }
-  for (auto& child : vector->children()) {
-    child->loadedVector();
-  }
 
   return std::make_shared<VeloxColumnarBatch>(vector);
 }
