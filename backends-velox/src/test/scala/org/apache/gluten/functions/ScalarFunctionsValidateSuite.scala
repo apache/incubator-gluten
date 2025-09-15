@@ -625,7 +625,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   // Add test suite for CharVarcharCodegenUtils functions.
   // A ProjectExecTransformer is expected to be constructed after expr support.
   // We currently test below functions with Spark v3.4
-  testWithMinSparkVersion("Test charTypeWriteSideCheck function", "3.4") {
+  testWithMinSparkVersion("charTypeWriteSideCheck", "3.4") {
     withTable("src", "dest") {
 
       sql("create table src(id string) USING PARQUET")
@@ -638,7 +638,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test varcharTypeWriteSideCheck function", "3.4") {
+  testWithMinSparkVersion("varcharTypeWriteSideCheck", "3.4") {
     withTable("src", "dest") {
 
       sql("create table src(id string) USING PARQUET")
@@ -651,7 +651,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test readSidePadding function", "3.4") {
+  testWithMinSparkVersion("readSidePadding", "3.4") {
     withTable("src", "dest") {
 
       sql("create table tgt(id char(3)) USING PARQUET")
