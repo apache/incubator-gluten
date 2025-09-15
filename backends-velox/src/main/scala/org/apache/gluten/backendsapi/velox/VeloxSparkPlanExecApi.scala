@@ -800,7 +800,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
     if (useOffheapBroadcastBuildRelation) {
       TaskResources.runUnsafe {
-        new UnsafeColumnarBuildSideRelation(
+        UnsafeColumnarBuildSideRelation(
           newOutput,
           serialized.flatMap(_.offHeapData().asScala),
           mode,

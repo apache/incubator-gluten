@@ -64,7 +64,12 @@ object UnsafeColumnarBuildSideRelation {
       case m =>
         m // IdentityBroadcastMode, etc.
     }
-    new UnsafeColumnarBuildSideRelation(output, batches, BroadcastModeUtils.toSafe(boundMode))
+    new UnsafeColumnarBuildSideRelation(
+      output,
+      batches,
+      BroadcastModeUtils.toSafe(boundMode),
+      Seq.empty,
+      false)
   }
 }
 
@@ -83,8 +88,8 @@ class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
     private var batches: Seq[UnsafeByteArray],
     private var safeBroadcastMode: SafeBroadcastMode,
-    newBuildKeys: Seq[Expression] = Seq.empty,
-    offload: Boolean = false)
+    newBuildKeys: Seq[Expression],
+    offload: Boolean)
   extends BuildSideRelation
   with Externalizable
   with Logging
@@ -104,7 +109,7 @@ class UnsafeColumnarBuildSideRelation(
 
   /** needed for serialization. */
   def this() = {
-    this(null, null, null)
+    this(null, null, null, Seq.empty, false)
   }
 
   private[unsafe] def getBatches(): Seq[UnsafeByteArray] = {
