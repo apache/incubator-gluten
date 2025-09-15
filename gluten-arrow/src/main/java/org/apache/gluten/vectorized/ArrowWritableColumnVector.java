@@ -411,6 +411,16 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     return "vectorCounter is " + vectorCount.get();
   }
 
+  public ArrowColumnarRow getStructInternal(int rowId) {
+    if (isNullAt(rowId)) return null;
+    ArrowWritableColumnVector[] writableColumns =
+        new ArrowWritableColumnVector[childColumns.length];
+    for (int i = 0; i < writableColumns.length; i++) {
+      writableColumns[i] = (ArrowWritableColumnVector) childColumns[i];
+    }
+    return new ArrowColumnarRow(writableColumns);
+  }
+
   @Override
   public boolean hasNull() {
     return accessor.getNullCount() > 0;
