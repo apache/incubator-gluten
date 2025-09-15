@@ -233,7 +233,8 @@ class VeloxIcebergSuite extends IcebergSuite {
 
       def checkColumnarToRow(df: DataFrame, num: Int): Unit = {
         assert(
-          collect(df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan) {
+          collect(
+            df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan) {
             case p if p.isInstanceOf[ColumnarToRowExecBase] => p
           }.size == num)
       }
@@ -254,9 +255,7 @@ class VeloxIcebergSuite extends IcebergSuite {
 
       // overwrite partitioned table
       df = spark.sql("insert overwrite table iceberg_tbl values (5, 1)")
-      checkAnswer(
-        spark.sql("select * from iceberg_tbl order by a"),
-        Seq(Row(5, 1)))
+      checkAnswer(spark.sql("select * from iceberg_tbl order by a"), Seq(Row(5, 1)))
       checkColumnarToRow(df, 0)
     }
   }
