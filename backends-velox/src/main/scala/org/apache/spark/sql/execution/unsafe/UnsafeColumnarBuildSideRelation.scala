@@ -54,7 +54,9 @@ object UnsafeColumnarBuildSideRelation {
   def apply(
       output: Seq[Attribute],
       batches: Seq[UnsafeByteArray],
-      mode: BroadcastMode): UnsafeColumnarBuildSideRelation = {
+      mode: BroadcastMode，
+      newBuildKeys: Seq[Expression] = Seq.empty,
+      offload: Boolean = false)): UnsafeColumnarBuildSideRelation = {
     val boundMode = mode match {
       case HashedRelationBroadcastMode(keys, isNullAware) =>
         // Bind each key to the build-side output so simple cols become BoundReference
@@ -64,7 +66,12 @@ object UnsafeColumnarBuildSideRelation {
       case m =>
         m // IdentityBroadcastMode, etc.
     }
-    new UnsafeColumnarBuildSideRelation(output, batches, BroadcastModeUtils.toSafe(boundMode))
+    new UnsafeColumnarBuildSideRelation(
+      output,
+      batches,
+      BroadcastModeUtils.toSafe(boundMode),
+      newBuildKeys,
+      offload)
   }
 }
 
