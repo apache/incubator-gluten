@@ -657,7 +657,7 @@ private:
         DB::AzureBlobStorage::ConnectionParams params{
             .endpoint = DB::AzureBlobStorage::processEndpoint(config, config_prefix),
             .auth_method = DB::AzureBlobStorage::getAuthMethod(config, config_prefix),
-            .client_options = DB::AzureBlobStorage::getClientOptions(context, *new_settings, is_client_for_disk),
+            .client_options = DB::AzureBlobStorage::getClientOptions(context, context->getSettingsRef(), *new_settings, is_client_for_disk),
         };
 
         shared_client = DB::AzureBlobStorage::getContainerClient(params, true);
