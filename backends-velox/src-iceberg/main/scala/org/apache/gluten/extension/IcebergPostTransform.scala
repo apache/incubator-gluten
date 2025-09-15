@@ -23,21 +23,9 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 
-object IcebergPostTransform {
-  private def rules: Seq[Rule[SparkPlan]] = Seq(EnableColumnarAQEWrite)
-
-  def inject(injector: Injector): Unit = {
-    rules.foreach {
-      r =>
-        injector.gluten.legacy.injectPostTransform(_ => r)
-        injector.gluten.ras.injectPostTransform(_ => r)
-    }
-  }
-}
-
 /**
- * If the child is aqe, we make aqe "support columnar", then aqe itself will guarantee to generate
- * columnar outputs. thus avoiding the case of c2r->aqe->r2c->writer.
+ * If the columnar write's child is aqe, we make aqe "support columnar", then aqe itself will
+ * guarantee to generate columnar outputs. thus avoiding the case of c2r->aqe->r2c->writer.
  */
 object EnableColumnarAQEWrite extends Rule[SparkPlan] {
 
@@ -59,5 +47,18 @@ object EnableColumnarAQEWrite extends Rule[SparkPlan] {
       o.copy(query = updateIfAQE(o.query))
 
     case other => other
+  }
+}
+
+object IcebergPostTransform {
+
+  val rules = Seq(EnableColumnarAQEWrite)
+
+  def inject(injector: Injector): Unit = {
+    rules.foreach {
+      r =>
+        injector.gluten.legacy.injectPostTransform(_ => r)
+        injector.gluten.ras.injectPostTransform(_ => r)
+    }
   }
 }
