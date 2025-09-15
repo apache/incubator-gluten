@@ -177,4 +177,7 @@ const std::string kCudfMemoryResourceDefault =
 const std::string kCudfMemoryPercent = "spark.gluten.sql.columnar.backend.velox.cudf.memoryPercent";
 const int32_t kCudfMemoryPercentDefault = 50;
 
+/// Preferred size of batches in bytes to be returned by operators.
+const std::string kVeloxPreferredBatchBytes = "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes";
+
 } // namespace gluten
