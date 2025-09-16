@@ -47,6 +47,7 @@ class GlutenKeyGroupedPartitioningSuite
   private val emptyProps: java.util.Map[String, String] = {
     Collections.emptyMap[String, String]
   }
+
   private def createTable(
       table: String,
       schema: StructType,
@@ -72,6 +73,7 @@ class GlutenKeyGroupedPartitioningSuite
       case s: SortMergeJoinExec => s
     }.flatMap(smj => collect(smj) { case s: ColumnarShuffleExchangeExec => s })
   }
+
   private def collectScans(plan: SparkPlan): Seq[BatchScanExec] = {
     collect(plan) { case s: BatchScanExec => s }
   }
@@ -144,6 +146,14 @@ class GlutenKeyGroupedPartitioningSuite
     .add("item_id", LongType)
     .add("price", FloatType)
     .add("time", TimestampType)
+
+  testGluten("partitioned join: number of buckets mismatch should trigger shuffle") {
+    val customers_partitions = Array(bucket(4, "customer_id"))
+    val orders_partitions = Array(bucket(2, "customer_id"))
+
+    // should shuffle both sides when number of buckets are not the same
+    testWithCustomersAndOrders(customers_partitions, orders_partitions, 2)
+  }
 
   testGluten(
     "SPARK-41413: partitioned join: partition values" +
