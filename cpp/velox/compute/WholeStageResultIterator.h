@@ -47,11 +47,11 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       // calling .wait() may take no effect in single thread execution mode
       task_->requestCancel().wait();
     }
-    #ifdef GLUTEN_ENABLE_GPU
+#ifdef GLUTEN_ENABLE_GPU
     if (enableCudf_ && lock_.owns_lock()) {
       lock_.unlock();
     }
-    #endif
+#endif
   }
 
   std::shared_ptr<ColumnarBatch> next() override;
