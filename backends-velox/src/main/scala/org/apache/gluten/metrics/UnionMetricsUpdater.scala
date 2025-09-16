@@ -18,6 +18,8 @@ package org.apache.gluten.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 
+import scala.collection.JavaConverters._
+
 class UnionMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     throw new UnsupportedOperationException()
@@ -31,5 +33,6 @@ class UnionMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUp
     metrics("inputBytes") += localExchangeMetrics.inputBytes
     metrics("cpuCount") += localExchangeMetrics.cpuCount
     metrics("wallNanos") += localExchangeMetrics.wallNanos
+    metrics("loadLazyVectorTime") += unionMetrics.asScala.last.loadLazyVectorTime
   }
 }

@@ -136,6 +136,7 @@ object MetricsUtil extends Logging {
     var dataSourceAddSplitTime: Long = 0
     var dataSourceReadTime: Long = 0
     var numWrittenFiles: Long = 0
+    var loadLazyVectorTime: Long = 0
 
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
@@ -168,6 +169,7 @@ object MetricsUtil extends Logging {
       dataSourceAddSplitTime += metrics.dataSourceAddSplitTime
       dataSourceReadTime += metrics.dataSourceReadTime
       numWrittenFiles += metrics.numWrittenFiles
+      loadLazyVectorTime += metrics.loadLazyVectorTime
     }
 
     new OperatorMetrics(
@@ -208,7 +210,8 @@ object MetricsUtil extends Logging {
       dataSourceReadTime,
       physicalWrittenBytes,
       writeIOTime,
-      numWrittenFiles
+      numWrittenFiles,
+      loadLazyVectorTime
     )
   }
 

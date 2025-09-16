@@ -56,6 +56,7 @@ class BatchScanMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metri
       metrics("preloadSplits") += operatorMetrics.preloadSplits
       metrics("dataSourceAddSplitTime") += operatorMetrics.dataSourceAddSplitTime
       metrics("dataSourceReadTime") += operatorMetrics.dataSourceReadTime
+      metrics("loadLazyVectorTime") += operatorMetrics.loadLazyVectorTime
     }
   }
 }
