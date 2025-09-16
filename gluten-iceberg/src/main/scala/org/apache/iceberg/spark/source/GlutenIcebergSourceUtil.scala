@@ -23,6 +23,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
+import org.apache.spark.sql.catalyst.expressions.{InputFileBlockLength, InputFileBlockStart, InputFileName}
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.types.StructType
 
@@ -41,45 +42,7 @@ object GlutenIcebergSourceUtil {
       index: Int,
       readPartitionSchema: StructType): SplitInfo = inputPartition match {
     case partition: SparkInputPartition =>
-      val paths = new JArrayList[String]()
-      val starts = new JArrayList[JLong]()
-      val lengths = new JArrayList[JLong]()
-      val partitionColumns = new JArrayList[JMap[String, String]]()
-      val deleteFilesList = new JArrayList[JList[DeleteFile]]()
-      var fileFormat = ReadFileFormat.UnknownFormat
-
-      val tasks = partition.taskGroup[ScanTask]().tasks().asScala
-      asFileScanTask(tasks.toList).foreach {
-        task =>
-          paths.add(
-            BackendsApiManager.getTransformerApiInstance
-              .encodeFilePathIfNeed(task.file().path().toString))
-          starts.add(task.start())
-          lengths.add(task.length())
-          partitionColumns.add(getPartitionColumns(task, readPartitionSchema))
-          deleteFilesList.add(task.deletes())
-          val currentFileFormat = convertFileFormat(task.file().format())
-          if (fileFormat == ReadFileFormat.UnknownFormat) {
-            fileFormat = currentFileFormat
-          } else if (fileFormat != currentFileFormat) {
-            throw new UnsupportedOperationException(
-              s"Only one file format is supported, " +
-                s"find different file format $fileFormat and $currentFileFormat")
-          }
-      }
-      val preferredLoc = SoftAffinity.getFilePartitionLocations(
-        paths.asScala.toArray,
-        inputPartition.preferredLocations())
-      IcebergLocalFilesBuilder.makeIcebergLocalFiles(
-        index,
-        paths,
-        starts,
-        lengths,
-        partitionColumns,
-        fileFormat,
-        preferredLoc.toList.asJava,
-        deleteFilesList
-      )
+      genSplitInfo(Seq(partition), index, readPartitionSchema)
     case _ =>
       throw new UnsupportedOperationException("Only support iceberg SparkInputPartition.")
   }
@@ -93,6 +56,7 @@ object GlutenIcebergSourceUtil {
     val lengths = new JArrayList[JLong]()
     val partitionColumns = new JArrayList[JMap[String, String]]()
     val deleteFilesList = new JArrayList[JList[DeleteFile]]()
+    val metadataColumns = new JArrayList[JMap[String, String]]
     val preferredLocs = new JArrayList[String]()
     var fileFormat = ReadFileFormat.UnknownFormat
 
@@ -101,11 +65,19 @@ object GlutenIcebergSourceUtil {
         val tasks = partition.taskGroup[ScanTask]().tasks().asScala
         asFileScanTask(tasks.toList).foreach {
           task =>
+            val path = task.file().location()
+            val start = task.start()
+            val length = task.length()
             paths.add(
               BackendsApiManager.getTransformerApiInstance
-                .encodeFilePathIfNeed(task.file().path().toString))
-            starts.add(task.start())
-            lengths.add(task.length())
+                .encodeFilePathIfNeed(path))
+            starts.add(start)
+            lengths.add(length)
+            val metadataColumn = new JHashMap[String, String]()
+            metadataColumn.put(InputFileName().prettyName, path)
+            metadataColumn.put(InputFileBlockStart().prettyName, start.toString)
+            metadataColumn.put(InputFileBlockLength().prettyName, length.toString)
+            metadataColumns.add(metadataColumn)
             partitionColumns.add(getPartitionColumns(task, readPartitionSchema))
             deleteFilesList.add(task.deletes())
             val currentFileFormat = convertFileFormat(task.file().format())
@@ -125,6 +97,7 @@ object GlutenIcebergSourceUtil {
       starts,
       lengths,
       partitionColumns,
+      metadataColumns,
       fileFormat,
       SoftAffinity
         .getFilePartitionLocations(paths.asScala.toArray, preferredLocs.asScala.toArray)

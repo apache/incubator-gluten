@@ -28,6 +28,7 @@ public class IcebergLocalFilesBuilder {
       List<Long> starts,
       List<Long> lengths,
       List<Map<String, String>> partitionColumns,
+      List<Map<String, String>> metadataColumns,
       LocalFilesNode.ReadFileFormat fileFormat,
       List<String> preferredLocations,
       List<List<DeleteFile>> deleteFilesList) {
@@ -37,6 +38,7 @@ public class IcebergLocalFilesBuilder {
         starts,
         lengths,
         partitionColumns,
+        metadataColumns,
         fileFormat,
         preferredLocations,
         deleteFilesList);
