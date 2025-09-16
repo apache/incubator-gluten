@@ -26,7 +26,7 @@ case class VeloxIcebergOverwriteByExpressionExec(
     write: Write)
   extends AbstractIcebergWriteExec {
 
-  override protected def withNewChildInternal(newChild: SparkPlan): IcebergWriteExec =
+  override def withNewChildInternal(newChild: SparkPlan): IcebergWriteExec =
     copy(query = newChild)
 }
 

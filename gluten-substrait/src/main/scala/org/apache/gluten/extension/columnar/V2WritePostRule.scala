@@ -14,26 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.extension.columnar
 
-import org.apache.spark.sql.connector.write.Write
+import org.apache.gluten.execution.ColumnarV2TableWriteExec
+
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2._
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 
-case class VeloxIcebergAppendDataExec(query: SparkPlan, refreshCache: () => Unit, write: Write)
-  extends AbstractIcebergWriteExec {
+case class V2WritePostRule() extends Rule[SparkPlan] {
 
-  override def withNewChildInternal(newChild: SparkPlan): IcebergWriteExec =
-    copy(query = newChild)
-}
-
-object VeloxIcebergAppendDataExec {
-  def apply(original: AppendDataExec): IcebergWriteExec = {
-    VeloxIcebergAppendDataExec(
-      original.query,
-      original.refreshCache,
-      original.write
-    )
+  override def apply(plan: SparkPlan): SparkPlan = plan match {
+    case write: ColumnarV2TableWriteExec =>
+      /**
+       * If the columnar write's child is aqe, we make aqe "support columnar", then aqe itself will
+       * guarantee to generate columnar outputs. thus avoiding the case of c2r->aqe->r2c->writer.
+       */
+      write.query match {
+        case aqe: AdaptiveSparkPlanExec =>
+          write.withNewChildInternal(aqe.copy(supportsColumnar = true))
+        case _ => write
+      }
+    case other => other
   }
-
 }

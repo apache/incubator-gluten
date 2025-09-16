@@ -23,7 +23,7 @@ import org.apache.spark.sql.execution.datasources.v2._
 case class VeloxIcebergReplaceDataExec(query: SparkPlan, refreshCache: () => Unit, write: Write)
   extends AbstractIcebergWriteExec {
 
-  override protected def withNewChildInternal(newChild: SparkPlan): IcebergWriteExec =
+  override def withNewChildInternal(newChild: SparkPlan): IcebergWriteExec =
     copy(query = newChild)
 }
 

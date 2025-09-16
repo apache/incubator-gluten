@@ -17,7 +17,7 @@
 package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.velox.VeloxBackend
-import org.apache.gluten.extension.{IcebergPostTransform, OffloadIcebergScan, OffloadIcebergWrite}
+import org.apache.gluten.extension.{OffloadIcebergScan, OffloadIcebergWrite}
 import org.apache.gluten.extension.injector.Injector
 
 class VeloxIcebergComponent extends Component {
@@ -28,6 +28,5 @@ class VeloxIcebergComponent extends Component {
   override def injectRules(injector: Injector): Unit = {
     OffloadIcebergScan.inject(injector)
     OffloadIcebergWrite.inject(injector)
-    IcebergPostTransform.inject(injector)
   }
 }
