@@ -31,10 +31,11 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     }
     plan.transformUp {
       case transformer: WholeStageTransformer =>
-        val hasLeaf = transformer.exists {
+        // Spark3.2 does not have exists
+        val hasLeaf = transformer.find {
           case _: LeafTransformSupport => true
           case _ => false
-        }
+        }.isDefined
         transformer.setTagValue(CudfTag.CudfTag, !hasLeaf)
         transformer
     }
