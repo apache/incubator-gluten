@@ -75,10 +75,7 @@ private class CHCelebornColumnarBatchSerializerInstance(
       }
       private var cb: ColumnarBatch = _
       private val isEmptyStream: Boolean = in.equals(CelebornInputStream.empty())
-      private val forceCompress: Boolean =
-        gluten_conf.isUseColumnarShuffleManager ||
-          gluten_conf.isUseCelebornShuffleManager
-
+      private val forceCompress: Boolean = true
       private var numBatchesTotal: Long = _
       private var numRowsTotal: Long = _
 
