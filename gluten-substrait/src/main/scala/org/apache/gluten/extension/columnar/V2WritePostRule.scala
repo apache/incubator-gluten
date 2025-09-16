@@ -31,7 +31,7 @@ case class V2WritePostRule() extends Rule[SparkPlan] {
        * guarantee to generate columnar outputs. thus avoiding the case of c2r->aqe->r2c->writer.
        */
       write.query match {
-        case aqe: AdaptiveSparkPlanExec =>
+        case aqe: AdaptiveSparkPlanExec if !aqe.supportsColumnar =>
           write.withNewChildInternal(aqe.copy(supportsColumnar = true))
         case _ => write
       }
