@@ -187,7 +187,9 @@ WholeStageResultIterator::WholeStageResultIterator(
   }
 }
 
+#ifdef GLUTEN_ENABLE_GPU
 std::mutex WholeStageResultIterator::mutex_;
+#endif
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
