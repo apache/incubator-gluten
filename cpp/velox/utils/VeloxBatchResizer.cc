@@ -77,13 +77,13 @@ std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
 
   if (cb->numRows() < minOutputBatchSize_) {
     auto vb = VeloxColumnarBatch::from(pool_, cb);
-    auto rv = vb->getRowVector();
+    auto rv = vb->getFlattenedRowVector();
     auto buffer = facebook::velox::RowVector::createEmpty(rv->type(), pool_);
     buffer->append(rv.get());
 
     for (auto nextCb = in_->next(); nextCb != nullptr; nextCb = in_->next()) {
       auto nextVb = VeloxColumnarBatch::from(pool_, nextCb);
-      auto nextRv = nextVb->getRowVector();
+      auto nextRv = nextVb->getFlattenedRowVector();
       if (buffer->size() + nextRv->size() > maxOutputBatchSize_) {
         GLUTEN_CHECK(next_ == nullptr, "Invalid state");
         next_ = std::make_unique<SliceRowVector>(maxOutputBatchSize_, nextRv);
@@ -100,7 +100,7 @@ std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
 
   if (cb->numRows() > maxOutputBatchSize_) {
     auto vb = VeloxColumnarBatch::from(pool_, cb);
-    auto rv = vb->getRowVector();
+    auto rv = vb->getFlattenedRowVector();
     GLUTEN_CHECK(next_ == nullptr, "Invalid state");
     next_ = std::make_unique<SliceRowVector>(maxOutputBatchSize_, rv);
     auto next = next_->next();
