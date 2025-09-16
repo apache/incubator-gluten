@@ -42,6 +42,7 @@ object ExpressionMappings {
     Sig[And](AND),
     Sig[Or](OR),
     Sig[Cast](CAST),
+    Sig[TryCast](TRY_CAST),
     Sig[Coalesce](COALESCE),
     Sig[Like](LIKE),
     Sig[RLike](RLIKE),

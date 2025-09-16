@@ -1056,7 +1056,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("try_cast", "3.4") {
+  testWithMinSparkVersion("try_cast", "3.3") {
     withTempView("try_cast_table") {
       withTempPath {
         path =>
@@ -1439,6 +1439,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
       }
     }
   }
+
 
   testWithMinSparkVersion("equal_null", "3.4") {
     Seq[(Integer, Integer)]().toDF("a", "b")

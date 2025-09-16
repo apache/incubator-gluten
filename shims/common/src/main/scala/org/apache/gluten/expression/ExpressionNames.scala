@@ -66,6 +66,7 @@ object ExpressionNames {
   final val AND = "and"
   final val OR = "or"
   final val CAST = "cast"
+  final val TRY_CAST = "try_cast"
   final val COALESCE = "coalesce"
   final val LIKE = "like"
   final val ILIKE = "ilike"
