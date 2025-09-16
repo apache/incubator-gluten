@@ -1440,7 +1440,6 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-
   testWithMinSparkVersion("equal_null", "3.4") {
     Seq[(Integer, Integer)]().toDF("a", "b")
     withTempPath {
