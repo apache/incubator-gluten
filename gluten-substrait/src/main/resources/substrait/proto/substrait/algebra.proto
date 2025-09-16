@@ -198,6 +198,10 @@ message ReadRel {
         }
         repeated DeleteFile delete_files = 3;
       }
+      message DeltaReadOptions {
+        bool dv_if_contained = 1;
+        bytes dv_serialized_bitmap = 2;
+      }
 
       // File reading options
       oneof file_format {
@@ -209,35 +213,36 @@ message ReadRel {
         TextReadOptions text = 14;
         JsonReadOptions json = 15;
         IcebergReadOptions iceberg = 16;
+        DeltaReadOptions delta = 17;
       }
 
       message partitionColumn {
         string key = 1;
         string value = 2;
       }
-      repeated partitionColumn partition_columns = 17;
+      repeated partitionColumn partition_columns = 18;
 
       /// File schema
-      NamedStruct schema = 18;
+      NamedStruct schema = 19;
 
       message metadataColumn {
         string key = 1;
         string value = 2;
       }
-      repeated metadataColumn metadata_columns = 19;
+      repeated metadataColumn metadata_columns = 20;
 
       // File properties contained in split
       message fileProperties {
         int64 fileSize = 1;
         int64 modificationTime = 2;
       }
-      fileProperties properties = 20;
+      fileProperties properties = 21;
 
       message otherConstantMetadataColumnValues {
         string key = 1;
         google.protobuf.Any value = 2;
       }
-      repeated otherConstantMetadataColumnValues other_const_metadata_columns = 21;
+      repeated otherConstantMetadataColumnValues other_const_metadata_columns = 22;
     }
   }
 }

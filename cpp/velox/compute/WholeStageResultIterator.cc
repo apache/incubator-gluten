@@ -18,7 +18,9 @@
 #include "VeloxBackend.h"
 #include "VeloxRuntime.h"
 #include "config/VeloxConfig.h"
+#include "delta/DeltaSplitInfo.h"
 #include "velox/connectors/hive/HiveConfig.h"
+#include "velox/connectors/hive/delta/DeltaSplit.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 #ifdef GLUTEN_ENABLE_GPU
@@ -145,6 +147,36 @@ WholeStageResultIterator::WholeStageResultIterator(
             deleteFiles,
             std::unordered_map<std::string, std::string>(),
             properties[idx]);
+      } else if (auto deltaSplitInfo = std::dynamic_pointer_cast<DeltaSplitInfo>(scanInfo)) {
+        std::unordered_map<std::string, std::string> customSplitInfo{{"table_format", "hive-delta"}};
+        connector::hive::delta::DeltaRowIndexFilter::Type rowIndexFilterType;
+        if (deltaSplitInfo.get()->dvIfContainedFlags[idx]) {
+          rowIndexFilterType = connector::hive::delta::DeltaRowIndexFilter::Type::kIfContained;
+        } else {
+          rowIndexFilterType = connector::hive::delta::DeltaRowIndexFilter::Type::kIfNotContained;
+        }
+        common::RoaringBitmapArray bitmapArray;
+        bitmapArray.deserialize(deltaSplitInfo.get()->dvSerializedBitmaps[idx].data());
+        connector::hive::delta::DeltaRowIndexFilter filter{rowIndexFilterType, std::move(bitmapArray)};
+        split = std::make_shared<velox::connector::hive::delta::HiveDeltaSplit>(
+          kHiveConnectorId,
+          paths[idx],
+          format,
+          starts[idx],
+          lengths[idx],
+          partitionKeys,
+          std::nullopt /*tableBucketName*/,
+          customSplitInfo,
+          nullptr,
+          std::unordered_map<std::string, std::string>(),
+          0,
+          true,
+          metadataColumn,
+          properties[idx],
+          std::nullopt,
+          std::nullopt,
+          std::move(filter)
+          );
       } else {
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
             kHiveConnectorId,

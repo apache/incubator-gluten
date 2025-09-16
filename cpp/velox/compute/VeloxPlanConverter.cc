@@ -22,7 +22,7 @@
 #include "config/GlutenConfig.h"
 #include "iceberg/IcebergPlanConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
-#include "velox/common/file/FileSystems.h"
+#include "delta/DeltaSplitInfo.h"
 
 namespace gluten {
 
@@ -94,6 +94,19 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
       case SubstraitFileFormatCase::kIceberg:
         splitInfo = IcebergPlanConverter::parseIcebergSplitInfo(file, std::move(splitInfo));
         break;
+      case SubstraitFileFormatCase::kDelta: {
+        if (!std::dynamic_pointer_cast<DeltaSplitInfo>(splitInfo)) {
+          splitInfo = std::make_shared<DeltaSplitInfo>(*splitInfo);
+        }
+        auto deltaSplitInfo = std::dynamic_pointer_cast<DeltaSplitInfo>(splitInfo);
+        GLUTEN_CHECK(deltaSplitInfo != nullptr, "Split-info is not Delta");
+        deltaSplitInfo->format = dwio::common::FileFormat::PARQUET;
+        const bool dvIfContained = file.delta().dv_if_contained();
+        const std::string dvSerializedBitmap = file.delta().dv_serialized_bitmap();
+        deltaSplitInfo->dvIfContainedFlags.emplace_back(dvIfContained);
+        deltaSplitInfo->dvSerializedBitmaps.emplace_back(dvSerializedBitmap);
+        break;
+      }
       default:
         splitInfo->format = dwio::common::FileFormat::UNKNOWN;
         break;
