@@ -90,6 +90,27 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("get_json_object for root path") {
+    withTable("t") {
+      spark.sql("create table t (json string) using parquet")
+      spark.sql("""
+                  |insert into t values
+                  | ('{"a": -0}'),
+                  | ('{"a": -0,}'),
+                  | ('{"a": -0},'),
+                  | ('[1, 2, 3]'),
+                  | ('[1, 2, 3, ]'),
+                  | ('[1, 2, 3],'),
+                  | ('true'),
+                  | ('123'),
+                  | ('1e-2'),
+                  | ('abc')
+                  |""".stripMargin)
+      val sql = "select get_json_object(json, '$') from t"
+      runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("json_array_length") {
     runQueryAndCompare(
       s"select *, json_array_length(string_field1) " +
