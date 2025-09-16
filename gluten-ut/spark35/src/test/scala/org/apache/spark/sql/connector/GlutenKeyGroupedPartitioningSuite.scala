@@ -109,6 +109,10 @@ class GlutenKeyGroupedPartitioningSuite
         "ON c.customer_id = o.customer_id ORDER BY c.customer_id, order_amount")
 
     val shuffles = collectColumnarShuffleExchangeExec(df.queryExecution.executedPlan)
+    val planString = df.queryExecution.executedPlan.toString
+    // scalastyle:off println
+    println(planString)
+    // scalastyle:on println
     assert(shuffles.length == expectedNumOfShuffleExecs)
 
     checkAnswer(
