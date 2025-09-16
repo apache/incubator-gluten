@@ -134,6 +134,7 @@ object MetricsUtil extends Logging {
     var ramReadBytes: Long = 0
     var preloadSplits: Long = 0
     var numWrittenFiles: Long = 0
+    var loadLazyVectorTime: Long = 0
 
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
@@ -164,6 +165,7 @@ object MetricsUtil extends Logging {
       ramReadBytes += metrics.ramReadBytes
       preloadSplits += metrics.preloadSplits
       numWrittenFiles += metrics.numWrittenFiles
+      loadLazyVectorTime += metrics.loadLazyVectorTime
     }
 
     new OperatorMetrics(
@@ -202,7 +204,8 @@ object MetricsUtil extends Logging {
       preloadSplits,
       physicalWrittenBytes,
       writeIOTime,
-      numWrittenFiles
+      numWrittenFiles,
+      loadLazyVectorTime
     )
   }
 
