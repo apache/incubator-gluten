@@ -373,10 +373,10 @@ void WholeStageResultIterator::collectMetrics() {
       veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
     auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
     std::ostringstream oss;
-    oss << "Native Plan with stats for: " << taskInfo_;
-    oss << " TaskStats: totalTime: " << taskStats.executionEndTimeMs - taskStats.executionStartTimeMs
+    oss << "Native Plan with stats for: " << taskInfo_ << "\n";
+    oss << "TaskStats: totalTime: " << taskStats.executionEndTimeMs - taskStats.executionStartTimeMs
         << "; startTime: " << taskStats.executionStartTimeMs << "; endTime: " << taskStats.executionEndTimeMs;
-    // oss << "\n" << planWithStats << std::endl;
+    oss << "\n" << planWithStats << std::endl;
     LOG(WARNING) << oss.str();
   }
 
@@ -617,7 +617,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kSparkJsonIgnoreNullFields, true));
 
 #ifdef GLUTEN_ENABLE_GPU
-    // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
     configs[cudf_velox::kCudfEnabled] = std::to_string(veloxCfg_->get<bool>(kCudfEnabled, false));
 #endif
 
