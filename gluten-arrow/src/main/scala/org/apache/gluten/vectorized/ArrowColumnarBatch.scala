@@ -17,13 +17,65 @@
 package org.apache.gluten.vectorized
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.vectorized.ColumnVector
 
-class ArrowColumnarBatch(writableColumns: Array[ArrowWritableColumnVector], numRows: Int)
-  extends ColumnarBatch(writableColumns.toArray, numRows) {
+/**
+ * Because Spark-3.2 declares ColumnarBatch as final, so `ArrowColumnarBatch` can't extend
+ * `ColumnarBatch`. The code is mainly copied from Spark-3.2
+ *
+ * @param writableColumns
+ *   the columns this class wraps
+ * @param rowNumbers
+ *   the number of rows this batch contains
+ */
+class ArrowColumnarBatch(writableColumns: Array[ArrowWritableColumnVector], var rowNumbers: Int) {
   private val arrowColumnarRow = new ArrowColumnarRow(writableColumns)
 
-  override def getRow(rowId: Int): InternalRow = {
+  /**
+   * Called to close all the columns in this batch. It is not valid to access the data after calling
+   * this. This must be called at the end to clean up memory allocations.
+   */
+  def close(): Unit = {
+    for (c <- writableColumns) {
+      c.close()
+    }
+  }
+
+  /** Returns an iterator over the rows in this batch. */
+  def rowIterator: Iterator[InternalRow] = {
+    val maxRows = numRows
+    val row = new ArrowColumnarRow(writableColumns)
+    new Iterator[InternalRow]() {
+      var rowId = 0
+
+      override def hasNext: Boolean = rowId < maxRows
+
+      override def next: InternalRow = {
+        if (rowId >= maxRows) {
+          throw new NoSuchElementException()
+        }
+        row.rowId = rowId
+        rowId = rowId + 1
+        row
+      }
+    }
+  }
+
+  /** Sets the number of rows in this batch. */
+  def setNumRows(numRows: Int): Unit = {
+    this.rowNumbers = numRows
+  }
+
+  /** Returns the number of columns that make up this batch. */
+  def numCols: Int = writableColumns.length
+
+  /** Returns the number of rows for read, including filtered rows. */
+  def numRows: Int = this.rowNumbers
+
+  /** Returns the column at `ordinal`. */
+  def column(ordinal: Int): ColumnVector = writableColumns(ordinal)
+
+  def getRow(rowId: Int): InternalRow = {
     assert(rowId >= 0 && rowId < this.numRows)
     arrowColumnarRow.rowId = rowId
     arrowColumnarRow
