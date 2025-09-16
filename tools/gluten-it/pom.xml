@@ -274,7 +274,7 @@
     <profile>
       <id>spark-3.5</id>
       <properties>
-        <spark.version>3.5.2</spark.version>
+        <spark.version>3.5.5</spark.version>
         <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <delta.package.name>delta-spark</delta.package.name>
@@ -284,7 +284,7 @@
     <profile>
       <id>spark-4.0</id>
       <properties>
-        <spark.version>4.0.0</spark.version>
+        <spark.version>4.0.1</spark.version>
         <scala.version>2.13.8</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
         <delta.package.name>delta-spark</delta.package.name>
