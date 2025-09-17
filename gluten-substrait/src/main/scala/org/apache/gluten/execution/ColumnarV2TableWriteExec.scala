@@ -35,7 +35,7 @@ import org.apache.spark.util.LongAccumulator
 
 trait ColumnarV2TableWriteExec extends V2ExistingTableWriteExec with ValidatablePlan {
 
-  def withNewChildInternal(newChild: SparkPlan): SparkPlan
+  def withNewQuery(newQuery: SparkPlan): SparkPlan = withNewChildInternal(newQuery)
 
   protected def createFactory(schema: StructType): ColumnarBatchDataWriterFactory
 

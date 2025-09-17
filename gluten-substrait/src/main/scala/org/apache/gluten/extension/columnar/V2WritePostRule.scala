@@ -32,7 +32,7 @@ case class V2WritePostRule() extends Rule[SparkPlan] {
        */
       write.query match {
         case aqe: AdaptiveSparkPlanExec if !aqe.supportsColumnar =>
-          write.withNewChildInternal(aqe.copy(supportsColumnar = true))
+          write.withNewQuery(aqe.copy(supportsColumnar = true))
         case _ => write
       }
     case other => other
