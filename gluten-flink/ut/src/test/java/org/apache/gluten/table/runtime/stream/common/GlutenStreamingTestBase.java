@@ -38,7 +38,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -156,12 +155,5 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
     } finally {
       tEnv().executeSql("drop table if exists printT");
     }
-  }
-
-  protected void runAndCheck(String query, List<String> expected, Map<String, String> configs) {
-    for (String key : configs.keySet()) {
-      tEnv().getConfig().set(key, configs.get(key));
-    }
-    runAndCheck(query, expected);
   }
 }

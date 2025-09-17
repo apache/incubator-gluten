@@ -105,6 +105,9 @@ public class LogicalTypeConverter {
                 Type valueType = toVLType(mapType.getValueType());
                 return io.github.zhztheplayer.velox4j.type.MapType.create(keyType, valueType);
               }),
+          // Map the flink's `TimestampLTZ` type to velox `Timestamp` type. And the timezone would
+          // be specified by using flink's table config `LOCAL_TIME_ZONE`, which would be passed to
+          // velox's `session_timezone` config.
           // TODO: may need precision
           Map.entry(
               LocalZonedTimestampType.class,

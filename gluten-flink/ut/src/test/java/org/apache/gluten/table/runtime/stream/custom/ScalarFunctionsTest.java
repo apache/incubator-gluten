@@ -18,7 +18,6 @@ package org.apache.gluten.table.runtime.stream.custom;
 
 import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -27,12 +26,11 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
@@ -204,16 +202,19 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
         Arrays.asList(
             Row.of(1, LocalDateTime.parse("2024-12-31 12:12:12", formatter)),
             Row.of(2, LocalDateTime.parse("2025-02-28 12:12:12", formatter)));
-    createSimpleBoundedValuesTable("dateFormatTbl", "a int, b Timestamp(3)", rows);
+    createSimpleBoundedValuesTable("timestampTable", "a int, b Timestamp(3)", rows);
     String query =
-        "select a, DATE_FORMAT(b, 'yyyy-MM-dd'), DATE_FORMAT(b, 'yyyy-MM-dd HH:mm:ss') from dateFormatTbl";
+        "select a, DATE_FORMAT(b, 'yyyy-MM-dd'), DATE_FORMAT(b, 'yyyy-MM-dd HH:mm:ss') from timestampTable";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2024-12-31, 2024-12-31 12:12:12]", "+I[2, 2025-02-28, 2025-02-28 12:12:12]"));
+    tEnv().getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
     runAndCheck(
         query,
         Arrays.asList(
             "+I[1, 2024-12-31, 2024-12-31 12:12:12]", "+I[2, 2025-02-28, 2025-02-28 12:12:12]"));
 
-    Map<String, String> configs = new HashMap<>();
-    configs.put(TableConfigOptions.LOCAL_TIME_ZONE.key(), "America/Los_Angeles");
     rows =
         Arrays.asList(
             Row.of(
@@ -221,20 +222,19 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
             Row.of(
                 2,
                 LocalDateTime.parse("2025-02-28 12:12:12", formatter).toInstant(ZoneOffset.UTC)));
-    createSimpleBoundedValuesTable("dateFormatTblLTZ", "a int, b Timestamp_LTZ(3)", rows);
-    String query1 =
-        "select a, DATE_FORMAT(b, 'yyyy-MM-dd'), DATE_FORMAT(b, 'yyyy-MM-dd HH:mm:ss') from dateFormatTblLTZ";
+    createSimpleBoundedValuesTable("timestampLtzTable", "a int, b Timestamp_LTZ(3)", rows);
+    query =
+        "select a, DATE_FORMAT(b, 'yyyy-MM-dd'), DATE_FORMAT(b, 'yyyy-MM-dd HH:mm:ss') from timestampLtzTable";
+    tEnv().getConfig().setLocalTimeZone(ZoneId.of("America/Los_Angeles"));
     runAndCheck(
-        query1,
+        query,
         Arrays.asList(
-            "+I[1, 2024-12-31, 2024-12-31 04:12:12]", "+I[2, 2025-02-28, 2025-02-28 04:12:12]"),
-        configs);
+            "+I[1, 2024-12-31, 2024-12-31 04:12:12]", "+I[2, 2025-02-28, 2025-02-28 04:12:12]"));
 
-    configs.put(TableConfigOptions.LOCAL_TIME_ZONE.key(), "Asia/Shanghai");
+    tEnv().getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
     runAndCheck(
-        query1,
+        query,
         Arrays.asList(
-            "+I[1, 2024-12-31, 2024-12-31 20:12:12]", "+I[2, 2025-02-28, 2025-02-28 20:12:12]"),
-        configs);
+            "+I[1, 2024-12-31, 2024-12-31 20:12:12]", "+I[2, 2025-02-28, 2025-02-28 20:12:12]"));
   }
 }

@@ -40,6 +40,8 @@ public class VeloxQueryConfig {
     Map<String, String> configMap = new HashMap<>();
     configMap.put(keyVeloxAdjustTimestampToSessionTimeZone, "true");
     String localTimeZone = config.get(TableConfigOptions.LOCAL_TIME_ZONE);
+    // As flink's default timezone value is `default`, it is not a valid timezone id, so we should
+    // convert it to `UTC` timezone.
     if (TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(localTimeZone)) {
       configMap.put(keyVeloxSessionTimezone, "UTC");
     } else {
