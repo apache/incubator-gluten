@@ -17,59 +17,38 @@
 
 package org.apache.spark.sql.delta
 
-import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.substrait.rel.DeltaLocalFilesNode.NativeDvDescriptor
-import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.delta.deletionvectors.{RoaringBitmapArray, RoaringBitmapArrayFormat}
-import org.apache.spark.sql.delta.storage.dv.DeletionVectorStore
+import org.apache.gluten.substrait.rel.DeltaLocalFilesNode.{DeletionVectorInfo, EmptyDeletionVectorInfo, RegularDeletionVectorInfo}
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.util.Utils
 
 object DeltaDvShim {
   def canOffloadDvScan: Boolean = {
     true
   }
 
-  def toNativeDvDescriptors(deltaParquetFileFormat: DeltaParquetFileFormat, partition: FilePartition): Seq[NativeDvDescriptor] = {
+  def toDvInfos(
+      deltaParquetFileFormat: DeltaParquetFileFormat,
+      partition: FilePartition): Seq[DeletionVectorInfo] = {
     val dvMap = deltaParquetFileFormat.broadcastDvMap.get.value
-    val hadoopConf = deltaParquetFileFormat.broadcastHadoopConf.get.value.value
-    val tablePath = deltaParquetFileFormat.tablePath.map(new Path(_))
+    val hadoopConf = deltaParquetFileFormat.broadcastHadoopConf.get.value
+    val tablePath = deltaParquetFileFormat.tablePath
     partition.files.map {
       file =>
-        if (!dvMap.contains(file.pathUri)) {
-          newEmptyNativeDvDescriptor()
+        val filePathUri = file.pathUri
+        if (!dvMap.contains(filePathUri)) {
+          new EmptyDeletionVectorInfo()
         } else {
-          val dvDescriptor = dvMap(file.pathUri)
+          val dvDescriptor = dvMap(filePathUri)
           if (dvDescriptor.descriptor.isEmpty) {
-            newEmptyNativeDvDescriptor()
+            new EmptyDeletionVectorInfo()
           } else {
-            val ifContainedFlag = dvDescriptor.filterType match {
-              case RowIndexFilterType.IF_CONTAINED =>
-                true
-              case RowIndexFilterType.IF_NOT_CONTAINED =>
-                false
-              case otherType =>
-                throw new GlutenException(s"Unexpected row-index filter type: $otherType")
-            }
             require(tablePath.nonEmpty, "Table path is required for non-empty deletion vectors")
-            val dvBitmapData = if (dvDescriptor.descriptor.isInline) {
-              dvDescriptor.descriptor.inlineData
-            } else {
-              assert(dvDescriptor.descriptor.isOnDisk)
-              val onDiskPath = tablePath.map(dvDescriptor.descriptor.absolutePath)
-              val fs = onDiskPath.get.getFileSystem(hadoopConf)
-              Utils.tryWithResource(fs.open(onDiskPath.get)) { reader =>
-                reader.seek(dvDescriptor.descriptor.offset.getOrElse[Int](0))
-                DeletionVectorStore.readRangeFromStream(reader, dvDescriptor.descriptor.sizeInBytes)
-              }
-            }
-            new NativeDvDescriptor(ifContainedFlag, dvBitmapData)
+            new RegularDeletionVectorInfo(
+              dvDescriptor.descriptor,
+              dvDescriptor.filterType,
+              hadoopConf,
+              tablePath.get)
           }
         }
-    }
-  }
-
-  private def newEmptyNativeDvDescriptor(): NativeDvDescriptor = {
-    new NativeDvDescriptor(true, new RoaringBitmapArray().serializeAsByteArray(RoaringBitmapArrayFormat.Portable))
+    }.toSeq
   }
 }
