@@ -90,7 +90,7 @@
         <activeByDefault>true</activeByDefault>
       </activation>
       <modules>
-        <module>spark34</module>
+        <module>spark35</module>
       </modules>
     </profile>
   </profiles>
