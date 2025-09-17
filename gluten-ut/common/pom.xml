@@ -15,12 +15,12 @@
   <name>Gluten Unit Test Common</name>
 
   <dependencies>
-  <dependency>
-    <groupId>org.apache.gluten</groupId>
-    <artifactId>spark-sql-columnar-shims-common</artifactId>
-    <version>${project.version}</version>
-    <scope>provided</scope>
-  </dependency>
+    <dependency>
+      <groupId>org.apache.gluten</groupId>
+      <artifactId>spark-sql-columnar-shims-common</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>

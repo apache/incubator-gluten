@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.gluten</groupId>
   <artifactId>qualification-tool</artifactId>
@@ -165,7 +166,7 @@
         <version>${spotless.version}</version>
         <configuration>
           <java>
-            <toggleOffOn />
+            <toggleOffOn/>
             <googleJavaFormat>
               <version>1.7</version>
             </googleJavaFormat>
@@ -175,7 +176,7 @@
               <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
             </importOrder>
 
-            <removeUnusedImports />
+            <removeUnusedImports/>
             <licenseHeader>
               <content>${spotless.license.header}</content>
               <delimiter>${spotless.delimiter}</delimiter>
@@ -183,7 +184,7 @@
           </java>
           <scala>
             <!--  make it works `// spotless:off `  -->
-            <toggleOffOn />
+            <toggleOffOn/>
             <scalafmt>
               <version>${spotless.scalafmt.version}</version>
               <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>

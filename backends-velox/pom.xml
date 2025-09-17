@@ -83,7 +83,7 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <properties>
-<!--        The version should be same with the version in assertj-core-->
+        <!-- The version should be same with the version in assertj-core -->
         <byte-buddy.version>1.14.18</byte-buddy.version>
       </properties>
       <dependencies>
@@ -300,7 +300,7 @@
       <artifactId>spark-network-common_${scala.binary.version}</artifactId>
       <version>${spark.version}</version>
       <scope>provided</scope>
-    </dependency>           
+    </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-hive_${scala.binary.version}</artifactId>
