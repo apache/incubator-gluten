@@ -46,27 +46,31 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
   using SubstraitFileFormatCase = ::substrait::ReadRel_LocalFiles_FileOrFiles::FileFormatCase;
 
   auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->paths.reserve(fileList.size());
-  splitInfo->starts.reserve(fileList.size());
-  splitInfo->lengths.reserve(fileList.size());
-  splitInfo->partitionColumns.reserve(fileList.size());
-  splitInfo->properties.reserve(fileList.size());
-  splitInfo->metadataColumns.reserve(fileList.size());
+  const size_t fileCount = fileList.size();
+
+  splitInfo->paths.reserve(fileCount);
+  splitInfo->starts.reserve(fileCount);
+  splitInfo->lengths.reserve(fileCount);
+  splitInfo->partitionColumns.reserve(fileCount);
+  splitInfo->properties.reserve(fileCount);
+  splitInfo->metadataColumns.reserve(fileCount);
   for (const auto& file : fileList) {
     // Expect all Partitions share the same index.
     splitInfo->partitionIndex = file.partition_index();
 
     std::unordered_map<std::string, std::string> partitionColumnMap;
+    partitionColumnMap.reserve(file.partition_columns_size());
     for (const auto& partitionColumn : file.partition_columns()) {
-      partitionColumnMap[partitionColumn.key()] = partitionColumn.value();
+      partitionColumnMap.emplace(partitionColumn.key(), partitionColumn.value());
     }
-    splitInfo->partitionColumns.emplace_back(partitionColumnMap);
+    splitInfo->partitionColumns.emplace_back(std::move(partitionColumnMap));
 
     std::unordered_map<std::string, std::string> metadataColumnMap;
+    metadataColumnMap.reserve(file.metadata_columns_size());
     for (const auto& metadataColumn : file.metadata_columns()) {
-      metadataColumnMap[metadataColumn.key()] = metadataColumn.value();
+      metadataColumnMap.emplace(metadataColumn.key(), metadataColumn.value());
     }
-    splitInfo->metadataColumns.emplace_back(metadataColumnMap);
+    splitInfo->metadataColumns.emplace_back(std::move(metadataColumnMap));
 
     splitInfo->paths.emplace_back(file.uri_file());
     splitInfo->starts.emplace_back(file.start());
