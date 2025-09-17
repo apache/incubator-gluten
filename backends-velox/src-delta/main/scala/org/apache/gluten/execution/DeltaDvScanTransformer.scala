@@ -60,8 +60,7 @@ case class DeltaDvScanTransformer(
     val parquetSplitInfos = super.getSplitInfosFromPartitions(partitions)
     partitions.zip(parquetSplitInfos).map {
       case (p: InputPartition, l: LocalFilesNode) =>
-        val ifContainedFlags = DeltaDvShim.getIfContainedFlags(relation.fileFormat.asInstanceOf[DeltaParquetFileFormat], p.asInstanceOf[FilePartition])
-        val serializedDvBitmaps = DeltaDvShim.readSerializedDvBitmap(relation.fileFormat.asInstanceOf[DeltaParquetFileFormat], p.asInstanceOf[FilePartition])
+        val nativeDvDescriptors = DeltaDvShim.toNativeDvDescriptors(relation.fileFormat.asInstanceOf[DeltaParquetFileFormat], p.asInstanceOf[FilePartition])
         // Adds a constant is_row_deleted column indicating all rows that are returned by the scan should be kept.
         // This is because we have already pushed the DV filter into the Velox scan.
         val metadataColumnsWithIsRowDeleted = l.getMetadataColumns.asScala.map(m => (m.asScala + ("__delta_internal_is_row_deleted" -> "0")).asJava).asJava
@@ -78,8 +77,7 @@ case class DeltaDvScanTransformer(
           l.preferredLocations,
           l.getFileReadProperties,
           l.getOtherMetadataColumns,
-          ifContainedFlags.map(java.lang.Boolean.valueOf).asJava,
-          serializedDvBitmaps.asJava
+          nativeDvDescriptors.asJava
         )
     }
   }

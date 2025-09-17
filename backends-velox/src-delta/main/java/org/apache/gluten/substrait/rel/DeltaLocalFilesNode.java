@@ -18,13 +18,16 @@ package org.apache.gluten.substrait.rel;
 
 import com.google.protobuf.ByteString;
 import io.substrait.proto.ReadRel;
+import org.apache.spark.sql.delta.deletionvectors.RoaringBitmapArray;
+import org.apache.spark.sql.delta.deletionvectors.RoaringBitmapArrayFormat;
+import org.apache.spark.sql.delta.deletionvectors.RoaringBitmapArrayFormat$;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
 public class DeltaLocalFilesNode extends LocalFilesNode {
-  private final List<Boolean> ifContainedFlags;
-  private final List<byte[]> serializedDvBitmaps;
+  private final List<NativeDvDescriptor> nativeDvDescriptors;
 
   public DeltaLocalFilesNode(
       Integer index,
@@ -39,8 +42,7 @@ public class DeltaLocalFilesNode extends LocalFilesNode {
       List<String> preferredLocations,
       Map<String, String> properties,
       List<Map<String, Object>> otherMetadataColumns,
-      List<Boolean> ifContainedFlags,
-      List<byte[]> serializedDvBitmaps) {
+      List<NativeDvDescriptor> nativeDvDescriptors) {
     super(
         index,
         paths,
@@ -54,18 +56,27 @@ public class DeltaLocalFilesNode extends LocalFilesNode {
         preferredLocations,
         properties,
         otherMetadataColumns);
-    this.ifContainedFlags = ifContainedFlags;
-    this.serializedDvBitmaps = serializedDvBitmaps;
+    this.nativeDvDescriptors = nativeDvDescriptors;
   }
 
   @Override
   protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder, int index) {
     final ReadRel.LocalFiles.FileOrFiles.DeltaReadOptions.Builder deltaOptionsBuilder =
         ReadRel.LocalFiles.FileOrFiles.DeltaReadOptions.newBuilder();
-    deltaOptionsBuilder.setDvIfContained(ifContainedFlags.get(index));
-    deltaOptionsBuilder.setDvSerializedBitmap(ByteString.copyFrom(serializedDvBitmaps.get(index)));
+    deltaOptionsBuilder.setDvIfContained(nativeDvDescriptors.get(index).ifContainedFlag);
+    deltaOptionsBuilder.setDvSerializedBitmap(ByteString.copyFrom(nativeDvDescriptors.get(index).serializedBitmap));
     final ReadRel.LocalFiles.FileOrFiles.DeltaReadOptions deltaOptions =
         deltaOptionsBuilder.build();
     fileBuilder.setDelta(deltaOptions);
+  }
+
+  public static class NativeDvDescriptor implements Serializable {
+    public final boolean ifContainedFlag;
+    public final byte[] serializedBitmap;
+
+    public NativeDvDescriptor(boolean ifContainedFlag, byte[] serializedBitmap) {
+      this.ifContainedFlag = ifContainedFlag;
+      this.serializedBitmap = serializedBitmap;
+    }
   }
 }
