@@ -107,10 +107,8 @@ void parseLocalFileNodes(
     std::vector<::substrait::ReadRel_LocalFiles>& localFiles) {
   std::vector<std::shared_ptr<SplitInfo>> splitInfos;
   splitInfos.reserve(localFiles.size());
-  for (int32_t i = 0; i < localFiles.size(); i++) {
-    const auto& localFile = localFiles[i];
+  for (const auto& localFile : localFiles) {
     const auto& fileList = localFile.items();
-
     splitInfos.push_back(parseScanSplitInfo(fileList));
   }
 
