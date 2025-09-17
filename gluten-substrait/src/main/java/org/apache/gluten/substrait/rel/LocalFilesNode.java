@@ -263,4 +263,56 @@ public class LocalFilesNode implements SplitInfo {
     }
     return localFilesBuilder.build();
   }
+
+  public Integer getIndex() {
+    return index;
+  }
+
+  public List<Long> getStarts() {
+    return starts;
+  }
+
+  public List<Long> getLengths() {
+    return lengths;
+  }
+
+  public List<Long> getFileSizes() {
+    return fileSizes;
+  }
+
+  public List<Long> getModificationTimes() {
+    return modificationTimes;
+  }
+
+  public List<Map<String, String>> getPartitionColumns() {
+    return partitionColumns;
+  }
+
+  public List<Map<String, String>> getMetadataColumns() {
+    return metadataColumns;
+  }
+
+  public List<Map<String, Object>> getOtherMetadataColumns() {
+    return otherMetadataColumns;
+  }
+
+  public List<String> getPreferredLocations() {
+    return preferredLocations;
+  }
+
+  public ReadFileFormat getFileFormat() {
+    return fileFormat;
+  }
+
+  public Boolean getIterAsInput() {
+    return iterAsInput;
+  }
+
+  public StructType getFileSchema() {
+    return fileSchema;
+  }
+
+  public Map<String, String> getFileReadProperties() {
+    return fileReadProperties;
+  }
 }

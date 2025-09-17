@@ -371,6 +371,9 @@ find_package(
   REQUIRED)
 target_link_libraries(velox PUBLIC ICU::i18n ICU::uc ICU::data)
 
+find_package(Roaring REQUIRED)
+target_link_libraries(velox PUBLIC Roaring::roaring)
+
 if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
