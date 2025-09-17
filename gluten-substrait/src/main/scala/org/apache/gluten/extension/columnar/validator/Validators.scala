@@ -21,7 +21,6 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.columnar.FallbackTags
-import org.apache.gluten.extension.columnar.heuristic.LegacyOffload
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -231,7 +230,6 @@ object Validators {
   private class FallbackByNativeValidation(offloadRules: Seq[OffloadSingleNode])
     extends Validator
     with Logging {
-    private val offloadAttempt: LegacyOffload = LegacyOffload(offloadRules)
     override def validate(plan: SparkPlan): Validator.OutCome = {
       val offloadedNode = offloadAttempt.apply(plan)
       val out = offloadedNode match {
@@ -242,6 +240,14 @@ object Validators {
           pass()
       }
       out
+    }
+
+    private val offloadAttempt: SparkPlan => SparkPlan = {
+      node =>
+        offloadRules.foldLeft(node) {
+          case (node, rule) =>
+            rule.offload(node)
+        }
     }
   }
 
