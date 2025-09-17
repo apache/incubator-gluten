@@ -24,7 +24,7 @@ import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.vectorized.{ArrowColumnarBatch, ArrowColumnarRow, ArrowWritableColumnVector}
+import org.apache.gluten.vectorized.{ArrowColumnarRow, ArrowWritableColumnVector}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -206,15 +206,6 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
     }
   }
 
-  private def convertToArrowColumnarBatch(sparkColumnarBatch: ColumnarBatch): ArrowColumnarBatch = {
-    val numCols = sparkColumnarBatch.numCols()
-    val writableColumns = new Array[ArrowWritableColumnVector](numCols)
-    for (i <- 0 until numCols) {
-      writableColumns(i) = sparkColumnarBatch.column(i).asInstanceOf[ArrowWritableColumnVector]
-    }
-    new ArrowColumnarBatch(writableColumns, sparkColumnarBatch.numRows())
-  }
-
   private def getProjectedBatchArrow(
       childData: ColumnarBatch,
       c2a: SQLMetric,
@@ -231,7 +222,7 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
     // In spark with version belows 4.0, the `ColumnarRow`'s get method doesn't check whether the
     // column to get is null, so we change it to `ArrowColumnarBatch` manually. `ArrowColumnarBatch`
     // returns `ArrowColumnarRow`, which fixes the bug.
-    val arrowBatch = convertToArrowColumnarBatch(sparkColumnarBatch)
+    val arrowBatch = ColumnarBatches.convertToArrowColumnarBatch(sparkColumnarBatch)
     c2a += System.currentTimeMillis() - start
 
     val schema =

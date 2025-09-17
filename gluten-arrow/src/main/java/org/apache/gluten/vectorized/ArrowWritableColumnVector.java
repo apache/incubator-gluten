@@ -418,7 +418,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     for (int i = 0; i < writableColumns.length; i++) {
       writableColumns[i] = (ArrowWritableColumnVector) childColumns[i];
     }
-    return new ArrowColumnarRow(writableColumns);
+    return new ArrowColumnarRow(writableColumns, rowId);
   }
 
   @Override

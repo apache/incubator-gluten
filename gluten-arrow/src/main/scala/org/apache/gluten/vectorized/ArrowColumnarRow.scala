@@ -30,10 +30,9 @@ import java.math.BigDecimal
 // Copy from Spark MutableColumnarRow mostly but class member columns' type is
 // ArrowWritableColumnVector. And support string and binary type to write,
 // Arrow writer does not need to setNotNull before writing a value.
-final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector])
+final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector], var rowId: Int = 0)
   extends InternalRowGetVariantCompatible {
 
-  var rowId: Int = 0
   private val columns: Array[ArrowWritableColumnVector] = writableColumns
 
   override def numFields(): Int = columns.length
