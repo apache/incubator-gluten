@@ -31,8 +31,6 @@ import java.util.concurrent.TimeUnit
 class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   import VeloxConfig._
 
-  def veloxColumnarWindowType: String = getConf(COLUMNAR_VELOX_WINDOW_TYPE)
-
   def veloxSpillFileSystem: String = getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
 
   def veloxResizeBatchesShuffleInput: Boolean =
@@ -86,20 +84,6 @@ object VeloxConfig {
   def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
   }
-
-  val COLUMNAR_VELOX_WINDOW_TYPE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.window.type")
-      .doc(
-        "Velox backend supports both SortWindow and" +
-          " StreamingWindow operators." +
-          " The StreamingWindow operator skips the sorting step" +
-          " in the input but does not support spill." +
-          " On the other hand, the SortWindow operator is " +
-          "responsible for sorting the input data within the" +
-          " Window operator and also supports spill.")
-      .stringConf
-      .checkValues(Set("streaming", "sort"))
-      .createWithDefault("streaming")
 
   // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
