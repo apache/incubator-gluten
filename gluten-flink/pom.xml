@@ -12,9 +12,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.apache.gluten</groupId>
@@ -39,6 +37,7 @@
     <spotless.version>2.27.2</spotless.version>
     <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
+    <!-- spotless:off -->
     <spotless.license.header>
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -57,21 +56,8 @@
  * limitations under the License.
  */
     </spotless.license.header>
+    <!-- spotless:on -->
   </properties>
-
-  <profiles>
-    <profile>
-      <id>java-17</id>
-      <activation>
-        <jdk>17</jdk>
-      </activation>
-      <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-      </properties>
-    </profile>
-  </profiles>
-
 
   <build>
     <plugins>
@@ -88,7 +74,7 @@
 
             <!-- \# refers to the static imports -->
             <importOrder>
-              <order>org.apache.gluten,io.github.zhztheplayer.velox4j,org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\# </order>
+              <order>org.apache.gluten,io.github.zhztheplayer.velox4j,org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>
             </importOrder>
             <licenseHeader>
               <content>${spotless.license.header}</content>
@@ -100,7 +86,6 @@
             <removeUnusedImports/>
           </java>
           <scala>
-            <!--  make it works `// spotless:off `  -->
             <toggleOffOn/>
             <scalafmt>
               <version>${spotless.scalafmt.version}</version>
@@ -108,18 +93,47 @@
               <file>.scalafmt.conf</file>
             </scalafmt>
           </scala>
+          <pom>
+            <toggleOffOn>
+              <off>spotless:off</off>
+              <on>spotless:on</on>
+            </toggleOffOn>
+            <includes>
+              <include>pom.xml</include>
+            </includes>
+            <sortPom>
+              <encoding>UTF-8</encoding>
+              <keepBlankLines>true</keepBlankLines>
+              <nrOfIndentSpace>2</nrOfIndentSpace>
+              <indentBlankLines>false</indentBlankLines>
+              <expandEmptyElements>false</expandEmptyElements>
+            </sortPom>
+          </pom>
         </configuration>
         <executions>
           <execution>
             <id>spotless-check</id>
-            <phase>validate</phase>
             <goals>
               <goal>check</goal>
             </goals>
+            <phase>validate</phase>
           </execution>
         </executions>
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>java-17</id>
+      <activation>
+        <jdk>17</jdk>
+      </activation>
+      <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+      </properties>
+    </profile>
+  </profiles>
 
 </project>
