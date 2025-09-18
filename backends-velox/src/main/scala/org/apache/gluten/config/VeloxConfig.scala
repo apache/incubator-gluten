@@ -531,14 +531,14 @@ object VeloxConfig {
 
   val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_ROWS =
     buildConf("spark.gluten.velox.abandonbuild.noduphashminrows")
-      .internal()
+      .experimental()
       .doc("Experimental: abandon hashmap build if duplicated rows more than this number.")
       .intConf
       .createWithDefault(100000)
 
   val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_PCT =
     buildConf("spark.gluten.velox.abandonbuild.noduphashminpct")
-      .internal()
+      .experimental()
       .doc("Experimental: abandon hashmap build if duplicated rows are more than this pct.")
       .doubleConf
       .createWithDefault(100)
