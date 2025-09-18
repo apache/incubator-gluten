@@ -465,7 +465,7 @@
                     <requireActiveProfile>
                       <!-- Spark 4.0 requires Java 17+ -->
                       <profiles>java-17</profiles>
-                      <message>"-P spark-4.0" requires JDK 17 </message>
+                      <message>"-P spark-4.0" requires JDK 17</message>
                     </requireActiveProfile>
                   </rules>
                 </configuration>
