@@ -642,7 +642,7 @@
             </relocation>
             <relocation>
               <pattern>google.protobuf</pattern>
-	          <shadedPattern>${gluten.shade.packageName}.google.protobuf</shadedPattern>
+              <shadedPattern>${gluten.shade.packageName}.google.protobuf</shadedPattern>
             </relocation>
             <relocation>
               <pattern>com.google.gson</pattern>

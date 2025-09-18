@@ -22,6 +22,7 @@
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 #ifdef GLUTEN_ENABLE_GPU
+#include <mutex>
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
 
@@ -70,6 +71,9 @@ WholeStageResultIterator::WholeStageResultIterator(
           std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
+#ifdef GLUTEN_ENABLE_GPU
+      lock_(mutex_, std::defer_lock),
+#endif
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
@@ -79,6 +83,13 @@ WholeStageResultIterator::WholeStageResultIterator(
     spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
   }
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
+
+#ifdef GLUTEN_ENABLE_GPU
+  enableCudf_ = veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault);
+  if (enableCudf_) {
+    lock_.lock();
+  }
+#endif
 
   // Create task instance.
   std::unordered_set<velox::core::PlanNodeId> emptySet;
@@ -176,6 +187,10 @@ WholeStageResultIterator::WholeStageResultIterator(
   }
 }
 
+#ifdef GLUTEN_ENABLE_GPU
+std::mutex WholeStageResultIterator::mutex_;
+#endif
+
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
@@ -195,6 +210,17 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
 }
 
 std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
+  auto result = nextInternal();
+#ifdef GLUTEN_ENABLE_GPU
+  if (result == nullptr && enableCudf_) {
+    lock_.unlock();
+  }
+#endif
+
+  return result;
+}
+
+std::shared_ptr<ColumnarBatch> WholeStageResultIterator::nextInternal() {
   tryAddSplitsToTask();
   if (task_->isFinished()) {
     return nullptr;
@@ -349,9 +375,11 @@ void WholeStageResultIterator::collectMetrics() {
       veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
     auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
     std::ostringstream oss;
-    oss << "Native Plan with stats for: " << taskInfo_;
+    oss << "Native Plan with stats for: " << taskInfo_ << "\n";
+    oss << "TaskStats: totalTime: " << taskStats.executionEndTimeMs - taskStats.executionStartTimeMs
+        << "; startTime: " << taskStats.executionStartTimeMs << "; endTime: " << taskStats.executionEndTimeMs;
     oss << "\n" << planWithStats << std::endl;
-    LOG(INFO) << oss.str();
+    LOG(WARNING) << oss.str();
   }
 
   auto planStats = velox::exec::toPlanStats(taskStats);
@@ -591,10 +619,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kSparkJsonIgnoreNullFields, true));
 
 #ifdef GLUTEN_ENABLE_GPU
-    if (veloxCfg_->get<bool>(kCudfEnabled, false)) {
-      // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
-      // configs[cudf_velox::kCudfEnabled] = "false";
-    }
+    configs[cudf_velox::kCudfEnabled] = std::to_string(veloxCfg_->get<bool>(kCudfEnabled, false));
 #endif
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
