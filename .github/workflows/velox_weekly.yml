@@ -71,7 +71,7 @@ jobs:
           ls -l /usr/bin/mvn
           
           git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
-          ./dev/package.sh
+          ./dev/package.sh --spark_version=3.5
           
 
   build-on-centos:
@@ -117,7 +117,7 @@ jobs:
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin
 
-          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh --spark_version=3.5
 
   build-on-ubuntu:
     strategy:
@@ -153,7 +153,7 @@ jobs:
           fi
           sudo apt-get install -y openjdk-8-jdk python3-pip cmake
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh --spark_version=3.5
 
   build-on-openeuler:
     strategy:
