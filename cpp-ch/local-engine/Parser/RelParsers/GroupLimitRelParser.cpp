@@ -16,6 +16,7 @@
  */
 
 #include "GroupLimitRelParser.h"
+#include <algorithm>
 #include <memory>
 #include <unordered_set>
 #include <utility>
@@ -46,12 +47,14 @@
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/wrappers.pb.h>
+#include "Common/Logger.h"
 #include <Common/AggregateUtil.h>
 #include <Common/ArrayJoinHelper.h>
 #include <Common/GlutenConfig.h>
 #include <Common/PlanUtil.h>
 #include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
+#include "cctz/civil_time_detail.h"
 
 namespace DB::ErrorCodes
 {
@@ -226,6 +229,7 @@ DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
 
     // If all partition keys are low cardinality keys, use aggregattion to get topk of each partition
     auto aggregation_plan = BranchStepHelper::createSubPlan(branch_in_header, 1);
+    collectPartitionAndSortFields();
     prePrejectionForAggregateArguments(*aggregation_plan);
     addGroupLmitAggregationStep(*aggregation_plan);
     postProjectionForExplodingArrays(*aggregation_plan);
@@ -262,15 +266,40 @@ String AggregateGroupLimitRelParser::getAggregateFunctionName(const String & win
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported window function: {}", window_function_name);
 }
 
+void AggregateGroupLimitRelParser::collectPartitionAndSortFields()
+{
+    partition_fields = parsePartitionFields(win_rel_def->partition_expressions());
+    auto full_sort_fields = parseSortFields(win_rel_def->sorts());
+
+    std::set<size_t> partition_fields_set(partition_fields.begin(), partition_fields.end());
+    std::set<size_t> full_sort_fields_set(full_sort_fields.begin(), full_sort_fields.end());
+    std::set<size_t> selected_sort_fields_set;
+    // Remove partition keys from sort keys
+    std::set_difference(
+        full_sort_fields_set.begin(),
+        full_sort_fields_set.end(),
+        partition_fields_set.begin(),
+        partition_fields_set.end(),
+        std::inserter(selected_sort_fields_set, selected_sort_fields_set.begin()));
+    if (selected_sort_fields_set.empty())
+    {
+        // FIXME: support empty sort keys.
+        sort_fields.push_back(*partition_fields_set.begin());
+    }
+    else
+    {
+        sort_fields = std::vector<size_t>(selected_sort_fields_set.begin(), selected_sort_fields_set.end());
+    }
+}
+
 // Build one tuple column as the aggregate function's arguments
 void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryPlan & plan)
 {
     auto projection_actions = std::make_shared<DB::ActionsDAG>(input_header->getColumnsWithTypeAndName());
 
-    auto partition_fields = parsePartitionFields(win_rel_def->partition_expressions());
-    auto sort_fields = parseSortFields(win_rel_def->sorts());
     std::set<size_t> unique_partition_fields(partition_fields.begin(), partition_fields.end());
     std::set<size_t> unique_sort_fields(sort_fields.begin(), sort_fields.end());
+
     DB::NameSet required_column_names;
     auto build_tuple = [&](const DB::DataTypes & data_types,
                            const Strings & names,
@@ -296,12 +325,13 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryP
     for (size_t i = 0; i < input_header->columns(); ++i)
     {
         const auto & col = input_header->getByPosition(i);
-        if (unique_partition_fields.count(i) && !unique_sort_fields.count(i))
+        if (unique_partition_fields.count(i))
         {
             required_column_names.insert(col.name);
             aggregate_grouping_keys.push_back(col.name);
         }
-        else
+        
+        if (!unique_partition_fields.count(i) || unique_sort_fields.count(i))
         {
             aggregate_data_tuple_types.push_back(col.type);
             aggregate_data_tuple_names.push_back(col.name);
@@ -333,7 +363,15 @@ DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription
     agg_desc.argument_names = {aggregate_tuple_column_name};
     auto & parameters = agg_desc.parameters;
     parameters.push_back(static_cast<UInt32>(limit));
-    auto sort_directions = buildSQLLikeSortDescription(*input_header, win_rel_def->sorts());
+    std::set<String> sort_field_names;
+    for (auto i : sort_fields)
+        sort_field_names.insert(input_header->getByPosition(i).name);
+    auto full_sort_desc = parseSortFields(*input_header, win_rel_def->sorts());
+    DB::SortDescription sort_desc;
+    for (const auto & sort_column : full_sort_desc)
+        if (sort_field_names.count(sort_column.column_name))
+            sort_desc.push_back(sort_column);
+    auto sort_directions = buildSQLLikeSortDescription(sort_desc);
     parameters.push_back(sort_directions);
 
     const auto & header = *plan.getCurrentHeader();
@@ -348,6 +386,7 @@ DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription
 void AggregateGroupLimitRelParser::addGroupLmitAggregationStep(DB::QueryPlan & plan)
 {
     const auto & settings = getContext()->getSettingsRef();
+
     DB::AggregateDescriptions agg_descs = {buildAggregateDescription(plan)};
     auto params = AggregatorParamsHelper::buildParams(
         getContext(), aggregate_grouping_keys, agg_descs, AggregatorParamsHelper::Mode::INIT_TO_COMPLETED);
