@@ -1,12 +1,3 @@
--- -------------------------------------------------------------------------------------------------
--- Query 11: User Sessions (Not in original suite)
--- -------------------------------------------------------------------------------------------------
--- How many bids did a user make in each session they were active? Illustrates session windows.
---
--- Group bids by the same user into sessions with max session gap.
--- Emit the number of bids per session.
--- -------------------------------------------------------------------------------------------------
-
 CREATE TABLE nexmark_q11 (
   bidder BIGINT,
   bid_count BIGINT,

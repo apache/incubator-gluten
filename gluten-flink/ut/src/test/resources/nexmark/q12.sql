@@ -1,13 +1,3 @@
--- -------------------------------------------------------------------------------------------------
--- Query 12: Processing Time Windows (Not in original suite)
--- -------------------------------------------------------------------------------------------------
--- How many bids does a user make within a fixed processing time limit?
--- Illustrates working in processing time window.
---
--- Group bids by the same user into processing time windows of 10 seconds.
--- Emit the count of bids per window.
--- -------------------------------------------------------------------------------------------------
-
 CREATE TABLE nexmark_q12 (
   bidder BIGINT,
   bid_count BIGINT,
