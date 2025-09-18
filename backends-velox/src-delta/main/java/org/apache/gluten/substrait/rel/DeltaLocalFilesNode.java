@@ -28,15 +28,9 @@ import org.apache.spark.sql.delta.deletionvectors.RoaringBitmapArray;
 import org.apache.spark.sql.delta.deletionvectors.RoaringBitmapArrayFormat$;
 import org.apache.spark.sql.delta.storage.dv.DeletionVectorStore;
 import org.apache.spark.util.SerializableConfiguration;
-import org.apache.spark.util.Utils;
-import org.apache.spark.util.Utils$;
-import scala.Function0;
-import scala.Function1;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -89,10 +83,19 @@ public class DeltaLocalFilesNode extends LocalFilesNode {
     NativeDvDescriptor toNativeDvDescriptor();
   }
 
-  public static class EmptyDeletionVectorInfo implements DeletionVectorInfo {
+  public static class KeepAllRowsDeletionVectorInfo implements DeletionVectorInfo {
     @Override
     public NativeDvDescriptor toNativeDvDescriptor() {
-      return NativeDvDescriptor.EMPTY;
+      return new NativeDvDescriptor(true,
+          new RoaringBitmapArray().serializeAsByteArray(RoaringBitmapArrayFormat$.MODULE$.Portable()));
+    }
+  }
+
+  public static class DropAllRowsDeletionVectorInfo implements DeletionVectorInfo {
+    @Override
+    public NativeDvDescriptor toNativeDvDescriptor() {
+      return new NativeDvDescriptor(false,
+          new RoaringBitmapArray().serializeAsByteArray(RoaringBitmapArrayFormat$.MODULE$.Portable()));
     }
   }
 
@@ -142,9 +145,6 @@ public class DeltaLocalFilesNode extends LocalFilesNode {
   }
 
   public static class NativeDvDescriptor implements Serializable {
-    public static final NativeDvDescriptor EMPTY = new NativeDvDescriptor(true,
-        new RoaringBitmapArray().serializeAsByteArray(RoaringBitmapArrayFormat$.MODULE$.Portable()));
-
     public final boolean ifContainedFlag;
     public final byte[] serializedBitmap;
 

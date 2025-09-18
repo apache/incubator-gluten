@@ -17,7 +17,8 @@
 
 package org.apache.spark.sql.delta
 
-import org.apache.gluten.substrait.rel.DeltaLocalFilesNode.{DeletionVectorInfo, EmptyDeletionVectorInfo, RegularDeletionVectorInfo}
+import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.substrait.rel.DeltaLocalFilesNode.{DeletionVectorInfo, DropAllRowsDeletionVectorInfo, KeepAllRowsDeletionVectorInfo, RegularDeletionVectorInfo}
 import org.apache.spark.sql.execution.datasources.FilePartition
 
 object DeltaDvShim {
@@ -35,11 +36,18 @@ object DeltaDvShim {
       file =>
         val filePathUri = file.pathUri
         if (!dvMap.contains(filePathUri)) {
-          new EmptyDeletionVectorInfo()
+          new KeepAllRowsDeletionVectorInfo()
         } else {
           val dvDescriptor = dvMap(filePathUri)
           if (dvDescriptor.descriptor.isEmpty) {
-            new EmptyDeletionVectorInfo()
+            dvDescriptor.filterType match {
+              case RowIndexFilterType.IF_CONTAINED =>
+                new KeepAllRowsDeletionVectorInfo()
+              case RowIndexFilterType.IF_NOT_CONTAINED =>
+                new DropAllRowsDeletionVectorInfo()
+              case other =>
+                throw new GlutenException(s"Unexpected row-index filter type: $other")
+            }
           } else {
             require(tablePath.nonEmpty, "Table path is required for non-empty deletion vectors")
             new RegularDeletionVectorInfo(
