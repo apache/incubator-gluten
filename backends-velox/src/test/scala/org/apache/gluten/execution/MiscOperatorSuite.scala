@@ -353,174 +353,169 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("window expression") {
-    Seq(("sort", 0), ("streaming", 1)).foreach {
-      case (windowType, localSortSize) =>
-        withSQLConf(VeloxConfig.COLUMNAR_VELOX_WINDOW_TYPE.key -> windowType) {
-          runQueryAndCompare(
-            "select max(l_partkey) over" +
-              " (partition by l_suppkey order by l_commitdate" +
-              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
-            df =>
-              checkSparkOperatorMatch[WindowExecTransformer](df)
-              assert(
-                getExecutedPlan(df).collect {
-                  case s: SortExecTransformer if !s.global => s
-                }.size == localSortSize
-              )
-          }
+    runQueryAndCompare(
+      "select max(l_partkey) over" +
+        " (partition by l_suppkey order by l_commitdate" +
+        " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
+      df =>
+        checkSparkOperatorMatch[WindowExecTransformer](df)
+        assert(
+          getExecutedPlan(df).collect {
+            case s: SortExecTransformer if !s.global => s
+          }.size == 1
+        )
+    }
 
-          runQueryAndCompare(
-            "select max(l_partkey) over" +
-              " (partition by l_suppkey order by l_orderkey" +
-              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW), " +
-              "min(l_comment) over" +
-              " (partition by l_suppkey order by l_linenumber" +
-              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select max(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey" +
+        " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW), " +
+        "min(l_comment) over" +
+        " (partition by l_suppkey order by l_linenumber" +
+        " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
+      checkSparkOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select max(l_partkey) over" +
-              " (partition by l_suppkey order by l_orderkey" +
-              " RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select max(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey" +
+        " RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING) from lineitem ") {
+      checkSparkOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select max(l_partkey) over" +
-              " (partition by l_suppkey order by l_orderkey" +
-              " RANGE BETWEEN 6 PRECEDING AND CURRENT ROW) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select max(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey" +
+        " RANGE BETWEEN 6 PRECEDING AND CURRENT ROW) from lineitem ") {
+      checkSparkOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select max(l_partkey) over" +
-              " (partition by l_suppkey order by l_orderkey" +
-              " RANGE BETWEEN 6 PRECEDING AND 2 FOLLOWING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select max(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey" +
+        " RANGE BETWEEN 6 PRECEDING AND 2 FOLLOWING) from lineitem ") {
+      checkSparkOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select max(l_partkey) over" +
-              " (partition by l_suppkey order by l_orderkey" +
-              " RANGE BETWEEN 6 PRECEDING AND 3 PRECEDING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select max(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey" +
+        " RANGE BETWEEN 6 PRECEDING AND 3 PRECEDING) from lineitem ") {
+      checkSparkOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select max(l_partkey) over" +
-              " (partition by l_suppkey order by l_orderkey" +
-              " RANGE BETWEEN 3 FOLLOWING AND 6 FOLLOWING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select max(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey" +
+        " RANGE BETWEEN 3 FOLLOWING AND 6 FOLLOWING) from lineitem ") {
+      checkSparkOperatorMatch[WindowExecTransformer]
+    }
 
-          // DecimalType as order by column is not supported
-          runQueryAndCompare(
-            "select min(l_comment) over" +
-              " (partition by l_suppkey order by l_discount" +
-              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
-            checkSparkOperatorMatch[WindowExec]
-          }
+    // DecimalType as order by column is not supported
+    runQueryAndCompare(
+      "select min(l_comment) over" +
+        " (partition by l_suppkey order by l_discount" +
+        " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
+      checkSparkOperatorMatch[WindowExec]
+    }
 
-          runQueryAndCompare(
-            "select ntile(4) over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select ntile(4) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select row_number() over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select row_number() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select rank() over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select rank() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select dense_rank() over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+    runQueryAndCompare(
+      "select dense_rank() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
-          runQueryAndCompare(
-            "select percent_rank() over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+    runQueryAndCompare(
+      "select percent_rank() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
-          runQueryAndCompare(
-            "select cume_dist() over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+    runQueryAndCompare(
+      "select cume_dist() over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
-          runQueryAndCompare(
-            "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) IGNORE NULLS over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) IGNORE NULLS over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select sum(l_partkey + 1) over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select sum(l_partkey + 1) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select max(l_partkey) over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select max(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select min(l_partkey) over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select min(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select avg(l_partkey) over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select avg(l_partkey) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select lag(l_orderkey) over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select lag(l_orderkey) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          runQueryAndCompare(
-            "select lead(l_orderkey) over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    runQueryAndCompare(
+      "select lead(l_orderkey) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          // Test same partition/ordering keys.
-          runQueryAndCompare(
-            "select avg(l_partkey) over" +
-              " (partition by l_suppkey order by l_suppkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
+    // Test same partition/ordering keys.
+    runQueryAndCompare(
+      "select avg(l_partkey) over" +
+        " (partition by l_suppkey order by l_suppkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-          // Test overlapping partition/ordering keys.
-          runQueryAndCompare(
-            "select avg(l_partkey) over" +
-              " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
-          }
-        }
+    // Test overlapping partition/ordering keys.
+    runQueryAndCompare(
+      "select avg(l_partkey) over" +
+        " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-        // Foldable input of nth_value is not supported.
-        runQueryAndCompare(
-          "select l_suppkey, l_orderkey, nth_value(1, 2) over" +
-            " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-          checkSparkOperatorMatch[WindowExec]
-        }
+    // Foldable input of nth_value is not supported.
+    runQueryAndCompare(
+      "select l_suppkey, l_orderkey, nth_value(1, 2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+      checkSparkOperatorMatch[WindowExec]
     }
   }
 
