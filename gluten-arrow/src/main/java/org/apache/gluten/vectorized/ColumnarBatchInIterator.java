@@ -39,7 +39,8 @@ public class ColumnarBatchInIterator {
   // For being called by native code.
   public long next() {
     final ColumnarBatch next = delegated.next();
-    ColumnarBatches.checkOffloaded(next);
-    return ColumnarBatches.getNativeHandle(backendName, next);
+    final ColumnarBatches.BatchType batchType = ColumnarBatches.identifyBatchType(next);
+    ColumnarBatches.checkOffloaded(batchType);
+    return ColumnarBatches.getNativeHandle(backendName, next, batchType);
   }
 }
