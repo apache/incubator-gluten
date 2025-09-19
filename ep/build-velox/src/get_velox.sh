@@ -62,19 +62,6 @@ for arg in "$@"; do
   esac
 done
 
-function ensure_pattern_matched {
-  if [ $# -ne 2 ]; then
-    echo "Exactly 2 arguments are required."
-    return 1
-  fi
-  pattern=$1
-  file=$2
-  matched_lines=$(grep -c "$pattern" $file)
-  if [ $matched_lines -eq 0 ]; then
-    return 1
-  fi
-}
-
 function process_setup_ubuntu {
   echo "Using setup script from Velox"
 }
@@ -99,7 +86,6 @@ function process_setup_tencentos32 {
   sed -i "/^[[:space:]]*#/!s/.*dnf config-manager --set-enabled powertools/#&/" ${CURRENT_DIR}/setup-centos8.sh
 }
 
-echo "Preparing Velox source code..."
 
 CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
@@ -111,33 +97,37 @@ if [ "$VELOX_HOME" == "" ]; then
 fi
 VELOX_SOURCE_DIR="${VELOX_HOME}"
 
-# checkout code
-TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}' | head -n 1)"
-if [ -d $VELOX_SOURCE_DIR ]; then
-  echo "Velox source folder $VELOX_SOURCE_DIR already exists..."
-  cd $VELOX_SOURCE_DIR
-  # if velox_branch exists, check it out, 
-  # otherwise assume that user prepared velox source in velox_home, skip checkout
-  if [ -n "$TARGET_BUILD_COMMIT" ]; then
-    git init .
-    EXISTS=$(git show-ref refs/tags/build_$TARGET_BUILD_COMMIT || true)
-    if [ -z "$EXISTS" ]; then
-      git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:refs/tags/build_$TARGET_BUILD_COMMIT
-    fi
-    git reset --hard HEAD
-    git checkout refs/tags/build_$TARGET_BUILD_COMMIT
-  else
-    echo "$VELOX_BRANCH can't be found in $VELOX_REPO, skipping the download..."
-  fi
-else
-  git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
-  cd $VELOX_SOURCE_DIR
-  git checkout $TARGET_BUILD_COMMIT
-fi
+function prepare_velox_source_code {
+  echo "Preparing Velox source code..."
 
-#sync submodules
-git submodule sync --recursive
-git submodule update --init --recursive
+  # checkout code
+  TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}' | head -n 1)"
+  if [ -d $VELOX_SOURCE_DIR ]; then
+    echo "Velox source folder $VELOX_SOURCE_DIR already exists..."
+    cd $VELOX_SOURCE_DIR
+    # if velox_branch exists, check it out,
+    # otherwise assume that user prepared velox source in velox_home, skip checkout
+    if [ -n "$TARGET_BUILD_COMMIT" ]; then
+      git init .
+      EXISTS=$(git show-ref refs/tags/build_$TARGET_BUILD_COMMIT || true)
+      if [ -z "$EXISTS" ]; then
+        git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:refs/tags/build_$TARGET_BUILD_COMMIT
+      fi
+      git reset --hard HEAD
+      git checkout refs/tags/build_$TARGET_BUILD_COMMIT
+    else
+      echo "$VELOX_BRANCH can't be found in $VELOX_REPO, skipping the download..."
+    fi
+  else
+    git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
+    cd $VELOX_SOURCE_DIR
+    git checkout $TARGET_BUILD_COMMIT
+  fi
+
+  #sync submodules
+  git submodule sync --recursive
+  git submodule update --init --recursive
+}
 
 function apply_provided_velox_patch {
   if [[ -n "$UPSTREAM_VELOX_PR_ID" ]]; then
@@ -231,9 +221,7 @@ function setup_linux {
   fi
 }
 
-apply_provided_velox_patch $VELOX_SOURCE_DIR
-
-if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
+function apply_setup_fixes() {
   if [ $OS == 'Linux' ]; then
     setup_linux
   elif [ $OS == 'Darwin' ]; then
@@ -242,8 +230,16 @@ if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
     echo "Unsupported kernel: $OS"
     exit 1
   fi
+}
+
+prepare_velox_source_code
+
+if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
+  apply_setup_fixes
 fi
 
-apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
+apply_provided_velox_patch "$VELOX_SOURCE_DIR"
+
+apply_compilation_fixes "$CURRENT_DIR" "$VELOX_SOURCE_DIR"
 
 echo "Finished getting Velox code"
