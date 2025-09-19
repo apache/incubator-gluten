@@ -3012,6 +3012,17 @@ class GlutenClickHouseTPCHSaltNullParquetSuite
         compareResult = true,
         checkWindowGroupLimit
       )
+
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c, row_number() over (partition by a order by b, c, a) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        compareResult = true,
+        checkWindowGroupLimit
+      )
       spark.sql("drop table if exists test_win_top")
     }
 

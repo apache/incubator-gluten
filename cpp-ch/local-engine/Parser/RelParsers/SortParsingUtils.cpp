@@ -76,32 +76,18 @@ DB::SortDescription parseSortFields(const DB::Block & header, const google::prot
     return sort_descr;
 }
 
-std::string
-buildSQLLikeSortDescription(const DB::Block & header, const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields)
+std::string buildSQLLikeSortDescription(const DB::SortDescription & sort_description)
 {
-    static const std::unordered_map<int, std::string> order_directions
-        = {{1, " asc nulls first"}, {2, " asc nulls last"}, {3, " desc nulls first"}, {4, " desc nulls last"}};
-    size_t n = 0;
     DB::WriteBufferFromOwnString ostr;
-    for (const auto & sort_field : sort_fields)
+    size_t n = 0;
+    for (const auto & sort_column : sort_description)
     {
-        auto it = order_directions.find(sort_field.direction());
-        if (it == order_directions.end())
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow sort direction: {}", sort_field.direction());
-        auto field_index = SubstraitParserUtils::getStructFieldIndex(sort_field.expr());
-        if (!field_index)
-        {
-            throw DB::Exception(
-                DB::ErrorCodes::BAD_ARGUMENTS, "Sort field must be a column reference. but got {}", sort_field.DebugString());
-        }
-        const auto & col_name = header.getByPosition(*field_index).name;
         if (n)
-            ostr << String(",");
-        // the col_name may contain '#' which can may ch fail to parse.
-        ostr << "`" << col_name << "`" << it->second;
+            ostr << String(", ");
+        const auto & col_name = sort_column.column_name;
+        ostr << "`" << col_name << "` " << (sort_column.direction == 1 ? "ASC" : "DESC") << " NULLS " << (sort_column.nulls_direction != sort_column.direction ? "FIRST" : "LAST");
         n += 1;
     }
-    LOG_DEBUG(getLogger("AggregateGroupLimitRelParser"), "Order by clasue: {}", ostr.str());
     return ostr.str();
 }
 }
