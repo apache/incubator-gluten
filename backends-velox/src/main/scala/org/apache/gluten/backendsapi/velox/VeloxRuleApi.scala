@@ -21,6 +21,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{PreventBatchTypeMismatchInTableCache, RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
+import org.apache.gluten.extension.columnar.V2WritePostRule
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
 import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
@@ -122,6 +123,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(_ => CollectTailTransformerRule())
+    injector.injectPostTransform(_ => V2WritePostRule())
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatchType))
 
     // Gluten columnar: Fallback policies.
@@ -223,6 +225,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(_ => CollectTailTransformerRule())
+    injector.injectPostTransform(_ => V2WritePostRule())
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatchType))
     injector.injectPostTransform(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
     SparkShimLoader.getSparkShims

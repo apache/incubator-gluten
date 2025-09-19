@@ -158,6 +158,8 @@ object Validators {
       case p: ShuffleExchangeExec if !glutenConf.enableColumnarShuffle => fail(p)
       case p: BroadcastExchangeExec if !glutenConf.enableColumnarBroadcastExchange => fail(p)
       case p: AppendDataExec if !glutenConf.enableAppendData => fail(p)
+      case p: ReplaceDataExec if !glutenConf.enableReplaceData => fail(p)
+      case p: OverwriteByExpressionExec if !glutenConf.enableOverwriteByExpression => fail(p)
       case p @ (_: LocalLimitExec | _: GlobalLimitExec) if !glutenConf.enableColumnarLimit =>
         fail(p)
       case p: GenerateExec if !glutenConf.enableColumnarGenerate => fail(p)
