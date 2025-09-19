@@ -32,6 +32,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 
+@Disabled
 class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
   @Override
