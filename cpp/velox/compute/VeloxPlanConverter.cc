@@ -36,12 +36,15 @@ VeloxPlanConverter::VeloxPlanConverter(
     const std::optional<std::string> writeFileName,
     bool validationMode)
     : validationMode_(validationMode),
+      veloxCfg_(veloxCfg),
       substraitVeloxPlanConverter_(veloxPool, veloxCfg, writeFilesTempPath, writeFileName, validationMode) {
+  VELOX_USER_CHECK_NOT_NULL(veloxCfg_);
   substraitVeloxPlanConverter_.setInputIters(std::move(inputIters));
 }
 
 namespace {
 std::shared_ptr<SplitInfo> parseScanSplitInfo(
+    const facebook::velox::config::ConfigBase* veloxCfg,
     const google::protobuf::RepeatedPtrField<substrait::ReadRel_LocalFiles_FileOrFiles>& fileList) {
   using SubstraitFileFormatCase = ::substrait::ReadRel_LocalFiles_FileOrFiles::FileFormatCase;
 
@@ -98,12 +101,33 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
         splitInfo->format = dwio::common::FileFormat::UNKNOWN;
         break;
     }
+
+    if (!splitInfo->tableSchema && file.has_schema()) {
+      const auto& schema = file.schema();
+
+      std::vector<std::string> names;
+      std::vector<TypePtr> types;
+      names.reserve(schema.names().size());
+
+      const bool asLowerCase = !veloxCfg->get<bool>(kCaseSensitive, false);
+      for (const auto& name : schema.names()) {
+        std::string fieldName = name;
+        if (asLowerCase) {
+          folly::toLowerAscii(fieldName);
+        }
+        names.emplace_back(std::move(fieldName));
+      }
+      types = SubstraitParser::parseNamedStruct(schema, asLowerCase);
+
+      splitInfo->tableSchema = ROW(std::move(names), std::move(types));
+    }
   }
   return splitInfo;
 }
 
 void parseLocalFileNodes(
     SubstraitToVeloxPlanConverter* planConverter,
+    const facebook::velox::config::ConfigBase* veloxCfg,
     std::vector<::substrait::ReadRel_LocalFiles>& localFiles) {
   std::vector<std::shared_ptr<SplitInfo>> splitInfos;
   splitInfos.reserve(localFiles.size());
@@ -111,7 +135,7 @@ void parseLocalFileNodes(
     const auto& localFile = localFiles[i];
     const auto& fileList = localFile.items();
 
-    splitInfos.push_back(parseScanSplitInfo(fileList));
+    splitInfos.push_back(parseScanSplitInfo(veloxCfg, fileList));
   }
 
   planConverter->setSplitInfos(std::move(splitInfos));
@@ -122,7 +146,7 @@ std::shared_ptr<const facebook::velox::core::PlanNode> VeloxPlanConverter::toVel
     const ::substrait::Plan& substraitPlan,
     std::vector<::substrait::ReadRel_LocalFiles> localFiles) {
   if (!validationMode_) {
-    parseLocalFileNodes(&substraitVeloxPlanConverter_, localFiles);
+    parseLocalFileNodes(&substraitVeloxPlanConverter_, veloxCfg_, localFiles);
   }
 
   return substraitVeloxPlanConverter_.toVeloxPlan(substraitPlan);
