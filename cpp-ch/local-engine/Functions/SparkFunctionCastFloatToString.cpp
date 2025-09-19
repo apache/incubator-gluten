@@ -22,6 +22,7 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/castTypeToEither.h>
 #include <Functions/FunctionsConversion.h>
+#include <Common/logger_useful.h>
 
 using namespace DB;
 
@@ -80,6 +81,7 @@ public:
 
     ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t) const override
     {
+        //LOG_ERROR(getLogger("SparkFunctionCastFloatToString"), "xxx Executing function {}", name);
         if (arguments.size() != 1)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1", name);
 
@@ -103,8 +105,9 @@ public:
             {
                 writeFloatText(src_col->getElement(i), write_buffer);
                 writeFloatEnd<F>(src_col->getElement(i), write_buffer);
-                writeChar(0, write_buffer);
+                //writeChar(0, write_buffer);
                 res_offsets[i] = write_buffer.count();
+                //LOG_ERROR(getLogger("SparkFunctionCastFloatToString"), "Writing string {}, len: {}", src_col->getElement(i), write_buffer.count() - (i == 0 ? 0 : res_offsets[i - 1]));
             }
             return true;
         });
