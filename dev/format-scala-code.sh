@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -14,28 +15,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+# If a new profile is introduced for new modules, please add it here to ensure
+# the new modules are covered.
+PROFILES="-Pbackends-velox -Pceleborn,uniffle -Piceberg,delta,hudi,paimon \
+          -Pspark-3.2,spark-3.3,spark-3.4,spark-3.5,spark-4.0 -Pspark-ut"
 
-function install_maven {
-  (
-    local maven_version="3.9.2"
-    local local_binary="apache-maven-${maven_version}-bin.tar.gz"
-    local mirror_host="https://www.apache.org/dyn/closer.lua"
-    local url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download"
-    cd /opt/
-    wget -nv -O ${local_binary} ${url}
-    tar -xvf ${local_binary} && mv apache-maven-${maven_version} /usr/lib/maven
-  )
-  export PATH=/usr/lib/maven/bin:$PATH
-  if [ -n "$GITHUB_ENV" ]; then
-    echo "PATH=/usr/lib/maven/bin:$PATH" >> $GITHUB_ENV
-  else
-    echo "Warning: GITHUB_ENV is not set. Skipping environment variable export."
-  fi
-}
+COMMAND=$1
 
-for cmd in "$@"
-do
-    echo "Running: $cmd"
-    "$cmd"
-done
+if [[ "$COMMAND" == "check" ]]; then
+  echo "Checking Scala code style.."
+  mvn -q spotless:check $PROFILES
+elif [[ "$COMMAND" == "apply" ]] || [[ "$COMMAND" == "" ]]; then
+  echo "Fixing Scala code style.."
+  mvn -q spotless:apply $PROFILES
+else
+  echo "Unrecognized option."
+  exit 1
+fi
