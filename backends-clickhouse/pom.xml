@@ -62,7 +62,7 @@
         <dependency>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-api</artifactId>
-          <version>1.7.36</version>
+          <version>2.0.7</version>
           <scope>provided</scope>
         </dependency>
         <dependency>
@@ -217,6 +217,12 @@
           <artifactId>flink-test-utils</artifactId>
           <version>${iceberg.flinkConnector.version}</version>
           <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.logging.log4j</groupId>
+              <artifactId>log4j-slf4j-impl</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <!-- flink not support scala 2.13 -->
         <dependency>
@@ -636,7 +642,7 @@
             </relocation>
             <relocation>
               <pattern>google.protobuf</pattern>
-	          <shadedPattern>${gluten.shade.packageName}.google.protobuf</shadedPattern>
+              <shadedPattern>${gluten.shade.packageName}.google.protobuf</shadedPattern>
             </relocation>
             <relocation>
               <pattern>com.google.gson</pattern>

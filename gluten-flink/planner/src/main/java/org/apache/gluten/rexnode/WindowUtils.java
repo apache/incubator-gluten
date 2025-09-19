@@ -63,8 +63,10 @@ public class WindowUtils {
       throw new RuntimeException("Not support window spec " + windowSpec);
     }
 
-    if (windowing instanceof TimeAttributeWindowingStrategy && windowing.isRowtime()) {
-      rowtimeIndex = ((TimeAttributeWindowingStrategy) windowing).getTimeAttributeIndex();
+    if (windowing instanceof TimeAttributeWindowingStrategy) {
+      if (windowing.isRowtime()) {
+        rowtimeIndex = ((TimeAttributeWindowingStrategy) windowing).getTimeAttributeIndex();
+      }
       windowType = 0;
     } else if (windowing instanceof WindowAttachedWindowingStrategy) {
       rowtimeIndex = ((WindowAttachedWindowingStrategy) windowing).getWindowEnd();

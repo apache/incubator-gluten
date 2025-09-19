@@ -30,6 +30,7 @@ github:
   collaborators:
     - majetideepak
     - pedroerp
+    - kevinwilfong
   enabled_merge_buttons:
     squash: true
     merge: false

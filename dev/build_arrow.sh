@@ -23,6 +23,7 @@ source ${CURRENT_DIR}/build_helper_functions.sh
 VELOX_ARROW_BUILD_VERSION=15.0.0
 ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
 BUILD_TYPE=Release
+INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
 
 function prepare_arrow_build() {
   mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && ${SUDO} rm -rf arrow_ep/
@@ -62,14 +63,14 @@ function build_arrow_cpp() {
        -DARROW_RUNTIME_SIMD_LEVEL=NONE \
        -DARROW_WITH_UTF8PROC=OFF \
        -DARROW_TESTING=ON \
-       -DCMAKE_INSTALL_PREFIX=/usr/local \
+       -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
        -DARROW_BUILD_SHARED=OFF \
        -DARROW_BUILD_STATIC=ON
 
  # Install thrift.
  cd _build/thrift_ep-prefix/src/thrift_ep-build
- ${SUDO} cmake --install ./ --prefix /usr/local/
+ ${SUDO} cmake --install ./ --prefix "${INSTALL_PREFIX}"/
  popd
 }
 
@@ -103,7 +104,7 @@ function build_arrow_java() {
       -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N
 
     # Arrow JNI Date Interface CPP libraries
-    export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+    export PKG_CONFIG_PATH="${INSTALL_PREFIX}"/lib64/pkgconfig:"${INSTALL_PREFIX}"/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
     mvn generate-resources -Pgenerate-libs-jni-macos-linux -N -Darrow.dataset.jni.dist.dir=$ARROW_INSTALL_DIR \
       -DARROW_GANDIVA=OFF -DARROW_JAVA_JNI_ENABLE_GANDIVA=OFF -DARROW_ORC=OFF -DARROW_JAVA_JNI_ENABLE_ORC=OFF \
 	    -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N

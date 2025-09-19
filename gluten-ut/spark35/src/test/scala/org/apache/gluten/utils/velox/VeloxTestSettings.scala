@@ -228,7 +228,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
@@ -240,18 +239,15 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
     // Flaky and already excluded in other cases
     .exclude("Gluten - test for FAILFAST parsing mode")
-
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
     // Early Filter and Projection Push-Down generated an invalid plan
     .exclude("SPARK-26208: write and read empty data to csv file with headers")
     // file cars.csv include null string, Arrow not support to read
-    .exclude("old csv data source name works")
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
@@ -266,7 +262,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     // Arrow not support corrupt record
@@ -277,17 +272,10 @@ class VeloxTestSettings extends BackendTestSettings {
     // varchar
     .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenJsonV1Suite]
-    // FIXME: Array direct selection fails
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonV2Suite]
     // exception test
     .exclude("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern")
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenValidateRequirementsSuite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]

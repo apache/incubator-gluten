@@ -121,6 +121,8 @@ public class RexNodeConverter {
         } else {
           return new HugeIntValue(bigDecimal.unscaledValue());
         }
+      case SYMBOL:
+        return new VarCharValue(literal.getValue().toString());
       default:
         throw new RuntimeException(
             "Unsupported rex node type: " + literal.getType().getSqlTypeName());

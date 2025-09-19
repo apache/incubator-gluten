@@ -38,6 +38,7 @@ class TpcdsSuite(
     val dataDir: String,
     val dataScale: Double,
     val genPartitionedData: Boolean,
+    val dataGenFeatures: Seq[String],
     val enableUi: Boolean,
     val enableHsUi: Boolean,
     val hsUiPort: Int,
@@ -79,8 +80,9 @@ class TpcdsSuite(
     } else {
       "non_partitioned"
     }
+    val featureFlags = dataGenFeatures.map(feature => s"-$feature").mkString("")
     new File(dataDir).toPath
-      .resolve(s"$TPCDS_WRITE_RELATIVE_PATH-$dataScale-$dataSource-$partitionedFlag")
+      .resolve(s"$TPCDS_WRITE_RELATIVE_PATH-$dataScale-$dataSource-$partitionedFlag$featureFlags")
       .toFile
       .getAbsolutePath
   }
@@ -93,8 +95,9 @@ class TpcdsSuite(
       shufflePartitions,
       dataSource,
       dataWritePath(),
-      typeModifiers(),
-      genPartitionedData)
+      genPartitionedData,
+      dataGenFeatures,
+      typeModifiers())
   }
 
   override private[integration] def allQueries(): QuerySet = {

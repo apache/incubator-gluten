@@ -144,9 +144,6 @@ case class ColumnarCollapseTransformStages(
     transformStageCounter: AtomicInteger = ColumnarCollapseTransformStages.transformStageCounter)
   extends Rule[SparkPlan] {
 
-  def separateScanRDD: Boolean =
-    BackendsApiManager.getSettings.excludeScanExecFromCollapsedStage()
-
   def apply(plan: SparkPlan): SparkPlan = {
     insertWholeStageTransformer(plan)
   }
@@ -156,7 +153,8 @@ case class ColumnarCollapseTransformStages(
    * WholeStageTransformer.
    */
   private def isSeparateBaseScanExecTransformer(plan: SparkPlan): Boolean = plan match {
-    case _: BasicScanExecTransformer if separateScanRDD => true
+    case _: BasicScanExecTransformer =>
+      BackendsApiManager.getSettings.excludeScanExecFromCollapsedStage()
     case _ => false
   }
 
