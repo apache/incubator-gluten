@@ -39,6 +39,7 @@
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
 #include <Common/logger_useful.h>
+#include <filesystem>
 
 namespace DB
 {
@@ -201,6 +202,19 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
 
 DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
 {
+    std::string path = "/tmp/libch"; // 当前目录
+
+    try
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(path))
+        {
+            LOG_ERROR(getLogger("JoinRelParser"), "Find temp files: {}", entry.path().filename().string());
+        }
+    }
+    catch (const std::filesystem::filesystem_error& e)
+    {
+        LOG_ERROR(getLogger("JoinRelParser"), "Error: {}", e.what());
+    }
     auto join_config = JoinConfig::loadFromContext(getContext());
     google::protobuf::StringValue optimization_info;
     optimization_info.ParseFromString(join.advanced_extension().optimization().value());
@@ -778,10 +792,11 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
     MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
     if (join_algorithm.isSet(DB::JoinAlgorithm::GRACE_HASH))
     {
+        auto temp_dist = Context::getGlobalContextInstance()->getTempDataOnDisk();
         hash_join = std::make_shared<GraceHashJoin>(
             context->getSettingsRef()[Setting::grace_hash_join_initial_buckets],
             context->getSettingsRef()[Setting::grace_hash_join_max_buckets],
-            table_join, left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), context->getTempDataOnDisk());
+            table_join, left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), temp_dist);
     }
     else
     {
