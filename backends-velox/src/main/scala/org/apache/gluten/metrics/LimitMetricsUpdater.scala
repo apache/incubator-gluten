@@ -30,6 +30,7 @@ class LimitMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUp
       metrics("wallNanos") += operatorMetrics.wallNanos
       metrics("peakMemoryBytes") += operatorMetrics.peakMemoryBytes
       metrics("numMemoryAllocations") += operatorMetrics.numMemoryAllocations
+      metrics("loadLazyVectorTime") += operatorMetrics.loadLazyVectorTime
     }
   }
 }

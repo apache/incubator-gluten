@@ -49,6 +49,7 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
   val storageReadBytes: SQLMetric = metrics("storageReadBytes")
   val localReadBytes: SQLMetric = metrics("localReadBytes")
   val ramReadBytes: SQLMetric = metrics("ramReadBytes")
+  val loadLazyVectorTime: SQLMetric = metrics("loadLazyVectorTime")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     inputMetrics.bridgeIncBytesRead(rawInputBytes.value)
@@ -80,6 +81,7 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
       localReadBytes += operatorMetrics.localReadBytes
       ramReadBytes += operatorMetrics.ramReadBytes
       preloadSplits += operatorMetrics.preloadSplits
+      loadLazyVectorTime += operatorMetrics.loadLazyVectorTime
     }
   }
 }

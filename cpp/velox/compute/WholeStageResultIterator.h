@@ -141,6 +141,8 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   std::vector<facebook::velox::core::PlanNodeId> streamIds_;
   std::vector<std::vector<facebook::velox::exec::Split>> splits_;
   bool noMoreSplits_ = false;
+
+  int64_t loadLazyVectorTime_ = 0;
 };
 
 } // namespace gluten

@@ -86,6 +86,9 @@ struct Metrics {
     kWriteIOTime,
     kNumWrittenFiles,
 
+    // Load lazy vector.
+    kLoadLazyVectorTime,
+
     // The end of enum items.
     kEnd,
     kNum = kEnd - kBegin

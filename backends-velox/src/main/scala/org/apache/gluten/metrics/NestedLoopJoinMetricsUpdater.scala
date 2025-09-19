@@ -22,6 +22,8 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 class NestedLoopJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
   extends JoinMetricsUpdaterBase(metrics) {
 
@@ -44,6 +46,8 @@ class NestedLoopJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
   val nestedLoopJoinProbePeakMemoryBytes: SQLMetric = metrics("nestedLoopJoinProbePeakMemoryBytes")
   val nestedLoopJoinProbeNumMemoryAllocations: SQLMetric = metrics(
     "nestedLoopJoinProbeNumMemoryAllocations")
+
+  val loadLazyVectorTime: SQLMetric = metrics("loadLazyVectorTime")
 
   override protected def updateJoinMetricsInternal(
       joinMetrics: util.ArrayList[OperatorMetrics],
@@ -69,5 +73,7 @@ class NestedLoopJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
     nestedLoopJoinBuildWallNanos += nestedLoopJoinBuildMetrics.wallNanos
     nestedLoopJoinBuildPeakMemoryBytes += nestedLoopJoinBuildMetrics.peakMemoryBytes
     nestedLoopJoinBuildNumMemoryAllocations += nestedLoopJoinBuildMetrics.numMemoryAllocations
+
+    loadLazyVectorTime += joinMetrics.asScala.last.loadLazyVectorTime
   }
 }
