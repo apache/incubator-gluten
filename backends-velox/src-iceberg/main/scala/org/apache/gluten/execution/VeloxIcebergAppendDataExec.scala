@@ -35,5 +35,4 @@ object VeloxIcebergAppendDataExec {
       original.write
     )
   }
-
 }
