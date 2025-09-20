@@ -28,7 +28,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
-import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, BatchScanExec, OverwriteByExpressionExec, ReplaceDataExec}
+import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, BatchScanExec, OverwriteByExpressionExec, OverwritePartitionsDynamicExec, ReplaceDataExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -138,6 +138,8 @@ object Validators {
       case p: AppendDataExec if !settings.supportAppendDataExec() => fail(p)
       case p: ReplaceDataExec if !settings.supportReplaceDataExec() => fail(p)
       case p: OverwriteByExpressionExec if !settings.supportOverwriteByExpression() => fail(p)
+      case p: OverwritePartitionsDynamicExec if !settings.supportOverwritePartitionsDynamic() =>
+        fail(p)
       case _ => pass()
     }
   }
@@ -160,6 +162,8 @@ object Validators {
       case p: AppendDataExec if !glutenConf.enableAppendData => fail(p)
       case p: ReplaceDataExec if !glutenConf.enableReplaceData => fail(p)
       case p: OverwriteByExpressionExec if !glutenConf.enableOverwriteByExpression => fail(p)
+      case p: OverwritePartitionsDynamicExec if !glutenConf.enableOverwritePartitionsDynamic =>
+        fail(p)
       case p @ (_: LocalLimitExec | _: GlobalLimitExec) if !glutenConf.enableColumnarLimit =>
         fail(p)
       case p: GenerateExec if !glutenConf.enableColumnarGenerate => fail(p)
