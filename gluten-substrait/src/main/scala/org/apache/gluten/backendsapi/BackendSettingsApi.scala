@@ -161,4 +161,6 @@ trait BackendSettingsApi {
   def supportReplaceDataExec(): Boolean = false
 
   def supportOverwriteByExpression(): Boolean = false
+
+  def supportOverwritePartitionsDynamic(): Boolean = false
 }
