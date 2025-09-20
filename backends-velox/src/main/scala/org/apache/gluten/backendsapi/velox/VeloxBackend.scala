@@ -559,4 +559,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportOverwriteByExpression(): Boolean =
     GlutenConfig.get.enableOverwriteByExpression && enableEnhancedFeatures()
+
+  override def supportOverwritePartitionsDynamic(): Boolean =
+    GlutenConfig.get.enableOverwritePartitionsDynamic && enableEnhancedFeatures()
 }
