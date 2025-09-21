@@ -40,6 +40,8 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
 
   protected def closeIterator(out: Iterator[ColumnarBatch]): Unit = {}
 
+  protected def needRecyclePayload: Boolean = false
+
   override lazy val metrics: Map[String, SQLMetric] =
     Map(
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -82,15 +84,18 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
               inBatch
           }
         val out = mapIterator(wrappedIn)
-        val wrappedOut = Iterators
+        val builder = Iterators
           .wrap(out)
           .protectInvocationFlow()
           .collectReadMillis(outMillis => selfMillis.getAndAdd(outMillis))
-          .recyclePayload(_.close())
           .recycleIterator {
             closeIterator(out)
             selfTime += selfMillis.get()
           }
+        if (needRecyclePayload) {
+          builder.recyclePayload(_.close())
+        }
+        builder
           .create()
           .map {
             outBatch =>
@@ -98,7 +103,6 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
               numOutputBatches += 1
               outBatch
           }
-        wrappedOut
     }
 
   }

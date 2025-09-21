@@ -48,6 +48,8 @@ case class VeloxResizeBatchesExec(
     }
   }
 
+  override protected def needRecyclePayload: Boolean = true
+
   override def outputPartitioning: Partitioning = child.outputPartitioning
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
