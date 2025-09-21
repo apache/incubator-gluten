@@ -12,11 +12,11 @@ Gluten supports Ubuntu20.04, Ubuntu22.04, CentOS8, CentOS7 and MacOS.
 
 ## JDK
 
-Currently, Gluten supports JDK 8 for Spark 3.2/3.3/3.4/3.5. For Spark 3.3 and higher versions, Gluten
-supports JDK 11 and 17. Please note since Spark 4.0, JDK 8 will not be supported. So we recommend Velox
-backend users to use higher JDK version now to ease the migration for deploying Gluten with Spark-4.0
-in the future. And we may probably upgrade Arrow from 15.0.0 to some higher version, which also requires
-JDK 11 is the minimum version.
+Currently, Gluten supports JDK 8 for Spark 3.2/3.3/3.4/3.5. For Spark 3.3 and later versions, Gluten
+also supports JDK 11 and 17. Please note that starting with Spark 4.0, JDK 8 will no longer be supported.
+So we recommend using a higher JDK version now to ease migration when deploying Gluten with Spark-4.0
+in the future. In addition, we may upgrade Arrow from 15.0.0 to a newer release, which also requires
+JDK 11 as the minimum version.
 
 ### JDK 8
 
@@ -28,7 +28,7 @@ For other user, you can set in `~/.bashrc`.
 
 #### Guide for Ubuntu
 
-The default JDK version in ubuntu is java11, we need to set to java8.
+The default JDK version in ubuntu is java 11, we need to set to java 8.
 
 ```bash
 apt install openjdk-8-jdk
@@ -51,7 +51,7 @@ export PATH="$PATH:$JAVA_HOME/bin"
 
 ### JDK 11/17
 
-By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK17 or `-Pjava-11` to use JDK 11, and please make sure your JAVA_HOME is set correctly.
+By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK 17 or `-Pjava-11` to use JDK 11, and please make sure your JAVA_HOME is set correctly.
 
 Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
 So please add following configs in `spark-defaults.conf`:
@@ -70,17 +70,17 @@ And then set the environment setting.
 
 # Compile Gluten using debug mode
 
-If you want to just debug java/scala code, there is no need to compile cpp code with debug mode.
+If you only need to debug Java/Scala code, there is no need to compile the C++ code in debug mode.
 You can just refer to [build-gluten-with-velox-backend](../get-started/Velox.md#build-gluten-with-velox-backend).
 
-If you need to debug cpp code, please compile the backend code and gluten cpp code with debug mode.
+For debugging C++ code, please compile the backend code and gluten C++ code in debug mode.
 
 ```bash
 ## compile Velox backend with benchmark and tests to debug
 gluten_home/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --build_type=Debug
 ```
 
-If you need to debug the tests in <gluten>/gluten-ut, You need to compile java code with `-P spark-ut`.
+If you need to debug the tests in <gluten>/gluten-ut, You need to compile java code with `-Pspark-ut`.
 
 # Java/scala code development with Intellij
 
@@ -109,15 +109,9 @@ See [IntelliJ guide](https://www.jetbrains.com/help/idea/configuring-code-style.
 
 To generate a fix for Java/Scala code style, you can run one or more of the below commands according to the code modules involved in your PR.
 
-For Velox backend:
 ```
-mvn spotless:apply -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.2 -Pspark-ut -DskipTests
-mvn spotless:apply -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.3 -Pspark-ut -DskipTests
-```
-For Clickhouse backend:
-```
-mvn spotless:apply -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -DskipTests
-mvn spotless:apply -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut -DskipTests
+./dev/format-scala-code.sh
+
 ```
 
 # CPP code development with Visual Studio Code
