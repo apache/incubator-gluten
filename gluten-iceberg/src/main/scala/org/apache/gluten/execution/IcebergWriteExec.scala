@@ -66,8 +66,9 @@ trait IcebergWriteExec extends ColumnarV2TableWriteExec {
     if (IcebergWriteUtil.hasUnsupportedDataType(write)) {
       return ValidationResult.failed("Contains UUID ot FIXED data type")
     }
-    if (BackendsApiManager.getValidatorApiInstance.doSchemaValidate(query.schema).isDefined) {
-      return ValidationResult.failed("Contains unsupported data type")
+    BackendsApiManager.getValidatorApiInstance.doSchemaValidate(query.schema) match {
+      case Some(reason) => return ValidationResult.failed(reason)
+      case None =>
     }
     val spec = IcebergWriteUtil.getTable(write).spec()
     if (spec.isPartitioned) {

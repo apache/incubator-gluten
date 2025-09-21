@@ -27,7 +27,7 @@ import org.apache.gluten.extension.injector.Injector
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, OverwriteByExpressionExec, OverwritePartitionsDynamicExec, ReplaceDataExec}
 
-case class OffloadIcebergWrite() extends OffloadSingleNode {
+case class OffloadIcebergAppend() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
     case a: AppendDataExec =>
       VeloxIcebergAppendDataExec(a)
@@ -35,7 +35,7 @@ case class OffloadIcebergWrite() extends OffloadSingleNode {
   }
 }
 
-case class OffloadIcebergDelete() extends OffloadSingleNode {
+case class OffloadIcebergReplaceData() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
     case r: ReplaceDataExec =>
       VeloxIcebergReplaceDataExec(r)
@@ -65,8 +65,8 @@ object OffloadIcebergWrite {
     injector.gluten.legacy.injectTransform {
       c =>
         val offload = Seq(
-          OffloadIcebergWrite(),
-          OffloadIcebergDelete(),
+          OffloadIcebergAppend(),
+          OffloadIcebergReplaceData(),
           OffloadIcebergOverwrite(),
           OffloadIcebergOverwritePartitionsDynamic())
         HeuristicTransform.Simple(
@@ -76,8 +76,8 @@ object OffloadIcebergWrite {
     }
 
     val offloads: Seq[RasOffload] = Seq(
-      RasOffload.from[AppendDataExec](OffloadIcebergWrite()),
-      RasOffload.from[ReplaceDataExec](OffloadIcebergDelete()),
+      RasOffload.from[AppendDataExec](OffloadIcebergAppend()),
+      RasOffload.from[ReplaceDataExec](OffloadIcebergReplaceData()),
       RasOffload.from[OverwriteByExpressionExec](OffloadIcebergOverwrite()),
       RasOffload.from[OverwritePartitionsDynamicExec](OffloadIcebergOverwritePartitionsDynamic())
     )
