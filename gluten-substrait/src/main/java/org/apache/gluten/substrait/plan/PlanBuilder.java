@@ -44,10 +44,6 @@ public class PlanBuilder {
     return new PlanNode(mappingNodes, relNodes, outNames, outputSchema, extension);
   }
 
-  public static PlanNode makePlan(AdvancedExtensionNode extension) {
-    return new PlanNode(extension);
-  }
-
   public static PlanNode makePlan(
       SubstraitContext subCtx, List<RelNode> relNodes, List<String> outNames) {
     return makePlan(subCtx, relNodes, outNames, null, null);

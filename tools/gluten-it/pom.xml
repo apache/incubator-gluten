@@ -31,7 +31,9 @@
     <spotless.version>2.27.2</spotless.version>
     <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
-    <spotless.license.header>/*
+    <!-- spotless:off -->
+    <spotless.license.header>
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -46,7 +48,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */</spotless.license.header>
+ */
+    </spotless.license.header>
+    <!-- spotless:on -->
   </properties>
 
   <dependencyManagement>
@@ -148,7 +152,7 @@
         <version>${spotless.version}</version>
         <configuration>
           <java>
-            <toggleOffOn></toggleOffOn>
+            <toggleOffOn/>
             <googleJavaFormat>
               <version>1.7</version>
             </googleJavaFormat>
@@ -158,7 +162,7 @@
               <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
             </importOrder>
 
-            <removeUnusedImports></removeUnusedImports>
+            <removeUnusedImports/>
             <licenseHeader>
               <content>${spotless.license.header}</content>
               <delimiter>${spotless.delimiter}</delimiter>
@@ -169,8 +173,7 @@
             </includes>
           </java>
           <scala>
-            <!--  make it works `// spotless:off `  -->
-            <toggleOffOn></toggleOffOn>
+            <toggleOffOn/>
             <scalafmt>
               <version>${spotless.scalafmt.version}</version>
               <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
@@ -186,6 +189,10 @@
             </includes>
           </scala>
           <pom>
+            <toggleOffOn>
+              <off>spotless:off</off>
+              <on>spotless:on</on>
+            </toggleOffOn>
             <includes>
               <include>pom.xml</include>
             </includes>
@@ -194,6 +201,7 @@
               <keepBlankLines>true</keepBlankLines>
               <nrOfIndentSpace>2</nrOfIndentSpace>
               <indentBlankLines>false</indentBlankLines>
+              <expandEmptyElements>false</expandEmptyElements>
             </sortPom>
           </pom>
         </configuration>
@@ -274,7 +282,7 @@
     <profile>
       <id>spark-3.5</id>
       <properties>
-        <spark.version>3.5.2</spark.version>
+        <spark.version>3.5.5</spark.version>
         <scala.version>2.12.18</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
         <delta.package.name>delta-spark</delta.package.name>
@@ -284,7 +292,7 @@
     <profile>
       <id>spark-4.0</id>
       <properties>
-        <spark.version>4.0.0</spark.version>
+        <spark.version>4.0.1</spark.version>
         <scala.version>2.13.8</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
         <delta.package.name>delta-spark</delta.package.name>

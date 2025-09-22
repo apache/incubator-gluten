@@ -164,8 +164,8 @@ struct WindowConfig
 public:
     inline static const String WINDOW_AGGREGATE_TOPK_SAMPLE_ROWS = "window.aggregate_topk_sample_rows";
     inline static const String WINDOW_AGGREGATE_TOPK_HIGH_CARDINALITY_THRESHOLD = "window.aggregate_topk_high_cardinality_threshold";
-    size_t aggregate_topk_sample_rows = 5000;
-    double aggregate_topk_high_cardinality_threshold = 0.6;
+    size_t aggregate_topk_sample_rows = 50000;
+    double aggregate_topk_high_cardinality_threshold = 0.4;
     static WindowConfig loadFromContext(const DB::ContextPtr & context);
 };
 

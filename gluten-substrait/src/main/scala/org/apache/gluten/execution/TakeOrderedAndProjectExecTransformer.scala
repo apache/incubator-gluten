@@ -166,7 +166,7 @@ case class TakeOrderedAndProjectExecTransformer(
 
       val finalPlan =
         WholeStageTransformer(collapsed)(transformStageCounter.incrementAndGet())
-
+      finalPlan.copyTagsFrom(child)
       finalPlan.executeColumnar()
     }
   }
