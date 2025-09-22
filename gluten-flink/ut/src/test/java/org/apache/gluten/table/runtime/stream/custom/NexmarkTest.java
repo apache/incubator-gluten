@@ -124,6 +124,8 @@ public class NexmarkTest {
     assertThat(sqlStatements.length).isGreaterThanOrEqualTo(2);
 
     for (int i = 0; i < sqlStatements.length - 2; i++) {
+      // For some query tests like q12 q13 q14, the first two of the three statements create tables
+      // or views. For others, there are only two statements, with the first one creating a table.
       String createResultTable = sqlStatements[i].trim();
       if (!createResultTable.isEmpty()) {
         TableResult createResult = tEnv.executeSql(createResultTable);
