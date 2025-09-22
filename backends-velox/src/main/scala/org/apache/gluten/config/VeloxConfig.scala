@@ -80,6 +80,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(ENABLE_ENHANCED_FEATURES)
 
   def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
+
+  def maxCompiledRegexes: Int = getConf(VELOX_MAX_COMPILED_REGEXES)
 }
 
 object VeloxConfig {
@@ -646,4 +648,10 @@ object VeloxConfig {
       .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("10MB")
+
+  val VELOX_MAX_COMPILED_REGEXES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes")
+      .doc("Controls maximum number of compiled regular expression patterns per batch.")
+      .intConf
+      .createWithDefault(100)
 }

@@ -618,6 +618,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSparkJsonIgnoreNullFields] =
         std::to_string(veloxCfg_->get<bool>(kSparkJsonIgnoreNullFields, true));
 
+    configs[velox::core::QueryConfig::kExprMaxCompiledRegexes] =
+        std::to_string(veloxCfg_->get<int32_t>(kExprMaxCompiledRegexes, 100));
+
 #ifdef GLUTEN_ENABLE_GPU
     configs[cudf_velox::kCudfEnabled] = std::to_string(veloxCfg_->get<bool>(kCudfEnabled, false));
 #endif
