@@ -18,6 +18,7 @@
 #pragma once
 
 #include <map>
+#include <shared_mutex>
 #include "utils/ResourceMap.h"
 
 namespace gluten {
@@ -70,7 +71,7 @@ class ObjectStore {
 
   template <typename T>
   ObjectHandle save(std::shared_ptr<T> obj) {
-    const std::lock_guard<std::mutex> lock(mtx_);
+    std::unique_lock lock(mtx_);
     const std::string_view typeName = typeid(T).name();
     const size_t size = SafeSizeOf<T>::value;
     ResourceHandle handle = store_.insert(std::move(obj));
@@ -96,7 +97,7 @@ class ObjectStore {
 
   template <typename T>
   std::shared_ptr<T> retrieveInternal(ResourceHandle handle) {
-    const std::lock_guard<std::mutex> lock(mtx_);
+    std::shared_lock lock(mtx_);
     std::shared_ptr<void> object = store_.lookup(handle);
     // Programming carefully. This will lead to ub if wrong typename T was passed in.
     auto casted = std::static_pointer_cast<T>(object);
@@ -110,6 +111,6 @@ class ObjectStore {
   ResourceMap<std::shared_ptr<void>> store_;
   // Preserves handles of objects in the store in order, with additional attributes associated with them.
   std::map<ResourceHandle, ObjectDebugInfo> aliveObjects_{};
-  std::mutex mtx_;
+  std::shared_mutex mtx_;
 };
 } // namespace gluten

@@ -21,8 +21,8 @@
 
 // static
 std::unique_ptr<gluten::ObjectStore> gluten::ObjectStore::create() {
-  static std::mutex mtx;
-  std::lock_guard<std::mutex> lock(mtx);
+  static std::shared_mutex mtx;
+  std::unique_lock lock(mtx);
   StoreHandle nextId = stores().nextId();
   auto store = std::unique_ptr<gluten::ObjectStore>(new gluten::ObjectStore(nextId));
   StoreHandle storeId = safeCast<StoreHandle>(stores().insert(store.get()));
@@ -51,7 +51,7 @@ gluten::ObjectStore::~ObjectStore() {
     }
     std::shared_ptr<void> tempObj;
     {
-      const std::lock_guard<std::mutex> lock(mtx_);
+      std::unique_lock lock(mtx_);
       // destructing in reversed order (the last added object destructed first)
       auto itr = aliveObjects_.rbegin();
       const ResourceHandle handle = (*itr).first;
@@ -75,7 +75,7 @@ gluten::ObjectStore::~ObjectStore() {
 }
 
 void gluten::ObjectStore::releaseInternal(gluten::ResourceHandle handle) {
-  const std::lock_guard<std::mutex> lock(mtx_);
+  std::unique_lock lock(mtx_);
   store_.erase(handle);
   aliveObjects_.erase(handle);
 }
