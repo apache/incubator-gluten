@@ -47,14 +47,12 @@
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/wrappers.pb.h>
-#include "Common/Logger.h"
 #include <Common/AggregateUtil.h>
 #include <Common/ArrayJoinHelper.h>
 #include <Common/GlutenConfig.h>
 #include <Common/PlanUtil.h>
 #include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
-#include "cctz/civil_time_detail.h"
 
 namespace DB::ErrorCodes
 {
