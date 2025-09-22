@@ -26,6 +26,7 @@ import org.apache.commons.lang3.StringUtils
 
 import java.io.{File, IOException}
 import java.nio.file.Paths
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Manages Gluten's local directories, for storing jars, libs, spill files, or other temporary
@@ -53,17 +54,11 @@ class SparkDirectoryUtil private (val roots: Array[String]) extends Logging {
       }
   }
 
-  private val NAMESPACE_MAPPING: java.util.Map[String, Namespace] = new java.util.HashMap()
+  private val NAMESPACE_MAPPING: java.util.Map[String, Namespace] =
+    new ConcurrentHashMap[String, Namespace]
 
-  def namespace(name: String): Namespace = synchronized {
-    if (NAMESPACE_MAPPING.containsKey(name)) {
-      return NAMESPACE_MAPPING.get(name)
-    }
-    // or create new
-    val namespace = new Namespace(ROOTS, name)
-    NAMESPACE_MAPPING.put(name, namespace)
-    namespace
-  }
+  def namespace(name: String): Namespace =
+    NAMESPACE_MAPPING.computeIfAbsent(name, (name: String) => new Namespace(ROOTS, name))
 }
 
 object SparkDirectoryUtil extends Logging {

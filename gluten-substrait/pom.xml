@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
-    <artifactId>gluten-parent</artifactId>
     <groupId>org.apache.gluten</groupId>
+    <artifactId>gluten-parent</artifactId>
     <version>1.6.0-SNAPSHOT</version>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
 
   <artifactId>gluten-substrait</artifactId>
   <packaging>jar</packaging>
@@ -200,26 +198,7 @@
     </dependency>
   </dependencies>
 
-  <profiles>
-    <profile>
-      <id>backends-velox</id>
-      <properties>
-        <backend.type>velox</backend.type>
-        <backend.home>${project.basedir}/../ep/build-velox/build/velox_ep</backend.home>
-      </properties>
-    </profile>
-    <profile>
-      <id>backends-clickhouse</id>
-      <properties>
-        <backend.type>ch</backend.type>
-        <backend.home>${project.basedir}/../cpp-ch/ClickHouse</backend.home>
-      </properties>
-    </profile>
-  </profiles>
-
   <build>
-    <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
-    <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -252,15 +231,13 @@
         <executions>
           <execution>
             <id>compile-substrait-proto</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
               <goal>test-compile</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
-              <protocArtifact>
-                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-              </protocArtifact>
+              <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
               <protoSourceRoot>src/main/resources/substrait/proto</protoSourceRoot>
               <clearOutputDirectory>false</clearOutputDirectory>
             </configuration>
@@ -309,13 +286,32 @@
         <executions>
           <execution>
             <id>prepare-test-jar</id>
-            <phase>test-compile</phase>
             <goals>
               <goal>test-jar</goal>
             </goals>
+            <phase>test-compile</phase>
           </execution>
         </executions>
       </plugin>
     </plugins>
+    <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
+    <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
   </build>
+
+  <profiles>
+    <profile>
+      <id>backends-velox</id>
+      <properties>
+        <backend.type>velox</backend.type>
+        <backend.home>${project.basedir}/../ep/build-velox/build/velox_ep</backend.home>
+      </properties>
+    </profile>
+    <profile>
+      <id>backends-clickhouse</id>
+      <properties>
+        <backend.type>ch</backend.type>
+        <backend.home>${project.basedir}/../cpp-ch/ClickHouse</backend.home>
+      </properties>
+    </profile>
+  </profiles>
 </project>
