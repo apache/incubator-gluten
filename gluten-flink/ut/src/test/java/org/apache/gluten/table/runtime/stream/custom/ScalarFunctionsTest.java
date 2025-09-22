@@ -21,6 +21,7 @@ import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -271,5 +272,26 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
         query,
         Arrays.asList(
             "+I[1, 2024-12-31, 2024-12-31 20:12:12]", "+I[2, 2025-02-28, 2025-02-28 20:12:12]"));
+
+    rows =
+        Arrays.asList(
+            Row.of(
+                1,
+                LocalDateTime.parse("2024-12-31 12:12:12", formatter),
+                LocalDateTime.parse("2024-12-31 12:12:12", formatter).toInstant(ZoneOffset.UTC)),
+            Row.of(
+                2,
+                LocalDateTime.parse("2025-02-28 12:12:12", formatter),
+                LocalDateTime.parse("2024-02-28 12:12:12", formatter).toInstant(ZoneOffset.UTC)));
+    createSimpleBoundedValuesTable(
+        "timestampTable0", "a int, b Timestamp(3), c Timestamp_LTZ(3)", rows);
+    query =
+        "select a, DATE_FORMAT(b, 'yyyy-MM-dd HH:mm:ss'), DATE_FORMAT(c, 'yyyy-MM-dd HH:mm:ss') from timestampTable0";
+    tEnv().getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2024-12-31 12:12:12, 2024-12-31 20:12:12]",
+            "+I[2, 2025-02-28 12:12:12, 2024-02-28 20:12:12]"));
   }
 }
