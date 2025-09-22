@@ -51,6 +51,28 @@ class AllVeloxConfiguration extends AnyFunSuite {
 
     ConfigEntry.getAllEntries
       .filter(_.key.contains("velox"))
+      .filter(_.isPublic)
+      .filter(!_.isExperimental)
+      .sortBy(_.key)
+      .foreach {
+        entry =>
+          val dft = entry.defaultValueString.replace("<", "&lt;").replace(">", "&gt;")
+          builder += Seq(s"${entry.key}", s"$dft", s"${entry.doc}")
+            .mkString("|")
+      }
+
+    builder ++=
+      s"""
+         |## Gluten Velox backend *experimental* configurations
+         |
+         | Key | Default | Description
+         | --- | --- | ---
+         |"""
+
+    ConfigEntry.getAllEntries
+      .filter(_.key.contains("velox"))
+      .filter(_.isPublic)
+      .filter(_.isExperimental)
       .sortBy(_.key)
       .foreach {
         entry =>

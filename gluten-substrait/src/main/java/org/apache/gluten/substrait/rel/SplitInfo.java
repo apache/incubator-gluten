@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.substrait.rel;
 
-import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.Message;
 
 import java.io.Serializable;
 import java.util.List;
@@ -30,5 +30,5 @@ public interface SplitInfo extends Serializable {
   /** The preferred locations where the table files returned by this read split can run faster. */
   List<String> preferredLocations();
 
-  MessageOrBuilder toProtobuf();
+  Message toProtobuf();
 }

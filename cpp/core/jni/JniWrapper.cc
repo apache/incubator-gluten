@@ -454,9 +454,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
   auto ctx = getRuntime(env, wrapper);
   auto conf = ctx->getConfMap();
 #ifdef GLUTEN_ENABLE_GPU
-  if (enableCudf) {
-    conf[kCudfEnabled] = "true";
-  }
+  conf[kCudfEnabled] = std::to_string(enableCudf);
 #endif
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});

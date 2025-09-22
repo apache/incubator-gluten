@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution;
 
-import org.apache.gluten.proto.IcebergPartitionSpec;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
 

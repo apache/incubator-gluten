@@ -29,6 +29,7 @@ import org.apache.log4j.LogManager;
 import org.apache.spark.SparkConf;
 import picocli.CommandLine;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -90,6 +91,13 @@ public class BaseMixin {
       description = "Generate data with partitions",
       defaultValue = "false")
   private boolean genPartitionedData;
+
+  @CommandLine.Option(
+      names = {"--data-gen-features"},
+      description =
+          "Set a comma-separated list of data generator features to enable. Example: --data-gen-features=enable_dv,delete_10pc",
+      split = ",")
+  private String[] dataGenFeatures = new String[0];
 
   @CommandLine.Option(
       names = {"--enable-ui"},
@@ -207,6 +215,7 @@ public class BaseMixin {
                 dataDir,
                 dataScale,
                 genPartitionedData,
+                JavaCollectionConverter.asScalaSeq(Arrays.asList(dataGenFeatures)),
                 enableUi,
                 enableHsUi,
                 hsUiPort,
@@ -233,6 +242,7 @@ public class BaseMixin {
                 dataDir,
                 dataScale,
                 genPartitionedData,
+                JavaCollectionConverter.asScalaSeq(Arrays.asList(dataGenFeatures)),
                 enableUi,
                 enableHsUi,
                 hsUiPort,

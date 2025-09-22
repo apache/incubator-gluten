@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.gluten</groupId>
@@ -15,6 +16,7 @@
     <spotless.version>2.27.2</spotless.version>
     <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
+    <!-- spotless:off -->
     <spotless.license.header>
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -33,6 +35,7 @@
  * limitations under the License.
  */
     </spotless.license.header>
+    <!-- spotless:on -->
   </properties>
 
   <dependencies>
@@ -80,6 +83,9 @@
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
         <version>2.15.2</version>
+        <configuration>
+          <sourceDir>src/main/scala</sourceDir>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -87,9 +93,6 @@
             </goals>
           </execution>
         </executions>
-        <configuration>
-          <sourceDir>src/main/scala</sourceDir>
-        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -98,10 +101,10 @@
         <executions>
           <execution>
             <id>default-compile</id>
-            <phase>compile</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>compile</phase>
             <configuration>
               <source>11</source>
               <target>11</target>
@@ -109,10 +112,10 @@
           </execution>
           <execution>
             <id>default-testCompile</id>
-            <phase>test-compile</phase>
             <goals>
               <goal>testCompile</goal>
             </goals>
+            <phase>test-compile</phase>
           </execution>
         </executions>
       </plugin>
@@ -130,11 +133,13 @@
         </configuration>
         <executions>
           <execution>
-            <id>make-assembly</id> <!-- this is used for an identifier -->
-            <phase>package</phase> <!-- bind to the packaging phase -->
+            <id>make-assembly</id>
+            <!-- bind to the packaging phase -->
             <goals>
               <goal>single</goal>
             </goals>
+            <!-- this is used for an identifier -->
+            <phase>package</phase>
           </execution>
         </executions>
       </plugin>
@@ -165,7 +170,7 @@
         <version>${spotless.version}</version>
         <configuration>
           <java>
-            <toggleOffOn />
+            <toggleOffOn/>
             <googleJavaFormat>
               <version>1.7</version>
             </googleJavaFormat>
@@ -175,15 +180,14 @@
               <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
             </importOrder>
 
-            <removeUnusedImports />
+            <removeUnusedImports/>
             <licenseHeader>
               <content>${spotless.license.header}</content>
               <delimiter>${spotless.delimiter}</delimiter>
             </licenseHeader>
           </java>
           <scala>
-            <!--  make it works `// spotless:off `  -->
-            <toggleOffOn />
+            <toggleOffOn/>
             <scalafmt>
               <version>${spotless.scalafmt.version}</version>
               <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
@@ -194,14 +198,30 @@
               <delimiter>${spotless.delimiter}</delimiter>
             </licenseHeader>
           </scala>
+          <pom>
+            <toggleOffOn>
+              <off>spotless:off</off>
+              <on>spotless:on</on>
+            </toggleOffOn>
+            <includes>
+              <include>pom.xml</include>
+            </includes>
+            <sortPom>
+              <encoding>UTF-8</encoding>
+              <keepBlankLines>true</keepBlankLines>
+              <nrOfIndentSpace>2</nrOfIndentSpace>
+              <indentBlankLines>false</indentBlankLines>
+              <expandEmptyElements>false</expandEmptyElements>
+            </sortPom>
+          </pom>
         </configuration>
         <executions>
           <execution>
             <id>spotless-check</id>
-            <phase>validate</phase>
             <goals>
               <goal>check</goal>
             </goals>
+            <phase>validate</phase>
           </execution>
         </executions>
       </plugin>

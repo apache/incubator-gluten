@@ -18,6 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.metrics.{GlutenTimeMetric, IMetrics}
+import org.apache.gluten.substrait.rel.SplitInfo
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -26,6 +27,8 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import scala.collection.JavaConverters.asScalaBufferConverter
+
 trait BaseGlutenPartition extends Partition with InputPartition {
   def plan: Array[Byte]
 }
@@ -33,13 +36,13 @@ trait BaseGlutenPartition extends Partition with InputPartition {
 case class GlutenPartition(
     index: Int,
     plan: Array[Byte],
-    splitInfosByteArray: Array[Array[Byte]] = Array.empty[Array[Byte]],
-    locations: Array[String] = Array.empty[String],
+    splitInfos: Array[SplitInfo] = Array.empty[SplitInfo],
     files: Array[String] =
       Array.empty[String] // touched files, for implementing UDF input_file_name
 ) extends BaseGlutenPartition {
 
-  override def preferredLocations(): Array[String] = locations
+  override def preferredLocations(): Array[String] =
+    splitInfos.flatMap(_.preferredLocations().asScala)
 }
 
 case class FirstZippedPartitionsPartition(

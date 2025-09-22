@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend Github Runner (Enhanced Features)
+name: Velox Backend (Enhanced)
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/velox_backend_enhanced_features.yml'
+      - '.github/workflows/velox_backend_enhanced.yml'
       - 'pom.xml'
       - 'backends-velox/**'
       - 'gluten-uniffle/**'

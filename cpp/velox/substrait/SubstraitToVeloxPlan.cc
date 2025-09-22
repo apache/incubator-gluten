@@ -858,18 +858,18 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 
   std::optional<std::string> ordinalityName = std::nullopt;
-  std::optional<std::string> emptyUnnestValueName = std::nullopt;
+  std::optional<std::string> markerName = std::nullopt;
   if (generateRel.has_advanced_extension()) {
     if (SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
       ordinalityName = std::make_optional<std::string>("pos");
     }
     if (SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isOuter=")) {
-      emptyUnnestValueName = std::make_optional<std::string>("empty_unnest");
+      markerName = std::make_optional<std::string>("marker");
     }
   }
 
   return std::make_shared<core::UnnestNode>(
-      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, emptyUnnestValueName, childNode);
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, markerName, childNode);
 }
 
 const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(
@@ -1000,28 +1000,15 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     }
   }
 
-  if (windowRel.has_advanced_extension() &&
-      SubstraitParser::configSetInOptimization(windowRel.advanced_extension(), "isStreaming=")) {
-    return std::make_shared<core::WindowNode>(
-        nextPlanNodeId(),
-        partitionKeys,
-        sortingKeys,
-        sortingOrders,
-        windowColumnNames,
-        windowNodeFunctions,
-        true /*inputsSorted*/,
-        childNode);
-  } else {
-    return std::make_shared<core::WindowNode>(
-        nextPlanNodeId(),
-        partitionKeys,
-        sortingKeys,
-        sortingOrders,
-        windowColumnNames,
-        windowNodeFunctions,
-        false /*inputsSorted*/,
-        childNode);
-  }
+  return std::make_shared<core::WindowNode>(
+      nextPlanNodeId(),
+      partitionKeys,
+      sortingKeys,
+      sortingOrders,
+      windowColumnNames,
+      windowNodeFunctions,
+      true /*inputsSorted*/,
+      childNode);
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(

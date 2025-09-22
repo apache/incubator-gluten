@@ -12,9 +12,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -23,6 +21,10 @@
     <version>1.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
+
+  <artifactId>gluten-package</artifactId>
+  <packaging>jar</packaging>
+  <name>Gluten Package</name>
 
   <dependencies>
     <!-- Do not remove the following. They are for enforcer plugin -->
@@ -48,83 +50,6 @@
     </dependency>
   </dependencies>
 
-  <artifactId>gluten-package</artifactId>
-  <name>Gluten Package</name>
-  <packaging>jar</packaging>
-
-  <profiles>
-    <profile>
-      <id>backends-velox</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>backends-velox</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>celeborn</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-celeborn</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>uniffle</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-uniffle</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>iceberg</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-iceberg</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>delta</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-delta</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>hudi</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-hudi</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>paimon</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-paimon</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-  </profiles>
-
   <build>
     <resources>
       <resource>
@@ -143,10 +68,10 @@
         </configuration>
         <executions>
           <execution>
-            <phase>package</phase>
             <goals>
               <goal>shade</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <createSourcesJar>true</createSourcesJar>
               <relocations>
@@ -245,17 +170,15 @@
         <executions>
           <execution>
             <id>copy-fat-jar</id>
-            <phase>package</phase>
             <goals>
               <goal>exec</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <executable>cp</executable>
               <arguments>
                 <argument>target/gluten-package-${project.version}.jar</argument>
-                <argument>
-                  target/${jar.assembly.name.prefix}-${backend_type}-bundle-spark${sparkbundle.version}_${scala.binary.version}-${os.full.name}-${project.version}.jar
-                </argument>
+                <argument>target/${jar.assembly.name.prefix}-${backend_type}-bundle-spark${sparkbundle.version}_${scala.binary.version}-${os.full.name}-${project.version}.jar</argument>
               </arguments>
             </configuration>
           </execution>
@@ -351,9 +274,9 @@
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$SpillableIterator</ignoreClass>
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$ChainedIterator</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.MemoryConsumer</ignoreClass>
-                    <ignoreClass>org.apache.spark.memory.TaskMemoryManager </ignoreClass>
+                    <ignoreClass>org.apache.spark.memory.TaskMemoryManager</ignoreClass>
                     <!-- guava -->
-                    <ignoreClass>com.google.thirdparty.publicsuffix* </ignoreClass>
+                    <ignoreClass>com.google.thirdparty.publicsuffix*</ignoreClass>
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>
@@ -370,5 +293,78 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>backends-velox</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>backends-velox</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>celeborn</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-celeborn</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>uniffle</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-uniffle</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>iceberg</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-iceberg</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>delta</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-delta</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>hudi</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-hudi</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>paimon</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 
 </project>

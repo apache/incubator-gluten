@@ -684,11 +684,17 @@ public class CelebornUtils {
     }
   }
 
-  public static void resetFailedShuffleCleaner(Object failedShuffleCleaner) {
+  public static void stopFailedShuffleCleaner(Object failedShuffleCleaner) {
     try {
-      // for Celeborn 0.6.0
-      Method resetMethod = failedShuffleCleaner.getClass().getDeclaredMethod("reset");
-      resetMethod.invoke(failedShuffleCleaner);
+      try {
+        // for Celeborn 0.6.1
+        Method stopMethod = failedShuffleCleaner.getClass().getDeclaredMethod("stop");
+        stopMethod.invoke(failedShuffleCleaner);
+      } catch (NoSuchMethodException e) {
+        // for Celeborn 0.6.0
+        Method resetMethod = failedShuffleCleaner.getClass().getDeclaredMethod("reset");
+        resetMethod.invoke(failedShuffleCleaner);
+      }
     } catch (NoSuchMethodException ignored) {
     } catch (Exception e) {
       throw new RuntimeException(e);

@@ -281,7 +281,8 @@ public class CelebornShuffleManager
       _vanillaCelebornShuffleManager = null;
     }
     if (failedShuffleCleaner != null) {
-      CelebornUtils.resetFailedShuffleCleaner(failedShuffleCleaner);
+      CelebornUtils.stopFailedShuffleCleaner(failedShuffleCleaner);
+      failedShuffleCleaner = null;
     }
   }
 

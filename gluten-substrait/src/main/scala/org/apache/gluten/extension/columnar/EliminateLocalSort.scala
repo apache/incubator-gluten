@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.execution.{HashAggregateExecBaseTransformer, ProjectExecTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer, WindowExecTransformer, WindowGroupLimitExecTransformer}
+import org.apache.gluten.execution.{HashAggregateExecBaseTransformer, ProjectExecTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer, WindowGroupLimitExecTransformer}
 
 import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -29,7 +29,6 @@ import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, UnaryEx
  *   - Convert sort merge join to shuffled hash join
  *   - Offload SortAggregate to native hash aggregate
  *   - Offload WindowGroupLimit to native TopNRowNumber
- *   - The columnar window type is `sort`
  *   - Offload Window which has date type range frame
  */
 object EliminateLocalSort extends Rule[SparkPlan] {
@@ -37,7 +36,6 @@ object EliminateLocalSort extends Rule[SparkPlan] {
     case _: HashAggregateExecBaseTransformer => true
     case _: ShuffledHashJoinExecTransformerBase => true
     case _: WindowGroupLimitExecTransformer => true
-    case _: WindowExecTransformer => true
     case s: SortExec if s.global == false => true
     case s: SortExecTransformer if s.global == false => true
     case _ => false

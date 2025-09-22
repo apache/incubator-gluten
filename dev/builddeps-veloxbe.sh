@@ -159,9 +159,7 @@ do
 done
 
 if [[ "$(uname)" == "Darwin" ]]; then
-    INSTALL_PREFIX=${INSTALL_PREFIX:-${VELOX_HOME}/deps-install}
-else
-    INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
+    export INSTALL_PREFIX=${INSTALL_PREFIX:-${VELOX_HOME}/deps-install}
 fi
 
 function concat_velox_param {

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend weekly job
+name: Velox Backend Weekly Job
 
 on:
   pull_request:
@@ -25,7 +25,7 @@ on:
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   MVN_CMD: 'mvn -ntp'
-  SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  SETUP: 'source .github/workflows/util/setup_helper.sh'
   TPCH_TEST: "env GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare 
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1"
   INSTALL_PREFIX: /usr/local
@@ -62,17 +62,11 @@ jobs:
           yum install -y java-1.8.0-openjdk-devel patch wget git perl python3-pip
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           export PATH=$JAVA_HOME/bin:$PATH
-          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.9/binaries/apache-maven-3.8.9-bin.tar.gz && \
-          tar -xvf apache-maven*bin.tar.gz && \
-          mv apache-maven-3.8.9 /usr/lib/maven && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          ln -s /usr/lib/maven/bin /usr/bin/mvn
-          ls -l /usr/bin/mvn
           
+          # The upstream main branch is cloned. Please temporarily switch to the dev branch for PR validation.
           git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
-          ./dev/package.sh
-          
+          $SETUP install_maven
+          ./dev/package.sh --spark_version=3.5
 
   build-on-centos:
     strategy:
@@ -112,12 +106,9 @@ jobs:
           yum install -y java-1.8.0-openjdk-devel patch wget git perl
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           export PATH=$JAVA_HOME/bin:$PATH
-          
           $SETUP install_maven
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin
 
-          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh --spark_version=3.5
 
   build-on-ubuntu:
     strategy:
@@ -153,7 +144,7 @@ jobs:
           fi
           sudo apt-get install -y openjdk-8-jdk python3-pip cmake
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh --spark_version=3.5
 
   build-on-openeuler:
     strategy:

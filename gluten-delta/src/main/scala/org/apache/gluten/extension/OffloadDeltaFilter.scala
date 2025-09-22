@@ -14,18 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.extension
 
+import org.apache.gluten.execution.DeltaFilterExecTransformer
+import org.apache.gluten.extension.DeltaPostTransformRules.containsIncrementMetricExpr
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 
-import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
+import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
 
-case class OffloadDeltaScan() extends OffloadSingleNode {
+case class OffloadDeltaFilter() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case scan: FileSourceScanExec
-        if scan.relation.fileFormat.getClass.getName ==
-          "org.apache.spark.sql.delta.DeltaParquetFileFormat" =>
-      DeltaScanTransformer(scan)
-    case other => other
+    case FilterExec(condition, child) if containsIncrementMetricExpr(condition) =>
+      DeltaFilterExecTransformer(condition, child)
+    case p => p
   }
 }

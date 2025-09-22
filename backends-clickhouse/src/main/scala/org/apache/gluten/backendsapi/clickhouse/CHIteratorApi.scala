@@ -36,7 +36,7 @@ import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuilder, ExtensionTableNode}
+import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
 import org.apache.spark.sql.execution.datasources.mergetree.PartSerializer
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -244,26 +244,22 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
     splitInfos.zipWithIndex.map {
       case (splits, index) =>
-        val splitInfosByteArray = splits.zipWithIndex.map {
+        val splitInfos = splits.zipWithIndex.map {
           case (split, i) =>
             split match {
               case filesNode: LocalFilesNode if leaves(i).isInstanceOf[BasicScanExecTransformer] =>
                 setFileSchemaForLocalFiles(
                   filesNode,
                   leaves(i).asInstanceOf[BasicScanExecTransformer])
-                filesNode.toProtobuf.toByteArray
-              case extensionTableNode: ExtensionTableNode =>
-                extensionTableNode.toProtobuf.toByteArray
-              case kafkaSourceNode: StreamKafkaSourceNode =>
-                kafkaSourceNode.toProtobuf.toByteArray
+                filesNode
+              case splitInfo => splitInfo
             }
         }
 
         GlutenPartition(
           index,
           planByteArray,
-          splitInfosByteArray.toArray,
-          locations = splits.flatMap(_.preferredLocations().asScala).toArray
+          splitInfos.toArray
         )
     }
   }
@@ -289,7 +285,9 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       "CH backend only accepts GlutenPartition in GlutenWholeStageColumnarRDD.")
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
-      .splitInfosByteArray
+      .splitInfos
+      .map(splitInfo => splitInfo.toProtobuf.toByteArray)
+      .toArray
     val wsPlan = inputPartition.plan
     val materializeInput = false
 

@@ -149,22 +149,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         ExpressionMappings.expressionsMap(classOf[TryEval]),
         Seq(GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)),
         original)
-    } else if (
-      left.dataType.isInstanceOf[DecimalType] &&
-      right.dataType.isInstanceOf[DecimalType] &&
-      !SQLConf.get.decimalOperationsAllowPrecisionLoss
-    ) {
-      if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
-        throw new GlutenNotSupportException(s"$substraitExprName with ansi mode is not supported")
-      }
-      val newName = substraitExprName + "_deny_precision_loss"
-      GenericExpressionTransformer(newName, Seq(left, right), original)
     } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
       GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)
     } else {
       GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
     }
   }
+
+  override def getDecimalArithmeticExprName(exprName: String): String = if (
+    !SQLConf.get.decimalOperationsAllowPrecisionLoss
+  ) { exprName + "_deny_precision_loss" }
+  else { exprName }
 
   /** Transform map_entries to Substrait. */
   override def genMapEntriesTransformer(

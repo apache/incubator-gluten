@@ -21,6 +21,7 @@
 #include "operators/functions/RowFunctionWithNull.h"
 #include "velox/expression/SpecialFormRegistry.h"
 #include "velox/expression/VectorFunction.h"
+#include "velox/functions/iceberg/Register.h"
 #include "velox/functions/lib/CheckedArithmetic.h"
 #include "velox/functions/lib/RegistrationHelpers.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
@@ -91,6 +92,8 @@ void registerAllFunctions() {
   // Using function overwrite to handle function names mismatch between Spark
   // and Velox.
   registerFunctionOverwrite();
+
+  velox::functions::iceberg::registerFunctions();
 }
 
 } // namespace gluten

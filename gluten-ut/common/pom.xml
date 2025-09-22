@@ -1,31 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
-    <artifactId>gluten-ut</artifactId>
     <groupId>org.apache.gluten</groupId>
+    <artifactId>gluten-ut</artifactId>
     <version>1.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
 
   <artifactId>gluten-ut-common</artifactId>
   <packaging>jar</packaging>
   <name>Gluten Unit Test Common</name>
 
   <dependencies>
-  <dependency>
-    <groupId>org.apache.gluten</groupId>
-    <artifactId>spark-sql-columnar-shims-common</artifactId>
-    <version>${project.version}</version>
-    <scope>provided</scope>
-  </dependency>
+    <dependency>
+      <groupId>org.apache.gluten</groupId>
+      <artifactId>spark-sql-columnar-shims-common</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
-    <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
-    <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -41,10 +37,10 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <executions>
           <execution>
-            <phase>compile</phase>
             <goals>
               <goal>compile</goal>
             </goals>
+            <phase>compile</phase>
           </execution>
         </executions>
       </plugin>
@@ -78,13 +74,15 @@
         <executions>
           <execution>
             <id>prepare-test-jar</id>
-            <phase>test-compile</phase>
             <goals>
               <goal>test-jar</goal>
             </goals>
+            <phase>test-compile</phase>
           </execution>
         </executions>
       </plugin>
     </plugins>
+    <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
+    <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
   </build>
 </project>

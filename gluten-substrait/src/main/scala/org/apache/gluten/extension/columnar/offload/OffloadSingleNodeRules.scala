@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec, EvalPythonExecTransformer}
-import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
+import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 // Exchange transformation.
@@ -270,16 +270,15 @@ object OffloadOthers {
             plan.orderSpec,
             plan.child)
         case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
-          val windowGroupLimitPlan = SparkShimLoader.getSparkShims
-            .getWindowGroupLimitExecShim(plan)
-            .asInstanceOf[WindowGroupLimitExecShim]
+          val windowGroupLimitExecShim =
+            SparkShimLoader.getSparkShims.getWindowGroupLimitExecShim(plan)
           BackendsApiManager.getSparkPlanExecApiInstance.genWindowGroupLimitTransformer(
-            windowGroupLimitPlan.partitionSpec,
-            windowGroupLimitPlan.orderSpec,
-            windowGroupLimitPlan.rankLikeFunction,
-            windowGroupLimitPlan.limit,
-            windowGroupLimitPlan.mode,
-            windowGroupLimitPlan.child
+            windowGroupLimitExecShim.partitionSpec,
+            windowGroupLimitExecShim.orderSpec,
+            windowGroupLimitExecShim.rankLikeFunction,
+            windowGroupLimitExecShim.limit,
+            windowGroupLimitExecShim.mode,
+            windowGroupLimitExecShim.child
           )
         case plan: GlobalLimitExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

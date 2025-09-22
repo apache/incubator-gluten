@@ -16,10 +16,12 @@
  */
 package org.apache.gluten.execution.enhanced
 
-import org.apache.gluten.execution.{IcebergSuite, VeloxIcebergAppendDataExec, VeloxIcebergOverwriteByExpressionExec, VeloxIcebergReplaceDataExec}
+import org.apache.gluten.execution.{ColumnarToRowExecBase, IcebergSuite, VeloxIcebergAppendDataExec, VeloxIcebergOverwriteByExpressionExec, VeloxIcebergReplaceDataExec}
 import org.apache.gluten.tags.EnhancedFeaturesTest
 
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.CommandResultExec
+import org.apache.spark.sql.gluten.TestUtils
 
 @EnhancedFeaturesTest
 class VeloxIcebergSuite extends IcebergSuite {
@@ -82,8 +84,8 @@ class VeloxIcebergSuite extends IcebergSuite {
                   |tblproperties (
                   |  'format-version' = '2',
                   |  'write.delete.mode' = 'copy-on-write',
-                  |  'write.update.mode' = 'copy-on-writ',
-                  |  'write.merge.mode' = 'copy-on-writ'
+                  |  'write.update.mode' = 'copy-on-write',
+                  |  'write.merge.mode' = 'copy-on-write'
                   |);
                   |""".stripMargin)
 
@@ -188,6 +190,73 @@ class VeloxIcebergSuite extends IcebergSuite {
       val result = selectDf.collect()
       assert(result.length == 1)
       assert(result(0).get(0) == 2)
+    }
+  }
+
+  test("iceberg create table as select") {
+    withTable("iceberg_tb1", "iceberg_tb2") {
+      spark.sql("""
+                  |create table iceberg_tb1 (a int, pt int) using iceberg
+                  |partitioned by (pt)
+                  |""".stripMargin)
+
+      spark.sql("insert into table iceberg_tb1 values (1, 1), (2, 2)")
+
+      // CTAS
+      val sqlStr = """
+                     |create table iceberg_tb2 using iceberg
+                     |partitioned by (pt)
+                     |as select * from iceberg_tb1
+                     |""".stripMargin
+
+      TestUtils.checkExecutedPlanContains[VeloxIcebergAppendDataExec](spark, sqlStr)
+
+      checkAnswer(
+        spark.sql("select * from iceberg_tb2 order by a"),
+        Seq(Row(1, 1), Row(2, 2))
+      )
+    }
+  }
+
+  test("check iceberg write c2r") {
+    withTable("iceberg_tbl") {
+      spark.sql("""
+                  |create table if not exists iceberg_tbl (a int, pt int) using iceberg
+                  |tblproperties (
+                  |  'format-version' = '2',
+                  |  'write.delete.mode' = 'copy-on-write',
+                  |  'write.update.mode' = 'copy-on-write',
+                  |  'write.merge.mode' = 'copy-on-write'
+                  |)
+                  |partitioned by (pt)
+                  |""".stripMargin)
+
+      def checkColumnarToRow(df: DataFrame, num: Int): Unit = {
+        assert(
+          collect(
+            df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan) {
+            case p if p.isInstanceOf[ColumnarToRowExecBase] => p
+          }.size == num)
+      }
+
+      // insert partitioned table
+      var df = spark.sql("insert into table iceberg_tbl values (1, 1), (2, 1), (3, 1), (4, 2)")
+      checkAnswer(
+        spark.sql("select * from iceberg_tbl order by a"),
+        Seq(Row(1, 1), Row(2, 1), Row(3, 1), Row(4, 2)))
+      checkColumnarToRow(df, 0)
+
+      // delete partitioned table
+      df = spark.sql("delete from iceberg_tbl where a = 1")
+      checkAnswer(
+        spark.sql("select * from iceberg_tbl order by a"),
+        Seq(Row(2, 1), Row(3, 1), Row(4, 2)))
+      checkColumnarToRow(df, 0)
+
+      // overwrite partitioned table
+      df = spark.sql("insert overwrite table iceberg_tbl values (5, 1)")
+      checkAnswer(spark.sql("select * from iceberg_tbl order by a"), Seq(Row(5, 1)))
+      checkColumnarToRow(df, 0)
     }
   }
 }

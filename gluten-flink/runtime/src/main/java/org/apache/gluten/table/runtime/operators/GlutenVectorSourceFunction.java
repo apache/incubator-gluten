@@ -75,7 +75,6 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
     this.outputTypes = outputTypes;
     this.id = id;
     this.split = split;
-    LOG.debug("GlutenSourceFunction {}", outputTypes);
   }
 
   public StatefulPlanNode getPlanNode() {
@@ -110,7 +109,6 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
 
   @Override
   public void run(SourceContext<StatefulElement> sourceContext) throws Exception {
-    LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
     while (isRunning) {
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
@@ -149,6 +147,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   @Override
   public void initializeState(FunctionInitializationContext context) throws Exception {
     if (memoryManager == null) {
+      LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
       query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
