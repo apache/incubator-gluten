@@ -458,13 +458,13 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto childNode = convertSingleInput<::substrait::ProjectRel>(projectRel);
   // Construct Velox Expressions.
   const auto& projectExprs = projectRel.expressions();
+  const auto& inputType = childNode->outputType();
+  const size_t totalSize = projectExprs.size() + inputType->size();
   std::vector<std::string> projectNames;
   std::vector<core::TypedExprPtr> expressions;
-  projectNames.reserve(projectExprs.size());
-  expressions.reserve(projectExprs.size());
+  projectNames.reserve(totalSize);
+  expressions.reserve(totalSize);
 
-  const auto& inputType = childNode->outputType();
-  int colIdx = 0;
   // Note that Substrait projection adds the project expressions on top of the
   // input to the projection node. Thus we need to add the input columns first
   // and then add the projection expressions.
@@ -475,27 +475,30 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     const auto& fieldName = inputType->nameOf(idx);
     projectNames.emplace_back(fieldName);
     expressions.emplace_back(std::make_shared<core::FieldAccessTypedExpr>(inputType->childAt(idx), fieldName));
-    colIdx += 1;
   }
 
   // Then, adding project expression related project names and expressions.
-  for (const auto& expr : projectExprs) {
-    expressions.emplace_back(exprConverter_->toVeloxExpr(expr, inputType));
-    projectNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, colIdx));
-    colIdx += 1;
+  const size_t startIdx = expressions.size();
+  for (int i = 0; i < projectExprs.size(); i++) {
+    expressions.emplace_back(exprConverter_->toVeloxExpr(projectExprs[i], inputType));
+    projectNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, startIdx + i));
   }
 
   if (projectRel.has_common()) {
     auto relCommon = projectRel.common();
     const auto& emit = relCommon.emit();
     int emitSize = emit.output_mapping_size();
-    std::vector<std::string> emitProjectNames(emitSize);
-    std::vector<core::TypedExprPtr> emitExpressions(emitSize);
+    std::vector<std::string> emitProjectNames;
+    std::vector<core::TypedExprPtr> emitExpressions;
+    emitProjectNames.reserve(emitSize);
+    emitExpressions.reserve(emitSize);
+
     for (int i = 0; i < emitSize; i++) {
       int32_t mapId = emit.output_mapping(i);
-      emitProjectNames[i] = projectNames[mapId];
-      emitExpressions[i] = expressions[mapId];
+      emitProjectNames.emplace_back(std::move(projectNames[mapId]));
+      emitExpressions.emplace_back(std::move(expressions[mapId]));
     }
+
     return std::make_shared<core::ProjectNode>(
         nextPlanNodeId(), std::move(emitProjectNames), std::move(emitExpressions), std::move(childNode));
   } else {
