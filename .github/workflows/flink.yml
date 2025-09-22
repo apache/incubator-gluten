@@ -58,6 +58,7 @@ jobs:
         run: |
           source /opt/rh/gcc-toolset-11/enable
           sudo dnf install -y patchelf
+          sudo yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           git clone -b test_date_format_tmp https://github.com/KevinyhZou/velox4j.git
           cd velox4j && git reset --hard a08a3abe8c8a9cd960f5f16fa8cd7c451fe140f8
           git apply $GITHUB_WORKSPACE/gluten-flink/patches/fix-velox4j.patch
