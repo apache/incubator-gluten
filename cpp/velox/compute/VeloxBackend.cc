@@ -44,6 +44,7 @@
 #include "velox/connectors/hive/HiveDataSource.h"
 #include "velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/gcs/RegisterGcsFileSystem.h" // @manual
+#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h" // @manual
 #include "velox/dwio/orc/reader/OrcReader.h"
@@ -333,9 +334,12 @@ VeloxBackend* VeloxBackend::get() {
 }
 
 void VeloxBackend::tearDown() {
+#ifdef ENABLE_HDFS
   for (const auto& [_, filesystem] : facebook::velox::filesystems::registeredFilesystems) {
     filesystem->close();
   }
+#endif
+
   // Destruct IOThreadPoolExecutor will join all threads.
   // On threads exit, thread local variables can be constructed with referencing global variables.
   // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
