@@ -34,7 +34,6 @@ import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.table.data.RowData;
 
@@ -87,9 +86,6 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   public ConnectorSplit getConnectorSplit() {
     return split;
   }
-
-  @Override
-  public void open(Configuration parameters) throws Exception {}
 
   @Override
   public void run(SourceContext<RowData> sourceContext) throws Exception {
