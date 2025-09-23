@@ -44,7 +44,7 @@ public class RexCallConverterFactory {
                   () -> new BasicArithmeticOperatorRexCallConverter("greaterthan"),
                   () -> new StringCompareRexCallConverter("greaterthan"),
                   () -> new StringNumberCompareRexCallConverter("greaterthan"),
-                  () -> new DecimalArithmeticOperatorRexCallConverters("greaterthen"))),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("greaterthan"))),
           Map.entry(
               "<",
               Arrays.asList(

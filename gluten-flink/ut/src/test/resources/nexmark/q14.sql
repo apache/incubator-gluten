@@ -25,5 +25,5 @@ SELECT
     `dateTime`,
     extra,
     count_char(extra, 'c') AS c_counts
-FROM bid;
+FROM bid
 WHERE 0.908 * price > 1000000 AND 0.908 * price < 50000000;
