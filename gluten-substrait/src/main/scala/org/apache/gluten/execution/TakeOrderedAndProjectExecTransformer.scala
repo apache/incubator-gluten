@@ -143,6 +143,7 @@ case class TakeOrderedAndProjectExecTransformer(
       } else {
         val limitStagePlan =
           WholeStageTransformer(limitBeforeShuffle)(transformStageCounter.incrementAndGet())
+        limitStagePlan.copyTagsFrom(child)
         val shuffleExec = ShuffleExchangeExec(SinglePartition, limitStagePlan)
         val transformedShuffleExec =
           ColumnarShuffleExchangeExec(shuffleExec, limitStagePlan, shuffleExec.child.output)
