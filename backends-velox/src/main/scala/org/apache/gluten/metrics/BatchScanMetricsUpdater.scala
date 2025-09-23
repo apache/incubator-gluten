@@ -54,6 +54,8 @@ class BatchScanMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metri
       metrics("localReadBytes") += operatorMetrics.localReadBytes
       metrics("ramReadBytes") += operatorMetrics.ramReadBytes
       metrics("preloadSplits") += operatorMetrics.preloadSplits
+      metrics("dataSourceAddSplitTime") += operatorMetrics.dataSourceAddSplitTime
+      metrics("dataSourceReadTime") += operatorMetrics.dataSourceReadTime
     }
   }
 }
