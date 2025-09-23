@@ -85,10 +85,10 @@ public class NexmarkTest {
     List<String> queryFiles = getQueries();
     assertThat(queryFiles).isNotEmpty();
 
-    LOG.info("Found {} Nexmark query files: {}", queryFiles.size(), queryFiles);
+    LOG.warn("Found {} Nexmark query files: {}", queryFiles.size(), queryFiles);
 
     for (String queryFile : queryFiles) {
-      LOG.info("Executing query from file: {}", queryFile);
+      LOG.warn("Executing query from file: {}", queryFile);
       executeQuery(tEnv, queryFile);
     }
   }
@@ -123,17 +123,22 @@ public class NexmarkTest {
     String[] sqlStatements = queryContent.split(";");
     assertThat(sqlStatements.length).isGreaterThanOrEqualTo(2);
 
-    String createResultTable = sqlStatements[0].trim();
-    if (!createResultTable.isEmpty()) {
-      TableResult createResult = tEnv.executeSql(createResultTable);
-      assertFalse(createResult.getJobClient().isPresent());
+    for (int i = 0; i < sqlStatements.length - 2; i++) {
+      // For some query tests like q12 q13 q14, the first two of the three statements create tables
+      // or views. For others, there are only two statements, with the first one creating a table.
+      String createResultTable = sqlStatements[i].trim();
+      if (!createResultTable.isEmpty()) {
+        TableResult createResult = tEnv.executeSql(createResultTable);
+        assertFalse(createResult.getJobClient().isPresent());
+      }
     }
 
-    String insertQuery = sqlStatements[1].trim();
+    String insertQuery = sqlStatements[sqlStatements.length - 2].trim();
     if (!insertQuery.isEmpty()) {
       TableResult insertResult = tEnv.executeSql(insertQuery);
       waitForJobCompletion(insertResult, 30000);
     }
+    assertTrue(sqlStatements[sqlStatements.length - 1].trim().isEmpty());
   }
 
   private void waitForJobCompletion(TableResult result, long timeoutMs)
