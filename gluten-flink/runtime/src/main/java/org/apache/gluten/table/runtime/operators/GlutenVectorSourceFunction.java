@@ -35,7 +35,6 @@ import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -68,9 +67,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   private BufferAllocator allocator;
   private MemoryManager memoryManager;
   private SerialTask task;
-  private Counter sourceNumRecordsOut;
-  private Counter sourceNumBytesOut;
-  private SourceTaskMetrics sourceTaskMetrics;
+  private SourceTaskMetrics taskMetrics;
 
   public GlutenVectorSourceFunction(
       StatefulPlanNode planNode,
@@ -111,21 +108,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
       task.addSplit(id, split);
       task.noMoreSplits(id);
     }
-
-    sourceNumRecordsOut =
-        getRuntimeContext().getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
-    sourceNumBytesOut =
-        getRuntimeContext().getMetricGroup().getIOMetricGroup().getNumBytesOutCounter();
-    sourceTaskMetrics = SourceTaskMetrics.getInstance();
-  }
-
-  private void updateSourceMetrics(SerialTask task) {
-    if (sourceTaskMetrics.updateMetrics(task, id)) {
-      long numRecordsOut = sourceTaskMetrics.getSourceRecordsOut();
-      long numBytesOut = sourceTaskMetrics.getSourceBytesOut();
-      sourceNumRecordsOut.inc(numRecordsOut - sourceNumRecordsOut.getCount());
-      sourceNumBytesOut.inc(numBytesOut - sourceNumBytesOut.getCount());
-    }
+    taskMetrics = new SourceTaskMetrics(getRuntimeContext().getMetricGroup());
   }
 
   @Override
@@ -146,7 +129,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
         LOG.info("Velox task finished");
         break;
       }
-      updateSourceMetrics(task);
+      taskMetrics.updateMetrics(task, id);
     }
 
     task.close();

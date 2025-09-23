@@ -18,6 +18,9 @@ package org.apache.gluten.table.runtime.metrics;
 
 import io.github.zhztheplayer.velox4j.query.SerialTask;
 
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -28,24 +31,13 @@ public class SourceTaskMetrics {
   private final String keyInputRows = "rawInputRows";
   private final String keyInputBytes = "rawInputBytes";
   private final long metricUpdateInterval = 2000;
-  private long sourceRecordsOut = 0;
-  private long sourceBytesOut = 0;
+  private Counter sourceNumRecordsOut;
+  private Counter sourceNumBytesOut;
   private long lastUpdateTime = System.currentTimeMillis();
 
-  private static final SourceTaskMetrics instance = new SourceTaskMetrics();
-
-  private SourceTaskMetrics() {}
-
-  public static SourceTaskMetrics getInstance() {
-    return instance;
-  }
-
-  public long getSourceRecordsOut() {
-    return sourceRecordsOut;
-  }
-
-  public long getSourceBytesOut() {
-    return sourceBytesOut;
+  public SourceTaskMetrics(OperatorMetricGroup metricGroup) {
+    sourceNumRecordsOut = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+    sourceNumBytesOut = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
   }
 
   public boolean updateMetrics(SerialTask task, String planId) {
@@ -57,8 +49,10 @@ public class SourceTaskMetrics {
       ObjectNode planStats = task.collectStats().planStats(planId);
       JsonNode jsonNode = planStats.get(keyOperatorType);
       if (jsonNode.asText().equals(sourceOperatorName)) {
-        sourceRecordsOut = planStats.get(keyInputRows).asInt();
-        sourceBytesOut = planStats.get(keyInputBytes).asInt();
+        long numRecordsOut = planStats.get(keyInputRows).asInt();
+        long numBytesOut = planStats.get(keyInputBytes).asInt();
+        sourceNumRecordsOut.inc(numRecordsOut - sourceNumRecordsOut.getCount());
+        sourceNumBytesOut.inc(numBytesOut - sourceNumBytesOut.getCount());
       }
     } catch (Exception e) {
       return false;
