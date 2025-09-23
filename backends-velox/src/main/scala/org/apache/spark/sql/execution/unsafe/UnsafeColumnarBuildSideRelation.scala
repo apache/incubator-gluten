@@ -28,8 +28,9 @@ import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeCo
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, IdentityBroadcastMode}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSeq, BindReferences, BoundReference, Expression, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
+import org.apache.spark.sql.execution.{BroadcastModeUtils, HashExprSafeBroadcastMode, HashSafeBroadcastMode, IdentitySafeBroadcastMode, SafeBroadcastMode}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.utils.SparkArrowUtil
@@ -45,6 +46,44 @@ import java.io.{Externalizable, ObjectInput, ObjectOutput}
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
+object UnsafeColumnarBuildSideRelation {
+  // Keep constructors with BroadcastMode for compatibility
+  def apply(
+      output: Seq[Attribute],
+      batches: UnsafeBytesBufferArray,
+      mode: BroadcastMode): UnsafeColumnarBuildSideRelation = {
+    val boundMode = mode match {
+      case HashedRelationBroadcastMode(keys, isNullAware) =>
+        // Bind each key to the build-side output so simple cols become BoundReference
+        val boundKeys: Seq[Expression] =
+          keys.map(k => BindReferences.bindReference(k, AttributeSeq(output)))
+        HashedRelationBroadcastMode(boundKeys, isNullAware)
+      case m =>
+        m // IdentityBroadcastMode, etc.
+    }
+    new UnsafeColumnarBuildSideRelation(output, batches, BroadcastModeUtils.toSafe(boundMode))
+  }
+  def apply(
+      output: Seq[Attribute],
+      bytesBufferArray: Array[Array[Byte]],
+      mode: BroadcastMode): UnsafeColumnarBuildSideRelation = {
+    val boundMode = mode match {
+      case HashedRelationBroadcastMode(keys, isNullAware) =>
+        // Bind each key to the build-side output so simple cols become BoundReference
+        val boundKeys: Seq[Expression] =
+          keys.map(k => BindReferences.bindReference(k, AttributeSeq(output)))
+        HashedRelationBroadcastMode(boundKeys, isNullAware)
+      case m =>
+        m // IdentityBroadcastMode, etc.
+    }
+    new UnsafeColumnarBuildSideRelation(
+      output,
+      bytesBufferArray,
+      BroadcastModeUtils.toSafe(boundMode)
+    )
+  }
+}
+
 /**
  * A broadcast relation that is built using off-heap memory. It will avoid the on-heap memory OOM.
  *
@@ -59,18 +98,33 @@ import scala.collection.JavaConverters.asScalaIteratorConverter
 case class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
     private var batches: UnsafeBytesBufferArray,
-    var mode: BroadcastMode)
+    var safeBroadcastMode: SafeBroadcastMode)
   extends BuildSideRelation
   with Externalizable
   with Logging
   with KryoSerializable {
+
+  // Rebuild the real BroadcastMode on demand; never serialize it.
+  @transient override lazy val mode: BroadcastMode =
+    BroadcastModeUtils.fromSafe(safeBroadcastMode, output)
+
+  // If we stored expression bytes, deserialize once and cache locally (not serialized).
+  @transient private lazy val exprKeysFromBytes: Option[Seq[Expression]] = safeBroadcastMode match {
+    case HashExprSafeBroadcastMode(bytes, _) =>
+      Some(BroadcastModeUtils.deserializeExpressions(bytes))
+    case _ => None
+  }
 
   /** needed for serialization. */
   def this() = {
     this(null, null.asInstanceOf[UnsafeBytesBufferArray], null)
   }
 
-  def this(output: Seq[Attribute], bytesBufferArray: Array[Array[Byte]], mode: BroadcastMode) = {
+  def this(
+      output: Seq[Attribute],
+      bytesBufferArray: Array[Array[Byte]],
+      safeMode: SafeBroadcastMode
+  ) = {
     this(
       output,
       UnsafeBytesBufferArray(
@@ -78,7 +132,7 @@ case class UnsafeColumnarBuildSideRelation(
         bytesBufferArray.map(_.length),
         bytesBufferArray.map(_.length.toLong).sum
       ),
-      mode
+      safeMode
     )
     val batchesSize = bytesBufferArray.length
     for (i <- 0 until batchesSize) {
@@ -89,7 +143,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   override def writeExternal(out: ObjectOutput): Unit = Utils.tryOrIOException {
     out.writeObject(output)
-    out.writeObject(mode)
+    out.writeObject(safeBroadcastMode)
     out.writeInt(batches.arraySize)
     out.writeObject(batches.bytesBufferLengths)
     out.writeLong(batches.totalBytes)
@@ -101,7 +155,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   override def write(kryo: Kryo, out: Output): Unit = Utils.tryOrIOException {
     kryo.writeObject(out, output.toList)
-    kryo.writeClassAndObject(out, mode)
+    kryo.writeClassAndObject(out, safeBroadcastMode)
     out.writeInt(batches.arraySize)
     kryo.writeObject(out, batches.bytesBufferLengths)
     out.writeLong(batches.totalBytes)
@@ -113,7 +167,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   override def readExternal(in: ObjectInput): Unit = Utils.tryOrIOException {
     output = in.readObject().asInstanceOf[Seq[Attribute]]
-    mode = in.readObject().asInstanceOf[BroadcastMode]
+    safeBroadcastMode = in.readObject().asInstanceOf[SafeBroadcastMode]
     val totalArraySize = in.readInt()
     val bytesBufferLengths = in.readObject().asInstanceOf[Array[Int]]
     val totalBytes = in.readLong()
@@ -137,7 +191,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   override def read(kryo: Kryo, in: Input): Unit = Utils.tryOrIOException {
     output = kryo.readObject(in, classOf[List[_]]).asInstanceOf[Seq[Attribute]]
-    mode = kryo.readClassAndObject(in).asInstanceOf[BroadcastMode]
+    safeBroadcastMode = kryo.readClassAndObject(in).asInstanceOf[SafeBroadcastMode]
     val totalArraySize = in.readInt()
     val bytesBufferLengths = kryo.readObject(in, classOf[Array[Int]])
     val totalBytes = in.readLong()
@@ -152,11 +206,20 @@ case class UnsafeColumnarBuildSideRelation(
     }
   }
 
-  private def transformProjection: UnsafeProjection = {
-    mode match {
-      case HashedRelationBroadcastMode(k, _) => UnsafeProjection.create(k)
-      case IdentityBroadcastMode => UnsafeProjection.create(output, output)
-    }
+  private def transformProjection: UnsafeProjection = safeBroadcastMode match {
+    case IdentitySafeBroadcastMode =>
+      UnsafeProjection.create(output, output)
+    case HashSafeBroadcastMode(ords, _) =>
+      val bound = ords.map(i => BoundReference(i, output(i).dataType, output(i).nullable))
+      UnsafeProjection.create(bound)
+    case HashExprSafeBroadcastMode(_, _) =>
+      exprKeysFromBytes match {
+        case Some(keys) => UnsafeProjection.create(keys)
+        case None =>
+          throw new IllegalStateException(
+            "Failed to deserialize expressions for HashExprSafeBroadcastMode"
+          )
+      }
   }
 
   override def deserialized: Iterator[ColumnarBatch] = {

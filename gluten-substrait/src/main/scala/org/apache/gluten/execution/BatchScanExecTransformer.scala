@@ -18,7 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ExpressionConverter
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -88,9 +87,10 @@ abstract class BatchScanExecTransformerBase(
     keyGroupedPartitioning,
     ordering,
     table,
-    commonPartitionValues,
-    applyPartialClustering,
-    replicatePartitions)
+    commonPartitionValues = commonPartitionValues,
+    applyPartialClustering = applyPartialClustering,
+    replicatePartitions = replicatePartitions
+  )
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -127,8 +127,6 @@ abstract class BatchScanExecTransformerBase(
   override def filterExprs(): Seq[Expression] = pushdownFilters
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
-
-  override def outputAttributes(): Seq[Attribute] = output
 
   // With storage partition join, the return partition type is changed, so as SplitInfo
   def getPartitionsWithIndex: Seq[Seq[InputPartition]] = finalPartitions

@@ -17,8 +17,8 @@
 package org.apache.gluten.config
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.{SparkConfigUtil, SQLConf}
 import org.apache.spark.sql.internal.SparkConfigUtil._
-import org.apache.spark.sql.internal.SQLConf
 
 import org.scalatest.funsuite.AnyFunSuiteLike
 
@@ -31,5 +31,16 @@ class SparkConfigUtilSuite extends AnyFunSuiteLike {
     assert(conf.get(GlutenConfig.GLUTEN_UI_ENABLED) === true)
     assert(conf.get(GlutenConfig.TEXT_INPUT_ROW_MAX_BLOCK_SIZE) === 8L * 1024)
     assert(conf.get(GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE) === Some(1024 * 1024))
+    assert(conf.get(GlutenConfig.GLUTEN_LOAD_LIB_OS).isEmpty)
+  }
+
+  test("SparkConfigUtil.get for java.util.Map conf") {
+    val conf = new java.util.HashMap[String, String]
+    conf.put(GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE.key, (1024 * 1024).toString)
+    assert(SparkConfigUtil.get(conf, SQLConf.AUTO_BROADCASTJOIN_THRESHOLD) === 10L * 1024 * 1024)
+    assert(SparkConfigUtil.get(conf, GlutenConfig.GLUTEN_UI_ENABLED) === true)
+    assert(SparkConfigUtil.get(conf, GlutenConfig.TEXT_INPUT_ROW_MAX_BLOCK_SIZE) === 8L * 1024)
+    assert(SparkConfigUtil.get(conf, GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE) === Some(1024 * 1024))
+    assert(SparkConfigUtil.get(conf, GlutenConfig.GLUTEN_LOAD_LIB_OS).isEmpty)
   }
 }

@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 #include "LoggerExtend.h"
+#include <Loggers/OwnSplitChannel.h>
+
 #include <Loggers/Loggers.h>
 #include <Poco/AsyncChannel.h>
 #include <Poco/AutoPtr.h>
 #include <Poco/ConsoleChannel.h>
 #include <Poco/FormattingChannel.h>
 #include <Poco/PatternFormatter.h>
-#include <Poco/SimpleFileChannel.h>
 
 using Poco::AsyncChannel;
 using Poco::AutoPtr;

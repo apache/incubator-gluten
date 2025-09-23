@@ -18,7 +18,7 @@ set -e
 
 function install_maven {
   (
-    local maven_version="3.8.8"
+    local maven_version="3.9.2"
     local local_binary="apache-maven-${maven_version}-bin.tar.gz"
     local mirror_host="https://www.apache.org/dyn/closer.lua"
     local url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download"
@@ -26,7 +26,12 @@ function install_maven {
     wget -nv -O ${local_binary} ${url}
     tar -xvf ${local_binary} && mv apache-maven-${maven_version} /usr/lib/maven
   )
-  echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+  export PATH=/usr/lib/maven/bin:$PATH
+  if [ -n "$GITHUB_ENV" ]; then
+    echo "PATH=/usr/lib/maven/bin:$PATH" >> $GITHUB_ENV
+  else
+    echo "Warning: GITHUB_ENV is not set. Skipping environment variable export."
+  fi
 }
 
 for cmd in "$@"

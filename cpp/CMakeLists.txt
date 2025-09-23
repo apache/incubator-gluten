@@ -16,7 +16,7 @@
 cmake_minimum_required(VERSION 3.16)
 message(STATUS "Building using CMake version: ${CMAKE_VERSION}")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # The set(CACHE) command does not remove any normal variable of the same name
@@ -46,11 +46,10 @@ option(BUILD_VELOX_BACKEND "Build Velox backend" ON)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_EXAMPLES "Build Examples" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
+option(BUILD_TEST_UTILS "Build utils for tests/benchmarks" OFF)
 option(ENABLE_JEMALLOC_STATS "Prints Jemalloc stats for debugging" OFF)
 option(BUILD_GLOG "Build Glog from Source" OFF)
-option(ENABLE_HBM "Enable HBM allocator" OFF)
 option(ENABLE_QAT "Enable QAT for de/compression" OFF)
-option(ENABLE_IAA "Enable IAA for de/compression" OFF)
 option(ENABLE_GCS "Enable GCS" OFF)
 option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
@@ -232,10 +231,6 @@ endif()
 
 if(ENABLE_QAT)
   add_definitions(-DGLUTEN_ENABLE_QAT)
-endif()
-
-if(ENABLE_IAA)
-  add_definitions(-DGLUTEN_ENABLE_IAA)
 endif()
 
 if(ENABLE_GPU)

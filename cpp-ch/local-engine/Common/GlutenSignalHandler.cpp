@@ -162,13 +162,13 @@ collectGlutenCrashLog(Int32 signal, UInt64 thread_id, const String & query_id, c
     
 }
 
-class SignalListener : public Poco::Runnable
+class GlutenSignalListener : public Poco::Runnable
 {
 public:
     static constexpr int StdTerminate = -1;
     static constexpr int StopThread = -2;
     static constexpr int SanitizerTrap = -3;
-    SignalListener() : log(&Poco::Logger::get("SignalListener")), git_hash("getGitHash()") { }
+    GlutenSignalListener() : log(&Poco::Logger::get("SignalListener")), git_hash("getGitHash()") { }
 
     void run() override
     {
@@ -396,13 +396,13 @@ struct SignalHandler::Impl
 
         signal_pipe.setNonBlockingWrite();
         signal_pipe.tryIncreaseSize(1 << 20);
-        signal_listener = std::make_unique<SignalListener>();
+        signal_listener = std::make_unique<GlutenSignalListener>();
         signal_listener_thread.start(*signal_listener);
     }
 
     ~Impl()
     {
-        writeSignalIDtoSignalPipe(SignalListener::StopThread);
+        writeSignalIDtoSignalPipe(GlutenSignalListener::StopThread);
         signal_listener_thread.join();
 
         /// Reset signals to SIG_DFL to avoid trying to write to the signal_pipe that will be closed after.

@@ -87,6 +87,39 @@ public class VeloxBloomFilterTest extends VeloxBackendTestBase {
   }
 
   @Test
+  public void testStaticMightContainLong() {
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final VeloxBloomFilter filter = VeloxBloomFilter.empty(100);
+          final int numItems = 20;
+          final int halfNumItems = numItems / 2;
+          for (int i = -halfNumItems; i < halfNumItems; i++) {
+            final boolean outcome = filter.mightContainLong(i);
+            final ByteBuffer serialized = filter.serializeToDirectBuffer();
+            Assert.assertEquals(
+                outcome, VeloxBloomFilter.mightContainLongOnSerializedBloom(serialized, i));
+            Assert.assertFalse(outcome);
+          }
+          for (int i = -halfNumItems; i < halfNumItems; i++) {
+            filter.putLong(i);
+            boolean outcome = filter.mightContainLong(i);
+            final ByteBuffer serialized = filter.serializeToDirectBuffer();
+            Assert.assertEquals(
+                outcome, VeloxBloomFilter.mightContainLongOnSerializedBloom(serialized, i));
+            Assert.assertTrue(outcome);
+          }
+          for (int i = -halfNumItems; i < halfNumItems; i++) {
+            boolean outcome = filter.mightContainLong(i);
+            final ByteBuffer serialized = filter.serializeToDirectBuffer();
+            Assert.assertEquals(
+                outcome, VeloxBloomFilter.mightContainLongOnSerializedBloom(serialized, i));
+            Assert.assertTrue(outcome);
+          }
+          return null;
+        });
+  }
+
+  @Test
   public void testMerge() {
     TaskResources$.MODULE$.runUnsafe(
         () -> {

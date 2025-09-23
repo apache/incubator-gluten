@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.rdd.RDD
@@ -167,7 +166,7 @@ case class TakeOrderedAndProjectExecTransformer(
 
       val finalPlan =
         WholeStageTransformer(collapsed)(transformStageCounter.incrementAndGet())
-
+      finalPlan.copyTagsFrom(child)
       finalPlan.executeColumnar()
     }
   }

@@ -17,8 +17,8 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.metrics.{GlutenTimeMetric, IMetrics}
+import org.apache.gluten.substrait.rel.SplitInfo
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -26,7 +26,8 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.ExecutorManager
+
+import scala.collection.JavaConverters.asScalaBufferConverter
 
 trait BaseGlutenPartition extends Partition with InputPartition {
   def plan: Array[Byte]
@@ -35,13 +36,13 @@ trait BaseGlutenPartition extends Partition with InputPartition {
 case class GlutenPartition(
     index: Int,
     plan: Array[Byte],
-    splitInfosByteArray: Array[Array[Byte]] = Array.empty[Array[Byte]],
-    locations: Array[String] = Array.empty[String],
+    splitInfos: Array[SplitInfo] = Array.empty[SplitInfo],
     files: Array[String] =
       Array.empty[String] // touched files, for implementing UDF input_file_name
 ) extends BaseGlutenPartition {
 
-  override def preferredLocations(): Array[String] = locations
+  override def preferredLocations(): Array[String] =
+    splitInfos.flatMap(_.preferredLocations().asScala)
 }
 
 case class FirstZippedPartitionsPartition(
@@ -56,14 +57,13 @@ class GlutenWholeStageColumnarRDD(
     var rdds: ColumnarInputRDDsWrapper,
     pipelineTime: SQLMetric,
     updateInputMetrics: InputMetricsWrapper => Unit,
-    updateNativeMetrics: IMetrics => Unit)
+    updateNativeMetrics: IMetrics => Unit,
+    enableCudf: Boolean = false)
   extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
-  private val numaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     GlutenTimeMetric.millis(pipelineTime) {
       _ =>
-        ExecutorManager.tryTaskSet(numaBindingInfo)
         val (inputPartition, inputColumnarRDDPartitions) = castNativePartition(split)
         val inputIterators = rdds.getIterators(inputColumnarRDDPartitions, context)
         BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
@@ -73,7 +73,8 @@ class GlutenWholeStageColumnarRDD(
           updateInputMetrics,
           updateNativeMetrics,
           split.index,
-          inputIterators
+          inputIterators,
+          enableCudf
         )
     }
   }

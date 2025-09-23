@@ -22,6 +22,7 @@ import org.apache.gluten.utils.Arm
 
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.classic.ExtendedClassicConversions._
 import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
@@ -34,6 +35,12 @@ import scala.io.Source
  * is not considered.
  */
 object VeloxRasBenchmark extends SqlBasedBenchmark {
+
+  // TODO: remove this if we can suppress unused import error.
+  locally {
+    new RichSqlSparkSession(SparkSession)
+  }
+
   private val tpchQueries: String =
     getClass
       .getResource("/")
@@ -64,7 +71,7 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
       .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .config("spark.ui.enabled", "false")
-      .config("spark.gluten.ui.enabled", "false")
+      .config(GlutenConfig.GLUTEN_UI_ENABLED.key, "false")
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", "2g")
       .config("spark.sql.adaptive.enabled", "false")

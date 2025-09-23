@@ -62,12 +62,19 @@ struct SplitInfo {
 /// This class is used to convert the Substrait plan into Velox plan.
 class SubstraitToVeloxPlanConverter {
  public:
-  SubstraitToVeloxPlanConverter(
+  explicit SubstraitToVeloxPlanConverter(
       memory::MemoryPool* pool,
-      const std::unordered_map<std::string, std::string>& confMap = {},
+      const facebook::velox::config::ConfigBase* veloxCfg,
       const std::optional<std::string> writeFilesTempPath = std::nullopt,
+      const std::optional<std::string> writeFileName = std::nullopt,
       bool validationMode = false)
-      : pool_(pool), confMap_(confMap), writeFilesTempPath_(writeFilesTempPath), validationMode_(validationMode) {}
+      : pool_(pool),
+        veloxCfg_(veloxCfg),
+        writeFilesTempPath_(writeFilesTempPath),
+        writeFileName_(writeFileName),
+        validationMode_(validationMode) {
+    VELOX_USER_CHECK_NOT_NULL(veloxCfg_);
+  }
 
   /// Used to convert Substrait WriteRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::WriteRel& writeRel);
@@ -278,10 +285,11 @@ class SubstraitToVeloxPlanConverter {
   memory::MemoryPool* pool_;
 
   /// A map of custom configs.
-  std::unordered_map<std::string, std::string> confMap_;
+  const facebook::velox::config::ConfigBase* veloxCfg_;
 
   /// The temporary path used to write files.
   std::optional<std::string> writeFilesTempPath_;
+  std::optional<std::string> writeFileName_;
 
   /// A flag used to specify validation.
   bool validationMode_ = false;

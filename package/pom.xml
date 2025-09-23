@@ -12,17 +12,19 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.apache.gluten</groupId>
     <artifactId>gluten-parent</artifactId>
-    <version>1.5.0-SNAPSHOT</version>
+    <version>1.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
+
+  <artifactId>gluten-package</artifactId>
+  <packaging>jar</packaging>
+  <name>Gluten Package</name>
 
   <dependencies>
     <!-- Do not remove the following. They are for enforcer plugin -->
@@ -48,74 +50,15 @@
     </dependency>
   </dependencies>
 
-  <artifactId>gluten-package</artifactId>
-  <name>Gluten Package</name>
-  <packaging>jar</packaging>
-
-  <profiles>
-    <profile>
-      <id>backends-velox</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>backends-velox</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>celeborn</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-celeborn</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>uniffle</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-uniffle</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>iceberg</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-iceberg</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>delta</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-delta</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>hudi</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-hudi</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-  </profiles>
-
   <build>
+    <resources>
+      <resource>
+        <directory>../gluten-core/target/generated-resources/</directory>
+        <includes>
+          <include>gluten-build-info.properties</include>
+        </includes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -125,10 +68,10 @@
         </configuration>
         <executions>
           <execution>
-            <phase>package</phase>
             <goals>
               <goal>shade</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <createSourcesJar>true</createSourcesJar>
               <relocations>
@@ -210,6 +153,12 @@
                     <exclude>NOTICE.txt</exclude>
                   </excludes>
                 </filter>
+                <filter>
+                  <artifact>org.apache.gluten:gluten-core</artifact>
+                  <excludes>
+                    <exclude>gluten-build-info.properties</exclude>
+                  </excludes>
+                </filter>
               </filters>
             </configuration>
           </execution>
@@ -221,17 +170,15 @@
         <executions>
           <execution>
             <id>copy-fat-jar</id>
-            <phase>package</phase>
             <goals>
               <goal>exec</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <executable>cp</executable>
               <arguments>
                 <argument>target/gluten-package-${project.version}.jar</argument>
-                <argument>
-                  target/${jar.assembly.name.prefix}-${backend_type}-bundle-spark${sparkbundle.version}_${scala.binary.version}-${os.full.name}-${project.version}.jar
-                </argument>
+                <argument>target/${jar.assembly.name.prefix}-${backend_type}-bundle-spark${sparkbundle.version}_${scala.binary.version}-${os.full.name}-${project.version}.jar</argument>
               </arguments>
             </configuration>
           </execution>
@@ -300,64 +247,36 @@
                     <ignoreClass>org.apache.commons.logging.*</ignoreClass>
                     <!-- hive -->
                     <ignoreClass>org.apache.hadoop.hive.*</ignoreClass>
-                    <!-- celeborn -->
-                    <ignoreClass>org.apache.spark.sql.execution.columnar.ByteBufferHelper</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.columnar.ByteBufferHelper$</ignoreClass>
+                    <!-- hawtjni -->
+                    <ignoreClass>org.fusesource.hawtjni.runtime.Library</ignoreClass>
                     <!-- The overridden class list by Gluten. Carefully add entries to this list only when you knew exactly what is going to happen -->
-                    <ignoreClass>org.apache.spark.rdd.EmptyRDD</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.hive.execution.HiveFileFormat</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.hive.execution.HiveFileFormat$$$$anon$1</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.hive.execution.HiveOutputWriter</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.catalyst.plans.QueryPlan</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.catalyst.plans.QueryPlan*</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStats</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStats$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStatsTracker</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStatsTracker$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$CovarianceCounter</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter$WriterStatus</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataSingleWriter</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$Empty2Null$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter$WriterIndex$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatDataWriter</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriteTaskResult$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$OutputSpec</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.EmptyDirectoryDataWriter</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$ConcurrentOutputWriterSpec$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.SingleDirectoryDataWriter</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$Empty2Null</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.BaseDynamicPartitionDataWriter</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriteJobDescription</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.SingleDirectoryDataWriter$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter$WriterIndex</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataSingleWriter$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriteTaskResult</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$Empty2Null$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$OutputSpec</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$ConcurrentOutputWriterSpec</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$ConcurrentOutputWriterSpec$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$Empty2Null</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.ExecutedWriteSummary</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat*</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.orc.OrcFileFormat$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.orc.OrcFileFormat*</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$OutputSpec$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.ExecutedWriteSummary$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.EmptyDirectoryDataWriter$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec$</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand</ignoreClass>
-                    <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand$</ignoreClass>
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter</ignoreClass>
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$</ignoreClass>
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$SpillableIterator</ignoreClass>
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$ChainedIterator</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.MemoryConsumer</ignoreClass>
-                    <ignoreClass>org.apache.spark.memory.TaskMemoryManager </ignoreClass>
+                    <ignoreClass>org.apache.spark.memory.TaskMemoryManager</ignoreClass>
+                    <!-- guava -->
+                    <ignoreClass>com.google.thirdparty.publicsuffix*</ignoreClass>
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>
@@ -374,5 +293,78 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>backends-velox</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>backends-velox</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>celeborn</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-celeborn</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>uniffle</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-uniffle</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>iceberg</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-iceberg</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>delta</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-delta</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>hudi</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-hudi</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>paimon</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-paimon</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 
 </project>

@@ -169,7 +169,7 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("Metrics of noop filter's children") {
-    withSQLConf("spark.gluten.ras.enabled" -> "true") {
+    withSQLConf(GlutenConfig.RAS_ENABLED.key -> "true") {
       runQueryAndCompare("SELECT c1, c2 FROM metrics_t1 where c1 < 50") {
         df =>
           val scan = find(df.queryExecution.executedPlan) {
@@ -186,7 +186,7 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
 
   test("Write metrics") {
     if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
-      withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
         runQueryAndCompare(
           "Insert into table metrics_t1 values(1 , 2)"
         ) {
@@ -276,5 +276,25 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     val metrics = scans.head.metrics
     assert(metrics("storageReadBytes").value > 0)
     assert(metrics("ramReadBytes").value == 0)
+  }
+
+  test("test nested loop join metrics") {
+    withSQLConf() {
+      runQueryAndCompare(
+        "select /*+ BROADCAST(t2) */ c1, c2 from (select c1  from metrics_t1 where c1 = 50) t1 ," +
+          "(select c2 from metrics_t2) t2;"
+      ) {
+        df =>
+          val join = find(df.queryExecution.executedPlan) {
+            case _: BroadcastNestedLoopJoinExecTransformer => true
+            case _ => false
+          }
+          assert(join.isDefined)
+          val metrics = join.get.metrics
+          assert(metrics("nestedLoopJoinBuildInputRows").value == 200)
+          assert(metrics("nestedLoopJoinProbeInputRows").value == 1)
+          assert(metrics("numOutputRows").value == 200 * 1)
+      }
+    }
   }
 }

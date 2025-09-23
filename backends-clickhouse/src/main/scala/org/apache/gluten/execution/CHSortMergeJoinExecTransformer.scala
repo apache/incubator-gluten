@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.utils.{CHJoinValidateUtil, SortMergeJoinStrategy}
 
 import org.apache.spark.sql.catalyst.expressions._

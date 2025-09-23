@@ -20,8 +20,10 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 
 import java.io.File
 
+import scala.collection.mutable
+
 trait TableCreator {
-  def create(spark: SparkSession, dataPath: String): Unit
+  def create(spark: SparkSession, source: String, dataPath: String): Unit
 }
 
 object TableCreator {
@@ -30,21 +32,48 @@ object TableCreator {
   }
 
   private object DiscoverSchema extends TableCreator {
-    override def create(spark: SparkSession, dataPath: String): Unit = {
+    override def create(spark: SparkSession, source: String, dataPath: String): Unit = {
       val files = new File(dataPath).listFiles()
-      files.foreach(file => {
-        if (spark.catalog.tableExists(file.getName)) {
-          println("Table exists: " + file.getName)
-        } else {
-          println("Creating catalog table: " + file.getName)
-          spark.catalog.createTable(file.getName, file.getAbsolutePath, "parquet")
-          try {
-            spark.catalog.recoverPartitions(file.getName)
-          } catch {
-            case _: AnalysisException =>
+      val tableNames = files.map(_.getName)
+      val existedTableNames = mutable.ArrayBuffer[String]()
+      val createdTableNames = mutable.ArrayBuffer[String]()
+      val recoveredPartitionTableNames = mutable.ArrayBuffer[String]()
+
+      if (tableNames.isEmpty) {
+        return
+      }
+
+      println("Creating catalog tables: " + tableNames.mkString(", "))
+
+      files.foreach(
+        file => {
+          val tableName = file.getName
+          if (spark.catalog.tableExists(tableName)) {
+            existedTableNames += tableName
+          } else {
+            spark.catalog.createTable(tableName, file.getAbsolutePath, source)
+            createdTableNames += tableName
+            try {
+              spark.catalog.recoverPartitions(tableName)
+              recoveredPartitionTableNames += tableName
+            } catch {
+              case _: AnalysisException =>
+              // Swallows analysis exceptions.
+            }
           }
-        }
-      })
+        })
+
+      if (existedTableNames.nonEmpty) {
+        println("Tables already exists: " + existedTableNames.mkString(", "))
+      }
+
+      if (createdTableNames.nonEmpty) {
+        println("Tables created: " + createdTableNames.mkString(", "))
+      }
+
+      if (recoveredPartitionTableNames.nonEmpty) {
+        println("Recovered partition tables: " + recoveredPartitionTableNames.mkString(", "))
+      }
     }
   }
 }

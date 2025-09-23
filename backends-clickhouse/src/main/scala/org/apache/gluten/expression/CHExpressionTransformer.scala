@@ -294,3 +294,16 @@ case class CHArraySortTransformer(
     }
   }
 }
+
+case class CHTimestampAddTransformer(
+    substraitExprName: String,
+    unit: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    timeZoneId: String,
+    original: Expression)
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = {
+    Seq(LiteralTransformer(unit), left, right, LiteralTransformer(timeZoneId))
+  }
+}

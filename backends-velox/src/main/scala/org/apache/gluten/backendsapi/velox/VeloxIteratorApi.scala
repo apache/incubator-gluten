@@ -18,13 +18,12 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, IteratorApi}
 import org.apache.gluten.backendsapi.velox.VeloxIteratorApi.unescapePathName
-import org.apache.gluten.config.GlutenNumaBindingInfo
 import org.apache.gluten.execution._
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.metrics.{IMetrics, IteratorMetricsJniWrapper}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
-import org.apache.gluten.substrait.rel.{LocalFilesBuilder, LocalFilesNode, SplitInfo}
+import org.apache.gluten.substrait.rel.{LocalFilesBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.vectorized._
 
@@ -39,7 +38,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{ExecutorManager, SparkDirectoryUtil}
+import org.apache.spark.util.SparkDirectoryUtil
 
 import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
@@ -145,8 +144,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         GlutenPartition(
           index,
           planByteArray,
-          splitInfos.map(_.asInstanceOf[LocalFilesNode].toProtobuf.toByteArray).toArray,
-          splitInfos.flatMap(_.preferredLocations().asScala).toArray
+          splitInfos.toArray
         )
     }
   }
@@ -217,7 +215,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
   }
 
   override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
-    NativePlanEvaluator.injectWriteFilesTempPath(path)
+    NativePlanEvaluator.injectWriteFilesTempPath(path, fileName)
   }
 
   /** Generate Iterator[ColumnarBatch] for first stage. */
@@ -228,7 +226,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq(),
+      enableCudf: Boolean = false): Iterator[ColumnarBatch] = {
     assert(
       inputPartition.isInstanceOf[GlutenPartition],
       "Velox backend only accept GlutenPartition.")
@@ -241,7 +240,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
 
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
-      .splitInfosByteArray
+      .splitInfos
+      .map(splitInfo => splitInfo.toProtobuf.toByteArray)
+      .toArray
     val spillDirPath = SparkDirectoryUtil
       .get()
       .namespace("gluten-spill")
@@ -253,7 +254,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         splitInfoByteArray,
         columnarNativeIterators,
         partitionIndex,
-        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
+        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath),
+        enableCudf
       )
     val itrMetrics = IteratorMetricsJniWrapper.create()
 
@@ -277,21 +279,19 @@ class VeloxIteratorApi extends IteratorApi with Logging {
   override def genFinalStageIterator(
       context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
-      numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      materializeInput: Boolean): Iterator[ColumnarBatch] = {
-
-    ExecutorManager.tryTaskSet(numaBindingInfo)
+      materializeInput: Boolean,
+      enableCudf: Boolean = false): Iterator[ColumnarBatch] = {
 
     val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
     val columnarNativeIterator =
-      new JArrayList[ColumnarBatchInIterator](inputIterators.map {
+      inputIterators.map {
         iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
-      }.asJava)
+      }
     val spillDirPath = SparkDirectoryUtil
       .get()
       .namespace("gluten-spill")
@@ -302,9 +302,10 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         rootNode.toProtobuf.toByteArray,
         // Final iterator does not contain scan split, so pass empty split info to native here.
         new Array[Array[Byte]](0),
-        columnarNativeIterator,
+        columnarNativeIterator.asJava,
         partitionIndex,
-        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
+        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath),
+        enableCudf
       )
     val itrMetrics = IteratorMetricsJniWrapper.create()
 

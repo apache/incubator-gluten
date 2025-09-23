@@ -69,6 +69,10 @@ const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backe
 const std::string kShowTaskMetricsWhenFinished = "spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished";
 const bool kShowTaskMetricsWhenFinishedDefault = false;
 
+const std::string kTaskMetricsToEventLogThreshold =
+    "spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold";
+const int64_t kTaskMetricsToEventLogThresholdDefault = -1;
+
 const std::string kEnableUserExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace";
 const bool kEnableUserExceptionStacktraceDefault = true;
@@ -128,6 +132,7 @@ const bool kVeloxFileHandleCacheEnabledDefault = false;
 
 /* configs for file read in velox*/
 const std::string kDirectorySizeGuess = "spark.gluten.sql.columnar.backend.velox.directorySizeGuess";
+const std::string kFooterEstimatedSize = "spark.gluten.sql.columnar.backend.velox.footerEstimatedSize";
 const std::string kFilePreloadThreshold = "spark.gluten.sql.columnar.backend.velox.filePreloadThreshold";
 const std::string kPrefetchRowGroups = "spark.gluten.sql.columnar.backend.velox.prefetchRowGroups";
 const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQuantum";
@@ -146,22 +151,11 @@ const uint32_t kGlogVerboseLevelMaximum = 99;
 const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
 const uint32_t kGlogSeverityLevelDefault = 1;
 
-// cudf
-#ifdef GLUTEN_ENABLE_GPU
-const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";
-const bool kCudfEnabledDefault = "false";
-const std::string kDebugCudf = "spark.gluten.sql.debug.cudf";
-const bool kDebugCudfDefault = "false";
-#endif
-
 // Query trace
 /// Enable query tracing flag.
 const std::string kQueryTraceEnabled = "spark.gluten.sql.columnar.backend.velox.queryTraceEnabled";
 /// Base dir of a query to store tracing data.
 const std::string kQueryTraceDir = "spark.gluten.sql.columnar.backend.velox.queryTraceDir";
-/// A comma-separated list of plan node ids whose input data will be traced.
-/// Empty string if only want to trace the query metadata.
-const std::string kQueryTraceNodeIds = "spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds";
 /// The max trace bytes limit. Tracing is disabled if zero.
 const std::string kQueryTraceMaxBytes = "spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes";
 /// The regexp of traced task id. We only enable trace on a task if its id
@@ -172,4 +166,18 @@ const std::string kQueryTraceTaskRegExp = "spark.gluten.sql.columnar.backend.vel
 /// defined by the underlying file system.
 const std::string kOpTraceDirectoryCreateConfig =
     "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig";
+
+// Cudf config.
+// GPU RMM memory resource
+const std::string kCudfMemoryResource = "spark.gluten.sql.columnar.backend.velox.cudf.memoryResource";
+const std::string kCudfMemoryResourceDefault =
+    "async"; // Allowed: "cuda", "pool", "async", "arena", "managed", "managed_pool"
+
+// Initial percent of GPU memory to allocate for memory resource for one thread
+const std::string kCudfMemoryPercent = "spark.gluten.sql.columnar.backend.velox.cudf.memoryPercent";
+const int32_t kCudfMemoryPercentDefault = 50;
+
+/// Preferred size of batches in bytes to be returned by operators.
+const std::string kVeloxPreferredBatchBytes = "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes";
+
 } // namespace gluten

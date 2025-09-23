@@ -25,7 +25,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.io.File
 
-class QueryRunner(val queryResourceFolder: String, val dataPath: String) {
+class QueryRunner(val source: String, val dataPath: String) {
   import QueryRunner._
 
   Preconditions.checkState(
@@ -34,34 +34,33 @@ class QueryRunner(val queryResourceFolder: String, val dataPath: String) {
     Array(): _*)
 
   def createTables(creator: TableCreator, spark: SparkSession): Unit = {
-    creator.create(spark, dataPath)
+    creator.create(spark, source, dataPath)
   }
 
   def runQuery(
       spark: SparkSession,
       desc: String,
-      caseId: String,
+      query: Query,
       explain: Boolean = false,
       sqlMetricMapper: MetricMapper = MetricMapper.dummy,
       executorMetrics: Seq[String] = Nil,
       randomKillTasks: Boolean = false): QueryResult = {
-    val path = "%s/%s.sql".format(queryResourceFolder, caseId)
     try {
       val r =
         SparkQueryRunner.runQuery(
           spark,
           desc,
-          path,
+          query,
           explain,
           sqlMetricMapper,
           executorMetrics,
           randomKillTasks)
-      println(s"Successfully ran query $caseId. Returned row count: ${r.rows.length}")
-      Success(caseId, r)
+      println(s"Successfully ran query ${query.id}. Returned row count: ${r.rows.length}")
+      Success(query.id, r)
     } catch {
       case e: Exception =>
-        println(s"Error running query $caseId. Error: ${ExceptionUtils.getStackTrace(e)}")
-        Failure(caseId, e)
+        println(s"Error running query ${query.id}. Error: ${ExceptionUtils.getStackTrace(e)}")
+        Failure(query.id, e)
     }
   }
 }

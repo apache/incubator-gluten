@@ -18,7 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
@@ -124,17 +123,10 @@ case class SortExecTransformer(
 }
 
 object SortExecTransformer {
-  def transformSortDirection(order: SortOrder): Int = {
-    transformSortDirection(order.direction.sql, order.nullOrdering.sql)
-  }
-
-  def transformSortDirection(direction: String, nullOrdering: String): Int = {
-    (direction, nullOrdering) match {
-      case ("ASC", "NULLS FIRST") => 1
-      case ("ASC", "NULLS LAST") => 2
-      case ("DESC", "NULLS FIRST") => 3
-      case ("DESC", "NULLS LAST") => 4
-      case _ => 0
-    }
+  def transformSortDirection(order: SortOrder): Int = order match {
+    case SortOrder(_, Ascending, NullsFirst, _) => 1
+    case SortOrder(_, Ascending, NullsLast, _) => 2
+    case SortOrder(_, Descending, NullsFirst, _) => 3
+    case SortOrder(_, Descending, NullsLast, _) => 4
   }
 }

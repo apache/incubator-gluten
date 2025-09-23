@@ -17,13 +17,15 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import io.github.zhztheplayer.velox4j.connector.CommitStrategy;
 import io.github.zhztheplayer.velox4j.connector.DiscardDataTableHandle;
+import io.github.zhztheplayer.velox4j.plan.EmptyNode;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableWriteNode;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.RowType;
@@ -67,6 +69,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
@@ -198,7 +201,7 @@ public class SinkTransformationTranslator<Input, Output>
                   false,
                   ignore,
                   CommitStrategy.NO_COMMIT,
-                  null);
+                  List.of(new EmptyNode(outputType)));
           adjustTransformations(
               prewritten,
               input ->
@@ -206,8 +209,11 @@ public class SinkTransformationTranslator<Input, Output>
                       WRITER_NAME,
                       CommittableMessageTypeInfo.noOutput(),
                       new GlutenOneInputOperatorFactory(
-                          new GlutenSingleInputOperator(
-                              plan, PlanNodeIdGenerator.newId(), outputType, ignore))),
+                          new GlutenVectorOneInputOperator(
+                              new StatefulPlanNode(plan.getId(), plan),
+                              PlanNodeIdGenerator.newId(),
+                              outputType,
+                              Map.of(plan.getId(), ignore)))),
               false,
               sink instanceof SupportsConcurrentExecutionAttempts);
         } else {

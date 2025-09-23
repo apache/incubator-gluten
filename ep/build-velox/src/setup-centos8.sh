@@ -46,7 +46,7 @@ DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)/deps-download}
 FB_OS_VERSION="v2024.07.01.00"
 FMT_VERSION="10.1.1"
 BOOST_VERSION="boost-1.84.0"
-GEOS_VERSION="3.10.2"
+GEOS_VERSION="3.10.7"
 
 function dnf_install {
   dnf install -y -q --setopt=install_weak_deps=False "$@"
@@ -61,7 +61,6 @@ function install_build_prerequisites {
   dnf_install ninja-build curl ccache gcc-toolset-11 git wget which
   dnf_install yasm
   dnf_install autoconf automake python39 python39-devel python39-pip libtool
-  dnf_install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm
   pip3.9 install cmake==3.28.3
 }
 
@@ -79,13 +78,6 @@ function install_conda {
   dnf_install conda
 }
 
-function install_openssl {
-  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl
-  (
-    cd ${DEPENDENCY_DIR}/openssl
-    ./config no-shared && make depend && make && sudo make install
-  )
-}
 
 function install_gflags {
   # Remove an older version if present.
@@ -200,7 +192,6 @@ function install_velox_deps {
   run_and_time install_wangle
   run_and_time install_mvfst
   run_and_time install_fbthrift
-  run_and_time install_openssl
   run_and_time install_duckdb
   run_and_time install_geos
 }

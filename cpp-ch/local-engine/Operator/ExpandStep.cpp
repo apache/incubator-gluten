@@ -22,6 +22,7 @@
 #include <Processors/IProcessor.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/BlockTypeUtils.h>
 
 namespace local_engine
 {
@@ -38,8 +39,8 @@ static DB::ITransformingStep::Traits getTraits()
         }};
 }
 
-ExpandStep::ExpandStep(const DB::Block & input_header, const ExpandField & project_set_exprs_)
-    : DB::ITransformingStep(input_header, buildOutputHeader(input_header, project_set_exprs_), getTraits())
+ExpandStep::ExpandStep(const DB::SharedHeader & input_header, const ExpandField & project_set_exprs_)
+    : DB::ITransformingStep(input_header, toShared(buildOutputHeader(*input_header, project_set_exprs_)), getTraits())
     , project_set_exprs(project_set_exprs_)
 {
 }
@@ -65,7 +66,7 @@ void ExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto expand_op = std::make_shared<ExpandTransform>(input_headers.front(), *output_header, project_set_exprs);
+            auto expand_op = std::make_shared<ExpandTransform>(input_headers.front(), output_header, project_set_exprs);
             new_processors.push_back(expand_op);
             DB::connect(*output, expand_op->getInputs().front());
         }
@@ -82,7 +83,7 @@ void ExpandStep::describePipeline(DB::IQueryPlanStep::FormatSettings & settings)
 
 void ExpandStep::updateOutputHeader()
 {
-    output_header = buildOutputHeader(input_headers.front(), project_set_exprs);
+    output_header = toShared(buildOutputHeader(*input_headers.front(), project_set_exprs));
 }
 
 }

@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.backendsapi
 
-import org.apache.gluten.config.GlutenNumaBindingInfo
 import org.apache.gluten.execution.{BaseGlutenPartition, LeafTransformSupport, WholeStageTransformContext}
 import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.substrait.plan.PlanNode
@@ -75,7 +74,8 @@ trait IteratorApi {
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq(),
+      enableCudf: Boolean = false
   ): Iterator[ColumnarBatch]
 
   /**
@@ -86,12 +86,12 @@ trait IteratorApi {
   def genFinalStageIterator(
       context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
-      numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      materializeInput: Boolean = false): Iterator[ColumnarBatch]
+      materializeInput: Boolean = false,
+      enableCudf: Boolean = false): Iterator[ColumnarBatch]
   // scalastyle:on argcount
 }

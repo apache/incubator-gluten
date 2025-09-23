@@ -109,7 +109,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
 
   test("offload BroadcastExchange and fall back BHJ") {
     withSQLConf(
-      "spark.gluten.sql.columnar.broadcastJoin" -> "false"
+      GlutenConfig.COLUMNAR_BROADCAST_JOIN_ENABLED.key -> "false"
     ) {
       runQueryAndCompare(
         """

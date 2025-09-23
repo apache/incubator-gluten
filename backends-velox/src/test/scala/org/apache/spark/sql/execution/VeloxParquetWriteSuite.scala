@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.VeloxWholeStageTransformerSuite
 import org.apache.gluten.test.FallbackUtil
 
@@ -32,16 +33,29 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
   override protected val fileFormat: String = "parquet"
 
   // The parquet compression codec extensions
-  private val parquetCompressionCodecExtensions = Map(
-    "none" -> "",
-    "uncompressed" -> "",
-    "snappy" -> ".snappy",
-    "gzip" -> ".gz",
-    "lzo" -> ".lzo",
-    "lz4" -> ".lz4",
-    "brotli" -> ".br",
-    "zstd" -> ".zstd"
-  )
+  private val parquetCompressionCodecExtensions = if (isSparkVersionGE("3.5")) {
+    Map(
+      "none" -> "",
+      "uncompressed" -> "",
+      "snappy" -> ".snappy",
+      "gzip" -> ".gz",
+      "lzo" -> ".lzo",
+      "lz4" -> ".lz4hadoop", // Specific extension for version 3.5
+      "brotli" -> ".br",
+      "zstd" -> ".zstd"
+    )
+  } else {
+    Map(
+      "none" -> "",
+      "uncompressed" -> "",
+      "snappy" -> ".snappy",
+      "gzip" -> ".gz",
+      "lzo" -> ".lzo",
+      "lz4" -> ".lz4",
+      "brotli" -> ".br",
+      "zstd" -> ".zstd"
+    )
+  }
 
   private def getParquetFileExtension(codec: String): String = {
     s"${parquetCompressionCodecExtensions(codec)}.parquet"
@@ -53,7 +67,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
   }
 
   override protected def sparkConf: SparkConf = {
-    super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "true")
+    super.sparkConf.set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
   }
 
   test("test Array(Struct) fallback") {

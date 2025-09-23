@@ -48,7 +48,7 @@ FB_OS_VERSION="v2024.07.01.00"
 FMT_VERSION="10.1.1"
 BOOST_VERSION="boost-1.84.0"
 DUCKDB_VERSION="v0.8.1"
-GEOS_VERSION="3.10.2"
+GEOS_VERSION="3.10.7"
 
 function dnf_install {
   dnf install -y -q --setopt=install_weak_deps=False "$@"

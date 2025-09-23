@@ -79,7 +79,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
            |""".stripMargin
       val df2 = spark.sql(sql)
       df2.collect()
-      WholeStageTransformerSuite.checkFallBack(df2)
+      GlutenQueryComparisonTest.checkFallBack(df2)
       checkAnswer(df2, df1)
     }
   }
@@ -103,7 +103,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
            |""".stripMargin
       val df2 = spark.sql(sql)
       df2.collect()
-      WholeStageTransformerSuite.checkFallBack(df2)
+      GlutenQueryComparisonTest.checkFallBack(df2)
       checkAnswer(df2, df1)
     }
   }
@@ -136,7 +136,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
            |""".stripMargin
       val df2 = spark.sql(sql)
       df2.collect()
-      WholeStageTransformerSuite.checkFallBack(df2)
+      GlutenQueryComparisonTest.checkFallBack(df2)
       checkAnswer(df2, df1)
     }
   }
@@ -1345,7 +1345,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
 
     withSQLConf(
       (CHConfig.runtimeSettings("use_excel_serialization"), "false"),
-      ("spark.gluten.sql.text.input.empty.as.default", "true")) {
+      (GlutenConfig.TEXT_INPUT_EMPTY_AS_DEFAULT.key, "true")) {
       compareResultsAgainstVanillaSpark(
         """
           | select * from TEST_MEASURE

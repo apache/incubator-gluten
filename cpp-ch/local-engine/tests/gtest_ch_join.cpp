@@ -33,6 +33,7 @@
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <gtest/gtest.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 
@@ -78,8 +79,8 @@ TEST(TestJoin, simple)
         = {ColumnWithTypeAndName(std::move(column3), int_type, "colD"), ColumnWithTypeAndName(std::move(column4), int_type, "colC")};
     Block right(columns2);
 
-    auto left_table = std::make_shared<SourceFromSingleChunk>(left);
-    auto right_table = std::make_shared<SourceFromSingleChunk>(right);
+    auto left_table = std::make_shared<SourceFromSingleChunk>(toShared(left));
+    auto right_table = std::make_shared<SourceFromSingleChunk>(toShared(right));
     QueryPlan left_plan;
     left_plan.addStep(std::make_unique<ReadFromPreparedSource>(Pipe(left_table)));
     QueryPlan right_plan;
@@ -97,7 +98,7 @@ TEST(TestJoin, simple)
     for (const auto & column : join->columnsFromJoinedTable())
         join->addJoinedColumn(column);
 
-    auto columns_from_left_table = left_plan.getCurrentHeader().getNamesAndTypesList();
+    auto columns_from_left_table = left_plan.getCurrentHeader()->getNamesAndTypesList();
     for (auto & column_from_joined_table : columns_from_left_table)
         join->setUsedColumn(column_from_joined_table, JoinTableSide::Left);
 
@@ -127,9 +128,9 @@ TEST(TestJoin, simple)
     auto hash_join = std::make_shared<HashJoin>(join, right_plan.getCurrentHeader());
 
     QueryPlanStepPtr join_step = std::make_unique<JoinStep>(
-        left_plan.getCurrentHeader(), right_plan.getCurrentHeader(), hash_join, 8192, 8192, 1, NameSet{}, false, false);
+        left_plan.getCurrentHeader(), right_plan.getCurrentHeader(), hash_join, DEFAULT_BLOCK_SIZE, DEFAULT_BLOCK_SIZE, 524288, 1, NameSet{}, false, false);
 
-    std::cerr << "join step:" << join_step->getOutputHeader().dumpStructure() << std::endl;
+    std::cerr << "join step:" << join_step->getOutputHeader()->dumpStructure() << std::endl;
 
     std::vector<QueryPlanPtr> plans;
     plans.emplace_back(std::make_unique<QueryPlan>(std::move(left_plan)));
@@ -137,8 +138,8 @@ TEST(TestJoin, simple)
 
     auto query_plan = QueryPlan();
     query_plan.unitePlans(std::move(join_step), {std::move(plans)});
-    std::cerr << query_plan.getCurrentHeader().dumpStructure() << std::endl;
-    ActionsDAG project{query_plan.getCurrentHeader().getNamesAndTypesList()};
+    std::cerr << query_plan.getCurrentHeader()->dumpStructure() << std::endl;
+    ActionsDAG project{query_plan.getCurrentHeader()->getNamesAndTypesList()};
     project.project(
         {NameWithAlias("colA", "colA"), NameWithAlias("colB", "colB"), NameWithAlias("colD", "colD"), NameWithAlias("colC", "colC")});
     QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(query_plan.getCurrentHeader(), std::move(project));
@@ -147,7 +148,7 @@ TEST(TestJoin, simple)
         = query_plan.buildQueryPipeline(QueryPlanOptimizationSettings{global_context}, BuildQueryPipelineSettings{global_context});
     auto executable_pipe = QueryPipelineBuilder::getPipeline(std::move(*pipeline));
     PullingPipelineExecutor executor(executable_pipe);
-    auto res = pipeline->getHeader().cloneEmpty();
+    Block res;
     executor.pull(res);
     debug::headBlock(res);
 }

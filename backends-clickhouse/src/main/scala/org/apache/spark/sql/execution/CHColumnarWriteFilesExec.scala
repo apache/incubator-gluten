@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.execution.WriteFilesExecTransformer
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.memory.CHThreadGroup
 
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}

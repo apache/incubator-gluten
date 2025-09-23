@@ -31,11 +31,12 @@ using namespace facebook;
 VeloxPlanConverter::VeloxPlanConverter(
     const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
     velox::memory::MemoryPool* veloxPool,
-    const std::unordered_map<std::string, std::string>& confMap,
+    const facebook::velox::config::ConfigBase* veloxCfg,
     const std::optional<std::string> writeFilesTempPath,
+    const std::optional<std::string> writeFileName,
     bool validationMode)
     : validationMode_(validationMode),
-      substraitVeloxPlanConverter_(veloxPool, confMap, writeFilesTempPath, validationMode) {
+      substraitVeloxPlanConverter_(veloxPool, veloxCfg, writeFilesTempPath, writeFileName, validationMode) {
   substraitVeloxPlanConverter_.setInputIters(std::move(inputIters));
 }
 
@@ -125,12 +126,6 @@ std::shared_ptr<const facebook::velox::core::PlanNode> VeloxPlanConverter::toVel
   }
 
   return substraitVeloxPlanConverter_.toVeloxPlan(substraitPlan);
-}
-
-std::string VeloxPlanConverter::nextPlanNodeId() {
-  auto id = fmt::format("{}", planNodeId_);
-  planNodeId_++;
-  return id;
 }
 
 } // namespace gluten

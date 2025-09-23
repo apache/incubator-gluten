@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.integration.ds
 
-import org.apache.gluten.integration.{DataGen, Suite, TableCreator, TypeModifier}
+import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableCreator}
 import org.apache.gluten.integration.action.Action
-import org.apache.gluten.integration.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE_PATH, TPCDS_WRITE_RELATIVE_PATH}
 import org.apache.gluten.integration.metrics.MetricMapper
 
 import org.apache.spark.SparkConf
+
 import org.apache.log4j.Level
 
 import java.io.File
@@ -34,7 +34,11 @@ class TpcdsSuite(
     val extraSparkConf: Map[String, String],
     val logLevel: Level,
     val errorOnMemLeak: Boolean,
+    val dataSource: String,
     val dataDir: String,
+    val dataScale: Double,
+    val genPartitionedData: Boolean,
+    val dataGenFeatures: Seq[String],
     val enableUi: Boolean,
     val enableHsUi: Boolean,
     val hsUiPort: Int,
@@ -66,30 +70,39 @@ class TpcdsSuite(
     baselineMetricMapper,
     testMetricMapper
   ) {
+  import TpcdsSuite._
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
-  override private[integration] def dataWritePath(
-      scale: Double,
-      genPartitionedData: Boolean): String =
-    new File(dataDir).toPath.resolve(TPCDS_WRITE_RELATIVE_PATH + s"-$scale").toFile.getAbsolutePath
-
-  override private[integration] def createDataGen(
-      scale: Double,
-      genPartitionedData: Boolean): DataGen =
-    new TpcdsDataGen(
-      sessionSwitcher.spark(),
-      scale,
-      shufflePartitions,
-      dataWritePath(scale, genPartitionedData),
-      typeModifiers(),
-      genPartitionedData)
-
-  override private[integration] def queryResource(): String = {
-    "/tpcds-queries"
+  override private[integration] def dataWritePath(): String = {
+    val partitionedFlag = if (genPartitionedData) {
+      "partitioned"
+    } else {
+      "non_partitioned"
+    }
+    val featureFlags = dataGenFeatures.map(feature => s"-$feature").mkString("")
+    new File(dataDir).toPath
+      .resolve(s"$TPCDS_WRITE_RELATIVE_PATH-$dataScale-$dataSource-$partitionedFlag$featureFlags")
+      .toFile
+      .getAbsolutePath
   }
 
-  override private[integration] def allQueryIds(): Array[String] = ALL_QUERY_IDS
+  override private[integration] def createDataGen(): DataGen = {
+    checkDataGenArgs(dataSource, dataScale, genPartitionedData)
+    new TpcdsDataGen(
+      sessionSwitcher.spark(),
+      dataScale,
+      shufflePartitions,
+      dataSource,
+      dataWritePath(),
+      genPartitionedData,
+      dataGenFeatures,
+      typeModifiers())
+  }
+
+  override private[integration] def allQueries(): QuerySet = {
+    QuerySet.readFromResource("/tpcds-queries", TpcdsSuite.ALL_QUERY_IDS)
+  }
 
   override private[integration] def desc(): String = "TPC-DS"
 
@@ -204,4 +217,13 @@ object TpcdsSuite {
     "q99"
   )
   private val HISTORY_WRITE_PATH = "/tmp/tpcds-history"
+
+  private def checkDataGenArgs(
+      dataSource: String,
+      scale: Double,
+      genPartitionedData: Boolean): Unit = {
+    require(
+      Set("parquet", "delta").contains(dataSource),
+      s"Data source type $dataSource is not supported by TPC-DS suite")
+  }
 }

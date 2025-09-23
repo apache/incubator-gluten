@@ -18,10 +18,9 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.IcebergScanTransformer.{containsMetadataColumn, containsUuidOrFixedType}
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.substrait.rel.{LocalFilesNode, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
-import org.apache.gluten.substrait.rel.SplitInfo
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
@@ -29,12 +28,14 @@ import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.types.{ArrayType, DataType, StructType}
 
-import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
+import org.apache.iceberg.{BaseTable, MetadataColumns, Schema, SnapshotSummary}
 import org.apache.iceberg.avro.AvroSchemaUtil
 import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
-import org.apache.iceberg.types.Type
+import org.apache.iceberg.spark.source.metrics.NumSplits
+import org.apache.iceberg.types.{Type, Types}
 import org.apache.iceberg.types.Type.TypeID
 import org.apache.iceberg.types.Types.{ListType, MapType, NestedField}
 
@@ -53,6 +54,11 @@ case class IcebergScanTransformer(
     keyGroupedPartitioning = keyGroupedPartitioning,
     commonPartitionValues = commonPartitionValues
   ) {
+
+  // PartitionReader reports the metric by currentMetricsValues,
+  // but the implementation is different.
+  // So use Metric to get NumSplits, NumDeletes is not reported by native metric
+  private val numSplits = SQLMetrics.createMetric(sparkContext, new NumSplits().description())
 
   protected[this] def supportsBatchScan(scan: Scan): Boolean = {
     IcebergScanTransformer.supportsBatchScan(scan)
@@ -92,18 +98,29 @@ case class IcebergScanTransformer(
         case t: SparkTable =>
           t.table() match {
             case t: BaseTable =>
-              t.operations()
+              val snapshot = t
+                .operations()
                 .current()
                 .currentSnapshot()
-                .summary()
-                .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0")
-                .toInt > 0
+              if (snapshot == null) {
+                false
+              } else {
+                snapshot
+                  .summary()
+                  .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0")
+                  .toInt > 0
+              }
             case _ => false
           }
         case _ => false
       }
       if (containsEqualityDelete) {
         return ValidationResult.failed("Contains equality delete files")
+      }
+
+      if (hasRenamedColumn) {
+        return ValidationResult.failed(
+          "The column is renamed or data type mismatch, cannot read it.")
       }
     }
 
@@ -121,10 +138,12 @@ case class IcebergScanTransformer(
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
   override def getSplitInfosWithIndex: Seq[SplitInfo] = {
-    getPartitionsWithIndex.zipWithIndex.map {
+    val splitInfos = getPartitionsWithIndex.zipWithIndex.map {
       case (partitions, index) =>
         GlutenIcebergSourceUtil.genSplitInfo(partitions, index, getPartitionSchema)
     }
+    numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
+    splitInfos
   }
 
   override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
@@ -139,10 +158,12 @@ case class IcebergScanTransformer(
         applyPartialClustering,
         replicatePartitions)
       .flatten
-    groupedPartitions.zipWithIndex.map {
+    val splitInfos = groupedPartitions.zipWithIndex.map {
       case (p, index) =>
         GlutenIcebergSourceUtil.genSplitInfoForPartition(p, index, getPartitionSchema)
     }
+    numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
+    splitInfos
   }
 
   override def doCanonicalize(): IcebergScanTransformer = {
@@ -157,6 +178,83 @@ case class IcebergScanTransformer(
   private[execution] def getKeyGroupPartitioning: Option[Seq[Expression]] = keyGroupedPartitioning
 
   override def nodeName: String = "Iceberg" + super.nodeName
+
+  private def hasRenamedColumn: Boolean = {
+    val icebergTable = table match {
+      case t: SparkTable =>
+        t.table() match {
+          case t: BaseTable => t
+          case _ => null
+        }
+      case _ => null
+    }
+    if (icebergTable == null) {
+      return false
+    }
+
+    // The read fields always should be found in current schema,
+    // but may have different id in history schemas
+    val ops = icebergTable.operations().current()
+    val currentSchema = ops.schema()
+    val oldSchemas = icebergTable.operations().current().schemas()
+    oldSchemas
+      .stream()
+      .filter(s => s.schemaId() != ops.currentSchemaId())
+      .anyMatch(s => !typesMatch(s.asStruct(), currentSchema.asStruct(), scan.readSchema()))
+  }
+
+  private def typesMatch(icebergType: Type, currentType: Type, sparkType: DataType): Boolean = {
+    if (icebergType.isPrimitiveType) {
+      if (!currentType.isPrimitiveType) {
+        return false
+      }
+      sparkType match {
+        case _: StructType => return false
+        case _: ArrayType => return false
+        case _: org.apache.spark.sql.types.MapType => return false
+        case _ => return true
+      }
+    }
+    (icebergType, currentType, sparkType) match {
+      case (iceberg: Types.StructType, currentType: Types.StructType, sparkStruct: StructType) =>
+        sparkStruct.forall {
+          sparkField =>
+            val currentField = new Schema(currentType.fields()).findField(sparkField.name)
+            // Find not exists column
+            if (currentField == null) {
+              false
+            } else {
+              val field = new Schema(iceberg.fields()).findField(currentField.fieldId())
+              // The field does not exist in old schema, add column case
+              if (field == null) {
+                true
+              } else {
+                // Maybe rename column
+                field.name() == sparkField.name &&
+                typesMatch(field.`type`(), currentField.`type`(), sparkField.dataType)
+              }
+            }
+        }
+
+      // Array types
+      case (iceberg: Types.ListType, current: Types.ListType, spark: ArrayType) =>
+        iceberg.elementId() == current.elementId() &&
+        typesMatch(iceberg.elementType(), current.elementType(), spark.elementType)
+
+      // Map types
+      case (
+            iceberg: Types.MapType,
+            current: Types.MapType,
+            spark: org.apache.spark.sql.types.MapType) =>
+        iceberg.keyId() == current.keyId() && iceberg.valueId() == current.valueId() &&
+        typesMatch(iceberg.keyType(), current.keyType(), spark.keyType) && typesMatch(
+          iceberg.valueType(),
+          current.valueType(),
+          spark.valueType)
+
+      case _ => false
+    }
+  }
 }
 
 object IcebergScanTransformer {

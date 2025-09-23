@@ -21,9 +21,9 @@ import org.apache.gluten.backendsapi._
 import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster, RoughCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -94,7 +94,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".internal.udfLibraryPaths"
   val GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION = VeloxBackend.CONF_PREFIX + ".udfAllowTypeConversion"
 
-  /** The columnar-batch type this backend is by default using. */
   override def primaryBatchType: Convention.BatchType = VeloxBatchType
 
   override def validateScanExec(
@@ -370,14 +369,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def supportNativeWrite(fields: Array[StructField]): Boolean = {
-    fields.map {
-      field =>
-        field.dataType match {
-          case _: StructType | _: ArrayType | _: MapType => return false
-          case _ =>
-        }
+    def isNotSupported(dataType: DataType): Boolean = dataType match {
+      case _: StructType | _: ArrayType | _: MapType => true
+      case _ => false
     }
-    true
+    !fields.exists(field => isNotSupported(field.dataType))
   }
 
   override def supportExpandExec(): Boolean = true
@@ -514,22 +510,14 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def skipNativeCtas(ctas: CreateDataSourceTableAsSelectCommand): Boolean = true
 
   override def skipNativeInsertInto(insertInto: InsertIntoHadoopFsRelationCommand): Boolean = {
-    insertInto.partitionColumns.nonEmpty &&
-    insertInto.staticPartitions.size < insertInto.partitionColumns.size ||
     insertInto.bucketSpec.nonEmpty
   }
 
   override def alwaysFailOnMapExpression(): Boolean = true
 
-  override def requiredChildOrderingForWindow(): Boolean = {
-    VeloxConfig.get.veloxColumnarWindowType.equals("streaming")
-  }
-
   override def requiredChildOrderingForWindowGroupLimit(): Boolean = false
 
   override def staticPartitionWriteOnly(): Boolean = true
-
-  override def allowDecimalArithmetic: Boolean = true
 
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.get.enableNativeWriter.getOrElse(
@@ -562,4 +550,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def reorderColumnsForPartitionWrite(): Boolean = true
 
   override def enableEnhancedFeatures(): Boolean = VeloxConfig.get.enableEnhancedFeatures()
+
+  override def supportAppendDataExec(): Boolean =
+    GlutenConfig.get.enableAppendData && enableEnhancedFeatures()
+
+  override def supportReplaceDataExec(): Boolean =
+    GlutenConfig.get.enableReplaceData && enableEnhancedFeatures()
+
+  override def supportOverwriteByExpression(): Boolean =
+    GlutenConfig.get.enableOverwriteByExpression && enableEnhancedFeatures()
 }

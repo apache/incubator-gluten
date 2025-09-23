@@ -18,11 +18,9 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.WindowFunctionNode
-import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -30,7 +28,6 @@ import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistrib
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.window.WindowExecBase
 
-import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.SortField
 
 import java.util.{ArrayList => JArrayList}
@@ -70,34 +67,12 @@ case class WindowExecTransformer(
   }
 
   override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
-    if (BackendsApiManager.getSettings.requiredChildOrderingForWindow()) {
-      Seq(partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec)
-    } else {
-      Seq(Nil)
-    }
+    Seq(partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec)
   }
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
-
-  def genWindowParameters(): Any = {
-    // Start with "WindowParameters:"
-    val windowParametersStr = new StringBuffer("WindowParameters:")
-    // isStreaming: 1 for streaming, 0 for sort
-    val isStreaming: Int =
-      if (BackendsApiManager.getSettings.requiredChildOrderingForWindow()) 1 else 0
-
-    windowParametersStr
-      .append("isStreaming=")
-      .append(isStreaming)
-      .append("\n")
-    val message = StringValue
-      .newBuilder()
-      .setValue(windowParametersStr.toString)
-      .build()
-    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
-  }
 
   def getWindowRel(
       context: SubstraitContext,
@@ -135,13 +110,11 @@ case class WindowExecTransformer(
           builder.build()
       }.asJava
     if (!validation) {
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(genWindowParameters(), null)
       RelBuilder.makeWindowRel(
         input,
         windowExpressions,
         partitionsExpressions,
         sortFieldList,
-        extensionNode,
         context,
         operatorId)
     } else {

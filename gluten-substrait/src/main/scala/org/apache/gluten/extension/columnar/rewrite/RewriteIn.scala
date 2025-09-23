@@ -33,7 +33,11 @@ import org.apache.spark.sql.types.StructType
  */
 object RewriteIn extends RewriteSingleNode {
   override def isRewritable(plan: SparkPlan): Boolean = {
-    RewriteEligibility.isRewritable(plan)
+    plan match {
+      case _: FileSourceScanExec => true
+      case _: FilterExec => true
+      case _ => false
+    }
   }
 
   private def shouldRewrite(e: Expression): Boolean = {

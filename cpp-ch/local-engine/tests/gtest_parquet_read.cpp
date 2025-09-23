@@ -45,6 +45,7 @@
 #include <tests/utils/gluten_test_util.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/DebugUtils.h>
+#include <Common/QueryContext.h>
 
 using namespace DB;
 using namespace local_engine;
@@ -106,13 +107,14 @@ void readData(const String & path, const std::map<String, Field> & fields)
 {
     String full_path = test::gtest_data(path.c_str());
     FormatSettings settings;
-    ColumnsWithTypeAndName columns = createColumn(full_path, fields);
-    Block header(columns);
+    auto header = toShared(createColumn(full_path, fields));
     ReadBufferFromFile in(full_path);
 
     InputFormatPtr format;
+    auto parser_group
+        = std::make_shared<FormatParserGroup>(QueryContext::globalContext()->getSettingsRef(), 1, nullptr, QueryContext::globalContext());
     if constexpr (std::is_same_v<InputFormat, DB::ParquetBlockInputFormat>)
-        format = std::make_shared<InputFormat>(in, header, settings, 1, 1, 8192);
+        format = std::make_shared<InputFormat>(in, header, settings, parser_group, 8192);
     else
         format = std::make_shared<InputFormat>(in, header, settings);
 
@@ -123,6 +125,7 @@ void readData(const String & path, const std::map<String, Field> & fields)
     EXPECT_TRUE(reader.pull(block));
     EXPECT_EQ(block.rows(), 1);
 
+    const auto & columns = header->getColumnsWithTypeAndName();
     for (const auto & column_header : columns)
     {
         const auto & name = column_header.name;
@@ -362,6 +365,7 @@ TEST(ParquetRead, ArrowRead)
         header,
         "Parquet",
         format_settings,
+        std::nullopt,
         format_settings.parquet.allow_missing_columns,
         format_settings.null_as_default,
         format_settings.date_time_overflow_behavior,

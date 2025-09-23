@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.integration.action
 
-import org.apache.gluten.integration.Suite
+import org.apache.gluten.integration.{QuerySet, Suite}
 
 trait Action {
   def execute(suite: Suite): Boolean
@@ -24,6 +24,6 @@ trait Action {
 
 object Actions {
   trait QuerySelector {
-    def select(suite: Suite): Seq[String]
+    def select(suite: Suite): QuerySet
   }
 }
