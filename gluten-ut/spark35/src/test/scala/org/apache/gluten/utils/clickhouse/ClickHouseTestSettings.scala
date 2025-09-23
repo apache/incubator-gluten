@@ -696,6 +696,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("WeekOfYear")
     .excludeCH("add_months")
     .excludeCH("months_between")
+    .excludeGlutenTest("months_between")
     .excludeCH("TruncDate")
     .excludeCH("unsupported fmt fields for trunc/date_trunc results null")
     .excludeCH("to_utc_timestamp")

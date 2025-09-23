@@ -1064,4 +1064,13 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original: Expression): ExpressionTransformer = {
     ToUnixTimestampTransformer(substraitExprName, timeExp, format, original)
   }
+
+  override def genMonthsBetweenTransformer(
+      substraitExprName: String,
+      date1: ExpressionTransformer,
+      date2: ExpressionTransformer,
+      roundOff: ExpressionTransformer,
+      original: MonthsBetween): ExpressionTransformer = {
+    MonthsBetweenTransformer(substraitExprName, date1, date2, roundOff, original)
+  }
 }

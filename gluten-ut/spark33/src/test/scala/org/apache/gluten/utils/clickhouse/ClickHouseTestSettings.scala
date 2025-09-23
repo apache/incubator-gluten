@@ -717,6 +717,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("add_months")
     .exclude("SPARK-34721: add a year-month interval to a date")
     .exclude("months_between")
+    .excludeGlutenTest("months_between")
     .exclude("next_day")
     .exclude("TruncDate")
     .exclude("TruncTimestamp")

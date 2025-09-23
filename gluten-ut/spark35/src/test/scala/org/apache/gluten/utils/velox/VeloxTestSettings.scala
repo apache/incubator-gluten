@@ -137,6 +137,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp exception mode")
     // Replaced by a gluten test to pass timezone through config.
     .exclude("from_unixtime")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("months_between")
     // Vanilla Spark does not have a unified DST Timestamp fastTime. 1320570000000L and
     // 1320566400000L both represent 2011-11-06 01:00:00.
     .exclude("SPARK-42635: timestampadd near daylight saving transition")
