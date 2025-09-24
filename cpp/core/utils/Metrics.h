@@ -80,6 +80,8 @@ struct Metrics {
     kLocalReadBytes,
     kRamReadBytes,
     kPreloadSplits,
+    kDataSourceAddSplitWallNanos,
+    kDataSourceReadWallNanos,
 
     // Write metrics.
     kPhysicalWrittenBytes,

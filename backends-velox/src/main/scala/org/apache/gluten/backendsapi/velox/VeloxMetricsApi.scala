@@ -108,6 +108,12 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
+      "dataSourceAddSplitTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source add split time"),
+      "dataSourceReadTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source read time"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
@@ -149,6 +155,12 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
+      "dataSourceAddSplitTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source add split time"),
+      "dataSourceReadTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source read time"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
@@ -190,6 +202,12 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
+      "dataSourceAddSplitTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source add split time"),
+      "dataSourceReadTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source read time"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(

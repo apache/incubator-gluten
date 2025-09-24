@@ -14,11 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.spi
 
 import org.apache.gluten.jni.JniLibLoader
 
 class SharedLibraryLoaderDebian12 extends SharedLibraryLoader {
+
+  override def accepts(osName: String, osVersion: String): Boolean = {
+    osName.contains("Debian") && osVersion.startsWith("12")
+  }
+
   override def loadLib(loader: JniLibLoader): Unit = {
     loader.loadAndCreateLink("libcrypto.so.3", "libcrypto.so")
     loader.loadAndCreateLink("libkrb5support.so.0", "libkrb5support.so")
@@ -51,4 +56,5 @@ class SharedLibraryLoaderDebian12 extends SharedLibraryLoader {
     loader.loadAndCreateLink("libcurl.so.4", "libcurl.so")
     loader.loadAndCreateLink("libprotobuf.so.32", "libprotobuf.so")
   }
+
 }
