@@ -17,7 +17,7 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 import org.apache.gluten.util.ReflectUtils;
@@ -173,7 +173,7 @@ public final class OneInputTransformationTranslator<IN, OUT>
         return translateInternal(
             transformation,
             new GlutenOneInputOperatorFactory(
-                new GlutenSingleInputOperator(
+                new GlutenVectorOneInputOperator(
                     new StatefulPlanNode(fileSystemWriteNode.getId(), fileSystemWriteNode),
                     PlanNodeIdGenerator.newId(),
                     inputDataColumns,
