@@ -87,7 +87,7 @@ Common configurations used by Gluten are listed in [Configuration.md](./docs/Con
 The Gluten Velox backend honors some Spark configurations, ignores others, and many are transparent to it. See [velox-spark-configuration.md](./docs/velox-spark-configuration.md) for details, and [velox-parquet-write-configuration.md](./docs/velox-parquet-write-configuration.md) for Parquet write configurations.
 
 # 4. Resources
-- Gluten Website: https://gluten.apache.org/
+- Gluten website: https://gluten.apache.org/
 - [Gluten Intro Video at Data AI Summit 2022](https://www.youtube.com/watch?v=0Q6gHT_N-1U)
 - [Gluten Intro Article at Medium.com](https://medium.com/intel-analytics-software/accelerate-spark-sql-queries-with-gluten-9000b65d1b4e)
 - [Gluten Intro Article at Kyligence.io (in Chinese)](https://cn.kyligence.io/blog/gluten-spark/)

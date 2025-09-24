@@ -8,7 +8,7 @@ Help users to debug and test with Gluten.
 
 # Environment
 
-Gluten supports Ubuntu20.04, Ubuntu22.04, CentOS8, CentOS7 and MacOS.
+Gluten supports Ubuntu 20.04/22.04, CentOS 7/8 and MacOS.
 
 ## JDK
 
@@ -18,40 +18,7 @@ So we recommend using a higher JDK version now to ease migration when deploying 
 in the future. In addition, we may upgrade Arrow from 15.0.0 to a newer release, which also requires
 JDK 11 as the minimum version.
 
-### JDK 8
-
-#### Environment Setting
-
-For root user, the environment variables file is `/etc/profile`, it will take effect for all the users.
-
-For other user, you can set in `~/.bashrc`.
-
-#### Guide for Ubuntu
-
-The default JDK version in ubuntu is java 11, we need to set to java 8.
-
-```bash
-apt install openjdk-8-jdk
-update-alternatives --config java
-java -version
-```
-
-`--config java` to config java executable path, `javac` and other commands can also use this command to config.
-For some other uses, we suggest to set `JAVA_HOME`.
-
-```bash
-export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
-JRE_HOME=$JAVA_HOME/jre
-export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
-# pay attention to $PATH double quote
-export PATH="$PATH:$JAVA_HOME/bin"
-```
-
-> Must set PATH with double quote in ubuntu.
-
-### JDK 11/17
-
-By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK 17 or `-Pjava-11` to use JDK 11, and please make sure your JAVA_HOME is set correctly.
+By default, Gluten compiles package using JDK 8. Enable maven profile by `-Pjava-17` to use JDK 17 or `-Pjava-11` to use JDK 11, and please make sure your JAVA_HOME is set correctly.
 
 Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
 So please add following configs in `spark-defaults.conf`:
@@ -64,7 +31,6 @@ spark.executor.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
 ## Maven 3.6.3 or above
 
 [Maven Download Page](https://maven.apache.org/docs/history.html)
-And then set the environment setting.
 
 ## GCC 11 or above
 
@@ -82,9 +48,10 @@ gluten_home/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --bu
 
 If you need to debug the tests in <gluten>/gluten-ut, You need to compile java code with `-Pspark-ut`.
 
-# Java/scala code development with Intellij
+# Development
+## Java/scala code development
 
-## Linux IntelliJ local debug
+### Linux IntelliJ local debug
 
 Install the Linux IntelliJ version, and debug code locally.
 
@@ -95,26 +62,25 @@ Install the Linux IntelliJ version, and debug code locally.
 - Download [IntelliJ Linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to Linux server
 - Start Idea, `bash <idea_dir>/idea.sh`
 
-## Set up Gluten project
+### Set up Gluten project
 
 - Make sure you have compiled Gluten.
 - Load the Gluten by File->Open, select <gluten_home/pom.xml>.
 - Activate your profiles such as <backends-velox>, and Reload Maven Project, you will find all your need modules have been activated.
 - Create breakpoint and debug as you wish, maybe you can try `CTRL+N` to find `TestOperator` to start your test.
 
-## Java/Scala code style
+### Java/Scala code style
 
 IntelliJ supports importing settings for Java/Scala code style. You can import [intellij-codestyle.xml](../../dev/intellij-codestyle.xml) to your IDE.
 See [IntelliJ guide](https://www.jetbrains.com/help/idea/configuring-code-style.html#import-code-style).
 
-To generate a fix for Java/Scala code style, you can run one or more of the below commands according to the code modules involved in your PR.
+To format Java/Scala code using the Spotless plugin, run the following command:
 
 ```
 ./dev/format-scala-code.sh
-
 ```
 
-# CPP code development with Visual Studio Code
+## CPP code development
 
 This guide is for remote debug. We will connect the remote linux server by `SSH`.
 Download and install [Visual Studio Code](https://code.visualstudio.com/Download).
@@ -130,7 +96,7 @@ Key components found on the left side bar are:
 Input your password in the above pop-up window, it will take a few minutes to install linux vscode server in remote machine folder `~/.vscode-server`
 If download failed, delete this folder and try again.
 
-## Usage
+Please note if vscode is upgraded, we need to download linux server again. Recommend switching update mode to off. Search `update` in Manage->Settings to turn off update mode.
 
 ### Set up project
 
@@ -161,7 +127,7 @@ make debug EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DENABLE_HDFS=ON -DVELOX
 Then Gluten will link the Velox debug library.
 Just click `build` in bottom bar, you will get intellisense search and link.
 
-### Debug
+### Debug Setting
 
 The default compile command does not enable test and benchmark, so we don't get any executable files.
 To enable the test and benchmark args, create or edit the `<gluten_home>/.vscode/settings.json` to add the
@@ -260,30 +226,10 @@ Click the `Add Configuration` button in launch.json, and select gdb "launch" (to
 
 Then you can create breakpoint and debug in `Run and Debug` section.
 
-### Velox debug
+### Debug Velox code
 
 For some Velox tests such as `ParquetReaderTest`, tests need to read the parquet file in `<velox_home>/velox/dwio/parquet/tests/examples`, 
 you should let the screen on `ParquetReaderTest.cpp`, then click `Start Debugging`, otherwise `No such file or directory` exception will be raised.
-
-## Useful notes
-
-### Do not upgrade vscode
-
-No need to upgrade vscode version, if upgraded, will download linux server again, switch update mode to off
-Search `update` in Manage->Settings to turn off update mode.
-
-### Colour setting
-
-```json
-"workbench.colorTheme": "Quiet Light",
- "files.autoSave": "afterDelay",
- "workbench.colorCustomizations": {
-     "editor.wordHighlightBackground": "#063ef7",
-     // "editor.selectionBackground": "#d1d1c6",
-     // "tab.activeBackground": "#b8b9988c",
-     "editor.selectionHighlightBackground": "#c5293e"
- },
-```
 
 ### Clang format
 
@@ -479,9 +425,9 @@ valgrind --leak-check=yes ./exec_backend_test
 We supply `<gluten_home>/tools/gluten-it` to execute these queries
 Refer to [velox_backend.yml](https://github.com/apache/incubator-gluten/blob/main/.github/workflows/velox_backend.yml)
 
-# Run Gluten+Velox on clean machine
+# Run Gluten Velox backend
 
-We can run Gluten + Velox on clean machine by one command (supported OS: Ubuntu20.04/22.04, CentOS 7/8, etc.).
+We can run Gluten Velox backend by one command.
 ```
 spark-shell --name run_gluten \
  --master yarn --deploy-mode client \
@@ -498,7 +444,7 @@ To make sure we don't accidentally modify the Gluten and Spark Plan build logic.
 We introduce new logic in `VeloxTPCHSuite` to check whether the plan has been changed or not,
 and this will be triggered when running the unit test.
 
-As a result, developers may encounter unit test fail in Github CI or locally, with the following error message:
+As a result, developers may encounter unit test fail in GitHub CI or locally, with the following error message:
 ```log
 - TPC-H q5 *** FAILED ***
   Mismatch for query 5
