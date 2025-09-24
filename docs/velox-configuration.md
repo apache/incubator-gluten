@@ -73,7 +73,7 @@ nav_order: 16
 
 |                           Key                            | Default |                                                               Description                                                               |
 |----------------------------------------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| spark.gluten.velox.abandonbuild.noduphashminpct          | 100.0   | Experimental: abandon hashmap build if duplicated rows are more than this pct.                                                          |
+| spark.gluten.velox.abandonbuild.noduphashminpct          | 0       | Experimental: abandon hashmap build if duplicated rows are more than this percentile.                                                          |
 | spark.gluten.velox.abandonbuild.noduphashminrows         | 100000  | Experimental: abandon hashmap build if duplicated rows more than this number.                                                           |
 | spark.gluten.velox.offHeapBroadcastBuildRelation.enabled | false   | Experimental: If enabled, broadcast build relation will use offheap memory. Otherwise, broadcast build relation will use onheap memory. |
 
