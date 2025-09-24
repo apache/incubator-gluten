@@ -29,7 +29,7 @@
 #endif
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
-#include "velox/experimental/cudf/connectors/parquet/ParquetConnector.h"
+#include "velox/experimental/cudf/connectors/hive/CudfHiveConnector.h"
 #endif
 
 #include "compute/VeloxRuntime.h"
@@ -310,16 +310,10 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
 #ifdef GLUTEN_ENABLE_GPU
   if (FLAGS_velox_cudf_table_scan) {
-      facebook::velox::connector::registerConnectorFactory(
-      std::make_shared<cudf_velox::connector::parquet::ParquetConnectorFactory>());
-    auto parquetConnector =
-        facebook::velox::connector::getConnectorFactory(
-            cudf_velox::connector::parquet::ParquetConnectorFactory::kParquetConnectorName)
-            ->newConnector(
-                kCudfHiveConnectorId,
-                hiveConf,
-                ioExecutor_.get());
-    facebook::velox::connector::registerConnector(parquetConnector);
+      facebook::velox::cudf_velox::connector::hive::CudfHiveConnectorFactory factory;
+      auto hiveConnector =
+          factory.newConnector(kCudfHiveConnectorId, config, ioExecutor_.get());
+      facebook::velox::connector::registerConnector(hiveConnector);
   }
 #endif
 }

@@ -34,8 +34,12 @@
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
-#include "velox/experimental/cudf/connectors/parquet/ParquetDataSink.h"
-#include "velox/experimental/cudf/connectors/parquet/ParquetTableHandle.h"
+#include "velox/experimental/cudf/connectors/hive/CudfHiveDataSink.h"
+#include "velox/experimental/cudf/connectors/hive/CudfHiveTableHandle.h"
+#endif
+
+#ifdef GLUTEN_ENABLE_GPU
+using namespace cudf_velox::connector::hive;
 #endif
 
 namespace gluten {
@@ -615,26 +619,25 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
 
 #ifdef GLUTEN_ENABLE_GPU
 
-std::shared_ptr<cudf_velox::connector::parquet::ParquetInsertTableHandle>
-makeCudfParquetInsertTableHandle(
+std::shared_ptr<CudfHiveInsertTableHandle>
+makeCudfHiveInsertTableHandle(
     const std::vector<std::string>& tableColumnNames,
     const std::vector<TypePtr>& tableColumnTypes,
-    std::shared_ptr<cudf_velox::connector::parquet::LocationHandle> locationHandle,
+    std::shared_ptr<cudf_velox::connector::hive::LocationHandle> locationHandle,
     const std::optional<common::CompressionKind> compressionKind,
     const std::unordered_map<std::string, std::string>& serdeParameters,
     const std::shared_ptr<dwio::common::WriterOptions>& writerOptions) {
-  std::vector<std::shared_ptr<const cudf_velox::connector::parquet::ParquetColumnHandle>>
-      columnHandles;
+  std::vector<std::shared_ptr<const CudfHiveColumnHandle>> columnHandles;
 
   for (int i = 0; i < tableColumnNames.size(); ++i) {
     columnHandles.push_back(
-        std::make_shared<cudf_velox::connector::parquet::ParquetColumnHandle>(
+        std::make_shared<CudfHiveColumnHandle>(
             tableColumnNames.at(i),
             tableColumnTypes.at(i),
             cudf::data_type{cudf_velox::veloxToCudfTypeId(tableColumnTypes.at(i))}));
   }
 
-  return std::make_shared<cudf_velox::connector::parquet::ParquetInsertTableHandle>(
+  return std::make_shared<CudfHiveInsertTableHandle>(
       columnHandles,
       locationHandle,
       compressionKind,
@@ -741,11 +744,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 #ifdef GLUTEN_ENABLE_GPU
     tableHandle =  std::make_shared<core::InsertTableHandle>(
           kCudfHiveConnectorId,
-          makeCudfParquetInsertTableHandle(
+          makeCudfHiveInsertTableHandle(
               tableColumnNames, /*inputType->names() clolumn name is different*/
               inputType->children(),
-              std::make_shared<cudf_velox::connector::parquet::LocationHandle>(
-              writePath, cudf_velox::connector::parquet::LocationHandle::TableType::kNew, fileName),
+              std::make_shared<cudf_velox::connector::hive::LocationHandle>(
+              writePath, cudf_velox::connector::hive::LocationHandle::TableType::kNew, fileName),
               compressionKind,
               {},
               writerOptions));
@@ -1355,10 +1358,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), dataColumns) : nullptr;
   if (useCudfTableHandle(splitInfos_)) {
 #ifdef GLUTEN_ENABLE_GPU
-  LOG(INFO) << "use gpu read ParquetTableHandle";
-    tableHandle = std::make_shared<cudf_velox::connector::parquet::ParquetTableHandle>(
+    tableHandle = std::make_shared<CudfHiveTableHandle>(
           kCudfHiveConnectorId,
-          "hive_table",
+          "cudf_hive_table",
           filterPushdownEnabled,
           nullptr,
           remainingFilter,
