@@ -613,7 +613,7 @@ object VeloxConfig {
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan")
       .doc("Enable cudf table scan")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")

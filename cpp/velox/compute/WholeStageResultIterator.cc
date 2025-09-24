@@ -24,7 +24,7 @@
 #ifdef GLUTEN_ENABLE_GPU
 #include <mutex>
 #include "velox/experimental/cudf/exec/ToCudf.h"
-#include "velox/experimental/cudf/connectors/parquet/ParquetConnectorSplit.h"
+#include "velox/experimental/cudf/connectors/hive/HiveConnectorSplit.h"
 #endif
 
 using namespace facebook;
@@ -132,7 +132,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
     const auto& metadataColumns = scanInfo->metadataColumns;
-    // In the pre-condition all the spli infos has same partition column and format.
+    // Under the pre-condition that all the split infos has same partition column and format.
     const auto canUseCudfConnector = scanInfo->canUseCudfConnector();
 
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
@@ -165,34 +165,14 @@ WholeStageResultIterator::WholeStageResultIterator(
             std::unordered_map<std::string, std::string>(),
             properties[idx]);
       } else {
+        auto connectorId = kHiveConnectorId;
 #ifdef GLUTEN_ENABLE_GPU
         if (canUseCudfConnector) {
-          split = std::make_shared<velox::cudf_velox::connector::parquet::ParquetConnectorSplit>(
-                      kCudfHiveConnectorId,
-                      paths[idx],
-                      starts[idx],
-                      lengths[idx],
-                      0 /*splitWeight*/,
-                      metadataColumn);
-        } else {
-          split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-                      kHiveConnectorId,
-                      paths[idx],
-                      format,
-                      starts[idx],
-                      lengths[idx],
-                      partitionKeys,
-                      std::nullopt /*tableBucketName*/,
-                      std::unordered_map<std::string, std::string>(),
-                      nullptr,
-                      std::unordered_map<std::string, std::string>(),
-                      0,
-                      true,
-                      metadataColumn,
-                      properties[idx]);
+          connector = kCudfHiveConnectorId;
+          VELOX_CHECK_EQ(starts[idx], 0, "Not support split file");
+          VELOX_CHECK_EQ(lengths[idx], scanInfo->properties[idx]->fileSize, "Not support split file");
         }
-
-#else
+#endif
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
             kHiveConnectorId,
             paths[idx],
@@ -208,7 +188,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             true,
             metadataColumn,
             properties[idx]);
-#endif
+
       }
       connectorSplits.emplace_back(split);
     }
