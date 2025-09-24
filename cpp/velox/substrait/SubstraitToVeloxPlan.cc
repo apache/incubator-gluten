@@ -32,10 +32,10 @@
 #include "config/VeloxConfig.h"
 
 #ifdef GLUTEN_ENABLE_GPU
-#include "velox/experimental/cudf/exec/ToCudf.h"
-#include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveDataSink.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveTableHandle.h"
+#include "velox/experimental/cudf/exec/ToCudf.h"
+#include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
 
 using namespace cudf_velox::connector::hive;
 #endif
@@ -43,7 +43,7 @@ using namespace cudf_velox::connector::hive;
 namespace gluten {
 namespace {
 
-  bool useCudfTableHandle(const std::vector<std::shared_ptr<SplitInfo>>& splitInfos) {
+bool useCudfTableHandle(const std::vector<std::shared_ptr<SplitInfo>>& splitInfos) {
 #ifdef GLUTEN_ENABLE_GPU
   if (splitInfos.empty()) {
     return false;
@@ -53,7 +53,7 @@ namespace {
 
 #else
   return false;
-#endif  
+#endif
 }
 
 core::SortOrder toSortOrder(const ::substrait::SortField& sortField) {
@@ -167,11 +167,11 @@ RowTypePtr getJoinOutputType(
 } // namespace
 
 bool SplitInfo::canUseCudfConnector() {
-  #ifdef GLUTEN_ENABLE_GPU
-  return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET && FLAGS_velox_cudf_table_scan;
-  #else
+#ifdef GLUTEN_ENABLE_GPU
+  return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET;
+#else
   return false;
-  #endif
+#endif
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(
@@ -589,17 +589,19 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
     }
     if (std::find(partitionedBy.cbegin(), partitionedBy.cend(), tableColumnNames.at(i)) != partitionedBy.cend()) {
       ++numPartitionColumns;
-      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
-          tableColumnNames.at(i),
-          connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
-          tableColumnTypes.at(i),
-          tableColumnTypes.at(i)));
+      columnHandles.emplace_back(
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              tableColumnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
+              tableColumnTypes.at(i),
+              tableColumnTypes.at(i)));
     } else {
-      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
-          tableColumnNames.at(i),
-          connector::hive::HiveColumnHandle::ColumnType::kRegular,
-          tableColumnTypes.at(i),
-          tableColumnTypes.at(i)));
+      columnHandles.emplace_back(
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              tableColumnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kRegular,
+              tableColumnTypes.at(i),
+              tableColumnTypes.at(i)));
     }
   }
   VELOX_CHECK_EQ(numPartitionColumns, partitionedBy.size());
@@ -634,11 +636,7 @@ std::shared_ptr<CudfHiveInsertTableHandle> makeCudfHiveInsertTableHandle(
   }
 
   return std::make_shared<CudfHiveInsertTableHandle>(
-      columnHandles,
-      locationHandle,
-      compressionKind,
-      serdeParameters,
-      writerOptions);
+      columnHandles, locationHandle, compressionKind, serdeParameters, writerOptions);
 }
 #endif
 
@@ -736,31 +734,32 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   const auto& compressionKind =
       writerOptions->compressionKind.value_or(common::CompressionKind::CompressionKind_SNAPPY);
   std::shared_ptr<core::InsertTableHandle> tableHandle;
-  if (useCudfTableHandle(splitInfos_)) {
+  if (useCudfTableHandle(splitInfos_) && veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
+      veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
 #ifdef GLUTEN_ENABLE_GPU
-    tableHandle =  std::make_shared<core::InsertTableHandle>(
-          kCudfHiveConnectorId,
-          makeCudfHiveInsertTableHandle(
-              tableColumnNames, /*inputType->names() clolumn name is different*/
-              inputType->children(),
-              std::make_shared<cudf_velox::connector::hive::LocationHandle>(
-              writePath, cudf_velox::connector::hive::LocationHandle::TableType::kNew, fileName),
-              compressionKind,
-              {},
-              writerOptions));
+    tableHandle = std::make_shared<core::InsertTableHandle>(
+        kCudfHiveConnectorId,
+        makeCudfHiveInsertTableHandle(
+            tableColumnNames, /*inputType->names() clolumn name is different*/
+            inputType->children(),
+            std::make_shared<cudf_velox::connector::hive::LocationHandle>(
+                writePath, cudf_velox::connector::hive::LocationHandle::TableType::kNew, fileName),
+            compressionKind,
+            {},
+            writerOptions));
 #endif
   } else {
     tableHandle = std::make_shared<core::InsertTableHandle>(
-          kHiveConnectorId,
-          makeHiveInsertTableHandle(
-              tableColumnNames, /*inputType->names() clolumn name is different*/
-              inputType->children(),
-              partitionedKey,
-              bucketProperty,
-              makeLocationHandle(writePath, fileName, fileFormat, compressionKind, bucketProperty != nullptr),
-              writerOptions,
-              fileFormat,
-              compressionKind));
+        kHiveConnectorId,
+        makeHiveInsertTableHandle(
+            tableColumnNames, /*inputType->names() clolumn name is different*/
+            inputType->children(),
+            partitionedKey,
+            bucketProperty,
+            makeLocationHandle(writePath, fileName, fileFormat, compressionKind, bucketProperty != nullptr),
+            writerOptions,
+            fileFormat,
+            compressionKind));
   }
   return std::make_shared<core::TableWriteNode>(
       nextPlanNodeId(),
@@ -1355,12 +1354,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   if (useCudfTableHandle(splitInfos_)) {
 #ifdef GLUTEN_ENABLE_GPU
     tableHandle = std::make_shared<CudfHiveTableHandle>(
-          kCudfHiveConnectorId,
-          "cudf_hive_table",
-          filterPushdownEnabled,
-          nullptr,
-          remainingFilter,
-          dataColumns);
+        kCudfHiveConnectorId, "cudf_hive_table", filterPushdownEnabled, nullptr, remainingFilter, dataColumns);
 #endif
   } else {
     common::SubfieldFilters subfieldFilters;
