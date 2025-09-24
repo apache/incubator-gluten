@@ -328,7 +328,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           t
         )
       case m: MonthsBetween =>
-        MonthsBetweenTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genMonthsBetweenTransformer(
           substraitExprName,
           replaceWithExpressionTransformer0(m.date1, attributeSeq, expressionsMap),
           replaceWithExpressionTransformer0(m.date2, attributeSeq, expressionsMap),

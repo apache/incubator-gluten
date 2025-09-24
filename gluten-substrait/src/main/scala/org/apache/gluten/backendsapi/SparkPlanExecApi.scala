@@ -802,6 +802,13 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("timestampdiff is not supported")
   }
 
+  def genMonthsBetweenTransformer(
+      substraitExprName: String,
+      date1: ExpressionTransformer,
+      date2: ExpressionTransformer,
+      roundOff: ExpressionTransformer,
+      original: MonthsBetween): ExpressionTransformer
+
   def isRowIndexMetadataColumn(columnName: String): Boolean = {
     SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(columnName)
   }
