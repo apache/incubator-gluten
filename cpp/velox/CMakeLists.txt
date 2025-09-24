@@ -416,7 +416,7 @@ if(ENABLE_GPU)
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_vector.a)
   import_library(
     facebook::velox::velox_cudf_parquet_connector
-    ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/parquet/libvelox_cudf_parquet_connector.a)
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/hive/libvelox_cudf_hive_connector.a)
   target_include_directories(
     velox
     PRIVATE
