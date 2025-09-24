@@ -311,7 +311,7 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
   if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
       backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
     facebook::velox::cudf_velox::connector::hive::CudfHiveConnectorFactory factory;
-    auto hiveConnector = factory.newConnector(kCudfHiveConnectorId, config, ioExecutor_.get());
+    auto hiveConnector = factory.newConnector(kCudfHiveConnectorId, hiveConf, ioExecutor_.get());
     facebook::velox::connector::registerConnector(hiveConnector);
   }
 #endif
