@@ -89,4 +89,13 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("div") {
+    runQueryAndCompare("SELECT int_field1 div 2 FROM datatab WHERE int_field1 IS NOT NULL") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    intercept[ArithmeticException] {
+      sql("SELECT 2147483647 div 0").collect()
+    }
+  }
+
 }
