@@ -168,13 +168,13 @@ WholeStageResultIterator::WholeStageResultIterator(
         auto connectorId = kHiveConnectorId;
 #ifdef GLUTEN_ENABLE_GPU
         if (canUseCudfConnector) {
-          connector = kCudfHiveConnectorId;
+          connectorId = kCudfHiveConnectorId;
           VELOX_CHECK_EQ(starts[idx], 0, "Not support split file");
           VELOX_CHECK_EQ(lengths[idx], scanInfo->properties[idx]->fileSize, "Not support split file");
         }
 #endif
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-            kHiveConnectorId,
+            connectorId,
             paths[idx],
             format,
             starts[idx],
@@ -188,7 +188,6 @@ WholeStageResultIterator::WholeStageResultIterator(
             true,
             metadataColumn,
             properties[idx]);
-
       }
       connectorSplits.emplace_back(split);
     }
