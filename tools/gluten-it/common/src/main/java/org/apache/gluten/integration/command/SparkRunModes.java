@@ -23,6 +23,7 @@ import org.apache.spark.util.Utils;
 import picocli.CommandLine;
 
 import javax.management.*;
+
 import java.lang.management.ManagementFactory;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,8 +31,11 @@ import java.util.stream.Collectors;
 
 public final class SparkRunModes {
   private static <T> T findNonNull(T... objects) {
-    final List<T> nonNullObjects = Arrays.stream(objects).filter(Objects::nonNull).collect(Collectors.toList());
-    Preconditions.checkState(nonNullObjects.size() == 1, "There are zero or more than one non-null objects: " + nonNullObjects);
+    final List<T> nonNullObjects =
+        Arrays.stream(objects).filter(Objects::nonNull).collect(Collectors.toList());
+    Preconditions.checkState(
+        nonNullObjects.size() == 1,
+        "There are zero or more than one non-null objects: " + nonNullObjects);
     return nonNullObjects.get(0);
   }
 
@@ -64,13 +68,22 @@ public final class SparkRunModes {
   }
 
   private static class LocalMode implements Mode {
-    @CommandLine.Option(names = {"--local"}, description = "Run in Spark local mode", required = true)
+    @CommandLine.Option(
+        names = {"--local"},
+        description = "Run in Spark local mode",
+        required = true)
     private boolean enabled;
 
-    @CommandLine.Option(names = {"--threads"}, description = "Local mode: Run Spark locally with as many worker threads", defaultValue = "4")
+    @CommandLine.Option(
+        names = {"--threads"},
+        description = "Local mode: Run Spark locally with as many worker threads",
+        defaultValue = "4")
     private int localThreads;
 
-    @CommandLine.Option(names = {"--off-heap-size"}, description = "Local mode: Total off-heap memory size", defaultValue = "6g")
+    @CommandLine.Option(
+        names = {"--off-heap-size"},
+        description = "Local mode: Total off-heap memory size",
+        defaultValue = "6g")
     private String offHeapSize;
 
     @Override
@@ -148,25 +161,46 @@ public final class SparkRunModes {
   }
 
   private static class ManualClusterResource implements ClusterResource {
-    @CommandLine.Option(names = {"--manual-cluster-resource"}, description = "Local cluster mode: Manually configure cluster resource", required = true)
+    @CommandLine.Option(
+        names = {"--manual-cluster-resource"},
+        description = "Local cluster mode: Manually configure cluster resource",
+        required = true)
     private boolean enabled;
 
-    @CommandLine.Option(names = {"--workers"}, description = "Local cluster mode: Number of workers", defaultValue = "2")
+    @CommandLine.Option(
+        names = {"--workers"},
+        description = "Local cluster mode: Number of workers",
+        defaultValue = "2")
     private int lcWorkers;
 
-    @CommandLine.Option(names = {"--worker-cores"}, description = "Local cluster mode: Number of cores per worker", defaultValue = "2")
+    @CommandLine.Option(
+        names = {"--worker-cores"},
+        description = "Local cluster mode: Number of cores per worker",
+        defaultValue = "2")
     private int lcWorkerCores;
 
-    @CommandLine.Option(names = {"--worker-heap-size"}, description = "Local cluster mode: Heap memory per worker", defaultValue = "4g")
+    @CommandLine.Option(
+        names = {"--worker-heap-size"},
+        description = "Local cluster mode: Heap memory per worker",
+        defaultValue = "4g")
     private String lcWorkerHeapMem;
 
-    @CommandLine.Option(names = {"--executor-cores"}, description = "Local cluster mode: Number of cores per executor", defaultValue = "1")
+    @CommandLine.Option(
+        names = {"--executor-cores"},
+        description = "Local cluster mode: Number of cores per executor",
+        defaultValue = "1")
     private int lcExecutorCores;
 
-    @CommandLine.Option(names = {"--executor-heap-size"}, description = "Local cluster mode: Heap memory per executor", defaultValue = "2g")
+    @CommandLine.Option(
+        names = {"--executor-heap-size"},
+        description = "Local cluster mode: Heap memory per executor",
+        defaultValue = "2g")
     private String lcExecutorHeapMem;
 
-    @CommandLine.Option(names = {"--executor-off-heap-size"}, description = "Local cluster mode: Off-heap memory per executor", defaultValue = "6g")
+    @CommandLine.Option(
+        names = {"--executor-off-heap-size"},
+        description = "Local cluster mode: Off-heap memory per executor",
+        defaultValue = "6g")
     private String lcExecutorOffHeapMem;
 
     @Override
@@ -213,10 +247,17 @@ public final class SparkRunModes {
   }
 
   private static class AutoClusterResource implements ClusterResource {
-    @CommandLine.Option(names = {"--auto-cluster-resource"}, description = "Local cluster mode: Automatically configure cluster resource", required = true)
+    @CommandLine.Option(
+        names = {"--auto-cluster-resource"},
+        description = "Local cluster mode: Automatically configure cluster resource",
+        required = true)
     private boolean enabled;
 
-    @CommandLine.Option(names = {"--off-heap-ratio"}, description = "Local cluster mode: Ratio assigned to executor off-heap memory out of total executor memory. The rest of total will be assigned to executor on-heap memory", defaultValue = "0.67")
+    @CommandLine.Option(
+        names = {"--off-heap-ratio"},
+        description =
+            "Local cluster mode: Ratio assigned to executor off-heap memory out of total executor memory. The rest of total will be assigned to executor on-heap memory",
+        defaultValue = "0.67")
     private double offHeapRatio;
 
     private int lcWorkers;
@@ -228,18 +269,25 @@ public final class SparkRunModes {
 
     private final AtomicBoolean initialized = new AtomicBoolean(false);
 
-    public AutoClusterResource() {
-    }
+    public AutoClusterResource() {}
 
     private void ensureInitialized() {
       if (!initialized.compareAndSet(false, true)) {
         return;
       }
-      Preconditions.checkArgument(offHeapRatio > 0 && offHeapRatio < 1, "Value of --off-heap-ratio should be in range (0, 1)");
+      Preconditions.checkArgument(
+          offHeapRatio > 0 && offHeapRatio < 1,
+          "Value of --off-heap-ratio should be in range (0, 1)");
       final int totalCores = Runtime.getRuntime().availableProcessors();
       final long totalMem = (long) (getTotalMem() * 0.8);
-      Preconditions.checkState(totalMem >= 64, "--auto-cluster-resource mode requires for at least 64 MiB physical memory available. Current: " + totalMem);
-      Preconditions.checkState(totalCores >= 1, "--auto-cluster-resource mode requires for at least 1 CPU core available. Current: " + totalCores);
+      Preconditions.checkState(
+          totalMem >= 64,
+          "--auto-cluster-resource mode requires for at least 64 MiB physical memory available. Current: "
+              + totalMem);
+      Preconditions.checkState(
+          totalCores >= 1,
+          "--auto-cluster-resource mode requires for at least 1 CPU core available. Current: "
+              + totalCores);
       if (totalCores % 2 == 1) {
         // Platform has an odd number of CPU cores.
         this.lcWorkers = 1;
@@ -263,13 +311,14 @@ public final class SparkRunModes {
       this.lcExecutorHeapMem = (long) (executorMem * (1 - offHeapRatio));
       this.lcExecutorOffHeapMem = (long) (executorMem * offHeapRatio);
       this.lcWorkerHeapMem = this.lcExecutorHeapMem * numExecutorsPerWorker;
-      System.out.printf("Automatically configured cluster resource settings: %n" +
-              "  lcWorkers: [%d]%n" +
-              "  lcWorkerCores: [%d]%n" +
-              "  lcWorkerHeapMem: [%dMiB]%n" +
-              "  lcExecutorCores: [%d]%n" +
-              "  lcExecutorHeapMem: [%dMiB]%n" +
-              "  lcExecutorOffHeapMem: [%dMiB]%n",
+      System.out.printf(
+          "Automatically configured cluster resource settings: %n"
+              + "  lcWorkers: [%d]%n"
+              + "  lcWorkerCores: [%d]%n"
+              + "  lcWorkerHeapMem: [%dMiB]%n"
+              + "  lcExecutorCores: [%d]%n"
+              + "  lcExecutorHeapMem: [%dMiB]%n"
+              + "  lcExecutorOffHeapMem: [%dMiB]%n",
           lcWorkers,
           lcWorkerCores,
           lcWorkerHeapMem,
@@ -281,7 +330,9 @@ public final class SparkRunModes {
     private static long getTotalMem() {
       try {
         final MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
-        final Object attribute = mBeanServer.getAttribute(new ObjectName("java.lang", "type", "OperatingSystem"), "TotalPhysicalMemorySize");
+        final Object attribute =
+            mBeanServer.getAttribute(
+                new ObjectName("java.lang", "type", "OperatingSystem"), "TotalPhysicalMemorySize");
         final long totalMem = Long.parseLong(attribute.toString()) / 1024 / 1024;
         return totalMem;
       } catch (Exception e) {
@@ -327,7 +378,10 @@ public final class SparkRunModes {
   }
 
   private static class LocalClusterMode implements Mode {
-    @CommandLine.Option(names = {"--local-cluster"}, description = "Run in Spark local cluster mode", required = true)
+    @CommandLine.Option(
+        names = {"--local-cluster"},
+        description = "Run in Spark local cluster mode",
+        required = true)
     private boolean enabled;
 
     @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
@@ -339,22 +393,35 @@ public final class SparkRunModes {
         throw new IllegalStateException("Spark is not running in local cluster mode");
       }
       if (!System.getenv().containsKey("SPARK_HOME")) {
-        throw new IllegalArgumentException("SPARK_HOME not set! Please use --local if there is no local Spark build");
+        throw new IllegalArgumentException(
+            "SPARK_HOME not set! Please use --local if there is no local Spark build");
       }
       if (!System.getenv().containsKey("SPARK_SCALA_VERSION")) {
-        throw new IllegalArgumentException("SPARK_SCALA_VERSION not set! Please set it first or use --local instead. Example: export SPARK_SCALA_VERSION=2.12");
+        throw new IllegalArgumentException(
+            "SPARK_SCALA_VERSION not set! Please set it first or use --local instead. Example: export SPARK_SCALA_VERSION=2.12");
       }
-      return String.format("local-cluster[%d,%d,%d]", resourceEnumeration.lcWorkers(), resourceEnumeration.lcWorkerCores(), resourceEnumeration.lcWorkerHeapMem());
+      return String.format(
+          "local-cluster[%d,%d,%d]",
+          resourceEnumeration.lcWorkers(),
+          resourceEnumeration.lcWorkerCores(),
+          resourceEnumeration.lcWorkerHeapMem());
     }
 
     @Override
     public Map<String, String> extraSparkConf() {
       final Map<String, String> extras = new HashMap<>();
-      extras.put(SparkLauncher.EXECUTOR_DEFAULT_JAVA_OPTIONS, "-Dio.netty.tryReflectionSetAccessible=true");
-      extras.put(SparkLauncher.EXECUTOR_CORES, String.valueOf(resourceEnumeration.lcExecutorCores()));
-      extras.put(SparkLauncher.EXECUTOR_MEMORY, String.format("%dm", resourceEnumeration.lcExecutorHeapMem()));
+      extras.put(
+          SparkLauncher.EXECUTOR_DEFAULT_JAVA_OPTIONS,
+          "-Dio.netty.tryReflectionSetAccessible=true");
+      extras.put(
+          SparkLauncher.EXECUTOR_CORES, String.valueOf(resourceEnumeration.lcExecutorCores()));
+      extras.put(
+          SparkLauncher.EXECUTOR_MEMORY,
+          String.format("%dm", resourceEnumeration.lcExecutorHeapMem()));
       extras.put("spark.memory.offHeap.enabled", "true");
-      extras.put("spark.memory.offHeap.size", String.format("%dm", resourceEnumeration.lcExecutorOffHeapMem()));
+      extras.put(
+          "spark.memory.offHeap.size",
+          String.format("%dm", resourceEnumeration.lcExecutorOffHeapMem()));
       return extras;
     }
   }

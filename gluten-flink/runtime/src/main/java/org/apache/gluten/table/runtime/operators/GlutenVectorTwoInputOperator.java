@@ -17,7 +17,6 @@
 package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
-import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
@@ -38,26 +37,25 @@ import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
 import io.github.zhztheplayer.velox4j.stateful.StatefulWatermark;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.RowData;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
 /**
  * Two input operator in gluten, which will call Velox to run. It receives RowVector from upstream
  * instead of flink RowData.
  */
-public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData>
-    implements TwoInputStreamOperator<StatefulRecord, StatefulRecord, RowData>, GlutenOperator {
+public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<StatefulRecord>
+    implements TwoInputStreamOperator<StatefulRecord, StatefulRecord, StatefulRecord>,
+        GlutenOperator {
 
   private static final Logger LOG = LoggerFactory.getLogger(GlutenVectorTwoInputOperator.class);
 
@@ -68,14 +66,13 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
   private final RowType rightInputType;
   private final Map<String, RowType> outputTypes;
 
-  private StreamRecord<RowData> outElement = null;
+  private StreamRecord<StatefulRecord> outElement = null;
 
   private MemoryManager memoryManager;
   private Session session;
   private Query query;
   private ExternalStreams.BlockingQueue leftInputQueue;
   private ExternalStreams.BlockingQueue rightInputQueue;
-  private BufferAllocator allocator;
   private SerialTask task;
 
   public GlutenVectorTwoInputOperator(
@@ -93,20 +90,26 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
     this.outputTypes = outputTypes;
   }
 
+  // initializeState is called before open, so need to init gluten task first.
+  private void initGlutenTask() {
+    memoryManager = MemoryManager.create(AllocationListener.NOOP);
+    session = Velox4j.newSession(memoryManager);
+    query = new Query(glutenPlan, Config.empty(), ConnectorConfig.empty());
+    task = session.queryOps().execute(query);
+    LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
+    LOG.debug("OutTypes: {}", outputTypes.keySet());
+    LOG.debug("RuntimeContex: {}", getRuntimeContext().getClass().getName());
+  }
+
   @Override
   public void open() throws Exception {
     super.open();
+    if (task == null) {
+      initGlutenTask();
+    }
     outElement = new StreamRecord(null);
-    memoryManager = MemoryManager.create(AllocationListener.NOOP);
-    session = Velox4j.newSession(memoryManager);
-
     leftInputQueue = session.externalStreamOps().newBlockingQueue();
     rightInputQueue = session.externalStreamOps().newBlockingQueue();
-    LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
-    LOG.debug("OutTypes: {}", outputTypes.keySet());
-    query = new Query(glutenPlan, Config.empty(), ConnectorConfig.empty());
-    allocator = new RootAllocator(Long.MAX_VALUE);
-    task = session.queryOps().execute(query);
     ExternalStreamConnectorSplit leftSplit =
         new ExternalStreamConnectorSplit("connector-external-stream", leftInputQueue.id());
     ExternalStreamConnectorSplit rightSplit =
@@ -143,14 +146,8 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
           output.emitWatermark(new Watermark(watermark.getTimestamp()));
         } else {
           final StatefulRecord statefulRecord = element.asRecord();
-          final RowVector outRv = statefulRecord.getRowVector();
-          List<RowData> rows =
-              FlinkRowToVLVectorConvertor.toRowData(
-                  outRv, allocator, outputTypes.get(statefulRecord.getNodeId()));
-          for (RowData row : rows) {
-            output.collect(outElement.replace(row));
-          }
-          outRv.close();
+          output.collect(outElement.replace(statefulRecord));
+          statefulRecord.close();
         }
       } else {
         break;
@@ -179,7 +176,6 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
     task.close();
     session.close();
     memoryManager.close();
-    allocator.close();
   }
 
   @Override
@@ -216,5 +212,42 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<RowData
 
   public String getRightId() {
     return rightId;
+  }
+
+  @Override
+  public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+    // TODO: notify velox
+    super.prepareSnapshotPreBarrier(checkpointId);
+  }
+
+  @Override
+  public void snapshotState(StateSnapshotContext context) throws Exception {
+    // TODO: implement it
+    task.snapshotState(0);
+    super.snapshotState(context);
+  }
+
+  @Override
+  public void initializeState(StateInitializationContext context) throws Exception {
+    if (task == null) {
+      initGlutenTask();
+    }
+    // TODO: implement it
+    task.initializeState(0);
+    super.initializeState(context);
+  }
+
+  @Override
+  public void notifyCheckpointComplete(long checkpointId) throws Exception {
+    // TODO: notify velox
+    task.notifyCheckpointComplete(checkpointId);
+    super.notifyCheckpointComplete(checkpointId);
+  }
+
+  @Override
+  public void notifyCheckpointAborted(long checkpointId) throws Exception {
+    // TODO: notify velox
+    task.notifyCheckpointAborted(checkpointId);
+    super.notifyCheckpointAborted(checkpointId);
   }
 }

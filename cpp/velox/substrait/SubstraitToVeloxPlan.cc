@@ -17,8 +17,6 @@
 
 #include "SubstraitToVeloxPlan.h"
 
-#include "utils/StringUtil.h"
-
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
@@ -27,11 +25,11 @@
 #include "velox/type/Type.h"
 
 #include "utils/ConfigExtractor.h"
+#include "utils/VeloxWriterUtils.h"
 
 #include "config.pb.h"
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
-#include "operators/writer/VeloxParquetDataSource.h"
 
 namespace gluten {
 namespace {
@@ -460,13 +458,13 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto childNode = convertSingleInput<::substrait::ProjectRel>(projectRel);
   // Construct Velox Expressions.
   const auto& projectExprs = projectRel.expressions();
+  const auto& inputType = childNode->outputType();
+  const size_t totalSize = projectExprs.size() + inputType->size();
   std::vector<std::string> projectNames;
   std::vector<core::TypedExprPtr> expressions;
-  projectNames.reserve(projectExprs.size());
-  expressions.reserve(projectExprs.size());
+  projectNames.reserve(totalSize);
+  expressions.reserve(totalSize);
 
-  const auto& inputType = childNode->outputType();
-  int colIdx = 0;
   // Note that Substrait projection adds the project expressions on top of the
   // input to the projection node. Thus we need to add the input columns first
   // and then add the projection expressions.
@@ -477,27 +475,30 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     const auto& fieldName = inputType->nameOf(idx);
     projectNames.emplace_back(fieldName);
     expressions.emplace_back(std::make_shared<core::FieldAccessTypedExpr>(inputType->childAt(idx), fieldName));
-    colIdx += 1;
   }
 
   // Then, adding project expression related project names and expressions.
-  for (const auto& expr : projectExprs) {
-    expressions.emplace_back(exprConverter_->toVeloxExpr(expr, inputType));
-    projectNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, colIdx));
-    colIdx += 1;
+  const size_t startIdx = expressions.size();
+  for (int i = 0; i < projectExprs.size(); i++) {
+    expressions.emplace_back(exprConverter_->toVeloxExpr(projectExprs[i], inputType));
+    projectNames.emplace_back(SubstraitParser::makeNodeName(planNodeId_, startIdx + i));
   }
 
   if (projectRel.has_common()) {
     auto relCommon = projectRel.common();
     const auto& emit = relCommon.emit();
     int emitSize = emit.output_mapping_size();
-    std::vector<std::string> emitProjectNames(emitSize);
-    std::vector<core::TypedExprPtr> emitExpressions(emitSize);
+    std::vector<std::string> emitProjectNames;
+    std::vector<core::TypedExprPtr> emitExpressions;
+    emitProjectNames.reserve(emitSize);
+    emitExpressions.reserve(emitSize);
+
     for (int i = 0; i < emitSize; i++) {
       int32_t mapId = emit.output_mapping(i);
-      emitProjectNames[i] = projectNames[mapId];
-      emitExpressions[i] = expressions[mapId];
+      emitProjectNames.emplace_back(std::move(projectNames[mapId]));
+      emitExpressions.emplace_back(std::move(expressions[mapId]));
     }
+
     return std::make_shared<core::ProjectNode>(
         nextPlanNodeId(), std::move(emitProjectNames), std::move(emitExpressions), std::move(childNode));
   } else {
@@ -506,32 +507,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
-std::string makeUuid() {
-  return generateUuid();
-}
-
-std::string compressionFileNameSuffix(common::CompressionKind kind) {
-  switch (static_cast<int32_t>(kind)) {
-    case common::CompressionKind_ZLIB:
-      return ".zlib";
-    case common::CompressionKind_SNAPPY:
-      return ".snappy";
-    case common::CompressionKind_LZO:
-      return ".lzo";
-    case common::CompressionKind_ZSTD:
-      return ".zstd";
-    case common::CompressionKind_LZ4:
-      return ".lz4";
-    case common::CompressionKind_GZIP:
-      return ".gz";
-    case common::CompressionKind_NONE:
-    default:
-      return "";
-  }
-}
-
 std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
     const std::string& targetDirectory,
+    const std::string& fileName,
     dwio::common::FileFormat fileFormat,
     common::CompressionKind compression,
     const bool& isBucketed,
@@ -540,7 +518,7 @@ std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
         connector::hive::LocationHandle::TableType::kExisting) {
   std::string targetFileName = "";
   if (fileFormat == dwio::common::FileFormat::PARQUET && !isBucketed) {
-    targetFileName = fmt::format("gluten-part-{}{}{}", makeUuid(), compressionFileNameSuffix(compression), ".parquet");
+    targetFileName = fileName;
   }
   return std::make_shared<connector::hive::LocationHandle>(
       targetDirectory, writeDirectory.value_or(targetDirectory), tableType, targetFileName);
@@ -672,6 +650,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     writePath = "";
   }
 
+  std::string fileName;
+  if (writeFileName_.has_value()) {
+    fileName = writeFileName_.value();
+  } else {
+    VELOX_CHECK(validationMode_, "WriteRel should have the write path before initializing the plan.");
+    fileName = "";
+  }
+
   GLUTEN_CHECK(writeRel.named_table().has_advanced_extension(), "Advanced extension not found in WriteRel");
   const auto& ext = writeRel.named_table().advanced_extension();
   GLUTEN_CHECK(ext.has_optimization(), "Extension optimization not found in WriteRel");
@@ -688,8 +674,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   GLUTEN_CHECK(formatShortName == "parquet", "Unsupported file write format: " + formatShortName);
   dwio::common::FileFormat fileFormat = dwio::common::FileFormat::PARQUET;
 
-  const std::shared_ptr<facebook::velox::parquet::WriterOptions> writerOptions =
-      VeloxParquetDataSource::makeParquetWriteOption(writeConfs);
+  const std::shared_ptr<facebook::velox::parquet::WriterOptions> writerOptions = makeParquetWriteOption(writeConfs);
   // Spark's default compression code is snappy.
   const auto& compressionKind =
       writerOptions->compressionKind.value_or(common::CompressionKind::CompressionKind_SNAPPY);
@@ -698,7 +683,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       nextPlanNodeId(),
       inputType,
       tableColumnNames,
-      nullptr, /*aggregationNode*/
+      std::nullopt, /*columnStatsSpec*/
       std::make_shared<core::InsertTableHandle>(
           kHiveConnectorId,
           makeHiveInsertTableHandle(
@@ -706,12 +691,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               inputType->children(),
               partitionedKey,
               bucketProperty,
-              makeLocationHandle(writePath, fileFormat, compressionKind, bucketProperty != nullptr),
+              makeLocationHandle(writePath, fileName, fileFormat, compressionKind, bucketProperty != nullptr),
               writerOptions,
               fileFormat,
               compressionKind)),
       (!partitionedKey.empty()),
-      exec::TableWriteTraits::outputType(nullptr),
+      exec::TableWriteTraits::outputType(std::nullopt),
       connector::CommitStrategy::kNoCommit,
       childNode);
 }
@@ -876,13 +861,18 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 
   std::optional<std::string> ordinalityName = std::nullopt;
-  if (generateRel.has_advanced_extension() &&
-      SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
-    ordinalityName = std::make_optional<std::string>("pos");
+  std::optional<std::string> markerName = std::nullopt;
+  if (generateRel.has_advanced_extension()) {
+    if (SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isPosExplode=")) {
+      ordinalityName = std::make_optional<std::string>("pos");
+    }
+    if (SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isOuter=")) {
+      markerName = std::make_optional<std::string>("marker");
+    }
   }
 
   return std::make_shared<core::UnnestNode>(
-      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, childNode);
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), ordinalityName, markerName, childNode);
 }
 
 const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(
@@ -1013,28 +1003,15 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     }
   }
 
-  if (windowRel.has_advanced_extension() &&
-      SubstraitParser::configSetInOptimization(windowRel.advanced_extension(), "isStreaming=")) {
-    return std::make_shared<core::WindowNode>(
-        nextPlanNodeId(),
-        partitionKeys,
-        sortingKeys,
-        sortingOrders,
-        windowColumnNames,
-        windowNodeFunctions,
-        true /*inputsSorted*/,
-        childNode);
-  } else {
-    return std::make_shared<core::WindowNode>(
-        nextPlanNodeId(),
-        partitionKeys,
-        sortingKeys,
-        sortingOrders,
-        windowColumnNames,
-        windowNodeFunctions,
-        false /*inputsSorted*/,
-        childNode);
-  }
+  return std::make_shared<core::WindowNode>(
+      nextPlanNodeId(),
+      partitionKeys,
+      sortingKeys,
+      sortingOrders,
+      windowColumnNames,
+      windowNodeFunctions,
+      true /*inputsSorted*/,
+      childNode);
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
@@ -1086,6 +1063,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
 
   return std::make_shared<core::TopNRowNumberNode>(
       nextPlanNodeId(),
+      core::TopNRowNumberNode::RankFunction::kRowNumber,
       partitionKeys,
       sortingKeys,
       sortingOrders,

@@ -56,25 +56,7 @@ class VeloxBackend {
     return globalMemoryManager_.get();
   }
 
-  void tearDown() {
-    // Destruct IOThreadPoolExecutor will join all threads.
-    // On threads exit, thread local variables can be constructed with referencing global variables.
-    // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
-    ioExecutor_.reset();
-    globalMemoryManager_.reset();
-
-    // dump cache stats on exit if enabled
-    if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
-      LOG(INFO) << asyncDataCache_->toString();
-      for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
-        if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
-          LOG(INFO) << "Removing cache file " << entry.path().filename().string();
-          std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
-        }
-      }
-      asyncDataCache_->shutdown();
-    }
-  }
+  void tearDown();
 
  private:
   explicit VeloxBackend(
@@ -85,7 +67,7 @@ class VeloxBackend {
 
   void init(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf);
   void initCache();
-  void initConnector();
+  void initConnector(const std::shared_ptr<facebook::velox::config::ConfigBase>& hiveConf);
   void initUdf();
   std::unique_ptr<facebook::velox::cache::SsdCache> initSsdCache(uint64_t ssdSize);
 

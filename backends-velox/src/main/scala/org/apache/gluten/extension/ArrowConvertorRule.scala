@@ -45,16 +45,17 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
       return plan
     }
     plan.resolveOperators {
-      case l @ LogicalRelation(
-            r @ HadoopFsRelation(_, _, dataSchema, _, _: CSVFileFormat, options),
-            _,
-            _,
-            _) if validate(session, dataSchema, options) =>
-        val csvOptions = new CSVOptions(
-          options,
-          columnPruning = session.sessionState.conf.csvColumnPruning,
-          session.sessionState.conf.sessionLocalTimeZone)
-        l.copy(relation = r.copy(fileFormat = new ArrowCSVFileFormat(csvOptions))(session))
+      case l: LogicalRelation =>
+        l.relation match {
+          case r @ HadoopFsRelation(_, _, dataSchema, _, _: CSVFileFormat, options)
+              if validate(session, dataSchema, options) =>
+            val csvOptions = new CSVOptions(
+              options,
+              columnPruning = session.sessionState.conf.csvColumnPruning,
+              session.sessionState.conf.sessionLocalTimeZone)
+            l.copy(relation = r.copy(fileFormat = new ArrowCSVFileFormat(csvOptions))(session))
+          case _ => l
+        }
       case d @ DataSourceV2Relation(
             t @ CSVTable(
               name,

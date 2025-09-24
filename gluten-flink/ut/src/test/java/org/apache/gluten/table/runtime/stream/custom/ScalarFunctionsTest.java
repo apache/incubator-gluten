@@ -21,8 +21,10 @@ import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -125,5 +127,103 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
     String query4 = "select c = d as x from tblEqual where a > 0";
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
+  }
+
+  @Test
+  void testSplitIndex() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, 1L, "http://testflink/a/b/c"),
+            Row.of(2, 2L, "http://testflink/a1/b1/c1"),
+            Row.of(3, 3L, "http://testflink/a2/b2/c2"));
+    createSimpleBoundedValuesTable("tblSplitIndex", "a int, b bigint, c string", rows);
+    String query1 = "select split_index(c, '/', 2) from tblSplitIndex";
+    runAndCheck(query1, Arrays.asList("+I[testflink]", "+I[testflink]", "+I[testflink]"));
+    String query2 = "select split_index(c, '//', 1) from tblSplitIndex";
+    runAndCheck(
+        query2,
+        Arrays.asList("+I[testflink/a/b/c]", "+I[testflink/a1/b1/c1]", "+I[testflink/a2/b2/c2]"));
+    // Add some corner case tests from `ScalarFunctionsTest`#testSplitIndex in flink.
+    rows = Arrays.asList(Row.of(1, 1L, "AQIDBA=="));
+    createSimpleBoundedValuesTable("tblSplitIndexFlink", "a int, b bigint, c string", rows);
+    String queryForInvalidIndex =
+        "select split_index(c, 'I', 7), split_index(c, 'I', -1) from tblSplitIndexFlink";
+    String queryForNumbericDelimiter =
+        "select split_index(c, 73, 0), split_index(c, 12, 0) from tblSplitIndexFlink";
+    runAndCheck(queryForInvalidIndex, Arrays.asList("+I[null, null]"));
+    runAndCheck(queryForNumbericDelimiter, Arrays.asList("+I[AQ, AQIDBA==]"));
+    rows = Arrays.asList(Row.of(2, 2L, null));
+    createSimpleBoundedValuesTable("tblSplitIndexNullInput", "a int, b bigint, c string", rows);
+    String queryForNullInput = "select split_index(c, 'I', 0) from tblSplitIndexNullInput";
+    runAndCheck(queryForNullInput, Arrays.asList("+I[null]"));
+    // TODO: The cases when index or delimeter parameters is null can not be supported currently.
+    // String queryForIndexNull = "select split_index(c, 'I', cast(null as INT)) from
+    // tblSplitIndexFlink";
+    // runAndCheck(queryForIndexNull, Arrays.asList("+I[null]"));
+    // String queryForDelimiterNull = "select split_index(c, cast(null as VARCHAR), 0) from
+    // tblSplitIndexFlink";
+    // runAndCheck(queryForDelimiterNull, Arrays.asList("+I[null]"));
+  }
+
+  @Disabled
+  @Test
+  void testReinterpret() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, 1L, "2025-06-24 10:00:01", "1991-01-01 00:00:01"),
+            Row.of(2, 2L, "2025-06-24 10:00:02", "1991-01-01 00:00:01"),
+            Row.of(3, 3L, "2025-06-24 10:00:03", "1991-01-01 00:00:01"));
+    createSimpleBoundedValuesTable(
+        "tblReinterpret",
+        "a int, b bigint, c string, d string, "
+            + "e as case when a = 1 then cast(c as Timestamp(3)) else cast(d as Timestamp(3)) end, "
+            + "WATERMARK FOR e AS e - INTERVAL '1' SECOND",
+        rows);
+    String query1 = "select e from tblReinterpret where a = 1";
+    runAndCheck(query1, Arrays.asList("+I[2025-06-24T10:00:01]"));
+    String query2 = "select e from tblReinterpret where a = 2";
+    runAndCheck(query2, Arrays.asList("+I[1991-01-01T00:00:01]"));
+  }
+
+  @Test
+  void testDecimal() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, new BigDecimal("1.0"), new BigDecimal("1.0"), 2L, 1.0),
+            Row.of(2, new BigDecimal("2.0"), new BigDecimal("2.0"), 3L, 3.0),
+            Row.of(3, new BigDecimal("3.0"), new BigDecimal("3.0"), 4L, 4.0));
+    createSimpleBoundedValuesTable(
+        "tblDecimal", "a int, b decimal(11, 2), c decimal(10, 3), d bigint, e double", rows);
+    String query = "select b + c as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[2.000]", "+I[4.000]", "+I[6.000]"));
+
+    query = "select b + a as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[2.00]", "+I[4.00]", "+I[6.00]"));
+
+    query = "select b + d as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[3.00]", "+I[5.00]", "+I[7.00]"));
+
+    query = "select b - c as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[0.000]", "+I[0.000]", "+I[0.000]"));
+
+    query = "select b - a as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[0.00]", "+I[0.00]", "+I[0.00]"));
+
+    query = "select b * c as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1.00000]", "+I[4.00000]", "+I[9.00000]"));
+
+    query = "select b * d as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[2.00]", "+I[6.00]", "+I[12.00]"));
+
+    query = "select b / c as x from tblDecimal where a > 0";
+    runAndCheck(
+        query, Arrays.asList("+I[1.0000000000000]", "+I[1.0000000000000]", "+I[1.0000000000000]"));
+
+    query = "select b / a as x from tblDecimal where a > 0";
+    runAndCheck(
+        query, Arrays.asList("+I[1.0000000000000]", "+I[1.0000000000000]", "+I[1.0000000000000]"));
+
+    query = "select b + e as x from tblDecimal where a > 0";
+    runAndCheck(query, Arrays.asList("+I[2.0]", "+I[5.0]", "+I[7.0]"));
   }
 }

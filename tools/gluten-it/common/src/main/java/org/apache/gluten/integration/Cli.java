@@ -21,16 +21,24 @@ import org.apache.gluten.integration.command.Parameterized;
 import org.apache.gluten.integration.command.Queries;
 import org.apache.gluten.integration.command.QueriesCompare;
 import org.apache.gluten.integration.command.SparkShell;
+
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "gluten-it", mixinStandardHelpOptions = true,
+@CommandLine.Command(
+    name = "gluten-it",
+    mixinStandardHelpOptions = true,
     showDefaultValues = true,
-    subcommands = {DataGenOnly.class, Queries.class, QueriesCompare.class, SparkShell.class, Parameterized.class},
+    subcommands = {
+      DataGenOnly.class,
+      Queries.class,
+      QueriesCompare.class,
+      SparkShell.class,
+      Parameterized.class
+    },
     description = "Gluten integration test using various of benchmark's data and queries.")
 public class Cli {
 
-  private Cli() {
-  }
+  private Cli() {}
 
   public static void main(String... args) {
     final CommandLine cmd = new CommandLine(new Cli());

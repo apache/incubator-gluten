@@ -18,8 +18,8 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, SortShuffleWriterType}
+import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
 
@@ -42,7 +42,17 @@ class ColumnarShuffleWriter[K, V](
   with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
-  protected val isSort: Boolean = dep.isSort
+
+  dep.shuffleWriterType match {
+    case HashShuffleWriterType | SortShuffleWriterType =>
+    // Valid shuffle writer types
+    case _ =>
+      throw new IllegalArgumentException(
+        s"Unsupported shuffle writer type: ${dep.shuffleWriterType.name}, " +
+          s"expected one of: ${HashShuffleWriterType.name}, ${SortShuffleWriterType.name}")
+  }
+
+  protected val isSort: Boolean = dep.shuffleWriterType == SortShuffleWriterType
 
   private val numPartitions: Int = dep.partitioner.numPartitions
 
@@ -177,15 +187,15 @@ class ColumnarShuffleWriter[K, V](
           runtime
             .memoryManager()
             .addSpiller(new Spiller() {
-              override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-                if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-                  return 0L
+              override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long =
+                phase match {
+                  case Spiller.Phase.SPILL =>
+                    logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+                    val spilled = shuffleWriterJniWrapper.reclaim(nativeShuffleWriter, size)
+                    logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+                    spilled
+                  case _ => 0L
                 }
-                logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-                val spilled = shuffleWriterJniWrapper.reclaim(nativeShuffleWriter, size)
-                logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-                spilled
-              }
             })
         }
 

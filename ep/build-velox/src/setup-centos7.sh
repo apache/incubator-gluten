@@ -237,11 +237,6 @@ dnf_install ccache wget which libevent-devel \
   openssl-devel libzstd-devel lz4-devel double-conversion-devel \
   curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel tzdata
 
-# Update tzdata, required by Velox at runtime.
-dnf_install python3-pip
-pip3 install tzdata
-cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
-
 $SUDO dnf remove -y gflags
 
 # Required for Thrift

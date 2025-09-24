@@ -36,7 +36,8 @@ class StreamingAggregatingTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
-    explicit StreamingAggregatingTransform(DB::ContextPtr context_, const DB::Block & header_, DB::AggregatingTransformParamsPtr params_);
+    explicit StreamingAggregatingTransform(
+        DB::ContextPtr context_, const DB::SharedHeader & header_, DB::AggregatingTransformParamsPtr params_);
     ~StreamingAggregatingTransform() override;
     String getName() const override { return "StreamingAggregatingTransform"; }
     Status prepare() override;
@@ -44,7 +45,6 @@ public:
 
 private:
     DB::ContextPtr context;
-    DB::Block header;
     DB::ColumnRawPtrs key_columns;
     DB::Aggregator::AggregateColumns aggregate_columns;
     DB::AggregatingTransformParamsPtr params;
@@ -89,7 +89,8 @@ private:
 class StreamingAggregatingStep : public DB::ITransformingStep
 {
 public:
-    explicit StreamingAggregatingStep(const DB::ContextPtr & context_, const DB::Block & input_header, DB::Aggregator::Params params_);
+    explicit StreamingAggregatingStep(
+        const DB::ContextPtr & context_, const DB::SharedHeader & input_header, DB::Aggregator::Params params_);
     ~StreamingAggregatingStep() override = default;
 
     String getName() const override { return "StreamingAggregating"; }

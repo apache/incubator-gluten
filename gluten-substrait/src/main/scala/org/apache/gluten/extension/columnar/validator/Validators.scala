@@ -21,7 +21,6 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.columnar.FallbackTags
-import org.apache.gluten.extension.columnar.heuristic.LegacyOffload
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -29,7 +28,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, BatchScanExec, OverwriteByExpressionExec, ReplaceDataExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -136,6 +135,9 @@ object Validators {
         fail(p)
       case p: CartesianProductExec if !settings.supportCartesianProductExec() => fail(p)
       case p: TakeOrderedAndProjectExec if !settings.supportColumnarShuffleExec() => fail(p)
+      case p: AppendDataExec if !settings.supportAppendDataExec() => fail(p)
+      case p: ReplaceDataExec if !settings.supportReplaceDataExec() => fail(p)
+      case p: OverwriteByExpressionExec if !settings.supportOverwriteByExpression() => fail(p)
       case _ => pass()
     }
   }
@@ -155,6 +157,9 @@ object Validators {
       case p: ShuffledHashJoinExec if !glutenConf.enableColumnarShuffledHashJoin => fail(p)
       case p: ShuffleExchangeExec if !glutenConf.enableColumnarShuffle => fail(p)
       case p: BroadcastExchangeExec if !glutenConf.enableColumnarBroadcastExchange => fail(p)
+      case p: AppendDataExec if !glutenConf.enableAppendData => fail(p)
+      case p: ReplaceDataExec if !glutenConf.enableReplaceData => fail(p)
+      case p: OverwriteByExpressionExec if !glutenConf.enableOverwriteByExpression => fail(p)
       case p @ (_: LocalLimitExec | _: GlobalLimitExec) if !glutenConf.enableColumnarLimit =>
         fail(p)
       case p: GenerateExec if !glutenConf.enableColumnarGenerate => fail(p)
@@ -213,7 +218,8 @@ object Validators {
         case p if HiveTableScanExecTransformer.isHiveTableScan(p) => pass()
         case filter: FilterExec =>
           val childIsScan = filter.child.isInstanceOf[FileSourceScanExec] ||
-            filter.child.isInstanceOf[BatchScanExec]
+            filter.child.isInstanceOf[BatchScanExec] || filter.child
+              .isInstanceOf[BasicScanExecTransformer]
           if (childIsScan) {
             pass()
           } else {
@@ -227,7 +233,6 @@ object Validators {
   private class FallbackByNativeValidation(offloadRules: Seq[OffloadSingleNode])
     extends Validator
     with Logging {
-    private val offloadAttempt: LegacyOffload = LegacyOffload(offloadRules)
     override def validate(plan: SparkPlan): Validator.OutCome = {
       val offloadedNode = offloadAttempt.apply(plan)
       val out = offloadedNode match {
@@ -238,6 +243,14 @@ object Validators {
           pass()
       }
       out
+    }
+
+    private val offloadAttempt: SparkPlan => SparkPlan = {
+      node =>
+        offloadRules.foldLeft(node) {
+          case (node, rule) =>
+            rule.offload(node)
+        }
     }
   }
 

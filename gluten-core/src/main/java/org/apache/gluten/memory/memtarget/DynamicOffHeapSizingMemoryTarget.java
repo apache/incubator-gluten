@@ -30,6 +30,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -82,7 +83,7 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
               arg,
               originalMinHeapFreeRatio);
         }
-      } else if (arg == "-XX:+ExplicitGCInvokesConcurrent") {
+      } else if (Objects.equals(arg, "-XX:+ExplicitGCInvokesConcurrent")) {
         // If this is set -XX:+ExplicitGCInvokesConcurrent, System.gc() does not trigger Full GC,
         // so explicit JVM shrinking is not effective.
         LOG.error(
@@ -90,7 +91,7 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
                 + " is set. Please check the JVM arguments: {}. ",
             arg);
 
-      } else if (arg == "-XX:+DisableExplicitGC") {
+      } else if (Objects.equals(arg, "-XX:+DisableExplicitGC")) {
         // If -XX:+DisableExplicitGC is set, calls to System.gc() are ignored,
         // so explicit JVM shrinking will not work as intended.
         LOG.error(

@@ -23,6 +23,7 @@
 #include "operators/plannodes/RowVectorStream.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
+#include "velox/exec/TableScan.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 
 using namespace facebook;
@@ -35,7 +36,8 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
   std::vector<std::shared_ptr<ResultIterator>> inputs;
   std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>());
-  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), veloxCfg.get(), std::nullopt, true);
+  VeloxPlanConverter veloxPlanConverter(
+      inputs, veloxMemoryPool.get(), veloxCfg.get(), std::nullopt, std::nullopt, true);
   auto planNode = veloxPlanConverter.toVeloxPlan(substraitPlan, localFiles);
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
@@ -59,7 +61,7 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
   std::vector<velox::exec::Operator*> operators;
   task->testingVisitDrivers([&](velox::exec::Driver* driver) { operators = driver->operators(); });
   for (const auto* op : operators) {
-    if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
+    if (dynamic_cast<const velox::exec::TableScan*>(op) != nullptr) {
       continue;
     }
     // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341

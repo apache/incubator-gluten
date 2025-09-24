@@ -20,6 +20,8 @@ import org.apache.gluten.config.BackendType.BackendType
 
 import org.apache.spark.sql.internal.GlutenConfigProvider
 
+import scala.collection.JavaConverters._
+
 /**
  * An entry contains all meta information for a configuration.
  *
@@ -48,6 +50,8 @@ trait ConfigEntry[T] {
    * internally and we should not expose it to users.
    */
   def isPublic: Boolean
+
+  def isExperimental: Boolean
 
   /** the alternative keys for the configuration. */
   def alternatives: List[String]
@@ -88,6 +92,7 @@ private[gluten] class OptionalConfigEntry[T](
     _version: String,
     _backend: BackendType,
     _isPublic: Boolean,
+    _isExperimental: Boolean,
     _alternatives: List[String],
     _valueConverter: String => T,
     _stringConverter: T => String)
@@ -101,6 +106,8 @@ private[gluten] class OptionalConfigEntry[T](
   override def backend: BackendType = _backend
 
   override def isPublic: Boolean = _isPublic
+
+  override def isExperimental: Boolean = _isExperimental
 
   override def alternatives: List[String] = _alternatives
 
@@ -122,6 +129,7 @@ private[gluten] class ConfigEntryWithDefault[T](
     _version: String,
     _backend: BackendType,
     _isPublic: Boolean,
+    _isExperimental: Boolean,
     _alternatives: List[String],
     _valueConverter: String => T,
     _stringConverter: T => String,
@@ -136,6 +144,8 @@ private[gluten] class ConfigEntryWithDefault[T](
   override def backend: BackendType = _backend
 
   override def isPublic: Boolean = _isPublic
+
+  override def isExperimental: Boolean = _isExperimental
 
   override def alternatives: List[String] = _alternatives
 
@@ -158,6 +168,7 @@ private[gluten] class ConfigEntryWithDefaultString[T](
     _version: String,
     _backend: BackendType,
     _isPublic: Boolean,
+    _isExperimental: Boolean,
     _alternatives: List[String],
     _valueConverter: String => T,
     _stringConverter: T => String,
@@ -172,6 +183,8 @@ private[gluten] class ConfigEntryWithDefaultString[T](
   override def backend: BackendType = _backend
 
   override def isPublic: Boolean = _isPublic
+
+  override def isExperimental: Boolean = _isExperimental
 
   override def alternatives: List[String] = _alternatives
 
@@ -195,6 +208,7 @@ private[gluten] class ConfigEntryFallback[T](
     _version: String,
     _backend: BackendType,
     _isPublic: Boolean,
+    _isExperimental: Boolean,
     _alternatives: List[String],
     fallback: ConfigEntry[T])
   extends ConfigEntry[T] {
@@ -207,6 +221,8 @@ private[gluten] class ConfigEntryFallback[T](
   override def backend: BackendType = _backend
 
   override def isPublic: Boolean = _isPublic
+
+  override def isExperimental: Boolean = _isExperimental
 
   override def alternatives: List[String] = _alternatives
 
@@ -240,4 +256,8 @@ object ConfigEntry {
   }
 
   def findEntry(key: String): ConfigEntry[_] = knownConfigs.get(key)
+
+  def getAllEntries: Seq[ConfigEntry[_]] = {
+    knownConfigs.values().asScala.toSeq
+  }
 }

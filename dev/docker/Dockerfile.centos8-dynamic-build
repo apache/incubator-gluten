@@ -32,7 +32,6 @@ RUN set -ex; \
     dnf install -y --setopt=install_weak_deps=False gcc-toolset-11; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     yum install -y java-${JAVA_VERSION}-openjdk-devel patch wget git perl; \
-    yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y; \
     maven_version=3.9.2; \
     local_binary="apache-maven-${maven_version}-bin.tar.gz"; \
     mirror_host="https://www.apache.org/dyn/closer.lua"; \
@@ -43,7 +42,7 @@ RUN set -ex; \
     rm -rf ${local_binary}; \
     wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.4.3/apache-celeborn-0.4.3-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.5.4/apache-celeborn-0.5.4-bin.tgz -P /opt/; \
-    wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.6.0/apache-celeborn-0.6.0-bin.tgz -P /opt/; \
+    wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.6.1/apache-celeborn-0.6.1-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/incubator/uniffle/0.9.2/apache-uniffle-0.9.2-incubating-bin.tar.gz -P /opt/; \
     wget -nv https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz -P /opt/; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \

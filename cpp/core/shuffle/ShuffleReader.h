@@ -21,18 +21,23 @@
 
 namespace gluten {
 
+class StreamReader {
+ public:
+  virtual ~StreamReader() = default;
+
+  virtual std::shared_ptr<arrow::io::InputStream> readNextStream(arrow::MemoryPool* pool) = 0;
+};
+
 class ShuffleReader {
  public:
   virtual ~ShuffleReader() = default;
 
   // FIXME iterator should be unique_ptr or un-copyable singleton
-  virtual std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in) = 0;
+  virtual std::shared_ptr<ResultIterator> read(const std::shared_ptr<StreamReader>& streamReader) = 0;
 
   virtual int64_t getDecompressTime() const = 0;
 
   virtual int64_t getDeserializeTime() const = 0;
-
-  virtual arrow::MemoryPool* getPool() const = 0;
 };
 
 } // namespace gluten

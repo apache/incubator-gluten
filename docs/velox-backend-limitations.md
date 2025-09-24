@@ -163,3 +163,10 @@ Gluten's.
 ### CSV Read
 The header option should be true. And now we only support DatasourceV1, i.e., user should set `spark.sql.sources.useV1SourceList=csv`. User defined read option is not supported, which will make CSV read fall back to vanilla Spark in most case.
 CSV read will also fall back to vanilla Spark and log warning when user specifies schema is different with file schema.
+
+### Utilizing Map Type as Hash Keys in ColumnarShuffleExchange
+Spark uses the `spark.sql.legacy.allowHashOnMapType` configuration to support hash map key functions. 
+Gluten enables this configuration during the creation of ColumnarShuffleExchange, as shown in the code [link](https://github.com/apache/incubator-gluten/blob/0dacac84d3bf3d2759a5dd7e0735147852d2845d/backends-velox/src/main/scala/org/apache/gluten/backendsapi/velox/VeloxSparkPlanExecApi.scala#L355-L363). 
+This method bypasses Spark's unresolved checks and creates projects with the hash(mapType) operator before ColumnarShuffleExchange. 
+However, if `spark.sql.legacy.allowHashOnMapType` is disabled in a test environment, projects using the hash(mapType) expression may throw an `Invalid call to dataType on unresolved object` exception during validation, causing them to fallback to vanilla Spark, as referenced in the code [link](https://github.com/apache/spark/blob/de5fa426e23b84fc3c2bddeabcd2e1eda515abd5/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/expressions/hash.scala#L291-L296).
+ Enabling this configuration allows the project to be offloaded to Velox.

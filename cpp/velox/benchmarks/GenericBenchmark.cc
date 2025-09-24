@@ -35,10 +35,11 @@
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
+#include "tests/utils/LocalRssClient.h"
+#include "tests/utils/TestAllocationListener.h"
+#include "tests/utils/TestStreamReader.h"
 #include "utils/Exception.h"
-#include "utils/LocalRssClient.h"
 #include "utils/StringUtil.h"
-#include "utils/TestAllocationListener.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/exec/PlanNodeStats.h"
@@ -58,10 +59,7 @@ DEFINE_string(
     "rr",
     "Short partitioning name. Valid options are rr, hash, range, single, random (only for test purpose)");
 DEFINE_bool(rss, false, "Mocking rss.");
-DEFINE_string(
-    compression,
-    "lz4",
-    "Specify the compression codec. Valid options are none, lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
+DEFINE_string(compression, "lz4", "Specify the compression codec. Valid options are none, lz4, zstd");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
 DEFINE_bool(shuffle_dictionary, false, "Whether to enable dictionary encoding for shuffle write.");
 
@@ -172,15 +170,6 @@ void setCompressionTypeFromFlag(arrow::Compression::type& compressionType, Codec
     compressionType = arrow::Compression::LZ4_FRAME;
   } else if (FLAGS_compression == "zstd") {
     compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "qat_gzip") {
-    codecBackend = CodecBackend::QAT;
-    compressionType = arrow::Compression::GZIP;
-  } else if (FLAGS_compression == "qat_zstd") {
-    codecBackend = CodecBackend::QAT;
-    compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "iaa_gzip") {
-    codecBackend = CodecBackend::IAA;
-    compressionType = arrow::Compression::GZIP;
   } else {
     throw GlutenException("Unrecognized compression type: " + FLAGS_compression);
   }
@@ -197,7 +186,7 @@ std::unique_ptr<arrow::util::Codec> createCodec() {
 
   setCompressionTypeFromFlag(compressionType, codecBackend);
 
-  return createArrowIpcCodec(compressionType, codecBackend);
+  return createCompressionCodec(compressionType, codecBackend);
 }
 
 std::shared_ptr<PartitionWriter>
@@ -316,8 +305,9 @@ void runShuffle(
     const auto reader = createShuffleReader(runtime, schema);
 
     GLUTEN_ASSIGN_OR_THROW(auto in, arrow::io::ReadableFile::Open(dataFile));
+    auto streamReader = std::make_shared<TestStreamReader>(std::move(in));
     // Read all partitions.
-    auto iter = reader->readStream(in);
+    auto iter = reader->read(streamReader);
     while (iter->hasNext()) {
       // Read and discard.
       auto cb = iter->next();
@@ -386,9 +376,6 @@ void setQueryTraceConfig(std::unordered_map<std::string, std::string>& configs) 
   if (FLAGS_query_trace_max_bytes) {
     configs[kQueryTraceMaxBytes] = std::to_string(FLAGS_query_trace_max_bytes);
   }
-  if (FLAGS_query_trace_node_ids != "") {
-    configs[kQueryTraceNodeIds] = FLAGS_query_trace_node_ids;
-  }
   if (FLAGS_query_trace_task_reg_exp != "") {
     configs[kQueryTraceTaskRegExp] = FLAGS_query_trace_task_reg_exp;
   }
@@ -444,9 +431,8 @@ auto BM_Generic = [](::benchmark::State& state,
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
-          inputIters.push_back(
-              FileReaderIterator::getInputIteratorFromFileReader(
-                  readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
+          inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
+              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
         }
         std::transform(
             inputIters.begin(),

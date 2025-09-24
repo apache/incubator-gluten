@@ -1001,6 +1001,7 @@ void BackendFinalizerUtil::finalizeGlobally()
     ReadBufferBuilderFactory::instance().clean();
     StorageMergeTreeFactory::clear_cache_map();
     QueryContext::resetGlobal();
+    QueryContext::instance().reset();
     std::lock_guard lock(paths_mutex);
     std::ranges::for_each(
         paths_need_to_clean,
@@ -1051,7 +1052,7 @@ UInt64 MemoryUtil::getMemoryRSS()
 
 void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 {
-    ActionsDAG project{plan.getCurrentHeader().getNamesAndTypesList()};
+    ActionsDAG project{plan.getCurrentHeader()->getNamesAndTypesList()};
     NamesWithAliases project_cols;
     for (const auto & col : cols)
     {

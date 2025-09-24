@@ -26,7 +26,12 @@ function install_maven {
     wget -nv -O ${local_binary} ${url}
     tar -xvf ${local_binary} && mv apache-maven-${maven_version} /usr/lib/maven
   )
-  echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+  export PATH=/usr/lib/maven/bin:$PATH
+  if [ -n "$GITHUB_ENV" ]; then
+    echo "PATH=/usr/lib/maven/bin:$PATH" >> $GITHUB_ENV
+  else
+    echo "Warning: GITHUB_ENV is not set. Skipping environment variable export."
+  fi
 }
 
 for cmd in "$@"

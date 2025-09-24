@@ -17,7 +17,7 @@
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
@@ -219,7 +219,7 @@ public class SinkTransformationTranslator<Input, Output>
                       WRITER_NAME,
                       CommittableMessageTypeInfo.noOutput(),
                       new GlutenOneInputOperatorFactory(
-                          new GlutenSingleInputOperator(
+                          new GlutenVectorOneInputOperator(
                               new StatefulPlanNode(plan.getId(), plan),
                               PlanNodeIdGenerator.newId(),
                               outputType,

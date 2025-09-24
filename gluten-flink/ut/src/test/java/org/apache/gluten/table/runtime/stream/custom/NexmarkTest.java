@@ -39,9 +39,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class NexmarkTest {
 
@@ -76,14 +81,14 @@ public class NexmarkTest {
   }
 
   @Test
-  void testAllNexmarkQueries() {
+  void testAllNexmarkQueries() throws ExecutionException, InterruptedException, TimeoutException {
     List<String> queryFiles = getQueries();
     assertThat(queryFiles).isNotEmpty();
 
-    LOG.info("Found {} Nexmark query files: {}", queryFiles.size(), queryFiles);
+    LOG.warn("Found {} Nexmark query files: {}", queryFiles.size(), queryFiles);
 
     for (String queryFile : queryFiles) {
-      LOG.info("Executing query from file: {}", queryFile);
+      LOG.warn("Executing query from file: {}", queryFile);
       executeQuery(tEnv, queryFile);
     }
   }
@@ -111,23 +116,35 @@ public class NexmarkTest {
     return result;
   }
 
-  private void executeQuery(StreamTableEnvironment tEnv, String queryFileName) {
+  private void executeQuery(StreamTableEnvironment tEnv, String queryFileName)
+      throws ExecutionException, InterruptedException, TimeoutException {
     String queryContent = readSqlFromFile(NEXMARK_RESOURCE_DIR + "/" + queryFileName);
 
     String[] sqlStatements = queryContent.split(";");
     assertThat(sqlStatements.length).isGreaterThanOrEqualTo(2);
 
-    String createResultTable = sqlStatements[0].trim();
-    if (!createResultTable.isEmpty()) {
-      TableResult createResult = tEnv.executeSql(createResultTable);
-      assertThat(createResult.getJobClient().isPresent()).isFalse();
+    for (int i = 0; i < sqlStatements.length - 2; i++) {
+      // For some query tests like q12 q13 q14, the first two of the three statements create tables
+      // or views. For others, there are only two statements, with the first one creating a table.
+      String createResultTable = sqlStatements[i].trim();
+      if (!createResultTable.isEmpty()) {
+        TableResult createResult = tEnv.executeSql(createResultTable);
+        assertFalse(createResult.getJobClient().isPresent());
+      }
     }
 
-    String insertQuery = sqlStatements[1].trim();
+    String insertQuery = sqlStatements[sqlStatements.length - 2].trim();
     if (!insertQuery.isEmpty()) {
       TableResult insertResult = tEnv.executeSql(insertQuery);
-      assertThat(insertResult.getJobClient().isPresent()).isTrue();
+      waitForJobCompletion(insertResult, 30000);
     }
+    assertTrue(sqlStatements[sqlStatements.length - 1].trim().isEmpty());
+  }
+
+  private void waitForJobCompletion(TableResult result, long timeoutMs)
+      throws InterruptedException, ExecutionException, TimeoutException {
+    assertTrue(result.getJobClient().isPresent());
+    result.getJobClient().get().getJobExecutionResult().get(timeoutMs, TimeUnit.MILLISECONDS);
   }
 
   private List<String> getQueries() {

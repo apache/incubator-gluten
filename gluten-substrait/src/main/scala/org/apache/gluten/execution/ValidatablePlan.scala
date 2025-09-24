@@ -23,6 +23,8 @@ import org.apache.gluten.expression.TransformerState
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.test.TestStats
 
+import org.apache.spark.sql.catalyst.analysis.UnresolvedException
+
 /**
  * Base interface for a Gluten query plan that is also open to validation calls.
  *
@@ -40,18 +42,21 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
   // otherwise returns the result of f.
   protected def failValidationWithException(f: => ValidationResult)(
       finallyBlock: => Unit = ()): ValidationResult = {
+    def makeFailed(e: Exception): ValidationResult = {
+      val message = s"Validation failed with exception from: $nodeName, reason: ${e.getMessage}"
+      if (glutenConf.printStackOnValidationFailure) {
+        logOnLevel(glutenConf.validationLogLevel, message, e)
+      }
+      ValidationResult.failed(message)
+    }
     try {
       f
     } catch {
-      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-        if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
-        }
-        val message = s"Validation failed with exception from: $nodeName, reason: ${e.getMessage}"
-        if (glutenConf.printStackOnValidationFailure) {
-          logOnLevel(glutenConf.validationLogLevel, message, e)
-        }
-        ValidationResult.failed(message)
+      case e: GlutenNotSupportException =>
+        logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
+        makeFailed(e)
+      case e: UnsupportedOperationException =>
+        makeFailed(e)
       case t: Throwable =>
         throw t
     } finally {
@@ -63,13 +68,25 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
   final def doValidate(): ValidationResult = {
-    val schemaValidationResult = BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason =>
-          ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
+    val schemaValidationResult =
+      try {
+        BackendsApiManager.getValidatorApiInstance
+          .doSchemaValidate(schema)
+          .map {
+            reason =>
+              ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
+          }
+          .getOrElse(ValidationResult.succeeded)
+      } catch {
+        case u: UnresolvedException =>
+          val message =
+            s"Failed to retrieve schema, due to: ${u.getMessage}." +
+              s" If you are using a hash expression with a map key," +
+              s" consider enabling the spark.sql.legacy.allowHashOnMapType " +
+              s"setting to resolve this issue."
+          ValidationResult.failed(message)
       }
-      .getOrElse(ValidationResult.succeeded)
+
     if (!schemaValidationResult.ok()) {
       TestStats.addFallBackClassName(this.getClass.toString)
       if (validationFailFast) {

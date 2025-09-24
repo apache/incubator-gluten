@@ -49,7 +49,7 @@ DB::Columns BaseReader::addVirtualColumn(DB::Chunk dataChunk, size_t rowNum) con
     assert(rows && "read 0 rows from file");
 
     auto read_columns = dataChunk.detachColumns();
-    const auto & columns = outputHeader.getColumnsWithTypeAndName();
+    const auto & columns = getHeader().getColumnsWithTypeAndName();
     const auto & normalized_partition_values = file->getFileNormalizedPartitionValues();
 
     DB::Columns res_columns;
@@ -229,7 +229,7 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
 
     /// If the original output header is empty, build a block to represent the row count.
     DB::Columns res_columns
-        = outputHeader.columns() > 0 ? addVirtualColumn({}, to_read_rows) : BlockUtil::buildRowCountChunk(to_read_rows).detachColumns();
+        = getHeader().columns() > 0 ? addVirtualColumn({}, to_read_rows) : BlockUtil::buildRowCountChunk(to_read_rows).detachColumns();
 
     chunk = DB::Chunk(std::move(res_columns), to_read_rows);
     return true;
@@ -263,7 +263,7 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
 
 DB::Block BaseReader::buildRowCountHeader(const DB::Block & header)
 {
-    return header ? header : BlockUtil::buildRowCountHeader();
+    return !header.empty() ? header : BlockUtil::buildRowCountHeader();
 }
 
 namespace
@@ -274,17 +274,12 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
     const FormatFilePtr & file,
     const DB::Block & to_read_header_,
     const DB::Block & output_header_,
-    const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
+    const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag = nullptr,
     const ColumnIndexFilterPtr & column_index_filter = nullptr)
 {
     file->initialize(column_index_filter);
     auto createInputFormat = [&](const DB::Block & new_read_header_) -> FormatFile::InputFormatPtr
-    {
-        auto input_format = file->createInputFormat(new_read_header_);
-        if (key_condition && input_format)
-            input_format->inputFormat().setKeyCondition(key_condition);
-        return input_format;
-    };
+    { return file->createInputFormat(new_read_header_, filter_actions_dag); };
 
     if (file->getFileInfo().has_iceberg())
         return iceberg::IcebergReader::create(file, to_read_header_, output_header_, createInputFormat);
@@ -316,14 +311,16 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
     return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
 }
 }
+
+/// TODO Remove ColumnIndexFilterPtr
 std::unique_ptr<BaseReader> BaseReader::create(
     const FormatFilePtr & current_file,
     const DB::Block & readHeader,
     const DB::Block & outputHeader,
-    const std::shared_ptr<const DB::KeyCondition> & key_condition,
+    const std::shared_ptr<const DB::ActionsDAG> & filter_actions_dag,
     const ColumnIndexFilterPtr & column_index_filter)
 {
-    if (!readHeader)
+    if (readHeader.empty())
     {
         if (auto totalRows = current_file->getTotalRows())
             return std::make_unique<ConstColumnsFileReader>(current_file, outputHeader, *totalRows);
@@ -335,7 +332,7 @@ std::unique_ptr<BaseReader> BaseReader::create(
         }
     }
 
-    return createNormalFileReader(current_file, readHeader, outputHeader, key_condition, column_index_filter);
+    return createNormalFileReader(current_file, readHeader, outputHeader, filter_actions_dag, column_index_filter);
 }
 
 

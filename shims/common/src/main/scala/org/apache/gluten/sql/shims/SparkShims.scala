@@ -43,6 +43,7 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
+import org.apache.spark.sql.execution.window.WindowGroupLimitExecShim
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -151,9 +152,9 @@ trait SparkShims {
 
   def isWindowGroupLimitExec(plan: SparkPlan): Boolean = false
 
-  def getWindowGroupLimitExecShim(plan: SparkPlan): SparkPlan = null
+  def getWindowGroupLimitExecShim(plan: SparkPlan): WindowGroupLimitExecShim = null
 
-  def getWindowGroupLimitExec(windowGroupLimitPlan: SparkPlan): SparkPlan = null
+  def getWindowGroupLimitExec(windowGroupLimitExecShim: WindowGroupLimitExecShim): SparkPlan = null
 
   def getLimitAndOffsetFromGlobalLimit(plan: GlobalLimitExec): (Int, Int) = (plan.limit, 0)
 
@@ -250,9 +251,14 @@ trait SparkShims {
       outputPartitioning: Partitioning,
       commonPartitionValues: Option[Seq[(InternalRow, Int)]],
       applyPartialClustering: Boolean,
-      replicatePartitions: Boolean): Seq[Seq[InputPartition]] = filteredPartitions
+      replicatePartitions: Boolean,
+      joinKeyPositions: Option[Seq[Int]] = None): Seq[Seq[InputPartition]] =
+    filteredPartitions
 
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
+    Option.empty
+
+  def extractExpressionTimestampDiffUnit(timestampDiff: Expression): Option[String] =
     Option.empty
 
   def withTryEvalMode(expr: Expression): Boolean = false
@@ -311,4 +317,8 @@ trait SparkShims {
   def getCollectLimitOffset(plan: CollectLimitExec): Int = 0
 
   def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = false
+
+  def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType
+
+  def getRewriteCreateTableAsSelect(session: SparkSession): SparkStrategy = _ => Seq.empty
 }

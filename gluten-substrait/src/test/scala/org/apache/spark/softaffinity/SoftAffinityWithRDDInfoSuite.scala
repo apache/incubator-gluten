@@ -17,10 +17,8 @@
 package org.apache.spark.softaffinity
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.GlutenPartition
 import org.apache.gluten.softaffinity.{AffinityManager, SoftAffinityManager}
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.substrait.plan.PlanBuilder
 
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler._
@@ -105,10 +103,8 @@ class SoftAffinityWithRDDInfoSuite extends QueryTest with SharedSparkSession wit
       // check location (executor 0) of dulicate reading is returned.
       val locations = SoftAffinity.getFilePartitionLocations(filePartition)
 
-      val nativePartition = new GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
-
       assertResult(Set("executor_host-0_0")) {
-        nativePartition.preferredLocations().toSet
+        locations.toSet
       }
       softAffinityListener.onStageCompleted(stage1EndEvent)
       // stage 1 completed, check all middle status is cleared.

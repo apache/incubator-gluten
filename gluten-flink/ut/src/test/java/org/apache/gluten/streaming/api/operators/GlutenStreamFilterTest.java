@@ -17,7 +17,7 @@
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.gluten.rexnode.Utils;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
@@ -150,8 +150,8 @@ public class GlutenStreamFilterTest extends GlutenStreamOperatorTestBase {
         createFilterCondition(SqlTypeName.INTEGER, 0, 0, SqlStdOperatorTable.GREATER_THAN);
     PlanNode veloxPlan = createFilterPlan(filterCondition, simpleRowType);
 
-    TestableGlutenSingleInputOperator operator =
-        new TestableGlutenSingleInputOperator(veloxPlan, convertToVeloxType(simpleRowType));
+    TestableGlutenOneInputOperator operator =
+        new TestableGlutenOneInputOperator(veloxPlan, convertToVeloxType(simpleRowType));
 
     assertThat(operator.isOpened()).isFalse();
     assertThat(operator.isClosed()).isFalse();
@@ -184,7 +184,7 @@ public class GlutenStreamFilterTest extends GlutenStreamOperatorTestBase {
   private void testFilter(RexNode flinkFilterCondition, List<RowData> expectedOutput)
       throws Exception {
     PlanNode veloxPlan = createFilterPlan(flinkFilterCondition, rowType);
-    GlutenSingleInputOperator operator = createTestOperator(veloxPlan, typeInfo, typeInfo);
+    GlutenOneInputOperator operator = createTestOperator(veloxPlan, typeInfo, typeInfo);
 
     OneInputStreamOperatorTestHarness<RowData, RowData> harness =
         createTestHarness(operator, typeInfo, typeInfo);
@@ -206,11 +206,11 @@ public class GlutenStreamFilterTest extends GlutenStreamOperatorTestBase {
         PlanNodeIdGenerator.newId(), List.of(new EmptyNode(veloxType)), veloxFilterCondition);
   }
 
-  private static class TestableGlutenSingleInputOperator extends GlutenSingleInputOperator {
+  private static class TestableGlutenOneInputOperator extends GlutenOneInputOperator {
     private boolean opened = false;
     private boolean closed = false;
 
-    public TestableGlutenSingleInputOperator(
+    public TestableGlutenOneInputOperator(
         PlanNode veloxPlan, io.github.zhztheplayer.velox4j.type.RowType veloxType) {
       super(
           new io.github.zhztheplayer.velox4j.plan.StatefulPlanNode(veloxPlan.getId(), veloxPlan),

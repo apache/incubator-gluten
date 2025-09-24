@@ -32,6 +32,7 @@
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Poco/Logger.h>
 #include <Common/AggregateUtil.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/logger_useful.h>
 
@@ -53,11 +54,11 @@ static DB::ITransformingStep::Traits getTraits()
 
 AdvancedExpandStep::AdvancedExpandStep(
     DB::ContextPtr context_,
-    const DB::Block & input_header_,
+    const DB::SharedHeader & input_header_,
     size_t grouping_keys_,
     const DB::AggregateDescriptions & aggregate_descriptions_,
     const ExpandField & project_set_exprs_)
-    : DB::ITransformingStep(input_header_, buildOutputHeader(input_header_, project_set_exprs_), getTraits())
+    : DB::ITransformingStep(input_header_, toShared(buildOutputHeader(*input_header_, project_set_exprs_)), getTraits())
     , context(context_)
     , grouping_keys(grouping_keys_)
     , aggregate_descriptions(aggregate_descriptions_)
@@ -105,7 +106,7 @@ void AdvancedExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, 
             DB::connect(*output, expand_processor->getInputs().front());
             new_processors.push_back(expand_processor);
 
-            auto expand_output_header = expand_processor->getOutputs().front().getHeader();
+            auto expand_output_header = expand_processor->getOutputs().front().getSharedHeader();
 
             auto transform_params = std::make_shared<DB::AggregatingTransformParams>(expand_output_header, params, false);
             auto aggregate_processor = std::make_shared<StreamingAggregatingTransform>(context, expand_output_header, transform_params);
@@ -131,13 +132,13 @@ void AdvancedExpandStep::describePipeline(DB::IQueryPlanStep::FormatSettings & s
 
 void AdvancedExpandStep::updateOutputHeader()
 {
-    output_header = buildOutputHeader(input_headers.front(), project_set_exprs);
+    output_header = toShared(buildOutputHeader(*input_headers.front(), project_set_exprs));
 }
 
 /// It has two output ports. The 1st output port is for high cardinality data, the 2nd output port is for
 /// low cardinality data.
 AdvancedExpandTransform::AdvancedExpandTransform(
-    const DB::Block & input_header_, const DB::Block & output_header_, size_t grouping_keys_, const ExpandField & project_set_exprs_)
+    const DB::SharedHeader & input_header_, const DB::Block & output_header_, size_t grouping_keys_, const ExpandField & project_set_exprs_)
     : DB::IProcessor({input_header_}, {output_header_, output_header_})
     , grouping_keys(grouping_keys_)
     , project_set_exprs(project_set_exprs_)
@@ -245,7 +246,7 @@ void AdvancedExpandTransform::expandInputChunk()
 
             DB::ColumnWithTypeAndName input_arg;
             input_arg.column = input_column;
-            input_arg.type = input_header.getByPosition(index).type;
+            input_arg.type = input_header->getByPosition(index).type;
             /// input_column maybe non-Nullable
             columns[col_i] = DB::castColumn(input_arg, type);
         }

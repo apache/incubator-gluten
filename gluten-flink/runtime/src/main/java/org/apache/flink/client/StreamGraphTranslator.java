@@ -20,7 +20,7 @@ import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
 import org.apache.gluten.table.runtime.keyselector.GlutenKeySelector;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.table.runtime.operators.GlutenVectorSourceFunction;
 import org.apache.gluten.table.runtime.operators.GlutenVectorTwoInputOperator;
 import org.apache.gluten.table.runtime.typeutils.GlutenRowVectorSerializer;
@@ -130,8 +130,15 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
     if (outEdges == null || outEdges.isEmpty()) {
       LOG.debug("{} has no chained task.", taskConfig.getOperatorName());
       // TODO: judge whether can set?
-      if (isSourceGluten && taskConfig.getOperatorName().equals("exchange-hash")) {
-        taskConfig.setTypeSerializerOut(new GlutenRowVectorSerializer(null));
+      if (isSourceGluten) {
+        if (taskConfig.getOperatorName().equals("exchange-hash")) {
+          taskConfig.setTypeSerializerOut(new GlutenRowVectorSerializer(null));
+        }
+        Map<IntermediateDataSetID, String> nodeToNonChainedOuts = new HashMap<>(outEdges.size());
+        taskConfig
+            .getOperatorNonChainedOutputs(userClassloader)
+            .forEach(edge -> nodeToNonChainedOuts.put(edge.getDataSetId(), sourceOperator.getId()));
+        Utils.setNodeToNonChainedOutputs(taskConfig, nodeToNonChainedOuts);
         taskConfig.serializeAllConfigs();
       }
       return;
@@ -212,8 +219,11 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
             new GlutenRowVectorSerializer(null), new GlutenRowVectorSerializer(null));
       } else {
         taskConfig.setStreamOperator(
-            new GlutenSingleInputOperator(
+            new GlutenVectorOneInputOperator(
                 sourceNode, sourceOperator.getId(), sourceOperator.getInputType(), nodeToOutTypes));
+        // TODO: judge whether can set?
+        taskConfig.setStatePartitioner(0, new GlutenKeySelector());
+        taskConfig.setupNetworkInputs(new GlutenRowVectorSerializer(null));
       }
       Utils.setNodeToChainedOutputs(taskConfig, nodeToChainedOuts);
       Utils.setNodeToNonChainedOutputs(taskConfig, nodeToNonChainedOuts);

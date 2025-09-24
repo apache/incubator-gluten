@@ -20,7 +20,11 @@ source "$BASEDIR/builddeps-veloxbe.sh"
 
 function build_for_spark {
   spark_version=$1
-  mvn clean install -Pbackends-velox -Pspark-$spark_version -DskipTests
+  if [ $spark_version = "4.0" ]; then
+    mvn clean install -Pbackends-velox -Pspark-$spark_version -Pjava-17 -Pscala-2.13 -DskipTests
+  else
+    mvn clean install -Pbackends-velox -Pspark-$spark_version -DskipTests
+  fi
 }
 
 function check_supported {
@@ -40,7 +44,7 @@ check_supported
 
 # SPARK_VERSION is defined in builddeps-veloxbe.sh
 if [ "$SPARK_VERSION" = "ALL" ]; then
-  for spark_version in 3.2 3.3 3.4 3.5
+  for spark_version in 3.2 3.3 3.4 3.5 4.0
   do
     build_for_spark $spark_version
   done

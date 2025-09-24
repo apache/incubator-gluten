@@ -30,6 +30,10 @@ on:
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'cpp-ch/**'
+      - 'gluten-delta/**'
+      - 'gluten-ras/**'
+      - 'gluten-ui/**'
+      - 'gluten-kafka/**'
 
 jobs:
   add-comment:

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.config.HashShuffleWriterType
 import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.execution.VeloxResizeBatchesExec
 
@@ -32,7 +33,7 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
     plan.transformUp {
       case shuffle: ColumnarShuffleExchangeExec
-          if !shuffle.useSortBasedShuffle &&
+          if shuffle.shuffleWriterType == HashShuffleWriterType &&
             VeloxConfig.get.veloxResizeBatchesShuffleInput =>
         val appendBatches =
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max)

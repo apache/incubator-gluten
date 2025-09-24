@@ -29,7 +29,7 @@ import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.window.{Final, Partial, WindowGroupLimitMode}
+import org.apache.spark.sql.execution.window.{GlutenFinal, GlutenPartial, GlutenWindowGroupLimitMode}
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.SortField
@@ -41,7 +41,7 @@ case class CHWindowGroupLimitExecTransformer(
     orderSpec: Seq[SortOrder],
     rankLikeFunction: Expression,
     limit: Int,
-    mode: WindowGroupLimitMode,
+    mode: GlutenWindowGroupLimitMode,
     child: SparkPlan)
   extends UnaryTransformSupport {
 
@@ -57,8 +57,8 @@ case class CHWindowGroupLimitExecTransformer(
   override def output: Seq[Attribute] = child.output
 
   override def requiredChildDistribution: Seq[Distribution] = mode match {
-    case Partial => super.requiredChildDistribution
-    case Final =>
+    case GlutenPartial => super.requiredChildDistribution
+    case GlutenFinal =>
       if (partitionSpec.isEmpty) {
         AllTuples :: Nil
       } else {

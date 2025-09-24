@@ -257,9 +257,14 @@ rocksdb::DB & MetadataStorageFromRocksDB::getRocksDB() const
     return *rocksdb;
 }
 
-void MetadataStorageFromRocksDBTransaction::commit()
+void MetadataStorageFromRocksDBTransaction::commit(const DB::TransactionCommitOptionsVariant & options)
 {
-    commitImpl(metadata_storage.getMetadataMutex());
+    commitImpl(options, metadata_storage.getMetadataMutex());
+}
+
+std::optional<DB::StoredObjects> MetadataStorageFromRocksDBTransaction::tryGetBlobsFromTransactionIfExists(const std::string & path) const
+{
+    return metadata_storage.getStorageObjectsIfExist(path);
 }
 
 const DB::IMetadataStorage & MetadataStorageFromRocksDBTransaction::getStorageForNonTransactionalReads() const

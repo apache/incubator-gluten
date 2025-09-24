@@ -141,7 +141,8 @@ class GlutenSQLQueryTestSuite
     "ignored.sql", // Do NOT remove this one. It is here to test the ignore functionality.
     "explain-aqe.sql", // Explain is different in Gluten.
     "explain-cbo.sql", // Explain is different in Gluten.
-    "explain.sql" // Explain is different in Gluten.
+    "explain.sql", // Explain is different in Gluten.
+    "datetime-legacy.sql" // https://github.com/apache/incubator-gluten/issues/10671
   ) ++ otherIgnoreList ++
     BackendTestSettings.instance.getSQLQueryTestSettings.getIgnoredSQLQueryTests
 

@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.util._
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan, SQLExecution, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
@@ -45,6 +46,11 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 
 abstract class GlutenQueryTest extends PlanTest {
+
+  // TODO: remove this if we can suppress unused import error.
+  locally {
+    new ColumnConstructorExt(Column)
+  }
 
   protected def spark: SparkSession
 

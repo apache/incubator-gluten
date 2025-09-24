@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.util;
 
+import org.apache.flink.util.FlinkRuntimeException;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -27,7 +29,7 @@ public class ReflectUtils {
       f.setAccessible(true);
       return f.get(obj);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new FlinkRuntimeException(e);
     }
   }
 
@@ -38,7 +40,7 @@ public class ReflectUtils {
       m.setAccessible(true);
       return m.invoke(obj, paramValues);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new FlinkRuntimeException(e);
     }
   }
 }

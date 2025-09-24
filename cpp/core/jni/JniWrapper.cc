@@ -61,6 +61,9 @@ jclass shuffleReaderMetricsClass;
 jmethodID shuffleReaderMetricsSetDecompressTime;
 jmethodID shuffleReaderMetricsSetDeserializeTime;
 
+jclass shuffleStreamReaderClass;
+jmethodID shuffleStreamReaderNextStream;
+
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
   JavaInputStreamAdaptor(JNIEnv* env, arrow::MemoryPool* pool, jobject jniIn) : pool_(pool) {
@@ -190,6 +193,39 @@ void internalRuntimeReleaser(Runtime* runtime) {
   delete runtime;
 }
 
+class ShuffleStreamReader : public StreamReader {
+ public:
+  ShuffleStreamReader(JNIEnv* env, jobject reader) {
+    if (env->GetJavaVM(&vm_) != JNI_OK) {
+      throw GlutenException("Unable to get JavaVM instance");
+    }
+    ref_ = env->NewGlobalRef(reader);
+  }
+
+  ~ShuffleStreamReader() override {
+    JNIEnv* env = nullptr;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    env->DeleteGlobalRef(ref_);
+  }
+
+  std::shared_ptr<arrow::io::InputStream> readNextStream(arrow::MemoryPool* pool) override {
+    JNIEnv* env = nullptr;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+
+    jobject jniIn = env->CallObjectMethod(ref_, shuffleStreamReaderNextStream);
+    checkException(env);
+    if (jniIn == nullptr) {
+      return nullptr; // No more streams to read
+    }
+    std::shared_ptr<arrow::io::InputStream> in = std::make_shared<JavaInputStreamAdaptor>(env, pool, jniIn);
+    return in;
+  }
+
+ private:
+  JavaVM* vm_;
+  jobject ref_;
+};
+
 } // namespace
 
 #ifdef __cplusplus
@@ -223,7 +259,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       env,
       metricsBuilderClass,
       "<init>",
-      "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[JLjava/lang/String;)V");
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
@@ -235,6 +271,11 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", "(J)V");
   shuffleReaderMetricsSetDeserializeTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");
+
+  shuffleStreamReaderClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ShuffleStreamReader;");
+  shuffleStreamReaderNextStream = getMethodIdOrError(
+      env, shuffleStreamReaderClass, "nextStream", "()Lorg/apache/gluten/vectorized/JniByteInputStream;");
 
   return jniVersion;
 }
@@ -380,12 +421,18 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrap
 JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_injectWriteFilesTempPath( // NOLINT
     JNIEnv* env,
     jclass,
-    jbyteArray path) {
+    jbyteArray path,
+    jbyteArray fileName) {
   JNI_METHOD_START
   auto len = env->GetArrayLength(path);
   auto safeArray = getByteArrayElementsSafe(env, path);
   std::string pathStr(reinterpret_cast<char*>(safeArray.elems()), len);
   *Runtime::localWriteFilesTempPath() = pathStr;
+
+  len = env->GetArrayLength(fileName);
+  auto fileNameArray = getByteArrayElementsSafe(env, fileName);
+  std::string fileNameStr(reinterpret_cast<char*>(fileNameArray.elems()), len);
+  *Runtime::localWriteFileName() = fileNameStr;
   JNI_METHOD_END()
 }
 
@@ -407,9 +454,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
   auto ctx = getRuntime(env, wrapper);
   auto conf = ctx->getConfMap();
 #ifdef GLUTEN_ENABLE_GPU
-  if (enableCudf) {
-    conf[kCudfEnabled] = "true";
-  }
+  conf[kCudfEnabled] = std::to_string(enableCudf);
 #endif
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
@@ -540,9 +585,12 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_metrics_IteratorMetricsJniWrapp
       longArray[Metrics::kLocalReadBytes],
       longArray[Metrics::kRamReadBytes],
       longArray[Metrics::kPreloadSplits],
+      longArray[Metrics::kDataSourceAddSplitWallNanos],
+      longArray[Metrics::kDataSourceReadWallNanos],
       longArray[Metrics::kPhysicalWrittenBytes],
       longArray[Metrics::kWriteIOTime],
-      longArray[Metrics::kNumWrittenFiles]);
+      longArray[Metrics::kNumWrittenFiles],
+      metrics && metrics->stats.has_value() ? env->NewStringUTF(metrics->stats->c_str()) : nullptr);
 
   JNI_METHOD_END(nullptr)
 }
@@ -820,7 +868,8 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
 
   auto partitionWriter = std::make_shared<LocalPartitionWriter>(
       numPartitions,
-      createArrowIpcCodec(getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      createCompressionCodec(
+          getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
       ctx->memoryManager(),
       partitionWriterOptions,
       dataFile,
@@ -1053,16 +1102,18 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper_readStream( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper_read( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong shuffleReaderHandle,
-    jobject jniIn) {
+    jobject jStreamReader) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
   auto reader = ObjectStore::retrieve<ShuffleReader>(shuffleReaderHandle);
-  std::shared_ptr<arrow::io::InputStream> in = std::make_shared<JavaInputStreamAdaptor>(env, reader->getPool(), jniIn);
-  auto outItr = reader->readStream(in);
+
+  auto streamReader = std::make_shared<ShuffleStreamReader>(env, jStreamReader);
+
+  auto outItr = reader->read(streamReader);
   return ctx->saveObject(outItr);
   JNI_METHOD_END(kInvalidObjectHandle)
 }

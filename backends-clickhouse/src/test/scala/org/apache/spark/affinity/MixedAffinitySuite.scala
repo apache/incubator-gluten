@@ -16,9 +16,8 @@
  */
 package org.apache.spark.affinity
 
-import org.apache.gluten.execution.{GlutenMergeTreePartition, GlutenPartition, MergeTreePartSplit}
+import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartSplit}
 import org.apache.gluten.softaffinity.AffinityManager
-import org.apache.gluten.substrait.plan.PlanBuilder
 
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.test.SharedSparkSession
@@ -68,9 +67,8 @@ class MixedAffinitySuite extends QueryTest with SharedSparkSession {
         StructType(Seq()),
         Map.empty)
     val locations = affinity.getNativeMergeTreePartitionLocations(partition)
-    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
     assertResult(Set("forced_host_host-0")) {
-      nativePartition.preferredLocations().toSet
+      locations.toSet
     }
   }
 

@@ -19,9 +19,9 @@ package org.apache.spark.shuffle.writer;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.SortShuffleWriterType$;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
-import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.vectorized.GlutenSplitResult;
@@ -80,7 +80,6 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       ShuffleWriterJniWrapper.create(runtime);
   private final int nativeBufferSize = GlutenConfig.get().maxBatchSize();
   private final int bufferSize;
-  private final Boolean isSort;
   private final int numPartitions;
 
   private final ColumnarShuffleDependency<K, V, V> columnarDep;
@@ -103,8 +102,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       ShuffleWriteClient shuffleWriteClient,
       RssShuffleHandle<K, V, V> rssHandle,
       Function<String, Boolean> taskFailureCallback,
-      TaskContext context,
-      Boolean isSort) {
+      TaskContext context) {
     super(
         appId,
         shuffleId,
@@ -120,7 +118,6 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     columnarDep = (ColumnarShuffleDependency<K, V, V>) rssHandle.getDependency();
     this.partitionId = partitionId;
     this.sparkConf = sparkConf;
-    this.isSort = isSort;
     this.numPartitions = columnarDep.nativePartitioning().getNumPartitions();
     bufferSize =
         (int)
@@ -166,7 +163,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   bufferSize,
                   partitionPusher);
 
-          if (isSort) {
+          if (columnarDep.shuffleWriterType().equals(SortShuffleWriterType$.MODULE$)) {
             nativeShuffleWriter =
                 shuffleWriterJniWrapper.createSortShuffleWriter(
                     numPartitions,
@@ -195,7 +192,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   new Spiller() {
                     @Override
                     public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
-                      if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                      if (!Spiller.Phase.SPILL.equals(phase)) {
                         return 0L;
                       }
                       LOG.info("Gluten shuffle writer: Trying to push {} bytes of data", size);
@@ -248,7 +245,9 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     // bytesWritten is calculated in uniffle side: WriteBufferManager.createShuffleBlock
     // shuffleWriteMetrics.incBytesWritten(splitResult.getTotalBytesWritten());
     shuffleWriteMetrics.incWriteTime(
-        splitResult.getTotalWriteTime() + splitResult.getTotalPushTime());
+        splitResult.getTotalWriteTime()
+            + splitResult.getTotalPushTime()
+            + splitResult.getTotalCompressTime());
     // partitionLengths is calculate in uniffle side
 
     long pushMergedDataTime = System.nanoTime();

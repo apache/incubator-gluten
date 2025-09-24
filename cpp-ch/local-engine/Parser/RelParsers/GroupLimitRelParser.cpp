@@ -16,6 +16,7 @@
  */
 
 #include "GroupLimitRelParser.h"
+#include <algorithm>
 #include <memory>
 #include <unordered_set>
 #include <utility>
@@ -226,6 +227,7 @@ DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
 
     // If all partition keys are low cardinality keys, use aggregattion to get topk of each partition
     auto aggregation_plan = BranchStepHelper::createSubPlan(branch_in_header, 1);
+    collectPartitionAndSortFields();
     prePrejectionForAggregateArguments(*aggregation_plan);
     addGroupLmitAggregationStep(*aggregation_plan);
     postProjectionForExplodingArrays(*aggregation_plan);
@@ -235,8 +237,8 @@ DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
     addSortStep(*window_plan);
     addWindowLimitStep(*window_plan);
     auto convert_actions_dag = DB::ActionsDAG::makeConvertingActions(
-        window_plan->getCurrentHeader().getColumnsWithTypeAndName(),
-        aggregation_plan->getCurrentHeader().getColumnsWithTypeAndName(),
+        window_plan->getCurrentHeader()->getColumnsWithTypeAndName(),
+        aggregation_plan->getCurrentHeader()->getColumnsWithTypeAndName(),
         DB::ActionsDAG::MatchColumnsMode::Position);
     auto convert_step = std::make_unique<DB::ExpressionStep>(window_plan->getCurrentHeader(), std::move(convert_actions_dag));
     convert_step->setStepDescription("Rename rank column name");
@@ -262,15 +264,40 @@ String AggregateGroupLimitRelParser::getAggregateFunctionName(const String & win
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported window function: {}", window_function_name);
 }
 
+void AggregateGroupLimitRelParser::collectPartitionAndSortFields()
+{
+    partition_fields = parsePartitionFields(win_rel_def->partition_expressions());
+    auto full_sort_fields = parseSortFields(win_rel_def->sorts());
+
+    std::set<size_t> partition_fields_set(partition_fields.begin(), partition_fields.end());
+    std::set<size_t> full_sort_fields_set(full_sort_fields.begin(), full_sort_fields.end());
+    std::set<size_t> selected_sort_fields_set;
+    // Remove partition keys from sort keys
+    std::set_difference(
+        full_sort_fields_set.begin(),
+        full_sort_fields_set.end(),
+        partition_fields_set.begin(),
+        partition_fields_set.end(),
+        std::inserter(selected_sort_fields_set, selected_sort_fields_set.begin()));
+    if (selected_sort_fields_set.empty())
+    {
+        // FIXME: support empty sort keys.
+        sort_fields.push_back(*partition_fields_set.begin());
+    }
+    else
+    {
+        sort_fields = std::vector<size_t>(selected_sort_fields_set.begin(), selected_sort_fields_set.end());
+    }
+}
+
 // Build one tuple column as the aggregate function's arguments
 void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryPlan & plan)
 {
-    auto projection_actions = std::make_shared<DB::ActionsDAG>(input_header.getColumnsWithTypeAndName());
+    auto projection_actions = std::make_shared<DB::ActionsDAG>(input_header->getColumnsWithTypeAndName());
 
-    auto partition_fields = parsePartitionFields(win_rel_def->partition_expressions());
-    auto sort_fields = parseSortFields(win_rel_def->sorts());
     std::set<size_t> unique_partition_fields(partition_fields.begin(), partition_fields.end());
     std::set<size_t> unique_sort_fields(sort_fields.begin(), sort_fields.end());
+
     DB::NameSet required_column_names;
     auto build_tuple = [&](const DB::DataTypes & data_types,
                            const Strings & names,
@@ -293,15 +320,16 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryP
     DB::DataTypes aggregate_data_tuple_types;
     Strings aggregate_data_tuple_names;
     DB::ActionsDAG::NodeRawConstPtrs aggregate_data_tuple_nodes;
-    for (size_t i = 0; i < input_header.columns(); ++i)
+    for (size_t i = 0; i < input_header->columns(); ++i)
     {
-        const auto & col = input_header.getByPosition(i);
-        if (unique_partition_fields.count(i) && !unique_sort_fields.count(i))
+        const auto & col = input_header->getByPosition(i);
+        if (unique_partition_fields.count(i))
         {
             required_column_names.insert(col.name);
             aggregate_grouping_keys.push_back(col.name);
         }
-        else
+        
+        if (!unique_partition_fields.count(i) || unique_sort_fields.count(i))
         {
             aggregate_data_tuple_types.push_back(col.type);
             aggregate_data_tuple_names.push_back(col.name);
@@ -333,10 +361,18 @@ DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription
     agg_desc.argument_names = {aggregate_tuple_column_name};
     auto & parameters = agg_desc.parameters;
     parameters.push_back(static_cast<UInt32>(limit));
-    auto sort_directions = buildSQLLikeSortDescription(input_header, win_rel_def->sorts());
+    std::set<String> sort_field_names;
+    for (auto i : sort_fields)
+        sort_field_names.insert(input_header->getByPosition(i).name);
+    auto full_sort_desc = parseSortFields(*input_header, win_rel_def->sorts());
+    DB::SortDescription sort_desc;
+    for (const auto & sort_column : full_sort_desc)
+        if (sort_field_names.count(sort_column.column_name))
+            sort_desc.push_back(sort_column);
+    auto sort_directions = buildSQLLikeSortDescription(sort_desc);
     parameters.push_back(sort_directions);
 
-    auto header = plan.getCurrentHeader();
+    const auto & header = *plan.getCurrentHeader();
     DB::DataTypes arg_types;
     arg_types.push_back(header.getByName(aggregate_tuple_column_name).type);
 
@@ -348,6 +384,7 @@ DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription
 void AggregateGroupLimitRelParser::addGroupLmitAggregationStep(DB::QueryPlan & plan)
 {
     const auto & settings = getContext()->getSettingsRef();
+
     DB::AggregateDescriptions agg_descs = {buildAggregateDescription(plan)};
     auto params = AggregatorParamsHelper::buildParams(
         getContext(), aggregate_grouping_keys, agg_descs, AggregatorParamsHelper::Mode::INIT_TO_COMPLETED);
@@ -358,14 +395,14 @@ void AggregateGroupLimitRelParser::addGroupLmitAggregationStep(DB::QueryPlan & p
 
 void AggregateGroupLimitRelParser::postProjectionForExplodingArrays(DB::QueryPlan & plan)
 {
-    auto header = plan.getCurrentHeader();
+    const auto & header = *plan.getCurrentHeader();
 
     /// flatten the array column.
     auto agg_result_index = header.columns() - 1;
     auto array_join_actions_dag = ArrayJoinHelper::applyArrayJoinOnOneColumn(header, agg_result_index);
     auto new_steps = ArrayJoinHelper::addArrayJoinStep(getContext(), plan, array_join_actions_dag, false);
 
-    auto array_join_output_header = plan.getCurrentHeader();
+    const auto & array_join_output_header = *plan.getCurrentHeader();
     DB::ActionsDAG flatten_actions_dag(array_join_output_header.getColumnsWithTypeAndName());
     DB::Names flatten_output_column_names;
     for (size_t i = 0; i < array_join_output_header.columns() - 1; ++i)
@@ -394,13 +431,13 @@ void AggregateGroupLimitRelParser::postProjectionForExplodingArrays(DB::QueryPla
     flatten_expression_step->setStepDescription("Untuple the aggregation result");
     plan.addStep(std::move(flatten_expression_step));
 
-    auto flatten_tuple_output_header = plan.getCurrentHeader();
-    auto window_result_column = flatten_tuple_output_header.getByPosition(flatten_tuple_output_header.columns() - 1);
+    const auto & flatten_tuple_output_header = plan.getCurrentHeader();
+    auto window_result_column = flatten_tuple_output_header->getByPosition(flatten_tuple_output_header->columns() - 1);
     /// The result column is put at the end of the header.
-    auto output_header = input_header;
+    auto output_header{*input_header};
     output_header.insert(window_result_column);
     auto adjust_pos_actions_dag = DB::ActionsDAG::makeConvertingActions(
-        flatten_tuple_output_header.getColumnsWithTypeAndName(),
+        flatten_tuple_output_header->getColumnsWithTypeAndName(),
         output_header.getColumnsWithTypeAndName(),
         DB::ActionsDAG::MatchColumnsMode::Name);
     LOG_DEBUG(getLogger("AggregateGroupLimitRelParser"), "Actions dag for replacing columns:\n{}", adjust_pos_actions_dag.dumpDAG());
@@ -411,7 +448,7 @@ void AggregateGroupLimitRelParser::postProjectionForExplodingArrays(DB::QueryPla
 
 void AggregateGroupLimitRelParser::addSortStep(DB::QueryPlan & plan)
 {
-    auto header = plan.getCurrentHeader();
+    const auto & header = *plan.getCurrentHeader();
     auto full_sort_descr = parseSortFields(header, win_rel_def->partition_expressions());
     auto sort_descr = parseSortFields(header, win_rel_def->sorts());
     full_sort_descr.insert(full_sort_descr.end(), sort_descr.begin(), sort_descr.end());
@@ -465,11 +502,11 @@ void AggregateGroupLimitRelParser::addWindowLimitStep(DB::QueryPlan & plan)
     auto optimization_info = WindowGroupOptimizationInfo::parse(optimize_info_str.value());
     auto window_function_name = optimization_info.window_function;
 
-    auto in_header = plan.getCurrentHeader();
+    const auto & in_header = plan.getCurrentHeader();
     DB::WindowDescription win_descr;
     win_descr.frame = buildWindowFrame(window_function_name);
-    win_descr.partition_by = parseSortFields(in_header, win_rel_def->partition_expressions());
-    win_descr.order_by = parseSortFields(in_header, win_rel_def->sorts());
+    win_descr.partition_by = parseSortFields(*in_header, win_rel_def->partition_expressions());
+    win_descr.order_by = parseSortFields(*in_header, win_rel_def->sorts());
     win_descr.full_sort_description = win_descr.partition_by;
     win_descr.full_sort_description.insert(win_descr.full_sort_description.end(), win_descr.order_by.begin(), win_descr.order_by.end());
     DB::WriteBufferFromOwnString ss;
@@ -485,8 +522,8 @@ void AggregateGroupLimitRelParser::addWindowLimitStep(DB::QueryPlan & plan)
     win_step->setStepDescription("Window (" + win_descr.window_name + ")");
     plan.addStep(std::move(win_step));
 
-    auto win_result_header = plan.getCurrentHeader();
-    DB::ActionsDAG limit_actions_dag(win_result_header.getColumnsWithTypeAndName());
+    const auto & win_result_header = plan.getCurrentHeader();
+    DB::ActionsDAG limit_actions_dag(win_result_header->getColumnsWithTypeAndName());
     const auto * rank_value_node = limit_actions_dag.getInputs().back();
     const auto * limit_value_node = expression_parser->addConstColumn(limit_actions_dag, std::make_shared<DB::DataTypeInt32>(), limit);
     const auto * cmp_node = expression_parser->toFunctionNode(limit_actions_dag, "lessOrEquals", {rank_value_node, limit_value_node});

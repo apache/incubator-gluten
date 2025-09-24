@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.integration.metrics
 
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 
 trait MetricTag[T] {
   import MetricTag._
