@@ -36,9 +36,7 @@
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveDataSink.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveTableHandle.h"
-#endif
 
-#ifdef GLUTEN_ENABLE_GPU
 using namespace cudf_velox::connector::hive;
 #endif
 
@@ -618,9 +616,7 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
 }
 
 #ifdef GLUTEN_ENABLE_GPU
-
-std::shared_ptr<CudfHiveInsertTableHandle>
-makeCudfHiveInsertTableHandle(
+std::shared_ptr<CudfHiveInsertTableHandle> makeCudfHiveInsertTableHandle(
     const std::vector<std::string>& tableColumnNames,
     const std::vector<TypePtr>& tableColumnTypes,
     std::shared_ptr<cudf_velox::connector::hive::LocationHandle> locationHandle,
