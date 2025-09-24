@@ -20,7 +20,7 @@ In recent years, several native SQL engines have been developed, such as ClickHo
 data processing, these engines can outperform Spark’s JVM-based SQL engine. However, they currently don't directly support Spark SQL execution.
 
 ### Design Overview
-“Gluten” is Latin for "glue". The main goal of the Gluten project is to glue native engines to SparkSQL. Thus, we can benefit from the high performance of native engines and the high scalability enabled by the Spark ecosystem.
+“Gluten” is Latin for "glue". The main goal of the Gluten project is to glue native engines to Spark SQL. Thus, we can benefit from the high performance of native engines and the high scalability enabled by the Spark ecosystem.
 
 The basic design principle is to reuse Spark’s control flow, while offloading compute-intensive data processing to the native side. More specifically:
 
@@ -33,7 +33,7 @@ The basic design principle is to reuse Spark’s control flow, while offloading 
 * Provide extensibility to support more native engines.
 
 ### Target Users
-Gluten's target users include anyone who wants to fundamentally accelerate SparkSQL. As a plugin to Spark, Gluten requires no changes to the DataFrame API or SQL queries; users only need to configure it correctly.
+Gluten's target users include anyone who wants to fundamentally accelerate Spark SQL. As a plugin to Spark, Gluten requires no changes to the DataFrame API or SQL queries; users only need to configure it correctly.
 
 ## 2. Architecture
 The overview chart is shown below. [Substrait](https://substrait.io/) provides a well-defined, cross-language specification for data compute operations. Spark’s physical plan is transformed into a Substrait plan,
