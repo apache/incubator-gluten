@@ -60,6 +60,7 @@ object ExpressionNames {
   final val ADD = "add"
   final val SUBTRACT = "subtract"
   final val MULTIPLY = "multiply"
+  final val DIV = "div"
   final val DIVIDE = "divide"
   final val POSITIVE = "positive"
   final val NEGATIVE = "negative"
@@ -91,6 +92,7 @@ object ExpressionNames {
   final val CHECKED_SUBTRACT = "checked_subtract"
   final val CHECKED_DIVIDE = "checked_divide"
   final val CHECKED_MULTIPLY = "checked_multiply"
+  final val CHECKED_DIV = "checked_div"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
