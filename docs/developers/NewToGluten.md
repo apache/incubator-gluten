@@ -6,7 +6,7 @@ parent: Developer Overview
 ---
 Help users to debug and test with Gluten.
 
-# New Developer Guide
+# Guide for New Developers
 
 ## Environment
 
@@ -421,7 +421,6 @@ apt install valgrind
 valgrind --leak-check=yes ./exec_backend_test
 ```
 
-
 ## Run TPC-H and TPC-DS
 
 We supply `<gluten_home>/tools/gluten-it` to execute these queries
@@ -446,14 +445,14 @@ To make sure we don't accidentally modify the Gluten and Spark Plan build logic.
 We introduce new logic in `VeloxTPCHSuite` to check whether the plan has been changed or not,
 and this will be triggered when running the unit test.
 
-As a result, developers may encounter unit test fail in GitHub CI or locally, with the following error message:
+As a result, developers may encounter unit test failures in GitHub CI or locally, with the following error message:
 ```log
 - TPC-H q5 *** FAILED ***
   Mismatch for query 5
   Actual Plan path: /tmp/tpch-approved-plan/v2-bhj/spark322/5.txt
   Golden Plan path: /opt/gluten/backends-velox/target/scala-2.12/test-classes/tpch-approved-plan/v2-bhj/spark322/5.txt (VeloxTPCHSuite.scala:101)
 ```
-For developers to update the golden plan, you can find the actual plan in Github CI Artifacts or in local `/tmp/` directory. 
+To update the golden plan, you can find the actual plan in GitHub CI Artifacts or in local `/tmp/` directory.
 
 ![](../image/gluten_golden_file_upload.png)
 
