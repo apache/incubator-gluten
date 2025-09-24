@@ -28,7 +28,6 @@ import java.io.FileInputStream
 import java.util.{Properties, ServiceLoader}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 object SharedLibraryLoaderUtils {
   private def isMacOS: Boolean = {
@@ -65,30 +64,28 @@ object SharedLibraryLoaderUtils {
       .load(classOf[SharedLibraryLoader])
       .asScala
       .filter(loader => loader.accepts(osName, osVersion))
+      .toSeq
 
     if (loaders.isEmpty) {
       throw new GlutenException(
         s"Cannot find SharedLibraryLoader for $osName $osVersion, please" +
           "check whether your custom SharedLibraryLoader is implemented and loadable.")
-    } else {
-      val loadingErrors = new ArrayBuffer[Throwable]()
-      val loaded = loaders.exists {
-        loader =>
-          try {
-            loader.loadLib(jni)
-            true
-          } catch {
-            case e: Throwable =>
-              loadingErrors += e
-              false
-          }
-      }
-      if (!loaded) {
-        val error = new GlutenException(
-          s"Failed to load shared libraries for $osName $osVersion using ${loaders.mkString(",")}")
-        loadingErrors.foreach(error.addSuppressed)
-        throw error
-      }
+    }
+
+    if (loaders.size > 1) {
+      throw new GlutenException(
+        s"Found more than one SharedLibraryLoader for $osName $osVersion: ${loaders.mkString(",")}, " +
+          s"please check whether your custom SharedLibraryLoader is implemented correctly.")
+    }
+
+    val loader = loaders.head
+    try {
+      loader.loadLib(jni)
+    } catch {
+      case e: Throwable =>
+        throw new GlutenException(
+          s"Failed to load shared libraries for $osName $osVersion using $loader",
+          e)
     }
   }
 }
