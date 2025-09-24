@@ -74,8 +74,9 @@ object SharedLibraryLoaderUtils {
 
     if (loaders.size > 1) {
       throw new GlutenException(
-        s"Found more than one SharedLibraryLoader for $osName $osVersion: ${loaders.mkString(",")}, " +
-          s"please check whether your custom SharedLibraryLoader is implemented correctly.")
+        s"Found more than one SharedLibraryLoader for $osName $osVersion:" +
+          s" ${loaders.mkString(",")}, " +
+          "please check whether your custom SharedLibraryLoader is implemented correctly.")
     }
 
     val loader = loaders.head
