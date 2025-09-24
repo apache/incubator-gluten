@@ -76,8 +76,10 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare("SELECT int_field1 div 2 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-    intercept[SparkException] {
-      sql("SELECT 1 div 0 ").collect()
+    if (isSparkVersionGE("3.4")) {
+      intercept[SparkException] {
+        sql("SELECT 1 div 0 ").collect()
+      }
     }
   }
 
