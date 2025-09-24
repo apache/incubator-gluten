@@ -28,8 +28,8 @@
 #include "utils/qat/QatCodec.h"
 #endif
 #ifdef GLUTEN_ENABLE_GPU
-#include "velox/experimental/cudf/exec/ToCudf.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveConnector.h"
+#include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
 
 #include "compute/VeloxRuntime.h"
@@ -168,7 +168,6 @@ void VeloxBackend::init(
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
     FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
     FLAGS_velox_cudf_memory_resource = backendConf_->get<std::string>(kCudfMemoryResource, kCudfMemoryResourceDefault);
-    FLAGS_velox_cudf_table_scan = backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault);
     auto& options = velox::cudf_velox::CudfOptions::getInstance();
     options.memoryPercent = backendConf_->get<int32_t>(kCudfMemoryPercent, kCudfMemoryPercentDefault);
     velox::cudf_velox::registerCudf(options);
@@ -309,11 +308,11 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
   velox::connector::registerConnector(
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
 #ifdef GLUTEN_ENABLE_GPU
-  if (FLAGS_velox_cudf_table_scan) {
-      facebook::velox::cudf_velox::connector::hive::CudfHiveConnectorFactory factory;
-      auto hiveConnector =
-          factory.newConnector(kCudfHiveConnectorId, config, ioExecutor_.get());
-      facebook::velox::connector::registerConnector(hiveConnector);
+  if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
+      backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    facebook::velox::cudf_velox::connector::hive::CudfHiveConnectorFactory factory;
+    auto hiveConnector = factory.newConnector(kCudfHiveConnectorId, config, ioExecutor_.get());
+    facebook::velox::connector::registerConnector(hiveConnector);
   }
 #endif
 }
