@@ -59,7 +59,6 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   private Query query;
   BufferAllocator allocator;
   private MemoryManager memoryManager;
-  private SerialTask task;
 
   public GlutenSourceFunction(
       StatefulPlanNode planNode,
@@ -96,7 +95,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
     allocator = new RootAllocator(Long.MAX_VALUE);
 
-    task = session.queryOps().execute(query);
+    SerialTask task = session.queryOps().execute(query);
     task.addSplit(id, split);
     task.noMoreSplits(id);
     while (isRunning) {

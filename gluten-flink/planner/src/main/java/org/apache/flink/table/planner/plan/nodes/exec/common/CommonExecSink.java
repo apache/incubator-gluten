@@ -232,7 +232,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             VeloxSinkBuilder.build(
                 transformation.getInputs().get(0),
                 (ReadableConfig)
-                    ReflectUtils.getObjectField(filesystemTableClazz, tableSink, "tableOptions"));
+                    ReflectUtils.getObjectField(filesystemTableClazz, tableSink, "tableOptions"),
+                schema);
       } catch (Exception e) {
         throw new FlinkRuntimeException(e);
       }
@@ -492,7 +493,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         Transformation sinkTransformation =
             createSinkFunctionTransformation(
                 sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkMeta, sinkParallelism);
-        return VeloxSinkBuilder.build(sinkTransformation, env.getConfiguration());
+        return VeloxSinkBuilder.build(
+            sinkTransformation,
+            env.getConfiguration(),
+            tableSinkSpec.getContextResolvedTable().getResolvedSchema());
         // --- End Gluten-specific code changes ---
       } else if (runtimeProvider instanceof OutputFormatProvider) {
         OutputFormat<RowData> outputFormat =

@@ -35,19 +35,15 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.BulkFormatBuilder;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -55,9 +51,8 @@ import java.util.stream.Collectors;
 
 public class VeloxSinkBuilder {
 
-  private static final Logger LOG = LoggerFactory.getLogger(VeloxSinkBuilder.class);
-
-  public static Transformation<?> build(Transformation<?> transformation, ReadableConfig config) {
+  public static Transformation<?> build(
+      Transformation<?> transformation, ReadableConfig config, ResolvedSchema schema) {
     if (transformation instanceof LegacySinkTransformation) {
       SimpleOperatorFactory<?> operatorFactory =
           (SimpleOperatorFactory<?>)
@@ -78,7 +73,7 @@ public class VeloxSinkBuilder {
       if (oneInput.getName().equals("PartitionCommitter")
           && preInput.getName().equals("StreamingFileWriter")) {
         try {
-          return buildFileSystemSink((OneInputTransformation<?, ?>) preInput, config);
+          return buildFileSystemSink((OneInputTransformation<?, ?>) preInput, config, schema);
         } catch (Exception e) {
           throw new FlinkRuntimeException(e);
         }
@@ -89,24 +84,14 @@ public class VeloxSinkBuilder {
 
   @SuppressWarnings({"unchecked"})
   private static Transformation<?> buildFileSystemSink(
-      OneInputTransformation<?, ?> transformation, ReadableConfig config) throws Exception {
+      OneInputTransformation<?, ?> transformation, ReadableConfig config, ResolvedSchema schema)
+      throws Exception {
     OneInputStreamOperator<?, ?> operator = transformation.getOperator();
     List<String> partitionKeys =
         (List<String>) ReflectUtils.getObjectField(operator.getClass(), operator, "partitionKeys");
-    Class<?> streamingFileWriterClazz =
-        Class.forName("org.apache.flink.connector.file.table.stream.AbstractStreamingWriter");
-    Object bucketsBuilder =
-        ReflectUtils.getObjectField(streamingFileWriterClazz, operator, "bucketsBuilder");
-    Object assigner =
-        ReflectUtils.getObjectField(BulkFormatBuilder.class, bucketsBuilder, "bucketAssigner");
-    Object partitionComputer =
-        ReflectUtils.getObjectField(assigner.getClass(), assigner, "computer");
-    int[] partitionIndexArray =
-        (int[])
-            ReflectUtils.getObjectField(
-                partitionComputer.getClass(), partitionComputer, "partitionIndexes");
+    List<String> columnList = schema.getColumnNames();
     List<Integer> partitionIndexes =
-        Arrays.stream(partitionIndexArray).boxed().collect(Collectors.toList());
+        partitionKeys.stream().mapToInt(columnList::indexOf).boxed().collect(Collectors.toList());
     Map<String, String> tableParams = config.toMap();
     tableParams.put("fs.file_name_prefix", UUID.randomUUID().toString());
     tableParams.put("fs.writer_task_id", String.valueOf(0));
