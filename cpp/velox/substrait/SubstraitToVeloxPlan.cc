@@ -48,9 +48,7 @@ bool useCudfTableHandle(const std::vector<std::shared_ptr<SplitInfo>>& splitInfo
   if (splitInfos.empty()) {
     return false;
   }
-
-  return splitInfos[0]->canUseCudfConnector();
-
+  return splitInfos[0]->partitionColumns.empty() && splitInfos[0]->format == dwio::common::FileFormat::PARQUET;
 #else
   return false;
 #endif
@@ -165,14 +163,6 @@ RowTypePtr getJoinOutputType(
 }
 
 } // namespace
-
-bool SplitInfo::canUseCudfConnector() {
-#ifdef GLUTEN_ENABLE_GPU
-  return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET;
-#else
-  return false;
-#endif
-}
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(
     const ::substrait::RelCommon& relCommon,
@@ -736,7 +726,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::shared_ptr<core::InsertTableHandle> tableHandle;
   if (useCudfTableHandle(splitInfos_) && veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
       veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-#ifdef GLUTEN_ENABLE_GPU
+  #ifdef GLUTEN_ENABLE_GPU
     tableHandle = std::make_shared<core::InsertTableHandle>(
         kCudfHiveConnectorId,
         makeCudfHiveInsertTableHandle(
