@@ -87,9 +87,6 @@ import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -103,7 +100,6 @@ import java.util.stream.IntStream;
  */
 public abstract class CommonExecSink extends ExecNodeBase<Object>
     implements MultipleTransformationTranslator<Object> {
-  private static final Logger LOG = LoggerFactory.getLogger(CommonExecSink.class);
   public static final String CONSTRAINT_VALIDATOR_TRANSFORMATION = "constraint-validator";
   public static final String PARTITIONER_TRANSFORMATION = "partitioner";
   public static final String UPSERT_MATERIALIZE_TRANSFORMATION = "upsert-materialize";
