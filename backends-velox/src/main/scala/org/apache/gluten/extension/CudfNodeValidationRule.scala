@@ -18,6 +18,7 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, WholeStageTransformer}
+
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -30,7 +31,6 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     }
     plan.transformUp {
       case transformer: WholeStageTransformer =>
-
         if (!VeloxConfig.get.cudfEnableTableScan) {
           // Spark3.2 does not have exists
           val hasLeaf = transformer.find {
