@@ -77,11 +77,12 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       override def write(row: InternalRow): Unit = {
         BatchCarrierRow.unwrap(row).foreach {
           batch =>
-            ColumnarBatches.checkOffloaded(batch)
-            ColumnarBatches.retain(batch)
+            val batchType = ColumnarBatches.identifyBatchType(batch)
+            ColumnarBatches.checkOffloaded(batchType)
+            ColumnarBatches.retain(batch, batchType)
             val batchHandle = {
-              ColumnarBatches.checkOffloaded(batch)
-              ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
+              ColumnarBatches.checkOffloaded(batchType)
+              ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch, batchType)
             }
             datasourceJniWrapper.writeBatch(dsHandle, batchHandle)
             batch.close()
