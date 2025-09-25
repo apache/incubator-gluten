@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableException;
@@ -84,6 +85,9 @@ import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -97,6 +101,7 @@ import java.util.stream.IntStream;
  */
 public abstract class CommonExecSink extends ExecNodeBase<Object>
     implements MultipleTransformationTranslator<Object> {
+  private static final Logger LOG = LoggerFactory.getLogger(CommonExecSink.class);
   public static final String CONSTRAINT_VALIDATOR_TRANSFORMATION = "constraint-validator";
   public static final String PARTITIONER_TRANSFORMATION = "partitioner";
   public static final String UPSERT_MATERIALIZE_TRANSFORMATION = "upsert-materialize";
@@ -206,7 +211,13 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     if (targetRowKind.isPresent()) {
       sinkTransform = applyRowKindSetter(sinkTransform, targetRowKind.get(), config);
     }
-    return (Transformation<Object>)
+    LOG.info("dynamicTableSink:{}", tableSink.getClass().getName());
+    LOG.info("sinkTransforma:" + sinkTransform.getClass().getName());
+    if (sinkTransform instanceof OneInputTransformation) {
+      LOG.info("oneInput:{}", ((OneInputTransformation) sinkTransform).getName());
+      LOG.info("config:" + getPersistedConfig());
+    }
+    Transformation<Object> resultTrans = (Transformation<Object>)
         applySinkProvider(
             sinkTransform,
             streamExecEnv,
@@ -215,6 +226,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             sinkParallelism,
             config,
             classLoader);
+    LOG.info("resultTrans::" + resultTrans);
+    return resultTrans;
   }
 
   /** Apply an operator to filter or report error to process not-null values for not-null fields. */

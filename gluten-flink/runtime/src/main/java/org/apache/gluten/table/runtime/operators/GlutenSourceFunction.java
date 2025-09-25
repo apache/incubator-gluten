@@ -59,6 +59,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
   private Query query;
   BufferAllocator allocator;
   private MemoryManager memoryManager;
+  private SerialTask task;
 
   public GlutenSourceFunction(
       StatefulPlanNode planNode,

@@ -22,6 +22,8 @@ import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 import org.apache.gluten.util.ReflectUtils;
 
+import io.github.zhztheplayer.velox4j.connector.KafkaConnectorSplit;
+import io.github.zhztheplayer.velox4j.connector.KafkaTableHandle;
 import io.github.zhztheplayer.velox4j.connector.NexmarkConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.NexmarkTableHandle;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
@@ -31,6 +33,7 @@ import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -43,8 +46,11 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -122,6 +128,96 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                           maxEvents > Integer.MAX_VALUE
                               ? Integer.MAX_VALUE
                               : maxEvents.intValue()))));
+      streamGraph.addLegacySource(
+          transformationId,
+          slotSharingGroup,
+          transformation.getCoLocationGroupKey(),
+          operatorFactory,
+          null,
+          transformation.getOutputType(),
+          "Source: " + transformation.getName());
+    } else if (sourceClazz.getSimpleName().equals("KafkaSource")) {
+      RowType outputType =
+          (RowType)
+              LogicalTypeConverter.toVLType(
+                  ((InternalTypeInfo<?>) transformation.getOutputType()).toLogicalType());
+      String connectorId = "connector-kafka";
+      Source<OUT, SplitT, EnumChkT> kafkaSource = transformation.getSource();
+      Properties properties =
+          (Properties) ReflectUtils.getObjectField(sourceClazz, kafkaSource, "props");
+      Object kafkaSubscriber = ReflectUtils.getObjectField(sourceClazz, kafkaSource, "subscriber");
+      Object topics =
+          ReflectUtils.getObjectField(kafkaSubscriber.getClass(), kafkaSubscriber, "topics");
+      Object deserializer =
+          ReflectUtils.getObjectField(sourceClazz, kafkaSource, "deserializationSchema");
+      if (deserializer.getClass().getSimpleName().equals("KafkaDeserializationSchemaWrapper")) {
+        deserializer =
+            ReflectUtils.getObjectField(
+                deserializer.getClass(), deserializer, "kafkaDeserializationSchema");
+        if (deserializer.getClass().getSimpleName().equals("DynamicKafkaDeserializationSchema")) {
+          deserializer =
+              ReflectUtils.getObjectField(
+                  deserializer.getClass(), deserializer, "valueDeserialization");
+        }
+      }
+      Object offsetStartInitializer =
+          ReflectUtils.getObjectField(sourceClazz, kafkaSource, "startingOffsetsInitializer");
+      String startupMode = "group-offsets";
+      String offsetStartInitializerClazzName = offsetStartInitializer.getClass().getSimpleName();
+      if (offsetStartInitializerClazzName.equals("LatestOffsetsInitializer")) {
+        startupMode = "latest-offsets";
+      } else if (offsetStartInitializerClazzName.equals("ReaderHandledOffsetsInitializer")) {
+        Long offset =
+            (Long)
+                ReflectUtils.getObjectField(
+                    offsetStartInitializer.getClass(), offsetStartInitializer, "startingOffset");
+        startupMode =
+            offset == -1 ? "latest-offsets" : offset == -2 ? "earliest-offsets" : "group-offsets";
+      }
+      String planId = PlanNodeIdGenerator.newId();
+      String topic = ((List<String>) topics).get(0);
+      String format =
+          deserializer.getClass().getSimpleName().equals("JsonParserRowDataDeserializationSchema")
+              ? "json"
+              : "raw";
+      Map<String, String> kafkaTableParameters = new HashMap<String, String>();
+      for (String key : properties.stringPropertyNames()) {
+        kafkaTableParameters.put(key, properties.getProperty(key));
+      }
+      kafkaTableParameters.put("topic", topic);
+      kafkaTableParameters.put("format", format);
+      kafkaTableParameters.put("scan.startup.mode", startupMode);
+      kafkaTableParameters.put(
+          "enable.auto.commit",
+          context.getStreamGraph().getCheckpointConfig().isCheckpointingEnabled()
+              ? "false"
+              : "true");
+      kafkaTableParameters.put(
+          "client.id",
+          properties.getProperty("client.id.prefix", "connector-kafka") + "-" + UUID.randomUUID());
+      KafkaTableHandle kafkaTableHandle =
+          new KafkaTableHandle(connectorId, topic, outputType, kafkaTableParameters);
+      KafkaConnectorSplit connectorSplit =
+          new KafkaConnectorSplit(
+              connectorId,
+              0,
+              false,
+              kafkaTableParameters.get("bootstrap.servers"),
+              kafkaTableParameters.get("group.id"),
+              format,
+              Boolean.valueOf(kafkaTableParameters.getOrDefault("enable.auto.commit", "false")),
+              "latest",
+              List.of());
+      StreamOperatorFactory<OUT> operatorFactory =
+          SimpleOperatorFactory.of(
+              new GlutenStreamSource(
+                  new GlutenVectorSourceFunction(
+                      new StatefulPlanNode(
+                          planId,
+                          new TableScanNode(planId, outputType, kafkaTableHandle, List.of())),
+                      Map.of(planId, outputType),
+                      planId,
+                      connectorSplit)));
       streamGraph.addLegacySource(
           transformationId,
           slotSharingGroup,

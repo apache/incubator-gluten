@@ -36,14 +36,22 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
 
 public class VeloxSinkBuilder {
+
+  private static final Logger LOG = LoggerFactory.getLogger(VeloxSinkBuilder.class);
 
   public static Transformation build(ReadableConfig config, Transformation transformation) {
     if (transformation instanceof LegacySinkTransformation) {
@@ -58,8 +66,28 @@ public class VeloxSinkBuilder {
               .equals("RowDataPrintFunction")) {
         return buildPrintSink(config, (LegacySinkTransformation) transformation);
       }
+    } else if (transformation instanceof SinkTransformation) {
+      SinkTransformation<RowData, RowData> sinkTrans = (SinkTransformation) transformation;
+      LOG.info("oneInputTrans:{}", sinkTrans.getInputs().get(0).getClass().getName());
+      String name =
+          ((OneInputTransformation) sinkTrans.getInputs().get(0))
+              .getOperator()
+              .getClass()
+              .getName();
+      LOG.info("operatorName:" + name);
+      // StreamOperatorFactory<RowData> operatorFactory = oneInputTrans.getOperatorFactory();
+      // if (operatorFactory instanceof SimpleOperatorFactory) {
+      //   String operatorClazzName = oneInputTrans.getOperator().getClass().getSimpleName();
+      //   LOG.info("op.class 11:" + operatorClazzName);
+      // } else {
+      //   LOG.info("oneInputTrans:{}", oneInputTrans.getName());
+      // }
     }
     return transformation;
+  }
+
+  private static Transformation buildFileSystemSink() {
+    return null;
   }
 
   private static LegacySinkTransformation buildPrintSink(
