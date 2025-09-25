@@ -20,8 +20,10 @@ import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
 import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
+import org.apache.gluten.util.ReflectUtils;
 
 import io.github.zhztheplayer.velox4j.connector.CommitStrategy;
+import io.github.zhztheplayer.velox4j.connector.FileSystemInsertTableHandle;
 import io.github.zhztheplayer.velox4j.connector.PrintTableHandle;
 import io.github.zhztheplayer.velox4j.plan.EmptyNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
@@ -33,12 +35,11 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.BulkFormatBuilder;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.transformations.SinkTransformation;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -46,54 +47,114 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class VeloxSinkBuilder {
 
   private static final Logger LOG = LoggerFactory.getLogger(VeloxSinkBuilder.class);
 
-  public static Transformation build(ReadableConfig config, Transformation transformation) {
+  public static Transformation<?> build(Transformation<?> transformation, ReadableConfig config) {
     if (transformation instanceof LegacySinkTransformation) {
-      SimpleOperatorFactory operatorFactory =
-          (SimpleOperatorFactory) ((LegacySinkTransformation) transformation).getOperatorFactory();
-      OneInputStreamOperator sinkOp = (OneInputStreamOperator) operatorFactory.getOperator();
+      SimpleOperatorFactory<?> operatorFactory =
+          (SimpleOperatorFactory<?>)
+              ((LegacySinkTransformation<?>) transformation).getOperatorFactory();
+      OneInputStreamOperator<?, ?> sinkOp =
+          (OneInputStreamOperator<?, ?>) operatorFactory.getOperator();
       if (sinkOp instanceof SinkOperator
           && ((SinkOperator) sinkOp)
               .getUserFunction()
               .getClass()
               .getSimpleName()
               .equals("RowDataPrintFunction")) {
-        return buildPrintSink(config, (LegacySinkTransformation) transformation);
+        return buildPrintSink((LegacySinkTransformation<?>) transformation, config);
       }
-    } else if (transformation instanceof SinkTransformation) {
-      SinkTransformation<RowData, RowData> sinkTrans = (SinkTransformation) transformation;
-      LOG.info("oneInputTrans:{}", sinkTrans.getInputs().get(0).getClass().getName());
-      String name =
-          ((OneInputTransformation) sinkTrans.getInputs().get(0))
-              .getOperator()
-              .getClass()
-              .getName();
-      LOG.info("operatorName:" + name);
-      // StreamOperatorFactory<RowData> operatorFactory = oneInputTrans.getOperatorFactory();
-      // if (operatorFactory instanceof SimpleOperatorFactory) {
-      //   String operatorClazzName = oneInputTrans.getOperator().getClass().getSimpleName();
-      //   LOG.info("op.class 11:" + operatorClazzName);
-      // } else {
-      //   LOG.info("oneInputTrans:{}", oneInputTrans.getName());
-      // }
+    } else if (transformation instanceof OneInputTransformation) {
+      OneInputTransformation<?, ?> oneInput = (OneInputTransformation<?, ?>) transformation;
+      Transformation<?> preInput = (Transformation<?>) oneInput.getInputs().get(0);
+      if (oneInput.getName().equals("PartitionCommitter")
+          && preInput.getName().equals("StreamingFileWriter")) {
+        try {
+          return buildFileSystemSink((OneInputTransformation<?, ?>) preInput, config);
+        } catch (Exception e) {
+          throw new FlinkRuntimeException(e);
+        }
+      }
     }
     return transformation;
   }
 
-  private static Transformation buildFileSystemSink() {
-    return null;
+  @SuppressWarnings({"unchecked"})
+  private static Transformation<?> buildFileSystemSink(
+      OneInputTransformation<?, ?> transformation, ReadableConfig config) throws Exception {
+    OneInputStreamOperator<?, ?> operator = transformation.getOperator();
+    List<String> partitionKeys =
+        (List<String>) ReflectUtils.getObjectField(operator.getClass(), operator, "partitionKeys");
+    Class<?> streamingFileWriterClazz =
+        Class.forName("org.apache.flink.connector.file.table.stream.AbstractStreamingWriter");
+    Object bucketsBuilder =
+        ReflectUtils.getObjectField(streamingFileWriterClazz, operator, "bucketsBuilder");
+    Object assigner =
+        ReflectUtils.getObjectField(BulkFormatBuilder.class, bucketsBuilder, "bucketAssigner");
+    Object partitionComputer =
+        ReflectUtils.getObjectField(assigner.getClass(), assigner, "computer");
+    int[] partitionIndexArray =
+        (int[])
+            ReflectUtils.getObjectField(
+                partitionComputer.getClass(), partitionComputer, "partitionIndexes");
+    List<Integer> partitionIndexes =
+        Arrays.stream(partitionIndexArray).boxed().collect(Collectors.toList());
+    Map<String, String> tableParams = config.toMap();
+    tableParams.put("fs.file_name_prefix", UUID.randomUUID().toString());
+    tableParams.put("fs.writer_task_id", String.valueOf(0));
+    org.apache.flink.table.types.logical.RowType inputType =
+        (org.apache.flink.table.types.logical.RowType)
+            ((InternalTypeInfo<?>) transformation.getInputType()).toLogicalType();
+    RowType inputDataColumns = (RowType) LogicalTypeConverter.toVLType(inputType);
+    FileSystemInsertTableHandle insertTableHandle =
+        new FileSystemInsertTableHandle(
+            transformation.getName(),
+            inputDataColumns,
+            partitionKeys,
+            partitionIndexes,
+            tableParams);
+    RowType ignore = new RowType(List.of("num"), List.of(new BigIntType()));
+    TableWriteNode fileSystemWriteNode =
+        new TableWriteNode(
+            PlanNodeIdGenerator.newId(),
+            inputDataColumns,
+            inputDataColumns.getNames(),
+            null,
+            "connector-filesystem",
+            insertTableHandle,
+            false,
+            ignore,
+            CommitStrategy.NO_COMMIT,
+            List.of(new EmptyNode(inputDataColumns)));
+    GlutenVectorOneInputOperator onewInputOperator =
+        new GlutenVectorOneInputOperator(
+            new StatefulPlanNode(fileSystemWriteNode.getId(), fileSystemWriteNode),
+            PlanNodeIdGenerator.newId(),
+            inputDataColumns,
+            Map.of(fileSystemWriteNode.getId(), ignore));
+    GlutenOneInputOperatorFactory<?, ?> operatorFactory =
+        new GlutenOneInputOperatorFactory(onewInputOperator);
+    return new OneInputTransformation(
+        transformation.getInputs().get(0),
+        transformation.getName(),
+        operatorFactory,
+        transformation.getOutputType(),
+        transformation.getParallelism());
   }
 
-  private static LegacySinkTransformation buildPrintSink(
-      ReadableConfig config, LegacySinkTransformation transformation) {
-    Transformation inputTrans = (Transformation) transformation.getInputs().get(0);
-    InternalTypeInfo inputTypeInfo = (InternalTypeInfo) inputTrans.getOutputType();
+  @SuppressWarnings({"unchecked"})
+  private static LegacySinkTransformation<?> buildPrintSink(
+      LegacySinkTransformation<?> transformation, ReadableConfig config) {
+    Transformation<?> inputTrans = (Transformation<?>) transformation.getInputs().get(0);
+    InternalTypeInfo<?> inputTypeInfo = (InternalTypeInfo<?>) inputTrans.getOutputType();
     String logDir = config.get(CoreOptions.FLINK_LOG_DIR);
     String printPath;
     if (logDir != null) {
@@ -126,15 +187,18 @@ public class VeloxSinkBuilder {
             ignore,
             CommitStrategy.NO_COMMIT,
             List.of(new EmptyNode(inputColumns)));
+    GlutenVectorOneInputOperator oneInputOperator =
+        new GlutenVectorOneInputOperator(
+            new StatefulPlanNode(tableWriteNode.getId(), tableWriteNode),
+            PlanNodeIdGenerator.newId(),
+            inputColumns,
+            Map.of(tableWriteNode.getId(), ignore));
+    GlutenOneInputOperatorFactory<?, ?> oneInputOperatorFactory =
+        new GlutenOneInputOperatorFactory<>(oneInputOperator);
     return new LegacySinkTransformation(
         inputTrans,
         transformation.getName(),
-        new GlutenOneInputOperatorFactory(
-            new GlutenVectorOneInputOperator(
-                new StatefulPlanNode(tableWriteNode.getId(), tableWriteNode),
-                PlanNodeIdGenerator.newId(),
-                inputColumns,
-                Map.of(tableWriteNode.getId(), ignore))),
+        oneInputOperatorFactory,
         transformation.getParallelism());
   }
 }
