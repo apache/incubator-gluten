@@ -394,14 +394,6 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
     }
   }
 
-  class PartitionedTaskAttemptContextImpl(
-                                           conf: Configuration,
-                                           taskId: TaskAttemptID,
-                                           partitionColumnToDataType: Map[String, DataType])
-    extends TaskAttemptContextImpl(conf, taskId) {
-    val partitionColToDataType: Map[String, DataType] = partitionColumnToDataType
-  }
-
   /** Writes data out in a single Spark task. */
   private def executeTask(
                            description: WriteJobDescription,
@@ -431,7 +423,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
       if (partitionColumnToDataType.isEmpty) {
         new TaskAttemptContextImpl(hadoopConf, taskAttemptId)
       } else {
-        new PartitionedTaskAttemptContextImpl(hadoopConf, taskAttemptId, partitionColumnToDataType)
+        new DeltaFileFormatWriter.PartitionedTaskAttemptContextImpl(hadoopConf, taskAttemptId, partitionColumnToDataType)
       }
     }
 
