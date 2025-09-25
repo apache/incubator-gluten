@@ -4,7 +4,6 @@ title: New To Gluten
 nav_order: 2
 parent: Developer Overview
 ---
-Help users to debug and test with Gluten.
 
 # Guide for New Developers
 
@@ -19,13 +18,13 @@ also supports JDK 11 and 17.
 
 Note: Starting with Spark 4.0, the minimum required JDK version is 17.
 
-We recommend using a higher JDK version now to ease migration when deploying Gluten with Spark-4.0
+We recommend using a higher JDK version now to ease migration when deploying Gluten for Spark 4.0
 in the future. In addition, we may upgrade Arrow from 15.0.0 to a newer release, which will require
 JDK 11 as the minimum version.
 
 By default, Gluten compiles packages using JDK 8. Enable maven profile by `-Pjava-17` or `-Pjava-11` to use the corresponding JDK version, and ensure that the JDK version is available in your environment.
 
-Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
+If JDK 11 or a higher version is used, Spark and Arrow require setting the java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
 So add the following configs in `spark-defaults.conf`:
 
 ```
@@ -35,11 +34,9 @@ spark.executor.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
 
 ### Maven 3.6.3 or above
 
-[Maven Download Page](https://maven.apache.org/docs/history.html)
-
 ### GCC 11 or above
 
-## Compile Gluten using debug mode
+## Development
 
 To debug Java/Scala code, follow the steps in [build-gluten-with-velox-backend](../get-started/Velox.md#build-gluten-with-velox-backend).
 
@@ -52,7 +49,6 @@ gluten_home/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --bu
 
 Note: To debug the tests in <gluten>/gluten-ut, you must compile java code with `-Pspark-ut`.
 
-## Development
 ### Java/scala code development
 
 #### Linux IntelliJ local debug
@@ -135,7 +131,7 @@ make debug EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DENABLE_HDFS=ON -DVELOX
 Then Gluten will link the Velox debug library.
 Click **build** in the bottom bar to enable IntelliSense features like search and navigation.
 
-#### Debug Setting
+#### Debug setting
 
 The default compile command does not enable tests and benchmarks, so the corresponding executable files are not generated.
 To enable the test and benchmark args, create or edit the `<gluten_home>/.vscode/settings.json` to add the
@@ -240,7 +236,7 @@ You can check surefire reports:
 
 ![](../image/surefire-report.png)  
 
-## Debug cpp code with coredump
+## Debug C++ Code with Core Dump
 
 ```bash
 mkdir -p /mnt/DP_disk1/core
@@ -276,9 +272,9 @@ or by the following commands:
 - `gcore <pid>`
 - `kill -s SIGSEGV <pid>`
 
-## Debug cpp with gdb
+## Debug C++ with GDB
 
-You can use gdb to debug tests, benchmarks, and JNI calls.
+You can use GDB to debug tests, benchmarks, and JNI calls.
 Place the following code to your debug path.
 
 ```cpp
@@ -295,7 +291,7 @@ jps
 ps ux | grep TestOperator
 ```
 
-Execute gdb command to debug:
+Execute GDB command to debug:
 ```bash
 gdb attach <pid>
 ```
@@ -307,7 +303,7 @@ wait to attach....
 (gdb) c
 ```
 
-## Debug Memory leak
+## Debug Memory Leaks
 
 ### Arrow memory allocator leak
 
@@ -359,9 +355,9 @@ valgrind --leak-check=yes ./exec_backend_test
 We supply `<gluten_home>/tools/gluten-it` to execute these queries
 Refer to [velox_backend.yml](https://github.com/apache/incubator-gluten/blob/main/.github/workflows/velox_backend.yml)
 
-## Run Gluten Velox backend
+## Enable Gluten for Spark
 
-Run the Gluten Velox backend using the following command:
+To enable Gluten Velox backend for Spark, use the following command:
 ```
 spark-shell --name run_gluten \
  --master yarn --deploy-mode client \
@@ -372,7 +368,7 @@ spark-shell --name run_gluten \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager
 ```
 
-## Check Approved Spark Plan
+## Gluten Plan Validation and Updates
 
 `VeloxTPCHSuite` can verify the executed Gluten plans for the TPC-H benchmark to avoid unintentional changes.
 This verification is based on comparisons with the golden files that record the expected Gluten plans.
