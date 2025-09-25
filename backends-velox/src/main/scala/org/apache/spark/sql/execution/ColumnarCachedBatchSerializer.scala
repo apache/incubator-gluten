@@ -152,9 +152,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
 
     val rddColumnarBatch =
       convertCachedBatchToColumnarBatch(input, cacheAttributes, selectedAttributes, conf)
-    rddColumnarBatch.mapPartitions {
-      it => VeloxColumnarToRowExec.toRowIterator(it, selectedAttributes)
-    }
+    rddColumnarBatch.mapPartitions(it => VeloxColumnarToRowExec.toRowIterator(it))
   }
 
   override def convertColumnarBatchToCachedBatch(
