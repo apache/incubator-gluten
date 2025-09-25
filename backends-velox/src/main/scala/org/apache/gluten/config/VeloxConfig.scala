@@ -80,6 +80,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(ENABLE_ENHANCED_FEATURES)
 
   def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
+
+  def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
 }
 
 object VeloxConfig {
