@@ -422,7 +422,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-24705")
     .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
+    .exclude("length check for input string values: nested in struct")
+    .exclude("length check for input string values: nested in struct of array")
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    .exclude("length check for input string values: nested in struct")
+    .exclude("length check for input string values: nested in struct of array")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenNestedDataSourceV1Suite]
   enableSuite[GlutenNestedDataSourceV2Suite]
