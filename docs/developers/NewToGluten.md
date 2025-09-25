@@ -10,20 +10,23 @@ Help users to debug and test with Gluten.
 
 ## Environment
 
-Gluten supports Ubuntu 20.04/22.04, CentOS 7/8 and MacOS.
+Gluten supports Ubuntu 20.04/22.04, CentOS 7/8, and MacOS.
 
 ### JDK
 
-Currently, Gluten supports JDK 8 for Spark 3.2/3.3/3.4/3.5. For Spark 3.3 and later versions, Gluten
-also supports JDK 11 and 17. Please note that starting with Spark 4.0, JDK 8 will no longer be supported.
-So we recommend using a higher JDK version now to ease migration when deploying Gluten with Spark-4.0
-in the future. In addition, we may upgrade Arrow from 15.0.0 to a newer release, which also requires
+Currently, Gluten supports JDK 8 for Spark 3.2, 3.3, 3.4, and 3.5. For Spark 3.3 and later versions, Gluten
+also supports JDK 11 and 17.
+
+Note: Starting with Spark 4.0, the minimum required JDK version is 17.
+
+We recommend using a higher JDK version now to ease migration when deploying Gluten with Spark-4.0
+in the future. In addition, we may upgrade Arrow from 15.0.0 to a newer release, which will require
 JDK 11 as the minimum version.
 
-By default, Gluten compiles package using JDK 8. Enable maven profile by `-Pjava-17` to use JDK 17 or `-Pjava-11` to use JDK 11, and please make sure your JAVA_HOME is set correctly.
+By default, Gluten compiles packages using JDK 8. Enable maven profile by `-Pjava-17` or `-Pjava-11` to use the corresponding JDK version, and ensure that the JDK version is available in your environment.
 
 Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
-So please add following configs in `spark-defaults.conf`:
+So add the following configs in `spark-defaults.conf`:
 
 ```
 spark.driver.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
@@ -38,17 +41,16 @@ spark.executor.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
 
 ## Compile Gluten using debug mode
 
-If you only need to debug Java/Scala code, there is no need to compile the C++ code in debug mode.
-You can just refer to [build-gluten-with-velox-backend](../get-started/Velox.md#build-gluten-with-velox-backend).
+To debug Java/Scala code, follow the steps in [build-gluten-with-velox-backend](../get-started/Velox.md#build-gluten-with-velox-backend).
 
-For debugging C++ code, please compile the backend code and gluten C++ code in debug mode.
+To debug C++ code, compile the backend code and gluten C++ code in debug mode.
 
 ```bash
 ## compile Velox backend with benchmark and tests to debug
 gluten_home/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --build_type=Debug
 ```
 
-If you need to debug the tests in <gluten>/gluten-ut, You need to compile java code with `-Pspark-ut`.
+Note: To debug the tests in <gluten>/gluten-ut, you must compile java code with `-Pspark-ut`.
 
 ## Development
 ### Java/scala code development
@@ -58,7 +60,7 @@ If you need to debug the tests in <gluten>/gluten-ut, You need to compile java c
 Install the Linux IntelliJ version, and debug code locally.
 
 - Ask your linux maintainer to install the desktop, and then restart the server.
-- If you use Moba-XTerm to connect linux server, you don't need to install x11 server, If not (e.g. putty), please follow this guide:
+- If you use Moba-XTerm to connect linux server, you don't need to install x11 server, If not (e.g. putty), follow this guide:
 [X11 Forwarding: Setup Instructions for Linux and Mac](https://www.businessnewsdaily.com/11035-how-to-use-x11-forwarding.html)
 
 - Download [IntelliJ Linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to Linux server
@@ -68,8 +70,8 @@ Install the Linux IntelliJ version, and debug code locally.
 
 - Make sure you have compiled Gluten.
 - Load the Gluten by File->Open, select <gluten_home/pom.xml>.
-- Activate your profiles such as <backends-velox>, and Reload Maven Project, you will find all your need modules have been activated.
-- Create breakpoint and debug as you wish, maybe you can try `CTRL+N` to find `TestOperator` to start your test.
+- Activate your profiles such as `<backends-velox>`, then **Reload Maven Project** to activate all the needed modules.
+- Create breakpoints and debug as you wish. You can use `CTRL+N` to locate a test class to start your test.
 
 #### Java/Scala code style
 
@@ -82,9 +84,10 @@ To format Java/Scala code using the Spotless plugin, run the following command:
 ./dev/format-scala-code.sh
 ```
 
-### CPP code development
+### C++ code development
 
-This guide is for remote debug. We will connect the remote linux server by `SSH`.
+This guide is for remote debugging by connecting to the remote Linux server using `SSH`.
+
 Download and install [Visual Studio Code](https://code.visualstudio.com/Download).
 
 Key components found on the left side bar are:
@@ -92,20 +95,21 @@ Key components found on the left side bar are:
 - Search
 - Run and Debug
 - Extensions (Install the C/C++ Extension Pack, Remote Development, and GitLens. C++ Test Mate is also suggested.)
-- Remote Explorer (Connect linux server by ssh command, click `+`, then input `ssh user@10.1.7.003`)
+- Remote Explorer (Connect linux server by ssh command, click **+**, then input `ssh user@10.1.7.003`)
 - Manage (Settings)
 
-Input your password in the above pop-up window, it will take a few minutes to install linux vscode server in remote machine folder `~/.vscode-server`
-If download failed, delete this folder and try again.
+Input your password in the above pop-up window. It will take a few minutes to install the Linux VSCode server in remote machine folder `~/.vscode-server`.
 
-Please note if vscode is upgraded, we need to download linux server again. Recommend switching update mode to off. Search `update` in Manage->Settings to turn off update mode.
+If the download fails, delete this folder and try again.
+
+Note: If VSCode is upgraded, you must download the linux server again. We recommend switching the update mode to `off`. Search `update` in Manage->Settings to turn off update mode.
 
 #### Set up project
 
-- File->Open Folder   // select the Gluten folder
-- After the project loads, you will be prompted to "Select CMakeLists.txt". Select the
+- Select **File**->**Open Folder**, then select the Gluten folder.
+- After the project loads, you will be prompted to **Select CMakeLists.txt**. Select the
   `${workspaceFolder}/cpp/CMakeLists.txt` file.
-- Next, you will be prompted to "Select a Kit" for the Gluten project. Select GCC 11 or above.
+- Next, you will be prompted to **Select a Kit** for the Gluten project. Select **GCC 11** or above.
 
 #### Settings
 
@@ -116,8 +120,10 @@ VSCode supports 2 ways to set user setting.
 
 #### Build using VSCode
 
-VSCode will try to compile using debug mode in <gluten_home>/build. We need to compile Velox debug mode before
-compiling Gluten. If you have previously compiled Velox in release mode, use the command below to compile in debug mode.
+VSCode will try to compile using debug mode in <gluten_home>/build. You must compile Velox debug mode before
+compiling Gluten.
+
+Note: If you have previously compiled Velox in release mode, use the command below to compile in debug mode.
 
 ```bash
 cd incubator-gluten/ep/build-velox/build/velox_ep
@@ -127,11 +133,11 @@ make debug EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DENABLE_HDFS=ON -DVELOX
 ```
 
 Then Gluten will link the Velox debug library.
-Just click `build` in bottom bar, you will get intellisense search and link.
+Click **build** in the bottom bar to enable IntelliSense features like search and navigation.
 
 #### Debug Setting
 
-The default compile command does not enable test and benchmark, so we don't get any executable files.
+The default compile command does not enable tests and benchmarks, so the corresponding executable files are not generated.
 To enable the test and benchmark args, create or edit the `<gluten_home>/.vscode/settings.json` to add the
 configurations below:
 
@@ -148,90 +154,20 @@ configurations below:
 After compiling with these updated configs, you should have executable files (such as 
 `<gluten_home>/cpp/build/velox/tests/velox_shuffle_writer_test`).
 
-Open the `Run and Debug` panel (Ctrl-Shift-D) and then click the link to create a launch.json file. If prompted,
-select a debugger like  "C++ (GDB/LLDB)". The launch.json will be created at: `<gluten_home>/.vscode/launch.json`.
+Open the **Run and Debug** panel (Ctrl-Shift-D) and then click the link to create a launch.json file. If prompted,
+select a debugger like  "C++ (GDB/LLDB)". The `launch.json` will be created under `<gluten_home>/.vscode/` (see example [here](../resources/launch.json)).
 
-Click the `Add Configuration` button in launch.json, and select gdb "launch" (to start and debug a program) or
-"attach" (to attach and debug a running program).
+Note: Change `name`, `program`, `args` for your environment.
 
-##### launch.json example
+Click the **Add Configuration** button in `launch.json`, and select gdb **launch** to start a program for debugging or
+**attach** to attach a running program for debugging.
 
-```json
-{
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "velox shuffle writer test",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/cpp/build/velox/tests/velox_shuffle_writer_test",
-      "args": ["--gtest_filter='*SinglePartitioningShuffleWriter*'"],
-      "stopAtEntry": false,
-      "cwd": "${fileDirname}",
-      "environment": [],
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-          {
-              "description": "Enable pretty-printing for gdb",
-              "text": "-enable-pretty-printing",
-              "ignoreFailures": true
-          },
-          {
-              "description": "Set Disassembly Flavor to Intel",
-              "text": "-gdb-set disassembly-flavor intel",
-              "ignoreFailures": true
-          }
-      ]
-    },
-    {
-      "name": "benchmark test",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/cpp/build/velox/benchmarks/./generic_benchmark",
-      "args": [
-          "--threads=1",
-          "--with-shuffle",
-          "--partitioning=hash",
-          "--iterations=1",
-          "--conf=${workspaceFolder}/backends-velox/generated-native-benchmark/conf_12_0_2.ini",
-          "--plan=${workspaceFolder}/backends-velox/generated-native-benchmark/plan_12_0_2.json",
-          "--data=${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_2_0.parquet,${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_2_1.parquet"
-      ],
-      "stopAtEntry": false,
-      "cwd": "${fileDirname}",
-      "environment": [],
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "setupCommands": [
-          {
-              "description": "Enable pretty-printing for gdb",
-              "text": "-enable-pretty-printing",
-              "ignoreFailures": true
-          },
-          {
-              "description": "Set Disassembly Flavor to Intel",
-              "text": "-gdb-set disassembly-flavor intel",
-              "ignoreFailures": true
-          }
-      ]
-    }
-
-  ]
-}
-```
-
-> Change `name`, `program`, `args` for your environment. For example, your generated benchmark example file names may vary.
-
-Then you can create breakpoint and debug in `Run and Debug` section.
+Then you can create breakpoint and debug in **Run and Debug** section.
 
 #### Debug Velox code
 
-For some Velox tests such as `ParquetReaderTest`, tests need to read the parquet file in `<velox_home>/velox/dwio/parquet/tests/examples`, 
-you should let the screen on `ParquetReaderTest.cpp`, then click `Start Debugging`, otherwise `No such file or directory` exception will be raised.
+For some Velox tests such as `ParquetReaderTest`, tests need to read the parquet file in `<velox_home>/velox/dwio/parquet/tests/examples`.
+Ensure that `ParquetReaderTest.cpp` is focused in the IDE window, then click **Start Debugging**, otherwise `No such file or directory` exception will be raised.
 
 #### Clang format
 
@@ -248,14 +184,14 @@ Set config in `settings.json`
 "editor.formatOnSave": true,
 ```
 
-If exists multiple clang-format version, formatOnSave may not take effect, specify the default formatter
-Search `default formatter` in `Settings`, select Clang-Format.
+If multiple clang-format versions are installed, `formatOnSave` may not take effect. To specify the default formatter,
+search for `default formatter` in **Settings**, then select **Clang-Format**.
 
-If your formatOnSave still make no effect, you can use shortcut `SHIFT+ALT+F` to format one file manually.
+If `formatOnSave` still has no effect, select a single file and use `SHIFT+ALT+F` to format it manually.
 
 #### CMake format
 
-To format cmake files, like CMakeLists.txt & *.cmake, please install `cmake-format`.
+To format cmake files like CMakeLists.txt & *.cmake, install `cmake-format`.
 ```
 pip3 install --user cmake-format
 ```
@@ -271,11 +207,11 @@ After the above installation, you can optionally do some configuration in Visual
    * Set Args: `--first-comment-is-literal=True`.
    * Set Exe Path to the path of the `cmake-format` command. If you installed `cmake-format` in a standard
       location, you might not need to change this setting.
-3. Now, you can format your CMake files by right-clicking in a file and selecting `Format Document`.
+3. Format your CMake files by right-clicking in a file and selecting `Format Document`.
 
 #### Add UT
 
-1. For Native Code Modifications: If you have modified native code, it is best to use gtest to test the native code. 
+1. For Native Code Modifications: If you have modified native code, use gtest to test the native code.
    A secondary option is to add Gluten UT to ensure coverage.
 
 2. For Gluten-Related Code Modifications: If you have modified code related to Gluten, it is preferable to add scalatest rather than JUnit. 
@@ -298,10 +234,8 @@ We provide surefire reports of Velox ut in GHA, and developers can leverage sure
 
 You can check surefire reports:
 
-1. Click `Checks` Tab in PR;  
-
+1. Click **Checks** Tab in PR;
 2. Find `Report test results` in `Dev PR`;
-
 3. Then, developers can check the result with summary and annotations.  
 
 ![](../image/surefire-report.png)  
@@ -344,8 +278,7 @@ or by the following commands:
 
 ## Debug cpp with gdb
 
-You can use gdb to debug tests and benchmarks.
-And also you can debug jni call.
+You can use gdb to debug tests, benchmarks, and JNI calls.
 Place the following code to your debug path.
 
 ```cpp
@@ -378,7 +311,7 @@ wait to attach....
 
 ### Arrow memory allocator leak
 
-If you receive error message like 
+If you receive an error message like the following:
 
 ```bash
 4/04/18 08:15:38 WARN ArrowBufferAllocators$ArrowBufferAllocatorManager: Detected leaked Arrow allocator [Default], size: 191, process accumulated leaked size: 191...
@@ -414,7 +347,7 @@ child allocators: 0
 
 ### CPP code memory leak
 
-Sometimes you cannot get the coredump symbols, if you debug memory leak, you can write googletest to use valgrind to detect
+Sometimes you cannot get the coredump symbols, when debugging a memory leak. You can write a GoogleTest to use valgrind for detection.
 
 ```bash
 apt install valgrind
@@ -428,7 +361,7 @@ Refer to [velox_backend.yml](https://github.com/apache/incubator-gluten/blob/mai
 
 ## Run Gluten Velox backend
 
-We can run Gluten Velox backend by one command.
+Run the Gluten Velox backend using the following command:
 ```
 spark-shell --name run_gluten \
  --master yarn --deploy-mode client \
@@ -439,21 +372,16 @@ spark-shell --name run_gluten \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager
 ```
 
-## Check Gluten Approved Spark Plan
+## Check Approved Spark Plan
 
-To make sure we don't accidentally modify the Gluten and Spark Plan build logic.
-We introduce new logic in `VeloxTPCHSuite` to check whether the plan has been changed or not,
-and this will be triggered when running the unit test.
+`VeloxTPCHSuite` can verify the executed Gluten plans for the TPC-H benchmark to avoid unintentional changes.
+This verification is based on comparisons with the golden files that record the expected Gluten plans.
 
-As a result, developers may encounter unit test failures in GitHub CI or locally, with the following error message:
+The following failure may occur in GitHub CI or local tests:
 ```log
 - TPC-H q5 *** FAILED ***
   Mismatch for query 5
   Actual Plan path: /tmp/tpch-approved-plan/v2-bhj/spark322/5.txt
   Golden Plan path: /opt/gluten/backends-velox/target/scala-2.12/test-classes/tpch-approved-plan/v2-bhj/spark322/5.txt (VeloxTPCHSuite.scala:101)
 ```
-To update the golden plan, you can find the actual plan in GitHub CI Artifacts or in local `/tmp/` directory.
-
-![](../image/gluten_golden_file_upload.png)
-
-Developers can simply copy the actual plan to the golden plan path, and then re-run the unit test to make sure the plan is stabled.
+To update the golden files, find the actual Gluten plans in GitHub CI Artifacts or the local `/tmp/` directory, then update the corresponding golden files in the `tpch-approved-plan/` directory.
