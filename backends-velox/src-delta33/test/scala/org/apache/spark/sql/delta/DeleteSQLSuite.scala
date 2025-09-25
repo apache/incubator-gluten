@@ -20,8 +20,6 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.test.{DeltaExcludedTestMixin, DeltaSQLCommandTest}
 
-import org.scalatest.Ignore
-
 // spotless:off
 class DeleteSQLSuite extends DeleteSuiteBase
   with DeltaExcludedTestMixin
@@ -95,9 +93,6 @@ class DeleteSQLSuite extends DeleteSuiteBase
   }
 }
 
-// FIXME: Enable the test.
-//  Skipping as function input_file_name doesn't get correctly resolved.
-@Ignore
 class DeleteSQLNameColumnMappingSuite extends DeleteSQLSuite
   with DeltaColumnMappingEnableNameMode {
 
