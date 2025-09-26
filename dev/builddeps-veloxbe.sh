@@ -18,7 +18,7 @@
 ####################################################################################################
 #  The main function of this script is to allow developers to build the environment with one click #
 #  Recommended commands for first-time installation:                                               #
-#  ./dev/buildbundle-veloxbe.sh                                                            #
+#  ./dev/buildbundle-veloxbe.sh                                                                    #
 ####################################################################################################
 set -exu
 
@@ -272,29 +272,28 @@ function setup_dependencies {
 
   source $GLUTEN_DIR/dev/build_helper_functions.sh
   source ${VELOX_HOME}/scripts/setup-common.sh
-  if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
-    echo "Start to install dependencies"
-    pushd $VELOX_HOME
-    if [ $OS == 'Linux' ]; then
-      setup_linux
-    elif [ $OS == 'Darwin' ]; then
-      setup_macos
-    else
-      echo "Unsupported kernel: $OS"
-      exit 1
-    fi
-    if [ $ENABLE_S3 == "ON" ]; then
-      install_aws_deps
-    fi
-    if [ $ENABLE_GCS == "ON" ]; then
-      install_gcs-sdk-cpp
-    fi
-    if [ $ENABLE_ABFS == "ON" ]; then
-      export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
-      install_azure-storage-sdk-cpp
-    fi
-    popd
+
+  echo "Start to install dependencies"
+  pushd $VELOX_HOME
+  if [ $OS == 'Linux' ]; then
+    setup_linux
+  elif [ $OS == 'Darwin' ]; then
+    setup_macos
+  else
+    echo "Unsupported kernel: $OS"
+    exit 1
   fi
+  if [ $ENABLE_S3 == "ON" ]; then
+    install_aws_deps
+  fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    install_gcs-sdk-cpp
+  fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
+    install_azure-storage-sdk-cpp
+  fi
+  popd
 }
 
 OS=`uname -s`
@@ -303,7 +302,9 @@ commands_to_run=${OTHER_ARGUMENTS:-}
 (
   if [[ "x$commands_to_run" == "x" ]]; then
     get_velox
-    setup_dependencies
+    if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
+      setup_dependencies
+    fi
     build_velox_backend
   else
     echo "Commands to run: $commands_to_run"
