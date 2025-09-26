@@ -152,6 +152,11 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
   }
 
   test("Support transform count(1) with table cache") {
+    // scalastyle:off println
+    println(
+      s"spark.gluten.sql.columnar.tableCache=" +
+        spark.conf.get("spark.gluten.sql.columnar.tableCache", "missing"))
+    // scalastyle:on println
     val cached = spark.table("lineitem").cache()
     try {
       val df = spark.sql("SELECT COUNT(*) FROM lineitem")
