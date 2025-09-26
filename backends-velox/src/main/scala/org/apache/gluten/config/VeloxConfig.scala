@@ -529,6 +529,20 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_ROWS =
+    buildConf("spark.gluten.velox.abandonbuild.noduphashminrows")
+      .experimental()
+      .doc("Experimental: abandon hashmap build if duplicated rows more than this number.")
+      .intConf
+      .createWithDefault(100000)
+
+  val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_PCT =
+    buildConf("spark.gluten.velox.abandonbuild.noduphashminpct")
+      .experimental()
+      .doc("Experimental: abandon hashmap build if duplicated rows are more than this percentile.")
+      .doubleConf
+      .createWithDefault(0)
+
   val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
     .doc("Enable query tracing flag.")
     .booleanConf
