@@ -18,14 +18,11 @@ package org.apache.gluten.iterator;
 
 import org.apache.gluten.exception.GlutenException;
 
-import org.apache.spark.sql.vectorized.ColumnarBatch;
-
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class ClosableIterator
-    implements AutoCloseable, Serializable, Iterator<ColumnarBatch> {
+public abstract class ClosableIterator<T> implements AutoCloseable, Serializable, Iterator<T> {
   protected final AtomicBoolean closed = new AtomicBoolean(false);
 
   public ClosableIterator() {}
@@ -43,7 +40,7 @@ public abstract class ClosableIterator
   }
 
   @Override
-  public final ColumnarBatch next() {
+  public final T next() {
     if (closed.get()) {
       throw new GlutenException("Iterator has been closed.");
     }
@@ -65,5 +62,5 @@ public abstract class ClosableIterator
 
   protected abstract boolean hasNext0() throws Exception;
 
-  protected abstract ColumnarBatch next0() throws Exception;
+  protected abstract T next0() throws Exception;
 }

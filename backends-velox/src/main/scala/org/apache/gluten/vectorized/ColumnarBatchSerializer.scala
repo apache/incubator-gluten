@@ -145,7 +145,7 @@ private class ColumnarBatchSerializerInstanceImpl(
     with TaskResource {
     private val streamReader = ShuffleStreamReader(streams)
 
-    private val wrappedOut: ClosableIterator = new ColumnarBatchOutIterator(
+    private val wrappedOut: ClosableIterator[ColumnarBatch] = new ColumnarBatchOutIterator(
       runtime,
       jniWrapper
         .read(shuffleReaderHandle, streamReader))

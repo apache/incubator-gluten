@@ -25,7 +25,7 @@ import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQueryStageExec}
 
 /**
- * Try to append [[VeloxResizeBatchesExec]] for shuffle input and ouput to make the batch sizes in
+ * Try to append [[VeloxResizeBatchesExec]] for shuffle input and output to make the batch sizes in
  * good shape.
  */
 case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {

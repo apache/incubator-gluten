@@ -23,7 +23,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class BatchIterator extends ClosableIterator {
+public class BatchIterator extends ClosableIterator<ColumnarBatch> {
   private final long handle;
   private final AtomicBoolean cancelled = new AtomicBoolean(false);
 

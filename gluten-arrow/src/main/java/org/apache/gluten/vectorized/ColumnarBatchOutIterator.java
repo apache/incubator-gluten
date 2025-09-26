@@ -25,7 +25,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class ColumnarBatchOutIterator extends ClosableIterator implements RuntimeAware {
+public class ColumnarBatchOutIterator extends ClosableIterator<ColumnarBatch>
+    implements RuntimeAware {
   private final Runtime runtime;
   private final long iterHandle;
 
