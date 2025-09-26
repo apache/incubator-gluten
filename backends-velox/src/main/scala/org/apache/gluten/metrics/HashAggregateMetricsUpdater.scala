@@ -22,6 +22,8 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkMetricsUtil
 import org.apache.spark.task.TaskResources
 
+import scala.collection.JavaConverters._
+
 trait HashAggregateMetricsUpdater extends MetricsUpdater {
   def updateAggregationMetrics(
       aggregationMetrics: java.util.ArrayList[OperatorMetrics],
@@ -52,6 +54,8 @@ class HashAggregateMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
 
   val finalOutputRows: SQLMetric = metrics("finalOutputRows")
   val finalOutputVectors: SQLMetric = metrics("finalOutputVectors")
+
+  val loadLazyVectorTime: SQLMetric = metrics("loadLazyVectorTime")
 
   override def updateAggregationMetrics(
       aggregationMetrics: java.util.ArrayList[OperatorMetrics],
@@ -85,6 +89,9 @@ class HashAggregateMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
       rowConstructionWallNanos += aggregationMetrics.get(idx).wallNanos
       idx += 1
     }
+
+    loadLazyVectorTime += aggregationMetrics.asScala.last.loadLazyVectorTime
+
     if (TaskResources.inSparkTask()) {
       SparkMetricsUtil.incMemoryBytesSpilled(
         TaskResources.getLocalTaskContext().taskMetrics(),
