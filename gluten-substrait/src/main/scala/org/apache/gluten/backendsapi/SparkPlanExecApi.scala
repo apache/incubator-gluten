@@ -379,6 +379,12 @@ trait SparkPlanExecApi {
     HashShuffleWriterType
   }
 
+  def getShuffleWriterTypeForCeleborn(
+      partitioning: Partitioning,
+      output: Array[Attribute]): ShuffleWriterType = {
+    HashShuffleWriterType
+  }
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *
