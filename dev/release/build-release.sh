@@ -24,7 +24,7 @@ CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 GLUTEN_HOME=${CURRENT_DIR}/../../
 cd ${GLUTEN_HOME}
 
-# Enable static build. Enable the support for S3, GCS, HDFS, and ABFS.
+# Enable static build with support for S3, GCS, HDFS, and ABFS.
 ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_arrow=OFF --build_tests=OFF --build_benchmarks=OFF \
                            --build_examples=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON
 
@@ -38,8 +38,7 @@ else
   exit 1
 fi
 
-# Build for officially supported Spark versions only.
-# Enable all feature modules, including Celeborn, Uniffle, Iceberg, Delta, Hudi, and Paimon.
+# Build for all officially supported Spark versions with all feature modules enabled.
 for spark_version in 3.2 3.3 3.4 3.5
 do
   mvn clean install -Pbackends-velox -Pspark-${spark_version} -Pceleborn,uniffle -Piceberg,delta,hudi,paimon -DskipTests
