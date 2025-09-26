@@ -963,7 +963,7 @@ object GlutenConfig {
       .createWithDefault(100000)
 
   val COLUMNAR_TABLE_CACHE_ENABLED =
-    buildConf("spark.gluten.sql.columnar.tableCache")
+    buildStaticConf("spark.gluten.sql.columnar.tableCache")
       .doc("Enable or disable columnar table cache.")
       .booleanConf
       .createWithDefault(false)
