@@ -66,6 +66,9 @@ for arg in "$@"; do
     ENABLE_ABFS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+
+
+    
   --enable_gpu=*)
     ENABLE_GPU=("${arg#*=}")
     shift # Remove argument name from processing
@@ -78,6 +81,8 @@ for arg in "$@"; do
     BUILD_TEST_UTILS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+
+    
   --build_tests=*)
     ENABLE_TESTS=("${arg#*=}")
     shift # Remove argument name from processing
@@ -107,7 +112,10 @@ function compile {
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
+    COMPILE_OPTION="$COMPILE_
+    
+    
+    OPTION -DVELOX_ENABLE_HDFS=ON"
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
@@ -118,6 +126,9 @@ function compile {
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=ON "
     fi
     if [ $ENABLE_ABFS == "ON" ]; then
+
+
+    
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_ABFS=ON"
     fi
     if [ $ENABLE_GCS == "ON" ]; then
@@ -128,7 +139,13 @@ function compile {
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_BENCHMARKS=ON"
   fi
   if [ $ENABLE_GPU == "ON" ]; then
-    # the cuda default options are for Centos9 image from Meta
+    # the cuda default options are for Cen
+    
+    
+    
+    
+    
+    tos9 image from Meta
     echo "enable GPU support."
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GPU=ON -DVELOX_ENABLE_CUDF=ON -DCMAKE_CUDA_ARCHITECTURES=70 -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc"
   fi
@@ -136,7 +153,12 @@ function compile {
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
   fi
 
-  COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
+  COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BU
+  
+  
+  
+  
+  ILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
 
