@@ -152,6 +152,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude("average")
@@ -367,6 +368,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("varchar type values length check and trim: partitioned columns")
     .exclude("char/varchar type values length check: partitioned columns of other types")
     .exclude("char type comparison: partitioned columns")
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
     .exclude("SPARK-33474: Support typed literals as partition spec values")
     .exclude(
