@@ -28,6 +28,7 @@
 #include "utils/qat/QatCodec.h"
 #endif
 #ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/connectors/hive/CudfHiveConnector.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
 
@@ -306,6 +307,14 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
   }
   velox::connector::registerConnector(
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
+#ifdef GLUTEN_ENABLE_GPU
+  if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
+      backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    facebook::velox::cudf_velox::connector::hive::CudfHiveConnectorFactory factory;
+    auto hiveConnector = factory.newConnector(kCudfHiveConnectorId, hiveConf, ioExecutor_.get());
+    facebook::velox::connector::registerConnector(hiveConnector);
+  }
+#endif
 }
 
 void VeloxBackend::initUdf() {
