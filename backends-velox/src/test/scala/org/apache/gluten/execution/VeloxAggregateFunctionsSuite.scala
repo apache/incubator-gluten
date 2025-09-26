@@ -1203,7 +1203,9 @@ class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
         |  (select l_orderkey from lineitem) b
         |on a.l_orderkey = b.l_orderkey
         |""".stripMargin
-    withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true") {
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true",
+      VeloxConfig.VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED.key -> "true") {
       runQueryAndCompare(s) {
         df =>
           val executedPlan = getExecutedPlan(df)
