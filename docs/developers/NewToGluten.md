@@ -25,7 +25,7 @@ JDK 11 as the minimum version.
 By default, Gluten compiles packages using JDK 8. Enable maven profile by `-Pjava-17` or `-Pjava-11` to use the corresponding JDK version, and ensure that the JDK version is available in your environment.
 
 If JDK 11 or a higher version is used, Spark and Arrow require setting the java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
-So add the following configs in `spark-defaults.conf`:
+Add the following configs in `spark-defaults.conf`:
 
 ```
 spark.driver.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
@@ -56,16 +56,17 @@ Note: To debug the tests in <gluten>/gluten-ut, you must compile java code with 
 Install the Linux IntelliJ version, and debug code locally.
 
 - Ask your linux maintainer to install the desktop, and then restart the server.
-- If you use Moba-XTerm to connect linux server, you don't need to install x11 server, If not (e.g. putty), follow this guide:
-[X11 Forwarding: Setup Instructions for Linux and Mac](https://www.businessnewsdaily.com/11035-how-to-use-x11-forwarding.html)
+- If you use Moba-XTerm to connect, you don't need to install x11 server. If you are using another tool, such as putty, follow this guide:
+  [X11 Forwarding: Setup Instructions for Linux and Mac](https://www.businessnewsdaily.com/11035-how-to-use-x11-forwarding.html)
 
-- Download [IntelliJ Linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to Linux server
-- Start Idea, `bash <idea_dir>/idea.sh`
+- Download [IntelliJ Linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to Linux server.
+- Start Idea using the following command:
+  `bash <idea_dir>/idea.sh`
 
 #### Set up Gluten project
 
 - Make sure you have compiled Gluten.
-- Load the Gluten by File->Open, select <gluten_home/pom.xml>.
+- Load the Gluten by **File**->**Open**, select **<gluten_home/pom.xml>**.
 - Activate your profiles such as `<backends-velox>`, then **Reload Maven Project** to activate all the needed modules.
 - Create breakpoints and debug as you wish. You can use `CTRL+N` to locate a test class to start your test.
 
@@ -91,14 +92,14 @@ Key components found on the left side bar are:
 - Search
 - Run and Debug
 - Extensions (Install the C/C++ Extension Pack, Remote Development, and GitLens. C++ Test Mate is also suggested.)
-- Remote Explorer (Connect linux server by ssh command, click **+**, then input `ssh user@10.1.7.003`)
+- Remote Explorer (Connect linux server by ssh command, click **+**, then input `ssh USERNAME@REMOTE_SERVER_IP_ADDRESS`)
 - Manage (Settings)
 
 Input your password in the above pop-up window. It will take a few minutes to install the Linux VSCode server in remote machine folder `~/.vscode-server`.
 
 If the download fails, delete this folder and try again.
 
-Note: If VSCode is upgraded, you must download the linux server again. We recommend switching the update mode to `off`. Search `update` in Manage->Settings to turn off update mode.
+Note: If VSCode is upgraded, you must download the linux server again. We recommend switching the update mode to `off`. Search `update` in **Manage**->**Settings** to turn off update mode.
 
 #### Set up project
 
@@ -109,14 +110,14 @@ Note: If VSCode is upgraded, you must download the linux server again. We recomm
 
 #### Settings
 
-VSCode supports 2 ways to set user setting.
+VSCode supports two ways to set user setting.
 
-- Manage->Command Palette (Open `settings.json`, search by `Preferences: Open Settings (JSON)`)
-- Manage->Settings (Common setting)
+- **Manage**->**Command Palette** (Open `settings.json`, search by `Preferences: Open Settings (JSON)`)
+- **Manage**->**Settings** (Common setting)
 
 #### Build using VSCode
 
-VSCode will try to compile using debug mode in <gluten_home>/build. You must compile Velox debug mode before
+VSCode will try to compile using debug mode in `<gluten_home>/build`. You must compile Velox debug mode before
 compiling Gluten.
 
 Note: If you have previously compiled Velox in release mode, use the command below to compile in debug mode.
@@ -129,6 +130,7 @@ make debug EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DENABLE_HDFS=ON -DVELOX
 ```
 
 Then Gluten will link the Velox debug library.
+
 Click **build** in the bottom bar to enable IntelliSense features like search and navigation.
 
 #### Debug setting
@@ -147,8 +149,8 @@ configurations below:
 }
 ```
 
-After compiling with these updated configs, you should have executable files (such as 
-`<gluten_home>/cpp/build/velox/tests/velox_shuffle_writer_test`).
+After compiling with these updated configs, you should have executable files, such as
+`<gluten_home>/cpp/build/velox/tests/velox_shuffle_writer_test`.
 
 Open the **Run and Debug** panel (Ctrl-Shift-D) and then click the link to create a launch.json file. If prompted,
 select a debugger like  "C++ (GDB/LLDB)". The `launch.json` will be created under `<gluten_home>/.vscode/` (see example [here](../resources/launch.json)).
@@ -163,7 +165,7 @@ Then you can create breakpoint and debug in **Run and Debug** section.
 #### Debug Velox code
 
 For some Velox tests such as `ParquetReaderTest`, tests need to read the parquet file in `<velox_home>/velox/dwio/parquet/tests/examples`.
-Ensure that `ParquetReaderTest.cpp` is focused in the IDE window, then click **Start Debugging**, otherwise `No such file or directory` exception will be raised.
+Select `ParquetReaderTest.cpp` in the IDE window, then click **Start Debugging**, otherwise `No such file or directory` exception will be raised.
 
 #### Clang format
 
@@ -205,7 +207,7 @@ After the above installation, you can optionally do some configuration in Visual
       location, you might not need to change this setting.
 3. Format your CMake files by right-clicking in a file and selecting `Format Document`.
 
-#### Add UT
+#### Add unit tests
 
 1. For Native Code Modifications: If you have modified native code, use gtest to test the native code.
    A secondary option is to add Gluten UT to ensure coverage.
@@ -219,20 +221,20 @@ After the above installation, you can optionally do some configuration in Visual
 4. Placement of Non-Native Code UTs: Ensure that unit tests for non-native code are placed within org.apache.gluten and org.apache.spark packages. 
    This is important because the CI system runs unit tests from these two paths in parallel. Placing tests in other paths might cause your tests to be ignored.
 
-#### View surefire reports of Velox ut in GHA  
+#### View Surefire reports of Velox unit tests in GHA
 
 Surefire reports are invaluable tools in the ecosystem of Java-based applications that utilize the Maven build automation tool.  
 These reports are generated by the Maven Surefire Plugin during the testing phase of your build process.  
 They compile results from unit tests, providing detailed insights into which tests passed or failed, what errors were encountered, and other essential metrics.  
 
 Surefire reports play a crucial role in the development and maintenance of high-quality software.  
-We provide surefire reports of Velox ut in GHA, and developers can leverage surefire reports with early bug detection and quality assurance.  
+We provide surefire reports of Velox ut in GHA, and developers can leverage urefire reports with early bug detection and quality assurance.
 
-You can check surefire reports:
+To check Surefire reports:
 
 1. Click **Checks** Tab in PR;
-2. Find `Report test results` in `Dev PR`;
-3. Then, developers can check the result with summary and annotations.  
+2. Find **Report test results** in **Dev PR**;
+3. There, you can check the results with summary and annotations.
 
 ![](../image/surefire-report.png)  
 
@@ -353,7 +355,7 @@ valgrind --leak-check=yes ./exec_backend_test
 ## Run TPC-H and TPC-DS
 
 We supply `<gluten_home>/tools/gluten-it` to execute these queries
-Refer to [velox_backend.yml](https://github.com/apache/incubator-gluten/blob/main/.github/workflows/velox_backend.yml)
+Refer to [velox_backend_x86.yml](https://github.com/apache/incubator-gluten/blob/main/.github/workflows/velox_backend_x86.yml)
 
 ## Enable Gluten for Spark
 
