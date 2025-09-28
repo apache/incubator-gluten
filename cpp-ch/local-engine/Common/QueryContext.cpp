@@ -27,6 +27,9 @@
 #include <Common/ThreadStatus.h>
 #include <Common/formatReadable.h>
 #include <Common/logger_useful.h>
+#include <Parser/LocalExecutor.h>
+#include <Common/StackTrace.h>
+#include <iostream>
 
 namespace DB
 {
@@ -59,6 +62,7 @@ DB::ContextMutablePtr QueryContext::globalMutableContext()
 {
     return Data::global_context;
 }
+
 void QueryContext::resetGlobal()
 {
     if (Data::global_context)
@@ -71,7 +75,16 @@ void QueryContext::resetGlobal()
 
 void QueryContext::reset()
 {
+    for (auto it = active_executors_.begin(); it != active_executors_.end(); ++it)
+    {
+        auto * executor = *it;
+        executor->cancel();
+        std::cerr << "Not closed LocalExecutor:\n" << executor->dumpPipeline() << std::endl;
+        delete executor;
+    }
+    active_executors_.clear();
     query_map_.clear();
+    QueryContext::resetGlobal();
 }
 
 DB::ContextMutablePtr QueryContext::createGlobal()
@@ -116,6 +129,10 @@ int64_t QueryContext::initializeQuery(const String & task_id)
     int64_t id = reinterpret_cast<int64_t>(query_context->thread_group.get());
     query_map_.insert(id, query_context);
     return id;
+}
+
+QueryContext::~QueryContext()
+{
 }
 
 DB::ContextMutablePtr QueryContext::currentQueryContext()
@@ -200,14 +217,18 @@ void QueryContext::finalizeQuery(int64_t id)
 size_t currentThreadGroupMemoryUsage()
 {
     if (!CurrentThread::getGroup())
-        throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found, please call initializeQuery first.");
+    {
+        return 0;
+    }
     return CurrentThread::getGroup()->memory_tracker.get();
 }
 
 double currentThreadGroupMemoryUsageRatio()
 {
     if (!CurrentThread::getGroup())
-        throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found, please call initializeQuery first.");
+    {
+        return 0;
+    }
     return static_cast<double>(CurrentThread::getGroup()->memory_tracker.get()) / CurrentThread::getGroup()->memory_tracker.getSoftLimit();
 }
 }
