@@ -94,4 +94,31 @@ jbyteArray stringTojbyteArray(JNIEnv * env, const std::string & str)
     return jarray;
 }
 
+JniEnvStatusWatcher & JniEnvStatusWatcher::instance()
+{
+    static JniEnvStatusWatcher instance;
+    return instance;
 }
+
+JniMethodCallCounter & JniMethodCallCounter::instance()
+{
+    static JniMethodCallCounter instance;
+    return instance;
+}
+
+JniMethodGuard::JniMethodGuard()
+{
+    JniMethodCallCounter::instance().increment();
+}
+
+JniMethodGuard::~JniMethodGuard()
+{
+    JniMethodCallCounter::instance().decrement();
+}
+
+bool JniMethodGuard::couldInvoke()
+{
+    return JniEnvStatusWatcher::instance().isActive();
+}
+
+} // namespace local_engine
