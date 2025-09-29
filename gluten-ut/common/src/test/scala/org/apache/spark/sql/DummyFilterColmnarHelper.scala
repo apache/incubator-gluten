@@ -61,6 +61,8 @@ case class DummyFilterColumnarExec(child: SparkPlan) extends UnaryExecNode {
 }
 
 object DummyFilterColumnarStrategy extends SparkStrategy {
+  implicit class ColumnConstructorExt(val c: Column.type) {}
+
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
     case r: DummyFilterColumnar =>
       DummyFilterColumnarExec(planLater(r.child)) :: Nil
