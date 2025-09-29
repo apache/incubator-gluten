@@ -112,7 +112,7 @@ jobs:
       - name: rsync to apache nightly
         uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
         with:
-          switches: -avzr
+          switches: -avzr --delete
           path: package/target/gluten-velox-bundle-*.jar
           remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/nightly-release-jdk8
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
@@ -161,7 +161,7 @@ jobs:
       - name: rsync to apache nightly
         uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
         with:
-          switches: -avzr
+          switches: -avzr --delete
           path: package/target/gluten-velox-bundle-*.jar
           remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/nightly-release-jdk17
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
@@ -303,7 +303,7 @@ jobs:
       - name: rsync to apache nightly
         uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
         with:
-          switches: -avzr
+          switches: -avzr --delete
           path: package/gluten-velox-bundle-*.jar
           remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/nightly-release-jdk8
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
@@ -326,7 +326,7 @@ jobs:
       - name: rsync to apache nightly
         uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
         with:
-          switches: -avzr
+          switches: -avzr --delete
           path: package/gluten-velox-bundle-*.jar
           remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/nightly-release-jdk17
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
