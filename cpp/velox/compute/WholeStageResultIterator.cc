@@ -23,6 +23,7 @@
 #include "velox/exec/PlanNodeStats.h"
 #ifdef GLUTEN_ENABLE_GPU
 #include <mutex>
+#include <cudf/io/types.hpp>
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveConnectorSplit.h"
 #endif
