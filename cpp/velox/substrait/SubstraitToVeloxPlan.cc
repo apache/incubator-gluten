@@ -164,6 +164,23 @@ RowTypePtr getJoinOutputType(
 
 } // namespace
 
+bool SplitInfo::canUseCudfConnector() {
+  bool isEmpty = partitionColumns.empty();
+
+  if (!isEmpty) {
+      // Check if all maps are empty
+      bool allMapsEmpty = true;
+      for (const auto& m : partitionColumns) {
+          if (!m.empty()) {
+              allMapsEmpty = false;
+              break;
+          }
+      }
+      isEmpty = allMapsEmpty;
+  }
+  return isEmpty && format == dwio::common::FileFormat::PARQUET;
+}
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(
     const ::substrait::RelCommon& relCommon,
     const core::PlanNodePtr& noEmitNode) {

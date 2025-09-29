@@ -60,9 +60,7 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
     for (const auto& partitionColumn : file.partition_columns()) {
       partitionColumnMap[partitionColumn.key()] = partitionColumn.value();
     }
-    if (!partitionColumnMap.empty()) {
-      splitInfo->partitionColumns.emplace_back(partitionColumnMap);
-    }
+    splitInfo->partitionColumns.emplace_back(partitionColumnMap);
 
     std::unordered_map<std::string, std::string> metadataColumnMap;
     for (const auto& metadataColumn : file.metadata_columns()) {
