@@ -433,8 +433,7 @@ if(ENABLE_GPU)
 
   target_link_libraries(
     velox
-    PUBLIC facebook::velox::velox_cudf_exec
-           facebook::velox::velox_cudf_vector
+    PUBLIC facebook::velox::velox_cudf_exec facebook::velox::velox_cudf_vector
            facebook::velox::velox_cudf_parquet_connector)
   target_link_libraries(velox
                         PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so)

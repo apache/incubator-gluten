@@ -48,7 +48,7 @@ bool useCudfTableHandle(const std::vector<std::shared_ptr<SplitInfo>>& splitInfo
   if (splitInfos.empty()) {
     return false;
   }
-  return splitInfos[0]->partitionColumns.empty() && splitInfos[0]->format == dwio::common::FileFormat::PARQUET;
+  return splitInfos[0]->canUseCudfConnector();
 #else
   return false;
 #endif

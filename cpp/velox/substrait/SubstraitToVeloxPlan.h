@@ -58,7 +58,9 @@ struct SplitInfo {
   /// Make SplitInfo polymorphic
   virtual ~SplitInfo() = default;
 
-  bool canUseCudfConnector();
+  bool canUseCudfConnector() {
+    return partitionColumns.empty() && format == dwio::common::FileFormat::PARQUET;
+  }
 };
 
 /// This class is used to convert the Substrait plan into Velox plan.

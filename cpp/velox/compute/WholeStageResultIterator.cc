@@ -24,7 +24,7 @@
 #ifdef GLUTEN_ENABLE_GPU
 #include <mutex>
 #include "velox/experimental/cudf/exec/ToCudf.h"
-#include "velox/experimental/cudf/connectors/hive/HiveConnectorSplit.h"
+#include "velox/experimental/cudf/connectors/hive/CudfHiveConnectorSplit.h"
 #endif
 
 using namespace facebook;
