@@ -1321,6 +1321,10 @@ jobs:
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
+      - name: Prepare Spark Resources for Spark 4.0.1 #TODO remove after image update
+        run: |
+          rm -rf /opt/shims/spark40
+          bash .github/workflows/util/install_spark_resources.sh 4.0
       - name: Build and Run unit test for Spark 4.0.0 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1364,6 +1368,10 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Prepare Spark Resources for Spark 4.0.1 #TODO remove after image update
+        run: |
+          rm -rf /opt/shims/spark40
+          bash .github/workflows/util/install_spark_resources.sh 4.0
       - name: Build and Run unit test for Spark 4.0 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
