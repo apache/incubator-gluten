@@ -24,6 +24,8 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, UnaryNode}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.classic.ClassicConversions._
+import org.apache.spark.sql.classic.ClassicDataset
 import org.apache.spark.sql.execution.{SparkPlan, SparkStrategy, UnaryExecNode}
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -73,7 +75,7 @@ object DummyFilterColmnarHelper {
       case p => p
     }
 
-    Dataset.ofRows(spark, modifiedPlan)
+    ClassicDataset.ofRows(spark, modifiedPlan)
   }
 
   def withSession(builders: Seq[SparkSessionExtensionsProvider])(f: SparkSession => Unit): Unit = {

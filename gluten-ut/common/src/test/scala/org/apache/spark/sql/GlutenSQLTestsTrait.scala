@@ -20,6 +20,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.util.{sideBySide, stackTraceToString}
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.SQLExecution
 
 import org.apache.commons.io.FileUtils
