@@ -116,7 +116,7 @@ case "$1" in
 4.0)
     # Spark-4.0, scala 2.12 // using 2.12 as a hack as 4.0 does not have 2.13 suffix
     cd ${INSTALL_DIR} && \
-    install_spark "4.0.1" "4" "2.12"
+    install_spark "4.0.1" "3" "2.12"
     ;;
 *)
     echo "Spark version is expected to be specified."
