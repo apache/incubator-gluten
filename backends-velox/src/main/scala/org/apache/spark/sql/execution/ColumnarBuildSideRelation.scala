@@ -62,7 +62,8 @@ case class ColumnarBuildSideRelation(
     output: Seq[Attribute],
     batches: Array[Array[Byte]],
     safeBroadcastMode: SafeBroadcastMode)
-  extends BuildSideRelation with KnownSizeEstimation {
+  extends BuildSideRelation
+  with KnownSizeEstimation {
 
   // Rebuild the real BroadcastMode on demand; never serialize it.
   @transient override lazy val mode: BroadcastMode =
