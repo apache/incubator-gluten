@@ -51,7 +51,7 @@ To debug C++ code, compile the backend code and gluten C++ code in debug mode.
 gluten_home/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --build_type=Debug
 ```
 
-Note: To debug the tests in <gluten>/gluten-ut, you must compile java code with `-Pspark-ut`.
+Note: To debug the tests under `<gluten_home>/gluten-ut/`, you must compile java code with `-Pspark-ut`.
 
 ### Java/scala code development
 
@@ -158,7 +158,7 @@ After compiling with these updated configs, you should have executable files, su
 `<gluten_home>/cpp/build/velox/tests/velox_shuffle_writer_test`.
 
 Open the **Run and Debug** panel (Ctrl-Shift-D) and then click the link to create a `launch.json` file. If prompted,
-select a debugger like  "C++ (GDB/LLDB)". The `launch.json` will be created under `<gluten_home>/.vscode/` (see example [here](../resources/launch.json)).
+select a debugger like  **C++ (GDB/LLDB)**. The `launch.json` will be created under `<gluten_home>/.vscode/`.
 
 Note: Change `name`, `program`, `args` for your environment.
 
@@ -194,7 +194,7 @@ If `formatOnSave` still has no effect, select a single file and use `SHIFT+ALT+F
 
 #### CMake format
 
-To format cmake files like `CMakeLists.txt` & `*.cmake`, install `cmake-format`.
+To format cmake files like `CMakeLists.txt` and `*.cmake`, install `cmake-format`.
 ```
 pip3 install --user cmake-format
 ```
@@ -207,7 +207,7 @@ After the above installation, you can optionally do some configuration in Visual
 1. Install `cmake-format` extension in Visual Studio Code.
 2. Configure the extension. To do this, open the settings (**File** -> **Preferences** -> **Settings**), search for `cmake-format`,
    and configure the following settings as shown:
-   * Set Args: `--first-comment-is-literal=True`.
+   * Set **Args**: `--first-comment-is-literal=True`.
    * Set **Exe Path** to the path of the `cmake-format` command. If you installed `cmake-format` in a standard
       location, you might not need to change this setting.
 3. Format your CMake files by right-clicking in a file and selecting `Format Document`.
