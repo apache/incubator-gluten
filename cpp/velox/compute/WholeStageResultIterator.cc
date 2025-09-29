@@ -597,7 +597,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kAbandonBuildNoDupHashMinRows] =
         std::to_string(veloxCfg_->get<int32_t>(kAbandonBuildNoDupHashMinRows, 100000));
     configs[velox::core::QueryConfig::kAbandonBuildNoDupHashMinPct] =
-        std::to_string(veloxCfg_->get<int32_t>(kAbandonBuildNoDupHashMinPct, 100));
+        std::to_string(veloxCfg_->get<int32_t>(kAbandonBuildNoDupHashMinPct, 0));
 
     // Disable driver cpu time slicing.
     configs[velox::core::QueryConfig::kDriverCpuTimeSliceLimitMs] = "0";
