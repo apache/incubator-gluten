@@ -86,6 +86,7 @@ object GlutenQueryTestUtil extends Assertions {
   locally {
     new ColumnConstructorExt(Column)
   }
+
   /**
    * Runs the plan and makes sure the answer matches the expected result.
    *
