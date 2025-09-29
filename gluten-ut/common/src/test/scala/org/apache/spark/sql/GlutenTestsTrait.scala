@@ -28,6 +28,8 @@ import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData, TypeUtils}
+import org.apache.spark.sql.classic.ClassicColumn
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -244,7 +246,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
       val empData = Seq(Row(1))
       _spark.createDataFrame(_spark.sparkContext.parallelize(empData), schema)
     }
-    val resultDF = df.select(Column(expression))
+    val resultDF = df.select(ClassicColumn(expression))
     val result = resultDF.collect()
     TestStats.testUnitNumber = TestStats.testUnitNumber + 1
     if (
