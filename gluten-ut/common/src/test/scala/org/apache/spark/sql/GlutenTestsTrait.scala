@@ -44,8 +44,10 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 trait GlutenTestsTrait extends GlutenTestsCommonTrait {
-  implicit class ColumnConstructorExt(val c: Column.type) {}
-
+  // TODO: remove this if we can suppress unused import error.
+  locally {
+    new ColumnConstructorExt(Column)
+  }
   override def beforeAll(): Unit = {
     // prepare working paths
     val basePathDir = new File(basePath)
