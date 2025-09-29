@@ -102,7 +102,7 @@ EmitInfo getEmitInfo(const ::substrait::RelCommon& relCommon, const core::PlanNo
 RowTypePtr getJoinInputType(const core::PlanNodePtr& leftNode, const core::PlanNodePtr& rightNode) {
   auto outputSize = leftNode->outputType()->size() + rightNode->outputType()->size();
   std::vector<std::string> outputNames;
-  std::vector<std::shared_ptr<const Type>> outputTypes;
+  std::vector<TypePtr> outputTypes;
   outputNames.reserve(outputSize);
   outputTypes.reserve(outputSize);
   for (const auto& node : {leftNode, rightNode}) {
@@ -139,7 +139,7 @@ RowTypePtr getJoinOutputType(
   if (outputMayIncludeLeftColumns) {
     if (core::isLeftSemiProjectJoin(joinType)) {
       std::vector<std::string> outputNames = leftNode->outputType()->names();
-      std::vector<std::shared_ptr<const Type>> outputTypes = leftNode->outputType()->children();
+      std::vector<TypePtr> outputTypes = leftNode->outputType()->children();
       outputNames.emplace_back("exists");
       outputTypes.emplace_back(BOOLEAN());
       return std::make_shared<const RowType>(std::move(outputNames), std::move(outputTypes));
@@ -151,7 +151,7 @@ RowTypePtr getJoinOutputType(
   if (outputMayIncludeRightColumns) {
     if (core::isRightSemiProjectJoin(joinType)) {
       std::vector<std::string> outputNames = rightNode->outputType()->names();
-      std::vector<std::shared_ptr<const Type>> outputTypes = rightNode->outputType()->children();
+      std::vector<TypePtr> outputTypes = rightNode->outputType()->children();
       outputNames.emplace_back("exists");
       outputTypes.emplace_back(BOOLEAN());
       return std::make_shared<const RowType>(std::move(outputNames), std::move(outputTypes));
