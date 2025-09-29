@@ -60,6 +60,10 @@ const std::string kAbandonPartialAggregationMinPct =
 const std::string kAbandonPartialAggregationMinRows =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
 
+// hashmap build
+const std::string kAbandonBuildNoDupHashMinRows = "spark.gluten.velox.abandonbuild.noduphashminrows";
+const std::string kAbandonBuildNoDupHashMinPct = "spark.gluten.velox.abandonbuild.noduphashminpct";
+
 // execution
 const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems";
 const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
