@@ -36,8 +36,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
-import org.apache.spark.util.Utils
-
+import org.apache.spark.util.{KnownSizeEstimation, Utils}
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import org.apache.arrow.c.ArrowSchema
@@ -102,7 +101,8 @@ case class UnsafeColumnarBuildSideRelation(
   extends BuildSideRelation
   with Externalizable
   with Logging
-  with KryoSerializable {
+  with KryoSerializable
+  with KnownSizeEstimation {
 
   // Rebuild the real BroadcastMode on demand; never serialize it.
   @transient override lazy val mode: BroadcastMode =
@@ -365,5 +365,13 @@ case class UnsafeColumnarBuildSideRelation(
       Iterator.empty
     }
     iterator.toArray
+  }
+
+  override def estimatedSize: Long = {
+    if (null != batches) {
+      batches.totalBytes
+    } else {
+      0L
+    }
   }
 }

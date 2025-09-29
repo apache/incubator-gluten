@@ -33,6 +33,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
+import org.apache.spark.util.KnownSizeEstimation
 
 import org.apache.arrow.c.ArrowSchema
 
@@ -61,7 +62,7 @@ case class ColumnarBuildSideRelation(
     output: Seq[Attribute],
     batches: Array[Array[Byte]],
     safeBroadcastMode: SafeBroadcastMode)
-  extends BuildSideRelation {
+  extends BuildSideRelation with KnownSizeEstimation {
 
   // Rebuild the real BroadcastMode on demand; never serialize it.
   @transient override lazy val mode: BroadcastMode =
@@ -235,5 +236,12 @@ case class ColumnarBuildSideRelation(
       Iterator.empty
     }
     iterator.toArray
+  }
+  override def estimatedSize: Long = {
+    if (null != batches) {
+      batches.map(_.length.toLong).sum
+    } else {
+      0L
+    }
   }
 }
