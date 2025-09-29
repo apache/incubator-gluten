@@ -82,8 +82,10 @@ trait GlutenSQLTestsTrait extends QueryTest with GlutenSQLTestsBaseTrait {
 }
 
 object GlutenQueryTestUtil extends Assertions {
-  implicit class ColumnConstructorExt(val c: Column.type) {}
-
+  // TODO: remove this if we can suppress unused import error.
+  locally {
+    new ColumnConstructorExt(Column)
+  }
   /**
    * Runs the plan and makes sure the answer matches the expected result.
    *
