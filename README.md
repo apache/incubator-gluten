@@ -117,7 +117,7 @@ The ASF Slack login entry: https://the-asf.slack.com/.
 Please contact weitingchen at apache.org or zhangzc at apache.org to request an invitation to the WeChat group. It is for Chinese-language communication.
 
 ## 7. Performance
-[TPC-H](./tools/workload/tpch) is used as a benchmark to evaluate Gluten's performance. Please note that the results below do not reflect the latest performance.
+[TPC-H](./tools/workload/tpch) is used to evaluate Gluten's performance. Please note that the results below do not reflect the latest performance.
 
 ### Velox Backend
 The Gluten Velox backend demonstrated an overall speedup of 2.71x, with up to a 14.53x speedup observed in a single query.
