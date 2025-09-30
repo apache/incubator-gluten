@@ -17,12 +17,9 @@ name: Build Release
 
 # Only triggered when new tag like v1.5.0 is created.
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/build_release.yml'
-#  push:
-#    tags:
-#      - 'v*'
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build-velox-backend-release:
