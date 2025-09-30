@@ -14,20 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.metrics
+package org.apache.spark.sql.execution.columnar
 
-import org.apache.spark.sql.execution.metric.SQLMetric
-
-class WriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
-
-  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
-    if (opMetrics != null) {
-      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      metrics("physicalWrittenBytes") += operatorMetrics.physicalWrittenBytes
-      metrics("writeIONanos") += operatorMetrics.writeIOTime
-      metrics("wallNanos") += operatorMetrics.wallNanos
-      metrics("numWrittenFiles") += operatorMetrics.numWrittenFiles
-      metrics("loadLazyVectorTime") += operatorMetrics.loadLazyVectorTime
-    }
+object SparkCacheUtil {
+  def clearCacheSerializer(): Unit = {
+    InMemoryRelation.clearSerializer()
   }
 }

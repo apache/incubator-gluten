@@ -14,20 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.metrics
+package org.apache.spark.sql.delta.test
 
-import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.QueryTest
 
-class WriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+import org.scalactic.source.Position
+import org.scalatest.Tag
 
-  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
-    if (opMetrics != null) {
-      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      metrics("physicalWrittenBytes") += operatorMetrics.physicalWrittenBytes
-      metrics("writeIONanos") += operatorMetrics.writeIOTime
-      metrics("wallNanos") += operatorMetrics.wallNanos
-      metrics("numWrittenFiles") += operatorMetrics.numWrittenFiles
-      metrics("loadLazyVectorTime") += operatorMetrics.loadLazyVectorTime
+// spotless:off
+trait DeltaExcludedTestMixin extends QueryTest {
+
+  /** Tests to be ignored by the runner. */
+  override def excluded: Seq[String] = Seq.empty
+
+  protected override def test(testName: String, testTags: Tag*)
+    (testFun: => Any)
+    (implicit pos: Position): Unit = {
+    if (excluded.contains(testName)) {
+      super.ignore(testName, testTags: _*)(testFun)
+    } else {
+      super.test(testName, testTags: _*)(testFun)
     }
   }
 }
+// spotless:on

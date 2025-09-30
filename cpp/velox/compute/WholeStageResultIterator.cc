@@ -250,8 +250,12 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::nextInternal() {
   if (numRows == 0) {
     return nullptr;
   }
-  for (auto& child : vector->children()) {
-    child->loadedVector();
+
+  {
+    ScopedTimer timer(&loadLazyVectorTime_);
+    for (auto& child : vector->children()) {
+      child->loadedVector();
+    }
   }
 
   return std::make_shared<VeloxColumnarBatch>(vector);
@@ -407,6 +411,8 @@ void WholeStageResultIterator::collectMetrics() {
 
   int metricIndex = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
+    metrics_->get(Metrics::kLoadLazyVectorTime)[metricIndex] = 0;
+
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       // Special handing for Filter over Project case. Filter metrics are
@@ -480,6 +486,9 @@ void WholeStageResultIterator::collectMetrics() {
       metricIndex += 1;
     }
   }
+
+  // Put the loadLazyVector time into the metrics of the last operator.
+  metrics_->get(Metrics::kLoadLazyVectorTime)[orderedNodeIds_.size() - 1] = loadLazyVectorTime_;
 
   // Populate the metrics with task stats for long running tasks.
   if (const int64_t collectTaskStatsThreshold =
@@ -598,6 +607,12 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
     configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =
         std::to_string(veloxCfg_->get<int32_t>(kVeloxSplitPreloadPerDriver, 2));
+
+    // hashtable build optimizations
+    configs[velox::core::QueryConfig::kAbandonBuildNoDupHashMinRows] =
+        std::to_string(veloxCfg_->get<int32_t>(kAbandonBuildNoDupHashMinRows, 100000));
+    configs[velox::core::QueryConfig::kAbandonBuildNoDupHashMinPct] =
+        std::to_string(veloxCfg_->get<int32_t>(kAbandonBuildNoDupHashMinPct, 0));
 
     // Disable driver cpu time slicing.
     configs[velox::core::QueryConfig::kDriverCpuTimeSliceLimitMs] = "0";

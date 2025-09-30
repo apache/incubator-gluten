@@ -24,6 +24,7 @@ import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.CastTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
+import io.github.zhztheplayer.velox4j.type.BooleanType;
 import io.github.zhztheplayer.velox4j.type.DecimalType;
 import io.github.zhztheplayer.velox4j.type.DoubleType;
 import io.github.zhztheplayer.velox4j.type.IntegerType;
@@ -90,6 +91,9 @@ class DecimalArithmeticOperatorRexCallConverters extends BaseRexCallConverter {
       } else if (functionResultType instanceof DoubleType) {
         // The result is of type double when a decimal is operated with a double.
         return CastTypedExpr.create(new DoubleType(), expr, false);
+      } else if (functionResultType instanceof BooleanType) {
+        // For comparison, the result type is Boolean
+        return expr;
       }
       throw new FlinkRuntimeException(
           "Not supported type for decimal conversion: " + functionResultType.getClass().getName());
