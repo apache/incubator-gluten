@@ -16,6 +16,7 @@
 
 set -exu
 
+CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=2025_09_27
 VELOX_HOME=""
@@ -62,15 +63,9 @@ for arg in "$@"; do
   esac
 done
 
-CURRENT_DIR=$(
-  cd "$(dirname "$BASH_SOURCE")"
-  pwd
-)
-
 if [ "$VELOX_HOME" == "" ]; then
   VELOX_HOME="$CURRENT_DIR/../build/velox_ep"
 fi
-VELOX_SOURCE_DIR="${VELOX_HOME}"
 
 function process_setup_ubuntu {
   echo "Using setup script from Velox"
@@ -101,9 +96,9 @@ function prepare_velox_source_code {
 
   # checkout code
   TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}' | head -n 1)"
-  if [ -d $VELOX_SOURCE_DIR ]; then
-    echo "Velox source folder $VELOX_SOURCE_DIR already exists..."
-    cd $VELOX_SOURCE_DIR
+  if [ -d $VELOX_HOME ]; then
+    echo "Velox source folder $VELOX_HOME already exists..."
+    cd $VELOX_HOME
     # if velox_branch exists, check it out,
     # otherwise assume that user prepared velox source in velox_home, skip checkout
     if [ -n "$TARGET_BUILD_COMMIT" ]; then
@@ -118,8 +113,8 @@ function prepare_velox_source_code {
       echo "$VELOX_BRANCH can't be found in $VELOX_REPO, skipping the download..."
     fi
   else
-    git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
-    cd $VELOX_SOURCE_DIR
+    git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_HOME
+    cd $VELOX_HOME
     git checkout $TARGET_BUILD_COMMIT
   fi
 
@@ -131,9 +126,8 @@ function prepare_velox_source_code {
 function apply_provided_velox_patch {
   if [[ -n "$UPSTREAM_VELOX_PR_ID" ]]; then
      echo "Applying patch for PR #$UPSTREAM_VELOX_PR_ID ..."
-     local velox_home=$1
      local patch_name="$UPSTREAM_VELOX_PR_ID.patch"
-     pushd $velox_home
+     pushd $VELOX_HOME
      rm -f $patch_name
      wget -nv "https://patch-diff.githubusercontent.com/raw/facebookincubator/velox/pull/$UPSTREAM_VELOX_PR_ID.patch" \
        -O "$patch_name" || {
@@ -149,15 +143,11 @@ function apply_provided_velox_patch {
 }
 
 function apply_compilation_fixes {
-  current_dir=$1
-  velox_home=$2
+  sudo cp ${CURRENT_DIR}/modify_arrow.patch ${VELOX_HOME}/CMake/resolve_dependency_modules/arrow/
+  sudo cp ${CURRENT_DIR}/modify_arrow_dataset_scan_option.patch ${VELOX_HOME}/CMake/resolve_dependency_modules/arrow/
 
-  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/CMake/resolve_dependency_modules/arrow/
-  sudo cp ${current_dir}/modify_arrow_dataset_scan_option.patch ${velox_home}/CMake/resolve_dependency_modules/arrow/
-
-  git add ${velox_home}/CMake/resolve_dependency_modules/arrow/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
-  git add ${velox_home}/CMake/resolve_dependency_modules/arrow/modify_arrow_dataset_scan_option.patch # to avoid the file from being deleted by git clean -dffx :/
-
+  git add ${VELOX_HOME}/CMake/resolve_dependency_modules/arrow/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
+  git add ${VELOX_HOME}/CMake/resolve_dependency_modules/arrow/modify_arrow_dataset_scan_option.patch # to avoid the file from being deleted by git clean -dffx :/
 }
 
 function setup_linux {
@@ -237,8 +227,8 @@ if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
   apply_setup_fixes
 fi
 
-apply_provided_velox_patch "$VELOX_SOURCE_DIR"
+apply_provided_velox_patch
 
-apply_compilation_fixes "$CURRENT_DIR" "$VELOX_SOURCE_DIR"
+apply_compilation_fixes
 
 echo "Finished getting Velox code"
