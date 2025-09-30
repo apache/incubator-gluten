@@ -144,29 +144,89 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     DecimalArithmeticExpressionTransformer(substraitName, leftChild, rightChild, resultType, b)
   }
 
-  private def replaceIcebergStaticInvoke(
-      s: StaticInvoke,
+  private def replaceStaticInvokeWithExpressionTransformer(
+      i: StaticInvoke,
       attributeSeq: Seq[Attribute],
       expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
-    val invokeMap = Map(
-      "BucketFunction" -> ExpressionNames.BUCKET,
-      "TruncateFunction" -> ExpressionNames.TRUNCATE,
-      "YearsFunction" -> ExpressionNames.YEARS,
-      "MonthsFunction" -> ExpressionNames.MONTHS,
-      "DaysFunction" -> ExpressionNames.DAYS,
-      "HoursFunction" -> ExpressionNames.HOURS
-    )
-    val objName = s.staticObject.getName
-    val transformer = invokeMap.find {
-      case (func, _) => objName.startsWith("org.apache.iceberg.spark.functions." + func)
+    def validateAndTransform(
+        exprName: String,
+        childTransformers: => Seq[ExpressionTransformer]): ExpressionTransformer = {
+      if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(exprName, i)) {
+        throw new GlutenNotSupportException(
+          s"Not supported to map current ${i.getClass} call on function: ${i.functionName}.")
+      }
+      GenericExpressionTransformer(exprName, childTransformers, i)
     }
-    if (transformer.isEmpty) {
-      throw new GlutenNotSupportException(s"Not supported staticInvoke call object: $objName")
+
+    if (Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith("UrlCodec")) {
+      return validateAndTransform(
+        "url_" + i.functionName,
+        Seq(replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap))
+      )
     }
-    GenericExpressionTransformer(
-      transformer.get._2,
-      s.arguments.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-      s)
+
+    if (i.functionName.equals("isLuhnNumber")) {
+      return validateAndTransform(
+        ExpressionNames.LUHN_CHECK,
+        Seq(replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap))
+      )
+    }
+
+    if (Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith("Base64")) {
+      // Respect backend-specific implementation while still validating the expr name
+      if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(ExpressionNames.BASE64, i)) {
+        throw new GlutenNotSupportException(
+          s"Not supported to map current ${i.getClass} call on function: ${i.functionName}.")
+      }
+      return BackendsApiManager.getSparkPlanExecApiInstance.genBase64StaticInvokeTransformer(
+        ExpressionNames.BASE64,
+        replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
+        i
+      )
+    }
+
+    if (
+      Set("varcharTypeWriteSideCheck", "charTypeWriteSideCheck", "readSidePadding").contains(
+        i.functionName) && i.objectName.endsWith("CharVarcharCodegenUtils")
+    ) {
+      val exprName = i.functionName match {
+        case "varcharTypeWriteSideCheck" => ExpressionNames.VARCHAR_TYPE_WRITE_SIDE_CHECK
+        case "charTypeWriteSideCheck" => ExpressionNames.CHAR_TYPE_WRITE_SIDE_CHECK
+        case "readSidePadding" => ExpressionNames.READ_SIDE_PADDING
+      }
+      return validateAndTransform(
+        exprName,
+        i.arguments.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+      )
+    }
+
+    if (
+      i.functionName == "invoke" && i.staticObject.getName.startsWith(
+        "org.apache.iceberg.spark.functions.")
+    ) {
+      val invokeMap = Map(
+        "BucketFunction" -> ExpressionNames.BUCKET,
+        "TruncateFunction" -> ExpressionNames.TRUNCATE,
+        "YearsFunction" -> ExpressionNames.YEARS,
+        "MonthsFunction" -> ExpressionNames.MONTHS,
+        "DaysFunction" -> ExpressionNames.DAYS,
+        "HoursFunction" -> ExpressionNames.HOURS
+      )
+      val objName = i.staticObject.getName
+      val transformer = invokeMap.find {
+        case (func, _) => objName.startsWith("org.apache.iceberg.spark.functions." + func)
+      }
+      if (transformer.isDefined) {
+        return validateAndTransform(
+          transformer.get._2,
+          i.arguments.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+        )
+      }
+    }
+
+    throw new GlutenNotSupportException(
+      s"Not supported to transform StaticInvoke with object: ${i.staticObject.getName}, " +
+        s"function: ${i.functionName}")
   }
 
   private def replaceWithExpressionTransformer0(
@@ -186,33 +246,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         return BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(
           expr,
           attributeSeq)
-      case i: StaticInvoke
-          if Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith(
-            "UrlCodec") =>
-        return GenericExpressionTransformer(
-          "url_" + i.functionName,
-          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
-          i)
-      case i: StaticInvoke if i.functionName.equals("isLuhnNumber") =>
-        return GenericExpressionTransformer(
-          ExpressionNames.LUHN_CHECK,
-          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
-          i)
-      case i: StaticInvoke
-          if Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith("Base64") =>
-        return BackendsApiManager.getSparkPlanExecApiInstance.genBase64StaticInvokeTransformer(
-          ExpressionNames.BASE64,
-          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
-          i
-        )
-      case i: StaticInvoke
-          if i.functionName == "invoke" && i.staticObject.getName.startsWith(
-            "org.apache.iceberg.spark.functions.") =>
-        return replaceIcebergStaticInvoke(i, attributeSeq, expressionsMap)
       case i: StaticInvoke =>
-        throw new GlutenNotSupportException(
-          s"Not supported to transform StaticInvoke with object: ${i.staticObject.getName}, " +
-            s"function: $i.functionName")
+        return replaceStaticInvokeWithExpressionTransformer(i, attributeSeq, expressionsMap)
       case _ =>
     }
 
