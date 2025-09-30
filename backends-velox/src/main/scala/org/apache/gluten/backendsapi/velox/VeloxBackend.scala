@@ -551,15 +551,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def enableEnhancedFeatures(): Boolean = VeloxConfig.get.enableEnhancedFeatures()
 
-  override def supportAppendDataExec(): Boolean =
-    GlutenConfig.get.enableAppendData && enableEnhancedFeatures()
+  override def supportAppendDataExec(): Boolean = enableEnhancedFeatures()
 
-  override def supportReplaceDataExec(): Boolean =
-    GlutenConfig.get.enableReplaceData && enableEnhancedFeatures()
+  override def supportReplaceDataExec(): Boolean = enableEnhancedFeatures()
 
-  override def supportOverwriteByExpression(): Boolean =
-    GlutenConfig.get.enableOverwriteByExpression && enableEnhancedFeatures()
+  override def supportOverwriteByExpression(): Boolean = enableEnhancedFeatures()
 
-  override def supportOverwritePartitionsDynamic(): Boolean =
-    GlutenConfig.get.enableOverwritePartitionsDynamic && enableEnhancedFeatures()
+  override def supportOverwritePartitionsDynamic(): Boolean = enableEnhancedFeatures()
 }
