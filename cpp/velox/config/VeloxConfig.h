@@ -184,4 +184,9 @@ const int32_t kCudfMemoryPercentDefault = 50;
 /// Preferred size of batches in bytes to be returned by operators.
 const std::string kVeloxPreferredBatchBytes = "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes";
 
+/// cudf
+const std::string kCudfEnableTableScan = "spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan";
+const bool kCudfEnableTableScanDefault = false;
+const std::string kCudfHiveConnectorId = "cudf-hive";
+
 } // namespace gluten

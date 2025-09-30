@@ -80,6 +80,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(ENABLE_ENHANCED_FEATURES)
 
   def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
+
+  def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
 }
 
 object VeloxConfig {
@@ -622,6 +624,12 @@ object VeloxConfig {
       .doc("The initial percent of GPU memory to allocate for memory resource for one thread.")
       .intConf
       .createWithDefault(50)
+
+  val CUDF_ENABLE_TABLE_SCAN =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan")
+      .doc("Enable cudf table scan")
+      .booleanConf
+      .createWithDefault(false)
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")

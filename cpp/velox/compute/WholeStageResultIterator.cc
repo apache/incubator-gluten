@@ -23,7 +23,9 @@
 #include "velox/exec/PlanNodeStats.h"
 #ifdef GLUTEN_ENABLE_GPU
 #include <mutex>
+#include <cudf/io/types.hpp>
 #include "velox/experimental/cudf/exec/ToCudf.h"
+#include "velox/experimental/cudf/connectors/hive/CudfHiveConnectorSplit.h"
 #endif
 
 using namespace facebook;
@@ -131,14 +133,19 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
     const auto& metadataColumns = scanInfo->metadataColumns;
+    // Under the pre-condition that all the split infos has same partition column and format.
+    const auto canUseCudfConnector = scanInfo->canUseCudfConnector();
 
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
-      auto partitionColumn = partitionColumns[idx];
       auto metadataColumn = metadataColumns[idx];
       std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
-      constructPartitionColumns(partitionKeys, partitionColumn);
+      if (!partitionColumns.empty()) {
+        auto partitionColumn = partitionColumns[idx];
+        constructPartitionColumns(partitionKeys, partitionColumn);
+      }
+
       std::shared_ptr<velox::connector::ConnectorSplit> split;
       if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
         // Set Iceberg split.
@@ -159,8 +166,16 @@ WholeStageResultIterator::WholeStageResultIterator(
             std::unordered_map<std::string, std::string>(),
             properties[idx]);
       } else {
+        auto connectorId = kHiveConnectorId;
+#ifdef GLUTEN_ENABLE_GPU
+        if (canUseCudfConnector) {
+          connectorId = kCudfHiveConnectorId;
+          VELOX_CHECK_EQ(starts[idx], 0, "Not support split file");
+          VELOX_CHECK_EQ(lengths[idx], scanInfo->properties[idx]->fileSize, "Not support split file");
+        }
+#endif
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-            kHiveConnectorId,
+            connectorId,
             paths[idx],
             format,
             starts[idx],
