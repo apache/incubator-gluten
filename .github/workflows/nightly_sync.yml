@@ -22,6 +22,7 @@ on:
       - '.github/workflows/nightly_sync.yml'
 jobs:
   upload_to_nightlies:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
 
     steps:
