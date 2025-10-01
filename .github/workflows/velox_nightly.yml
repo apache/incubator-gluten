@@ -70,6 +70,7 @@ jobs:
           name: velox-arrow-jar-centos-7-${{github.sha}}
 
   build-bundle-package-centos8-jdk8-x86:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     needs: build-native-lib-x86
     runs-on: ubuntu-22.04
     container: centos:8
@@ -111,6 +112,7 @@ jobs:
           retention-days: 7
 
   build-bundle-package-centos8-jdk17-x86:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     needs: build-native-lib-x86
     runs-on: ubuntu-22.04
     container: centos:8
@@ -152,6 +154,7 @@ jobs:
 
   #build and package for arm64
   build-native-lib-centos-8-arm64:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-24.04-arm
     container: apache/gluten:vcpkg-centos-8
     steps:
@@ -189,6 +192,7 @@ jobs:
           if-no-files-found: error
 
   build-bundle-package-centos8-jdk8-arm64:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     needs: build-native-lib-centos-8-arm64
     runs-on: ubuntu-22.04-arm
     container: centos:8
@@ -230,6 +234,7 @@ jobs:
           retention-days: 7
 
   build-bundle-package-centos8-jdk17-arm64:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     needs: build-native-lib-centos-8-arm64
     runs-on: ubuntu-22.04-arm
     container: centos:8
@@ -270,6 +275,7 @@ jobs:
 
   # upload package to nightly.apache.org
   upload-jdk8-package:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     needs: [build-bundle-package-centos8-jdk8-arm64, build-bundle-package-centos8-jdk8-x86]
     runs-on: ubuntu-22.04
     steps:
@@ -298,6 +304,7 @@ jobs:
           remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
 
   upload-jdk17-package:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     needs: [build-bundle-package-centos8-jdk17-arm64, build-bundle-package-centos8-jdk17-x86]
     runs-on: ubuntu-22.04
     steps:

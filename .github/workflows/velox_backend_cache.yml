@@ -30,6 +30,7 @@ concurrency:
 
 jobs:
   cache-native-lib-centos-7:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +56,7 @@ jobs:
           key: ccache-centos7-release-default-${{github.sha}}
 
   cache-native-lib-centos-8:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     container: apache/gluten:vcpkg-centos-8
     strategy:
@@ -80,6 +82,7 @@ jobs:
           key: ccache-centos8-release-default-${{runner.arch}}-${{github.sha}}
 
   cache-shared-lib-centos-8:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -107,6 +110,7 @@ jobs:
           key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
 
   cache-enhanced-native-lib-centos-7:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -132,6 +136,7 @@ jobs:
           key: ccache-enhanced-centos7-release-default-${{github.sha}}
 
   cache-shared-lib-centos-9:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
