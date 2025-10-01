@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.enhanced
 
-import org.apache.gluten.execution.{ColumnarToRowExecBase, IcebergSuite, VeloxIcebergAppendDataExec, VeloxIcebergOverwriteByExpressionExec, VeloxIcebergReplaceDataExec}
+import org.apache.gluten.execution.{ColumnarToRowExecBase, IcebergSuite, VeloxIcebergAppendDataExec, VeloxIcebergOverwriteByExpressionExec, VeloxIcebergOverwritePartitionsDynamicExec, VeloxIcebergReplaceDataExec}
 import org.apache.gluten.tags.EnhancedFeaturesTest
 
 import org.apache.spark.sql.{DataFrame, Row}
@@ -257,6 +257,30 @@ class VeloxIcebergSuite extends IcebergSuite {
       df = spark.sql("insert overwrite table iceberg_tbl values (5, 1)")
       checkAnswer(spark.sql("select * from iceberg_tbl order by a"), Seq(Row(5, 1)))
       checkColumnarToRow(df, 0)
+    }
+  }
+
+  test("iceberg dynamic insert overwrite partition") {
+    withTable("iceberg_tbl") {
+      spark.sql("""
+                  |create table if not exists iceberg_tbl (a int, pt int) using iceberg
+                  |partitioned by (pt)
+                  |""".stripMargin)
+
+      spark.sql("insert into table iceberg_tbl values (1, 1), (2, 2)")
+
+      withSQLConf("spark.sql.sources.partitionOverwriteMode" -> "dynamic") {
+        val df = spark.sql("insert overwrite table iceberg_tbl values (11, 1)")
+        assert(
+          df.queryExecution.executedPlan
+            .asInstanceOf[CommandResultExec]
+            .commandPhysicalPlan
+            .isInstanceOf[VeloxIcebergOverwritePartitionsDynamicExec])
+        checkAnswer(
+          spark.sql("select * from iceberg_tbl order by pt"),
+          Seq(Row(11, 1), Row(2, 2))
+        )
+      }
     }
   }
 }

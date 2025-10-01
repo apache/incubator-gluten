@@ -90,6 +90,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableOverwriteByExpression: Boolean = getConf(COLUMNAR_OVERWRIET_BY_EXPRESSION_ENABLED)
 
+  def enableOverwritePartitionsDynamic: Boolean =
+    getConf(COLUMNAR_OVERWRIET_PARTITIONS_DYNAMIC_ENABLED)
+
   def enableColumnarShuffledHashJoin: Boolean = getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
   def shuffledHashJoinOptimizeBuildSide: Boolean =
@@ -861,6 +864,12 @@ object GlutenConfig {
   val COLUMNAR_OVERWRIET_BY_EXPRESSION_ENABLED =
     buildConf("spark.gluten.sql.columnar.overwriteByExpression")
       .doc("Enable or disable columnar v2 command overwrite by expression.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_OVERWRIET_PARTITIONS_DYNAMIC_ENABLED =
+    buildConf("spark.gluten.sql.columnar.overwriteOverwritePartitionsDynamic")
+      .doc("Enable or disable columnar v2 command overwrite partitions dynamic.")
       .booleanConf
       .createWithDefault(true)
 
