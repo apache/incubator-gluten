@@ -868,7 +868,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val COLUMNAR_OVERWRIET_PARTITIONS_DYNAMIC_ENABLED =
-    buildConf("spark.gluten.sql.columnar.overwriteOverwritePartitionsDynamic")
+    buildConf("spark.gluten.sql.columnar.overwritePartitionsDynamic")
       .doc("Enable or disable columnar v2 command overwrite partitions dynamic.")
       .booleanConf
       .createWithDefault(true)
