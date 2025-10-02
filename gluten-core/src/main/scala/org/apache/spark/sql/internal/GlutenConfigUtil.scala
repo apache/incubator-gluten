@@ -25,7 +25,7 @@ object GlutenConfigUtil {
       configProvider: GlutenConfigProvider,
       key: String,
       value: String): String = {
-    Option(ConfigEntry.findEntry(key))
+    Option(ConfigRegistry.findEntry(key))
       .map {
         _.readFrom(configProvider) match {
           case o: Option[_] => o.map(_.toString).getOrElse(value)

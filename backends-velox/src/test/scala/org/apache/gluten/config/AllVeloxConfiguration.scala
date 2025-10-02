@@ -25,10 +25,7 @@ class AllVeloxConfiguration extends AnyFunSuite {
     AllGlutenConfiguration.getCodeSourceLocation(this.getClass).split("backends-velox")(0)
   private val markdown = Paths.get(glutenHome, "docs", "velox-configuration.md").toAbsolutePath
 
-  private def loadConfigs = Array(VeloxConfig)
-
   test("Check velox backend configs") {
-    loadConfigs
     val builder = MarkdownBuilder(getClass.getName)
 
     builder ++=
@@ -49,8 +46,7 @@ class AllVeloxConfiguration extends AnyFunSuite {
          | --- | --- | ---
          |"""
 
-    ConfigEntry.getAllEntries
-      .filter(_.key.contains("velox"))
+    VeloxConfig.allEntries
       .filter(_.isPublic)
       .filter(!_.isExperimental)
       .sortBy(_.key)
@@ -69,8 +65,7 @@ class AllVeloxConfiguration extends AnyFunSuite {
          | --- | --- | ---
          |"""
 
-    ConfigEntry.getAllEntries
-      .filter(_.key.contains("velox"))
+    VeloxConfig.allEntries
       .filter(_.isPublic)
       .filter(_.isExperimental)
       .sortBy(_.key)

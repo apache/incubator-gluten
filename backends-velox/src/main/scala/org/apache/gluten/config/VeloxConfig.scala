@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.config
 
-import org.apache.gluten.config.GlutenConfig.{buildConf, buildStaticConf, COLUMNAR_MAX_BATCH_SIZE}
-
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
@@ -46,7 +44,7 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   }
 
   def veloxResizeBatchesShuffleInputOutputRange: ResizeRange = {
-    val standardSize = getConf(COLUMNAR_MAX_BATCH_SIZE)
+    val standardSize = getConf(GlutenConfig.COLUMNAR_MAX_BATCH_SIZE)
     val defaultMinSize: Int = (0.25 * standardSize).toInt.max(1)
     val minSize = getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_OUTPUT_MIN_SIZE)
       .getOrElse(defaultMinSize)
@@ -84,9 +82,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
 }
 
-object VeloxConfig {
-
-  def get: VeloxConfig = {
+object VeloxConfig extends ConfigRegistry {
+  override def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
   }
 
@@ -270,14 +267,14 @@ object VeloxConfig {
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput")
       .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
-        s"The default minimum output batch size is equal to 0.25 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
+        s"The default minimum output batch size is equal to 0.25 * ${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_OUTPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleOutput")
       .doc(s"If true, combine small columnar batches together right after shuffle read. " +
-        s"The default minimum output batch size is equal to 0.25 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
+        s"The default minimum output batch size is equal to 0.25 * ${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(false)
 
