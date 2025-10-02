@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.config.{ConfigRegistry, GlutenConfig}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
