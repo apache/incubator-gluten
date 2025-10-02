@@ -23,7 +23,7 @@
     <spark.major.version>3</spark.major.version>
     <celeborn.version>0.6.0</celeborn.version>
     <uniffle.version>0.9.2</uniffle.version>
-    <gluten.version>1.5.0-SNAPSHOT</gluten.version>
+    <gluten.version>1.5.0</gluten.version>
     <guava.version>32.0.1-jre</guava.version>
     <tpch.version>1.1</tpch.version>
     <tpcds.version>1.4</tpcds.version>
