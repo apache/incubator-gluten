@@ -266,17 +266,19 @@ object VeloxConfig extends ConfigRegistry {
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput")
-      .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
-        s"The default minimum output batch size is equal to 0.25 * " +
-        s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
+      .doc(
+        s"If true, combine small columnar batches together before sending to shuffle. " +
+          s"The default minimum output batch size is equal to 0.25 * " +
+          s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_OUTPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleOutput")
-      .doc(s"If true, combine small columnar batches together right after shuffle read. " +
-        s"The default minimum output batch size is equal to 0.25 * " +
-        s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
+      .doc(
+        s"If true, combine small columnar batches together right after shuffle read. " +
+          s"The default minimum output batch size is equal to 0.25 * " +
+          s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(false)
 
