@@ -16,6 +16,8 @@
  */
 import com.databricks.spark.sql.perf.tpch._
 
+import java.io.File
+
 
 val scaleFactor = "100" // scaleFactor defines the size of the dataset to generate (in GB).
 val numPartitions = 200  // how many dsdgen partitions to run - number of input tasks.
@@ -30,6 +32,20 @@ val tables = new TPCHTables(spark.sqlContext,
     useDoubleForDecimal = false, // true to replace DecimalType with DoubleType
     useStringForDate = false) // true to replace DateType with StringType
 
+object FileUtils {
+  def deleteFilesWithKeyword(path: String, keyword: String): Unit = {
+    val dir = new File(path)
+    if (dir.exists && dir.isDirectory) {
+      dir.listFiles()
+        .filter(f => f.isFile && f.getName.contains(keyword))
+        .foreach { f =>
+          f.delete()
+        }
+    }
+  }
+}
+
+FileUtils.deleteFilesWithKeyword(dbgenDir, "tbl")
 
 tables.genData(
     location = rootDir,

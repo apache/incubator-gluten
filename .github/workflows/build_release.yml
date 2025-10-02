@@ -13,29 +13,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Upload docs to apache nightly
+name: Build Release
 
+# Only triggered when new tag like v1.5.0 is created.
 on:
   push:
-    paths:
-      - 'docs/**'
-      - '.github/workflows/nightly_sync.yml'
-jobs:
-  upload_to_nightlies:
-    if: ${{ startsWith(github.repository, 'apache/') }}
-    runs-on: ubuntu-latest
+    tags:
+      - 'v*'
 
+jobs:
+  build-velox-backend-release:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-      - name: build doc
-        uses: actions/jekyll-build-pages@v1
-      - name: rsync
-        uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          docker pull apache/gluten:vcpkg-centos-7
+          docker run -v $GITHUB_WORKSPACE:/workspace -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            set -e
+            cd /workspace
+            bash dev/release/build-release.sh
+          "
+      - name: Upload packages
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
         with:
-          switches: -avzr --delete
-          path: _site
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/docs/
-          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
-          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
-          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
-          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+          name: ${{ github.job }}-packages
+          path: ${{ github.workspace }}/package/target/gluten-velox-bundle-*.jar

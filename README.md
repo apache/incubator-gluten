@@ -1,63 +1,66 @@
-![Gluten](docs/image/gluten-logo.svg)
+<img src="docs/image/gluten-logo.svg" alt="Gluten" width="200">
 
-# Apache Gluten (Incubating): A Middle Layer for Offloading JVM-based SQL Engines' Execution to Native Engines
+# Apache Gluten (Incubating)
+
+**A Middle Layer for Offloading JVM-based SQL Engines' Execution to Native Engines**
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8452/badge)](https://www.bestpractices.dev/projects/8452)
 
-# 1. Introduction
-## Problem Statement
-Apache Spark is a stable, mature project that has been developed for many years. It is one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address
-performance challenges that require various optimizations over time. As a key optimization in Spark 2.0, Whole Stage Code Generation is introduced to replace Volcano Model, which achieves 2x speedup. Henceforth, most
-optimizations are at query plan level. Single operator's performance almost stops growing.
+## 1. Introduction
+
+### Background
+
+Apache Spark is a mature and stable project that has been under continuous development for many years. It is one of the most widely used frameworks for scaling out the processing of petabyte-scale datasets.
+Over time, the Spark community has had to address significant performance challenges, which required a variety of optimizations. A major milestone came with Spark 2.0, where Whole-Stage Code Generation
+replaced the Volcano Model, delivering up to a 2× speedup. Since then, most subsequent improvements have focused on the query plan level, while the performance of individual operators has almost stopped improving.
 
 <p align="center">
-<img src="https://user-images.githubusercontent.com/47296334/199853029-b6d0ea19-f8e4-4f62-9562-2838f7f159a7.png" width="800">
+<img src="https://user-images.githubusercontent.com/47296334/199853029-b6d0ea19-f8e4-4f62-9562-2838f7f159a7.png" width="700">
 </p>
 
-On the other side, native SQL engines have been developed for a few years, such as Clickhouse, Arrow and Velox, etc. With features like native execution, columnar data format and vectorized
-data processing, these native engines can outperform Spark's JVM based SQL engine. However, they only support single node execution.
+In recent years, several native SQL engines have been developed, such as ClickHouse and Velox. With features like native execution, columnar data formats, and vectorized
+data processing, these engines can outperform Spark’s JVM-based SQL engine. However, they currently don't directly support Spark SQL execution.
 
-## Gluten's Basic Design
-“Gluten” is Latin for "glue". The main goal of Gluten project is to glue native engines with SparkSQL. Thus, we can benefit from high scalability of Spark SQL framework and high performance of native engines.
+### Design Overview
 
-The basic design rule is that we would reuse Spark's whole control flow and as much JVM code as possible but offload the compute-intensive data processing to native side. Here is what Gluten does basically:
+“Gluten” is Latin for "glue". The main goal of the Gluten project is to glue native engines to Spark SQL. Thus, we can benefit from the high performance of native engines and the high scalability enabled by the Spark ecosystem.
+
+The basic design principle is to reuse Spark’s control flow, while offloading compute-intensive data processing to the native side. More specifically:
+
 * Transform Spark’s physical plan to Substrait plan, then transform it to native engine's plan.
 * Offload performance-critical data processing to native engine.
 * Define clear JNI interfaces for native SQL engines.
-* Switch available native backends easily.
+* Allow easy switching between available native backends.
 * Reuse Spark’s distributed control flow.
 * Manage data sharing between JVM and native.
-* Extensible to support more native engines.
+* Provide extensibility to support more native engines.
 
-## Target User
-Gluten's target user is anyone who aspires to accelerate SparkSQL fundamentally. As a plugin to Spark, Gluten doesn't require any change for dataframe API or SQL query, but only requires user to make correct configuration.
-See Gluten configuration properties [here](https://github.com/apache/incubator-gluten/blob/main/docs/Configuration.md).
+### Target Users
 
-## References
-You can click below links for more related information.
-- [Gluten Intro Video at Data AI Summit 2022](https://www.youtube.com/watch?v=0Q6gHT_N-1U)
-- [Gluten Intro Article at Medium.com](https://medium.com/intel-analytics-software/accelerate-spark-sql-queries-with-gluten-9000b65d1b4e)
-- [Gluten Intro Article at Kyligence.io(in Chinese)](https://cn.kyligence.io/blog/gluten-spark/)
-- [Velox Intro from Meta](https://engineering.fb.com/2023/03/09/open-source/velox-open-source-execution-engine/)
+Gluten's target users include anyone who wants to fundamentally accelerate Spark SQL. As a plugin to Spark, Gluten requires no changes to the DataFrame API or SQL queries; users only need to configure it correctly.
 
-# 2. Architecture
-The overview chart is like below. Substrait provides a well-defined cross-language specification for data compute operations (see more details [here](https://substrait.io/)). Spark physical plan is transformed to Substrait plan. Then Substrait plan is passed to native through JNI call.
-On native side, the native operator chain will be built out and offloaded to native engine. Gluten will return Columnar Batch to Spark and Spark Columnar API (since Spark-3.0) will be used at execution time. Gluten uses Apache Arrow data format as its basic data format, so the returned data to Spark JVM is ArrowColumnarBatch.
+## 2. Architecture
+
+The overview chart is shown below. [Substrait](https://substrait.io/) provides a well-defined, cross-language specification for data compute operations. Spark’s physical plan is transformed into a Substrait plan,
+which is then passed to the native side through a JNI call. On the native side, a chain of native operators is constructed and offloaded to the native engine. Gluten returns the results as a ColumnarBatch,
+and Spark’s Columnar API (introduced in Spark 3.0) is used during execution. Gluten adopts the Apache Arrow data format as its underlying representation.
 <p align="center">
-<img src="https://user-images.githubusercontent.com/47296334/199617207-1140698a-4d53-462d-9bc7-303d14be060b.png" width="800">
+<img src="https://user-images.githubusercontent.com/47296334/199617207-1140698a-4d53-462d-9bc7-303d14be060b.png" width="700">
 </p>
-Currently, Gluten only supports Clickhouse backend & Velox backend. Velox is a C++ database acceleration library which provides reusable, extensible and high-performance data processing components. More details can be found from https://github.com/facebookincubator/velox/. Gluten can also be extended to support more backends.
+Currently, Gluten supports only ClickHouse and Velox backends. Velox is a C++ database acceleration library which provides reusable, extensible and high-performance data processing components. In addition, Gluten is designed to be extensible,
+allowing support for additional backends in the future.
 
-There are several key components in Gluten:
-* **Query Plan Conversion**: converts Spark's physical plan to Substrait plan.
-* **Unified Memory Management**: controls native memory allocation.
-* **Columnar Shuffle**: shuffles Gluten columnar data. The shuffle service still reuses the one in Spark core. A kind of columnar exchange operator is implemented to support Gluten columnar data format.
-* **Fallback Mechanism**: supports falling back to Vanilla spark for unsupported operators. Gluten ColumnarToRow (C2R) and RowToColumnar (R2C) will convert Gluten columnar data and Spark's internal row data if needed. Both C2R and R2C are implemented in native code as well
-* **Metrics**: collected from Gluten native engine to help identify bugs, performance bottlenecks, etc. The metrics are displayed in Spark UI.
-* **Shim Layer**: supports multiple Spark versions. We plan to only support Spark's latest 2 or 3 releases. Currently, Spark-3.2, Spark-3.3 & Spark-3.4 (experimental) are supported.
+Gluten's key components:
+* **Query Plan Conversion**: Converts Spark's physical plan to Substrait plan.
+* **Unified Memory Management**: Manages native memory allocation.
+* **Columnar Shuffle**: Handles shuffling of Gluten's columnar data. The shuffle service of Spark core is reused, while a columnar exchange operator is implemented to support Gluten's columnar data format.
+* **Fallback Mechanism**: Provides fallback to vanilla Spark for unsupported operators. Gluten's ColumnarToRow (C2R) and RowToColumnar (R2C) convert data between Gluten's columnar format and Spark's internal row format to support fallback transitions.
+* **Metrics**: Collected from Gluten native engine to help monitor execution, identify bugs, and diagnose performance bottlenecks. The metrics are displayed in Spark UI.
+* **Shim Layer**: Ensures compatibility with multiple Spark versions. Gluten supports the latest 3–4 Spark releases during its development cycle, and currently supports Spark 3.2, 3.3, 3.4, and 3.5.
 
-# 3. User Guide
-Here is a basic configuration to enable Gluten in Spark.
+## 3. User Guide
+
+Below is a basic configuration to enable Gluten in Spark.
 
 ```
 export GLUTEN_JAR=/PATH/TO/GLUTEN_JAR
@@ -74,89 +77,99 @@ spark-shell \
 
 There are two ways to acquire Gluten jar for the above configuration.
 
-### Use Released Jar
-Please download a tar package [here](https://downloads.apache.org/incubator/gluten/), then extract out Gluten jar from it.
-Additionally, Gluten offers nightly builds based on the main branch, which are available for early testing. You can find these release jars at this link: [Apache Gluten Nightlies](https://nightlies.apache.org/gluten/).
-It was verified on Centos-7, Centos-8, Centos-9, Ubuntu-20.04 and Ubuntu-22.04.
+### Use Released JAR
+
+Please download the tar package [here](https://downloads.apache.org/incubator/gluten/), then extract Gluten JAR from it.
+Additionally, Gluten provides nightly builds based on the main branch for early testing. The nightly build JARs are available at [Apache Gluten Nightlies](https://nightlies.apache.org/gluten/).
+They have been verified on Centos 7/8/9, Ubuntu 20.04/22.04.
 
 ### Build From Source
+
 For **Velox** backend, please refer to [Velox.md](./docs/get-started/Velox.md) and [build-guide.md](./docs/get-started/build-guide.md).
 
-For **ClickHouse** backend, please refer to [ClickHouse.md](./docs/get-started/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more information.
+For **ClickHouse** backend, please refer to [ClickHouse.md](./docs/get-started/ClickHouse.md).
 
-Gluten jar will be generated under `/PATH/TO/GLUTEN/package/target/` after the build.
+The Gluten JAR will be generated under `/PATH/TO/GLUTEN/package/target/` after the build.
 
 ### Configurations
-Common configurations used by Gluten is listed in [Configuration.md](./docs/Configuration.md). Velox specific configurations is listed in [velox-configuration.md](./docs/velox-configuration.md)
 
-Some of the spark configurations are hornored by Gluten Velox backend, some of them are ignored, and many are transparent to Gluten. The detail can be found in [velox-spark-configuration.md](./docs/velox-spark-configuration.md) and parquet write ones can be found in [velox-parquet-write-configuration.md](./docs/velox-parquet-write-configuration.md)
+Common configurations used by Gluten are listed in [Configuration.md](./docs/Configuration.md). Velox specific configurations are listed in [velox-configuration.md](./docs/velox-configuration.md).
 
+The Gluten Velox backend honors some Spark configurations, ignores others, and many are transparent to it. See [velox-spark-configuration.md](./docs/velox-spark-configuration.md) for details, and [velox-parquet-write-configuration.md](./docs/velox-parquet-write-configuration.md) for Parquet write configurations.
 
-# 4. Gluten Website
-https://gluten.apache.org/
+## 4. Resources
 
-# 5. Contribution
-Welcome to contribute to Gluten project! See [CONTRIBUTING.md](CONTRIBUTING.md) about how to make contributions.
+- [Gluten website](https://gluten.apache.org/)
+- [Velox repository](https://github.com/facebookincubator/velox)
+- [ClickHouse repository](https://github.com/Kyligence/ClickHouse)
+- [Gluten Intro Video at Data AI Summit 2022](https://www.youtube.com/watch?v=0Q6gHT_N-1U)
+- [Gluten Intro Article on Medium](https://medium.com/intel-analytics-software/accelerate-spark-sql-queries-with-gluten-9000b65d1b4e)
+- [Gluten Intro Article on Kyligence.io (Chinese)](https://cn.kyligence.io/blog/gluten-spark/)
+- [Velox Intro from Meta](https://engineering.fb.com/2023/03/09/open-source/velox-open-source-execution-engine/)
 
-# 6. Community
-Gluten successfully became Apache incubator project in March 2024. Here are several ways to contact us:
+## 5. Contribution
 
-## GitHub
-Welcome to report any issue or create any discussion related to Gluten in GitHub. Please do a search from GitHub issue list before creating a new one to avoid repetition.
+Welcome to contribute to the Gluten project! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to make contributions.
 
-## Mail Lists
-For any technical discussion, please send email to [dev@gluten.apache.org](mailto:dev@gluten.apache.org). You can go to [archives](https://lists.apache.org/list.html?dev@gluten.apache.org)
-for getting historical discussions. Please click [here](mailto:dev-subscribe@gluten.apache.org) to subscribe the mail list.
+## 6. Community
 
-## Slack Channel (English communication)
-Please click [here](https://github.com/apache/incubator-gluten/discussions/8429) to get invitation for ASF Slack workspace where you can find "incubator-gluten" channel.
+Gluten successfully became an Apache Incubator project in March 2024. Here are several ways to connect with the community.
+
+### GitHub
+
+Welcome to report issues or start discussions in GitHub. Please search the GitHub issue list before creating a new one to avoid duplication.
+
+### Mailing List
+
+For any technical discussions, please email [dev@gluten.apache.org](mailto:dev@gluten.apache.org). You can browse the [archives](https://lists.apache.org/list.html?dev@gluten.apache.org)
+to view past discussions, or [subscribe to the mailing list](mailto:dev-subscribe@gluten.apache.org) to receive updates.
+
+### Slack Channel (English)
+
+Request an invitation to the ASF Slack workspace via [this page](https://github.com/apache/incubator-gluten/discussions/8429). Once invited, you can join the **incubator-gluten** channel.
 
 The ASF Slack login entry: https://the-asf.slack.com/.
 
-## WeChat Group (Chinese communication)
-For PRC developers/users, please contact weitingchen at apache.org or zhangzc at apache.org for getting invited to the WeChat group. 
+### WeChat Group (Chinese)
 
-# 7. Performance
-We use Decision Support Benchmark1 (TPC-H like) to evaluate Gluten's performance.
-Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). We use Parquet file format for Velox testing & MergeTree file format for Clickhouse testing, compared to Parquet file format as baseline. See [Decision Support Benchmark1](./tools/workload/tpch).
+Please contact weitingchen at apache.org or zhangzc at apache.org to request an invitation to the WeChat group. It is for Chinese-language communication.
 
-The below test environment: single node with 2TB data; Spark-3.3.2 for both baseline and Gluten. The Decision Support Benchmark1 result (tested in Jun. 2023) shows an overall speedup of 2.71x and up to 14.53x speedup in a single query with Gluten Velox backend used.
+## 7. Performance
+
+[TPC-H](./tools/workload/tpch) is used to evaluate Gluten's performance. Please note that the results below do not reflect the latest performance.
+
+### Velox Backend
+
+The Gluten Velox backend demonstrated an overall speedup of 2.71x, with up to a 14.53x speedup observed in a single query.
 
 ![Performance](./docs/image/velox_decision_support_bench1_22queries_performance.png)
 
-The below testing environment: a 8-nodes AWS cluster with 1TB data; Spark-3.1.1 for both baseline and Gluten. The Decision Support Benchmark1 result shows an average speedup of 2.12x and up to 3.48x speedup with Gluten Clickhouse backend.
+<sub>Tested in Jun. 2023. Test environment: single node with 2TB data, using Spark 3.3.2 as the baseline and with Gluten integrated into the same Spark version.</sub>
+
+### ClickHouse Backend
+
+ClickHouse backend demonstrated an average speedup of 2.12x, with up to 3.48x speedup observed in a single query.
 
 ![Performance](./docs/image/clickhouse_decision_support_bench1_22queries_performance.png)
 
-# 8. Qualification Tool
+<sub>Test environment: a 8-nodes AWS cluster with 1TB data, using Spark 3.1.1 as the baseline and with Gluten integrated into the same Spark version.</sub>
 
-The Qualification Tool is a utility to analyze Spark event log files and assess the compatibility and performance of SQL workloads with Gluten. This tool helps users understand how their workloads can benefit from Gluten.
+## 8. Qualification Tool
 
-## Features
-- Analyzes Spark SQL execution plans for compatibility with Gluten.
-- Supports various types of event log files, including single files, folders, compressed files, and rolling event logs.
-- Generates detailed reports highlighting supported and unsupported operations.
-- Provides metrics on SQL execution times and operator impact.
-- Offers configurable options such as threading, output directory, and date-based filtering.
+The [Qualification Tool](./tools/qualification-tool/README.md) is a utility to analyze Spark event log files and assess the compatibility and performance of SQL workloads with Gluten. This tool helps users understand how their workloads can benefit from Gluten.
 
-## Usage
+## 9. License
 
-To use the Qualification Tool, follow the instructions in its [README](tools/qualification-tool/README.MD).
-
-## Example Command
-```bash
-java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f /path/to/eventlog
-```
-For detailed usage instructions and advanced options, see the Qualification Tool README.
-
-# 9. License
 Gluten is licensed under [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
 
-# 10. Acknowledgements
-Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, IBM, Google, etc.
+## 10. Acknowledgements
+
+Gluten was initiated by Intel and Kyligence in 2022. Several other companies are also actively contributing to its development, including BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, IBM, Google, etc.
 
 <a href="https://github.com/apache/incubator-gluten/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=apache/incubator-gluten&columns=25" />
 </a>
 
-##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.
+<sub>\* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package,
+which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms.
+Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.</sub>
