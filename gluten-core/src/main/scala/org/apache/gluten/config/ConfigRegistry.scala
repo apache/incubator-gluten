@@ -67,5 +67,5 @@ object ConfigRegistry {
     allConfigEntries.contains(entry.key)
   }
 
-  def findEntry(key: String): ConfigEntry[_] = allConfigEntries(key)
+  def findEntry(key: String): Option[ConfigEntry[_]] = allConfigEntries.get(key)
 }
