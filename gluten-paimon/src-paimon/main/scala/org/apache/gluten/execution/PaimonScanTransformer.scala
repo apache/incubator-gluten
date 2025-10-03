@@ -119,16 +119,18 @@ case class PaimonScanTransformer(
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = throw new UnsupportedOperationException()
 
-  override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
+  override def getSplitInfosFromPartitions(partitions: Seq[Seq[InputPartition]]): Seq[SplitInfo] = {
     val partitionComputer = PaimonScanTransformer.getRowDataPartitionComputer(scan)
-    getPartitions.zipWithIndex.map {
-      case (p, index) =>
-        p match {
+    partitions.zipWithIndex.map {
+      case (ps, index) =>
+        val paths = mutable.ListBuffer.empty[String]
+        val starts = mutable.ListBuffer.empty[JLong]
+        val lengths = mutable.ListBuffer.empty[JLong]
+        val partitionColumns = mutable.ListBuffer.empty[JMap[String, String]]
+        val preferredLocs = mutable.ListBuffer.empty[String]
+
+        ps.foreach {
           case partition: PaimonInputPartition =>
-            val paths = mutable.ListBuffer.empty[String]
-            val starts = mutable.ListBuffer.empty[JLong]
-            val lengths = mutable.ListBuffer.empty[JLong]
-            val partitionColumns = mutable.ListBuffer.empty[JMap[String, String]]
             partition.splits.foreach {
               split =>
                 val rawFilesOpt = split.convertToRawFiles()
@@ -145,21 +147,24 @@ case class PaimonScanTransformer(
                     "Cannot get raw files from paimon SparkInputPartition.")
                 }
             }
-            val preferredLoc =
-              SoftAffinity.getFilePartitionLocations(paths.toArray, partition.preferredLocations())
-            PaimonLocalFilesBuilder.makePaimonLocalFiles(
-              index,
-              paths.asJava,
-              starts.asJava,
-              lengths.asJava,
-              partitionColumns.asJava,
-              fileFormat,
-              preferredLoc.toList.asJava,
-              new JHashMap[String, String]()
-            )
-          case _ =>
-            throw new GlutenNotSupportException("Only support paimon SparkInputPartition.")
+            preferredLocs ++= partition.preferredLocations()
+          case o =>
+            throw new GlutenNotSupportException(s"Unsupported input partition type: $o")
         }
+
+        PaimonLocalFilesBuilder.makePaimonLocalFiles(
+          index,
+          paths.asJava,
+          starts.asJava,
+          lengths.asJava,
+          partitionColumns.asJava,
+          fileFormat,
+          SoftAffinity
+            .getFilePartitionLocations(paths.toArray, preferredLocs.toArray)
+            .toList
+            .asJava,
+          new JHashMap[String, String]()
+        )
     }
   }
 

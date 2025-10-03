@@ -67,7 +67,7 @@ case class MicroBatchScanExecTransformer(
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
-  override def getPartitions: Seq[InputPartition] = inputPartitionsShim
+  @transient override lazy val finalPartitions: Seq[Seq[InputPartition]] = inputPartitionsShim.map(Seq(_))
 
   /** Returns the actual schema of this data source scan. */
   override def getDataSchema: StructType = scan.readSchema()
@@ -80,7 +80,7 @@ case class MicroBatchScanExecTransformer(
     MicroBatchScanExecTransformer.supportsBatchScan(scan)
   }
 
-  override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
+  override def getSplitInfosFromPartitions(partitions: Seq[Seq[InputPartition]]): Seq[SplitInfo] = {
     val groupedPartitions = filteredPartitions.flatten
     groupedPartitions.zipWithIndex.map {
       case (p, _) => GlutenStreamKafkaSourceUtil.genSplitInfo(p)

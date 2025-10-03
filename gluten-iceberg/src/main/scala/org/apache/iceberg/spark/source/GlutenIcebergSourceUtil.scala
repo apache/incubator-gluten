@@ -36,54 +36,6 @@ import scala.collection.JavaConverters._
 
 object GlutenIcebergSourceUtil {
 
-  def genSplitInfoForPartition(
-      inputPartition: InputPartition,
-      index: Int,
-      readPartitionSchema: StructType): SplitInfo = inputPartition match {
-    case partition: SparkInputPartition =>
-      val paths = new JArrayList[String]()
-      val starts = new JArrayList[JLong]()
-      val lengths = new JArrayList[JLong]()
-      val partitionColumns = new JArrayList[JMap[String, String]]()
-      val deleteFilesList = new JArrayList[JList[DeleteFile]]()
-      var fileFormat = ReadFileFormat.UnknownFormat
-
-      val tasks = partition.taskGroup[ScanTask]().tasks().asScala
-      asFileScanTask(tasks.toList).foreach {
-        task =>
-          paths.add(
-            BackendsApiManager.getTransformerApiInstance
-              .encodeFilePathIfNeed(task.file().path().toString))
-          starts.add(task.start())
-          lengths.add(task.length())
-          partitionColumns.add(getPartitionColumns(task, readPartitionSchema))
-          deleteFilesList.add(task.deletes())
-          val currentFileFormat = convertFileFormat(task.file().format())
-          if (fileFormat == ReadFileFormat.UnknownFormat) {
-            fileFormat = currentFileFormat
-          } else if (fileFormat != currentFileFormat) {
-            throw new UnsupportedOperationException(
-              s"Only one file format is supported, " +
-                s"find different file format $fileFormat and $currentFileFormat")
-          }
-      }
-      val preferredLoc = SoftAffinity.getFilePartitionLocations(
-        paths.asScala.toArray,
-        inputPartition.preferredLocations())
-      IcebergLocalFilesBuilder.makeIcebergLocalFiles(
-        index,
-        paths,
-        starts,
-        lengths,
-        partitionColumns,
-        fileFormat,
-        preferredLoc.toList.asJava,
-        deleteFilesList
-      )
-    case _ =>
-      throw new UnsupportedOperationException("Only support iceberg SparkInputPartition.")
-  }
-
   def genSplitInfo(
       inputPartitions: Seq[InputPartition],
       index: Int,
@@ -118,6 +70,8 @@ object GlutenIcebergSourceUtil {
             }
         }
         preferredLocs.addAll(partition.preferredLocations().toList.asJava)
+      case o =>
+        throw new GlutenNotSupportException(s"Unsupported input partition type: $o")
     }
     IcebergLocalFilesBuilder.makeIcebergLocalFiles(
       index,

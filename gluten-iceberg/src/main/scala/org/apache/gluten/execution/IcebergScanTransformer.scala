@@ -137,30 +137,10 @@ case class IcebergScanTransformer(
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
-  override def getSplitInfosWithIndex: Seq[SplitInfo] = {
-    val splitInfos = getPartitionsWithIndex.zipWithIndex.map {
-      case (partitions, index) =>
-        GlutenIcebergSourceUtil.genSplitInfo(partitions, index, getPartitionSchema)
-    }
-    numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
-    splitInfos
-  }
-
-  override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
-    val groupedPartitions = SparkShimLoader.getSparkShims
-      .orderPartitions(
-        this,
-        scan,
-        keyGroupedPartitioning,
-        filteredPartitions,
-        outputPartitioning,
-        commonPartitionValues,
-        applyPartialClustering,
-        replicatePartitions)
-      .flatten
-    val splitInfos = groupedPartitions.zipWithIndex.map {
-      case (p, index) =>
-        GlutenIcebergSourceUtil.genSplitInfoForPartition(p, index, getPartitionSchema)
+  override def getSplitInfosFromPartitions(partitions: Seq[Seq[InputPartition]]): Seq[SplitInfo] = {
+    val splitInfos = partitions.zipWithIndex.map {
+      case (ps, index) =>
+        GlutenIcebergSourceUtil.genSplitInfo(ps, index, getPartitionSchema)
     }
     numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
     splitInfos

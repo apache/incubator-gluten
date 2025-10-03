@@ -31,13 +31,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 trait IteratorApi {
 
-  def genSplitInfo(
-      partition: InputPartition,
-      partitionSchema: StructType,
-      fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo
-
   def genSplitInfoForPartitions(
       partitionIndex: Int,
       partition: Seq[InputPartition],
