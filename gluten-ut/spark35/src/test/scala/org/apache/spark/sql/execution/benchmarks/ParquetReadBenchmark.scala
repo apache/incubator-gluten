@@ -110,7 +110,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       case scan: FileSourceScanExecTransformer => scan
     }.head
 
-    val filePartitions = fileScan.getPartitions
+    val filePartitions = fileScan.finalPartitions.flatten
       .map(_.asInstanceOf[FilePartition])
 
     val wholeStageTransform = parquetReadDf.queryExecution.executedPlan.collect {

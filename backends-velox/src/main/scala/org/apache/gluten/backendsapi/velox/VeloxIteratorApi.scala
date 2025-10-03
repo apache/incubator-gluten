@@ -49,45 +49,6 @@ import scala.collection.JavaConverters._
 
 class VeloxIteratorApi extends IteratorApi with Logging {
 
-  override def genSplitInfo(
-      partition: InputPartition,
-      partitionSchema: StructType,
-      fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = {
-    partition match {
-      case f: FilePartition =>
-        val (
-          paths,
-          starts,
-          lengths,
-          fileSizes,
-          modificationTimes,
-          partitionColumns,
-          metadataColumns,
-          otherMetadataColumns) =
-          constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
-        val preferredLocations =
-          SoftAffinity.getFilePartitionLocations(f)
-        LocalFilesBuilder.makeLocalFiles(
-          f.index,
-          paths,
-          starts,
-          lengths,
-          fileSizes,
-          modificationTimes,
-          partitionColumns,
-          metadataColumns,
-          fileFormat,
-          preferredLocations.toList.asJava,
-          mapAsJavaMap(properties),
-          otherMetadataColumns
-        )
-      case _ =>
-        throw new UnsupportedOperationException(s"Unsupported input partition.")
-    }
-  }
-
   override def genSplitInfoForPartitions(
       partitionIndex: Int,
       partitions: Seq[InputPartition],

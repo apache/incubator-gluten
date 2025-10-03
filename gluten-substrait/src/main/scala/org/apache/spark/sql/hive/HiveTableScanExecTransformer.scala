@@ -67,8 +67,6 @@ case class HiveTableScanExecTransformer(
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
-  override def getPartitions: Seq[InputPartition] = partitions
-
   override def getPartitionSchema: StructType = relation.tableMeta.partitionSchema
 
   override def getDataSchema: StructType = relation.tableMeta.dataSchema
@@ -82,8 +80,8 @@ case class HiveTableScanExecTransformer(
   @transient private lazy val hivePartitionConverter =
     new HivePartitionConverter(session.sessionState.newHadoopConf(), session)
 
-  @transient private lazy val partitions: Seq[InputPartition] =
-    if (!relation.isPartitioned) {
+  @transient lazy val finalPartitions: Seq[Seq[InputPartition]] = {
+    val filePartitions = if (!relation.isPartitioned) {
       val tableLocation: URI = relation.tableMeta.storage.locationUri.getOrElse {
         throw new UnsupportedOperationException("Table path not set.")
       }
@@ -93,6 +91,9 @@ case class HiveTableScanExecTransformer(
         prunedPartitions,
         relation.partitionCols.map(_.dataType))
     }
+    // One partition in each inputPartition Seq.
+    filePartitions.map(Seq(_))
+  }
 
   @transient override lazy val fileFormat: ReadFileFormat = {
     relation.tableMeta.storage.inputFormat match {
