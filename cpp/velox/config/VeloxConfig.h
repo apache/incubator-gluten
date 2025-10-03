@@ -97,6 +97,8 @@ const uint64_t kVeloxMemReclaimMaxWaitMsDefault = 3600000; // 60min
 const std::string kHiveConnectorId = "test-hive";
 const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
 
+const std::string kExprMaxCompiledRegexes = "spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes";
+
 // memory cache
 const std::string kVeloxMemCacheSize = "spark.gluten.sql.columnar.backend.velox.memCacheSize";
 const uint64_t kVeloxMemCacheSizeDefault = 1073741824; // 1G
