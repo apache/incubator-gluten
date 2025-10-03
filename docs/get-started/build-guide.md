@@ -30,7 +30,7 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | build_arrow            | Build arrow java/cpp and install the libs in local. Can turn it OFF after first build.             | ON      |
 | spark_version          | Build for specified version of Spark(3.2, 3.3, 3.4, 3.5, ALL). `ALL` means build for all versions. | ALL     |
 
-### Velox build parameters for build_velox.sh
+### Velox build parameters for build-velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 
 | Parameters       | Description                                                   | Default                                  |

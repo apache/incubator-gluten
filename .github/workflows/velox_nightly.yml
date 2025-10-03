@@ -27,7 +27,7 @@ on:
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
-  SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  SETUP: 'bash .github/workflows/util/setup-helper.sh'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
