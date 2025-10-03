@@ -170,7 +170,7 @@ function setup_linux {
   elif [[ "$LINUX_DISTRIBUTION" == "openEuler" ]]; then
     # this is workaround for gcc-12.3.1
     # https://github.com/facebookincubator/velox/blob/b263d9dd8b8910dc642d8fdb0c0adee4b2a1fb29/CMakeLists.txt#L433
-    sed -i "s|no-unknown-warning-option|no-unknown-warning-option -Wno-restrict|g" ../../src/build_velox.sh
+    sed -i "s|no-unknown-warning-option|no-unknown-warning-option -Wno-restrict|g" ../../src/build-velox.sh
     case "$LINUX_VERSION_ID" in
       24.03) ;;
       *)

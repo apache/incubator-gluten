@@ -4,7 +4,7 @@ RUN yum install -y sudo patch maven perl && ln -sf /usr/local/bin/cmake /usr/bin
 RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
 
 # Install spark to folder /opt
-RUN cd /opt/gluten/.github/workflows/util/ && ./install_spark_resources.sh 3.4
+RUN cd /opt/gluten/.github/workflows/util/ && ./install-spark-resources.sh 3.4
 ENV SPARK_HOME=/opt/spark-3.4.4-bin-hadoop3
 ENV PATH=$SPARK_HOME/bin:$PATH
 ENV CUDA_ARCHITECTURES=70

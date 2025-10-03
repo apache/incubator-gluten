@@ -129,7 +129,7 @@ To enable this functionality, you must set the JAVA_HOME and HADOOP_HOME environ
 
 ### Build libhdfs3
 
-If you want to run Gluten with libhdfs3.so, you need to manually compile libhdfs3 to obtain the libhdfs3.so file. We provide the script dev/build_libhdfs3.sh in Gluten to help you compile libhdfs3.so.
+If you want to run Gluten with libhdfs3.so, you need to manually compile libhdfs3 to obtain the libhdfs3.so file. We provide the script dev/build-libhdfs3.sh in Gluten to help you compile libhdfs3.so.
 
 ### Build with HDFS support
 
@@ -161,7 +161,7 @@ cp /path/to/hdfs-client.xml hdfs-client.xml
 
 One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
 
-By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/apache/incubator-gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
+By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build-velox.sh](https://github.com/apache/incubator-gluten/blob/main/ep/build-velox/src/build-velox.sh) So we need to make sure the folder existed and user has write access as below script.
 
 ```
 sudo mkdir -p /var/lib/hadoop-hdfs/
@@ -461,8 +461,8 @@ All TPC-H and TPC-DS queries are supported in Gluten Velox backend. You may refe
 
 ## Data preparation
 
-The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
-[TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
+The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch-dategen-parquet.sh) and
+[TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds-dategen-parquet.sh).
 
 The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../tools/gluten-it/common/src/main/resources/tpcds-queries)
 and [TPC-H queries](../../tools/gluten-it/common/src/main/resources/tpch-queries).
