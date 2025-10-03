@@ -1358,21 +1358,21 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto dataColumns = ROW(std::move(names), std::move(types));
   connector::ConnectorTableHandlePtr tableHandle;
   auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), dataColumns) : nullptr;
-  if (useCudfTableHandle(splitInfos_)) {
+  auto connectorId = kHiveConnectorId;
+  if (useCudfTableHandle(splitInfos_) && veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
+      veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
 #ifdef GLUTEN_ENABLE_GPU
-    tableHandle = std::make_shared<CudfHiveTableHandle>(
-        kCudfHiveConnectorId, "cudf_hive_table", filterPushdownEnabled, nullptr, remainingFilter, dataColumns);
+    connectorId = kCudfHiveConnectorId;
 #endif
-  } else {
-    common::SubfieldFilters subfieldFilters;
-    tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId,
-        "hive_table",
-        filterPushdownEnabled,
-        std::move(subfieldFilters),
-        remainingFilter,
-        dataColumns);
   }
+  common::SubfieldFilters subfieldFilters;
+  tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
+      connectorId,
+      "hive_table",
+      filterPushdownEnabled,
+      std::move(subfieldFilters),
+      remainingFilter,
+      dataColumns);
 
   // Get assignments and out names.
   std::vector<std::string> outNames;
