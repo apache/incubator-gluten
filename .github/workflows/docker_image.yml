@@ -21,7 +21,7 @@ on:
       - main
     paths:
       - '.github/workflows/docker_image.yml'
-      - '.github/workflows/util/install_spark_resources.sh'
+      - '.github/workflows/util/install-spark-resources.sh'
       - 'dev/docker/Dockerfile.centos7-static-build'
       - 'dev/docker/Dockerfile.centos8-static-build'
       - 'dev/docker/Dockerfile.centos9-static-build'

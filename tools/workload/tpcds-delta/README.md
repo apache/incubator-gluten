@@ -4,7 +4,7 @@ This workload example is verified with JDK 8, Spark 3.4.4 and Delta 2.4.0.
 
 ## Test dataset
 
-Use bash script `tpcds_datagen_delta.sh` to generate the data. The script relies on a already-built gluten-it
+Use bash script `tpcds-dategen-delta.sh` to generate the data. The script relies on a already-built gluten-it
 executable. To build it, following the steps:
 
 ```bash
@@ -16,7 +16,7 @@ Then call the data generator script:
 
 ```bash
 cd ${GLUTEN_HOME}/tools/workload/tpcds-delta/gen_data
-./tpcds_datagen_delta.sh
+./tpcds-dategen-delta.sh
 ```
 
 Meanings of the commands that are used in the script are explained as follows:
