@@ -16,6 +16,7 @@
  */
 import org.apache.spark.sql.execution.debug._
 import scala.io.Source
+import scala.collection.mutable
 import java.io.File
 import java.util.Arrays
 import sys.process._
@@ -23,14 +24,6 @@ import sys.process._
 //Configurations:
 var parquet_file_path = "/PATH/TO/TPCH_PARQUET_PATH"
 var gluten_root = "/PATH/TO/GLUTEN"
-
-def time[R](block: => R): R = {
-    val t0 = System.nanoTime()
-    val result = block    // call-by-name
-    val t1 = System.nanoTime()
-    println("Elapsed time: " + (t1 - t0)/1000000000.0 + " seconds")
-    result
-}
 
 //Read TPC-H Table from DWRF files
 val lineitem = spark.read.format("parquet").load("file://" + parquet_file_path + "/lineitem")
@@ -77,11 +70,24 @@ val sorted = fileLists.sortBy {
      }}
 
 // Main program to run TPC-H testing
+val resultMap = mutable.Map[String, Double]()
 for (t <- sorted) {
-  println(t)
-  val fileContents = Source.fromFile(t).getLines.filter(!_.startsWith("--")).mkString(" ")
-  println(fileContents)
-  time{spark.sql(fileContents).collectAsList()}
-  //spark.sql(fileContents).explain
+  val fileContents = {
+    val src = Source.fromFile(t)
+    try {
+      src.getLines().filter(!_.startsWith("--")).mkString(" ")
+    } finally {
+      src.close()
+    }
+  }
+
+  val t0 = System.nanoTime()
+  spark.sql(fileContents).collectAsList()
+  val t1 = System.nanoTime()
+  resultMap += (t.getName -> (t1 - t0) / 1e9)
   Thread.sleep(2000)
+}
+
+resultMap.foreach { case (file, time) =>
+  println(s"$file\t$time s")
 }
