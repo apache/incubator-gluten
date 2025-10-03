@@ -47,7 +47,7 @@ case object RssSortShuffleWriterType extends ShuffleWriterType {
 
 /*
  * Note: Gluten configiguration.md is automatically generated from this code.
- * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
  */
 class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   import GlutenConfig._

@@ -183,7 +183,7 @@ jobs:
   #       run: |
   #         rm -rf /opt/miniconda-for-velox/
   #         cd ep/build-velox/src && \
-  #         ./get_velox.sh
+  #         ./get-velox.sh
   #         cd ../build/velox_ep/
   #         make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
 
@@ -221,7 +221,7 @@ jobs:
 #        run: |
 #          rm -rf /opt/miniconda-for-velox/
 #          cd ep/build-velox/src && \
-#          ./get_velox.sh
+#          ./get-velox.sh
 #          cd ../build/velox_ep/
 #          source /opt/rh/gcc-toolset-9/enable
 #          make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON"

@@ -23,7 +23,7 @@ parent: Getting-Started
 - **NVIDIA Drivers**: Compatible with CUDA 12.8.
 - **Container Toolkit**: Install `nvidia-container-toolkit` ([guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)).
 - **System Reboot**: Required after driver installation.
-- **Environment Setup**: Use [`start_cudf.sh`](https://github.com/apache/incubator-gluten/tree/main/dev/start_cudf.sh) for host configuration .
+- **Environment Setup**: Use [`start-cudf.sh`](https://github.com/apache/incubator-gluten/tree/main/dev/start-cudf.sh) for host configuration .
 
 ---
 

@@ -79,6 +79,6 @@ class AllVeloxConfiguration extends AnyFunSuite {
     AllGlutenConfiguration.verifyOrRegenerateGoldenFile(
       markdown,
       builder.toMarkdown,
-      "dev/gen_all_config_docs.sh")
+      "dev/gen-all-config-docs.sh")
   }
 }
