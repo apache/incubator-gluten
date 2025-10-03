@@ -24,8 +24,7 @@ class VeloxDeltaConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableNativeWrite: Boolean = getConf(ENABLE_NATIVE_WRITE)
 }
 
-object VeloxDeltaConfig {
-  import GlutenCoreConfig._
+object VeloxDeltaConfig extends ConfigRegistry {
 
   def get: VeloxDeltaConfig = {
     new VeloxDeltaConfig(SQLConf.get)
