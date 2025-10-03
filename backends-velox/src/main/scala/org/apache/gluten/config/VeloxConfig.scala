@@ -595,7 +595,7 @@ object VeloxConfig extends ConfigRegistry {
           "on the grouping keys, and mark the ignoreNullKeys flag to true to " +
           "avoid unnecessary aggregation on null keys.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val FLOATING_POINT_MODE =
     buildConf("spark.gluten.sql.columnar.backend.velox.floatingPointMode")
