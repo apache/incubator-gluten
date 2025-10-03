@@ -56,16 +56,14 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo = {
-    val partitionFiles = partitions.flatMap {
-      p =>
-        if (!p.isInstanceOf[FilePartition]) {
-          throw new UnsupportedOperationException(
-            s"Unsupported input partition ${p.getClass.getName}.")
-        }
-        p.asInstanceOf[FilePartition].files
-    }.toArray
-    val locations =
-      partitions.flatMap(p => SoftAffinity.getFilePartitionLocations(p.asInstanceOf[FilePartition]))
+    val filePartitions: Seq[FilePartition] = partitions.map {
+      case p: FilePartition => p
+      case o =>
+        throw new UnsupportedOperationException(
+          s"Unsupported input partition: ${o.getClass.getName}")
+    }
+    val partitionFiles = filePartitions.flatMap(_.files).toArray
+    val locations = filePartitions.flatMap(p => SoftAffinity.getFilePartitionLocations(p))
     val (
       paths,
       starts,
