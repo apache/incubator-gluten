@@ -19,7 +19,7 @@ set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 export SUDO=sudo
-source ${CURRENT_DIR}/build_helper_functions.sh
+source ${CURRENT_DIR}/build-helper-functions.sh
 DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
 
 function build_libhdfs3 {
