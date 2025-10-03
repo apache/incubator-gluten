@@ -26,7 +26,7 @@ class GlutenCoreConfig(conf: SQLConf) extends Logging {
   private lazy val configProvider = new SQLConfProvider(conf)
 
   def getConf[T](entry: ConfigEntry[T]): T = {
-    require(ConfigEntry.containsEntry(entry), s"$entry is not registered")
+    require(ConfigRegistry.containsEntry(entry), s"$entry is not registered")
     entry.readFrom(configProvider)
   }
 
@@ -59,17 +59,11 @@ class GlutenCoreConfig(conf: SQLConf) extends Logging {
 }
 
 /*
- * Note: Gluten configiguration.md is automatically generated from this code.
+ * Note: Gluten configuration.md is automatically generated from this code.
  * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
  */
-object GlutenCoreConfig {
-  def buildConf(key: String): ConfigBuilder = ConfigBuilder(key)
-
-  def buildStaticConf(key: String): ConfigBuilder = {
-    ConfigBuilder(key).onCreate(_ => SQLConf.registerStaticConfigKey(key))
-  }
-
-  def get: GlutenCoreConfig = {
+object GlutenCoreConfig extends ConfigRegistry {
+  override def get: GlutenCoreConfig = {
     new GlutenCoreConfig(SQLConf.get)
   }
 

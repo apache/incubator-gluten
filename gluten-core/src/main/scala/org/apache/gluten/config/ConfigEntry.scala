@@ -20,8 +20,6 @@ import org.apache.gluten.config.BackendType.BackendType
 
 import org.apache.spark.sql.internal.GlutenConfigProvider
 
-import scala.collection.JavaConverters._
-
 /**
  * An entry contains all meta information for a configuration.
  *
@@ -82,8 +80,6 @@ trait ConfigEntry[T] {
     s"ConfigEntry(key=$key, defaultValue=$defaultValueString, doc=$doc, " +
       s"public=$isPublic, version=$version)"
   }
-
-  ConfigEntry.registerEntry(this)
 }
 
 private[gluten] class OptionalConfigEntry[T](
@@ -240,24 +236,5 @@ private[gluten] class ConfigEntryFallback[T](
 }
 
 object ConfigEntry {
-
   val UNDEFINED = "<undefined>"
-
-  private val knownConfigs =
-    new java.util.concurrent.ConcurrentHashMap[String, ConfigEntry[_]]()
-
-  private def registerEntry(entry: ConfigEntry[_]): Unit = {
-    val existing = knownConfigs.putIfAbsent(entry.key, entry)
-    require(existing == null, s"Config entry ${entry.key} already registered!")
-  }
-
-  def containsEntry(entry: ConfigEntry[_]): Boolean = {
-    Option(knownConfigs.get(entry.key)).isDefined
-  }
-
-  def findEntry(key: String): ConfigEntry[_] = knownConfigs.get(key)
-
-  def getAllEntries: Seq[ConfigEntry[_]] = {
-    knownConfigs.values().asScala.toSeq
-  }
 }

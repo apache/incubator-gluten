@@ -49,10 +49,7 @@ class AllGlutenConfiguration extends AnyFunSuite {
     AllGlutenConfiguration.getCodeSourceLocation(this.getClass).split("gluten-substrait")(0)
   private val markdown = Paths.get(glutenHome, "docs", "Configuration.md").toAbsolutePath
 
-  private def loadConfigs = Array(GlutenConfig, GlutenCoreConfig)
-
   test("Check gluten configs") {
-    loadConfigs
     val builder = MarkdownBuilder(getClass.getName)
 
     builder ++=
@@ -110,7 +107,9 @@ class AllGlutenConfiguration extends AnyFunSuite {
          | --- | --- | ---
          |"""
 
-    ConfigEntry.getAllEntries
+    val allEntries = GlutenConfig.allEntries ++ GlutenCoreConfig.allEntries
+
+    allEntries
       .filter(_.isPublic)
       .filter(!_.isExperimental)
       .sortBy(_.key)
@@ -129,7 +128,7 @@ class AllGlutenConfiguration extends AnyFunSuite {
          | --- | --- | ---
          |"""
 
-    ConfigEntry.getAllEntries
+    allEntries
       .filter(_.isPublic)
       .filter(_.isExperimental)
       .sortBy(_.key)
