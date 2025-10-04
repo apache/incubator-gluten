@@ -80,8 +80,8 @@ public class RexCallConverterFactory {
           Map.entry("CAST", Arrays.asList(() -> new DefaultRexCallConverter("cast"))),
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
           Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
+          Map.entry("SEARCH", Arrays.asList(() -> new SearchRexCallConverter())),
           Map.entry("SPLIT_INDEX", Arrays.asList(() -> new SplitIndexRexCallConverter())),
-          Map.entry("SEARCH", Arrays.asList(() -> new DefaultRexCallConverter("in"))),
           Map.entry(
               ">=",
               Arrays.asList(
