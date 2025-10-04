@@ -740,23 +740,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Spark's default compression code is snappy.
   const auto& compressionKind =
       writerOptions->compressionKind.value_or(common::CompressionKind::CompressionKind_SNAPPY);
-  std::shared_ptr<core::InsertTableHandle> tableHandle;
-  if (useCudfTableHandle(splitInfos_) && veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
-      veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-  #ifdef GLUTEN_ENABLE_GPU
-    tableHandle = std::make_shared<core::InsertTableHandle>(
-        kCudfHiveConnectorId,
-        makeCudfHiveInsertTableHandle(
-            tableColumnNames, /*inputType->names() clolumn name is different*/
-            inputType->children(),
-            std::make_shared<cudf_velox::connector::hive::LocationHandle>(
-                writePath, cudf_velox::connector::hive::LocationHandle::TableType::kNew, fileName),
-            compressionKind,
-            {},
-            writerOptions));
-#endif
-  } else {
-    tableHandle = std::make_shared<core::InsertTableHandle>(
+  std::shared_ptr<core::InsertTableHandle> tableHandle = std::make_shared<core::InsertTableHandle>(
         kHiveConnectorId,
         makeHiveInsertTableHandle(
             tableColumnNames, /*inputType->names() clolumn name is different*/
@@ -767,7 +751,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
             writerOptions,
             fileFormat,
             compressionKind));
-  }
   return std::make_shared<core::TableWriteNode>(
       nextPlanNodeId(),
       inputType,
@@ -1358,21 +1341,21 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto dataColumns = ROW(std::move(names), std::move(types));
   connector::ConnectorTableHandlePtr tableHandle;
   auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), dataColumns) : nullptr;
-  if (useCudfTableHandle(splitInfos_)) {
+  auto connectorId = kHiveConnectorId;
+  if (useCudfTableHandle(splitInfos_) && veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
+      veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
 #ifdef GLUTEN_ENABLE_GPU
-    tableHandle = std::make_shared<CudfHiveTableHandle>(
-        kCudfHiveConnectorId, "cudf_hive_table", filterPushdownEnabled, nullptr, remainingFilter, dataColumns);
+    connectorId = kCudfHiveConnectorId;
 #endif
-  } else {
-    common::SubfieldFilters subfieldFilters;
-    tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId,
-        "hive_table",
-        filterPushdownEnabled,
-        std::move(subfieldFilters),
-        remainingFilter,
-        dataColumns);
   }
+  common::SubfieldFilters subfieldFilters;
+  tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
+      connectorId,
+      "hive_table",
+      filterPushdownEnabled,
+      std::move(subfieldFilters),
+      remainingFilter,
+      dataColumns);
 
   // Get assignments and out names.
   std::vector<std::string> outNames;
