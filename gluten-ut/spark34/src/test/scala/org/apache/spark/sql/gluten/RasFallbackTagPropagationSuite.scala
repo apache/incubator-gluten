@@ -18,12 +18,11 @@ package org.apache.spark.sql.gluten
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.events.GlutenPlanFallbackEvent
-import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
-import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
+import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusStore, SparkListenerSQLExecutionStart}
 import org.apache.spark.status.ElementTrackingStore
@@ -259,19 +258,21 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
       val testQuery = "SELECT * FROM ras_test_table WHERE id > 25"
 
       // Test with RAS disabled first
-      val rasDisabledFallbacks = withSQLConf(
+      var rasDisabledFallbacks: Map[String, String] = Map.empty
+      withSQLConf(
         GlutenConfig.RAS_ENABLED.key -> "false",
         GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false"
       ) {
-        runExecutionAndCaptureFallbacks(testQuery)
+        rasDisabledFallbacks = runExecutionAndCaptureFallbacks(testQuery)
       }
 
       // Test with RAS enabled
-      val rasEnabledFallbacks = withSQLConf(
+      var rasEnabledFallbacks: Map[String, String] = Map.empty
+      withSQLConf(
         GlutenConfig.RAS_ENABLED.key -> "true",
         GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false"
       ) {
-        runExecutionAndCaptureFallbacks(testQuery)
+        rasEnabledFallbacks = runExecutionAndCaptureFallbacks(testQuery)
       }
 
       // scalastyle:off println
