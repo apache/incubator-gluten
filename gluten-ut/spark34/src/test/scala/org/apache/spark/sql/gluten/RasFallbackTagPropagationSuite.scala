@@ -115,11 +115,11 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
 
       // Test query that will likely cause fallbacks in some scenarios
       val testQuery = """
-        SELECT group_id, 
+        SELECT group_id,
                COUNT(*) as cnt,
                AVG(value) as avg_val,
                STDDEV(value) as stddev_val
-        FROM test_table 
+        FROM test_table
         WHERE value > 0.5
         GROUP BY group_id
         HAVING COUNT(*) > 5
@@ -141,7 +141,9 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
 
         if (fallbackEvent1.isDefined) {
           val event1 = fallbackEvent1.get
+          // scalastyle:off println
           println(s"RAS DISABLED - Fallback reasons: ${event1.fallbackNodeToReason}")
+          // scalastyle:on println
 
           // With RAS disabled, we should get detailed fallback reasons
           val hasDetailedReason = event1.fallbackNodeToReason.exists {
@@ -150,7 +152,8 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
           }
           assert(
             hasDetailedReason,
-            s"Should have detailed fallback reasons when RAS is disabled. Got: ${event1.fallbackNodeToReason}")
+            s"Should have detailed fallback reasons when RAS is disabled. " +
+              s"Got: ${event1.fallbackNodeToReason}")
         }
       }
 
@@ -169,7 +172,9 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
 
         if (fallbackEvent2.isDefined) {
           val event2 = fallbackEvent2.get
+          // scalastyle:off println
           println(s"RAS ENABLED - Fallback reasons: ${event2.fallbackNodeToReason}")
+          // scalastyle:on println
 
           // This is where the bug manifests: with RAS enabled, the detailed fallback tags
           // added during RAS rule processing don't propagate back to the original plan,
@@ -183,13 +188,18 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
           // This assertion will likely fail, demonstrating the bug
           // When the bug is fixed, this should pass (i.e., we should get detailed reasons even with RAS)
           if (hasGenericReason) {
+            // scalastyle:off println
             println(
               "BUG REPRODUCED: RAS enabled shows generic fallback reasons instead of detailed ones")
             println(
-              s"Expected detailed reasons like 'FallbackByUserOptions', but got: ${event2.fallbackNodeToReason}")
+              s"Expected detailed reasons like 'FallbackByUserOptions', but got: " +
+                s"${event2.fallbackNodeToReason}")
+            // scalastyle:on println
           } else {
+            // scalastyle:off println
             println(
               "Bug appears to be fixed - detailed fallback reasons are preserved with RAS enabled")
+            // scalastyle:on println
           }
         }
       }
@@ -263,6 +273,7 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
         runExecutionAndCaptureFallbacks(testQuery)
       }
 
+      // scalastyle:off println
       println("=== RAS DISABLED FALLBACK REASONS ===")
       rasDisabledFallbacks.foreach {
         case (node, reason) =>
@@ -278,6 +289,7 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
           println(s"Reason: $reason")
           println("---")
       }
+      // scalastyle:on println
 
       // The bug manifests as different fallback reasons between RAS enabled/disabled
       // With RAS disabled, we get detailed fallback reasons
@@ -288,15 +300,22 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
         rasEnabledFallbacks.values.exists(_.contains("FallbackByUserOptions"))
 
       if (rasDisabledHasDetails && !rasEnabledHasDetails) {
+        // scalastyle:off println
         println("BUG REPRODUCED: Detailed fallback reasons are lost when RAS is enabled")
         println(
-          "This demonstrates the issue described in https://github.com/apache/incubator-gluten/issues/7763")
+          "This demonstrates the issue described in " +
+            "https://github.com/apache/incubator-gluten/issues/7763")
+        // scalastyle:on println
       } else if (rasDisabledHasDetails && rasEnabledHasDetails) {
+        // scalastyle:off println
         println("Bug appears to be fixed - detailed fallback reasons preserved with RAS")
+        // scalastyle:on println
       } else {
+        // scalastyle:off println
         println("Test may need adjustment - check fallback scenarios")
         println(s"RAS disabled has details: $rasDisabledHasDetails")
         println(s"RAS enabled has details: $rasEnabledHasDetails")
+        // scalastyle:on println
       }
     }
   }
@@ -352,12 +371,14 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
       val reasonsWithoutRas = getFallbackReasons(rasEnabled = false)
       val reasonsWithRas = getFallbackReasons(rasEnabled = true)
 
+      // scalastyle:off println
       println("=== FALLBACK REASONS COMPARISON ===")
       println(s"RAS DISABLED reasons (${reasonsWithoutRas.size}):")
       reasonsWithoutRas.foreach(reason => println(s"  - $reason"))
 
       println(s"RAS ENABLED reasons (${reasonsWithRas.size}):")
       reasonsWithRas.foreach(reason => println(s"  - $reason"))
+      // scalastyle:on println
 
       // Check for the presence of detailed fallback information
       val detailedReasonPatterns = Set(
@@ -369,13 +390,22 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
       val rasDisabledHasDetails = reasonsWithoutRas.exists(
         reason =>
           detailedReasonPatterns.exists(
-            pattern => reason.toLowerCase.contains(pattern.toLowerCase)))
+            // scalastyle:off caselocale
+            pattern =>
+              reason.toLowerCase.contains(pattern.toLowerCase)
+              // scalastyle:on caselocale
+          ))
 
       val rasEnabledHasDetails = reasonsWithRas.exists(
         reason =>
           detailedReasonPatterns.exists(
-            pattern => reason.toLowerCase.contains(pattern.toLowerCase)))
+            // scalastyle:off caselocale
+            pattern =>
+              reason.toLowerCase.contains(pattern.toLowerCase)
+              // scalastyle:on caselocale
+          ))
 
+      // scalastyle:off println
       println(s"RAS disabled has detailed reasons: $rasDisabledHasDetails")
       println(s"RAS enabled has detailed reasons: $rasEnabledHasDetails")
 
@@ -383,22 +413,27 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
       // 1. RAS disabled shows detailed reasons
       // 2. RAS enabled shows fewer or less detailed reasons
       if (rasDisabledHasDetails && !rasEnabledHasDetails) {
-        println("✓ BUG REPRODUCED: RAS enabled loses detailed fallback information")
+        println("BUG REPRODUCED: RAS enabled loses detailed fallback information")
         println(
-          "  This confirms the issue described in https://github.com/apache/incubator-gluten/issues/7763")
+          "  This confirms the issue described in " +
+            "https://github.com/apache/incubator-gluten/issues/7763")
       } else if (rasDisabledHasDetails && rasEnabledHasDetails) {
-        println("✓ Bug appears to be FIXED: Both RAS enabled/disabled show detailed reasons")
+        println("Bug appears to be FIXED: Both RAS enabled/disabled show detailed reasons")
       } else if (!rasDisabledHasDetails && !rasEnabledHasDetails) {
-        println("⚠ Test inconclusive: Neither configuration shows detailed reasons")
+        println("Test inconclusive: Neither configuration shows detailed reasons")
         println("  This might indicate the test scenario needs adjustment")
       } else {
-        println("⚠ Unexpected result: RAS enabled shows details but disabled doesn't")
+        println("Unexpected result: RAS enabled shows details but disabled doesn't")
       }
+      // scalastyle:on println
 
       // Additional analysis: compare reason counts and content
       if (reasonsWithoutRas.size != reasonsWithRas.size) {
+        // scalastyle:off println
         println(
-          s"⚠ Different number of fallback reasons: RAS disabled=${reasonsWithoutRas.size}, RAS enabled=${reasonsWithRas.size}")
+          s"Different number of fallback reasons: RAS disabled=${reasonsWithoutRas.size}, " +
+            s"RAS enabled=${reasonsWithRas.size}")
+        // scalastyle:on println
       }
 
       val commonReasons = reasonsWithoutRas.intersect(reasonsWithRas)
@@ -406,13 +441,17 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
       val onlyInEnabled = reasonsWithRas -- reasonsWithoutRas
 
       if (onlyInDisabled.nonEmpty) {
+        // scalastyle:off println
         println("Reasons only present when RAS is disabled:")
         onlyInDisabled.foreach(reason => println(s"  - $reason"))
+        // scalastyle:on println
       }
 
       if (onlyInEnabled.nonEmpty) {
+        // scalastyle:off println
         println("Reasons only present when RAS is enabled:")
         onlyInEnabled.foreach(reason => println(s"  - $reason"))
+        // scalastyle:on println
       }
     }
   }
