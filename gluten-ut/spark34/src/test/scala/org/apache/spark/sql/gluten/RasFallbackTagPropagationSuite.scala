@@ -186,7 +186,8 @@ class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSp
           }
 
           // This assertion will likely fail, demonstrating the bug
-          // When the bug is fixed, this should pass (i.e., we should get detailed reasons even with RAS)
+          // When the bug is fixed, this should pass (i.e., we should get detailed reasons
+          // even with RAS)
           if (hasGenericReason) {
             // scalastyle:off println
             println(
