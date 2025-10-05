@@ -47,13 +47,13 @@ case class GlutenPartition(
 
 case class FirstZippedPartitionsPartition(
     index: Int,
-    inputPartition: InputPartition,
+    inputPartition: Partition,
     inputColumnarRDDPartitions: Seq[Partition] = Seq.empty)
   extends Partition
 
 class GlutenWholeStageColumnarRDD(
     @transient sc: SparkContext,
-    @transient private val inputPartitions: Seq[InputPartition],
+    @transient private val inputPartitions: Seq[Partition],
     var rdds: ColumnarInputRDDsWrapper,
     pipelineTime: SQLMetric,
     updateInputMetrics: InputMetricsWrapper => Unit,
