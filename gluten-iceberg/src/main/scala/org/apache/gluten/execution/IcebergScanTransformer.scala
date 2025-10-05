@@ -17,16 +17,18 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.IcebergScanTransformer.{containsMetadataColumn, containsUuidOrFixedType}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.{LocalFilesNode, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
-import org.apache.spark.sql.connector.read.{InputPartition, Scan}
+import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.{ArrayType, DataType, StructType}
@@ -137,30 +139,11 @@ case class IcebergScanTransformer(
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
-  override def getSplitInfosWithIndex: Seq[SplitInfo] = {
-    val splitInfos = getPartitionsWithIndex.zipWithIndex.map {
-      case (partitions, index) =>
-        GlutenIcebergSourceUtil.genSplitInfo(partitions, index, getPartitionSchema)
-    }
-    numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
-    splitInfos
-  }
-
-  override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
-    val groupedPartitions = SparkShimLoader.getSparkShims
-      .orderPartitions(
-        this,
-        scan,
-        keyGroupedPartitioning,
-        filteredPartitions,
-        outputPartitioning,
-        commonPartitionValues,
-        applyPartialClustering,
-        replicatePartitions)
-      .flatten
-    val splitInfos = groupedPartitions.zipWithIndex.map {
-      case (p, index) =>
-        GlutenIcebergSourceUtil.genSplitInfoForPartition(p, index, getPartitionSchema)
+  override def getSplitInfosFromPartitions(partitions: Seq[Partition]): Seq[SplitInfo] = {
+    val splitInfos = partitions.map {
+      case p: SparkDataSourceRDDPartition =>
+        GlutenIcebergSourceUtil.genSplitInfo(p, getPartitionSchema)
+      case _ => throw new GlutenNotSupportException()
     }
     numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
     splitInfos

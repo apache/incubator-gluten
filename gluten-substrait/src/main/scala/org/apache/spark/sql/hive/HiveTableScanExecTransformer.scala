@@ -21,11 +21,11 @@ import org.apache.gluten.execution.BasicScanExecTransformer
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSeq, Expression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
@@ -67,7 +67,7 @@ case class HiveTableScanExecTransformer(
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
-  override def getPartitions: Seq[InputPartition] = partitions
+  override def getPartitions: Seq[Partition] = partitions
 
   override def getPartitionSchema: StructType = relation.tableMeta.partitionSchema
 
@@ -82,7 +82,7 @@ case class HiveTableScanExecTransformer(
   @transient private lazy val hivePartitionConverter =
     new HivePartitionConverter(session.sessionState.newHadoopConf(), session)
 
-  @transient private lazy val partitions: Seq[InputPartition] =
+  @transient private lazy val partitions: Seq[Partition] =
     if (!relation.isPartitioned) {
       val tableLocation: URI = relation.tableMeta.storage.locationUri.getOrElse {
         throw new UnsupportedOperationException("Table path not set.")

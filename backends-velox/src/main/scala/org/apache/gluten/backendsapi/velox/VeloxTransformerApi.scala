@@ -25,12 +25,12 @@ import org.apache.gluten.proto.ConfigMap
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.gluten.utils.InputPartitionsUtil
+import org.apache.gluten.utils.PartitionsUtil
 import org.apache.gluten.vectorized.PlanEvaluatorJniWrapper
 
+import org.apache.spark.Partition
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.hive.execution.HiveFileFormat
@@ -44,8 +44,7 @@ import java.util.{Map => JMap}
 
 class VeloxTransformerApi extends TransformerApi with Logging {
 
-  /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
-  def genInputPartitionSeq(
+  def genPartitionSeq(
       relation: HadoopFsRelation,
       requiredSchema: StructType,
       selectedPartitions: Array[PartitionDirectory],
@@ -54,8 +53,8 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean,
-      filterExprs: Seq[Expression] = Seq.empty): Seq[InputPartition] = {
-    InputPartitionsUtil(
+      filterExprs: Seq[Expression] = Seq.empty): Seq[Partition] = {
+    PartitionsUtil(
       relation,
       requiredSchema,
       selectedPartitions,
@@ -64,7 +63,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       optionalBucketSet,
       optionalNumCoalescedBuckets,
       disableBucketedScan)
-      .genInputPartitionSeq()
+      .genPartitionSeq()
   }
 
   override def postProcessNativeConfig(

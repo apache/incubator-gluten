@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.types.StructType
 
@@ -95,7 +96,8 @@ case class GlutenMergeTreePartition(
     partList: Array[MergeTreePartSplit],
     tableSchema: StructType,
     clickhouseTableConfigs: Map[String, String])
-  extends InputPartition {
+  extends Partition
+  with InputPartition {
   override def preferredLocations(): Array[String] = {
     Array.empty[String]
   }

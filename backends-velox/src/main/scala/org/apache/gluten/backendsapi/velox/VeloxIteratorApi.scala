@@ -27,12 +27,11 @@ import org.apache.gluten.substrait.rel.{LocalFilesBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.vectorized._
 
-import org.apache.spark.{SparkConf, TaskContext}
+import org.apache.spark.{Partition, SparkConf, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -50,61 +49,20 @@ import scala.collection.JavaConverters._
 class VeloxIteratorApi extends IteratorApi with Logging {
 
   override def genSplitInfo(
-      partition: InputPartition,
-      partitionSchema: StructType,
-      fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = {
-    partition match {
-      case f: FilePartition =>
-        val (
-          paths,
-          starts,
-          lengths,
-          fileSizes,
-          modificationTimes,
-          partitionColumns,
-          metadataColumns,
-          otherMetadataColumns) =
-          constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
-        val preferredLocations =
-          SoftAffinity.getFilePartitionLocations(f)
-        LocalFilesBuilder.makeLocalFiles(
-          f.index,
-          paths,
-          starts,
-          lengths,
-          fileSizes,
-          modificationTimes,
-          partitionColumns,
-          metadataColumns,
-          fileFormat,
-          preferredLocations.toList.asJava,
-          mapAsJavaMap(properties),
-          otherMetadataColumns
-        )
-      case _ =>
-        throw new UnsupportedOperationException(s"Unsupported input partition.")
-    }
-  }
-
-  override def genSplitInfoForPartitions(
       partitionIndex: Int,
-      partitions: Seq[InputPartition],
+      partitions: Seq[Partition],
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo = {
-    val partitionFiles = partitions.flatMap {
-      p =>
-        if (!p.isInstanceOf[FilePartition]) {
-          throw new UnsupportedOperationException(
-            s"Unsupported input partition ${p.getClass.getName}.")
-        }
-        p.asInstanceOf[FilePartition].files
-    }.toArray
-    val locations =
-      partitions.flatMap(p => SoftAffinity.getFilePartitionLocations(p.asInstanceOf[FilePartition]))
+    val filePartitions: Seq[FilePartition] = partitions.map {
+      case p: FilePartition => p
+      case o =>
+        throw new UnsupportedOperationException(
+          s"Unsupported input partition: ${o.getClass.getName}")
+    }
+    val partitionFiles = filePartitions.flatMap(_.files).toArray
+    val locations = filePartitions.flatMap(p => SoftAffinity.getFilePartitionLocations(p))
     val (
       paths,
       starts,

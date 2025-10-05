@@ -243,6 +243,10 @@ trait SparkShims {
   def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
     Option(Seq())
 
+  /**
+   * Most of the code in this method is copied from
+   * [[org.apache.spark.sql.execution.datasources.v2.BatchScanExec.inputRDD]].
+   */
   def orderPartitions(
       batchScan: DataSourceV2ScanExecBase,
       scan: Scan,
