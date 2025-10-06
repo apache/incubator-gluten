@@ -22,10 +22,10 @@
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 #ifdef GLUTEN_ENABLE_GPU
-#include <mutex>
 #include <cudf/io/types.hpp>
-#include "velox/experimental/cudf/exec/ToCudf.h"
+#include <mutex>
 #include "velox/experimental/cudf/connectors/hive/CudfHiveConnectorSplit.h"
+#include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
 
 using namespace facebook;
@@ -95,6 +95,12 @@ WholeStageResultIterator::WholeStageResultIterator(
   }
 #endif
 
+  auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
+  GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
+  fileSystem->mkdir(spillDir);
+  velox::common::SpillDiskOptions spillOpts{
+      .spillDirPath = spillDir, .spillDirCreated = true, .spillDirCreateCb = nullptr};
+
   // Create task instance.
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
@@ -108,14 +114,14 @@ WholeStageResultIterator::WholeStageResultIterator(
       std::move(planFragment),
       0,
       std::move(queryCtx),
-      velox::exec::Task::ExecutionMode::kSerial);
+      velox::exec::Task::ExecutionMode::kSerial,
+      /*consumer=*/velox::exec::Consumer{},
+      /*memoryArbitrationPriority=*/0,
+      /*spillDiskOpts=*/spillOpts,
+      /*onError=*/nullptr);
   if (!task_->supportSerialExecutionMode()) {
     throw std::runtime_error("Task doesn't support single threaded execution: " + planNode->toString());
   }
-  auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
-  GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
-  fileSystem->mkdir(spillDir);
-  task_->setSpillDirectory(spillDir);
 
   // Generate splits for all scan nodes.
   splits_.reserve(scanInfos.size());
