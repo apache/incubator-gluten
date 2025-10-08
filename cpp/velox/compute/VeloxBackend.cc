@@ -166,11 +166,14 @@ void VeloxBackend::init(
 
 #ifdef GLUTEN_ENABLE_GPU
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-    FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
-    FLAGS_velox_cudf_memory_resource = backendConf_->get<std::string>(kCudfMemoryResource, kCudfMemoryResourceDefault);
-    auto& options = velox::cudf_velox::CudfOptions::getInstance();
-    options.memoryPercent = backendConf_->get<int32_t>(kCudfMemoryPercent, kCudfMemoryPercentDefault);
-    velox::cudf_velox::registerCudf(options);
+    std::unordered_map<std::string, std::string> options = {
+        {CudfConfig::kCudfEnabled, "true"},
+        {CudfConfig::kCudfDebugEnabled, backendConf_->get(kDebugCudf, kDebugCudfDefault)},
+        {CudfConfig::kCudfMemoryResource, backendConf_->get(kCudfMemoryResource, kCudfMemoryResourceDefault)},
+        {CudfConfig::kCudfMemoryPercent, backendConf_->get(kCudfMemoryPercent, kCudfMemoryPercentDefault)}};
+    auto& cudfConfig = velox::cudf_velox::CudfConfig::getInstance();
+    cudfConfig.initialize(std::move(options));
+    velox::cudf_velox::registerCudf();
   }
 #endif
 
