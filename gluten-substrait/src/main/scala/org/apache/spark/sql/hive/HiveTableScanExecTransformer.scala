@@ -17,7 +17,7 @@
 package org.apache.spark.sql.hive
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.BasicScanExecTransformer
+import org.apache.gluten.execution.{AvroUtils, BasicScanExecTransformer}
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
@@ -132,6 +132,8 @@ case class HiveTableScanExecTransformer(
       case Some(inputFormat)
           if PARQUET_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
         ReadFileFormat.ParquetReadFormat
+      case Some("org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat") =>
+        ReadFileFormat.AvroReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
   }
@@ -153,35 +155,42 @@ case class HiveTableScanExecTransformer(
   }
 
   override def getProperties: Map[String, String] = {
-    var properties: Map[String, String] = Map()
-    tableDesc.getProperties
-      .entrySet()
-      .forEach(e => properties += (e.getKey.toString -> e.getValue.toString))
+    fileFormat match {
+      case ReadFileFormat.TextReadFormat =>
+        var properties: Map[String, String] = Map()
+        tableDesc.getProperties
+          .entrySet()
+          .forEach(e => properties += (e.getKey.toString -> e.getValue.toString))
 
-    var options: Map[String, String] = createDefaultTextOption()
-    // property key string read from org.apache.hadoop.hive.serde.serdeConstants
-    properties.foreach {
-      case ("separatorChar", v) =>
-        // If separatorChar, we should use default separatorChar
-        // for org.apache.hadoop.hive.serde2.OpenCSVSerde
-        // It fixed issue: https://github.com/oap-project/gluten/issues/3108
-        val nv = if (v.isEmpty) "," else v
-        options += ("field_delimiter" -> nv)
-      case ("field.delim", v) =>
-        // If field.delim is empty, we should use default field delimiter
-        // for org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-        // It fixed issue: https://github.com/oap-project/gluten/issues/3108
-        val nv = if (v.isEmpty) DEFAULT_FIELD_DELIMITER.toString else v
-        options += ("field_delimiter" -> nv)
-      case ("quoteChar", v) => options += ("quote" -> v)
-      case ("quote.delim", v) => options += ("quote" -> v)
-      case ("skip.header.line.count", v) => options += ("header" -> v)
-      case ("escapeChar", v) => options += ("escape" -> v)
-      case ("escape.delim", v) => options += ("escape" -> v)
-      case ("serialization.null.format", v) => options += ("nullValue" -> v)
-      case (_, _) =>
+        var options: Map[String, String] = createDefaultTextOption()
+        // property key string read from org.apache.hadoop.hive.serde.serdeConstants
+        properties.foreach {
+          case ("separatorChar", v) =>
+            // If separatorChar, we should use default separatorChar
+            // for org.apache.hadoop.hive.serde2.OpenCSVSerde
+            // It fixed issue: https://github.com/oap-project/gluten/issues/3108
+            val nv = if (v.isEmpty) "," else v
+            options += ("field_delimiter" -> nv)
+          case ("field.delim", v) =>
+            // If field.delim is empty, we should use default field delimiter
+            // for org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+            // It fixed issue: https://github.com/oap-project/gluten/issues/3108
+            val nv = if (v.isEmpty) DEFAULT_FIELD_DELIMITER.toString else v
+            options += ("field_delimiter" -> nv)
+          case ("quoteChar", v) => options += ("quote" -> v)
+          case ("quote.delim", v) => options += ("quote" -> v)
+          case ("skip.header.line.count", v) => options += ("header" -> v)
+          case ("escapeChar", v) => options += ("escape" -> v)
+          case ("escape.delim", v) => options += ("escape" -> v)
+          case ("serialization.null.format", v) => options += ("nullValue" -> v)
+          case (_, _) =>
+        }
+        options
+      case ReadFileFormat.AvroReadFormat =>
+        AvroUtils.createAvroOptionFromTableProperties(relation.tableMeta.properties)
+      case _ => Map.empty
     }
-    options
+
   }
 
   override def nodeName: String = s"NativeScan hive ${relation.tableMeta.qualifiedName}"

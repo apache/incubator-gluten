@@ -49,6 +49,7 @@
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h" // @manual
+#include "velox/dwio/avro/RegisterAvroReader.h"
 #include "velox/dwio/orc/reader/OrcReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/dwio/parquet/RegisterParquetWriter.h"
@@ -187,6 +188,9 @@ void VeloxBackend::init(
   velox::parquet::registerParquetReaderFactory();
   velox::parquet::registerParquetWriterFactory();
   velox::orc::registerOrcReaderFactory();
+  #ifdef ENABLE_AVRO
+    velox::avro::registerAvroReaderFactory();
+  #endif
   velox::exec::ExprToSubfieldFilterParser::registerParser(std::make_unique<SparkExprToSubfieldFilterParser>());
 
   // Register Velox functions

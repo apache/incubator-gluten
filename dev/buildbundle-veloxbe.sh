@@ -22,6 +22,8 @@ function build_for_spark {
   spark_version=$1
   if [ $spark_version = "4.0" ]; then
     mvn clean install -Pbackends-velox -Pspark-$spark_version -Pjava-17 -Pscala-2.13 -DskipTests
+  elif [ "$spark_version" = "3.5" ] && [ "$ENABLE_AVRO" = "ON" ]; then
+    mvn clean install -Pbackends-velox -Pspark-$spark_version -DskipTests -DENABLE_AVRO=true
   else
     mvn clean install -Pbackends-velox -Pspark-$spark_version -DskipTests
   fi

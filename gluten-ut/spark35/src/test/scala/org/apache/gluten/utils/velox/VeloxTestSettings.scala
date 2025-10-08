@@ -16,10 +16,12 @@
  */
 package org.apache.gluten.utils.velox
 
+import org.apache.gluten.backendsapi.velox.buildinfo.BuildInfo
 import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.GlutenSortShuffleSuite
 import org.apache.spark.sql._
+import org.apache.spark.sql.avro._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
@@ -227,6 +229,49 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenBinaryFileFormatSuite]
     // Exception.
     .exclude("column pruning - non-readable file")
+  if (BuildInfo.ENABLE_AVRO) {
+    enableSuite[GlutenAvroV1Suite]
+      // avro-cpp does not support ZSTD compression
+      .exclude("write with compression - sql configs")
+      // episodes.avro is packaged inside a dependency jar, so it doesn't match the path used in case
+      .exclude("support of globbed paths")
+      // When the user-specified schema differs from the file schema, undefined behavior may occur,
+      // including but not limited to crashes and incorrect parsing of decimal/date/timestamp logical values
+      // TODO: Support spark.sql.legacy.avro.allowIncompatibleSchema=false
+      .exclude("SPARK-34229: Avro should read decimal values with the file schema")
+      .excludeByPrefix("SPARK-43380")
+      .exclude("converting timestamp-millis type to long in avro")
+      .exclude("read avro with user defined schema: read non-exist columns")
+      // The case matches error messages exactly
+      .exclude("SPARK-34133: Writing user provided schema with multiple matching Avro fields fails")
+      // Currently ignores spark.sql.avro.datetimeRebaseModeInRead and always returns a no-rebase result
+      // TODO Support spark.sql.avro.datetimeRebaseModeInRead=EXCEPTION/CORRECTED
+      .excludeByPrefix("SPARK-31183")
+      .exclude("SPARK-35427: datetime rebasing in the EXCEPTION mode")
+    enableSuite[GlutenAvroV2Suite]
+      // avro-cpp does not support ZSTD compression
+      .exclude("write with compression - sql configs")
+      // episodes.avro is packaged inside a dependency jar, so it doesn't match the path used in case
+      .exclude("support of globbed paths")
+      // When the user-specified schema differs from the file schema, undefined behavior may occur,
+      // including but not limited to crashes and incorrect parsing of decimal/date/timestamp logical values
+      // TODO: Support spark.sql.legacy.avro.allowIncompatibleSchema=false
+      .exclude("SPARK-34229: Avro should read decimal values with the file schema")
+      .excludeByPrefix("SPARK-43380")
+      .exclude("converting timestamp-millis type to long in avro")
+      .exclude("read avro with user defined schema: read non-exist columns")
+      // The case matches error messages exactly
+      .exclude("SPARK-34133: Writing user provided schema with multiple matching Avro fields fails")
+      // Currently ignores spark.sql.avro.datetimeRebaseModeInRead and always returns a no-rebase result
+      // TODO Support spark.sql.avro.datetimeRebaseModeInRead=EXCEPTION/CORRECTED
+      .excludeByPrefix("SPARK-31183")
+      .exclude("SPARK-35427: datetime rebasing in the EXCEPTION mode")
+      // Cases match against Spark ExecNode types
+      .exclude("Avro source v2: support partition pruning")
+      .exclude("Avro source v2: support passing data filters to FileScan without partitionFilters")
+      .exclude("explain formatted on an avro data source v2")
+      .exclude("SPARK-32346: filters pushdown to Avro datasource v2")
+  }
   enableSuite[GlutenCSVv1Suite]
     // file cars.csv include null string, Arrow not support to read
     .exclude("DDL test with schema")

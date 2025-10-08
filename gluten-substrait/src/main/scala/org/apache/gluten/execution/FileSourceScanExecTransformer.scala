@@ -198,6 +198,8 @@ abstract class FileSourceScanExecTransformerBase(
           case (_, _) =>
         }
         options
+      case ReadFileFormat.AvroReadFormat =>
+        AvroUtils.createAvroOptionFromOptions(relation.options)
       case _ => Map.empty
     }
   }

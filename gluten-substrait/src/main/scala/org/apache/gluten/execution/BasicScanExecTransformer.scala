@@ -53,6 +53,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
   }
 
+  lazy val properties = getProperties
+
   /** Returns the file format properties. */
   def getProperties: Map[String, String] = Map.empty
 
@@ -82,7 +84,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         getDataSchema,
         readFileFormat,
         getMetadataColumns().map(_.name),
-        getProperties)
+        properties)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
@@ -92,7 +94,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         schema.fields,
         getDataSchema,
         getRootFilePaths,
-        getProperties,
+        properties,
         sparkContext.hadoopConfiguration)
     if (!validationResult.ok()) {
       return validationResult

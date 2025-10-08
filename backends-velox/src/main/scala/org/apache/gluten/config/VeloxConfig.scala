@@ -83,6 +83,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
 
   def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
+
+  def veloxAvroScanEnabled: Boolean = getConf(VELOX_AVRO_SCAN_ENABLED)
 }
 
 object VeloxConfig extends ConfigRegistry {
@@ -691,4 +693,12 @@ object VeloxConfig extends ConfigRegistry {
       .doc("Maps table field names to file field names using names, not indices for Parquet files.")
       .booleanConf
       .createWithDefault(true)
+
+  val VELOX_AVRO_SCAN_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.avro.scan.enabled")
+      .doc(
+        "Enable velox avro scan. If disabled, vanilla spark avro scan will be used." +
+          " This is an experimental feature.")
+      .booleanConf
+      .createWithDefault(false)
 }

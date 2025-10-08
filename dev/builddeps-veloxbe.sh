@@ -36,6 +36,7 @@ ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
+ENABLE_AVRO=OFF
 ENABLE_VCPKG=OFF
 ENABLE_GPU=OFF
 ENABLE_ENHANCED_FEATURES=OFF
@@ -93,6 +94,10 @@ do
         ;;
         --enable_s3=*)
         ENABLE_S3=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_avro=*)
+        ENABLE_AVRO=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_hdfs=*)
@@ -189,7 +194,7 @@ function concat_velox_param {
 if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
     BUILD_OPTIONS="--build_tests=$BUILD_TESTS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS \
-                   --enable_hdfs=$ENABLE_HDFS --enable_abfs=$ENABLE_ABFS"
+                   --enable_hdfs=$ENABLE_HDFS --enable_abfs=$ENABLE_ABFS --enable_avro=$ENABLE_AVRO"
     source ./dev/vcpkg/env.sh ${BUILD_OPTIONS}
 fi
 
@@ -223,7 +228,7 @@ function build_velox {
   cd $GLUTEN_DIR/ep/build-velox/src
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
   ./build-velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-                   --enable_abfs=$ENABLE_ABFS --enable_gpu=$ENABLE_GPU --build_test_utils=$BUILD_TESTS \
+                   --enable_abfs=$ENABLE_ABFS --enable_gpu=$ENABLE_GPU --build_test_utils=$BUILD_TESTS --enable_avro=$ENABLE_AVRO \
                    --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS \
                    --velox_home=$VELOX_HOME
 }
@@ -247,6 +252,7 @@ function build_gluten_cpp {
     -DENABLE_S3=$ENABLE_S3 \
     -DENABLE_HDFS=$ENABLE_HDFS \
     -DENABLE_ABFS=$ENABLE_ABFS \
+    -DENABLE_AVRO=$ENABLE_AVRO \
     -DENABLE_GPU=$ENABLE_GPU \
     -DENABLE_ENHANCED_FEATURES=$ENABLE_ENHANCED_FEATURES"
 
@@ -290,6 +296,9 @@ function setup_dependencies {
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     install_aws_deps
+  fi
+  if [ $ENABLE_AVRO == "ON" ]; then
+    install_avro_cpp
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     install_gcs_sdk_cpp

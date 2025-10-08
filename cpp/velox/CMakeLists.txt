@@ -121,6 +121,10 @@ macro(find_gcssdk)
   find_package(google_cloud_cpp_storage CONFIG 2.22.0 REQUIRED)
 endmacro()
 
+macro(find_avro)
+  find_package(AvroCpp REQUIRED)
+endmacro()
+
 macro(find_azure)
   find_package(CURL REQUIRED)
   find_package(LibXml2 REQUIRED)
@@ -402,6 +406,12 @@ if(ENABLE_ABFS)
   target_link_libraries(velox PUBLIC Azure::azure-storage-blobs)
   target_link_libraries(velox PUBLIC Azure::azure-storage-files-datalake)
   target_link_libraries(velox PUBLIC Azure::azure-identity)
+endif()
+
+if(ENABLE_AVRO)
+   add_definitions(-DENABLE_AVRO)
+   find_avro()
+   target_link_libraries(velox PUBLIC AvroCpp::avrocpp)
 endif()
 
 if(BUILD_EXAMPLES)

@@ -17,6 +17,7 @@
 package org.apache.gluten.substrait.rel;
 
 import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.execution.AvroUtils;
 import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.utils.SubstraitUtil;
 
@@ -52,6 +53,7 @@ public class LocalFilesNode implements SplitInfo {
     TextReadFormat(),
     JsonReadFormat(),
     KafkaReadFormat(),
+    AvroReadFormat(),
     UnknownFormat()
   }
 
@@ -256,6 +258,13 @@ public class LocalFilesNode implements SplitInfo {
                   .setMaxBlockSize(GlutenConfig.get().textInputMaxBlockSize())
                   .build();
           fileBuilder.setJson(jsonReadOptions);
+          break;
+        case AvroReadFormat:
+          ReadRel.LocalFiles.FileOrFiles.AvroReadOptions.Builder avroReadOptionsBuilder =
+              ReadRel.LocalFiles.FileOrFiles.AvroReadOptions.newBuilder();
+          AvroUtils.getJsonSchema(fileReadProperties)
+              .foreach(avroReadOptionsBuilder::setSchemaLiteral);
+          fileBuilder.setAvro(avroReadOptionsBuilder.build());
           break;
         default:
           break;

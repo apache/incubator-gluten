@@ -34,6 +34,8 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileSca
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 
+import scala.collection.JavaConverters._
+
 /** Columnar Based BatchScanExec. */
 case class BatchScanExecTransformer(
     override val output: Seq[AttributeReference],
@@ -122,6 +124,18 @@ abstract class BatchScanExecTransformerBase(
 
   def setPushDownFilters(filters: Seq[Expression]): Unit = {
     pushdownFilters = filters
+  }
+
+  override def getProperties: Map[String, String] = {
+    fileFormat match {
+      case ReadFileFormat.AvroReadFormat =>
+        Option(AvroUtils.createAvroOptionFromOptions(table.properties().asScala.toMap))
+          .filter(_.nonEmpty)
+          .getOrElse(
+            AvroUtils.createAvroOptionFromTableProperties(table.properties().asScala.toMap))
+      case _ =>
+        super.getProperties
+    }
   }
 
   override def filterExprs(): Seq[Expression] = pushdownFilters

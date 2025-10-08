@@ -40,6 +40,9 @@ struct SplitInfo {
   /// The metadata columns associated with partitioned table.
   std::vector<std::unordered_map<std::string, std::string>> metadataColumns;
 
+  /// The serde parameters for each split.
+  std::vector<std::unordered_map<std::string, std::string>> serdeParameters;
+
   /// The file paths to be scanned.
   std::vector<std::string> paths;
 

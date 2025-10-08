@@ -55,6 +55,7 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
   splitInfo->partitionColumns.reserve(fileList.size());
   splitInfo->properties.reserve(fileList.size());
   splitInfo->metadataColumns.reserve(fileList.size());
+  splitInfo->serdeParameters.reserve(fileList.size());
   for (const auto& file : fileList) {
     // Expect all Partitions share the same index.
     splitInfo->partitionIndex = file.partition_index();
@@ -81,6 +82,8 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
       fileProps.modificationTime = file.properties().modificationtime();
     }
     splitInfo->properties.emplace_back(fileProps);
+
+    std::unordered_map<std::string, std::string> serdeParameterMap;
     switch (file.file_format_case()) {
       case SubstraitFileFormatCase::kOrc:
         splitInfo->format = dwio::common::FileFormat::ORC;
@@ -90,6 +93,12 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
         break;
       case SubstraitFileFormatCase::kParquet:
         splitInfo->format = dwio::common::FileFormat::PARQUET;
+        break;
+      case SubstraitFileFormatCase::kAvro:
+        splitInfo->format = dwio::common::FileFormat::AVRO;
+        if (!file.avro().schema_literal().empty()) {
+          serdeParameterMap.emplace("avro.schema.literal", file.avro().schema_literal());
+        }
         break;
       case SubstraitFileFormatCase::kText:
         splitInfo->format = dwio::common::FileFormat::TEXT;
@@ -101,6 +110,7 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
         splitInfo->format = dwio::common::FileFormat::UNKNOWN;
         break;
     }
+    splitInfo->serdeParameters.emplace_back(std::move(serdeParameterMap));
 
     // The schema in file represents the table schema, it is set when the TableScan requires the
     // table schema to be present, currently when the option is set to map columns by index rather

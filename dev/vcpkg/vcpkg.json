@@ -55,6 +55,16 @@
         "geos"
       ]
     },
+    "velox-avro": {
+      "description": "Velox AVRO Support",
+      "dependencies": [
+        {
+          "name": "avro-cpp",
+          "version>=": "1.12.0",
+          "features": ["snappy"]
+        }
+      ]
+    },
     "velox-s3": {
       "description": "Velox S3 Support",
       "dependencies": [

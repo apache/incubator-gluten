@@ -134,6 +134,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
     const auto& metadataColumns = scanInfo->metadataColumns;
+    const auto& serdeParameters = scanInfo->serdeParameters;
 #ifdef GLUTEN_ENABLE_GPU
     // Under the pre-condition that all the split infos has same partition column and format.
     const auto canUseCudfConnector = scanInfo->canUseCudfConnector();
@@ -177,6 +178,10 @@ WholeStageResultIterator::WholeStageResultIterator(
           VELOX_CHECK_EQ(lengths[idx], scanInfo->properties[idx]->fileSize, "Not support split file");
         }
 #endif
+        std::unordered_map<std::string, std::string> serdeParameter;
+        if (!serdeParameters.empty()) {
+          serdeParameter = serdeParameters[idx];
+        }
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
             connectorId,
             paths[idx],
@@ -187,7 +192,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             std::nullopt /*tableBucketName*/,
             std::unordered_map<std::string, std::string>(),
             nullptr,
-            std::unordered_map<std::string, std::string>(),
+            std::move(serdeParameter),
             0,
             true,
             metadataColumn,

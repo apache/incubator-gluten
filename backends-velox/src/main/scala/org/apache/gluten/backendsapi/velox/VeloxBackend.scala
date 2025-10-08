@@ -21,15 +21,14 @@ import org.apache.gluten.backendsapi._
 import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.execution.ValidationResult
-import org.apache.gluten.execution.WriteFilesExecTransformer
+import org.apache.gluten.execution.{AvroUtils, ValidationResult, WriteFilesExecTransformer}
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster, RoughCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
-import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{AvroReadFormat, DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 import org.apache.gluten.utils._
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -151,6 +150,25 @@ object VeloxBackendSettings extends BackendSettingsApi {
             None
           }
         case DwrfReadFormat => None
+        case AvroReadFormat =>
+          if (!velox.buildinfo.BuildInfo.ENABLE_AVRO) {
+            return Some("Compilation was done without enabling enable_avro=ON")
+          }
+          if (!VeloxConfig.get.veloxAvroScanEnabled) {
+            return Some(
+              s"Velox AVRO scan is turned off, ${VeloxConfig.VELOX_AVRO_SCAN_ENABLED.key}")
+          }
+          if (SQLConf.get.ignoreCorruptFiles) {
+            return Some(s"Unsupported avro format conf ${SQLConf.IGNORE_CORRUPT_FILES.key}=true")
+          }
+          val positionalFieldMatching =
+            properties.getOrElse(AvroUtils.AVRO_POSITIONAL_FIELD_MATCHING_OPTION, "false").toBoolean
+          if (positionalFieldMatching) {
+            return Some(
+              s"Unsupported avro format option " +
+                s"${AvroUtils.AVRO_POSITIONAL_FIELD_MATCHING_OPTION}=true")
+          }
+          None
         case OrcReadFormat =>
           if (!VeloxConfig.get.veloxOrcScanEnabled) {
             Some(s"Velox ORC scan is turned off, ${VeloxConfig.VELOX_ORC_SCAN_ENABLED.key}")
@@ -251,6 +269,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
       case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
       case "CSVFileFormat" => ReadFileFormat.TextReadFormat
+      case "AvroFileFormat" => ReadFileFormat.AvroReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
   }
@@ -260,6 +279,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       case "OrcScan" => ReadFileFormat.OrcReadFormat
       case "ParquetScan" => ReadFileFormat.ParquetReadFormat
       case "DwrfScan" => ReadFileFormat.DwrfReadFormat
+      case "AvroScan" => ReadFileFormat.AvroReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
   }

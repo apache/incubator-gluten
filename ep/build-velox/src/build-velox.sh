@@ -38,6 +38,8 @@ ENABLE_TESTS=OFF
 BUILD_TEST_UTILS=OFF
 # Number of threads to use for building.
 NUM_THREADS=""
+# Enable AVRO format support
+ENABLE_AVRO=OFF
 
 OTHER_ARGUMENTS=""
 
@@ -48,6 +50,10 @@ for arg in "$@"; do
   case $arg in
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_avro=*)
+    ENABLE_AVRO=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_s3=*)
@@ -115,6 +121,9 @@ function compile {
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
+  fi
+  if [ $ENABLE_AVRO == "ON" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_AVRO=ON"
   fi
   # If ENABLE_BENCHMARK == ON, Velox disables tests and connectors
   if [ $ENABLE_BENCHMARK == "OFF" ]; then
@@ -198,6 +207,7 @@ echo "Start building Velox..."
 echo "CMAKE Arguments:"
 echo "VELOX_HOME=${VELOX_HOME}"
 echo "ENABLE_S3=${ENABLE_S3}"
+echo "ENABLE_AVRO=${ENABLE_AVRO}"
 echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "ENABLE_ABFS=${ENABLE_ABFS}"
