@@ -24,6 +24,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Partial}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin}
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 
@@ -47,6 +48,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       case _: ExpandExec => true
       case _: GenerateExec => true
       case _: ArrowEvalPythonExec => true
+      case _: BaseJoinExec => true
       case _ => false
     }
   }
@@ -96,6 +98,14 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
         windowGroupLimitExecShim.orderSpec.exists(o => isNotAttribute(o.child)) ||
         windowGroupLimitExecShim.partitionSpec.exists(isNotAttribute)
       case expand: ExpandExec => expand.projections.flatten.exists(isNotAttributeAndLiteral)
+      case join: BaseJoinExec =>
+        join match {
+          case _: HashJoin if BackendsApiManager.getSettings.enableJoinKeysRewrite() =>
+            HashJoin.rewriteKeyExpr(join.leftKeys).exists(isNotAttribute) ||
+            HashJoin.rewriteKeyExpr(join.rightKeys).exists(isNotAttribute)
+          case _ =>
+            join.leftKeys.exists(isNotAttribute) || join.rightKeys.exists(isNotAttribute)
+        }
       case _ => false
     }
   }
@@ -281,6 +291,47 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
     case arrowEvalPythonExec: ArrowEvalPythonExec =>
       BackendsApiManager.getSparkPlanExecApiInstance.genPreProjectForArrowEvalPythonExec(
         arrowEvalPythonExec)
+
+    case join: BaseJoinExec if needsPreProject(join) =>
+      // Spark has an improvement which would patch integer joins keys to a Long value.
+      // But this improvement would cause adding extra project before hash join in velox,
+      // disabling this improvement as below would help reduce the project.
+      val (leftKeys, rightKeys) = join match {
+        case _: HashJoin if BackendsApiManager.getSettings.enableJoinKeysRewrite() =>
+          (HashJoin.rewriteKeyExpr(join.leftKeys), HashJoin.rewriteKeyExpr(join.rightKeys))
+        case _ =>
+          (join.leftKeys, join.rightKeys)
+      }
+
+      def pullOutPreProjectForJoin(joinChild: SparkPlan, joinKeys: Seq[Expression])
+          : (SparkPlan, Seq[Expression], mutable.HashMap[Expression, NamedExpression]) = {
+        val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
+        if (joinKeys.exists(isNotAttribute)) {
+          val newJoinKeys =
+            joinKeys.toIndexedSeq.map(replaceExpressionWithAttribute(_, expressionMap))
+          val preProject = ProjectExec(
+            eliminateProjectList(joinChild.outputSet, expressionMap.values.toSeq),
+            joinChild)
+          (preProject, newJoinKeys, expressionMap)
+        } else {
+          (joinChild, joinKeys, expressionMap)
+        }
+      }
+
+      val (newLeft, newLeftKeys, leftMap) = pullOutPreProjectForJoin(join.left, leftKeys)
+      val (newRight, newRightKeys, rightMap) = pullOutPreProjectForJoin(join.right, rightKeys)
+      val newCondition = if (leftMap.nonEmpty || rightMap.nonEmpty) {
+        join.condition.map(_.transform {
+          case p @ Equality(l, r) =>
+            p.makeCopy(
+              Array(leftMap.getOrElse(l.canonicalized, l), rightMap.getOrElse(r.canonicalized, r)))
+        })
+      } else {
+        join.condition
+      }
+      ProjectExec(
+        join.output,
+        copyBaseJoinExec(join)(newLeft, newRight, newLeftKeys, newRightKeys, newCondition))
 
     case _ => plan
   }

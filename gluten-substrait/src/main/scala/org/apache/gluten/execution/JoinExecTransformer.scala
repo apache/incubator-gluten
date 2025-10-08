@@ -31,7 +31,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.{ExpandOutputPartitioningShim, ExplainUtils, SparkPlan}
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashedRelationBroadcastMode, HashJoin}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -132,18 +132,11 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
           .forall(types => sameType(types._1, types._2)),
       "Join keys from two sides should have same length and types"
     )
-    // Spark has an improvement which would patch integer joins keys to a Long value.
-    // But this improvement would cause add extra project before hash join in velox,
-    // disabling this improvement as below would help reduce the project.
-    val (lkeys, rkeys) = if (BackendsApiManager.getSettings.enableJoinKeysRewrite()) {
-      (HashJoin.rewriteKeyExpr(leftKeys), HashJoin.rewriteKeyExpr(rightKeys))
-    } else {
-      (leftKeys, rightKeys)
-    }
+
     if (needSwitchChildren) {
-      (lkeys, rkeys)
+      (leftKeys, rightKeys)
     } else {
-      (rkeys, lkeys)
+      (rightKeys, leftKeys)
     }
   }
 
