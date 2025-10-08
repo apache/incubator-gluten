@@ -168,15 +168,15 @@ bool SplitInfo::canUseCudfConnector() {
   bool isEmpty = partitionColumns.empty();
 
   if (!isEmpty) {
-      // Check if all maps are empty
-      bool allMapsEmpty = true;
-      for (const auto& m : partitionColumns) {
-          if (!m.empty()) {
-              allMapsEmpty = false;
-              break;
-          }
+    // Check if all maps are empty
+    bool allMapsEmpty = true;
+    for (const auto& m : partitionColumns) {
+      if (!m.empty()) {
+        allMapsEmpty = false;
+        break;
       }
-      isEmpty = allMapsEmpty;
+    }
+    isEmpty = allMapsEmpty;
   }
   return isEmpty && format == dwio::common::FileFormat::PARQUET;
 }
@@ -596,19 +596,17 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
     }
     if (std::find(partitionedBy.cbegin(), partitionedBy.cend(), tableColumnNames.at(i)) != partitionedBy.cend()) {
       ++numPartitionColumns;
-      columnHandles.emplace_back(
-          std::make_shared<connector::hive::HiveColumnHandle>(
-              tableColumnNames.at(i),
-              connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
-              tableColumnTypes.at(i),
-              tableColumnTypes.at(i)));
+      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
+          tableColumnNames.at(i),
+          connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
+          tableColumnTypes.at(i),
+          tableColumnTypes.at(i)));
     } else {
-      columnHandles.emplace_back(
-          std::make_shared<connector::hive::HiveColumnHandle>(
-              tableColumnNames.at(i),
-              connector::hive::HiveColumnHandle::ColumnType::kRegular,
-              tableColumnTypes.at(i),
-              tableColumnTypes.at(i)));
+      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
+          tableColumnNames.at(i),
+          connector::hive::HiveColumnHandle::ColumnType::kRegular,
+          tableColumnTypes.at(i),
+          tableColumnTypes.at(i)));
     }
   }
   VELOX_CHECK_EQ(numPartitionColumns, partitionedBy.size());
@@ -635,11 +633,10 @@ std::shared_ptr<CudfHiveInsertTableHandle> makeCudfHiveInsertTableHandle(
   std::vector<std::shared_ptr<const CudfHiveColumnHandle>> columnHandles;
 
   for (int i = 0; i < tableColumnNames.size(); ++i) {
-    columnHandles.push_back(
-        std::make_shared<CudfHiveColumnHandle>(
-            tableColumnNames.at(i),
-            tableColumnTypes.at(i),
-            cudf::data_type{cudf_velox::veloxToCudfTypeId(tableColumnTypes.at(i))}));
+    columnHandles.push_back(std::make_shared<CudfHiveColumnHandle>(
+        tableColumnNames.at(i),
+        tableColumnTypes.at(i),
+        cudf::data_type{cudf_velox::veloxToCudfTypeId(tableColumnTypes.at(i))}));
   }
 
   return std::make_shared<CudfHiveInsertTableHandle>(
@@ -741,16 +738,16 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   const auto& compressionKind =
       writerOptions->compressionKind.value_or(common::CompressionKind::CompressionKind_SNAPPY);
   std::shared_ptr<core::InsertTableHandle> tableHandle = std::make_shared<core::InsertTableHandle>(
-        kHiveConnectorId,
-        makeHiveInsertTableHandle(
-            tableColumnNames, /*inputType->names() clolumn name is different*/
-            inputType->children(),
-            partitionedKey,
-            bucketProperty,
-            makeLocationHandle(writePath, fileName, fileFormat, compressionKind, bucketProperty != nullptr),
-            writerOptions,
-            fileFormat,
-            compressionKind));
+      kHiveConnectorId,
+      makeHiveInsertTableHandle(
+          tableColumnNames, /*inputType->names() clolumn name is different*/
+          inputType->children(),
+          partitionedKey,
+          bucketProperty,
+          makeLocationHandle(writePath, fileName, fileFormat, compressionKind, bucketProperty != nullptr),
+          writerOptions,
+          fileFormat,
+          compressionKind));
   return std::make_shared<core::TableWriteNode>(
       nextPlanNodeId(),
       inputType,
@@ -1350,12 +1347,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
   common::SubfieldFilters subfieldFilters;
   tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-      connectorId,
-      "hive_table",
-      filterPushdownEnabled,
-      std::move(subfieldFilters),
-      remainingFilter,
-      dataColumns);
+      connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, dataColumns);
 
   // Get assignments and out names.
   std::vector<std::string> outNames;
