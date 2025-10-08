@@ -243,30 +243,19 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
 
   auto repeatedBatch = ObjectStore::retrieve<ColumnarBatch>(repeatedBatchHandle);
   auto nonRepeatedBatch = ObjectStore::retrieve<ColumnarBatch>(nonRepeatedBatchHandle);
-  GLUTEN_CHECK(rowNums == nonRepeatedBatch->numRows(),
-      "Row numbers after repeated do not match the expected size");
+  GLUTEN_CHECK(rowNums == nonRepeatedBatch->numRows(), "Row numbers after repeated do not match the expected size");
 
   // wrap repeatedBatch's rowVector in dictionary vector.
   auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(repeatedBatch);
   auto rowVector = vb->getRowVector();
   std::vector<VectorPtr> outputs(rowVector->childrenSize());
   for (int i = 0; i < outputs.size(); i++) {
-    outputs[i] = BaseVector::wrapInDictionary(
-        nullptr /*nulls*/,
-        repeatedIndices,
-        rowNums,
-        rowVector->childAt(i));
+    outputs[i] = BaseVector::wrapInDictionary(nullptr /*nulls*/, repeatedIndices, rowNums, rowVector->childAt(i));
   }
-  auto newRowVector = std::make_shared<RowVector>(
-      veloxPool.get(),
-      rowVector->type(),
-      BufferPtr(nullptr),
-      rowNums,
-      std::move(outputs));
+  auto newRowVector =
+      std::make_shared<RowVector>(veloxPool.get(), rowVector->type(), BufferPtr(nullptr), rowNums, std::move(outputs));
   repeatedBatch = std::make_shared<VeloxColumnarBatch>(std::move(newRowVector));
-  auto newBatch = VeloxColumnarBatch::compose(
-      veloxPool.get(),
-      {std::move(repeatedBatch), std::move(nonRepeatedBatch)});
+  auto newBatch = VeloxColumnarBatch::compose(veloxPool.get(), {std::move(repeatedBatch), std::move(nonRepeatedBatch)});
   return ctx->saveObject(newBatch);
   JNI_METHOD_END(kInvalidObjectHandle)
 }

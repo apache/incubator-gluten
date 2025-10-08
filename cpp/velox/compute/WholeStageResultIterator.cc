@@ -24,6 +24,7 @@
 #ifdef GLUTEN_ENABLE_GPU
 #include <cudf/io/types.hpp>
 #include <mutex>
+#include "velox/experimental/cudf/CudfConfig.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveConnectorSplit.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
@@ -661,7 +662,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kSparkJsonIgnoreNullFields, true));
 
 #ifdef GLUTEN_ENABLE_GPU
-    configs[cudf_velox::kCudfEnabled] = std::to_string(veloxCfg_->get<bool>(kCudfEnabled, false));
+    configs[velox::cudf_velox::CudfConfig::kCudfEnabled] = std::to_string(veloxCfg_->get<bool>(kCudfEnabled, false));
 #endif
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
