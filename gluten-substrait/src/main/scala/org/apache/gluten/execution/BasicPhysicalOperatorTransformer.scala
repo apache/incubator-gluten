@@ -25,6 +25,7 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.SparkContextUtils
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -187,6 +188,10 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
       // Then, validate the generated plan in native engine.
       doNativeValidation(substraitContext, relNode)
     }()
+  }
+
+  override def doExecuteBroadcast[T](): Broadcast[T] = {
+    child.executeBroadcast[T]()
   }
 
   override def metricsUpdater(): MetricsUpdater =
