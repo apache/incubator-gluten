@@ -21,7 +21,9 @@ import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Complete, Partial}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate._
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.types.{ByteType, DateType, IntegerType, LongType, ShortType}
 
@@ -138,6 +140,43 @@ trait PullOutProjectHelper {
       newObjectHash
     case _ =>
       throw new GlutenNotSupportException(s"Unsupported agg $agg")
+  }
+
+  protected def copyBaseJoinExec(join: BaseJoinExec)(
+      newLeft: SparkPlan = join.left,
+      newRight: SparkPlan = join.right,
+      newLeftKeys: Seq[Expression] = join.leftKeys,
+      newRightKeys: Seq[Expression] = join.rightKeys,
+      newCondition: Option[Expression] = join.condition): BaseJoinExec = join match {
+    case bhj: BroadcastHashJoinExec =>
+      val newBhj = bhj.copy(
+        left = newLeft,
+        right = newRight,
+        leftKeys = newLeftKeys,
+        rightKeys = newRightKeys,
+        condition = newCondition)
+      newBhj.copyTagsFrom(bhj)
+      newBhj
+    case shj: ShuffledHashJoinExec =>
+      val newShj = shj.copy(
+        left = newLeft,
+        right = newRight,
+        leftKeys = newLeftKeys,
+        rightKeys = newRightKeys,
+        condition = newCondition)
+      newShj.copyTagsFrom(shj)
+      newShj
+    case smj: SortMergeJoinExec =>
+      val newSmj = smj.copy(
+        left = newLeft,
+        right = newRight,
+        leftKeys = newLeftKeys,
+        rightKeys = newRightKeys,
+        condition = newCondition)
+      newSmj.copyTagsFrom(smj)
+      newSmj
+    case _ =>
+      throw new UnsupportedOperationException(s"Unsupported join $join")
   }
 
   protected def rewriteAggregateExpression(

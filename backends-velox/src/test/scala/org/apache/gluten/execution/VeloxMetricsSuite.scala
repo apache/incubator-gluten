@@ -94,8 +94,6 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           val metrics = smj.get.metrics
           assert(metrics("numOutputRows").value == 100)
           assert(metrics("numOutputVectors").value > 0)
-          assert(metrics("streamPreProjectionCpuCount").value > 0)
-          assert(metrics("bufferPreProjectionCpuCount").value > 0)
       }
     }
   }
@@ -133,8 +131,6 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           val metrics = smj.get.metrics
           assert(metrics("numOutputRows").value == 100)
           assert(metrics("numOutputVectors").value > 0)
-          assert(metrics("streamPreProjectionCpuCount").value > 0)
-          assert(metrics("buildPreProjectionCpuCount").value > 0)
       }
     }
   }
