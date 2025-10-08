@@ -179,7 +179,7 @@ const std::string kCudfMemoryResourceDefault =
 
 // Initial percent of GPU memory to allocate for memory resource for one thread
 const std::string kCudfMemoryPercent = "spark.gluten.sql.columnar.backend.velox.cudf.memoryPercent";
-const int32_t kCudfMemoryPercentDefault = 50;
+const std::string kCudfMemoryPercentDefault = "50";
 
 /// Preferred size of batches in bytes to be returned by operators.
 const std::string kVeloxPreferredBatchBytes = "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes";
