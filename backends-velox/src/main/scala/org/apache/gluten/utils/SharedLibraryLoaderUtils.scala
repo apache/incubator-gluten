@@ -35,6 +35,14 @@ object SharedLibraryLoaderUtils {
     osName.startsWith("Mac OS X") || osName.startsWith("macOS")
   }
 
+  private def stripQuotes(s: String): String = {
+    if (s == null) {
+      null
+    } else {
+      s.stripPrefix("\"").stripSuffix("\"")
+    }
+  }
+
   def load(conf: SparkConf, jni: JniLibLoader): Unit = {
     val shouldLoad = conf.get(GLUTEN_LOAD_LIB_FROM_JAR)
     if (!shouldLoad) {
@@ -57,7 +65,7 @@ object SharedLibraryLoaderUtils {
         val props = new Properties()
         val in = new FileInputStream("/etc/os-release")
         props.load(in)
-        (props.getProperty("NAME"), props.getProperty("VERSION"))
+        (stripQuotes(props.getProperty("NAME")), stripQuotes(props.getProperty("VERSION")))
     }
 
     val loaders = ServiceLoader
