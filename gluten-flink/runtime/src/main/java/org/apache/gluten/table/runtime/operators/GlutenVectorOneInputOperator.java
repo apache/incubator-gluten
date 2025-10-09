@@ -17,9 +17,9 @@
 package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
-import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
@@ -94,7 +94,9 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
     mockInput.addTarget(glutenPlan);
     LOG.debug("Gluten Plan: {}", Serde.toJson(mockInput));
     LOG.debug("OutTypes: {}", outputTypes.keySet());
-    query = new Query(mockInput, Config.empty(), ConnectorConfig.empty());
+    query =
+        new Query(
+            mockInput, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
     task = session.queryOps().execute(query);
   }
 
