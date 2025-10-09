@@ -17,6 +17,8 @@
 package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.extension.columnar.heuristic.RewrittenNodeWall
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PullOutProjectHelper
 
@@ -24,7 +26,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, Partial}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, HashJoin}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, BroadcastNestedLoopJoinExec, HashJoin}
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 
@@ -293,6 +295,17 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
         arrowEvalPythonExec)
 
     case join: BaseJoinExec if needsPreProject(join) =>
+      join match {
+        case _: BroadcastHashJoinExec | _: BroadcastNestedLoopJoinExec
+            if !GlutenConfig.get.enableColumnarProject =>
+          // If columnar project is disabled, we cannot pull out project for join, since ProjectExec
+          // not override doExecuteBroadcast methods, we cannot add project between broadcast join
+          // and broadcast exchange.
+          throw new UnsupportedOperationException("columnar project is disabled, " +
+            "broadcast join operator does not support pull out pre-project, and it will fallback.")
+        case _ =>
+      }
+
       // Spark has an improvement which would patch integer joins keys to a Long value.
       // But this improvement would cause adding extra project before hash join in velox,
       // disabling this improvement as below would help reduce the project.
@@ -312,6 +325,12 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
           val preProject = ProjectExec(
             eliminateProjectList(joinChild.outputSet, expressionMap.values.toSeq),
             joinChild)
+          joinChild match {
+            case r: RewrittenNodeWall =>
+              r.originalChild.logicalLink.foreach(preProject.setLogicalLink)
+            case _ =>
+              joinChild.logicalLink.foreach(preProject.setLogicalLink)
+          }
           (preProject, newJoinKeys, expressionMap)
         } else {
           (joinChild, joinKeys, expressionMap)
@@ -329,9 +348,11 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       } else {
         join.condition
       }
-      ProjectExec(
-        join.output,
-        copyBaseJoinExec(join)(newLeft, newRight, newLeftKeys, newRightKeys, newCondition))
+      val newJoin =
+        copyBaseJoinExec(join)(newLeft, newRight, newLeftKeys, newRightKeys, newCondition)
+      val newProject = ProjectExec(join.output, newJoin)
+      newJoin.logicalLink.foreach(newProject.setLogicalLink)
+      newProject
 
     case _ => plan
   }
