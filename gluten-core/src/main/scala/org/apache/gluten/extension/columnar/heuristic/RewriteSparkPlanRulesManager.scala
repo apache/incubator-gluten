@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar.heuristic
 
 import org.apache.gluten.extension.columnar.{FallbackTag, FallbackTags}
+import org.apache.gluten.extension.columnar.FallbackTag.Converter
 import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
 
 import org.apache.spark.rdd.RDD
@@ -24,7 +25,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{LeafExecNode, ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
 
 case class RewrittenNodeWall(originalChild: SparkPlan) extends LeafExecNode {
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
@@ -50,16 +51,14 @@ class RewriteSparkPlanRulesManager private (
     FallbackTags.maybeOffloadable(plan) && rewriteRules.exists(_.isRewritable(plan))
   }
 
-  private def getFallbackTagBack(rewrittenPlan: SparkPlan): Option[FallbackTag] = {
+  private def getFallbackTags(rewrittenPlan: SparkPlan): Seq[Option[FallbackTag]] = {
     // The rewritten plan may contain more nodes than origin, for now it should only be
     // `ProjectExec`.
     // TODO: Find a better approach than checking `p.isInstanceOf[ProjectExec]` which is not
     //  general.
-    val target = rewrittenPlan.collect {
-      case p if !p.isInstanceOf[ProjectExec] && !p.isInstanceOf[RewrittenNodeWall] => p
+    rewrittenPlan.collect {
+      case p if !p.isInstanceOf[RewrittenNodeWall] => FallbackTags.getOption(p)
     }
-    assert(target.size == 1)
-    FallbackTags.getOption(target.head)
   }
 
   private def applyRewriteRules(origin: SparkPlan): (SparkPlan, Option[String]) = {
@@ -99,10 +98,12 @@ class RewriteSparkPlanRulesManager private (
           origin
         } else {
           validateRule.apply(rewrittenPlan)
-          val tag = getFallbackTagBack(rewrittenPlan)
-          if (tag.isDefined) {
-            // If the rewritten plan is still not transformable, return the original plan.
-            FallbackTags.add(origin, tag.get)
+          val fallbackTags = getFallbackTags(rewrittenPlan)
+          if (fallbackTags.exists(_.isDefined)) {
+            // If the rewritten origin node or inserted project is still not
+            // transformable, return the original plan.
+            val reason = fallbackTags.collect { case Some(s) => s.reason() }.mkString(", ")
+            FallbackTags.add(origin, Converter.FromString.from(reason).get)
             origin
           } else {
             rewrittenPlan.transformUp {
