@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.VeloxConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.extension.columnar.validator.FallbackInjects
 
 import org.apache.spark.SparkConf
