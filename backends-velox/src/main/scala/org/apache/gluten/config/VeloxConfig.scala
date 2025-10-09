@@ -669,4 +669,12 @@ object VeloxConfig extends ConfigRegistry {
       .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("10MB")
+
+  val VELOX_MAX_COMPILED_REGEXES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes")
+      .doc(
+        "Controls maximum number of compiled regular expression patterns per function " +
+          "instance per thread of execution.")
+      .intConf
+      .createWithDefault(100)
 }
