@@ -17,8 +17,10 @@ This will create a jar file in the `target` directory.
 To execute the tool, use the following command:
 
 ```bash
-java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f <eventFile>
+java -jar $QUALIFICATION_TOOL_FAT_JAR -f <eventFile>
 ```
+
+Before running the command, set the QUALIFICATION_TOOL_FAT_JAR environment variable to point to the correct JAR file.
 
 ### Parameters:
 - **`-f <eventFile>`**: Path to the Spark event log file(s). This can be:
@@ -37,12 +39,12 @@ java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f 
 
 ### Example Usage:
 ```bash
-java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f /path/to/eventlog
+java -jar $QUALIFICATION_TOOL_FAT_JAR -f /path/to/eventlog
 ```
 
 ### Advanced Example:
 ```bash
-java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f /path/to/folder -o /output/path -t 8 -d 2023-01-01 -k /path/to/gcs_keys.json -p my_project
+java -jar $QUALIFICATION_TOOL_FAT_JAR -f /path/to/folder -o /output/path -t 8 -d 2023-01-01 -k /path/to/gcs_keys.json -p my_project
 ```
 
 ## Features
