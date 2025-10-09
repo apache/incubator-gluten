@@ -19,8 +19,7 @@ package org.apache.spark.sql.gluten
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.events.GlutenPlanFallbackEvent
 
-import org.apache.spark.SparkConf
-import org.apache.spark.internal.config.UI.UI_ENABLED
+
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -57,11 +56,7 @@ import scala.collection.mutable.ArrayBuffer
  */
 class RasFallbackTagPropagationSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelper {
 
-  override def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.GLUTEN_UI_ENABLED.key, "true")
-      .set(UI_ENABLED, true)
-  }
+
 
   /**
    * Test that demonstrates the RAS fallback tag propagation issue.

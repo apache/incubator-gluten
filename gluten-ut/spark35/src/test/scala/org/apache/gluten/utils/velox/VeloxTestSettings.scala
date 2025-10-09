@@ -38,7 +38,7 @@ import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
-import org.apache.spark.sql.gluten.GlutenFallbackSuite
+import org.apache.spark.sql.gluten.{GlutenFallbackSuite, RasFallbackTagPropagationSuite}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources._
 
@@ -905,6 +905,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("cases when literal is max")
   enableSuite[GlutenXPathFunctionsSuite]
   enableSuite[GlutenFallbackSuite]
+  enableSuite[RasFallbackTagPropagationSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]
   enableSuite[GlutenSparkSessionExtensionSuite]
