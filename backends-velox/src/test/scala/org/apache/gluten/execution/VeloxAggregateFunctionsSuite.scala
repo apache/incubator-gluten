@@ -53,10 +53,9 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   }
 
   test("count") {
-    val df =
-      runQueryAndCompare("select count(*) from lineitem where l_partkey in (1552, 674, 1062)") {
-        checkGlutenOperatorMatch[HashAggregateExecTransformer]
-      }
+    runQueryAndCompare("select count(*) from lineitem where l_partkey in (1552, 674, 1062)") {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
     runQueryAndCompare("select count(l_quantity), count(distinct l_partkey) from lineitem") {
       df =>
         {
@@ -70,7 +69,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   }
 
   test("avg") {
-    val df = runQueryAndCompare("select avg(l_partkey) from lineitem where l_partkey < 1000") {
+    runQueryAndCompare("select avg(l_partkey) from lineitem where l_partkey < 1000") {
       checkGlutenOperatorMatch[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select avg(l_quantity), count(distinct l_partkey) from lineitem") {
@@ -215,7 +214,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   }
 
   test("group sets") {
-    val result = runQueryAndCompare(
+    runQueryAndCompare(
       "select l_orderkey, l_partkey, sum(l_suppkey) from lineitem " +
         "where l_orderkey < 3 group by ROLLUP(l_orderkey, l_partkey) " +
         "order by l_orderkey, l_partkey ") { _ => }

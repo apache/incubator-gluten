@@ -94,9 +94,9 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
               val plan = df.queryExecution.executedPlan
               val fileScan = collect(plan) { case s: FileSourceScanExecTransformer => s }
               assert(fileScan.size == 1)
-              val rootPaths = fileScan(0).getRootPathsInternal
+              val rootPaths = fileScan.head.getRootPathsInternal
               assert(rootPaths.length == 1)
-              assert(rootPaths(0).startsWith("file:/"))
+              assert(rootPaths.head.startsWith("file:/"))
               assert(
                 VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
                   rootPaths.toArray))
@@ -107,7 +107,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
       VeloxBackendSettings.distinctRootPaths(
         Seq("file:/test_path/", "test://test/s", "test://test1/s"))
     assert(filteredRootPath.length == 1)
-    assert(filteredRootPath(0).startsWith("test://"))
+    assert(filteredRootPath.head.startsWith("test://"))
     assert(
       VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
         Array("file:/test_path/")))
