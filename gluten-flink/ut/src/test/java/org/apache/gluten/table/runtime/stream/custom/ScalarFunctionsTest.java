@@ -226,4 +226,18 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     query = "select b + e as x from tblDecimal where a > 0";
     runAndCheck(query, Arrays.asList("+I[2.0]", "+I[5.0]", "+I[7.0]"));
   }
+
+  @Test
+  void testIn() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, 1L, "2025-06-24 10:00:01", "1991-01-01 00:00:01"),
+            Row.of(2, 2L, "2025-06-24 10:00:02", "1991-01-01 00:00:02"),
+            Row.of(3, 3L, "2025-06-24 10:00:03", "1991-01-01 00:00:03"));
+    createSimpleBoundedValuesTable("tblIn", "a int, b bigint, c string, d string", rows);
+    String query = "select d from tblIn where a in(1,2)";
+    runAndCheck(query, Arrays.asList("+I[1991-01-01 00:00:01]", "+I[1991-01-01 00:00:02]"));
+    query = "select b from tblIn where c in('2025-06-24 10:00:02', '2025-06-24 10:00:03')";
+    runAndCheck(query, Arrays.asList("+I[2]", "+I[3]"));
+  }
 }
