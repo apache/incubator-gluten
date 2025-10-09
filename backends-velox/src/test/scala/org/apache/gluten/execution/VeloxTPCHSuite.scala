@@ -92,6 +92,7 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
         case "32" => true
         case "33" => true
         case "34" => true
+        case "35" => true
         case _ => false
       }
     )

@@ -685,4 +685,12 @@ object VeloxConfig extends ConfigRegistry {
       .doc("Maps table field names to file field names using names, not indices for Parquet files.")
       .booleanConf
       .createWithDefault(true)
+
+  val VELOX_MAX_COMPILED_REGEXES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes")
+      .doc(
+        "Controls maximum number of compiled regular expression patterns per function " +
+          "instance per thread of execution.")
+      .intConf
+      .createWithDefault(100)
 }
