@@ -1,0 +1,61 @@
+{
+    "relations": [
+        {
+            "root": {
+                "input": {
+                    "read": {
+                        "common": {
+                            "direct": {}
+                        },
+                        "baseSchema": {
+                            "names": [
+                                "receivable_amt_month",
+                                "avg_poi_price_month"
+                            ],
+                            "struct": {
+                                "types": [
+                                    {
+                                        "i64": {
+                                            "nullability": "NULLABILITY_NULLABLE"
+                                        }
+                                    },
+                                    {
+                                        "decimal": {
+                                            "scale": "2",
+                                            "precision": "10",
+                                            "nullability": "NULLABILITY_NULLABLE"
+                                        }
+                                    }
+                                ]
+                            },
+                            "partitionColumns": {
+                                "columnType": [
+                                    "NORMAL_COL",
+                                    "NORMAL_COL"
+                                ]
+                            }
+                        },
+                        "localFiles": {
+                            "items": [
+                                {
+                                    "uriFile": "file:///mnt/DP_disk1/tpch_date_10/lineitem/part-00003-384769b0-b9d4-4ee6-a4a8-89bc01661f71-c000.snappy.parquet",
+                                    "length": "12212684",
+                                    "parquet": {}
+                                },
+                                {
+                                    "uriFile": "file:///mnt/DP_disk1/tpch_date_10/lineitem/part-00199-384769b0-b9d4-4ee6-a4a8-89bc01661f71-c000.snappy.parquet",
+                                    "length": "12211615",
+                                    "parquet": {}
+                                }
+                            ]
+                        }
+                    }
+                },
+                "names": [
+                    "receivable_amt_month#0",
+                    "avg_poi_price_month#1"
+                ]
+            }
+        }
+    ]
+}

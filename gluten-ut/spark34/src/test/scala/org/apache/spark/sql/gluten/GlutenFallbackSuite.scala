@@ -120,7 +120,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
 
       val id = runExecution("SELECT * FROM t1 FULL OUTER JOIN t2")
       val execution = glutenStore.execution(id)
-      if (BackendTestUtils.isVeloxBackendLoaded()) {
+      if (BackendTestUtils.isVeloxBackendLoaded() || BackendTestUtils.isBoltBackendLoaded()) {
         assert(execution.get.numFallbackNodes == 0)
       } else {
         assert(execution.get.numFallbackNodes == 2)

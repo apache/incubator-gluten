@@ -1,0 +1,84 @@
+name: gluten-ci-pipeline
+trigger:
+  change:
+    types:
+      - create
+      - push
+    notification:
+      when: [ success, failure ]
+  cron:
+    notification:
+      when: [ success, failure ]
+jobs:
+  gluten-cpp-ut:
+    name: Gluten CPP UT
+    runs-on:
+      spec: m1.8xlarge
+    image: hub.byted.org/compile/bolt_compile_img:1.0.0.27
+    timeout: 240
+    envs:
+      CCACHE_REMOTE_STORAGE: "redis://bolt-ccache-redis.byted.org:6667"
+      CCACHE_DIR: "/root/.ccache"
+      CCACHE_MAXSIZE: "100G"
+      CCACHE_REDIS_TLS: "1"
+      CCACHE_REDIS_TLS_CA_FILE: "/opt/redis/certs/ca.crt"
+      CCACHE_REDIS_TLS_CERT_FILE: "/opt/redis/certs/redis-client.crt"
+      CCACHE_REDIS_TLS_KEY_FILE: "/opt/redis/certs/redis-client.key"
+    steps:
+      - id: cache
+        uses: actions/cache
+        inputs:
+          key: x86-${{month_of_year()}}
+          paths:
+            - /root/.ccache/
+            - /root/.m2/repository/
+      - name: gluten-cpp-ut
+        continue-on-error: true
+        commands:
+          - export SPARK_LOCAL_HOSTNAME=localhost
+          - conan remote remove bolt-dev
+          - conan remote login test bolt -p Bolt2023!
+          - git clone git@code.byted.org:dp/bolt-oss.git --single-branch --depth 1 bolt_src 2>&1 >> ci_log.txt
+          - cd bolt_src && make release_spark_with_test && make install 2>&1 >> ../ci_log.txt && cd ..
+          - make cpp-test-release  2>&1 >> ci_log.txt
+      - name: Upload Log
+        uses: actions/upload-artifact
+        inputs:
+          name: ci_log
+          path: ci_log.txt
+  make-jar:
+    name: Gluten BUILD JAR
+    runs-on:
+      spec: m1.8xlarge
+    image: hub.byted.org/compile/bolt_compile_img:1.0.0.27
+    timeout: 240
+    envs:
+      CCACHE_REMOTE_STORAGE: "redis://bolt-ccache-redis.byted.org:6667"
+      CCACHE_DIR: "/root/.ccache"
+      CCACHE_MAXSIZE: "100G"
+      CCACHE_REDIS_TLS: "1"
+      CCACHE_REDIS_TLS_CA_FILE: "/opt/redis/certs/ca.crt"
+      CCACHE_REDIS_TLS_CERT_FILE: "/opt/redis/certs/redis-client.crt"
+      CCACHE_REDIS_TLS_KEY_FILE: "/opt/redis/certs/redis-client.key"
+    steps:
+      - id: cache
+        uses: actions/cache
+        inputs:
+          key: x86-${{month_of_year()}}
+          paths:
+            - /root/.ccache/
+            - /root/.m2/repository/
+      - name: make-jar
+        continue-on-error: true
+        commands:
+          - export SPARK_LOCAL_HOSTNAME=localhost
+          - conan remote remove bolt-dev
+          - conan remote login test bolt -p Bolt2023!
+          - git clone git@code.byted.org:dp/bolt-oss.git --single-branch --depth 1 bolt_src 2>&1 >> ci_log.txt
+          - cd bolt_src && make release_spark && make install 2>&1 >> ../ci_log.txt && cd ..
+          - make release && make arrow && make jar_spark35 2>&1 >> ci_log.txt
+      - name: Upload Log
+        uses: actions/upload-artifact
+        inputs:
+          name: ci_log
+          path: ci_log.txt

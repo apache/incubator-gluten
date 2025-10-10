@@ -154,6 +154,32 @@ ClickHouse backend demonstrated an average speedup of 2.12x, with up to 3.48x sp
 
 <sub>Test environment: a 8-nodes AWS cluster with 1TB data, using Spark 3.1.1 as the baseline and with Gluten integrated into the same Spark version.</sub>
 
+### Bolt Backend
+#### Prerequisites
+* Linux operating system
+* GCC 10/11/12 or Clang 16
+* Conan 2
+
+Bolt adopts Conan as its package manager. Conan is an open-source, cross-platform package management tool.
+We provide dedicated scripts to assist developers in setting up and installing Bolt's dependencies.
+
+To install the recipes for Bolt and its third-party dependencies:
+```shell
+make bolt-recipe
+```
+
+To build bolt backend:
+```
+make release
+```
+Note that, the missing third-parties binaries will be built from source for the first time.
+
+To build gluten:
+
+```
+make jar_spark35
+```
+
 ## 8. Qualification Tool
 
 The [Qualification Tool](./tools/qualification-tool/README.md) is a utility to analyze Spark event log files and assess the compatibility and performance of SQL workloads with Gluten. This tool helps users understand how their workloads can benefit from Gluten.

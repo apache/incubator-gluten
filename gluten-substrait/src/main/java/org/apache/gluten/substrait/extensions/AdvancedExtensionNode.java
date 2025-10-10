@@ -50,4 +50,12 @@ public class AdvancedExtensionNode implements Serializable {
     }
     return extensionBuilder.build();
   }
+
+  public Any getOptimization() {
+    return optimization;
+  }
+
+  public Any getEnhancement() {
+    return enhancement;
+  }
 }

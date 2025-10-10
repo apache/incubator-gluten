@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.FileSourceScanExecShim
+import org.apache.spark.sql.execution.adaptive.InputStats
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
@@ -47,7 +48,8 @@ case class FileSourceScanExecTransformer(
     override val optionalNumCoalescedBuckets: Option[Int],
     override val dataFilters: Seq[Expression],
     override val tableIdentifier: Option[TableIdentifier],
-    override val disableBucketedScan: Boolean = false)
+    override val disableBucketedScan: Boolean = false,
+    inputStats: Option[InputStats] = None)
   extends FileSourceScanExecTransformerBase(
     relation,
     output,
@@ -58,6 +60,10 @@ case class FileSourceScanExecTransformer(
     dataFilters,
     tableIdentifier,
     disableBucketedScan) {
+
+  override def getInputStats: Option[InputStats] = {
+    inputStats
+  }
 
   override def doCanonicalize(): FileSourceScanExecTransformer = {
     FileSourceScanExecTransformer(
@@ -71,7 +77,8 @@ case class FileSourceScanExecTransformer(
       optionalNumCoalescedBuckets,
       QueryPlan.normalizePredicates(dataFilters, output),
       None,
-      disableBucketedScan
+      disableBucketedScan,
+      inputStats
     )
   }
 }

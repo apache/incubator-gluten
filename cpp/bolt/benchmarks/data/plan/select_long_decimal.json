@@ -1,0 +1,66 @@
+{
+  "relations": [
+    {
+      "root": {
+        "input": {
+          "read": {
+            "common": {
+              "direct": {
+              }
+            },
+            "baseSchema": {
+              "names": [
+                "longitude",
+                "latitude"
+              ],
+              "struct": {
+                "types": [
+                  {
+                    "decimal": {
+                      "scale": "6",
+                      "precision": "20",
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "decimal": {
+                      "scale": "6",
+                      "precision": "20",
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  }
+                ]
+              },
+              "partitionColumns": {
+                "columnType": [
+                  "NORMAL_COL",
+                  "NORMAL_COL"
+                ]
+              }
+            },
+            "localFiles": {
+              "items": [
+                {
+                  "uriFile": "file:///mnt/DP_disk1/tpch_date_10/lineitem/part-00003-384769b0-b9d4-4ee6-a4a8-89bc01661f71-c000.snappy.parquet",
+                  "length": "12212684",
+                  "parquet": {
+                  }
+                },
+                {
+                  "uriFile": "file:///mnt/DP_disk1/tpch_date_10/lineitem/part-00199-384769b0-b9d4-4ee6-a4a8-89bc01661f71-c000.snappy.parquet",
+                  "length": "12211615",
+                  "parquet": {
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "names": [
+          "longitude#0",
+          "latitude#1"
+        ]
+      }
+    }
+  ]
+}

@@ -26,6 +26,7 @@ import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 
 import io.substrait.proto.SortField
@@ -53,7 +54,8 @@ case class SortExecTransformer(
 
   override def output: Seq[Attribute] = child.output
 
-  override def outputOrdering: Seq[SortOrder] = sortOrder
+  override def outputOrdering: Seq[SortOrder] =
+    this.getTagValue(SortExecTransformer.originalOrders).getOrElse(sortOrder)
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
@@ -123,6 +125,8 @@ case class SortExecTransformer(
 }
 
 object SortExecTransformer {
+  val originalOrders = new TreeNodeTag[Seq[SortOrder]]("__PULLOUT_ORIGINAL_ORDERS__")
+
   def transformSortDirection(order: SortOrder): Int = order match {
     case SortOrder(_, Ascending, NullsFirst, _) => 1
     case SortOrder(_, Ascending, NullsLast, _) => 2
