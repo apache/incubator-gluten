@@ -21,7 +21,6 @@ import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, CloseableCHCol
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -30,7 +29,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 
 class NativeFileScanColumnarRDD(
     @transient sc: SparkContext,
-    @transient private val inputPartitions: Seq[InputPartition],
+    @transient private val inputPartitions: Seq[Partition],
     numOutputRows: SQLMetric,
     numOutputBatches: SQLMetric,
     scanTime: SQLMetric)
@@ -100,12 +99,7 @@ class NativeFileScanColumnarRDD(
   }
 
   override def getPreferredLocations(split: Partition): Seq[String] = {
-    castPartition(split).inputPartition.preferredLocations()
-  }
-
-  private def castPartition(split: Partition): FirstZippedPartitionsPartition = split match {
-    case p: FirstZippedPartitionsPartition => p
-    case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
+    castNativePartition(split).preferredLocations()
   }
 
   override protected def getPartitions: Array[Partition] = {
