@@ -40,9 +40,10 @@ void Runtime::registerFactory(const std::string& kind, Runtime::Factory factory,
 Runtime* Runtime::create(
     const std::string& kind,
     MemoryManager* memoryManager,
+    int64_t taskId,
     const std::unordered_map<std::string, std::string>& sessionConf) {
   auto& factory = runtimeFactories().get(kind);
-  return factory(kind, std::move(memoryManager), sessionConf);
+  return factory(kind, std::move(memoryManager), sessionConf, taskId);
 }
 
 void Runtime::release(Runtime* runtime) {

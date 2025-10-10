@@ -17,6 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -40,7 +41,11 @@ class GlutenCachedTableSuite
     sql("CACHE TABLE testData")
     spark.table("testData").queryExecution.withCachedData.collect {
       case cached: InMemoryRelation =>
-        assert(cached.stats.sizeInBytes === 1132)
+        if (BackendTestUtils.isBoltBackendLoaded()) {
+          assert(cached.stats.sizeInBytes === 1116)
+        } else {
+          assert(cached.stats.sizeInBytes === 1132)
+        }
     }
   }
 

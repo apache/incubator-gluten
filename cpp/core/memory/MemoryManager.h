@@ -25,18 +25,22 @@ namespace gluten {
 
 class MemoryManager {
  public:
-  using Factory = std::function<MemoryManager*(const std::string& kind, std::unique_ptr<AllocationListener> listener)>;
+  using Factory = std::function<MemoryManager*(const std::string& kind, std::unique_ptr<AllocationListener> listener, const std::string& name)>;
   using Releaser = std::function<void(MemoryManager*)>;
   static void registerFactory(const std::string& kind, Factory factory, Releaser releaser);
-  static MemoryManager* create(const std::string& kind, std::unique_ptr<AllocationListener> listener);
+  static MemoryManager* create(const std::string& kind, std::unique_ptr<AllocationListener> listener, const std::string& name);
   static void release(MemoryManager*);
 
-  MemoryManager(const std::string& kind) : kind_(kind){};
+  MemoryManager(const std::string& kind, const std::string& name) : kind_(kind), name_(name) {};
 
   virtual ~MemoryManager() = default;
 
   virtual std::string kind() {
     return kind_;
+  }
+
+  std::string name() {
+    return name_;
   }
 
   // Get the default Arrow memory pool for this memory manager. This memory pool is held by the memory manager.
@@ -58,6 +62,7 @@ class MemoryManager {
 
  private:
   std::string kind_;
+  std::string name_;
 };
 
 } // namespace gluten

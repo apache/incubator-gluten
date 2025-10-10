@@ -99,6 +99,9 @@ constexpr bool kCudfEnabledDefault = true;
 const std::string kDebugCudf = "spark.gluten.sql.debug.cudf";
 const std::string kDebugCudfDefault = "false";
 
+// multi-thread spark
+const std::string kGlutenEnableParallel = "spark.gluten.parallel.enabled";
+
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);
 

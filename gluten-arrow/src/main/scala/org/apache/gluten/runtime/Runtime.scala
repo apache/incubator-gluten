@@ -21,6 +21,7 @@ import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.NativeMemoryManager
 import org.apache.gluten.utils.ConfigUtil
 
+import org.apache.spark.TaskContext
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf}
 import org.apache.spark.task.TaskResource
 
@@ -47,7 +48,8 @@ object Runtime {
       nmm.getHandle(),
       ConfigUtil.serialize(
         GlutenConfig
-          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
+          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs))),
+      TaskContext.get().taskAttemptId()
     )
 
     private val released: AtomicBoolean = new AtomicBoolean(false)

@@ -227,7 +227,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq(),
-      enableCudf: Boolean = false): Iterator[ColumnarBatch] = {
+      enableCudf: Boolean = false,
+      wsContext: WholeStageTransformContext): Iterator[ColumnarBatch] = {
     assert(
       inputPartition.isInstanceOf[GlutenPartition],
       "Velox backend only accept GlutenPartition.")

@@ -22,11 +22,12 @@ import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
-import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
+import org.apache.gluten.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.adaptive.InputStats
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
@@ -56,6 +57,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
 
   /** Returns the file format properties. */
   def getProperties: Map[String, String] = Map.empty
+
+  def getInputStats: Option[InputStats] = Option.empty
 
   /** Returns the split infos that will be processed by the underlying native engine. */
   override def getSplitInfos: Seq[SplitInfo] = {
@@ -156,6 +159,13 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))
+    getInputStats.foreach(
+      inputStats => {
+        // scalastyle:off println
+        logInfo(s"hit scan inputStats with $inputStats")
+        // scalastyle:on println
+        readNode.asInstanceOf[ReadRelNode].setInputStats(inputStats)
+      })
     TransformContext(output, readNode)
   }
 }

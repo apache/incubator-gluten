@@ -66,17 +66,24 @@ gluten::Runtime* gluten::getRuntime(JNIEnv* env, jobject runtimeAware) {
   return ctx;
 }
 
-std::unique_ptr<gluten::JniColumnarBatchIterator>
-gluten::makeJniColumnarBatchIterator(JNIEnv* env, jobject jColumnarBatchItr, gluten::Runtime* runtime) {
-  return std::make_unique<JniColumnarBatchIterator>(env, jColumnarBatchItr, runtime);
+std::unique_ptr<gluten::JniColumnarBatchIterator> gluten::makeJniColumnarBatchIterator(
+    JNIEnv* env,
+    jobject jColumnarBatchItr,
+    gluten::Runtime* runtime,
+    bool parallelEnabled) {
+  return std::make_unique<JniColumnarBatchIterator>(env, jColumnarBatchItr, runtime, parallelEnabled);
 }
 
 gluten::JniColumnarBatchIterator::JniColumnarBatchIterator(
     JNIEnv* env,
     jobject jColumnarBatchItr,
     Runtime* runtime,
+    bool parallelEnabled,
     std::optional<int32_t> iteratorIndex)
-    : runtime_(runtime), iteratorIndex_(iteratorIndex), shouldDump_(runtime_->getDumper() != nullptr) {
+    : runtime_(runtime),
+      parallelEnabled_{parallelEnabled},
+      iteratorIndex_(iteratorIndex),
+      shouldDump_(runtime_->getDumper() != nullptr) {
   // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
   if (env->GetJavaVM(&vm_) != JNI_OK) {
     std::string errorMessage = "Unable to get JavaVM instance";
@@ -88,6 +95,19 @@ gluten::JniColumnarBatchIterator::JniColumnarBatchIterator(
       getMethodIdOrError(env, serializedColumnarBatchIteratorClass_, "hasNext", "()Z");
   serializedColumnarBatchIteratorNext_ = getMethodIdOrError(env, serializedColumnarBatchIteratorClass_, "next", "()J");
   jColumnarBatchItr_ = env->NewGlobalRef(jColumnarBatchItr);
+
+  // [multi-thread spark]
+  if (parallelEnabled_) {
+    // get a global reference to contextClassLoader
+    getContextClassLoader(env);
+    // Get Spark TaskContext
+    getTaskContext(env);
+    // get a global reference to TaskResources class to reduce overhead of loading it repeatedly
+    if (jclass localClass = env->FindClass("org/apache/spark/util/TaskResources")) {
+      jtaskResourcesClass_ = reinterpret_cast<jclass>(env->NewGlobalRef(localClass));
+      env->DeleteLocalRef(localClass); // Release the local reference
+    }
+  }
 }
 
 gluten::JniColumnarBatchIterator::~JniColumnarBatchIterator() {
@@ -95,10 +115,23 @@ gluten::JniColumnarBatchIterator::~JniColumnarBatchIterator() {
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
   env->DeleteGlobalRef(jColumnarBatchItr_);
   env->DeleteGlobalRef(serializedColumnarBatchIteratorClass_);
+  if (parallelEnabled_) {
+    env->DeleteGlobalRef(jSparkTaskContext_);
+    env->DeleteGlobalRef(jtaskResourcesClass_);
+    env->DeleteGlobalRef(jContextClassLoader_);
+  }
   vm_->DetachCurrentThread();
 }
 
 std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::next() {
+  JNIEnv* env = nullptr;
+  attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+  // multi-thread spark: set taskContext & classLoader upon thread switch
+  if (parallelEnabled_) {
+    setTaskContext(env);
+    setClassLoader(env);
+  }
+
   if (shouldDump_ && dumpedIteratorReader_ == nullptr) {
     GLUTEN_CHECK(iteratorIndex_.has_value(), "iteratorIndex_ should not be null");
 

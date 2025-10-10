@@ -353,7 +353,9 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         wsCtx.substraitContext.registeredJoinParams,
         wsCtx.substraitContext.registeredAggregationParams
       ),
-      wsCtx.enableCudf
+      wsCtx.enableCudf,
+      wsCtx,
+      inputPartitions.length
     )
 
     SoftAffinity.updateFilePartitionLocations(allInputPartitions, rdd.id)
@@ -456,7 +458,8 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
           wsCtx.substraitContext.registeredJoinParams,
           wsCtx.substraitContext.registeredAggregationParams
         ),
-        materializeInput
+        materializeInput,
+        inputRDDs.getPartitionLength
       )
     }
   }
