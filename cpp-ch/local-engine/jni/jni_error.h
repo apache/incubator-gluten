@@ -62,27 +62,4 @@ private:
 };
 //
 
-#define LOCAL_ENGINE_JNI_METHOD_START \
-    try \
-    {
-#define LOCAL_ENGINE_JNI_METHOD_END(env, ret) \
-    } \
-    catch (DB::Exception & e) \
-    { \
-        local_engine::JniErrorsGlobalState::instance().throwException(env, e); \
-        return ret; \
-    } \
-    catch (std::exception & e) \
-    { \
-        local_engine::JniErrorsGlobalState::instance().throwException(env, e); \
-        return ret; \
-    } \
-    catch (...) \
-    { \
-        DB::WriteBufferFromOwnString ostr; \
-        auto trace = boost::stacktrace::stacktrace(); \
-        boost::stacktrace::detail::to_string(&trace.as_vector()[0], trace.size()); \
-        local_engine::JniErrorsGlobalState::instance().throwRuntimeException(env, "Unknown Exception", ostr.str().c_str()); \
-        return ret; \
-    }
 }
