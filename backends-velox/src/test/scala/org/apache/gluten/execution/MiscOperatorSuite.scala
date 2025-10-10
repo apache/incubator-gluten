@@ -332,7 +332,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("group sets") {
-    val result = runQueryAndCompare(
+    runQueryAndCompare(
       "select l_orderkey, l_partkey, sum(l_suppkey) from lineitem " +
         "where l_orderkey < 3 group by ROLLUP(l_orderkey, l_partkey) " +
         "order by l_orderkey, l_partkey ") { _ => }
@@ -583,13 +583,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("union two tables") {
-    val df = runQueryAndCompare("""
-                                  |select count(orderkey) from (
-                                  | select l_orderkey as orderkey from lineitem
-                                  | union
-                                  | select o_orderkey as orderkey from orders
-                                  |);
-                                  |""".stripMargin) {
+    runQueryAndCompare("""
+                         |select count(orderkey) from (
+                         | select l_orderkey as orderkey from lineitem
+                         | union
+                         | select o_orderkey as orderkey from orders
+                         |);
+                         |""".stripMargin) {
       df =>
         {
           getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined)

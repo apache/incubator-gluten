@@ -123,7 +123,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
             case _: BroadcastHashJoinExecTransformerBase => true
             case _ => false
           }
-          assert(!columnarBhj.isDefined)
+          assert(columnarBhj.isEmpty)
 
           val vanillaBhj = find(plan) {
             case _: BroadcastHashJoinExec => true

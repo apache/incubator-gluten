@@ -53,7 +53,6 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
       """.stripMargin
       var totalMemory = Runtime.getRuntime().totalMemory()
       var freeMemory = Runtime.getRuntime().freeMemory()
-      val maxMemory = Runtime.getRuntime().maxMemory()
       // Ensure that the JVM memory is not too small to trigger dynamic off-heap sizing.
       while (!DynamicOffHeapSizingMemoryTarget.canShrinkJVMMemory(totalMemory, freeMemory)) {
         withSQLConf(("spark.gluten.enabled", "false")) {
