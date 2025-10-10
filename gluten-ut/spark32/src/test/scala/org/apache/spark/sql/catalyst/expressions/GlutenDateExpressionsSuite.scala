@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.util.DateTimeTestUtils._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{getZoneId, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DateType, IntegerType, LongType, StringType, TimestampNTZType, TimestampType}
+import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.sql.{Date, Timestamp}
@@ -473,6 +473,85 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
                 }
               }
           }
+      }
+    }
+  }
+
+  testGluten("months_between") {
+    val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+    for (zid <- outstandingZoneIds) {
+      withSQLConf(
+        SQLConf.SESSION_LOCAL_TIMEZONE.key -> zid.getId
+      ) {
+        val timeZoneId = Option(zid.getId)
+        sdf.setTimeZone(TimeZone.getTimeZone(zid))
+
+        checkEvaluation(
+          MonthsBetween(
+            Literal(new Timestamp(sdf.parse("1997-02-28 10:30:00").getTime)),
+            Literal(new Timestamp(sdf.parse("1996-10-30 00:00:00").getTime)),
+            Literal.TrueLiteral,
+            timeZoneId = timeZoneId
+          ),
+          3.94959677
+        )
+        checkEvaluation(
+          MonthsBetween(
+            Literal(new Timestamp(sdf.parse("1997-02-28 10:30:00").getTime)),
+            Literal(new Timestamp(sdf.parse("1996-10-30 00:00:00").getTime)),
+            Literal.FalseLiteral,
+            timeZoneId = timeZoneId
+          ),
+          3.9495967741935485
+        )
+
+        Seq(Literal.FalseLiteral, Literal.TrueLiteral).foreach {
+          roundOff =>
+            checkEvaluation(
+              MonthsBetween(
+                Literal(new Timestamp(sdf.parse("2015-01-30 11:52:00").getTime)),
+                Literal(new Timestamp(sdf.parse("2015-01-30 11:50:00").getTime)),
+                roundOff,
+                timeZoneId = timeZoneId
+              ),
+              0.0
+            )
+            checkEvaluation(
+              MonthsBetween(
+                Literal(new Timestamp(sdf.parse("2015-01-31 00:00:00").getTime)),
+                Literal(new Timestamp(sdf.parse("2015-03-31 22:00:00").getTime)),
+                roundOff,
+                timeZoneId = timeZoneId
+              ),
+              -2.0
+            )
+            checkEvaluation(
+              MonthsBetween(
+                Literal(new Timestamp(sdf.parse("2015-03-31 22:00:00").getTime)),
+                Literal(new Timestamp(sdf.parse("2015-02-28 00:00:00").getTime)),
+                roundOff,
+                timeZoneId = timeZoneId
+              ),
+              1.0
+            )
+        }
+        val t = Literal(Timestamp.valueOf("2015-03-31 22:00:00"))
+        val tnull = Literal.create(null, TimestampType)
+        checkEvaluation(MonthsBetween(t, tnull, Literal.TrueLiteral, timeZoneId = timeZoneId), null)
+        checkEvaluation(MonthsBetween(tnull, t, Literal.TrueLiteral, timeZoneId = timeZoneId), null)
+        checkEvaluation(
+          MonthsBetween(tnull, tnull, Literal.TrueLiteral, timeZoneId = timeZoneId),
+          null)
+        checkEvaluation(
+          MonthsBetween(t, t, Literal.create(null, BooleanType), timeZoneId = timeZoneId),
+          null)
+        checkConsistencyBetweenInterpretedAndCodegen(
+          (time1: Expression, time2: Expression, roundOff: Expression) =>
+            MonthsBetween(time1, time2, roundOff, timeZoneId = timeZoneId),
+          TimestampType,
+          TimestampType,
+          BooleanType
+        )
       }
     }
   }
