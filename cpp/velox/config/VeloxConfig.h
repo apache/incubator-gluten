@@ -60,6 +60,10 @@ const std::string kAbandonPartialAggregationMinPct =
 const std::string kAbandonPartialAggregationMinRows =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
 
+// hashmap build
+const std::string kAbandonBuildNoDupHashMinRows = "spark.gluten.velox.abandonbuild.noduphashminrows";
+const std::string kAbandonBuildNoDupHashMinPct = "spark.gluten.velox.abandonbuild.noduphashminpct";
+
 // execution
 const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems";
 const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
@@ -92,6 +96,8 @@ const uint64_t kVeloxMemReclaimMaxWaitMsDefault = 3600000; // 60min
 
 const std::string kHiveConnectorId = "test-hive";
 const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
+
+const std::string kExprMaxCompiledRegexes = "spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes";
 
 // memory cache
 const std::string kVeloxMemCacheSize = "spark.gluten.sql.columnar.backend.velox.memCacheSize";
@@ -175,9 +181,14 @@ const std::string kCudfMemoryResourceDefault =
 
 // Initial percent of GPU memory to allocate for memory resource for one thread
 const std::string kCudfMemoryPercent = "spark.gluten.sql.columnar.backend.velox.cudf.memoryPercent";
-const int32_t kCudfMemoryPercentDefault = 50;
+const std::string kCudfMemoryPercentDefault = "50";
 
 /// Preferred size of batches in bytes to be returned by operators.
 const std::string kVeloxPreferredBatchBytes = "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes";
+
+/// cudf
+const std::string kCudfEnableTableScan = "spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan";
+const bool kCudfEnableTableScanDefault = false;
+const std::string kCudfHiveConnectorId = "cudf-hive";
 
 } // namespace gluten

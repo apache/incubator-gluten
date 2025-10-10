@@ -22,7 +22,10 @@
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 #ifdef GLUTEN_ENABLE_GPU
+#include <cudf/io/types.hpp>
 #include <mutex>
+#include "velox/experimental/cudf/CudfConfig.h"
+#include "velox/experimental/cudf/connectors/hive/CudfHiveConnectorSplit.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
 
@@ -49,6 +52,8 @@ const std::string kStorageReadBytes = "storageReadBytes";
 const std::string kLocalReadBytes = "localReadBytes";
 const std::string kRamReadBytes = "ramReadBytes";
 const std::string kPreloadSplits = "readyPreloadedSplits";
+const std::string kDataSourceAddSplitWallNanos = "dataSourceAddSplitWallNanos";
+const std::string kDataSourceReadWallNanos = "dataSourceReadWallNanos";
 const std::string kNumWrittenFiles = "numWrittenFiles";
 const std::string kWriteIOTime = "writeIOWallNanos";
 
@@ -91,6 +96,12 @@ WholeStageResultIterator::WholeStageResultIterator(
   }
 #endif
 
+  auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
+  GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
+  fileSystem->mkdir(spillDir);
+  velox::common::SpillDiskOptions spillOpts{
+      .spillDirPath = spillDir, .spillDirCreated = true, .spillDirCreateCb = nullptr};
+
   // Create task instance.
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
@@ -104,14 +115,14 @@ WholeStageResultIterator::WholeStageResultIterator(
       std::move(planFragment),
       0,
       std::move(queryCtx),
-      velox::exec::Task::ExecutionMode::kSerial);
+      velox::exec::Task::ExecutionMode::kSerial,
+      /*consumer=*/velox::exec::Consumer{},
+      /*memoryArbitrationPriority=*/0,
+      /*spillDiskOpts=*/spillOpts,
+      /*onError=*/nullptr);
   if (!task_->supportSerialExecutionMode()) {
     throw std::runtime_error("Task doesn't support single threaded execution: " + planNode->toString());
   }
-  auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
-  GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
-  fileSystem->mkdir(spillDir);
-  task_->setSpillDirectory(spillDir);
 
   // Generate splits for all scan nodes.
   splits_.reserve(scanInfos.size());
@@ -129,14 +140,19 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
     const auto& metadataColumns = scanInfo->metadataColumns;
+    // Under the pre-condition that all the split infos has same partition column and format.
+    const auto canUseCudfConnector = scanInfo->canUseCudfConnector();
 
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
-      auto partitionColumn = partitionColumns[idx];
       auto metadataColumn = metadataColumns[idx];
       std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
-      constructPartitionColumns(partitionKeys, partitionColumn);
+      if (!partitionColumns.empty()) {
+        auto partitionColumn = partitionColumns[idx];
+        constructPartitionColumns(partitionKeys, partitionColumn);
+      }
+
       std::shared_ptr<velox::connector::ConnectorSplit> split;
       if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
         // Set Iceberg split.
@@ -157,8 +173,16 @@ WholeStageResultIterator::WholeStageResultIterator(
             std::unordered_map<std::string, std::string>(),
             properties[idx]);
       } else {
+        auto connectorId = kHiveConnectorId;
+#ifdef GLUTEN_ENABLE_GPU
+        if (canUseCudfConnector) {
+          connectorId = kCudfHiveConnectorId;
+          VELOX_CHECK_EQ(starts[idx], 0, "Not support split file");
+          VELOX_CHECK_EQ(lengths[idx], scanInfo->properties[idx]->fileSize, "Not support split file");
+        }
+#endif
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-            kHiveConnectorId,
+            connectorId,
             paths[idx],
             format,
             starts[idx],
@@ -248,8 +272,12 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::nextInternal() {
   if (numRows == 0) {
     return nullptr;
   }
-  for (auto& child : vector->children()) {
-    child->loadedVector();
+
+  {
+    ScopedTimer timer(&loadLazyVectorTime_);
+    for (auto& child : vector->children()) {
+      child->loadedVector();
+    }
   }
 
   return std::make_shared<VeloxColumnarBatch>(vector);
@@ -405,6 +433,8 @@ void WholeStageResultIterator::collectMetrics() {
 
   int metricIndex = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
+    metrics_->get(Metrics::kLoadLazyVectorTime)[metricIndex] = 0;
+
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       // Special handing for Filter over Project case. Filter metrics are
@@ -466,6 +496,10 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kRamReadBytes)[metricIndex] = runtimeMetric("sum", second->customStats, kRamReadBytes);
       metrics_->get(Metrics::kPreloadSplits)[metricIndex] =
           runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
+      metrics_->get(Metrics::kDataSourceAddSplitWallNanos)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kDataSourceAddSplitWallNanos);
+      metrics_->get(Metrics::kDataSourceReadWallNanos)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kDataSourceReadWallNanos);
       metrics_->get(Metrics::kNumWrittenFiles)[metricIndex] =
           runtimeMetric("sum", entry.second->customStats, kNumWrittenFiles);
       metrics_->get(Metrics::kPhysicalWrittenBytes)[metricIndex] = second->physicalWrittenBytes;
@@ -474,6 +508,9 @@ void WholeStageResultIterator::collectMetrics() {
       metricIndex += 1;
     }
   }
+
+  // Put the loadLazyVector time into the metrics of the last operator.
+  metrics_->get(Metrics::kLoadLazyVectorTime)[orderedNodeIds_.size() - 1] = loadLazyVectorTime_;
 
   // Populate the metrics with task stats for long running tasks.
   if (const int64_t collectTaskStatsThreshold =
@@ -593,6 +630,12 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =
         std::to_string(veloxCfg_->get<int32_t>(kVeloxSplitPreloadPerDriver, 2));
 
+    // hashtable build optimizations
+    configs[velox::core::QueryConfig::kAbandonBuildNoDupHashMinRows] =
+        std::to_string(veloxCfg_->get<int32_t>(kAbandonBuildNoDupHashMinRows, 100000));
+    configs[velox::core::QueryConfig::kAbandonBuildNoDupHashMinPct] =
+        std::to_string(veloxCfg_->get<int32_t>(kAbandonBuildNoDupHashMinPct, 0));
+
     // Disable driver cpu time slicing.
     configs[velox::core::QueryConfig::kDriverCpuTimeSliceLimitMs] = "0";
 
@@ -618,8 +661,11 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSparkJsonIgnoreNullFields] =
         std::to_string(veloxCfg_->get<bool>(kSparkJsonIgnoreNullFields, true));
 
+    configs[velox::core::QueryConfig::kExprMaxCompiledRegexes] =
+        std::to_string(veloxCfg_->get<int32_t>(kExprMaxCompiledRegexes, 100));
+
 #ifdef GLUTEN_ENABLE_GPU
-    configs[cudf_velox::kCudfEnabled] = std::to_string(veloxCfg_->get<bool>(kCudfEnabled, false));
+    configs[velox::cudf_velox::CudfConfig::kCudfEnabled] = std::to_string(veloxCfg_->get<bool>(kCudfEnabled, false));
 #endif
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {

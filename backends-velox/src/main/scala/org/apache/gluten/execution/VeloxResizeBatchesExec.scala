@@ -16,99 +16,40 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.iterator.Iterators
+import org.apache.gluten.backendsapi.velox.VeloxBatchType
+import org.apache.gluten.iterator.ClosableIterator
 import org.apache.gluten.utils.VeloxBatchResizer
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
 
 /**
  * An operator to resize input batches by appending the later batches to the one that comes earlier,
  * or splitting one batch to smaller ones.
- *
- * FIXME: Code duplication with ColumnarToColumnarExec.
  */
 case class VeloxResizeBatchesExec(
     override val child: SparkPlan,
     minOutputBatchSize: Int,
     maxOutputBatchSize: Int)
-  extends GlutenPlan
-  with UnaryExecNode {
+  extends ColumnarToColumnarExec(VeloxBatchType, VeloxBatchType) {
 
-  override lazy val metrics: Map[String, SQLMetric] = Map(
-    "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-    "selfTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to append / split batches")
-  )
+  override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
+    VeloxBatchResizer.create(minOutputBatchSize, maxOutputBatchSize, in.asJava).asScala
+  }
 
-  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
-
-  override def rowType0(): Convention.RowType = Convention.RowType.None
-
-  override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    val numInputRows = longMetric("numInputRows")
-    val numInputBatches = longMetric("numInputBatches")
-    val numOutputRows = longMetric("numOutputRows")
-    val numOutputBatches = longMetric("numOutputBatches")
-    val selfTime = longMetric("selfTime")
-
-    child.executeColumnar().mapPartitions {
-      in =>
-        // Append millis = Out millis - In millis.
-        val appendMillis = new AtomicLong(0L)
-        val appender = VeloxBatchResizer.create(
-          minOutputBatchSize,
-          maxOutputBatchSize,
-          Iterators
-            .wrap(in)
-            .collectReadMillis(inMillis => appendMillis.getAndAdd(-inMillis))
-            .create()
-            .map {
-              inBatch =>
-                numInputRows += inBatch.numRows()
-                numInputBatches += 1
-                inBatch
-            }
-            .asJava
-        )
-
-        val out = Iterators
-          .wrap(appender.asScala)
-          .protectInvocationFlow()
-          .collectReadMillis(outMillis => appendMillis.getAndAdd(outMillis))
-          .recyclePayload(_.close())
-          .recycleIterator {
-            appender.close()
-            selfTime += appendMillis.get()
-          }
-          .create()
-          .map {
-            outBatch =>
-              numOutputRows += outBatch.numRows()
-              numOutputBatches += 1
-              outBatch
-          }
-
-        out
+  override protected def closeIterator(out: Iterator[ColumnarBatch]): Unit = {
+    out.asJava match {
+      case c: ClosableIterator[ColumnarBatch] => c.close()
+      case _ =>
     }
   }
 
-  override def output: Seq[Attribute] = child.output
+  override protected def needRecyclePayload: Boolean = true
+
   override def outputPartitioning: Partitioning = child.outputPartitioning
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =

@@ -90,6 +90,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableOverwriteByExpression: Boolean = getConf(COLUMNAR_OVERWRIET_BY_EXPRESSION_ENABLED)
 
+  def enableOverwritePartitionsDynamic: Boolean =
+    getConf(COLUMNAR_OVERWRIET_PARTITIONS_DYNAMIC_ENABLED)
+
   def enableColumnarShuffledHashJoin: Boolean = getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
   def shuffledHashJoinOptimizeBuildSide: Boolean =
@@ -359,14 +362,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
     JavaUtils.byteStringAsBytes(conf.getConfString(SPARK_MAX_BROADCAST_TABLE_SIZE, "8GB"))
 }
 
-object GlutenConfig {
-  import SQLConf._
-
-  def buildConf(key: String): ConfigBuilder = ConfigBuilder(key)
-
-  def buildStaticConf(key: String): ConfigBuilder = {
-    ConfigBuilder(key).onCreate(_ => SQLConf.registerStaticConfigKey(key))
-  }
+object GlutenConfig extends ConfigRegistry {
 
   // Hive configurations.
   val SPARK_SQL_PARQUET_COMPRESSION_CODEC: String = "spark.sql.parquet.compression.codec"
@@ -487,7 +483,8 @@ object GlutenConfig {
     "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
     "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
     "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks",
-    "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes"
+    "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes",
+    "spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan"
   )
 
   /**
@@ -502,9 +499,11 @@ object GlutenConfig {
     nativeConfMap.putAll(conf.filter(e => nativeKeys.contains(e._1)).asJava)
 
     val keyWithDefault = ImmutableList.of(
-      (CASE_SENSITIVE.key, CASE_SENSITIVE.defaultValueString),
-      (IGNORE_MISSING_FILES.key, IGNORE_MISSING_FILES.defaultValueString),
-      (LEGACY_STATISTICAL_AGGREGATE.key, LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
+      (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
+      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
+      (
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
@@ -512,9 +511,9 @@ object GlutenConfig {
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
       (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
-      (MAP_KEY_DEDUP_POLICY.key, MAP_KEY_DEDUP_POLICY.defaultValueString),
-      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString),
-      (ANSI_ENABLED.key, ANSI_ENABLED.defaultValueString)
+      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
+      (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString),
+      (SQLConf.ANSI_ENABLED.key, SQLConf.ANSI_ENABLED.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     GlutenConfigUtil.mapByteConfValue(
@@ -530,11 +529,11 @@ object GlutenConfig {
       v => nativeConfMap.put(SPARK_SHUFFLE_FILE_BUFFER, (v * 1024).toString))
 
     conf
-      .get(LEGACY_TIME_PARSER_POLICY.key)
+      .get(SQLConf.LEGACY_TIME_PARSER_POLICY.key)
       .foreach(
         v =>
           nativeConfMap
-            .put(LEGACY_TIME_PARSER_POLICY.key, v.toUpperCase(Locale.ROOT)))
+            .put(SQLConf.LEGACY_TIME_PARSER_POLICY.key, v.toUpperCase(Locale.ROOT)))
 
     // Backend's dynamic session conf only.
     val confPrefix = prefixOf(backendName)
@@ -595,7 +594,7 @@ object GlutenConfig {
       ("spark.gluten.velox.awsSdkLogLevel", "FATAL"),
       ("spark.gluten.velox.s3UseProxyFromEnv", "false"),
       ("spark.gluten.velox.s3PayloadSigningPolicy", "Never"),
-      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
+      (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -608,10 +607,10 @@ object GlutenConfig {
       GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES.key,
       GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
       GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY,
-      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
+      SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       SPARK_REDACTION_REGEX,
-      LEGACY_TIME_PARSER_POLICY.key,
-      LEGACY_STATISTICAL_AGGREGATE.key,
+      SQLConf.LEGACY_TIME_PARSER_POLICY.key,
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
       COLUMNAR_CUDF_ENABLED.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
@@ -864,6 +863,12 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_OVERWRIET_PARTITIONS_DYNAMIC_ENABLED =
+    buildConf("spark.gluten.sql.columnar.overwritePartitionsDynamic")
+      .doc("Enable or disable columnar v2 command overwrite partitions dynamic.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_PREFER_STREAMING_AGGREGATE =
     buildConf("spark.gluten.sql.columnar.preferStreamingAggregate")
       .doc(
@@ -963,7 +968,7 @@ object GlutenConfig {
       .createWithDefault(100000)
 
   val COLUMNAR_TABLE_CACHE_ENABLED =
-    buildConf("spark.gluten.sql.columnar.tableCache")
+    buildStaticConf("spark.gluten.sql.columnar.tableCache")
       .doc("Enable or disable columnar table cache.")
       .booleanConf
       .createWithDefault(false)

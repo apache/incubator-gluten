@@ -94,12 +94,10 @@ const std::string kSparkLegacyStatisticalAggregate = "spark.sql.legacy.statistic
 const std::string kSparkJsonIgnoreNullFields = "spark.sql.jsonGenerator.ignoreNullFields";
 
 // cudf
-#ifdef GLUTEN_ENABLE_GPU
 const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";
-const bool kCudfEnabledDefault = "true";
+constexpr bool kCudfEnabledDefault = true;
 const std::string kDebugCudf = "spark.gluten.sql.debug.cudf";
-const bool kDebugCudfDefault = "false";
-#endif
+const std::string kDebugCudfDefault = "false";
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);

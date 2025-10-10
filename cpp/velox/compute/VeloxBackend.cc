@@ -28,6 +28,8 @@
 #include "utils/qat/QatCodec.h"
 #endif
 #ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/CudfConfig.h"
+#include "velox/experimental/cudf/connectors/hive/CudfHiveConnector.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
 
@@ -165,11 +167,16 @@ void VeloxBackend::init(
 
 #ifdef GLUTEN_ENABLE_GPU
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-    FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
-    FLAGS_velox_cudf_memory_resource = backendConf_->get<std::string>(kCudfMemoryResource, kCudfMemoryResourceDefault);
-    auto& options = velox::cudf_velox::CudfOptions::getInstance();
-    options.memoryPercent = backendConf_->get<int32_t>(kCudfMemoryPercent, kCudfMemoryPercentDefault);
-    velox::cudf_velox::registerCudf(options);
+    std::unordered_map<std::string, std::string> options = {
+        {velox::cudf_velox::CudfConfig::kCudfEnabled, "true"},
+        {velox::cudf_velox::CudfConfig::kCudfDebugEnabled, backendConf_->get(kDebugCudf, kDebugCudfDefault)},
+        {velox::cudf_velox::CudfConfig::kCudfMemoryResource,
+         backendConf_->get(kCudfMemoryResource, kCudfMemoryResourceDefault)},
+        {velox::cudf_velox::CudfConfig::kCudfMemoryPercent,
+         backendConf_->get(kCudfMemoryPercent, kCudfMemoryPercentDefault)}};
+    auto& cudfConfig = velox::cudf_velox::CudfConfig::getInstance();
+    cudfConfig.initialize(std::move(options));
+    velox::cudf_velox::registerCudf();
   }
 #endif
 
@@ -306,6 +313,14 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
   }
   velox::connector::registerConnector(
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
+#ifdef GLUTEN_ENABLE_GPU
+  if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
+      backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    facebook::velox::cudf_velox::connector::hive::CudfHiveConnectorFactory factory;
+    auto hiveConnector = factory.newConnector(kCudfHiveConnectorId, hiveConf, ioExecutor_.get());
+    facebook::velox::connector::registerConnector(hiveConnector);
+  }
+#endif
 }
 
 void VeloxBackend::initUdf() {

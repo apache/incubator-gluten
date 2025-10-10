@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.config
 
-import org.apache.gluten.config.GlutenConfig.{buildConf, buildStaticConf, COLUMNAR_MAX_BATCH_SIZE}
-
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
@@ -46,7 +44,7 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   }
 
   def veloxResizeBatchesShuffleInputOutputRange: ResizeRange = {
-    val standardSize = getConf(COLUMNAR_MAX_BATCH_SIZE)
+    val standardSize = getConf(GlutenConfig.COLUMNAR_MAX_BATCH_SIZE)
     val defaultMinSize: Int = (0.25 * standardSize).toInt.max(1)
     val minSize = getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_OUTPUT_MIN_SIZE)
       .getOrElse(defaultMinSize)
@@ -80,11 +78,12 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(ENABLE_ENHANCED_FEATURES)
 
   def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
+
+  def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
 }
 
-object VeloxConfig {
-
-  def get: VeloxConfig = {
+object VeloxConfig extends ConfigRegistry {
+  override def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
   }
 
@@ -267,15 +266,19 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput")
-      .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
-        s"The default minimum output batch size is equal to 0.25 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
+      .doc(
+        s"If true, combine small columnar batches together before sending to shuffle. " +
+          s"The default minimum output batch size is equal to 0.25 * " +
+          s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_OUTPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleOutput")
-      .doc(s"If true, combine small columnar batches together right after shuffle read. " +
-        s"The default minimum output batch size is equal to 0.25 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
+      .doc(
+        s"If true, combine small columnar batches together right after shuffle read. " +
+          s"The default minimum output batch size is equal to 0.25 * " +
+          s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(false)
 
@@ -529,6 +532,20 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_ROWS =
+    buildConf("spark.gluten.velox.abandonbuild.noduphashminrows")
+      .experimental()
+      .doc("Experimental: abandon hashmap build if duplicated rows more than this number.")
+      .intConf
+      .createWithDefault(100000)
+
+  val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_PCT =
+    buildConf("spark.gluten.velox.abandonbuild.noduphashminpct")
+      .experimental()
+      .doc("Experimental: abandon hashmap build if duplicated rows are more than this percentile.")
+      .doubleConf
+      .createWithDefault(0)
+
   val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
     .doc("Enable query tracing flag.")
     .booleanConf
@@ -609,6 +626,12 @@ object VeloxConfig {
       .intConf
       .createWithDefault(50)
 
+  val CUDF_ENABLE_TABLE_SCAN =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan")
+      .doc("Enable cudf table scan")
+      .booleanConf
+      .createWithDefault(false)
+
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
       .internal()
@@ -646,4 +669,12 @@ object VeloxConfig {
       .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("10MB")
+
+  val VELOX_MAX_COMPILED_REGEXES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes")
+      .doc(
+        "Controls maximum number of compiled regular expression patterns per function " +
+          "instance per thread of execution.")
+      .intConf
+      .createWithDefault(100)
 }

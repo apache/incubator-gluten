@@ -278,6 +278,18 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     assert(metrics("ramReadBytes").value == 0)
   }
 
+  test("Velox datasource metrics") {
+    val df = spark.sql(s"SELECT * FROM metrics_t1")
+    val scans = collect(df.queryExecution.executedPlan) {
+      case scan: FileSourceScanExecTransformer => scan
+    }
+    df.collect()
+    assert(scans.length === 1)
+    val metrics = scans.head.metrics
+    assert(metrics("dataSourceReadTime").value > 0)
+    assert(metrics("dataSourceAddSplitTime").value > 0)
+  }
+
   test("test nested loop join metrics") {
     withSQLConf() {
       runQueryAndCompare(

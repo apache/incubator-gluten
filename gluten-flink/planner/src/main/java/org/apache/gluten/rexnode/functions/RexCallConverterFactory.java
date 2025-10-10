@@ -43,13 +43,15 @@ public class RexCallConverterFactory {
               Arrays.asList(
                   () -> new BasicArithmeticOperatorRexCallConverter("greaterthan"),
                   () -> new StringCompareRexCallConverter("greaterthan"),
-                  () -> new StringNumberCompareRexCallConverter("greaterthan"))),
+                  () -> new StringNumberCompareRexCallConverter("greaterthan"),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("greaterthan"))),
           Map.entry(
               "<",
               Arrays.asList(
                   () -> new BasicArithmeticOperatorRexCallConverter("lessthan"),
                   () -> new StringCompareRexCallConverter("lessthan"),
-                  () -> new StringNumberCompareRexCallConverter("lessthan"))),
+                  () -> new StringNumberCompareRexCallConverter("lessthan"),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("lessthan"))),
           Map.entry(
               "=",
               Arrays.asList(
@@ -80,6 +82,7 @@ public class RexCallConverterFactory {
           Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
           Map.entry("SPLIT_INDEX", Arrays.asList(() -> new SplitIndexRexCallConverter())),
           Map.entry("SEARCH", Arrays.asList(() -> new DefaultRexCallConverter("in"))),
+          Map.entry("DATE_FORMAT", Arrays.asList(() -> new DefaultRexCallConverter("date_format"))),
           Map.entry(
               ">=",
               Arrays.asList(
