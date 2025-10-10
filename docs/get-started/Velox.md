@@ -247,12 +247,12 @@ When compiling the Gluten Java module, it's required to enable `celeborn` profil
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pceleborn -DskipTests
 ```
 
-Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath (usually add them into `$SPARK_HOME/jars`).
 
 - Celeborn: celeborn-client-spark-3-shaded_2.12-[celebornVersion].jar
-- Gluten: gluten-velox-bundle-spark3.x_2.12-xx_xx_xx-SNAPSHOT.jar (The bundled Gluten Jar. Make sure -Pceleborn is specified when it is built.)
+- Gluten: gluten-velox-bundle-spark3.x_2.12-xxx.jar (The bundled Gluten JAR built with the -Pceleborn profile specified)
 
-Currently to use Gluten following configurations are required in `spark-defaults.conf`
+Currently, to use Gluten, the following configurations are required in `spark-defaults.conf`
 
 ```
 spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
@@ -304,12 +304,12 @@ When compiling the Gluten Java module, it's required to enable `uniffle` profile
 mvn clean package -Pbackends-velox -Pspark-3.3 -Puniffle -DskipTests
 ```
 
-Then add the Uniffle and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+Then add the Uniffle and Spark Celeborn Client packages to your Spark application's classpath (usually add them into `$SPARK_HOME/jars`).
 
 - Uniffle: rss-client-spark3-shaded-[uniffleVersion].jar
-- Gluten: gluten-velox-bundle-spark3.x_2.12-xx_xx_xx-SNAPSHOT.jar (The bundled Gluten Jar. Make sure -Puniffle is specified when it is built.)
+- Gluten: gluten-velox-bundle-spark3.x_2.12-xxx.jar (The bundled Gluten JAR built with the -Puniffle profile specified)
 
-Currently to use Gluten following configurations are required in `spark-defaults.conf`
+Currently, to use Gluten, the following configurations are required in `spark-defaults.conf`
 
 ```
 spark.shuffle.manager org.apache.spark.shuffle.gluten.uniffle.UniffleShuffleManager
