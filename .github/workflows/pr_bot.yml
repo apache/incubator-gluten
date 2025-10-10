@@ -13,10 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Dev PR
+name: PR Bot
 
 on:
-
   pull_request_target:
     types:
       - opened
@@ -24,20 +23,32 @@ on:
       - synchronize
 
 jobs:
-  process:
-    name: Process
+  label:
+    name: label-pull-requests
     runs-on: ubuntu-latest
-    permissions: write-all
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          sync-labels: true
+
+  process:
+    name: link-referenced-issues
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - name: Comment Issues link
+      - name: Link referenced issues
         if: |
-          github.event_name == 'pull_request_target' &&
-            (github.event.action == 'opened' ||
-             github.event.action == 'edited')
+          github.event.action == 'opened' ||
+          github.event.action == 'edited'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const script = require(`${process.env.GITHUB_WORKSPACE}/.github/workflows/dev_cron/issues_link.js`);
+            const script = require(`${process.env.GITHUB_WORKSPACE}/.github/workflows/dev_cron/pr_issue_linker.js`);
             script({github, context});

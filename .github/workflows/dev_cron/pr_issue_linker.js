@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-function detectISSUESID(title) {
+function detectIssueID(title) {
   if (!title) {
     return null;
   }
@@ -23,48 +23,46 @@ function detectISSUESID(title) {
   if (!matched) {
     return null;
   }
-  const issues_number = matched[0].replace(/[^0-9]/ig,"");
-  return issues_number;
+  // Currently only consider one GitHub issue is referenced.
+  const issueID = matched[0].replace(/[^0-9]/ig, "");
+  return issueID;
 }
 
-async function haveComment(github, context, pullRequestNumber, body) {
-  const options = {
+async function appendToPRDescription(github, context, pullRequestNumber, issuesID) {
+  const issueURL = `https://github.com/apache/incubator-gluten/issues/${issuesID}`;
+  const issueReference = `#${issuesID}`
+
+  // Fetch the current PR description.
+  const { data: pullRequest } = await github.rest.pulls.get({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    issue_number: pullRequestNumber,
-    page: 1
-  };
-  while (true) {
-    const response = await github.rest.issues.listComments(options);
-    if (response.data.some(comment => comment.body === body)) {
-      return true;
-    }
-    if (!/;\s*rel="next"/.test(response.headers.link || "")) {
-      break;
-    }
-    options.page++;
-  }
-  return false;
-}
+    pull_number: pullRequestNumber
+  });
 
-async function commentISSUESURL(github, context, pullRequestNumber, issuesID) {
-  const issuesURL = `https://github.com/apache/incubator-gluten/issues/${issuesID}`;
-  if (await haveComment(github, context, pullRequestNumber, issuesURL)) {
+  const currentBody = pullRequest.body || "";
+
+  // Check if the issues URL or reference is already in the PR description.
+  if (currentBody.includes(issueURL) || currentBody.includes(issueReference)) {
     return;
   }
-  await github.rest.issues.createComment({
+
+  // Append the issues URL to the PR description.
+  const updatedBody = `${currentBody}\n\nRelated issue: ${issueReference}`;
+
+  // Update the PR description.
+  await github.rest.pulls.update({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    issue_number: pullRequestNumber,
-    body: issuesURL
+    pull_number: pullRequestNumber,
+    body: updatedBody
   });
 }
 
-module.exports = async ({github, context}) => {
+module.exports = async ({ github, context }) => {
   const pullRequestNumber = context.payload.number;
   const title = context.payload.pull_request.title;
-  const issuesID = detectISSUESID(title);
+  const issuesID = detectIssueID(title);
   if (issuesID) {
-    await commentISSUESURL(github, context, pullRequestNumber, issuesID);
+    await appendToPRDescription(github, context, pullRequestNumber, issuesID);
   }
 };
