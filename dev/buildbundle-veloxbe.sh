@@ -44,7 +44,7 @@ check_supported
 
 # SPARK_VERSION is defined in builddeps-veloxbe.sh
 if [ "$SPARK_VERSION" = "ALL" ]; then
-  for spark_version in 3.2 3.3 3.4 3.5 4.0
+  for spark_version in 3.5
   do
     build_for_spark $spark_version
   done
