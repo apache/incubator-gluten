@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{LeafExecNode, ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.joins.BaseJoinExec
 
 case class RewrittenNodeWall(originalChild: SparkPlan) extends LeafExecNode {
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
@@ -50,7 +51,7 @@ class RewriteSparkPlanRulesManager private (
     FallbackTags.maybeOffloadable(plan) && rewriteRules.exists(_.isRewritable(plan))
   }
 
-  private def getFallbackTagBack(rewrittenPlan: SparkPlan): Option[FallbackTag] = {
+  private def getRewriteNodeBack(rewrittenPlan: SparkPlan): SparkPlan = {
     // The rewritten plan may contain more nodes than origin, for now it should only be
     // `ProjectExec`.
     // TODO: Find a better approach than checking `p.isInstanceOf[ProjectExec]` which is not
@@ -59,7 +60,7 @@ class RewriteSparkPlanRulesManager private (
       case p if !p.isInstanceOf[ProjectExec] && !p.isInstanceOf[RewrittenNodeWall] => p
     }
     assert(target.size == 1)
-    FallbackTags.getOption(target.head)
+    target.head
   }
 
   private def applyRewriteRules(origin: SparkPlan): (SparkPlan, Option[String]) = {
@@ -99,10 +100,20 @@ class RewriteSparkPlanRulesManager private (
           origin
         } else {
           validateRule.apply(rewrittenPlan)
-          val tag = getFallbackTagBack(rewrittenPlan)
-          if (tag.isDefined) {
+          val rewriteNode = getRewriteNodeBack(rewrittenPlan)
+          val allFallbackTags = rewrittenPlan.collect {
+            case p if !p.isInstanceOf[RewrittenNodeWall] => FallbackTags.getOption(p)
+          }
+          if (FallbackTags.getOption(rewriteNode).isDefined) {
             // If the rewritten plan is still not transformable, return the original plan.
-            FallbackTags.add(origin, tag.get)
+            FallbackTags.add(origin, FallbackTags.getOption(rewriteNode).get)
+            origin
+          } else if (
+            rewriteNode.isInstanceOf[BaseJoinExec] && allFallbackTags.exists(_.isDefined)
+          ) {
+            // If the inserted projects for join is not transformable, return the original plan.
+            val reason = allFallbackTags.collect { case Some(s) => s.reason() }.mkString(", ")
+            FallbackTags.add(origin, FallbackTag.Converter.FromString.from(reason).get)
             origin
           } else {
             rewrittenPlan.transformUp {
