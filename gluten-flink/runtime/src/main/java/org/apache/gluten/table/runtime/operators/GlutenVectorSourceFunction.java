@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.table.runtime.operators;
 
-import org.apache.gluten.table.runtime.metrics.SourceTaskMetrics;
 import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
+import org.apache.gluten.table.runtime.metrics.SourceTaskMetrics;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
