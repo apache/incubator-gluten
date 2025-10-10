@@ -95,6 +95,9 @@ WholeStageResultIterator::WholeStageResultIterator(
     lock_.lock();
   }
 #endif
+  // register the hive connectors
+  std::call_once(
+      gluten::VeloxBackend::get()->regFlag, [&]() { gluten::VeloxBackend::get()->initConnector(veloxCfg_); });
 
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
   GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
@@ -124,10 +127,6 @@ WholeStageResultIterator::WholeStageResultIterator(
   if (!task_->supportSerialExecutionMode()) {
     throw std::runtime_error("Task doesn't support single threaded execution: " + planNode->toString());
   }
-
-  // register the hive connectors
-  std::call_once(
-      gluten::VeloxBackend::get()->regFlag, [&]() { gluten::VeloxBackend::get()->initConnector(veloxCfg_); });
 
   // Generate splits for all scan nodes.
   splits_.reserve(scanInfos.size());
