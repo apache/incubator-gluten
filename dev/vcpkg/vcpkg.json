@@ -50,7 +50,10 @@
         "protobuf",
         "benchmark",
         "icu",
-        "thrift",
+        "fizz",
+        "wangle",
+        "mvfst",
+        { "name": "fbthrift", "features": ["cpp2"]},
         "libstemmer",
         "geos"
       ]
@@ -113,6 +116,7 @@
   },
   "overrides": [
     { "name": "fmt", "version": "10.1.1" },
-    { "name": "xsimd", "version": "10.0.0" }
+    { "name": "xsimd", "version": "10.0.0" },
+    { "name": "fbthrift", "version": "2025.09.15.00"}
   ]
 }
