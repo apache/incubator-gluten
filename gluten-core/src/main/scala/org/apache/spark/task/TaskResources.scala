@@ -133,6 +133,11 @@ object TaskResources extends TaskListener with Logging {
     TaskContext.get() != null
   }
 
+  // multi-thread spark: allow setting Spark TaskContext from C++ side
+  def setTaskContext(tc: TaskContext): Unit = {
+    TaskContext.setTaskContext(tc)
+  }
+
   private def getTaskResourceRegistry(): TaskResourceRegistry = {
     if (!inSparkTask()) {
       throw new UnsupportedOperationException(

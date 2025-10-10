@@ -206,6 +206,12 @@ object BackendTestSettings {
         .getDeclaredConstructor()
         .newInstance()
         .asInstanceOf[BackendTestSettings]
+    } else if (BackendTestUtils.isBoltBackendLoaded()) {
+      Class
+        .forName("org.apache.gluten.utils.bolt.BoltTestSettings")
+        .getDeclaredConstructor()
+        .newInstance()
+        .asInstanceOf[BackendTestSettings]
     } else {
       throw new IllegalStateException()
     }

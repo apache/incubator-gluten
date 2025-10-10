@@ -323,6 +323,13 @@
       </properties>
     </profile>
     <profile>
+      <id>backends-bolt</id>
+      <properties>
+        <backend.type>bolt</backend.type>
+        <backend.home>${project.basedir}/../ep/build-bolt/build/bolt_ep</backend.home>
+      </properties>
+    </profile>
+    <profile>
       <id>backends-clickhouse</id>
       <properties>
         <backend.type>ch</backend.type>
