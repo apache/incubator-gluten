@@ -31,7 +31,7 @@ papermill tpc_workload.ipynb --inject-output-path -f params.yaml -p workoad tpcd
 
 Please refer to the Papermill documentation for additional usage details.
 
-We also provide a script [run_tpc_workload.sh](./run_tpc_workload.sh). This script wraps the Papermill command, automatically renaming the output notebook with a timestamp and application ID to prevent overwriting existing output files.
+We also provide a script [run-tpc-workload.sh](./run-tpc-workload.sh). This script wraps the Papermill command, automatically renaming the output notebook with a timestamp and application ID to prevent overwriting existing output files.
 
 ## Analyzing Performance Results
 

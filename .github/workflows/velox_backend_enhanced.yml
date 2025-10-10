@@ -42,7 +42,7 @@ env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   MVN_CMD: 'mvn -ntp'
   WGET_CMD: 'wget -nv'
-  SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  SETUP: 'bash .github/workflows/util/setup-helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
 
 concurrency:
@@ -229,7 +229,7 @@ jobs:
       - name: Prepare Spark Resources for Spark 3.5.5
         run: |
           rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
+          bash .github/workflows/util/install-spark-resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
