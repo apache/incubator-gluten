@@ -50,6 +50,7 @@ RUN set -ex; \
     ./install_spark_resources.sh 3.4; \
     ./install_spark_resources.sh 3.5; \
     ./install_spark_resources.sh 3.5-scala2.13; \
+    ./install_spark_resources.sh 4.0; \
     if [ "$(uname -m)" = "aarch64" ]; then \
         export CPU_TARGET="aarch64"; \
     fi; \
