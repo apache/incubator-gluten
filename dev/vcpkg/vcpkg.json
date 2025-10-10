@@ -117,6 +117,6 @@
   "overrides": [
     { "name": "fmt", "version": "10.1.1" },
     { "name": "xsimd", "version": "10.0.0" },
-    { "name": "fbthrift", "version": "2025.09.15.00"}
+    { "name": "fbthrift", "version": "2025.09.15"}
   ]
 }
