@@ -67,12 +67,12 @@ class SparkDirectoryUtil private (val roots: Array[String]) extends Logging {
 }
 
 object SparkDirectoryUtil extends Logging {
-  @volatile private var targetRoots: Array[String] = _
+  @volatile private var roots: Array[String] = _
   private lazy val INSTANCE: SparkDirectoryUtil = {
-    if (targetRoots == null) {
+    if (this.roots == null) {
       throw new IllegalStateException("SparkDirectoryUtil not initialized")
     }
-    new SparkDirectoryUtil(targetRoots)
+    new SparkDirectoryUtil(this.roots)
   }
 
   def init(conf: SparkConf): Unit = {
@@ -81,11 +81,11 @@ object SparkDirectoryUtil extends Logging {
   }
 
   private def init(roots: Array[String]): Unit = synchronized {
-    if (targetRoots == null) {
-      targetRoots = roots
-    } else if (targetRoots.toSet != roots.toSet) {
+    if (this.roots == null) {
+      this.roots = roots
+    } else if (this.roots.toSet != roots.toSet) {
       throw new IllegalArgumentException(
-        s"Reinitialize SparkDirectoryUtil with different root dirs: old: ${targetRoots
+        s"Reinitialize SparkDirectoryUtil with different root dirs: old: ${this.roots
             .mkString("Array(", ", ", ")")}, new: ${roots.mkString("Array(", ", ", ")")}"
       )
     }
