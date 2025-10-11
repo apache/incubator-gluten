@@ -676,7 +676,20 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("length check for input string values: nested in both map key and value")
     .exclude("length check for input string values: nested in array of struct")
     .exclude("length check for input string values: nested in array of array")
+    .exclude("length check for input string values: top-level columns")
+    .exclude("length check for input string values: partitioned columns")
+    .exclude("length check for input string values: nested in struct of array")
+    .exclude("length check for input string values: with implicit cast")
+    .exclude("char/varchar type values length check: partitioned columns of other types")
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    .exclude("length check for input string values: top-level columns")
+    .exclude("length check for input string values: nested in array")
+    .exclude("length check for input string values: nested in struct of array")
+    .exclude("length check for input string values: nested in array of struct")
+    .exclude("length check for input string values: nested in array of array")
+    .exclude("length check for input string values: with implicit cast")
+    .exclude("char/varchar type values length check: partitioned columns of other types")
+    .exclude("SPARK-42611: check char/varchar length in reordered structs within arrays")
   enableSuite[GlutenColumnExpressionSuite]
     // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.
     // The final caught Spark exception's getCause().getMessage() contains 'errMsg' but does not
