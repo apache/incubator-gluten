@@ -19,9 +19,9 @@ package org.apache.spark.sql.extension
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.FileSourceScanExecTransformerBase
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
@@ -47,16 +47,17 @@ case class TestFileSourceScanExecTransformer(
     dataFilters,
     tableIdentifier,
     disableBucketedScan) {
-  override def getPartitions: Seq[InputPartition] =
-    BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
-      relation,
-      requiredSchema,
-      selectedPartitions,
-      output,
-      bucketedScan,
-      optionalBucketSet,
-      optionalNumCoalescedBuckets,
-      disableBucketedScan)
+  override def getPartitions: Seq[Partition] =
+    BackendsApiManager.getTransformerApiInstance
+      .genPartitionSeq(
+        relation,
+        requiredSchema,
+        selectedPartitions,
+        output,
+        bucketedScan,
+        optionalBucketSet,
+        optionalNumCoalescedBuckets,
+        disableBucketedScan)
 
   override val nodeNamePrefix: String = "TestFile"
 }

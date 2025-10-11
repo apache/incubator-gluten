@@ -18,16 +18,16 @@ package org.apache.gluten.utils
 
 import org.apache.gluten.sql.shims.SparkShimLoader
 
+import org.apache.spark.Partition
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
 
 import org.apache.hadoop.fs.Path
 
-case class InputPartitionsUtil(
+case class PartitionsUtil(
     relation: HadoopFsRelation,
     requiredSchema: StructType,
     selectedPartitions: Array[PartitionDirectory],
@@ -38,15 +38,15 @@ case class InputPartitionsUtil(
     disableBucketedScan: Boolean)
   extends Logging {
 
-  def genInputPartitionSeq(): Seq[InputPartition] = {
+  def genPartitionSeq(): Seq[Partition] = {
     if (bucketedScan) {
-      genBucketedInputPartitionSeq()
+      genBucketedPartitionSeq()
     } else {
-      genNonBuckedInputPartitionSeq()
+      genNonBuckedPartitionSeq()
     }
   }
 
-  private def genNonBuckedInputPartitionSeq(): Seq[InputPartition] = {
+  private def genNonBuckedPartitionSeq(): Seq[Partition] = {
     val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
     val maxSplitBytes =
       FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
@@ -99,7 +99,7 @@ case class InputPartitionsUtil(
     FilePartition.getFilePartitions(relation.sparkSession, splitFiles, maxSplitBytes)
   }
 
-  private def genBucketedInputPartitionSeq(): Seq[InputPartition] = {
+  private def genBucketedPartitionSeq(): Seq[Partition] = {
     val bucketSpec = relation.bucketSpec.get
     logInfo(s"Planning with ${bucketSpec.numBuckets} buckets")
     val filesGroupedToBuckets =
