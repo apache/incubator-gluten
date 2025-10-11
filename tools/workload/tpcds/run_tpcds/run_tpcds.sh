@@ -32,9 +32,9 @@ cat tpcds_parquet.scala | ${SPARK_HOME}/bin/spark-shell \
   --conf spark.executor.memoryOverhead=2g \
   --conf spark.driver.maxResultSize=2g
 
-  # If there are some "*.so" libs dependencies issues on some specific Distros,
-  # try to enable spark.gluten.loadLibFromJar and build your own gluten-thirdparty-lib Jar.
+  # If issues with missing shared dependency libraries are reported at runtime,
+  # build a separate Gluten JAR with the third-party shared libraries included,
+  # and then set the following configuration to enable Gluten to load the shared libraries.
   # e.g.
   #   --conf spark.gluten.loadLibFromJar=true \
-  #   --jars /PATH_TO_GLUTEN_HOME/package/target/thirdparty-lib/gluten-thirdparty-lib-ubuntu-22.04-x86_64.jar,
-  #          /PATH_TO_GLUTEN_HOME/package/target/gluten-velox-bundle-spark3.3_2.12-ubuntu_22.04_x86_64-1.x.x-SNAPSHOT.jar
+  #   --jars <path_to_Gluten_thirdparty_lib_JAR>
