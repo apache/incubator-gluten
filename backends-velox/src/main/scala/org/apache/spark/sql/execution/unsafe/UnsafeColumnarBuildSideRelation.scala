@@ -369,7 +369,7 @@ case class UnsafeColumnarBuildSideRelation(
   }
 
   override def estimatedSize: Long = {
-    if (null != batches) {
+    if (batches != null) {
       batches.totalBytes
     } else {
       0L

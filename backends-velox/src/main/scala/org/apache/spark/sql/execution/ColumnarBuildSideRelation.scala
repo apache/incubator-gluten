@@ -239,7 +239,7 @@ case class ColumnarBuildSideRelation(
     iterator.toArray
   }
   override def estimatedSize: Long = {
-    if (null != batches) {
+    if (batches != null) {
       batches.map(_.length.toLong).sum
     } else {
       0L
