@@ -1192,28 +1192,6 @@ class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
       }
     }
   }
-
-  test("aggregate on join keys can set ignoreNullKeys") {
-    val s =
-      """
-        |select count(1) from
-        |  (select l_orderkey, max(l_partkey) from lineitem group by l_orderkey) a
-        |inner join
-        |  (select l_orderkey from lineitem) b
-        |on a.l_orderkey = b.l_orderkey
-        |""".stripMargin
-    withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true") {
-      runQueryAndCompare(s) {
-        df =>
-          val executedPlan = getExecutedPlan(df)
-          assert(executedPlan.exists {
-            case a: RegularHashAggregateExecTransformer if a.ignoreNullKeys => true
-            case a: FlushableHashAggregateExecTransformer if a.ignoreNullKeys => true
-            case _ => false
-          })
-      }
-    }
-  }
 }
 
 class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
