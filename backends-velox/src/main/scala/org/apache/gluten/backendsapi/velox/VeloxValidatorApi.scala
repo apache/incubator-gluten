@@ -31,6 +31,7 @@ import org.apache.spark.task.TaskResources
 import scala.collection.JavaConverters._
 
 class VeloxValidatorApi extends ValidatorApi {
+  import VeloxValidatorApi._
 
   /** For velox backend, key validation is on native side. */
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
@@ -53,37 +54,8 @@ class VeloxValidatorApi extends ValidatorApi {
         info.fallbackInfo.asScala.reduce[String] { case (l, r) => l + "\n   |- " + r }))
   }
 
-  private def isPrimitiveType(dataType: DataType): Boolean = {
-    dataType match {
-      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
-          StringType | BinaryType | _: DecimalType | DateType | TimestampType |
-          YearMonthIntervalType.DEFAULT | NullType =>
-        true
-      case _ => false
-    }
-  }
-
   override def doSchemaValidate(schema: DataType): Option[String] = {
-    if (isPrimitiveType(schema)) {
-      return None
-    }
-    schema match {
-      case map: MapType =>
-        doSchemaValidate(map.keyType).orElse(doSchemaValidate(map.valueType))
-      case struct: StructType =>
-        struct.foreach {
-          field =>
-            val reason = doSchemaValidate(field.dataType)
-            if (reason.isDefined) {
-              return reason
-            }
-        }
-        None
-      case array: ArrayType =>
-        doSchemaValidate(array.elementType)
-      case _ =>
-        Some(s"Schema / data type not supported: $schema")
-    }
+    validateSchema(schema)
   }
 
   override def doColumnarShuffleExchangeExecValidate(
@@ -99,5 +71,40 @@ class VeloxValidatorApi extends ValidatorApi {
       return Some("Shuffle with empty input schema is not supported")
     }
     doSchemaValidate(child.schema)
+  }
+}
+
+object VeloxValidatorApi {
+  private def isPrimitiveType(dataType: DataType): Boolean = {
+    dataType match {
+      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
+          StringType | BinaryType | _: DecimalType | DateType | TimestampType |
+          YearMonthIntervalType.DEFAULT | NullType =>
+        true
+      case _ => false
+    }
+  }
+
+  def validateSchema(schema: DataType): Option[String] = {
+    if (isPrimitiveType(schema)) {
+      return None
+    }
+    schema match {
+      case map: MapType =>
+        validateSchema(map.keyType).orElse(validateSchema(map.valueType))
+      case struct: StructType =>
+        struct.foreach {
+          field =>
+            val reason = validateSchema(field.dataType)
+            if (reason.isDefined) {
+              return reason
+            }
+        }
+        None
+      case array: ArrayType =>
+        validateSchema(array.elementType)
+      case _ =>
+        Some(s"Schema / data type not supported: $schema")
+    }
   }
 }

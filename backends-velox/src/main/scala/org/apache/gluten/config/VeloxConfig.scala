@@ -77,6 +77,10 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
 
   def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
+
+  def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
+
+  def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
 }
 
 object VeloxConfig extends ConfigRegistry {
@@ -657,6 +661,18 @@ object VeloxConfig extends ConfigRegistry {
       .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("10MB")
+
+  val ORC_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.orcUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for ORC files.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val PARQUET_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.parquetUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for Parquet files.")
+      .booleanConf
+      .createWithDefault(true)
 
   val VELOX_MAX_COMPILED_REGEXES =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes")

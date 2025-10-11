@@ -1330,9 +1330,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   bool filterPushdownEnabled = true;
   auto names = colNameList;
   auto types = veloxTypeList;
-  auto dataColumns = ROW(std::move(names), std::move(types));
+
+  // The columns we project from the file.
+  auto baseSchema = ROW(std::move(names), std::move(types));
+  // The columns present in the table, if not available default to the baseSchema.
+  auto tableSchema = splitInfo->tableSchema ? splitInfo->tableSchema : baseSchema;
+
   connector::ConnectorTableHandlePtr tableHandle;
-  auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), dataColumns) : nullptr;
+  auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), baseSchema) : nullptr;
   auto connectorId = kHiveConnectorId;
   if (useCudfTableHandle(splitInfos_) && veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
       veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
@@ -1342,7 +1347,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
   common::SubfieldFilters subfieldFilters;
   tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-      connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, dataColumns);
+      connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, tableSchema);
 
   // Get assignments and out names.
   std::vector<std::string> outNames;
