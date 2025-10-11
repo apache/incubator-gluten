@@ -206,7 +206,7 @@ fi
 concat_velox_param
 
 function build_arrow {
-  if [ ! -d "$GLUTEN_DIR/ep/build-velox/build/velox_ep" ]; then
+  if [ ! -d "$VELOX_HOME" ]; then
     get_velox && setup_dependencies
   fi
   cd $GLUTEN_DIR/dev
