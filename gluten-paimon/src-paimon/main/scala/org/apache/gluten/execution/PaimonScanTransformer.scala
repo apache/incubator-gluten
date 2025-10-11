@@ -174,6 +174,10 @@ case class PaimonScanTransformer(
 
   override protected[this] def supportsBatchScan(scan: Scan): Boolean =
     PaimonScanTransformer.supportsBatchScan(scan)
+
+  override def withNewOutput(newOutput: Seq[AttributeReference]): BatchScanExecTransformerBase = {
+    this.copy(output = newOutput)
+  }
 }
 
 object PaimonScanTransformer {

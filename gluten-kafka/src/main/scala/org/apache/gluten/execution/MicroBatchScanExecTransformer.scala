@@ -92,6 +92,10 @@ case class MicroBatchScanExecTransformer(
     ctx.root.asInstanceOf[ReadRelNode].setStreamKafka(true);
     ctx
   }
+
+  override def withNewOutput(newOutput: Seq[AttributeReference]): BatchScanExecTransformerBase = {
+    this.copy(output = newOutput)
+  }
 }
 
 object MicroBatchScanExecTransformer {

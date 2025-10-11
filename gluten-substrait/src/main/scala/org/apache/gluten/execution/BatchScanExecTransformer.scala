@@ -68,6 +68,10 @@ case class BatchScanExecTransformer(
         output)
     )
   }
+
+  override def withNewOutput(newOutput: Seq[AttributeReference]): BatchScanExecTransformerBase = {
+    this.copy(output = newOutput)
+  }
 }
 
 abstract class BatchScanExecTransformerBase(
@@ -193,6 +197,8 @@ abstract class BatchScanExecTransformerBase(
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetricsUpdater(metrics)
+
+  def withNewOutput(newOutput: Seq[AttributeReference]): BatchScanExecTransformerBase
 
   @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] =
     filteredPartitions.flatten
