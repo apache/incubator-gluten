@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{LeafExecNode, ProjectExec, SparkPlan}
-import org.apache.spark.sql.execution.joins.BaseJoinExec
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, BroadcastNestedLoopJoinExec}
 
 case class RewrittenNodeWall(originalChild: SparkPlan) extends LeafExecNode {
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
@@ -109,7 +109,9 @@ class RewriteSparkPlanRulesManager private (
             FallbackTags.add(origin, FallbackTags.getOption(rewriteNode).get)
             origin
           } else if (
-            rewriteNode.isInstanceOf[BaseJoinExec] && allFallbackTags.exists(_.isDefined)
+            (rewriteNode.isInstanceOf[BroadcastHashJoinExec] ||
+              rewriteNode.isInstanceOf[BroadcastNestedLoopJoinExec]) &&
+            allFallbackTags.exists(_.isDefined)
           ) {
             // If the inserted projects for join is not transformable, return the original plan.
             val reason = allFallbackTags.collect { case Some(s) => s.reason() }.mkString(", ")
