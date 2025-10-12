@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Complete, Partial}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate._
-import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
+import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, BroadcastNestedLoopJoinExec, CartesianProductExec, ShuffledHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.types.{ByteType, DateType, IntegerType, LongType, ShortType}
 
@@ -175,6 +175,22 @@ trait PullOutProjectHelper {
         condition = newCondition)
       newSmj.copyTagsFrom(smj)
       newSmj
+    case nestedLoopJoin: BroadcastNestedLoopJoinExec =>
+      val newNestedLoopJoin = nestedLoopJoin.copy(
+        left = newLeft,
+        right = newRight,
+        condition = newCondition
+      )
+      newNestedLoopJoin.copyTagsFrom(nestedLoopJoin)
+      newNestedLoopJoin
+    case cartesianProduct: CartesianProductExec =>
+      val newCartesianProduct = cartesianProduct.copy(
+        left = newLeft,
+        right = newRight,
+        condition = newCondition
+      )
+      newCartesianProduct.copyTagsFrom(cartesianProduct)
+      newCartesianProduct
     case _ =>
       throw new UnsupportedOperationException(s"Unsupported join $join")
   }
