@@ -31,8 +31,8 @@ object VeloxDeltaConfig extends ConfigRegistry {
   }
 
   /**
-   * Experimental as the feature now has performance issue because of the fallback
-   * processing of statistics.
+   * Experimental as the feature now has performance issue because of the fallback processing of
+   * statistics.
    */
   val ENABLE_NATIVE_WRITE: ConfigEntry[Boolean] =
     buildConf("spark.gluten.sql.columnar.backend.velox.delta.enableNativeWrite")
