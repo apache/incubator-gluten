@@ -30,9 +30,9 @@ object VeloxDeltaConfig extends ConfigRegistry {
     new VeloxDeltaConfig(SQLConf.get)
   }
 
-  val ENABLE_NATIVE_WRITE =
+  val ENABLE_NATIVE_WRITE: ConfigEntry[Boolean] =
     buildConf("spark.gluten.sql.columnar.backend.velox.delta.enableNativeWrite")
       .doc("Enable native Delta Lake write for Velox backend.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 }

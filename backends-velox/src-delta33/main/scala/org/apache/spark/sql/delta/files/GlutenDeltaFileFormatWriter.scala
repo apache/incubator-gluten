@@ -17,9 +17,10 @@
 package org.apache.spark.sql.delta.files
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.{BatchCarrierRow, PlaceholderRow, TerminalRow}
+import org.apache.gluten.backendsapi.velox.VeloxBatchType
+import org.apache.gluten.execution.{BatchCarrierRow, PlaceholderRow, SortExecTransformer, TerminalRow, WholeStageTransformer}
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
-
+import org.apache.gluten.extension.columnar.transition.Transitions
 import org.apache.spark._
 import org.apache.spark.internal.{LoggingShims, MDC}
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
@@ -34,7 +35,7 @@ import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.delta.{DeltaOptions, GlutenParquetFileFormat}
 import org.apache.spark.sql.delta.logging.DeltaLogKeys
 import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ProjectExec, SQLExecution, SortExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter._
@@ -42,7 +43,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.{SerializableConfiguration, Utils}
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileAlreadyExistsException, Path}
 import org.apache.hadoop.mapreduce._
@@ -250,7 +250,21 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
         if (concurrentOutputWriterSpec.isDefined) {
           (empty2NullPlan, concurrentOutputWriterSpec)
         } else {
-          (sortPlan, concurrentOutputWriterSpec)
+          def addNativeSort(input: SparkPlan): SparkPlan = {
+            val nativeSortPlan = SortExecTransformer(sortPlan.sortOrder, sortPlan.global, child = input)
+            val validationResult = nativeSortPlan.doValidate()
+            assert(validationResult.ok(),
+              s"Sort operation for Delta write is not offload-able: ${validationResult.reason()}")
+            nativeSortPlan
+          }
+          val veloxChild = Transitions.toBatchPlan(sortPlan.child, VeloxBatchType)
+          val newChild = veloxChild match {
+            case WholeStageTransformer(wholeStageChild, materializeInput) =>
+              WholeStageTransformer(addNativeSort(wholeStageChild),
+                materializeInput)(ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
+            case _ => addNativeSort(veloxChild)
+          }
+          (newChild, None)
         }
       }
 

@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.gluten.config.VeloxDeltaConfig
+
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints, DeltaInvariantCheckerExec}
@@ -48,6 +50,8 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
     hasWritten = true
 
     val spark = inputData.sparkSession
+    val veloxDeltaConfig = new VeloxDeltaConfig(spark.sessionState.conf)
+
     val (data, partitionSchema) = performCDCPartition(inputData)
     val outputPath = deltaLog.dataPath
 
@@ -89,7 +93,14 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
 
       val empty2NullPlan =
         convertEmptyToNullIfNeeded(queryExecution.executedPlan, partitioningColumns, constraints)
-      val checkInvariants = DeltaInvariantCheckerExec(empty2NullPlan, constraints)
+      val maybeCheckInvariants = if (constraints.isEmpty) {
+        // Compared to vanilla Delta, we simply avoid adding the invariant checker
+        // when the constraint list is empty, to avoid the unnecessary transitions
+        // added around the invariant checker.
+        empty2NullPlan
+      } else {
+        DeltaInvariantCheckerExec(empty2NullPlan, constraints)
+      }
       // No need to plan optimized write if the write command is OPTIMIZE, which aims to produce
       // evenly-balanced data files already.
       val physicalPlan =
@@ -97,9 +108,9 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
           !isOptimize &&
           shouldOptimizeWrite(writeOptions, spark.sessionState.conf)
         ) {
-          DeltaOptimizedWriterExec(checkInvariants, metadata.partitionColumns, deltaLog)
+          DeltaOptimizedWriterExec(maybeCheckInvariants, metadata.partitionColumns, deltaLog)
         } else {
-          checkInvariants
+          maybeCheckInvariants
         }
 
       val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
