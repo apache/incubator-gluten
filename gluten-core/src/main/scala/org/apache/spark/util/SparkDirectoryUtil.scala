@@ -62,30 +62,31 @@ class SparkDirectoryUtil private (val roots: Array[String]) extends Logging {
 }
 
 object SparkDirectoryUtil extends Logging {
-  private var INSTANCE: SparkDirectoryUtil = _
+  @volatile private var roots: Array[String] = _
+  private lazy val INSTANCE: SparkDirectoryUtil = {
+    if (this.roots == null) {
+      throw new IllegalStateException("SparkDirectoryUtil not initialized")
+    }
+    new SparkDirectoryUtil(this.roots)
+  }
 
-  def init(conf: SparkConf): Unit = synchronized {
+  def init(conf: SparkConf): Unit = {
     val roots = Utils.getConfiguredLocalDirs(conf)
     init(roots)
   }
 
   private def init(roots: Array[String]): Unit = synchronized {
-    if (INSTANCE == null) {
-      INSTANCE = new SparkDirectoryUtil(roots)
-      return
-    }
-    if (INSTANCE.roots.toSet != roots.toSet) {
+    if (this.roots == null) {
+      this.roots = roots
+    } else if (this.roots.toSet != roots.toSet) {
       throw new IllegalArgumentException(
-        s"Reinitialize SparkDirectoryUtil with different root dirs: old: ${INSTANCE.ROOTS
+        s"Reinitialize SparkDirectoryUtil with different root dirs: old: ${this.roots
             .mkString("Array(", ", ", ")")}, new: ${roots.mkString("Array(", ", ", ")")}"
       )
     }
   }
 
-  def get(): SparkDirectoryUtil = synchronized {
-    assert(INSTANCE != null, "Default instance of SparkDirectoryUtil was not set yet")
-    INSTANCE
-  }
+  def get(): SparkDirectoryUtil = INSTANCE
 }
 
 class Namespace(private val parents: Array[File], private val name: String) {
