@@ -18,9 +18,10 @@ package org.apache.spark.sql.delta.files
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
-import org.apache.gluten.execution.{BatchCarrierRow, PlaceholderRow, SortExecTransformer, TerminalRow, WholeStageTransformer}
+import org.apache.gluten.execution._
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.extension.columnar.transition.Transitions
+
 import org.apache.spark._
 import org.apache.spark.internal.{LoggingShims, MDC}
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
@@ -35,7 +36,7 @@ import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.delta.{DeltaOptions, GlutenParquetFileFormat}
 import org.apache.spark.sql.delta.logging.DeltaLogKeys
 import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ProjectExec, SQLExecution, SortExec, SparkPlan}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter._
@@ -43,6 +44,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.{SerializableConfiguration, Utils}
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileAlreadyExistsException, Path}
 import org.apache.hadoop.mapreduce._
