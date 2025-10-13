@@ -69,7 +69,6 @@ jobs:
           name: velox-arrow-jar-centos-7-${{github.sha}}
 
   build-bundle-package-centos8-jdk8-x86:
-    if: ${{ startsWith(github.repository, 'apache/') }}
     needs: build-native-lib-x86
     runs-on: ubuntu-22.04
     container: centos:8
