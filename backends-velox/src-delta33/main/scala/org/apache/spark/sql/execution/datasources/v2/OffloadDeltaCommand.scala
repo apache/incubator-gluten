@@ -14,22 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.gluten.config.VeloxDeltaConfig
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
-
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
+import org.apache.spark.sql.delta.commands.DeleteCommand
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.command.ExecutedCommandExec
 
-case class OffloadDeltaV2CreateTableAsSelect() extends OffloadSingleNode {
+case class OffloadDeltaCommand() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = {
     if (!VeloxDeltaConfig.get.enableNativeWrite) {
       return plan
     }
     plan match {
+      case ExecutedCommandExec(dc: DeleteCommand) =>
+        ExecutedCommandExec(GlutenDeltaLeafRunnableCommand(dc))
       case ctas: AtomicCreateTableAsSelectExec if ctas.catalog.isInstanceOf[DeltaCatalog] =>
-        GlutenDeltaV2CreateTableAsSelectExec(ctas)
+        GlutenDeltaLeafV2CommandExec(ctas)
+      case rtas: AtomicReplaceTableAsSelectExec if rtas.catalog.isInstanceOf[DeltaCatalog] =>
+        GlutenDeltaLeafV2CommandExec(rtas)
       case other => other
     }
   }

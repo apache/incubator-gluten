@@ -14,18 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.delta.{GlutenOptimisticTransaction, OptimisticTransaction, TransactionExecutionObserver}
+import org.apache.spark.sql.execution.command.LeafRunnableCommand
+import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.{Row, SparkSession}
 
-case class GlutenDeltaV2CreateTableAsSelectExec(delegate: V2CreateTableAsSelectBaseExec)
-  extends LeafV2CommandExec {
-  import GlutenDeltaV2CreateTableAsSelectExec._
+case class GlutenDeltaLeafV2CommandExec(delegate: LeafV2CommandExec) extends LeafV2CommandExec {
+
+  override def metrics: Map[String, SQLMetric] = delegate.metrics
 
   override protected def run(): Seq[InternalRow] = {
-    TransactionExecutionObserver.withObserver(UseColumnarDeltaTransactionLog) {
+    TransactionExecutionObserver.withObserver(
+      DeltaV2WriteOperators.UseColumnarDeltaTransactionLog) {
       delegate.executeCollect()
     }
   }
@@ -33,10 +38,30 @@ case class GlutenDeltaV2CreateTableAsSelectExec(delegate: V2CreateTableAsSelectB
   override def output: Seq[Attribute] = {
     delegate.output
   }
+
+  override def nodeName: String = "GlutenDelta " + delegate.nodeName
 }
 
-object GlutenDeltaV2CreateTableAsSelectExec {
-  private object UseColumnarDeltaTransactionLog extends TransactionExecutionObserver {
+case class GlutenDeltaLeafRunnableCommand(delegate: LeafRunnableCommand)
+  extends LeafRunnableCommand {
+  override lazy val metrics: Map[String, SQLMetric] = delegate.metrics
+
+  override def output: Seq[Attribute] = {
+    delegate.output
+  }
+
+  override def run(sparkSession: SparkSession): Seq[Row] = {
+    TransactionExecutionObserver.withObserver(
+      DeltaV2WriteOperators.UseColumnarDeltaTransactionLog) {
+      delegate.run(sparkSession)
+    }
+  }
+
+  override def nodeName: String = "GlutenDelta " + delegate.nodeName
+}
+
+object DeltaV2WriteOperators {
+  object UseColumnarDeltaTransactionLog extends TransactionExecutionObserver {
     override def startingTransaction(f: => OptimisticTransaction): OptimisticTransaction = {
       val delegate = f
       new GlutenOptimisticTransaction(delegate)
