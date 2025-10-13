@@ -35,7 +35,6 @@ concurrency:
 
 jobs:
   build-native-lib-x86:
-    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -112,7 +111,6 @@ jobs:
           retention-days: 7
 
   build-bundle-package-centos8-jdk17-x86:
-    if: ${{ startsWith(github.repository, 'apache/') }}
     needs: build-native-lib-x86
     runs-on: ubuntu-22.04
     container: centos:8
