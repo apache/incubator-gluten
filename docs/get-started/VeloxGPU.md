@@ -70,13 +70,20 @@ If building in the docker image, no need to set up script and build arrow.
 
 ---
 
-## **7. Performance Validation**
+## **7. Dynamic Execution
+
+The first stage contains TableScan operator and Shufflw write which is IO bound stage, sheduled to CPU node.
+The second stage that contains join which is computation intensive, schedule to GPU node.
+
+---
+
+## **8. Performance Validation**
 
 GPU performs better on operator HashJoin and HashAggregation.
 Single Operator like Hash Agg shows 5x speedup.
 
 ---
 
-## **8. Relevant Resources**
+## **9. Relevant Resources**
 1. [CUDF Docs](https://docs.rapids.ai/api/cudf/stable/libcudf_docs/) - GPU operator APIs.
 2. [Gluten GPU Issue #9098](https://github.com/apache/incubator-gluten/issues/8851) - Development tracker.
