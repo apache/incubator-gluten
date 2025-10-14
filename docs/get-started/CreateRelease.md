@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Create Release Distribution
+title: Create a Release Distribution
 nav_order: 5
 parent: Getting-Started
 ---
