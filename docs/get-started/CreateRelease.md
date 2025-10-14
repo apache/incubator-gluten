@@ -50,11 +50,10 @@ bash dev/release/build-release.sh
 
 ### Package the release sources and binaries
 
-This step creates the release distribution that comply with the common name convention
-of ASF project release.
+By following this step you will create the release distribution that comply with the common name
+convention of ASF project release process.
 
-Note, the current build name containing the build tag and a release candidate ID should be
-specified when running this script.
+Note, the current tag should be specified when running this script.
 
 ```bash
 cd /workspace
