@@ -17,8 +17,8 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
-import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, WholeStageTransformer}
-
+import org.apache.gluten.cudf.VeloxCudfPlanValidatorJniWrapper
+import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, TransformSupport, WholeStageTransformer}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -37,7 +37,22 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
             case _: LeafTransformSupport => true
             case _ => false
           }.isDefined
-          transformer.setTagValue(CudfTag.CudfTag, !hasLeaf)
+          if (!hasLeaf && VeloxConfig.get.cudfEnableValidation) {
+            if (
+              VeloxCudfPlanValidatorJniWrapper.validate(
+                transformer.substraitPlan.toProtobuf.toByteArray)
+            ) {
+              transformer.foreach {
+                case _: LeafTransformSupport =>
+                case t: TransformSupport =>
+                  t.setTagValue(CudfTag.CudfTag, true)
+                case _ =>
+              }
+              transformer.setTagValue(CudfTag.CudfTag, true)
+            }
+          } else {
+            transformer.setTagValue(CudfTag.CudfTag, !hasLeaf)
+          }
         } else {
           transformer.setTagValue(CudfTag.CudfTag, true)
         }
