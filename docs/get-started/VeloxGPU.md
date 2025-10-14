@@ -52,7 +52,7 @@ The OS, Spark version, Java version aligns with Gluten CPU.
 ### **Compilation Commands**
 If building in the docker image, no need to set up script and build arrow.
 ```bash
-./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --enable_cudf=ON
+./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --enable_gpu=ON
 ```
 
 ---
@@ -63,7 +63,7 @@ If building in the docker image, no need to set up script and build arrow.
 | **Scan**        |  ❌ Not supported| In Development           |  
 | **Project**     | ⚠️ Partial      | Function TPCH-compatible |  
 | **Filter**      | ✅ Implemented   | Core operator            |  
-| **OrderBy**     | ✅ Implemented   | Merged in Velox #12735   |  
+| **OrderBy**     | ✅ Implemented   |    |  
 | **Aggregation** | ⚠️ Partial      | TPCH-compatible          |  
 | **Join**        | ⚠️ Partial      | TPCH-compatible          |  
 | **Spill**       | ❌ Not supported | In Planning              |  
