@@ -5,7 +5,7 @@ nav_order: 5
 parent: Getting-Started
 ---
 
-The following demonstrates a standard way to create a release distribution of Apache Gluten
+The document introduces a standard way for creating a release distribution of Apache Gluten
 project with the Velox backend.
 
 ## Prerequisites
