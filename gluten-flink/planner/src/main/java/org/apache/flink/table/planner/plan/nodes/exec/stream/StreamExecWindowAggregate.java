@@ -37,6 +37,7 @@ import io.github.zhztheplayer.velox4j.plan.StreamWindowPartitionFunctionSpec;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -65,6 +66,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.commons.math3.util.ArithmeticUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -97,6 +100,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
     minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
 
+  private static final Logger LOG = LoggerFactory.getLogger(StreamExecWindowAggregate.class);
   public static final String WINDOW_AGGREGATE_TRANSFORMATION = "window-aggregate";
 
   private static final long WINDOW_AGG_MEMORY_RATIO = 100;
@@ -197,11 +201,16 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
     // TODO: support more window types.
     Tuple5<Long, Long, Long, Integer, Integer> windowSpecParams =
         WindowUtils.extractWindowParameters(windowing);
+    Tuple2<Integer, Integer> windowStartAndEndIndexes =
+        WindowUtils.getWindowStartAndEndIndexes(namedWindowProperties, (RowType) getOutputType());
     long size = windowSpecParams.f0;
     long slide = windowSpecParams.f1;
     long offset = windowSpecParams.f2;
     int rowtimeIndex = windowSpecParams.f3;
     int windowType = windowSpecParams.f4;
+    boolean isRowTime = windowing.isRowtime();
+    int windowStartIndex = windowStartAndEndIndexes.f0;
+    int windowEndIndex = windowStartAndEndIndexes.f1;
     PartitionFunctionSpec sliceAssignerSpec =
         new StreamWindowPartitionFunctionSpec(
             inputType, rowtimeIndex, size, slide, offset, windowType);
@@ -210,7 +219,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             PlanNodeIdGenerator.newId(),
             AggregateStep.SINGLE,
             groupingKeys,
-            groupingKeys,
+            isRowTime ? groupingKeys : List.of(),
             aggNames,
             aggregates,
             false,
@@ -218,17 +227,19 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             null,
             List.of());
     PlanNode localAgg =
-        new AggregationNode(
-            PlanNodeIdGenerator.newId(),
-            AggregateStep.SINGLE,
-            groupingKeys,
-            groupingKeys,
-            aggNames,
-            aggregates,
-            false,
-            List.of(new EmptyNode(inputType)),
-            null,
-            List.of());
+        isRowTime
+            ? new AggregationNode(
+                PlanNodeIdGenerator.newId(),
+                AggregateStep.SINGLE,
+                groupingKeys,
+                groupingKeys,
+                aggNames,
+                aggregates,
+                false,
+                List.of(new EmptyNode(inputType)),
+                null,
+                List.of())
+            : null;
     PlanNode windowAgg =
         new StreamWindowAggregationNode(
             PlanNodeIdGenerator.newId(),
@@ -244,7 +255,11 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             offset,
             windowType,
             outputType,
-            rowtimeIndex);
+            windowing.isRowtime(),
+            rowtimeIndex,
+            windowStartIndex,
+            windowEndIndex);
+    LOG.info("windowStartIndex:{}, windowEndIndex:{}", windowStartIndex, windowEndIndex);
     final OneInputStreamOperator windowOperator =
         new GlutenVectorOneInputOperator(
             new StatefulPlanNode(windowAgg.getId(), windowAgg),
