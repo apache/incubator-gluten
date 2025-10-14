@@ -160,7 +160,7 @@ The [Qualification Tool](./tools/qualification-tool/README.md) is a utility to a
 
 ## 9. Security
 
-Gluten aims to provide secure software. If you discover a vulnerability, please report it promptly to [the project's PPMC](private@gluten.apache.org) or [the ASF security team](https://www.apache.org/security/). We appreciate your effort to help keep the project secure.
+Gluten aims to provide secure software. If you discover a vulnerability, please report it promptly to [the project's PPMC](mailto:private@gluten.apache.org) or [the ASF security team](https://www.apache.org/security/). We appreciate your effort to help keep the project secure.
 
 ## 10. License
 
