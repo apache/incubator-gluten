@@ -152,17 +152,21 @@ ClickHouse backend demonstrated an average speedup of 2.12x, with up to 3.48x sp
 
 ![Performance](./docs/image/clickhouse_decision_support_bench1_22queries_performance.png)
 
-<sub>Test environment: a 8-nodes AWS cluster with 1TB data, using Spark 3.1.1 as the baseline and with Gluten integrated into the same Spark version.</sub>
+<sub>Test environment: an 8-nodes AWS cluster with 1TB data, using Spark 3.1.1 as the baseline and with Gluten integrated into the same Spark version.</sub>
 
 ## 8. Qualification Tool
 
 The [Qualification Tool](./tools/qualification-tool/README.md) is a utility to analyze Spark event log files and assess the compatibility and performance of SQL workloads with Gluten. This tool helps users understand how their workloads can benefit from Gluten.
 
-## 9. License
+## 9. Security
+
+Gluten aims to provide secure software. If you discover a vulnerability, please report it promptly to [the project's PPMC](private@gluten.apache.org) or [the ASF security team](https://www.apache.org/security/). We appreciate your effort to help up improve security.
+
+## 10. License
 
 Gluten is licensed under [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
 
-## 10. Acknowledgements
+## 11. Acknowledgements
 
 Gluten was initiated by Intel and Kyligence in 2022. Several other companies are also actively contributing to its development, including BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, IBM, Google, etc.
 
