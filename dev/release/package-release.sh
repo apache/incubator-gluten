@@ -16,7 +16,7 @@
 # limitations under the License.
 
 # Note: The script looks up the release JARs inside $GLUTEN_HOME/package/target/.
-#       Provide the release version (e.g., 1.5.0-rc0) as an argument to this script.
+#       Provide the release tag (e.g., v1.5.0-rc0) as an argument to this script.
 
 set -eu
 
