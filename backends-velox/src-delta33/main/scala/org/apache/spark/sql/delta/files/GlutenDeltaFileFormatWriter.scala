@@ -259,14 +259,14 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
               s"Sort operation for Delta write is not offload-able: ${validationResult.reason()}")
             nativeSortPlan
           }
-          val veloxChild = Transitions.toBatchPlan(sortPlan.child, VeloxBatchType)
-          val newChild = veloxChild match {
+          val newPlan = sortPlan.child match {
             case WholeStageTransformer(wholeStageChild, materializeInput) =>
               WholeStageTransformer(addNativeSort(wholeStageChild),
                 materializeInput)(ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
-            case _ => addNativeSort(veloxChild)
+            case other =>
+              Transitions.toBatchPlan(sortPlan, VeloxBatchType)
           }
-          (newChild, None)
+          (newPlan, None)
         }
       }
 
