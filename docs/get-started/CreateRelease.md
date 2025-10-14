@@ -20,8 +20,8 @@ A standard release distribution can be created following the below steps.
 
 ### Pull and run the dev docker image
 
-The docker image to be pulled for creating the release is an image that is periodically
-built and upload to DockerHub.
+Pull and download the build environment docker image. The docker image is periodically
+built and upload to DockerHub by scheduled GitHub action jobs.
 
 ```bash
 docker pull apache/gluten:vcpkg-centos-7
