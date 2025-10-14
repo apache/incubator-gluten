@@ -63,7 +63,8 @@ bash dev/release/package-release.sh v1.6.0-example-rc3
 
 ### Check the created release distribution
 
-Confirm that all the needed sources and binaries are successfully created.
+Confirm that all the needed sources and binaries are successfully created at the release directory
+`$GLUTEN_HOME/release/`.
 
 ```bash
 [root@8de83f716f0f workspace]# ls -l release/
