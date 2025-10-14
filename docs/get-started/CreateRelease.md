@@ -33,10 +33,10 @@ docker run -it apache/gluten:vcpkg-centos-7 bash
 In the docker container created by the last step, execute the following command to
 clone the repository of Gluten with a specific git tag that you want to build on.
 
-We are taking `v1.6.0-example` as an example git tag in this guide.
+We are taking `v1.6.0-example-rc3` as an example git tag in this guide.
 
 ```bash
-git clone --branch v1.6.0-example https://github.com/apache/incubator-gluten.git /workspace
+git clone --branch v1.6.0-example-rc3 https://github.com/apache/incubator-gluten.git /workspace
 ```
 
 ### Build
@@ -55,10 +55,6 @@ of ASF project release.
 
 Note, the current build name containing the build tag and a release candidate ID should be
 specified when running this script.
-
-The build name is formatted with "${build-tag}-rc${rc-id}".
-
-We are taking `v1.6.0-example-rc3` as an example here.
 
 ```bash
 cd /workspace
