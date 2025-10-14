@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Velox Local Caching
-nav_order: 7
+nav_order: 8
 parent: Getting-Started
 ---
 
