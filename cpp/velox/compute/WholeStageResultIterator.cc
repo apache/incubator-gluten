@@ -96,8 +96,7 @@ WholeStageResultIterator::WholeStageResultIterator(
   }
 #endif
   // register the hive connectors
-  std::call_once(
-      gluten::VeloxBackend::get()->regFlag, [&]() { gluten::VeloxBackend::get()->initConnector(veloxCfg_); });
+  doRegister(veloxCfg_);
 
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
   GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
@@ -704,6 +703,14 @@ std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConne
   configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
       std::to_string(veloxCfg_->get<bool>(kIgnoreMissingFiles, false));
   return std::make_shared<velox::config::ConfigBase>(std::move(configs));
+}
+
+void WholeStageResultIterator::doRegister(const std::shared_ptr<facebook::velox::config::ConfigBase>& veloxCfg) {
+  std::lock_guard<std::mutex> l(gluten::VeloxBackend::get()->registerMutex);
+  if (!gluten::VeloxBackend::get()->alreadyRegistered) {
+    gluten::VeloxBackend::get()->initConnector(veloxCfg);
+    gluten::VeloxBackend::get()->alreadyRegistered = true;
+  }
 }
 
 } // namespace gluten
