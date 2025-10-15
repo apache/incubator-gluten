@@ -73,6 +73,11 @@ Copyright 2016-2025 ClickHouse, Inc.
 
 ---------------------------------------------------------
 
+OkHttp
+Copyright 2019 Square, Inc.
+
+---------------------------------------------------------
+
 This project includes code from Daniel Lemire's FrameOfReference project.
 
 https://github.com/lemire/FrameOfReference/blob/6ccaf9e97160f9a3b299e23a8ef739e711ef0c71/src/bpacking.cpp
