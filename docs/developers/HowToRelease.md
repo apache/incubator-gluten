@@ -1,7 +1,7 @@
 ---
 layout: page
-title: Create a Release Distribution
-nav_order: 5
+title: How to Release
+nav_order: 17
 parent: Getting-Started
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Using ABFS with Gluten
-nav_order: 7
+nav_order: 6
 parent: Getting-Started
 ---
 ABFS is an important data store for big data users. This doc discusses config details and use cases of Gluten with ABFS. To use an ABFS account as your data source, please ensure you use the listed ABFS config in your spark-defaults.conf. If you would like to authenticate with ABFS using additional auth mechanisms, please reach out using the 'Issues' tab.

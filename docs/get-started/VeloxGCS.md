@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Using GCS with Gluten
-nav_order: 6
+nav_order: 5
 parent: Getting-Started
 ---
 Object stores offered by CSPs such as GCS are important for users of Gluten to store their data. This doc will discuss all details of configs, and use cases around using Gluten with object stores. In order to use a GCS endpoint as your data source, please ensure you are using the following GCS configs in your spark-defaults.conf. If you're experiencing any issues authenticating to GCS with additional auth mechanisms, please reach out to us using the 'Issues' tab.

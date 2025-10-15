@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Velox GPU
-nav_order: 10
+nav_order: 9
 parent: Getting-Started
 ---
 
