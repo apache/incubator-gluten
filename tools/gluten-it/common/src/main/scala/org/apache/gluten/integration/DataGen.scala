@@ -74,6 +74,17 @@ object DataGen {
     def run(spark: SparkSession, source: String)
   }
 
+  object Feature {
+    def run(spark: SparkSession, source: String, feature: Feature): Unit = {
+      println(s"Executing feature: ${feature.name()}")
+      val start = System.nanoTime()
+      feature.run(spark, source)
+      val end = System.nanoTime()
+      println(
+        s"Finished executing feature: ${feature.name()}, elapsed time: ${(end - start) / 1e6} ms.")
+    }
+  }
+
   class FeatureRegistry extends Serializable {
     private val lookup: mutable.LinkedHashMap[String, Feature] = mutable.LinkedHashMap()
 
