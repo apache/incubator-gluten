@@ -34,6 +34,7 @@ trait IteratorApi {
   def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
+      dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo
@@ -42,6 +43,7 @@ trait IteratorApi {
       partitionIndex: Int,
       partition: Seq[InputPartition],
       partitionSchema: StructType,
+      dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo = throw new UnsupportedOperationException()

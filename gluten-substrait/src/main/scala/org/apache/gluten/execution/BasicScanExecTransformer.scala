@@ -27,7 +27,6 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 import com.google.protobuf.StringValue
@@ -68,28 +67,18 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         .genSplitInfo(
           _,
           getPartitionSchema,
+          getDataSchema,
           fileFormat,
           getMetadataColumns().map(_.name),
           getProperties))
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    var fields = schema.fields
-
-    this match {
-      case transformer: FileSourceScanExecTransformer =>
-        fields = appendStringFields(transformer.relation.schema, fields)
-      case transformer: HiveTableScanExecTransformer =>
-        fields = appendStringFields(transformer.getDataSchema, fields)
-      case transformer: BatchScanExecTransformer =>
-        fields = appendStringFields(transformer.getDataSchema, fields)
-      case _ =>
-    }
-
     val validationResult = BackendsApiManager.getSettings
       .validateScanExec(
         fileFormat,
-        fields,
+        schema.fields,
+        getDataSchema,
         getRootFilePaths,
         getProperties,
         sparkContext.hadoopConfiguration)

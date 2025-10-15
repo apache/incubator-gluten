@@ -139,6 +139,7 @@ abstract class BatchScanExecTransformerBase(
             index,
             partitions,
             getPartitionSchema,
+            getDataSchema,
             fileFormat,
             getMetadataColumns().map(_.name),
             getProperties)

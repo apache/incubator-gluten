@@ -18,12 +18,13 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, IteratorApi}
 import org.apache.gluten.backendsapi.velox.VeloxIteratorApi.unescapePathName
+import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.metrics.{IMetrics, IteratorMetricsJniWrapper}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
-import org.apache.gluten.substrait.rel.{LocalFilesBuilder, SplitInfo}
+import org.apache.gluten.substrait.rel.{LocalFilesBuilder, LocalFilesNode, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.vectorized._
 
@@ -49,9 +50,25 @@ import scala.collection.JavaConverters._
 
 class VeloxIteratorApi extends IteratorApi with Logging {
 
+  private def setFileSchemaForLocalFiles(
+      localFilesNode: LocalFilesNode,
+      fileSchema: StructType,
+      fileFormat: ReadFileFormat): LocalFilesNode = {
+    if (
+      ((fileFormat == ReadFileFormat.OrcReadFormat || fileFormat == ReadFileFormat.DwrfReadFormat)
+        && !VeloxConfig.get.orcUseColumnNames)
+      || (fileFormat == ReadFileFormat.ParquetReadFormat && !VeloxConfig.get.parquetUseColumnNames)
+    ) {
+      localFilesNode.setFileSchema(fileSchema)
+    }
+
+    localFilesNode
+  }
+
   override def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
+      dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo = {
@@ -69,19 +86,23 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
         val preferredLocations =
           SoftAffinity.getFilePartitionLocations(f)
-        LocalFilesBuilder.makeLocalFiles(
-          f.index,
-          paths,
-          starts,
-          lengths,
-          fileSizes,
-          modificationTimes,
-          partitionColumns,
-          metadataColumns,
-          fileFormat,
-          preferredLocations.toList.asJava,
-          mapAsJavaMap(properties),
-          otherMetadataColumns
+        setFileSchemaForLocalFiles(
+          LocalFilesBuilder.makeLocalFiles(
+            f.index,
+            paths,
+            starts,
+            lengths,
+            fileSizes,
+            modificationTimes,
+            partitionColumns,
+            metadataColumns,
+            fileFormat,
+            preferredLocations.toList.asJava,
+            mapAsJavaMap(properties),
+            otherMetadataColumns
+          ),
+          dataSchema,
+          fileFormat
         )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition.")
@@ -92,6 +113,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       partitionIndex: Int,
       partitions: Seq[InputPartition],
       partitionSchema: StructType,
+      dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo = {
@@ -115,19 +137,23 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       metadataColumns,
       otherMetadataColumns) =
       constructSplitInfo(partitionSchema, partitionFiles, metadataColumnNames)
-    LocalFilesBuilder.makeLocalFiles(
-      partitionIndex,
-      paths,
-      starts,
-      lengths,
-      fileSizes,
-      modificationTimes,
-      partitionColumns,
-      metadataColumns,
-      fileFormat,
-      locations.toList.asJava,
-      mapAsJavaMap(properties),
-      otherMetadataColumns
+    setFileSchemaForLocalFiles(
+      LocalFilesBuilder.makeLocalFiles(
+        partitionIndex,
+        paths,
+        starts,
+        lengths,
+        fileSizes,
+        modificationTimes,
+        partitionColumns,
+        metadataColumns,
+        fileFormat,
+        locations.toList.asJava,
+        mapAsJavaMap(properties),
+        otherMetadataColumns
+      ),
+      dataSchema,
+      fileFormat
     )
   }
 
