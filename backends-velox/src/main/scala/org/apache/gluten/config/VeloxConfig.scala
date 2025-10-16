@@ -628,8 +628,9 @@ object VeloxConfig extends ConfigRegistry {
 
   val CUDF_ENABLE_VALIDATION =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableValidation")
-      .doc("Heuristics you can apply to validate a cuDF/GPU plan and only offload when " +
-        "the entire stage can be fully and profitably executed on GPU")
+      .doc(
+        "Heuristics you can apply to validate a cuDF/GPU plan and only offload when " +
+          "the entire stage can be fully and profitably executed on GPU")
       .booleanConf
       .createWithDefault(true)
 
