@@ -17,7 +17,15 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.TaskContext
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.ProjectExec
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.functions.{countDistinct, udf}
+
+import org.scalatest.prop.TableDrivenPropertyChecks._
+
+import java.nio.file.{Files, Paths}
 
 abstract class IcebergSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -662,6 +670,233 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
 
       assert(result.length == 1)
       assert(result.head.getString(1) == "test_data")
+    }
+  }
+
+  test("test iceberg input_file_name, input_file_block_start, input_file_block_length") {
+    // Test both partitioned and non-partitioned tables
+    val tables =
+      org.scalatest.prop.TableDrivenPropertyChecks.Table(
+        ("table_name", "is_partitioned"),
+        ("partitioned_table", true),
+        ("non_partitioned_table", false)
+      )
+    forAll(tables) {
+      (tableName: String, isPartitioned: Boolean) =>
+        withTable(tableName) {
+          // Create table with or without partitioning
+          if (isPartitioned) {
+            spark.sql(s"""
+                         |create table $tableName(id int, name string)
+                         |using iceberg
+                         |partitioned by (p string);
+                         |""".stripMargin)
+          } else {
+            spark.sql(s"""
+                         |create table $tableName(id int, name string, p string)
+                         |using iceberg;
+                         |""".stripMargin)
+          }
+
+          // Same insert for both tables
+          spark.sql(
+            s"""
+               |insert into table $tableName values
+               |(4, 'a5', 'p4'),
+               |(1, 'a1', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(2, 'a3', 'p2'),
+               |(1, 'a2', 'p1'),
+               |(3, 'a4', 'p3'),
+               |(10, 'a4', 'p3');
+               |""".stripMargin
+          )
+
+          // Same query and validation for both tables
+          runQueryAndCompare(s"""
+                                |select input_file_name() as file_name,
+                                |input_file_block_start(),
+                                |input_file_block_length()
+                                |from $tableName
+                                |order by 1, 2, 3;
+                                |""".stripMargin) {
+            df =>
+              {
+                val plan = df.queryExecution.executedPlan
+                assert(
+                  getExecutedPlan(df).count(
+                    plan => {
+                      plan.isInstanceOf[IcebergScanTransformer]
+                    }) == 1)
+                assert(
+                  getExecutedPlan(df).count(
+                    plan => {
+                      plan.isInstanceOf[ProjectExecTransformer]
+                    }) == 1)
+                assert(
+                  getExecutedPlan(df).count(
+                    plan => {
+                      plan.isInstanceOf[ProjectExec]
+                    }) == 0)
+                assert(
+                  getExecutedPlan(df).count(
+                    plan => {
+                      plan.isInstanceOf[BatchScanExec]
+                    }) == 0)
+                foreach(plan) {
+                  case plan: IcebergScanTransformer =>
+                    assert(plan.output.head.name == "input_file_name")
+                    assert(plan.output.apply(1).name == "input_file_block_start")
+                    assert(plan.output.last.name == "input_file_block_length")
+                  case _ => // do nothing
+                }
+                val getTaskId = udf(
+                  () => {
+                    val context = TaskContext.get()
+                    assert(context != null)
+                    context.taskAttemptId()
+                  })
+                val dfWithTaskInfo = df.withColumn("task_id", getTaskId())
+                val filesPerTask = dfWithTaskInfo
+                  .groupBy("task_id")
+                  .agg(
+                    countDistinct("file_name").alias("distinct_file_count")
+                  )
+                  .collect()
+                assert(filesPerTask.length == 1)
+                if (isPartitioned) {
+                  assert(filesPerTask.head.getAs[Long]("distinct_file_count") > 1)
+                } else {
+                  assert(filesPerTask.head.getAs[Long]("distinct_file_count") == 1)
+                }
+              }
+          }
+        }
+    }
+  }
+
+  test("test iceberg input file name with non-ascii characters") {
+    // Test both partitioned and non-partitioned tables
+    val tables =
+      org.scalatest.prop.TableDrivenPropertyChecks.Table(
+        ("table_name", "is_partitioned"),
+        ("partitioned_table", true),
+        ("non_partitioned_table", false)
+      )
+    forAll(tables) {
+      (tableName: String, isPartitioned: Boolean) =>
+        withTable(tableName) {
+          // Create table with or without partitioning
+          if (isPartitioned) {
+            spark.sql(s"""
+                         |create table $tableName(id int, name string)
+                         |using iceberg
+                         |partitioned by (p string);
+                         |""".stripMargin)
+          } else {
+            spark.sql(s"""
+                         |create table $tableName(id int, name string, p string)
+                         |using iceberg;
+                         |""".stripMargin)
+          }
+
+          // Same insert for both tables
+          spark.sql(
+            s"""
+               |insert into table $tableName values
+               |(4, 'a5', 'p4'),
+               |(1, 'a1', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(1, 'a2', 'p1'),
+               |(2, 'a3', 'p2'),
+               |(1, 'a2', 'p1'),
+               |(3, 'a4', 'p3'),
+               |(10, 'a4', 'p3');
+               |""".stripMargin
+          )
+
+          // Verify input_file_name() returns non-ascii file names
+          val newTableName = s"${tableName}_with_non_ascii"
+          withTable(newTableName) {
+            if (isPartitioned) {
+              spark.sql(s"""
+              CREATE TABLE $newTableName (id int, name string)
+              USING iceberg
+              PARTITIONED BY (p string)
+            """)
+            } else {
+              spark.sql(s"""
+              CREATE TABLE $newTableName (id int, name string, p string)
+              USING iceberg
+            """)
+            }
+
+            // Get a parent directory of partition directories
+            val filePaths = spark
+              .sql(s"""
+                      |select distinct input_file_name()
+                      |from $tableName
+                      |""".stripMargin)
+              .collect()
+              .map(_.getString(0))
+            // this is a data directory for non-partitioned table
+            val partitionDir = new java.io.File(filePaths.head).getParent
+            val parentOfPartitionDirs = new java.io.File(partitionDir).getParent
+            val nonAsciiPrefix = "논아스키코드" // scalastyle:ignore nonascii
+            // Process each file path, copy it, and add to the new table
+            filePaths.foreach {
+              filePath =>
+                // Convert file:/ URI to actual path
+                val path = Paths.get(new java.net.URI(filePath))
+                val directory = path.getParent
+                val originalFileName = path.getFileName.toString
+
+                // Create new filename with non-ascii prefix
+                val newFileName = nonAsciiPrefix + originalFileName
+                val newPath = directory.resolve(newFileName)
+
+                // Copy the file
+                Files.copy(path, newPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            }
+
+            spark.sql(s"""
+              CALL spark_catalog.system.add_files(
+                table => '$newTableName',
+                source_table => '`parquet`.`${if (isPartitioned) parentOfPartitionDirs
+              else partitionDir}`'
+              )
+            """)
+
+            val fileNamesFromNewTable = spark
+              .sql(s"""
+                SELECT DISTINCT input_file_name() as file_name
+                FROM $newTableName
+              """)
+              .collect()
+            if (isPartitioned) {
+              assert(fileNamesFromNewTable.length == 8)
+            } else {
+              assert(fileNamesFromNewTable.length == 2)
+            }
+            val (nonAsciiFiles, asciiFiles) = fileNamesFromNewTable.partition(
+              _.getString(0)
+                .contains(nonAsciiPrefix))
+            assert(nonAsciiFiles.length == asciiFiles.length)
+          }
+        }
     }
   }
 }

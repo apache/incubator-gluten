@@ -64,6 +64,10 @@ case class IcebergScanTransformer(
     IcebergScanTransformer.supportsBatchScan(scan)
   }
 
+  override def withNewOutput(newOutput: Seq[AttributeReference]): BatchScanExecTransformerBase = {
+    this.copy(output = newOutput)
+  }
+
   override def doValidateInternal(): ValidationResult = {
     val validationResult = super.doValidateInternal();
     if (!validationResult.ok()) {

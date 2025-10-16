@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, ProjectExecTransformer}
+import org.apache.gluten.execution.{BatchScanExecTransformerBase, FileSourceScanExecTransformer, ProjectExecTransformer}
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
 import org.apache.spark.sql.catalyst.optimizer.CollapseProjectShim
@@ -125,9 +125,9 @@ object PushDownInputFileExpression {
           partitionPruningPred = child.partitionPruningPred,
           prunedOutput = child.prunedOutput
         )(child.session)
-      case p @ ProjectExec(projectList, child: BatchScanExecTransformer)
+      case p @ ProjectExec(projectList, child: BatchScanExecTransformerBase)
           if projectList.exists(containsInputFileRelatedExpr) =>
-        child.copy(output = p.output.asInstanceOf[Seq[AttributeReference]])
+        child.withNewOutput(p.output.asInstanceOf[Seq[AttributeReference]])
       case p1 @ ProjectExec(_, p2: ProjectExec) if canCollapseProject(p2) =>
         addFallbackTag(
           p2.copy(projectList =
