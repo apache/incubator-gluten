@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
+import org.apache.gluten.util.ReflectUtils;
 import org.apache.gluten.velox.VeloxSinkBuilder;
 
 import org.apache.flink.api.common.io.OutputFormat;
@@ -35,6 +36,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -80,6 +82,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -206,16 +209,33 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     if (targetRowKind.isPresent()) {
       sinkTransform = applyRowKindSetter(sinkTransform, targetRowKind.get(), config);
     }
-
-    return (Transformation<Object>)
-        applySinkProvider(
-            sinkTransform,
-            streamExecEnv,
-            runtimeProvider,
-            rowtimeFieldIndex,
-            sinkParallelism,
-            config,
-            classLoader);
+    Transformation<Object> transformation =
+        (Transformation<Object>)
+            applySinkProvider(
+                sinkTransform,
+                streamExecEnv,
+                runtimeProvider,
+                rowtimeFieldIndex,
+                sinkParallelism,
+                config,
+                classLoader);
+    if (transformation instanceof SinkTransformation
+        && transformation.getInputs().get(0).getName().equals("PartitionCommitter")) {
+      try {
+        Class<?> filesystemTableClazz =
+            Class.forName("org.apache.flink.connector.file.table.AbstractFileSystemTable");
+        return (Transformation<Object>)
+            VeloxSinkBuilder.build(
+                transformation.getInputs().get(0),
+                (ReadableConfig)
+                    ReflectUtils.getObjectField(filesystemTableClazz, tableSink, "tableOptions"),
+                schema);
+      } catch (Exception e) {
+        throw new FlinkRuntimeException(e);
+      }
+    } else {
+      return transformation;
+    }
   }
 
   /** Apply an operator to filter or report error to process not-null values for not-null fields. */
@@ -434,7 +454,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
       ExecNodeConfig config,
       ClassLoader classLoader) {
     try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
-
       TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
       if (runtimeProvider instanceof DataStreamSinkProvider) {
         Transformation<RowData> sinkTransformation =
@@ -470,7 +489,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         Transformation sinkTransformation =
             createSinkFunctionTransformation(
                 sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkMeta, sinkParallelism);
-        return VeloxSinkBuilder.build(env.getConfiguration(), sinkTransformation);
+        return VeloxSinkBuilder.build(
+            sinkTransformation,
+            env.getConfiguration(),
+            tableSinkSpec.getContextResolvedTable().getResolvedSchema());
         // --- End Gluten-specific code changes ---
       } else if (runtimeProvider instanceof OutputFormatProvider) {
         OutputFormat<RowData> outputFormat =
