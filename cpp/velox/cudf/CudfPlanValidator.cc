@@ -24,11 +24,21 @@
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 #include "velox/exec/TableScan.h"
+#include "velox/experimental/cudf/exec/NvtxHelper.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
+
 
 using namespace facebook;
 
 namespace gluten {
+
+namespace {
+
+bool isCudfOperator(const exec::Operator* op) {
+  return isAnyOf<NvtxHelper>(op);
+}
+
+}
 bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
   std::vector<::substrait::ReadRel_LocalFiles> localFiles;
@@ -64,10 +74,9 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
     if (dynamic_cast<const velox::exec::TableScan*>(op) != nullptr) {
       continue;
     }
-    // TODO: wait for PR https://github.com/facebookincubator/velox/pull/13341
-    // if (cudf_velox::isCudfOperator(op)) {
-    //   continue;
-    // }
+    if (isCudfOperator(op)) {
+      continue;
+    }
     if (dynamic_cast<const ValueStream*>(op) != nullptr) {
       continue;
     }
