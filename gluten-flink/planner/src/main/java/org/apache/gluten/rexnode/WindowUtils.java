@@ -32,9 +32,6 @@ import org.apache.flink.table.runtime.groupwindow.WindowEnd;
 import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.List;
 
@@ -80,7 +77,6 @@ public class WindowUtils {
     } else {
       throw new RuntimeException("Not support window spec " + windowSpec);
     }
-    LOG.info("window strategy:{}", windowing.getClass().getName());
     if (windowing instanceof TimeAttributeWindowingStrategy) {
       if (windowing.isRowtime()) {
         rowtimeIndex = ((TimeAttributeWindowingStrategy) windowing).getTimeAttributeIndex();

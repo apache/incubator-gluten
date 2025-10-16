@@ -66,8 +66,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.commons.math3.util.ArithmeticUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -100,7 +98,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
     minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
 
-  private static final Logger LOG = LoggerFactory.getLogger(StreamExecWindowAggregate.class);
   public static final String WINDOW_AGGREGATE_TRANSFORMATION = "window-aggregate";
 
   private static final long WINDOW_AGG_MEMORY_RATIO = 100;
@@ -226,6 +223,8 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             List.of(new EmptyNode(inputType)),
             null,
             List.of());
+    // processing time window can not apply to local-global aggregate optimization, so here we need
+    // to set local aggregtate as null when it is not event time window.
     PlanNode localAgg =
         isRowTime
             ? new AggregationNode(
@@ -259,7 +258,6 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             rowtimeIndex,
             windowStartIndex,
             windowEndIndex);
-    LOG.info("windowStartIndex:{}, windowEndIndex:{}", windowStartIndex, windowEndIndex);
     final OneInputStreamOperator windowOperator =
         new GlutenVectorOneInputOperator(
             new StatefulPlanNode(windowAgg.getId(), windowAgg),
