@@ -27,14 +27,13 @@ import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator}
 
-import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
+import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, TaskContext}
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.CHColumnarShuffleWriter
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
 import org.apache.spark.sql.execution.datasources.mergetree.PartSerializer
@@ -125,12 +124,16 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   }
 
   override def genSplitInfo(
-      partition: InputPartition,
+      partitionIndex: Int,
+      partitions: Seq[Partition],
       partitionSchema: StructType,
       dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo = {
+    // todo: support multi partitions
+    assert(partitions.size == 1)
+    val partition = partitions.head
     partition match {
       case p: GlutenMergeTreePartition =>
         ExtensionTableBuilder

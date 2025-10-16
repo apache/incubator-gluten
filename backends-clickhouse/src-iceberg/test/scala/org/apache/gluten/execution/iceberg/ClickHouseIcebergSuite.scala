@@ -292,7 +292,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
             getExecutedPlan(df).map {
               case plan: IcebergScanTransformer =>
                 assert(plan.getKeyGroupPartitioning.isDefined)
-                assert(plan.getSplitInfosWithIndex.length == 3)
+                assert(plan.getSplitInfos.length == 3)
               case _ => // do nothing
             }
           }
@@ -372,7 +372,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
             getExecutedPlan(df).map {
               case plan: IcebergScanTransformer =>
                 assert(plan.getKeyGroupPartitioning.isDefined)
-                assert(plan.getSplitInfosWithIndex.length == 3)
+                assert(plan.getSplitInfos.length == 3)
               case _ => // do nothing
             }
           }
