@@ -358,7 +358,7 @@ abstract class GlutenQueryTest extends PlanTest {
   private def getExecutedPlan(plan: SparkPlan): Seq[SparkPlan] = {
     val subTree = plan match {
       case exec: AdaptiveSparkPlanExec =>
-        getExecutedPlan(exec.executedPlan)
+        getExecutedPlan(exec.finalPhysicalPlan)
       case cmd: CommandResultExec =>
         getExecutedPlan(cmd.commandPhysicalPlan)
       case s: ShuffleQueryStageExec =>
