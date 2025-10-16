@@ -72,7 +72,7 @@ If building in the docker image, no need to set up script and build arrow.
 
 ## **7. Dynamic Execution
 
-The first stage contains TableScan operator and Shufflw write which is IO bound stage, sheduled to CPU node.
+The first stage contains TableScan operator which is IO bound stage, schedule to CPU node.
 The second stage that contains join which is computation intensive, schedule to GPU node.
 
 ---
