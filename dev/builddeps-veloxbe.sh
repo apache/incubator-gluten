@@ -210,14 +210,14 @@ function build_arrow {
     get_velox && setup_dependencies
   fi
   cd $GLUTEN_DIR/dev
-  source ./build_arrow.sh
+  source ./build-arrow.sh
 }
 
 function build_velox {
   echo "Start to build Velox"
   cd $GLUTEN_DIR/ep/build-velox/src
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
-  ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
+  ./build-velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
                    --enable_abfs=$ENABLE_ABFS --enable_gpu=$ENABLE_GPU --build_test_utils=$BUILD_TESTS \
                    --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS \
                    --velox_home=$VELOX_HOME
@@ -263,14 +263,14 @@ function build_velox_backend {
 
 function get_velox {
   cd $GLUTEN_DIR/ep/build-velox/src
-  ./get_velox.sh $VELOX_PARAMETER
+  ./get-velox.sh $VELOX_PARAMETER
 }
 
 function setup_dependencies {
   DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
   mkdir -p ${DEPENDENCY_DIR}
 
-  source $GLUTEN_DIR/dev/build_helper_functions.sh
+  source $GLUTEN_DIR/dev/build-helper-functions.sh
   source ${VELOX_HOME}/scripts/setup-common.sh
 
   echo "Start to install dependencies"

@@ -60,7 +60,7 @@ class GlutenCoreConfig(conf: SQLConf) extends Logging {
 
 /*
  * Note: Gluten configuration.md is automatically generated from this code.
- * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
  */
 object GlutenCoreConfig extends ConfigRegistry {
   override def get: GlutenCoreConfig = {

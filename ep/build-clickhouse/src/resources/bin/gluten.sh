@@ -17,7 +17,7 @@
 set -e
 
 export GLUTEN_HOME=$(cd -P -- "$(dirname -- "$0")/.." && pwd -P)
-source ${GLUTEN_HOME}/bin/check_env.sh || exit 1
+source ${GLUTEN_HOME}/bin/check-env.sh || exit 1
 
 [[ ! -d "${GLUTEN_HOME}"/logs ]] && mkdir -p "${GLUTEN_HOME}"/logs
 
