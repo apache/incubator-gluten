@@ -38,7 +38,6 @@ import java.util.List;
 /** Utility to store some useful functions. */
 public class WindowUtils {
 
-  private static final Logger LOG = LoggerFactory.getLogger(WindowUtils.class);
   // Get names for project node.
   public static Tuple5<Long, Long, Long, Integer, Integer> extractWindowParameters(
       WindowingStrategy windowing) {
