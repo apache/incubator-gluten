@@ -27,7 +27,6 @@
 #include "velox/experimental/cudf/exec/NvtxHelper.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 
-
 using namespace facebook;
 
 namespace gluten {
@@ -39,6 +38,7 @@ bool isCudfOperator(const exec::Operator* op) {
 }
 
 }
+
 bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
   std::vector<::substrait::ReadRel_LocalFiles> localFiles;
