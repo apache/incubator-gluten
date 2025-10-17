@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Gluten Release
+title: Gluten Releases
 nav_order: 11
 ---
 
