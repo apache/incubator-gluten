@@ -95,6 +95,8 @@ WholeStageResultIterator::WholeStageResultIterator(
     lock_.lock();
   }
 #endif
+  // register the hive connectors
+  doRegister(veloxCfg_);
 
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
   GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
@@ -106,6 +108,7 @@ WholeStageResultIterator::WholeStageResultIterator(
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
+
   task_ = velox::exec::Task::create(
       fmt::format(
           "Gluten_Stage_{}_TID_{}_VTID_{}",
@@ -704,6 +707,14 @@ std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConne
   configs[velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] =
         std::to_string(veloxCfg_->get<bool>(kOrcUseColumnNames, true));
   return std::make_shared<velox::config::ConfigBase>(std::move(configs));
+}
+
+void WholeStageResultIterator::doRegister(const std::shared_ptr<facebook::velox::config::ConfigBase>& veloxCfg) {
+  std::lock_guard<std::mutex> l(gluten::VeloxBackend::get()->registerMutex);
+  if (!gluten::VeloxBackend::get()->alreadyRegistered) {
+    gluten::VeloxBackend::get()->initConnector(veloxCfg);
+    gluten::VeloxBackend::get()->alreadyRegistered = true;
+  }
 }
 
 } // namespace gluten
