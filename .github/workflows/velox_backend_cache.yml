@@ -30,6 +30,7 @@ concurrency:
 
 jobs:
   cache-native-lib-centos-7:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +56,7 @@ jobs:
           key: ccache-centos7-release-default-${{github.sha}}
 
   cache-native-lib-centos-8:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     container: apache/gluten:vcpkg-centos-8
     strategy:
@@ -80,6 +82,7 @@ jobs:
           key: ccache-centos8-release-default-${{runner.arch}}-${{github.sha}}
 
   cache-shared-lib-centos-8:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -107,6 +110,7 @@ jobs:
           key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
 
   cache-enhanced-native-lib-centos-7:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -132,6 +136,7 @@ jobs:
           key: ccache-enhanced-centos7-release-default-${{github.sha}}
 
   cache-shared-lib-centos-9:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -178,7 +183,7 @@ jobs:
   #       run: |
   #         rm -rf /opt/miniconda-for-velox/
   #         cd ep/build-velox/src && \
-  #         ./get_velox.sh
+  #         ./get-velox.sh
   #         cd ../build/velox_ep/
   #         make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
 
@@ -216,7 +221,7 @@ jobs:
 #        run: |
 #          rm -rf /opt/miniconda-for-velox/
 #          cd ep/build-velox/src && \
-#          ./get_velox.sh
+#          ./get-velox.sh
 #          cd ../build/velox_ep/
 #          source /opt/rh/gcc-toolset-9/enable
 #          make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON"

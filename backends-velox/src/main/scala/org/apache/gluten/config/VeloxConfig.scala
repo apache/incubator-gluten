@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.config
 
-import org.apache.gluten.config.GlutenConfig.{buildConf, buildStaticConf, COLUMNAR_MAX_BATCH_SIZE}
-
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
@@ -26,12 +24,10 @@ import java.util.concurrent.TimeUnit
 
 /*
  * Note: Gluten configiguration.md is automatically generated from this code.
- * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
  */
 class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   import VeloxConfig._
-
-  def veloxColumnarWindowType: String = getConf(COLUMNAR_VELOX_WINDOW_TYPE)
 
   def veloxSpillFileSystem: String = getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
 
@@ -48,7 +44,7 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   }
 
   def veloxResizeBatchesShuffleInputOutputRange: ResizeRange = {
-    val standardSize = getConf(COLUMNAR_MAX_BATCH_SIZE)
+    val standardSize = getConf(GlutenConfig.COLUMNAR_MAX_BATCH_SIZE)
     val defaultMinSize: Int = (0.25 * standardSize).toInt.max(1)
     val minSize = getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_OUTPUT_MIN_SIZE)
       .getOrElse(defaultMinSize)
@@ -68,9 +64,6 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def veloxOrcScanEnabled: Boolean =
     getConf(VELOX_ORC_SCAN_ENABLED)
 
-  def enablePropagateIgnoreNullKeys: Boolean =
-    getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
-
   def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
 
   def enableRewriteCastArrayToString: Boolean =
@@ -80,27 +73,20 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled &&
     getConf(ENABLE_ENHANCED_FEATURES)
+
+  def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
+
+  def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
+
+  def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
+
+  def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
 }
 
-object VeloxConfig {
-
-  def get: VeloxConfig = {
+object VeloxConfig extends ConfigRegistry {
+  override def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
   }
-
-  val COLUMNAR_VELOX_WINDOW_TYPE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.window.type")
-      .doc(
-        "Velox backend supports both SortWindow and" +
-          " StreamingWindow operators." +
-          " The StreamingWindow operator skips the sorting step" +
-          " in the input but does not support spill." +
-          " On the other hand, the SortWindow operator is " +
-          "responsible for sorting the input data within the" +
-          " Window operator and also supports spill.")
-      .stringConf
-      .checkValues(Set("streaming", "sort"))
-      .createWithDefault("streaming")
 
   // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
@@ -281,15 +267,19 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput")
-      .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
-        s"The default minimum output batch size is equal to 0.25 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
+      .doc(
+        s"If true, combine small columnar batches together before sending to shuffle. " +
+          s"The default minimum output batch size is equal to 0.25 * " +
+          s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_OUTPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleOutput")
-      .doc(s"If true, combine small columnar batches together right after shuffle read. " +
-        s"The default minimum output batch size is equal to 0.25 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
+      .doc(
+        s"If true, combine small columnar batches together right after shuffle read. " +
+          s"The default minimum output batch size is equal to 0.25 * " +
+          s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(false)
 
@@ -537,11 +527,25 @@ object VeloxConfig {
 
   val VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP =
     buildConf("spark.gluten.velox.offHeapBroadcastBuildRelation.enabled")
-      .internal()
+      .experimental()
       .doc("Experimental: If enabled, broadcast build relation will use offheap memory. " +
         "Otherwise, broadcast build relation will use onheap memory.")
       .booleanConf
       .createWithDefault(false)
+
+  val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_ROWS =
+    buildConf("spark.gluten.velox.abandonbuild.noduphashminrows")
+      .experimental()
+      .doc("Experimental: abandon hashmap build if duplicated rows more than this number.")
+      .intConf
+      .createWithDefault(100000)
+
+  val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_PCT =
+    buildConf("spark.gluten.velox.abandonbuild.noduphashminpct")
+      .experimental()
+      .doc("Experimental: abandon hashmap build if duplicated rows are more than this percentile.")
+      .doubleConf
+      .createWithDefault(0)
 
   val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
     .doc("Enable query tracing flag.")
@@ -585,15 +589,6 @@ object VeloxConfig {
       .stringConf
       .createWithDefault("")
 
-  val VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.velox.propagateIgnoreNullKeys")
-      .doc(
-        "If enabled, we will identify aggregation followed by an inner join " +
-          "on the grouping keys, and mark the ignoreNullKeys flag to true to " +
-          "avoid unnecessary aggregation on null keys.")
-      .booleanConf
-      .createWithDefault(true)
-
   val FLOATING_POINT_MODE =
     buildConf("spark.gluten.sql.columnar.backend.velox.floatingPointMode")
       .doc(
@@ -622,6 +617,12 @@ object VeloxConfig {
       .doc("The initial percent of GPU memory to allocate for memory resource for one thread.")
       .intConf
       .createWithDefault(50)
+
+  val CUDF_ENABLE_TABLE_SCAN =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan")
+      .doc("Enable cudf table scan")
+      .booleanConf
+      .createWithDefault(false)
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
@@ -652,6 +653,32 @@ object VeloxConfig {
   val ENABLE_ENHANCED_FEATURES =
     buildConf("spark.gluten.sql.enable.enhancedFeatures")
       .doc("Enable some features including iceberg native write and other features.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_VELOX_PREFERRED_BATCH_BYTES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.preferredBatchBytes")
+      .internal()
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("10MB")
+
+  val VELOX_MAX_COMPILED_REGEXES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes")
+      .doc(
+        "Controls maximum number of compiled regular expression patterns per function " +
+          "instance per thread of execution.")
+      .intConf
+      .createWithDefault(100)
+
+  val ORC_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.orcUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for ORC files.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val PARQUET_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.parquetUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for Parquet files.")
       .booleanConf
       .createWithDefault(true)
 }

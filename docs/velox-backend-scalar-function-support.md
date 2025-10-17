@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 243 functions and partially supports 20 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 240 functions and partially supports 25 functions.**
 
 ## Array Functions
 
@@ -133,7 +133,7 @@
 | make_ym_interval    | MakeYMInterval                       | S        |                |
 | minute              | Minute                               | S        |                |
 | month               | Month                                | S        |                |
-| months_between      | MonthsBetween                        |          |                |
+| months_between      | MonthsBetween                        | S        |                |
 | next_day            | NextDay                              | S        |                |
 | now                 | Now                                  |          |                |
 | quarter             | Quarter                              | S        |                |

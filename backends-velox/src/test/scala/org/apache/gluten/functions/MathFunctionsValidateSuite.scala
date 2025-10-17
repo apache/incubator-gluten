@@ -401,4 +401,23 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
     checkLengthAndPlan(df, 1)
   }
+
+  test("decimal arithmetic") {
+    withTempView("t") {
+      sql("""
+            |SELECT
+            |CAST('1234567890123456789012345.12345678901' AS DECIMAL(38,11)) AS a,
+            |CAST('1234567890123456789012345.02345678901' AS DECIMAL(38,11)) AS b;""".stripMargin)
+        .createOrReplaceTempView("t")
+
+      Seq("true", "false").foreach {
+        enabled =>
+          withSQLConf("spark.sql.decimalOperations.allowPrecisionLoss" -> enabled) {
+            runQueryAndCompare("SELECT a - b, a + b, a * b, a / b FROM t") {
+              checkGlutenOperatorMatch[ProjectExecTransformer]
+            }
+          }
+      }
+    }
+  }
 }

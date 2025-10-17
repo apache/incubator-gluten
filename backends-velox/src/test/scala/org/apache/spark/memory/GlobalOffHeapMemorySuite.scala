@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.memory;
+package org.apache.spark.memory
 
 import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.exception.GlutenException
@@ -28,7 +28,7 @@ import org.apache.spark.task.TaskResources
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.util.Collections;
+import java.util.Collections
 
 class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
 

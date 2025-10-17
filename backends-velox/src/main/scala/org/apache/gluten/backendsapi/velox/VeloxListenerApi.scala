@@ -210,7 +210,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     val loader = JniWorkspace.getDefault.libLoader
 
     // Load shared native libraries the backend libraries depend on.
-    SharedLibraryLoader.load(conf, loader)
+    SharedLibraryLoaderUtils.load(conf, loader)
 
     // Load backend libraries.
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH)

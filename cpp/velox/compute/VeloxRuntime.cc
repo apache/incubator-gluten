@@ -88,7 +88,7 @@ void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size) {
           << std::string(50, '#') << " received substrait::Plan: " << taskInfo_.value() << std::endl
           << planJson;
     } catch (const std::exception& e) {
-      LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
+      LOG(WARNING) << "Error converting substrait::Plan to JSON: " << e.what();
     }
   }
 
@@ -106,7 +106,7 @@ void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, int32_t spl
           << std::string(50, '#') << " received substrait::ReadRel.LocalFiles: " << taskInfo_.value() << std::endl
           << splitJson;
     } catch (const std::exception& e) {
-      LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
+      LOG(WARNING) << "Error converting substrait::ReadRel.LocalFiles to JSON: " << e.what();
     }
   }
   ::substrait::ReadRel_LocalFiles localFile;

@@ -28,15 +28,23 @@ import java.io.File
 import scala.collection.JavaConverters._
 
 class TpcdsDataGen(
-    val spark: SparkSession,
+    spark: SparkSession,
     scale: Double,
     partitions: Int,
     source: String,
     dir: String,
-    typeModifiers: List[TypeModifier] = List(),
-    val genPartitionedData: Boolean)
-  extends Serializable
+    genPartitionedData: Boolean,
+    featureNames: Seq[String],
+    typeModifiers: Seq[TypeModifier]
+) extends Serializable
   with DataGen {
+
+  private val featureRegistry = new DataGen.FeatureRegistry
+
+  featureRegistry.register(TpcdsDataGenFeatures.EnableDeltaDeletionVector)
+  featureRegistry.register(TpcdsDataGenFeatures.DeleteTenPercentData)
+
+  private val features = featureNames.map(featureRegistry.getFeature)
 
   def writeParquetTable(t: Table): Unit = {
     val name = t.getName
@@ -73,6 +81,7 @@ class TpcdsDataGen(
       List[String]()
     } else {
       name match {
+        case "store_sales" => List("ss_sold_date_sk")
         case "catalog_sales" => List("cs_sold_date_sk")
         case "web_sales" => List("ws_sold_date_sk")
         case _ => List[String]()
@@ -94,9 +103,6 @@ class TpcdsDataGen(
     val stringSchema = StructType(modifiedSchema.fields.map(f => StructField(f.name, StringType)))
 
     val columns = modifiedSchema.fields.map(f => new Column(f.name).cast(f.dataType).as(f.name))
-    // dwrf support was temporarily dropped since it impacts data gen skipping strategy.
-    // Better design is required to re-enable it
-    val tablePath = dir + File.separator + tableName
     spark
       .range(0, partitions, 1L, partitions)
       .mapPartitions {
@@ -124,11 +130,14 @@ class TpcdsDataGen(
       .format(source)
       .partitionBy(partitionBy.toArray: _*)
       .mode(SaveMode.Overwrite)
-      .save(dir + File.separator + tableName)
+      .option("path", dir + File.separator + tableName) // storage location
+      .saveAsTable(tableName)
   }
 
   override def gen(): Unit = {
     Table.getBaseTables.forEach(t => writeParquetTable(t))
+
+    features.foreach(feature => DataGen.Feature.run(spark, source, feature))
   }
 }
 

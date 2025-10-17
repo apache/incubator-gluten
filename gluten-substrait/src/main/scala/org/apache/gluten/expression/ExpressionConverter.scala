@@ -328,7 +328,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           t
         )
       case m: MonthsBetween =>
-        MonthsBetweenTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genMonthsBetweenTransformer(
           substraitExprName,
           replaceWithExpressionTransformer0(m.date1, attributeSeq, expressionsMap),
           replaceWithExpressionTransformer0(m.date2, attributeSeq, expressionsMap),
@@ -541,8 +541,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case CheckOverflow(b: BinaryArithmetic, decimalType, _)
           if !BackendsApiManager.getSettings.transformCheckOverflow &&
             DecimalArithmeticUtil.isDecimalArithmetic(b) =>
-        DecimalArithmeticUtil.checkAllowDecimalArithmetic()
-        val arithmeticExprName = getAndCheckSubstraitName(b, expressionsMap)
+        val arithmeticExprName =
+          BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
+            getAndCheckSubstraitName(b, expressionsMap))
         val left =
           replaceWithExpressionTransformer0(b.left, attributeSeq, expressionsMap)
         val right =
@@ -558,17 +559,18 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           "CheckOverflowInTableInsert is used in ANSI mode, but Gluten does not support ANSI mode."
         )
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
-        DecimalArithmeticUtil.checkAllowDecimalArithmetic()
+        val exprName = BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
+          substraitExprName)
         if (!BackendsApiManager.getSettings.transformCheckOverflow) {
           GenericExpressionTransformer(
-            substraitExprName,
+            exprName,
             expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
             expr
           )
         } else {
           // Without the rescale and remove cast, result is right for high version Spark,
           // but performance regression in velox
-          genRescaleDecimalTransformer(substraitExprName, b, attributeSeq, expressionsMap)
+          genRescaleDecimalTransformer(exprName, b, attributeSeq, expressionsMap)
         }
       case n: NaNvl =>
         BackendsApiManager.getSparkPlanExecApiInstance.genNaNvlTransformer(
@@ -817,14 +819,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     // Check whether Gluten supports this expression
     expressionsMap
       .get(expr.getClass)
-      .flatMap {
-        name =>
-          if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(name, expr)) {
-            None
-          } else {
-            Some(name)
-          }
-      }
+      .filter(BackendsApiManager.getValidatorApiInstance.doExprValidate(_, expr))
       .getOrElse {
         throw new GlutenNotSupportException(
           s"Not supported to map spark function name" +

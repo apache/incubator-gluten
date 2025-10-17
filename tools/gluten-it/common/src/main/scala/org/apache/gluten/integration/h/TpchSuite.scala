@@ -38,6 +38,7 @@ class TpchSuite(
     val dataDir: String,
     val dataScale: Double,
     val genPartitionedData: Boolean,
+    val dataGenFeatures: Seq[String],
     val enableUi: Boolean,
     val enableHsUi: Boolean,
     val hsUiPort: Int,
@@ -73,11 +74,13 @@ class TpchSuite(
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
-  override private[integration] def dataWritePath(): String =
+  override private[integration] def dataWritePath(): String = {
+    val featureFlags = dataGenFeatures.map(feature => s"-$feature").mkString("")
     new File(dataDir).toPath
-      .resolve(s"$TPCH_WRITE_RELATIVE_PATH-$dataScale-$dataSource")
+      .resolve(s"$TPCH_WRITE_RELATIVE_PATH-$dataScale-$dataSource$featureFlags")
       .toFile
       .getAbsolutePath
+  }
 
   override private[integration] def createDataGen(): DataGen = {
     checkDataGenArgs(dataSource, dataScale, genPartitionedData)
@@ -87,6 +90,7 @@ class TpchSuite(
       shufflePartitions,
       dataSource,
       dataWritePath(),
+      dataGenFeatures,
       typeModifiers())
   }
 

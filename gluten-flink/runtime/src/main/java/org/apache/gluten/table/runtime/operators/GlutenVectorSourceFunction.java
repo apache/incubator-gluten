@@ -16,8 +16,10 @@
  */
 package org.apache.gluten.table.runtime.operators;
 
+import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
+import org.apache.gluten.table.runtime.metrics.SourceTaskMetrics;
+
 import io.github.zhztheplayer.velox4j.Velox4j;
-import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
 import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
@@ -65,6 +67,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   private BufferAllocator allocator;
   private MemoryManager memoryManager;
   private SerialTask task;
+  private SourceTaskMetrics taskMetrics;
 
   public GlutenVectorSourceFunction(
       StatefulPlanNode planNode,
@@ -75,7 +78,6 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
     this.outputTypes = outputTypes;
     this.id = id;
     this.split = split;
-    LOG.debug("GlutenSourceFunction {}", outputTypes);
   }
 
   public StatefulPlanNode getPlanNode() {
@@ -99,18 +101,20 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
     if (memoryManager == null) {
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
-      query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
+      query =
+          new Query(
+              planNode, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
       allocator = new RootAllocator(Long.MAX_VALUE);
 
       task = session.queryOps().execute(query);
       task.addSplit(id, split);
       task.noMoreSplits(id);
     }
+    taskMetrics = new SourceTaskMetrics(getRuntimeContext().getMetricGroup());
   }
 
   @Override
   public void run(SourceContext<StatefulElement> sourceContext) throws Exception {
-    LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
     while (isRunning) {
       UpIterator.State state = task.advance();
       if (state == UpIterator.State.AVAILABLE) {
@@ -127,6 +131,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
         LOG.info("Velox task finished");
         break;
       }
+      taskMetrics.updateMetrics(task, id);
     }
 
     task.close();
@@ -149,9 +154,12 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   @Override
   public void initializeState(FunctionInitializationContext context) throws Exception {
     if (memoryManager == null) {
+      LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
-      query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
+      query =
+          new Query(
+              planNode, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
       allocator = new RootAllocator(Long.MAX_VALUE);
 
       task = session.queryOps().execute(query);

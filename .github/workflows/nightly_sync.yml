@@ -22,6 +22,7 @@ on:
       - '.github/workflows/nightly_sync.yml'
 jobs:
   upload_to_nightlies:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -29,9 +30,9 @@ jobs:
       - name: build doc
         uses: actions/jekyll-build-pages@v1
       - name: rsync
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823
         with:
-          switches: -avzr
+          switches: -avzr --delete
           path: _site
           remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/docs/
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}

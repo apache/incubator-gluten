@@ -277,10 +277,6 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   // read as UTC
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
 
-  // Maps table field names to file field names using names, not indices.
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
-
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
 }
 

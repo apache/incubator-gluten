@@ -165,8 +165,8 @@ object QueriesCompare {
       }
       TestUtils
         .compareAnswers(
-          expected.asSuccess().runResult.rows,
           actual.asSuccess().runResult.rows,
+          expected.asSuccess().runResult.rows,
           sort = true)
     }
 

@@ -36,12 +36,12 @@ import scala.io.Source
  *
  * To run the entire test suite:
  * {{{
- *   GLUTEN_UPDATE=0 dev/gen_all_config_docs.sh
+ *   GLUTEN_UPDATE=0 dev/gen-all-config-docs.sh
  * }}}
  *
  * To re-generate golden files for entire suite, run:
  * {{{
- *   dev/gen_all_config_docs.sh
+ *   dev/gen-all-config-docs.sh
  * }}}
  */
 class AllGlutenConfiguration extends AnyFunSuite {
@@ -49,10 +49,7 @@ class AllGlutenConfiguration extends AnyFunSuite {
     AllGlutenConfiguration.getCodeSourceLocation(this.getClass).split("gluten-substrait")(0)
   private val markdown = Paths.get(glutenHome, "docs", "Configuration.md").toAbsolutePath
 
-  private def loadConfigs = Array(GlutenConfig, GlutenCoreConfig)
-
   test("Check gluten configs") {
-    loadConfigs
     val builder = MarkdownBuilder(getClass.getName)
 
     builder ++=
@@ -110,8 +107,30 @@ class AllGlutenConfiguration extends AnyFunSuite {
          | --- | --- | ---
          |"""
 
-    ConfigEntry.getAllEntries
+    val allEntries = GlutenConfig.allEntries ++ GlutenCoreConfig.allEntries
+
+    allEntries
       .filter(_.isPublic)
+      .filter(!_.isExperimental)
+      .sortBy(_.key)
+      .foreach {
+        entry =>
+          val dft = entry.defaultValueString.replace("<", "&lt;").replace(">", "&gt;")
+          builder += Seq(s"${entry.key}", s"$dft", s"${entry.doc}")
+            .mkString("|")
+      }
+
+    builder ++=
+      s"""
+         |## Gluten *experimental* configurations
+         |
+         | Key | Default | Description
+         | --- | --- | ---
+         |"""
+
+    allEntries
+      .filter(_.isPublic)
+      .filter(_.isExperimental)
       .sortBy(_.key)
       .foreach {
         entry =>
@@ -123,7 +142,7 @@ class AllGlutenConfiguration extends AnyFunSuite {
     AllGlutenConfiguration.verifyOrRegenerateGoldenFile(
       markdown,
       builder.toMarkdown,
-      "dev/gen_all_config_docs.sh")
+      "dev/gen-all-config-docs.sh")
   }
 }
 

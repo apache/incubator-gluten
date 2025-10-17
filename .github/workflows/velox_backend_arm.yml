@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend Github Runner (ARM)
+name: Velox Backend (ARM)
 
 on:
   pull_request:
@@ -43,7 +43,7 @@ env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   MVN_CMD: 'mvn -ntp'
   WGET_CMD: 'wget -nv'
-  SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  SETUP: 'bash .github/workflows/util/setup-helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
 
 concurrency:

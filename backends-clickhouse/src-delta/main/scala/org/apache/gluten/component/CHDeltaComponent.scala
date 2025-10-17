@@ -18,8 +18,8 @@ package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackend
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{OffloadDeltaFilter, OffloadDeltaNode, OffloadDeltaProject}
-import org.apache.gluten.extension.DeltaPostTransformRules
+import org.apache.gluten.execution.OffloadDeltaNode
+import org.apache.gluten.extension.{DeltaPostTransformRules, OffloadDeltaFilter, OffloadDeltaProject}
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators

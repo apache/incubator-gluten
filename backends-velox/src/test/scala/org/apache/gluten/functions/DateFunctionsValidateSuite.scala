@@ -526,4 +526,21 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("months_between") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("1997-02-28 10:30:00")
+        val t2 = Timestamp.valueOf("1996-10-30 00:00:00")
+        Seq((t1, t2)).toDF("t1", "t2").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select months_between(t1, t2) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+        runQueryAndCompare("select months_between(t1, t2, false) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }

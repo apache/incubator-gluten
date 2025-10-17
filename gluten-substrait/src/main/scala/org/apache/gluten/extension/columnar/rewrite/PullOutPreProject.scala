@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, TypedAggregateExpression}
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
-import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
+import org.apache.spark.sql.execution.window.WindowExec
 
 import scala.collection.mutable
 
@@ -91,11 +91,10 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
         }.isDefined) ||
         windowNeedPreComputeRangeFrame(window)
       case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
-        val window = SparkShimLoader.getSparkShims
-          .getWindowGroupLimitExecShim(plan)
-          .asInstanceOf[WindowGroupLimitExecShim]
-        window.orderSpec.exists(o => isNotAttribute(o.child)) ||
-        window.partitionSpec.exists(isNotAttribute)
+        val windowGroupLimitExecShim =
+          SparkShimLoader.getSparkShims.getWindowGroupLimitExecShim(plan)
+        windowGroupLimitExecShim.orderSpec.exists(o => isNotAttribute(o.child)) ||
+        windowGroupLimitExecShim.partitionSpec.exists(isNotAttribute)
       case expand: ExpandExec => expand.projections.flatten.exists(isNotAttributeAndLiteral)
       case _ => false
     }
@@ -223,36 +222,37 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       newProject
 
     case plan
-        if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) && needsPreProject(plan) =>
-      val windowLimit = SparkShimLoader.getSparkShims
-        .getWindowGroupLimitExecShim(plan)
-        .asInstanceOf[WindowGroupLimitExecShim]
+        if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) &&
+          needsPreProject(plan) =>
+      val windowGroupLimitExecShim =
+        SparkShimLoader.getSparkShims.getWindowGroupLimitExecShim(plan)
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
       // Handle orderSpec.
-      val newOrderSpec = getNewSortOrder(windowLimit.orderSpec, expressionMap)
+      val newOrderSpec = getNewSortOrder(windowGroupLimitExecShim.orderSpec, expressionMap)
 
       // Handle partitionSpec.
       val newPartitionSpec =
-        windowLimit.partitionSpec.toIndexedSeq.map(replaceExpressionWithAttribute(_, expressionMap))
+        windowGroupLimitExecShim.partitionSpec.toIndexedSeq.map(
+          replaceExpressionWithAttribute(_, expressionMap))
 
       val newChild = ProjectExec(
-        eliminateProjectList(windowLimit.child.outputSet, expressionMap.values.toSeq),
-        windowLimit.child)
-      windowLimit.child.logicalLink.foreach(newChild.setLogicalLink)
+        eliminateProjectList(windowGroupLimitExecShim.child.outputSet, expressionMap.values.toSeq),
+        windowGroupLimitExecShim.child)
+      windowGroupLimitExecShim.child.logicalLink.foreach(newChild.setLogicalLink)
 
-      val newWindowLimitShim = windowLimit.copy(
+      val newWindowGroupLimitExecShim = windowGroupLimitExecShim.copy(
         orderSpec = newOrderSpec,
         partitionSpec = newPartitionSpec,
         child = newChild
       )
-      newWindowLimitShim.copyTagsFrom(windowLimit)
+      newWindowGroupLimitExecShim.copyTagsFrom(windowGroupLimitExecShim)
 
-      val newWindowLimit = SparkShimLoader.getSparkShims
-        .getWindowGroupLimitExec(newWindowLimitShim)
-      newWindowLimit.copyTagsFrom(newWindowLimitShim)
+      val newWindowGroupLimitExec =
+        SparkShimLoader.getSparkShims.getWindowGroupLimitExec(newWindowGroupLimitExecShim)
+      newWindowGroupLimitExec.copyTagsFrom(newWindowGroupLimitExecShim)
 
-      val newProject = ProjectExec(plan.output, newWindowLimit)
-      newWindowLimit.logicalLink.foreach(newProject.setLogicalLink)
+      val newProject = ProjectExec(plan.output, newWindowGroupLimitExec)
+      newWindowGroupLimitExec.logicalLink.foreach(newProject.setLogicalLink)
       newProject
 
     case expand: ExpandExec if needsPreProject(expand) =>

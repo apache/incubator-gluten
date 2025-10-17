@@ -19,8 +19,7 @@ package org.apache.gluten.execution.mergetree
 import org.apache.gluten.affinity.{CHUTAffinity, CHUTSoftAffinityManager}
 import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, GlutenMergeTreePartition, MergeTreePartSplit}
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.{Partition, SparkConf}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreePartsPartitionsUtil
 import org.apache.spark.sql.types.StructType
@@ -61,7 +60,7 @@ class GlutenClickhouseMergetreeSoftAffinitySuite
 
   test("Soft Affinity Scheduler with duplicate reading detection") {
 
-    val partitions: ArrayBuffer[InputPartition] = new ArrayBuffer[InputPartition]()
+    val partitions: ArrayBuffer[Partition] = new ArrayBuffer[Partition]()
     var splitFiles: Seq[MergeTreePartSplit] = Seq()
     val relativeTablePath = "tmp/"
 

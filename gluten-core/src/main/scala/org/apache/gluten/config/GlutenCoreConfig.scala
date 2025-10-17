@@ -26,7 +26,7 @@ class GlutenCoreConfig(conf: SQLConf) extends Logging {
   private lazy val configProvider = new SQLConfProvider(conf)
 
   def getConf[T](entry: ConfigEntry[T]): T = {
-    require(ConfigEntry.containsEntry(entry), s"$entry is not registered")
+    require(ConfigRegistry.containsEntry(entry), s"$entry is not registered")
     entry.readFrom(configProvider)
   }
 
@@ -59,17 +59,11 @@ class GlutenCoreConfig(conf: SQLConf) extends Logging {
 }
 
 /*
- * Note: Gluten configiguration.md is automatically generated from this code.
- * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ * Note: Gluten configuration.md is automatically generated from this code.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
  */
-object GlutenCoreConfig {
-  def buildConf(key: String): ConfigBuilder = ConfigBuilder(key)
-
-  def buildStaticConf(key: String): ConfigBuilder = {
-    ConfigBuilder(key).onCreate(_ => SQLConf.registerStaticConfigKey(key))
-  }
-
-  def get: GlutenCoreConfig = {
+object GlutenCoreConfig extends ConfigRegistry {
+  override def get: GlutenCoreConfig = {
     new GlutenCoreConfig(SQLConf.get)
   }
 
@@ -195,7 +189,7 @@ object GlutenCoreConfig {
   // Since https://github.com/apache/incubator-gluten/issues/5439.
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
-      .internal()
+      .experimental()
       .doc(
         "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
           "be ignored and instead we will consider onheap and offheap memory in combination, " +
@@ -213,7 +207,7 @@ object GlutenCoreConfig {
   // Since https://github.com/apache/incubator-gluten/issues/5439.
   val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
-      .internal()
+      .experimental()
       .doc(
         "Experimental: Determines the memory fraction used to determine the total " +
           "memory available for offheap and onheap allocations when the dynamic offheap " +
