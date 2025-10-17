@@ -34,7 +34,7 @@ namespace gluten {
 namespace {
 
 bool isCudfOperator(const exec::Operator* op) {
-  return isAnyOf<NvtxHelper>(op);
+  return isAnyOf<velox::cudf_velox::NvtxHelper>(op);
 }
 
 }
