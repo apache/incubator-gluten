@@ -27,7 +27,6 @@ ENV PATH=$SPARK_HOME/bin:$PATH
 ENV CUDA_ARCHITECTURES=70
 
 WORKDIR /opt/gluten
-RUN bash ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --enable_gpu=ON && rm -rf /opt/gluten
-
-# You can try the data in folder backends-velox/src/test/resources/tpch-data-parquet
-
+RUN bash ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --enable_gpu=ON && \
+    cmake --install ep/build-velox/build/velox_ep/_build/release/_deps/cudf-build --prefix=/usr/local && \
+    rm -rf /opt/gluten
