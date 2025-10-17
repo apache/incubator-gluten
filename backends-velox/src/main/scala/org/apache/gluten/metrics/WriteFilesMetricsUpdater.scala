@@ -27,6 +27,7 @@ class WriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metr
       metrics("writeIONanos") += operatorMetrics.writeIOTime
       metrics("wallNanos") += operatorMetrics.wallNanos
       metrics("numWrittenFiles") += operatorMetrics.numWrittenFiles
+      metrics("loadLazyVectorTime") += operatorMetrics.loadLazyVectorTime
     }
   }
 }

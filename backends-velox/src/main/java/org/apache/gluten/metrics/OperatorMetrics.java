@@ -50,10 +50,14 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long localReadBytes;
   public long ramReadBytes;
   public long preloadSplits;
+  public long dataSourceAddSplitTime;
+  public long dataSourceReadTime;
 
   public long physicalWrittenBytes;
   public long writeIOTime;
   public long numWrittenFiles;
+
+  public long loadLazyVectorTime;
 
   /** Create an instance for operator metrics. */
   public OperatorMetrics(
@@ -90,9 +94,12 @@ public class OperatorMetrics implements IOperatorMetrics {
       long localReadBytes,
       long ramReadBytes,
       long preloadSplits,
+      long dataSourceAddSplitTime,
+      long dataSourceReadTime,
       long physicalWrittenBytes,
       long writeIOTime,
-      long numWrittenFiles) {
+      long numWrittenFiles,
+      long loadLazyVectorTime) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -126,8 +133,11 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.localReadBytes = localReadBytes;
     this.ramReadBytes = ramReadBytes;
     this.preloadSplits = preloadSplits;
+    this.dataSourceAddSplitTime = dataSourceAddSplitTime;
+    this.dataSourceReadTime = dataSourceReadTime;
     this.physicalWrittenBytes = physicalWrittenBytes;
     this.writeIOTime = writeIOTime;
     this.numWrittenFiles = numWrittenFiles;
+    this.loadLazyVectorTime = loadLazyVectorTime;
   }
 }

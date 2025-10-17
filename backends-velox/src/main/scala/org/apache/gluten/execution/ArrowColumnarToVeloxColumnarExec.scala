@@ -26,12 +26,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class ArrowColumnarToVeloxColumnarExec(override val child: SparkPlan)
   extends ColumnarToColumnarExec(ArrowNativeBatchType, VeloxBatchType) {
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    in.map {
-      b =>
-        val out = VeloxColumnarBatches.toVeloxBatch(b)
-        out
-    }
+    in.map(b => VeloxColumnarBatches.toVeloxBatch(b))
   }
+
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-    ArrowColumnarToVeloxColumnarExec(child = newChild)
+    copy(child = newChild)
 }

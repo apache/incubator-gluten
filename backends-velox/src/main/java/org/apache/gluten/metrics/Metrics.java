@@ -52,10 +52,14 @@ public class Metrics implements IMetrics {
   public long[] localReadBytes;
   public long[] ramReadBytes;
   public long[] preloadSplits;
+  public long[] dataSourceAddSplitTime;
+  public long[] dataSourceReadTime;
 
   public long[] physicalWrittenBytes;
   public long[] writeIOTime;
   public long[] numWrittenFiles;
+
+  public long[] loadLazyVectorTime;
 
   public SingleMetric singleMetric = new SingleMetric();
 
@@ -97,9 +101,12 @@ public class Metrics implements IMetrics {
       long[] localReadBytes,
       long[] ramReadBytes,
       long[] preloadSplits,
+      long[] dataSourceAddSplitTime,
+      long[] dataSourceReadTime,
       long[] physicalWrittenBytes,
       long[] writeIOTime,
       long[] numWrittenFiles,
+      long[] loadLazyVectorTime,
       String taskStats) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
@@ -135,9 +142,13 @@ public class Metrics implements IMetrics {
     this.localReadBytes = localReadBytes;
     this.ramReadBytes = ramReadBytes;
     this.preloadSplits = preloadSplits;
+    this.dataSourceAddSplitTime = dataSourceAddSplitTime;
+    this.dataSourceReadTime = dataSourceReadTime;
+
     this.physicalWrittenBytes = physicalWrittenBytes;
     this.writeIOTime = writeIOTime;
     this.numWrittenFiles = numWrittenFiles;
+    this.loadLazyVectorTime = loadLazyVectorTime;
     this.taskStats = taskStats;
   }
 
@@ -180,9 +191,12 @@ public class Metrics implements IMetrics {
         localReadBytes[index],
         ramReadBytes[index],
         preloadSplits[index],
+        dataSourceAddSplitTime[index],
+        dataSourceReadTime[index],
         physicalWrittenBytes[index],
         writeIOTime[index],
-        numWrittenFiles[index]);
+        numWrittenFiles[index],
+        loadLazyVectorTime[index]);
   }
 
   public SingleMetric getSingleMetrics() {

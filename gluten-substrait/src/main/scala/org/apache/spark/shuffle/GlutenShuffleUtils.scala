@@ -24,6 +24,8 @@ import org.apache.gluten.vectorized.NativePartitioning
 import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.internal.config._
 import org.apache.spark.shuffle.api.ShuffleExecutorComponents
+import org.apache.spark.shuffle.sort.ColumnarShuffleHandle
+import org.apache.spark.shuffle.sort.SortShuffleManager.canUseBatchFetch
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 import org.apache.spark.util.random.XORShiftRandom
 
@@ -134,5 +136,41 @@ object GlutenShuffleUtils {
       case other: BaseShuffleHandle[K @unchecked, V @unchecked, _] =>
         SparkSortShuffleWriterUtil.create(other, mapId, context, metrics, shuffleExecutorComponents)
     }
+  }
+
+  def genColumnarShuffleWriter[K, V](
+      shuffleBlockResolver: IndexShuffleBlockResolver,
+      columnarShuffleHandle: ColumnarShuffleHandle[K, V],
+      mapId: Long,
+      metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genColumnarShuffleWriter(
+        GenShuffleWriterParameters(shuffleBlockResolver, columnarShuffleHandle, mapId, metrics))
+      .shuffleWriter
+  }
+
+  def genColumnarShuffleReader[K, C](
+      handle: ShuffleHandle,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int,
+      context: TaskContext,
+      metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
+    val (blocksByAddress, canEnableBatchFetch) = {
+      getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
+    }
+    val shouldBatchFetch =
+      canEnableBatchFetch && canUseBatchFetch(startPartition, endPartition, context)
+
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genColumnarShuffleReader(
+        GenShuffleReaderParameters(
+          handle.asInstanceOf[BaseShuffleHandle[K, _, C]],
+          blocksByAddress,
+          context,
+          metrics,
+          shouldBatchFetch))
+      .shuffleReader
   }
 }

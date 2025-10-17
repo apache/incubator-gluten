@@ -16,10 +16,8 @@
  */
 package org.apache.gluten.integration.ds
 
-import org.apache.gluten.integration.{DataGen, Suite, TableCreator}
+import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableCreator}
 import org.apache.gluten.integration.action.Action
-import org.apache.gluten.integration.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE_PATH, TPCDS_WRITE_RELATIVE_PATH}
-import org.apache.gluten.integration.h.TpchSuite.checkDataGenArgs
 import org.apache.gluten.integration.metrics.MetricMapper
 
 import org.apache.spark.SparkConf
@@ -40,6 +38,7 @@ class TpcdsSuite(
     val dataDir: String,
     val dataScale: Double,
     val genPartitionedData: Boolean,
+    val dataGenFeatures: Seq[String],
     val enableUi: Boolean,
     val enableHsUi: Boolean,
     val hsUiPort: Int,
@@ -81,8 +80,9 @@ class TpcdsSuite(
     } else {
       "non_partitioned"
     }
+    val featureFlags = dataGenFeatures.map(feature => s"-$feature").mkString("")
     new File(dataDir).toPath
-      .resolve(s"$TPCDS_WRITE_RELATIVE_PATH-$dataScale-$dataSource-$partitionedFlag")
+      .resolve(s"$TPCDS_WRITE_RELATIVE_PATH-$dataScale-$dataSource-$partitionedFlag$featureFlags")
       .toFile
       .getAbsolutePath
   }
@@ -95,15 +95,14 @@ class TpcdsSuite(
       shufflePartitions,
       dataSource,
       dataWritePath(),
-      typeModifiers(),
-      genPartitionedData)
+      genPartitionedData,
+      dataGenFeatures,
+      typeModifiers())
   }
 
-  override private[integration] def queryResource(): String = {
-    "/tpcds-queries"
+  override private[integration] def allQueries(): QuerySet = {
+    QuerySet.readFromResource("/tpcds-queries", TpcdsSuite.ALL_QUERY_IDS)
   }
-
-  override private[integration] def allQueryIds(): Array[String] = ALL_QUERY_IDS
 
   override private[integration] def desc(): String = "TPC-DS"
 

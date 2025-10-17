@@ -1,12 +1,27 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one or more
+  ~ contributor license agreements.  See the NOTICE file distributed with
+  ~ this work for additional information regarding copyright ownership.
+  ~ The ASF licenses this file to You under the Apache License, Version 2.0
+  ~ (the "License"); you may not use this file except in compliance with
+  ~ the License.  You may obtain a copy of the License at
+  ~
+  ~    http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
   <parent>
-    <artifactId>gluten-parent</artifactId>
     <groupId>org.apache.gluten</groupId>
+    <artifactId>gluten-parent</artifactId>
     <version>1.6.0-SNAPSHOT</version>
   </parent>
-  <modelVersion>4.0.0</modelVersion>
 
   <artifactId>gluten-core</artifactId>
   <packaging>jar</packaging>
@@ -131,8 +146,6 @@
   </dependencies>
 
   <build>
-    <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
-    <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <resources>
       <resource>
         <directory>${project.basedir}/src/main/resources</directory>
@@ -149,15 +162,13 @@
         <executions>
           <execution>
             <id>compile-gluten-proto</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
               <goal>test-compile</goal>
             </goals>
+            <phase>generate-sources</phase>
             <configuration>
-              <protocArtifact>
-                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-              </protocArtifact>
+              <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
               <protoSourceRoot>src/main/resources/org/apache/gluten/proto</protoSourceRoot>
               <clearOutputDirectory>false</clearOutputDirectory>
             </configuration>
@@ -179,12 +190,18 @@
                 <exec executable="bash" osfamily="unix">
                   <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
                   <arg value="true"/>
-                  <arg value="--version"/><arg value="${project.version}"/>
-                  <arg value="--java"/><arg value="${java.version}"/>
-                  <arg value="--scala"/><arg value="${scala.version}"/>
-                  <arg value="--spark"/><arg value="${spark.version}"/>
-                  <arg value="--hadoop"/><arg value="${hadoop.version}"/>
-                  <arg value="--revision"/><arg value="true"/>
+                  <arg value="--version"/>
+                  <arg value="${project.version}"/>
+                  <arg value="--java"/>
+                  <arg value="${java.version}"/>
+                  <arg value="--scala"/>
+                  <arg value="${scala.version}"/>
+                  <arg value="--spark"/>
+                  <arg value="${spark.version}"/>
+                  <arg value="--hadoop"/>
+                  <arg value="${hadoop.version}"/>
+                  <arg value="--revision"/>
+                  <arg value="true"/>
                 </exec>
               </target>
             </configuration>
@@ -233,13 +250,15 @@
         <executions>
           <execution>
             <id>prepare-test-jar</id>
-            <phase>test-compile</phase>
             <goals>
               <goal>test-jar</goal>
             </goals>
+            <phase>test-compile</phase>
           </execution>
         </executions>
       </plugin>
     </plugins>
+    <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
+    <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
   </build>
 </project>

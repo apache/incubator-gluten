@@ -26,6 +26,7 @@ import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionB
 import org.apache.gluten.substrait.rel.RelNode
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.JavaConverters._
@@ -61,6 +62,8 @@ abstract class GenerateExecTransformerBase(
   }
 
   override def output: Seq[Attribute] = requiredChildOutput ++ generatorOutput
+
+  override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def producedAttributes: AttributeSet = AttributeSet(generatorOutput)
 

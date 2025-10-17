@@ -17,10 +17,8 @@
 package org.apache.spark.softaffinity
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.GlutenPartition
 import org.apache.gluten.softaffinity.SoftAffinityManager
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.substrait.plan.PlanBuilder
 
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListenerExecutorAdded, SparkListenerExecutorRemoved}
@@ -68,9 +66,8 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       partition.files.map(_.filePath.toString),
       partition.preferredLocations())
 
-    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
     assertResult(Set("host-1", "host-2", "host-3")) {
-      nativePartition.preferredLocations().toSet
+      locations.toSet
     }
   }
 
@@ -99,10 +96,8 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       partition.files.map(_.filePath.toString),
       partition.preferredLocations())
 
-    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
-
     assertResult(Set("192.168.22.1", "host-5", "host-2")) {
-      nativePartition.preferredLocations().toSet
+      locations.toSet
     }
   }
 
@@ -131,10 +126,8 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       partition.files.map(_.filePath.toString),
       partition.preferredLocations())
 
-    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
-
     assertResult(Set("executor_192.168.22.1_1", "executor_10.1.1.33_6")) {
-      nativePartition.preferredLocations().toSet
+      locations.toSet
     }
   }
 
@@ -163,8 +156,6 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       partition.files.map(_.filePath.toString),
       partition.preferredLocations())
 
-    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
-
     val affinityResultSet = if (scalaVersion.startsWith("2.12")) {
       Set("host-1", "host-5", "host-6")
     } else if (scalaVersion.startsWith("2.13")) {
@@ -172,7 +163,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     }
 
     assertResult(affinityResultSet) {
-      nativePartition.preferredLocations().toSet
+      locations.toSet
     }
   }
 

@@ -39,7 +39,6 @@
 #include "velox/connectors/hive/storage_adapters/gcs/GcsFileSystem.h"
 #endif
 #ifdef ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsUtil.h"
 #endif
 #ifdef ENABLE_ABFS

@@ -28,6 +28,8 @@
 #include "utils/qat/QatCodec.h"
 #endif
 #ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/CudfConfig.h"
+#include "velox/experimental/cudf/connectors/hive/CudfHiveConnector.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
 
@@ -44,6 +46,7 @@
 #include "velox/connectors/hive/HiveDataSource.h"
 #include "velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/gcs/RegisterGcsFileSystem.h" // @manual
+#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h" // @manual
 #include "velox/dwio/orc/reader/OrcReader.h"
@@ -164,11 +167,16 @@ void VeloxBackend::init(
 
 #ifdef GLUTEN_ENABLE_GPU
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
-    FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
-    FLAGS_velox_cudf_memory_resource = backendConf_->get<std::string>(kCudfMemoryResource, kCudfMemoryResourceDefault);
-    auto& options = velox::cudf_velox::CudfOptions::getInstance();
-    options.memoryPercent = backendConf_->get<int32_t>(kCudfMemoryPercent, kCudfMemoryPercentDefault);
-    velox::cudf_velox::registerCudf(options);
+    std::unordered_map<std::string, std::string> options = {
+        {velox::cudf_velox::CudfConfig::kCudfEnabled, "true"},
+        {velox::cudf_velox::CudfConfig::kCudfDebugEnabled, backendConf_->get(kDebugCudf, kDebugCudfDefault)},
+        {velox::cudf_velox::CudfConfig::kCudfMemoryResource,
+         backendConf_->get(kCudfMemoryResource, kCudfMemoryResourceDefault)},
+        {velox::cudf_velox::CudfConfig::kCudfMemoryPercent,
+         backendConf_->get(kCudfMemoryPercent, kCudfMemoryPercentDefault)}};
+    auto& cudfConfig = velox::cudf_velox::CudfConfig::getInstance();
+    cudfConfig.initialize(std::move(options));
+    velox::cudf_velox::registerCudf();
   }
 #endif
 
@@ -210,7 +218,9 @@ void VeloxBackend::init(
     memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
-  facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
+  facebook::velox::memory::MemoryManager::Options options;
+  options.allocatorCapacity = memoryManagerCapacity;
+  facebook::velox::memory::initializeMemoryManager(options);
 
   // local cache persistent relies on the cache pool from root memory pool so we need to init this
   // after the memory manager instanced
@@ -303,6 +313,14 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
   }
   velox::connector::registerConnector(
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
+#ifdef GLUTEN_ENABLE_GPU
+  if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
+      backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    facebook::velox::cudf_velox::connector::hive::CudfHiveConnectorFactory factory;
+    auto hiveConnector = factory.newConnector(kCudfHiveConnectorId, hiveConf, ioExecutor_.get());
+    facebook::velox::connector::registerConnector(hiveConnector);
+  }
+#endif
 }
 
 void VeloxBackend::initUdf() {
@@ -329,4 +347,31 @@ VeloxBackend* VeloxBackend::get() {
   }
   return instance_.get();
 }
+
+void VeloxBackend::tearDown() {
+#ifdef ENABLE_HDFS
+  for (const auto& [_, filesystem] : facebook::velox::filesystems::registeredFilesystems) {
+    filesystem->close();
+  }
+#endif
+
+  // Destruct IOThreadPoolExecutor will join all threads.
+  // On threads exit, thread local variables can be constructed with referencing global variables.
+  // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
+  ioExecutor_.reset();
+  globalMemoryManager_.reset();
+
+  // dump cache stats on exit if enabled
+  if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
+    LOG(INFO) << asyncDataCache_->toString();
+    for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
+      if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
+        LOG(INFO) << "Removing cache file " << entry.path().filename().string();
+        std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
+      }
+    }
+    asyncDataCache_->shutdown();
+  }
+}
+
 } // namespace gluten

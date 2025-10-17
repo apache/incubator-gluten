@@ -25,10 +25,7 @@ class AllVeloxConfiguration extends AnyFunSuite {
     AllGlutenConfiguration.getCodeSourceLocation(this.getClass).split("backends-velox")(0)
   private val markdown = Paths.get(glutenHome, "docs", "velox-configuration.md").toAbsolutePath
 
-  private def loadConfigs = Array(VeloxConfig)
-
   test("Check velox backend configs") {
-    loadConfigs
     val builder = MarkdownBuilder(getClass.getName)
 
     builder ++=
@@ -49,8 +46,28 @@ class AllVeloxConfiguration extends AnyFunSuite {
          | --- | --- | ---
          |"""
 
-    ConfigEntry.getAllEntries
-      .filter(_.key.contains("velox"))
+    VeloxConfig.allEntries
+      .filter(_.isPublic)
+      .filter(!_.isExperimental)
+      .sortBy(_.key)
+      .foreach {
+        entry =>
+          val dft = entry.defaultValueString.replace("<", "&lt;").replace(">", "&gt;")
+          builder += Seq(s"${entry.key}", s"$dft", s"${entry.doc}")
+            .mkString("|")
+      }
+
+    builder ++=
+      s"""
+         |## Gluten Velox backend *experimental* configurations
+         |
+         | Key | Default | Description
+         | --- | --- | ---
+         |"""
+
+    VeloxConfig.allEntries
+      .filter(_.isPublic)
+      .filter(_.isExperimental)
       .sortBy(_.key)
       .foreach {
         entry =>
@@ -62,6 +79,6 @@ class AllVeloxConfiguration extends AnyFunSuite {
     AllGlutenConfiguration.verifyOrRegenerateGoldenFile(
       markdown,
       builder.toMarkdown,
-      "dev/gen_all_config_docs.sh")
+      "dev/gen-all-config-docs.sh")
   }
 }

@@ -161,8 +161,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("null input for array_size", "3.3") {
     withTempPath {
       path =>
-        Seq[(Array[Int])](
-          (null.asInstanceOf[Array[Int]])
+        Seq[Array[Int]](
+          null.asInstanceOf[Array[Int]]
         )
           .toDF("txt")
           .write
@@ -190,7 +190,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("shiftright") {
-    val df = runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
+    runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -381,7 +381,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   test("map_filter") {
     withTempPath {
       path =>
-        Seq((Map("a" -> 1, "b" -> 2, "c" -> 3)))
+        Seq(Map("a" -> 1, "b" -> 2, "c" -> 3))
           .toDF("m")
           .write
           .parquet(path.getCanonicalPath)
@@ -1021,7 +1021,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           runQueryAndCompare("SELECT l_orderkey, input_file_name() as name FROM lineitem") {
             df =>
               val plan = df.queryExecution.executedPlan
-              assert(collect(plan) { case f: ProjectExecTransformer => f }.size == 0)
+              assert(collect(plan) { case f: ProjectExecTransformer => f }.isEmpty)
               assert(collect(plan) { case f: ProjectExec => f }.size == 1)
           }
         }
@@ -1079,7 +1079,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     withTempView("try_cast_table") {
       withTempPath {
         path =>
-          Seq[(String)](("123456"), ("000A1234"))
+          Seq[String]("123456", "000A1234")
             .toDF("str")
             .write
             .parquet(path.getCanonicalPath)
@@ -1131,7 +1131,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     withTempView("cast_table") {
       withTempPath {
         path =>
-          Seq[(String)](("123456"), ("000A1234"))
+          Seq[String]("123456", "000A1234")
             .toDF("str")
             .write
             .parquet(path.getCanonicalPath)

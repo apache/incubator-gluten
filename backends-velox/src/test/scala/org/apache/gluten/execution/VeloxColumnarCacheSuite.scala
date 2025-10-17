@@ -23,7 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
+import org.apache.spark.sql.execution.columnar.{InMemoryTableScanExec, SparkCacheUtil}
 import org.apache.spark.sql.types.{LongType, Metadata, MetadataBuilder, StructType}
 import org.apache.spark.storage.StorageLevel
 
@@ -35,7 +35,15 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    // A common practice as well as in Spark tests, to clear the cache serializer
+    // in case it was already set as the default row-based serializer.
+    SparkCacheUtil.clearCacheSerializer()
     createTPCHNotNullTables()
+  }
+
+  override protected def afterAll(): Unit = {
+    SparkCacheUtil.clearCacheSerializer()
+    super.afterAll()
   }
 
   override protected def sparkConf: SparkConf = {

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.integration.action
 
-import org.apache.gluten.integration.{QueryRunner, Suite}
+import org.apache.gluten.integration.{Query, QueryRunner, Suite}
 import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.QueriesCompare.TestResultLine
@@ -35,23 +35,23 @@ case class QueriesCompare(
 
   override def execute(suite: Suite): Boolean = {
     val runner: QueryRunner =
-      new QueryRunner(suite.queryResource(), suite.dataSource(), suite.dataWritePath())
-    val runQueryIds = queries.select(suite)
+      new QueryRunner(suite.dataSource(), suite.dataWritePath())
+    val querySet = queries.select(suite)
     val sessionSwitcher = suite.sessionSwitcher
 
     sessionSwitcher.useSession("baseline", "Run Baseline Queries")
     runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
     val baselineResults = (0 until iterations).flatMap {
       iteration =>
-        runQueryIds.map {
-          queryId =>
-            println(s"Running baseline query $queryId (iteration $iteration)...")
+        querySet.queries.map {
+          query =>
+            println(s"Running baseline query ${query.id} (iteration $iteration)...")
             try {
               QueriesCompare.runBaselineQuery(
                 runner,
                 sessionSwitcher.spark(),
                 suite.desc(),
-                queryId,
+                query,
                 explain)
             } finally {
               if (noSessionReuse) {
@@ -66,15 +66,15 @@ case class QueriesCompare(
     runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
     val testResults = (0 until iterations).flatMap {
       iteration =>
-        runQueryIds.map {
-          queryId =>
-            println(s"Running test query $queryId (iteration $iteration)...")
+        querySet.queries.map {
+          query =>
+            println(s"Running test query ${query.id} (iteration $iteration)...")
             try {
               QueriesCompare.runTestQuery(
                 runner,
                 sessionSwitcher.spark(),
                 suite.desc(),
-                queryId,
+                query,
                 explain)
             } finally {
               if (noSessionReuse) {
@@ -165,8 +165,8 @@ object QueriesCompare {
       }
       TestUtils
         .compareAnswers(
-          expected.asSuccess().runResult.rows,
           actual.asSuccess().runResult.rows,
+          expected.asSuccess().runResult.rows,
           sort = true)
     }
 
@@ -225,10 +225,10 @@ object QueriesCompare {
       runner: QueryRunner,
       session: SparkSession,
       desc: String,
-      id: String,
+      query: Query,
       explain: Boolean): QueryResult = {
-    val testDesc = "Baseline %s [%s]".format(desc, id)
-    val result = runner.runQuery(session, testDesc, id, explain = explain)
+    val testDesc = "Baseline %s [%s]".format(desc, query.id)
+    val result = runner.runQuery(session, testDesc, query, explain = explain)
     result
   }
 
@@ -236,10 +236,10 @@ object QueriesCompare {
       runner: QueryRunner,
       session: SparkSession,
       desc: String,
-      id: String,
+      query: Query,
       explain: Boolean): QueryResult = {
-    val testDesc = "Query %s [%s]".format(desc, id)
-    val result = runner.runQuery(session, testDesc, id, explain = explain)
+    val testDesc = "Query %s [%s]".format(desc, query.id)
+    val result = runner.runQuery(session, testDesc, query, explain = explain)
     result
   }
 }

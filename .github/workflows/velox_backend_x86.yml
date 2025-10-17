@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend Github Runner (x86)
+name: Velox Backend (x86)
 
 on:
   pull_request:
@@ -43,7 +43,7 @@ env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   MVN_CMD: 'mvn -ntp'
   WGET_CMD: 'wget -nv'
-  SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  SETUP: 'source .github/workflows/util/setup-helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
   # spark.sql.ansi.enabled defaults to false.
   SPARK_ANSI_SQL_MODE: false
@@ -103,7 +103,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
-        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
+        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0"  ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3.
         exclude:
@@ -123,6 +123,11 @@ jobs:
             java: java-17
           - os: ubuntu:22.04
             java: java-11
+          - spark: spark-4.0
+            java: java-8
+          - spark: spark-4.0
+            java: java-11
+
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
@@ -139,7 +144,7 @@ jobs:
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup tzdata
         run: |
-          sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
+          #sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
           if [ "${{ matrix.os }}" = "ubuntu:22.04" ]; then
             apt-get update
             TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
@@ -161,12 +166,16 @@ jobs:
           cd $GITHUB_WORKSPACE/
           export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
           echo "JAVA_HOME: $JAVA_HOME"
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+          else
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          fi
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
   tpc-test-centos8:
@@ -252,22 +261,16 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
-          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
-            exit 0
-          fi
-          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+          GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
       - name: Run TPC-H / TPC-DS with RAS
         run: |
-          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
-            exit 0
-          fi
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
             --extra-conf=spark.gluten.ras.enabled=true \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
             --extra-conf=spark.gluten.ras.enabled=true 
 
@@ -303,10 +306,7 @@ jobs:
 
             # Setup java and maven
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget tzdata python3-pip
-
             $SETUP install_maven
-            export PATH=${PATH}:/usr/lib/maven/bin
-
             # Set environment variables
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
@@ -318,7 +318,7 @@ jobs:
             # Run TPC-H / TPC-DS
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
               --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
-            GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
               --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
             # Run TPC-H / TPC-DS with RAS
@@ -326,7 +326,7 @@ jobs:
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
               --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
               --extra-conf=spark.gluten.ras.enabled=true \
-            && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
               --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
               --extra-conf=spark.gluten.ras.enabled=true 
           "
@@ -555,7 +555,7 @@ jobs:
       fail-fast: false
       matrix:
         spark: [ "spark-3.2" ]
-        celeborn: [ "celeborn-0.6.0", "celeborn-0.5.4", "celeborn-0.4.3"]
+        celeborn: [ "celeborn-0.6.1", "celeborn-0.5.4", "celeborn-0.4.3"]
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
@@ -581,7 +581,7 @@ jobs:
             EXTRA_PROFILE="-Pceleborn-0.4"
           elif [ "${{ matrix.celeborn }}" = "celeborn-0.5.4" ]; then
             EXTRA_PROFILE="-Pceleborn-0.5"
-          elif [ "${{ matrix.celeborn }}" = "celeborn-0.6.0" ]; then
+          elif [ "${{ matrix.celeborn }}" = "celeborn-0.6.1" ]; then
             EXTRA_PROFILE="-Pceleborn-0.6"
           fi
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
@@ -1020,10 +1020,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1073,10 +1069,6 @@ jobs:
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1119,10 +1111,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1171,10 +1159,6 @@ jobs:
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1217,10 +1201,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare Spark Resources for Spark 3.5.5
-        run: |
-          rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/

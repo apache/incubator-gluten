@@ -184,6 +184,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     final ZoneId shiftTimeZone =
         TimeWindowUtil.getShiftTimeZone(
             windowing.getTimeAttributeType(), TableConfigUtils.getLocalTimeZone(config));
+
     // --- Begin Gluten-specific code changes ---
     // TODO: velox window not equal to flink window.
     io.github.zhztheplayer.velox4j.type.RowType inputType =
@@ -250,7 +251,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             slide,
             offset,
             windowType,
-            outputType);
+            outputType,
+            rowtimeIndex);
     final OneInputStreamOperator windowOperator =
         new GlutenVectorOneInputOperator(
             new StatefulPlanNode(windowAgg.getId(), windowAgg),

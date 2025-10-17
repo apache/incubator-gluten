@@ -12,7 +12,7 @@ parent: /developer-overview/
 
 1. Build Gluten ClickHouse Native Lib.
    ```
-   export CMAKE_BUILD_TYPE=Release && bash ep/build-clickhouse/src/build_clickhouse.sh
+   export CMAKE_BUILD_TYPE=Release && bash ep/build-clickhouse/src/build-clickhouse.sh
    ```
    libch.so will be generated in `cpp-ch/build/utils/extern-local-engine/libch.so`.
 

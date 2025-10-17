@@ -32,8 +32,15 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
   extends ColumnarToColumnarTransition
   with GlutenPlan {
 
+  override def isSameConvention: Boolean = from == to
+
   def child: SparkPlan
+
   protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch]
+
+  protected def closeIterator(out: Iterator[ColumnarBatch]): Unit = {}
+
+  protected def needRecyclePayload: Boolean = false
 
   override lazy val metrics: Map[String, SQLMetric] =
     Map(
@@ -77,12 +84,18 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
               inBatch
           }
         val out = mapIterator(wrappedIn)
-        val wrappedOut = Iterators
+        val builder = Iterators
           .wrap(out)
+          .protectInvocationFlow()
           .collectReadMillis(outMillis => selfMillis.getAndAdd(outMillis))
           .recycleIterator {
+            closeIterator(out)
             selfTime += selfMillis.get()
           }
+        if (needRecyclePayload) {
+          builder.recyclePayload(_.close())
+        }
+        builder
           .create()
           .map {
             outBatch =>
@@ -90,7 +103,6 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
               numOutputBatches += 1
               outBatch
           }
-        wrappedOut
     }
 
   }

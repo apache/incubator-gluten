@@ -65,11 +65,11 @@ package object transition {
     }
   }
 
-  // Extractor for Gluten's C2C
+  // Extractor for Gluten's C2C with different convention
   object ColumnarToColumnarLike {
     def unapply(plan: SparkPlan): Option[SparkPlan] = {
       plan match {
-        case c2c: ColumnarToColumnarTransition =>
+        case c2c: ColumnarToColumnarTransition if !c2c.isSameConvention =>
           Some(c2c.child)
         case _ => None
       }

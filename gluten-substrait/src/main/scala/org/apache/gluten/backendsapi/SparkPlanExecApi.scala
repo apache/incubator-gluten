@@ -27,7 +27,7 @@ import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.{GenShuffleReaderParameters, GenShuffleWriterParameters, GlutenShuffleReaderWrapper, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
@@ -242,6 +242,8 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
+  def getDecimalArithmeticExprName(exprName: String): String = exprName
+
   /** Transform map_entries to Substrait. */
   def genMapEntriesTransformer(
       substraitExprName: String,
@@ -385,6 +387,9 @@ trait SparkPlanExecApi {
   def genColumnarShuffleWriter[K, V](
       parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V]
 
+  def genColumnarShuffleReader[K, C](
+      parameters: GenShuffleReaderParameters[K, C]): GlutenShuffleReaderWrapper[K, C]
+
   /**
    * Generate ColumnarBatchSerializer for ColumnarShuffleExchangeExec.
    *
@@ -469,6 +474,12 @@ trait SparkPlanExecApi {
       original: TruncTimestamp): ExpressionTransformer = {
     TruncTimestampTransformer(substraitExprName, format, timestamp, original)
   }
+
+  def genToUnixTimestampTransformer(
+      substraitExprName: String,
+      timeExp: ExpressionTransformer,
+      format: ExpressionTransformer,
+      original: Expression): ExpressionTransformer
 
   def genDateDiffTransformer(
       substraitExprName: String,
@@ -719,7 +730,7 @@ trait SparkPlanExecApi {
       orderSpec: Seq[SortOrder],
       rankLikeFunction: Expression,
       limit: Int,
-      mode: WindowGroupLimitMode,
+      mode: GlutenWindowGroupLimitMode,
       child: SparkPlan): SparkPlan =
     WindowGroupLimitExecTransformer(partitionSpec, orderSpec, rankLikeFunction, limit, mode, child)
 
@@ -790,6 +801,13 @@ trait SparkPlanExecApi {
       original: Expression): ExpressionTransformer = {
     throw new GlutenNotSupportException("timestampdiff is not supported")
   }
+
+  def genMonthsBetweenTransformer(
+      substraitExprName: String,
+      date1: ExpressionTransformer,
+      date2: ExpressionTransformer,
+      roundOff: ExpressionTransformer,
+      original: MonthsBetween): ExpressionTransformer
 
   def isRowIndexMetadataColumn(columnName: String): Boolean = {
     SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(columnName)

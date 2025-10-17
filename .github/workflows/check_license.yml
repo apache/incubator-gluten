@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: license header check
+name: License Header Check
 on:
   pull_request
 concurrency:
@@ -21,8 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  license-check:
-    name: License Header Check
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

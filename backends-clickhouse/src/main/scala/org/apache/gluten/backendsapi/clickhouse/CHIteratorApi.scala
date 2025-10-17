@@ -27,16 +27,15 @@ import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator}
 
-import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
+import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, TaskContext}
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.CHColumnarShuffleWriter
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuilder, ExtensionTableNode}
+import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
 import org.apache.spark.sql.execution.datasources.mergetree.PartSerializer
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -125,11 +124,16 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   }
 
   override def genSplitInfo(
-      partition: InputPartition,
+      partitionIndex: Int,
+      partitions: Seq[Partition],
       partitionSchema: StructType,
+      dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo = {
+    // todo: support multi partitions
+    assert(partitions.size == 1)
+    val partition = partitions.head
     partition match {
       case p: GlutenMergeTreePartition =>
         ExtensionTableBuilder
@@ -244,26 +248,22 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
     splitInfos.zipWithIndex.map {
       case (splits, index) =>
-        val splitInfosByteArray = splits.zipWithIndex.map {
+        val splitInfos = splits.zipWithIndex.map {
           case (split, i) =>
             split match {
               case filesNode: LocalFilesNode if leaves(i).isInstanceOf[BasicScanExecTransformer] =>
                 setFileSchemaForLocalFiles(
                   filesNode,
                   leaves(i).asInstanceOf[BasicScanExecTransformer])
-                filesNode.toProtobuf.toByteArray
-              case extensionTableNode: ExtensionTableNode =>
-                extensionTableNode.toProtobuf.toByteArray
-              case kafkaSourceNode: StreamKafkaSourceNode =>
-                kafkaSourceNode.toProtobuf.toByteArray
+                filesNode
+              case splitInfo => splitInfo
             }
         }
 
         GlutenPartition(
           index,
           planByteArray,
-          splitInfosByteArray.toArray,
-          locations = splits.flatMap(_.preferredLocations().asScala).toArray
+          splitInfos.toArray
         )
     }
   }
@@ -289,7 +289,9 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       "CH backend only accepts GlutenPartition in GlutenWholeStageColumnarRDD.")
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
-      .splitInfosByteArray
+      .splitInfos
+      .map(splitInfo => splitInfo.toProtobuf.toByteArray)
+      .toArray
     val wsPlan = inputPartition.plan
     val materializeInput = false
 

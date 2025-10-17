@@ -211,6 +211,55 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_repeatedThenCompose( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong repeatedBatchHandle,
+    jlong nonRepeatedBatchHandle,
+    jintArray rowId2RowNums) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
+
+  int rowId2RowNumsSize = env->GetArrayLength(rowId2RowNums);
+  auto safeRowId2RowNumsArray = getIntArrayElementsSafe(env, rowId2RowNums);
+
+  auto veloxPool = runtime->memoryManager()->getLeafMemoryPool();
+  vector_size_t rowNums = 0;
+  for (int i = 0; i < rowId2RowNumsSize; ++i) {
+    rowNums += safeRowId2RowNumsArray.elems()[i];
+  }
+
+  // Create a indices vector.
+  // The indices will be used to create a dictionary vector for the first batch.
+  auto repeatedIndices = AlignedBuffer::allocate<vector_size_t>(rowNums, veloxPool.get(), 0);
+  auto* rawRepeatedIndices = repeatedIndices->asMutable<vector_size_t>();
+  int lastRowIndexEnd = 0;
+  for (int i = 0; i < rowId2RowNumsSize; ++i) {
+    auto rowNum = safeRowId2RowNumsArray.elems()[i];
+    std::fill(rawRepeatedIndices + lastRowIndexEnd, rawRepeatedIndices + lastRowIndexEnd + rowNum, i);
+    lastRowIndexEnd += rowNum;
+  }
+
+  auto repeatedBatch = ObjectStore::retrieve<ColumnarBatch>(repeatedBatchHandle);
+  auto nonRepeatedBatch = ObjectStore::retrieve<ColumnarBatch>(nonRepeatedBatchHandle);
+  GLUTEN_CHECK(rowNums == nonRepeatedBatch->numRows(), "Row numbers after repeated do not match the expected size");
+
+  // wrap repeatedBatch's rowVector in dictionary vector.
+  auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(repeatedBatch);
+  auto rowVector = vb->getRowVector();
+  std::vector<VectorPtr> outputs(rowVector->childrenSize());
+  for (int i = 0; i < outputs.size(); i++) {
+    outputs[i] = BaseVector::wrapInDictionary(nullptr /*nulls*/, repeatedIndices, rowNums, rowVector->childAt(i));
+  }
+  auto newRowVector =
+      std::make_shared<RowVector>(veloxPool.get(), rowVector->type(), BufferPtr(nullptr), rowNums, std::move(outputs));
+  repeatedBatch = std::make_shared<VeloxColumnarBatch>(std::move(newRowVector));
+  auto newBatch = VeloxColumnarBatch::compose(veloxPool.get(), {std::move(repeatedBatch), std::move(nonRepeatedBatch)});
+  return ctx->saveObject(newBatch);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_empty( // NOLINT
     JNIEnv* env,
     jobject wrapper,

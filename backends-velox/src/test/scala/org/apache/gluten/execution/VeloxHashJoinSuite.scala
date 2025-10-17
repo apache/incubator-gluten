@@ -159,8 +159,8 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
     Seq("true", "false").foreach(
       enabledOffheapBroadcast =>
         withSQLConf(
-          (GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key -> "16"),
-          (VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key -> enabledOffheapBroadcast)) {
+          GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key -> "16",
+          VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key -> enabledOffheapBroadcast) {
           withTable("t1", "t2") {
             spark.sql("""
                         |CREATE TABLE t1 USING PARQUET

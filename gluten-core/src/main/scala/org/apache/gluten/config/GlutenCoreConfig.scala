@@ -26,7 +26,7 @@ class GlutenCoreConfig(conf: SQLConf) extends Logging {
   private lazy val configProvider = new SQLConfProvider(conf)
 
   def getConf[T](entry: ConfigEntry[T]): T = {
-    require(ConfigEntry.containsEntry(entry), s"$entry is not registered")
+    require(ConfigRegistry.containsEntry(entry), s"$entry is not registered")
     entry.readFrom(configProvider)
   }
 
@@ -59,17 +59,11 @@ class GlutenCoreConfig(conf: SQLConf) extends Logging {
 }
 
 /*
- * Note: Gluten configiguration.md is automatically generated from this code.
- * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ * Note: Gluten configuration.md is automatically generated from this code.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
  */
-object GlutenCoreConfig {
-  def buildConf(key: String): ConfigBuilder = ConfigBuilder(key)
-
-  def buildStaticConf(key: String): ConfigBuilder = {
-    ConfigBuilder(key).onCreate(_ => SQLConf.registerStaticConfigKey(key))
-  }
-
-  def get: GlutenCoreConfig = {
+object GlutenCoreConfig extends ConfigRegistry {
+  override def get: GlutenCoreConfig = {
     new GlutenCoreConfig(SQLConf.get)
   }
 
@@ -80,9 +74,9 @@ object GlutenCoreConfig {
 
   val GLUTEN_ENABLED =
     buildConf("spark.gluten.enabled")
-      .internal()
-      .doc("Whether to enable gluten. Default value is true. Just an experimental property." +
-        " Recommend to enable/disable Gluten through the setting for spark.plugins.")
+      .doc(
+        "Whether to enable gluten. Default value is true. Just an experimental property." +
+          " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
       .createWithDefault(true)
 
@@ -121,7 +115,6 @@ object GlutenCoreConfig {
 
   val COLUMNAR_MEMORY_ISOLATION =
     buildConf("spark.gluten.memory.isolation")
-      .internal()
       .doc("Enable isolated memory mode. If true, Gluten controls the maximum off-heap memory " +
         "can be used by each task to X, X = executor memory / max task slots. It's recommended " +
         "to set true if Gluten serves concurrent queries within a single session, since not all " +
@@ -172,7 +165,6 @@ object GlutenCoreConfig {
 
   val COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO =
     buildConf("spark.gluten.memory.overAcquiredMemoryRatio")
-      .internal()
       .doc("If larger than 0, Velox backend will try over-acquire this ratio of the total " +
         "allocated memory as backup to avoid OOM.")
       .doubleConf
@@ -181,14 +173,12 @@ object GlutenCoreConfig {
 
   val COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE =
     buildConf("spark.gluten.memory.reservationBlockSize")
-      .internal()
       .doc("Block size of native reservation listener reserve memory from Spark.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8MB")
 
   val NUM_TASK_SLOTS_PER_EXECUTOR =
     buildConf("spark.gluten.numTaskSlotsPerExecutor")
-      .internal()
       .doc(
         "Must provide default value since non-execution operations " +
           "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
@@ -199,7 +189,7 @@ object GlutenCoreConfig {
   // Since https://github.com/apache/incubator-gluten/issues/5439.
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
-      .internal()
+      .experimental()
       .doc(
         "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
           "be ignored and instead we will consider onheap and offheap memory in combination, " +
@@ -217,7 +207,7 @@ object GlutenCoreConfig {
   // Since https://github.com/apache/incubator-gluten/issues/5439.
   val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
     buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
-      .internal()
+      .experimental()
       .doc(
         "Experimental: Determines the memory fraction used to determine the total " +
           "memory available for offheap and onheap allocations when the dynamic offheap " +

@@ -25,6 +25,8 @@ import org.apache.spark.task.TaskResources
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 trait JoinMetricsUpdater extends MetricsUpdater {
   def updateJoinMetrics(
       joinMetrics: java.util.ArrayList[OperatorMetrics],
@@ -103,6 +105,8 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
   val buildPreProjectionCpuCount: SQLMetric = metrics("buildPreProjectionCpuCount")
   val buildPreProjectionWallNanos: SQLMetric = metrics("buildPreProjectionWallNanos")
 
+  val loadLazyVectorTime: SQLMetric = metrics("loadLazyVectorTime")
+
   override protected def updateJoinMetricsInternal(
       joinMetrics: java.util.ArrayList[OperatorMetrics],
       joinParams: JoinParams): Unit = {
@@ -166,6 +170,8 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
         TaskResources.getLocalTaskContext().taskMetrics(),
         hashBuildMetrics.spilledBytes)
     }
+
+    loadLazyVectorTime += joinMetrics.asScala.last.loadLazyVectorTime
   }
 }
 

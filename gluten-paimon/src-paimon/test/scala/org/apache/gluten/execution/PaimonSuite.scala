@@ -94,4 +94,21 @@ abstract class PaimonSuite extends WholeStageTransformerSuite {
       }
     }
   }
+
+  test("paimon transformer exists with bucket table") {
+    withTable(s"paimon_tbl") {
+      sql(s"""
+             |CREATE TABLE paimon_tbl (id INT, name STRING)
+             |USING paimon
+             |TBLPROPERTIES (
+             | 'bucket' = '1',
+             | 'bucket-key' = 'id'
+             |)
+             |""".stripMargin)
+      sql(s"INSERT INTO paimon_tbl VALUES (1, 'Bob'), (2, 'Blue'), (3, 'Mike')")
+      runQueryAndCompare("SELECT * FROM paimon_tbl") {
+        checkGlutenOperatorMatch[PaimonScanTransformer]
+      }
+    }
+  }
 }

@@ -66,14 +66,17 @@ private:
     String aggregate_function_name;
     size_t limit = 0;
     DB::SharedHeader input_header;
-    // DB::Block output_header;
+    // Field indexes at the input header which are used as partition keys
+    std::vector<size_t> partition_fields;
+    // Field indexes at the input header which are used as sort keys
+    std::vector<size_t> sort_fields;
     DB::Names aggregate_grouping_keys;
     String aggregate_tuple_column_name;
 
     String getAggregateFunctionName(const String & window_function_name);
 
+    void collectPartitionAndSortFields();
     void prePrejectionForAggregateArguments(DB::QueryPlan & plan);
-
     void addGroupLmitAggregationStep(DB::QueryPlan & plan);
     String parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
     DB::AggregateDescription buildAggregateDescription(DB::QueryPlan & plan);

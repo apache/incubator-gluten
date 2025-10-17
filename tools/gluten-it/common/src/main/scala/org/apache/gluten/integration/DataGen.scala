@@ -16,7 +16,10 @@
  */
 package org.apache.gluten.integration
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
+
+import scala.collection.mutable
 
 trait DataGen {
   def gen(): Unit
@@ -32,7 +35,7 @@ class NoopModifier(t: DataType) extends TypeModifier(_ => true, t) {
 }
 
 object DataGen {
-  def getRowModifier(schema: StructType, typeModifiers: List[TypeModifier]): Int => TypeModifier = {
+  def getRowModifier(schema: StructType, typeModifiers: Seq[TypeModifier]): Int => TypeModifier = {
     val modifiers = schema.fields.map {
       f =>
         val matchedModifiers = typeModifiers.flatMap {
@@ -64,5 +67,38 @@ object DataGen {
         StructField(f.name, modifier.to, f.nullable, f.metadata)
     })
     modifiedSchema
+  }
+
+  trait Feature extends Serializable {
+    def name(): String
+    def run(spark: SparkSession, source: String)
+  }
+
+  object Feature {
+    def run(spark: SparkSession, source: String, feature: Feature): Unit = {
+      println(s"Executing feature: ${feature.name()}")
+      val start = System.nanoTime()
+      feature.run(spark, source)
+      val end = System.nanoTime()
+      println(
+        s"Finished executing feature: ${feature.name()}, elapsed time: ${(end - start) / 1e6} ms.")
+    }
+  }
+
+  class FeatureRegistry extends Serializable {
+    private val lookup: mutable.LinkedHashMap[String, Feature] = mutable.LinkedHashMap()
+
+    def register(feature: Feature): Unit = {
+      require(feature.name().matches("^\\w+$"))
+      require(!lookup.contains(feature.name()))
+      lookup(feature.name()) = feature
+    }
+
+    def getFeature(name: String): Feature = {
+      require(
+        lookup.contains(name),
+        s"No feature found by name: $name, available features: ${lookup.keys.mkString(", ")}")
+      lookup(name)
+    }
   }
 }

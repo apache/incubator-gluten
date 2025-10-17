@@ -17,9 +17,9 @@
 package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
-import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
@@ -39,13 +39,13 @@ import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
 import io.github.zhztheplayer.velox4j.stateful.StatefulWatermark;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +69,6 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
   private Session session;
   private Query query;
   private ExternalStreams.BlockingQueue inputQueue;
-  private BufferAllocator allocator;
   private SerialTask task;
 
   public GlutenVectorOneInputOperator(
@@ -80,14 +79,9 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
     this.outputTypes = outputTypes;
   }
 
-  @Override
-  public void open() throws Exception {
-    super.open();
-    outElement = new StreamRecord(null);
+  void initGlutenTask() {
     memoryManager = MemoryManager.create(AllocationListener.NOOP);
     session = Velox4j.newSession(memoryManager);
-
-    inputQueue = session.externalStreamOps().newBlockingQueue();
     // add a mock input as velox not allow the source is empty.
     StatefulPlanNode mockInput =
         new StatefulPlanNode(
@@ -100,9 +94,17 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
     mockInput.addTarget(glutenPlan);
     LOG.debug("Gluten Plan: {}", Serde.toJson(mockInput));
     LOG.debug("OutTypes: {}", outputTypes.keySet());
-    query = new Query(mockInput, Config.empty(), ConnectorConfig.empty());
-    allocator = new RootAllocator(Long.MAX_VALUE);
+    query =
+        new Query(
+            mockInput, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
     task = session.queryOps().execute(query);
+  }
+
+  @Override
+  public void open() throws Exception {
+    super.open();
+    outElement = new StreamRecord(null);
+    inputQueue = session.externalStreamOps().newBlockingQueue();
     ExternalStreamConnectorSplit split =
         new ExternalStreamConnectorSplit("connector-external-stream", inputQueue.id());
     task.addSplit(id, split);
@@ -138,7 +140,6 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
     task.close();
     session.close();
     memoryManager.close();
-    allocator.close();
   }
 
   @Override
@@ -159,5 +160,42 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
   @Override
   public String getId() {
     return id;
+  }
+
+  @Override
+  public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+    // TODO: notify velox
+    super.prepareSnapshotPreBarrier(checkpointId);
+  }
+
+  @Override
+  public void snapshotState(StateSnapshotContext context) throws Exception {
+    // TODO: implement it
+    task.snapshotState(0);
+    super.snapshotState(context);
+  }
+
+  @Override
+  public void initializeState(StateInitializationContext context) throws Exception {
+    if (task == null) {
+      initGlutenTask();
+    }
+    // TODO: implement it
+    task.initializeState(0);
+    super.initializeState(context);
+  }
+
+  @Override
+  public void notifyCheckpointComplete(long checkpointId) throws Exception {
+    // TODO: notify velox
+    task.notifyCheckpointComplete(checkpointId);
+    super.notifyCheckpointComplete(checkpointId);
+  }
+
+  @Override
+  public void notifyCheckpointAborted(long checkpointId) throws Exception {
+    // TODO: notify velox
+    task.notifyCheckpointAborted(checkpointId);
+    super.notifyCheckpointAborted(checkpointId);
   }
 }
