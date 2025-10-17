@@ -17,6 +17,7 @@
 package org.apache.iceberg.spark.source
 
 import org.apache.spark.sql.connector.write.{Write, WriterCommitMessage}
+import org.apache.spark.util.SparkReflectionUtil
 
 import org.apache.iceberg._
 import org.apache.iceberg.spark.SparkWriteConf
@@ -27,8 +28,8 @@ import org.apache.iceberg.types.Types.{ListType, MapType}
 
 object IcebergWriteUtil {
 
-  def isDataWrite(write: Write): Boolean = {
-    write.isInstanceOf[SparkWrite]
+  def supportsWrite(write: Write): Boolean = {
+    SparkReflectionUtil.isInstanceOfClassName(write, "org.apache.iceberg.spark.source.SparkWrite")
   }
 
   def hasUnsupportedDataType(write: Write): Boolean = {

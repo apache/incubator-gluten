@@ -60,7 +60,7 @@ trait IcebergWriteExec extends ColumnarV2TableWriteExec {
   }
 
   override def doValidateInternal(): ValidationResult = {
-    if (!IcebergWriteUtil.isDataWrite(write)) {
+    if (!IcebergWriteUtil.supportsWrite(write)) {
       return ValidationResult.failed(s"Not support the write ${write.getClass.getSimpleName}")
     }
     if (IcebergWriteUtil.hasUnsupportedDataType(write)) {
