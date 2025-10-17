@@ -46,7 +46,11 @@ case class HiveTableScanExecTransformer(
     relation: HiveTableRelation,
     partitionPruningPred: Seq[Expression],
     prunedOutput: Seq[Attribute] = Seq.empty[Attribute])(@transient session: SparkSession)
-  extends AbstractHiveTableScanExec(requestedAttributes, relation, partitionPruningPred)(session)
+  extends AbstractHiveTableScanExec(
+    requestedAttributes,
+    relation,
+    partitionPruningPred,
+    prunedOutput)(session)
   with BasicScanExecTransformer {
 
   @transient override lazy val metrics: Map[String, SQLMetric] =
@@ -62,14 +66,6 @@ case class HiveTableScanExecTransformer(
   override def filterExprs(): Seq[Expression] = Seq.empty
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
-
-  override def outputAttributes(): Seq[Attribute] = {
-    if (prunedOutput.nonEmpty) {
-      prunedOutput
-    } else {
-      output
-    }
-  }
 
   override def getPartitions: Seq[InputPartition] = partitions
 

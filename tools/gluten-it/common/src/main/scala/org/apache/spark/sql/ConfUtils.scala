@@ -30,15 +30,17 @@ object ConfUtils {
           onOverriding => {
             Console.err.println(
               s"Overriding SparkConf key ${onOverriding.key}, old value: ${onOverriding.value}, new value: ${onOverriding.newValue}. ")
-          })
+          }
+        )
       }
 
       def setAllWarningOnOverriding(others: Iterable[(String, String)]): SparkConf = {
         var tmp: SparkConf = conf
 
-        others.foreach(c => {
-          tmp = new SparkConfWrapper(tmp).setWarningOnOverriding(c._1, c._2)
-        })
+        others.foreach(
+          c => {
+            tmp = new SparkConfWrapper(tmp).setWarningOnOverriding(c._1, c._2)
+          })
 
         tmp
       }

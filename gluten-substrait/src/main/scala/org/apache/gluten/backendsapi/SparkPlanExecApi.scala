@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.backendsapi
 
+import org.apache.gluten.config.{HashShuffleWriterType, ShuffleWriterType}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
@@ -26,11 +27,12 @@ import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.{GenShuffleReaderParameters, GenShuffleWriterParameters, GlutenShuffleReaderWrapper, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
@@ -167,6 +169,27 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
+  def genToJsonTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: StructsToJson): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, child, expr)
+  }
+
+  def genUnbase64Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: UnBase64): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, child, expr)
+  }
+
+  def genBase64StaticInvokeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      expr: StaticInvoke): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, child, expr)
+  }
+
   /** Transform GetArrayItem to Substrait. */
   def genGetArrayItemTransformer(
       substraitExprName: String,
@@ -218,6 +241,8 @@ trait SparkPlanExecApi {
       checkArithmeticExprName: String): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
+
+  def getDecimalArithmeticExprName(exprName: String): String = exprName
 
   /** Transform map_entries to Substrait. */
   def genMapEntriesTransformer(
@@ -345,10 +370,14 @@ trait SparkPlanExecApi {
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
+      shuffleWriterType: ShuffleWriterType): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
 
   /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
-  def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean
+  def getShuffleWriterType(
+      partitioning: Partitioning,
+      output: Seq[Attribute]): ShuffleWriterType = {
+    HashShuffleWriterType
+  }
 
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
@@ -358,6 +387,9 @@ trait SparkPlanExecApi {
   def genColumnarShuffleWriter[K, V](
       parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V]
 
+  def genColumnarShuffleReader[K, C](
+      parameters: GenShuffleReaderParameters[K, C]): GlutenShuffleReaderWrapper[K, C]
+
   /**
    * Generate ColumnarBatchSerializer for ColumnarShuffleExchangeExec.
    *
@@ -366,7 +398,7 @@ trait SparkPlanExecApi {
   def createColumnarBatchSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric],
-      isSort: Boolean): Serializer
+      shuffleWriterType: ShuffleWriterType): Serializer
 
   /** Create broadcast relation for BroadcastExchangeExec */
   def createBroadcastRelation(
@@ -442,6 +474,12 @@ trait SparkPlanExecApi {
       original: TruncTimestamp): ExpressionTransformer = {
     TruncTimestampTransformer(substraitExprName, format, timestamp, original)
   }
+
+  def genToUnixTimestampTransformer(
+      substraitExprName: String,
+      timeExp: ExpressionTransformer,
+      format: ExpressionTransformer,
+      original: Expression): ExpressionTransformer
 
   def genDateDiffTransformer(
       substraitExprName: String,
@@ -632,7 +670,7 @@ trait SparkPlanExecApi {
       val pushedFilters =
         dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
       pushedFilters.filterNot(_.references.exists {
-        attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+        attr => BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)
       })
     }
     sparkExecNode match {
@@ -692,7 +730,7 @@ trait SparkPlanExecApi {
       orderSpec: Seq[SortOrder],
       rankLikeFunction: Expression,
       limit: Int,
-      mode: WindowGroupLimitMode,
+      mode: GlutenWindowGroupLimitMode,
       child: SparkPlan): SparkPlan =
     WindowGroupLimitExecTransformer(partitionSpec, orderSpec, rankLikeFunction, limit, mode, child)
 
@@ -749,4 +787,22 @@ trait SparkPlanExecApi {
 
   def deserializeColumnarBatch(input: ObjectInputStream): ColumnarBatch =
     throw new GlutenNotSupportException("Deserialize ColumnarBatch is not supported")
+
+  def genTimestampAddTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer
+
+  def genTimestampDiffTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("timestampdiff is not supported")
+  }
+
+  def isRowIndexMetadataColumn(columnName: String): Boolean = {
+    SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(columnName)
+  }
 }

@@ -18,4 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.spark.sql.execution.UnaryExecNode
 
-trait ColumnarToColumnarTransition extends UnaryExecNode
+trait ColumnarToColumnarTransition extends UnaryExecNode {
+  def isSameConvention: Boolean
+}

@@ -30,14 +30,13 @@ namespace gluten {
 class VeloxHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
  public:
   VeloxHashShuffleReaderDeserializer(
-      std::shared_ptr<arrow::io::InputStream> in,
+      const std::shared_ptr<StreamReader>& streamReader,
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
-      int64_t bufferSize,
-      arrow::MemoryPool* memoryPool,
-      facebook::velox::memory::MemoryPool* veloxPool,
+      int64_t readerBufferSize,
+      VeloxMemoryManager* memoryManager,
       std::vector<bool>* isValidityBuffer,
       bool hasComplexType,
       int64_t& deserializeTime,
@@ -46,21 +45,31 @@ class VeloxHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
   std::shared_ptr<ColumnarBatch> next() override;
 
  private:
-  std::shared_ptr<arrow::io::InputStream> in_;
+  bool resolveNextBlockType();
+
+  void loadNextStream();
+
+  std::shared_ptr<StreamReader> streamReader_;
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
   int32_t batchSize_;
-  arrow::MemoryPool* memoryPool_;
-  facebook::velox::memory::MemoryPool* veloxPool_;
+  int64_t readerBufferSize_;
+  VeloxMemoryManager* memoryManager_;
+
   std::vector<bool>* isValidityBuffer_;
   bool hasComplexType_;
 
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
 
-  std::unique_ptr<InMemoryPayload> merged_{nullptr};
-  bool reachEos_{false};
+  std::shared_ptr<arrow::io::InputStream> in_{nullptr};
+
+  bool reachedEos_{false};
+  bool blockTypeResolved_{false};
+
+  std::vector<int32_t> dictionaryFields_{};
+  std::vector<facebook::velox::VectorPtr> dictionaries_{};
 };
 
 class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
@@ -68,15 +77,14 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
   using RowSizeType = VeloxSortShuffleWriter::RowSizeType;
 
   VeloxSortShuffleReaderDeserializer(
-      std::shared_ptr<arrow::io::InputStream> in,
+      const std::shared_ptr<StreamReader>& streamReader,
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
       int64_t readerBufferSize,
       int64_t deserializerBufferSize,
-      arrow::MemoryPool* memoryPool,
-      facebook::velox::memory::MemoryPool* veloxPool,
+      VeloxMemoryManager* memoryManager,
       int64_t& deserializeTime,
       int64_t& decompressTime);
 
@@ -89,16 +97,22 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
 
   void readNextRow();
 
+  void reallocateRowBuffer();
+
+  void loadNextStream();
+
+  std::shared_ptr<StreamReader> streamReader_;
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
 
   uint32_t batchSize_;
+  int64_t readerBufferSize_;
   int64_t deserializerBufferSize_;
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
 
-  facebook::velox::memory::MemoryPool* veloxPool_;
+  VeloxMemoryManager* memoryManager_;
 
   facebook::velox::BufferPtr rowBuffer_{nullptr};
   char* rowBufferPtr_{nullptr};
@@ -106,7 +120,7 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
   uint32_t lastRowSize_{0};
   std::vector<std::string_view> data_;
 
-  std::shared_ptr<arrow::io::InputStream> in_;
+  std::shared_ptr<arrow::io::InputStream> in_{nullptr};
 
   uint32_t cachedRows_{0};
   bool reachedEos_{false};
@@ -115,19 +129,22 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
 class VeloxRssSortShuffleReaderDeserializer : public ColumnarBatchIterator {
  public:
   VeloxRssSortShuffleReaderDeserializer(
-      const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
+      const std::shared_ptr<StreamReader>& streamReader,
+      VeloxMemoryManager* memoryManager,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
       facebook::velox::common::CompressionKind veloxCompressionType,
-      int64_t& deserializeTime,
-      std::shared_ptr<arrow::io::InputStream> in);
+      int64_t& deserializeTime);
 
   std::shared_ptr<ColumnarBatch> next();
 
  private:
   class VeloxInputStream;
 
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  void loadNextStream();
+
+  std::shared_ptr<StreamReader> streamReader_;
+  VeloxMemoryManager* memoryManager_;
   facebook::velox::RowTypePtr rowType_;
   std::vector<facebook::velox::RowVectorPtr> batches_;
   int32_t batchSize_;
@@ -135,8 +152,10 @@ class VeloxRssSortShuffleReaderDeserializer : public ColumnarBatchIterator {
   facebook::velox::VectorSerde* const serde_;
   facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
   int64_t& deserializeTime_;
-  std::shared_ptr<VeloxInputStream> in_;
-  std::shared_ptr<arrow::io::InputStream> arrowIn_;
+  std::shared_ptr<VeloxInputStream> in_{nullptr};
+  std::shared_ptr<arrow::io::InputStream> arrowIn_{nullptr};
+
+  bool reachedEos_{false};
 };
 
 class VeloxShuffleReaderDeserializerFactory {
@@ -149,13 +168,10 @@ class VeloxShuffleReaderDeserializerFactory {
       int32_t batchSize,
       int64_t readerBufferSize,
       int64_t deserializerBufferSize,
-      arrow::MemoryPool* memoryPool,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      VeloxMemoryManager* memoryManager,
       ShuffleWriterType shuffleWriterType);
 
-  std::unique_ptr<ColumnarBatchIterator> createDeserializer(std::shared_ptr<arrow::io::InputStream> in);
-
-  arrow::MemoryPool* getPool();
+  std::unique_ptr<ColumnarBatchIterator> createDeserializer(const std::shared_ptr<StreamReader>& streamReader);
 
   int64_t getDecompressTime();
 
@@ -171,8 +187,7 @@ class VeloxShuffleReaderDeserializerFactory {
   int32_t batchSize_;
   int64_t readerBufferSize_;
   int64_t deserializerBufferSize_;
-  arrow::MemoryPool* memoryPool_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  VeloxMemoryManager* memoryManager_;
 
   std::vector<bool> isValidityBuffer_;
   bool hasComplexType_{false};
@@ -187,13 +202,11 @@ class VeloxShuffleReader final : public ShuffleReader {
  public:
   VeloxShuffleReader(std::unique_ptr<VeloxShuffleReaderDeserializerFactory> factory);
 
-  std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in) override;
+  std::shared_ptr<ResultIterator> read(const std::shared_ptr<StreamReader>& streamReader) override;
 
   int64_t getDecompressTime() const override;
 
   int64_t getDeserializeTime() const override;
-
-  arrow::MemoryPool* getPool() const override;
 
  private:
   std::unique_ptr<VeloxShuffleReaderDeserializerFactory> factory_;

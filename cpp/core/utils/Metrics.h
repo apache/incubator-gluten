@@ -31,6 +31,9 @@ struct Metrics {
   // Point to array.get() after the above unique_ptr created.
   long* arrayRawPtr = nullptr;
 
+  // Optional stats string.
+  std::optional<std::string> stats = std::nullopt;
+
   enum TYPE {
     // Begin from 0.
     kBegin = 0,
@@ -77,11 +80,16 @@ struct Metrics {
     kLocalReadBytes,
     kRamReadBytes,
     kPreloadSplits,
+    kDataSourceAddSplitWallNanos,
+    kDataSourceReadWallNanos,
 
     // Write metrics.
     kPhysicalWrittenBytes,
     kWriteIOTime,
     kNumWrittenFiles,
+
+    // Load lazy vector.
+    kLoadLazyVectorTime,
 
     // The end of enum items.
     kEnd,

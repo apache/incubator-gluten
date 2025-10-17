@@ -30,7 +30,7 @@ export CXXFLAGS=$CFLAGS  # Used by boost.
 export CPPFLAGS=$CFLAGS  # Used by LZO.
 export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
 FB_OS_VERSION="v2024.07.01.00"
-GEOS_VERSION="3.10.2"
+GEOS_VERSION="3.10.7"
 
 # shellcheck disable=SC2037
 SUDO="sudo -E"
@@ -60,7 +60,7 @@ function install_cmake {
 
 function install_ninja {
   cd "${DEPENDENCY_DIR}"
-  github_checkout ninja-build/ninja v1.11.1
+  github_checkout ninja-build/ninja v1.11.1 --depth 1
   ./configure.py --bootstrap
   cmake -Bbuild-cmake
   cmake --build build-cmake
@@ -236,11 +236,6 @@ dnf_install ccache wget which libevent-devel \
   yasm \
   openssl-devel libzstd-devel lz4-devel double-conversion-devel \
   curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel tzdata
-
-# Update tzdata, required by Velox at runtime.
-dnf_install python3-pip
-pip3 install tzdata
-cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
 
 $SUDO dnf remove -y gflags
 

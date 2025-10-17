@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.test.AllDataTypesWithComplexType
 import org.apache.gluten.test.AllDataTypesWithComplexType.genTestData
 
@@ -55,7 +56,7 @@ class GlutenClickhouseCountDistinctSuite extends GlutenClickHouseWholeStageTrans
         "values (0, null,1), (1, 1,1), (2, 2,1), (1, 2,1) ,(2,2,2) as data(a,b,c) group by c"
 
     val df = spark.sql(sql)
-    WholeStageTransformerSuite.checkFallBack(df)
+    GlutenQueryComparisonTest.checkFallBack(df)
 
     val planExecs = df.queryExecution.executedPlan.collect {
       case aggTransformer: HashAggregateExecBaseTransformer => aggTransformer
@@ -114,7 +115,7 @@ class GlutenClickhouseCountDistinctSuite extends GlutenClickHouseWholeStageTrans
       values (0, null,1), (0,null,2), (1, 1,4) as data(a,b,c) group by try_add(c,b)
       """
     val df = spark.sql(sql)
-    WholeStageTransformerSuite.checkFallBack(df, noFallback = isSparkVersionGE("3.5"))
+    GlutenQueryComparisonTest.checkFallBack(df, noFallback = isSparkVersionGE("3.5"))
   }
 
   test("check count distinct with filter") {
@@ -127,7 +128,7 @@ class GlutenClickhouseCountDistinctSuite extends GlutenClickHouseWholeStageTrans
     "Gluten-5618: [CH] Fix 'Position x is out of bound in Block' error " +
       "when executing count distinct") {
 
-    withSQLConf(("spark.gluten.sql.countDistinctWithoutExpand", "false")) {
+    withSQLConf((GlutenConfig.ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND.key, "false")) {
       val sql =
         """
           |select count(distinct a, b, c)  from

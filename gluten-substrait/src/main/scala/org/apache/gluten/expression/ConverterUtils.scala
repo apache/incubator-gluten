@@ -53,14 +53,6 @@ object ConverterUtils extends Logging {
     if (caseSensitive) name else name.toLowerCase(Locale.ROOT)
   }
 
-  def normalizeStructFieldName(name: String): String = {
-    if (BackendsApiManager.getSettings.structFieldToLowerCase()) {
-      normalizeColName(name)
-    } else {
-      name
-    }
-  }
-
   def getShortAttributeName(attr: Attribute): String = {
     val name = normalizeColName(attr.name)
     val subIndex = name.indexOf("(")
@@ -111,20 +103,22 @@ object ConverterUtils extends Logging {
 
   private def collectAttributeNamesDFS(attributes: Seq[Attribute])(
       f: Attribute => String): JList[String] = {
-    val nameList = new JArrayList[String]()
-    attributes.foreach(
-      attr => {
-        nameList.add(f(attr))
-        if (BackendsApiManager.getSettings.supportStructType()) {
+    if (BackendsApiManager.getSettings.supportStructType()) {
+      val nameList = new JArrayList[String]()
+      attributes.foreach {
+        attr =>
+          nameList.add(f(attr))
           attr.dataType match {
             case struct: StructType =>
               val nestedNames = collectStructFieldNames(struct)
               nameList.addAll(nestedNames)
             case _ =>
           }
-        }
-      })
-    nameList
+      }
+      nameList
+    } else {
+      attributes.map(f(_)).asJava
+    }
   }
 
   def collectStructFieldNames(dataType: DataType): JList[String] = {
@@ -240,13 +234,14 @@ object ConverterUtils extends Logging {
       case a: ArrayType =>
         TypeBuilder.makeList(nullable, getTypeNode(a.elementType, a.containsNull))
       case s: StructType =>
-        val fieldNodes = new JArrayList[TypeNode]
-        val fieldNames = new JArrayList[String]
-        for (structField <- s.fields) {
-          fieldNodes.add(getTypeNode(structField.dataType, structField.nullable))
-          fieldNames.add(normalizeStructFieldName(structField.name))
-        }
-        TypeBuilder.makeStruct(nullable, fieldNodes, fieldNames)
+        val normalizeStructFieldName: String => String =
+          if (BackendsApiManager.getSettings.structFieldToLowerCase()) {
+            (name: String) => normalizeColName(name)
+          } else { (name: String) => name }
+        val (fieldNodes, fieldNames) = s.map {
+          f => (getTypeNode(f.dataType, f.nullable), normalizeStructFieldName(f.name))
+        }.unzip
+        TypeBuilder.makeStruct(nullable, fieldNodes.asJava, fieldNames.asJava)
       case _: NullType =>
         TypeBuilder.makeNothing()
       case unknown =>

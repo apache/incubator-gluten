@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.{HDFSTestHelper, MinioTestHelper, UTSystemParameters}
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
@@ -84,7 +85,7 @@ class GlutenClickHouseWholeStageTransformerSuite
     import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 
     val conf = super.sparkConf
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")
       .set(RuntimeConfig.PATH.key, UTSystemParameters.diskOutputDataPath)

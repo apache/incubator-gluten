@@ -36,9 +36,9 @@ arrow::Status RssPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
       compressTime_ = compressedOs_->compressTime();
       spillTime_ -= compressTime_;
     }
-    RETURN_NOT_OK(rssOs_->Flush());
-    ARROW_ASSIGN_OR_RAISE(bytesEvicted_[lastEvictedPartitionId_], rssOs_->Tell());
-    RETURN_NOT_OK(rssOs_->Close());
+    ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
+    bytesEvicted_[lastEvictedPartitionId_] +=
+        rssClient_->pushPartitionData(lastEvictedPartitionId_, buffer->data_as<char>(), buffer->size());
   }
 
   rssClient_->stop();
@@ -72,18 +72,18 @@ RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayl
   ScopedTimer timer(&spillTime_);
   if (lastEvictedPartitionId_ != partitionId) {
     if (lastEvictedPartitionId_ != -1) {
-      GLUTEN_DCHECK(rssOs_ != nullptr && !rssOs_->closed(), "RssPartitionWriterOutputStream should not be null");
+      GLUTEN_DCHECK(rssOs_ != nullptr && !rssOs_->closed(), "rssOs_ should not be null");
       if (compressedOs_ != nullptr) {
         RETURN_NOT_OK(compressedOs_->Flush());
       }
-      RETURN_NOT_OK(rssOs_->Flush());
-      ARROW_ASSIGN_OR_RAISE(bytesEvicted_[lastEvictedPartitionId_], rssOs_->Tell());
-      RETURN_NOT_OK(rssOs_->Close());
+
+      ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
+      bytesEvicted_[lastEvictedPartitionId_] +=
+          rssClient_->pushPartitionData(lastEvictedPartitionId_, buffer->data_as<char>(), buffer->size());
     }
 
-    rssOs_ =
-        std::make_shared<RssPartitionWriterOutputStream>(partitionId, rssClient_.get(), options_->pushBufferMaxSize);
-    RETURN_NOT_OK(rssOs_->init());
+    ARROW_ASSIGN_OR_RAISE(
+        rssOs_, arrow::io::BufferOutputStream::Create(options_->pushBufferMaxSize, arrow::default_memory_pool()));
     if (codec_ != nullptr) {
       ARROW_ASSIGN_OR_RAISE(
           compressedOs_,
@@ -94,7 +94,7 @@ RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayl
     lastEvictedPartitionId_ = partitionId;
   }
 
-  rawPartitionLengths_[partitionId] = inMemoryPayload->rawSize();
+  rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
   if (compressedOs_ != nullptr) {
     RETURN_NOT_OK(inMemoryPayload->serialize(compressedOs_.get()));
   } else {
@@ -118,6 +118,10 @@ arrow::Status RssPartitionWriter::doEvict(uint32_t partitionId, std::unique_ptr<
       auto payload, inMemoryPayload->toBlockPayload(payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr));
   // Copy payload to arrow buffered os.
   ARROW_ASSIGN_OR_RAISE(auto rssBufferOs, arrow::io::BufferOutputStream::Create(options_->pushBufferMaxSize));
+
+  static constexpr uint8_t kRssBlock = static_cast<uint8_t>(BlockType::kPlainPayload);
+  RETURN_NOT_OK(rssBufferOs->Write(&kRssBlock, sizeof(kRssBlock)));
+
   RETURN_NOT_OK(payload->serialize(rssBufferOs.get()));
   payload = nullptr; // Invalidate payload immediately.
 

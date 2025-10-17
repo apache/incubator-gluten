@@ -17,6 +17,7 @@
 package org.apache.gluten.integration;
 
 import org.apache.gluten.integration.metrics.MetricMapper;
+
 import org.apache.spark.SparkConf;
 
 import java.util.HashMap;
@@ -28,8 +29,12 @@ public final class Preset {
   static {
     presets.put("vanilla", new Preset(Constants.VANILLA_CONF(), Constants.VANILLA_METRIC_MAPPER()));
     presets.put("velox", new Preset(Constants.VELOX_CONF(), Constants.VELOX_METRIC_MAPPER()));
-    presets.put("velox-with-celeborn", new Preset(Constants.VELOX_WITH_CELEBORN_CONF(), Constants.VELOX_METRIC_MAPPER()));
-    presets.put("velox-with-uniffle", new Preset(Constants.VELOX_WITH_UNIFFLE_CONF(), Constants.VELOX_METRIC_MAPPER()));
+    presets.put(
+        "velox-with-celeborn",
+        new Preset(Constants.VELOX_WITH_CELEBORN_CONF(), Constants.VELOX_METRIC_MAPPER()));
+    presets.put(
+        "velox-with-uniffle",
+        new Preset(Constants.VELOX_WITH_UNIFFLE_CONF(), Constants.VELOX_METRIC_MAPPER()));
   }
 
   public static Preset get(String name) {

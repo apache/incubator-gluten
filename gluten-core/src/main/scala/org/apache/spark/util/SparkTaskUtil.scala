@@ -64,7 +64,7 @@ object SparkTaskUtil {
       ctors.head
     }
 
-    if (SparkVersionUtil.compareMajorMinorVersion((3, 2)) <= 0) {
+    if (SparkVersionUtil.lteSpark32) {
       return ctor
         .newInstance(
           stageId,
@@ -81,7 +81,7 @@ object SparkTaskUtil {
         .asInstanceOf[TaskContext]
     }
 
-    if (SparkVersionUtil.compareMajorMinorVersion((3, 3)) == 0) {
+    if (SparkVersionUtil.eqSpark33) {
       return ctor
         .newInstance(
           stageId,

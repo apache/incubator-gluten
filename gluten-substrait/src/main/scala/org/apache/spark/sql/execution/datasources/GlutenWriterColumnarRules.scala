@@ -39,10 +39,6 @@ object GlutenWriterColumnarRules {
     "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" -> "parquet"
   )
   private def getNativeFormat(cmd: DataWritingCommand): Option[String] = {
-    if (!BackendsApiManager.getSettings.enableNativeWriteFiles()) {
-      return None
-    }
-
     cmd match {
       case command: CreateDataSourceTableAsSelectCommand
           if !BackendsApiManager.getSettings.skipNativeCtas(command) =>
@@ -104,14 +100,22 @@ object GlutenWriterColumnarRules {
     override def apply(p: SparkPlan): SparkPlan = p match {
       case rc @ DataWritingCommandExec(cmd, child) =>
         // The same thread can set these properties in the last query submission.
-        val fields = child.output.toStructType.fields
         val format =
-          if (BackendsApiManager.getSettings.supportNativeWrite(fields)) {
+          if (
+            BackendsApiManager.getSettings.supportNativeWrite(child.schema.fields) &&
+            BackendsApiManager.getSettings.enableNativeWriteFiles()
+          ) {
             getNativeFormat(cmd)
           } else {
             None
           }
-        injectSparkLocalProperty(session, format)
+        val numStaticPartitions: Option[Int] = cmd match {
+          case cmd: InsertIntoHadoopFsRelationCommand =>
+            Some(cmd.staticPartitions.size)
+          case _ =>
+            None
+        }
+        injectSparkLocalProperty(session, format, numStaticPartitions)
         format match {
           case Some(_) =>
             injectFakeRowAdaptor(rc, child)
@@ -123,17 +127,28 @@ object GlutenWriterColumnarRules {
     }
   }
 
-  def injectSparkLocalProperty(spark: SparkSession, format: Option[String]): Unit = {
+  // TODO: This makes FileFormatWriter#write caller-sensitive.
+  //  Remove this workaround once we have a better solution.
+  def injectSparkLocalProperty(
+      spark: SparkSession,
+      format: Option[String],
+      numStaticPartitions: Option[Int]): Unit = {
     if (format.isDefined) {
       spark.sparkContext.setLocalProperty("isNativeApplicable", true.toString)
       spark.sparkContext.setLocalProperty("nativeFormat", format.get)
+      // The flag for static-only write is not used by Velox backend where
+      // the static partition write is already supported.
       spark.sparkContext.setLocalProperty(
         "staticPartitionWriteOnly",
         BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
+      spark.sparkContext.setLocalProperty(
+        "numStaticPartitionCols",
+        numStaticPartitions.getOrElse(0).toString)
     } else {
       spark.sparkContext.setLocalProperty("isNativeApplicable", null)
       spark.sparkContext.setLocalProperty("nativeFormat", null)
       spark.sparkContext.setLocalProperty("staticPartitionWriteOnly", null)
+      spark.sparkContext.setLocalProperty("numStaticPartitionCols", null)
     }
   }
 }

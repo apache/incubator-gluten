@@ -55,7 +55,7 @@ void checkOuputType(const DB::QueryPlan & plan)
 
     if (!step.hasOutputHeader())
         return;
-    for (const auto & elem : step.getOutputHeader())
+    for (const auto & elem : *step.getOutputHeader())
     {
         const DB::DataTypePtr & ch_type = elem.type;
         const auto ch_type_without_nullable = DB::removeNullable(ch_type);
@@ -82,7 +82,9 @@ void checkOuputType(const DB::QueryPlan & plan)
 DB::IQueryPlanStep * adjustQueryPlanHeader(DB::QueryPlan & plan, const DB::Block & to_header, const String & step_desc)
 {
     auto convert_actions_dag = DB::ActionsDAG::makeConvertingActions(
-        plan.getCurrentHeader().getColumnsWithTypeAndName(), to_header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Name);
+        plan.getCurrentHeader()->getColumnsWithTypeAndName(),
+        to_header.getColumnsWithTypeAndName(),
+        DB::ActionsDAG::MatchColumnsMode::Name);
     auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(convert_actions_dag));
     expression_step->setStepDescription(step_desc);
     plan.addStep(std::move(expression_step));
@@ -93,7 +95,7 @@ DB::IQueryPlanStep * addRemoveNullableStep(DB::QueryPlan & plan, const DB::Conte
 {
     if (columns.empty())
         return nullptr;
-    DB::ActionsDAG remove_nullable_actions_dag{plan.getCurrentHeader().getColumnsWithTypeAndName()};
+    DB::ActionsDAG remove_nullable_actions_dag{plan.getCurrentHeader()->getColumnsWithTypeAndName()};
     for (const auto & col_name : columns)
     {
         if (const auto * required_node = remove_nullable_actions_dag.tryFindInOutputs(col_name))
@@ -112,9 +114,9 @@ DB::IQueryPlanStep * addRemoveNullableStep(DB::QueryPlan & plan, const DB::Conte
 
 DB::IQueryPlanStep * renamePlanHeader(DB::QueryPlan & plan, const BuildNamesWithAliases & buildAliases, const String & step_desc)
 {
-    DB::ActionsDAG actions_dag{blockToRowType(plan.getCurrentHeader())};
+    DB::ActionsDAG actions_dag{blockToRowType(*plan.getCurrentHeader())};
     DB::NamesWithAliases aliases;
-    buildAliases(plan.getCurrentHeader(), aliases);
+    buildAliases(*plan.getCurrentHeader(), aliases);
     actions_dag.project(aliases);
     auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(actions_dag));
     expression_step->setStepDescription(step_desc);

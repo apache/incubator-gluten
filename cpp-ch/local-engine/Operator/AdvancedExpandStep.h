@@ -36,7 +36,7 @@ class AdvancedExpandStep : public DB::ITransformingStep
 public:
     explicit AdvancedExpandStep(
         DB::ContextPtr context_,
-        const DB::Block & input_header_,
+        const DB::SharedHeader & input_header_,
         size_t grouping_keys_,
         const DB::AggregateDescriptions & aggregate_descriptions_,
         const ExpandField & project_set_exprs_);
@@ -64,7 +64,7 @@ public:
     using Status = DB::IProcessor::Status;
     /// Need to ensure that the input header is [grouping keys] ++ [aggregation columns]
     explicit AdvancedExpandTransform(
-        const DB::Block & inpput_header_, const DB::Block & output_header_, size_t goruping_keys_, const ExpandField & project_set_exprs_);
+        const DB::SharedHeader & inpput_header_, const DB::Block & output_header_, size_t goruping_keys_, const ExpandField & project_set_exprs_);
     ~AdvancedExpandTransform() override = default;
 
     Status prepare() override;
@@ -74,7 +74,7 @@ public:
 private:
     size_t grouping_keys = 0;
     ExpandField project_set_exprs;
-    DB::Block input_header;
+    DB::SharedHeader input_header;
     bool has_input = false;
     bool has_output = false;
     size_t expand_expr_iterator = 0;

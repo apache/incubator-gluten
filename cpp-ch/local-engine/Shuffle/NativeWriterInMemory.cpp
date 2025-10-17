@@ -16,6 +16,9 @@
  */
 #include "NativeWriterInMemory.h"
 
+#include <Core/Block.h>
+#include <Common/BlockTypeUtils.h>
+
 using namespace DB;
 
 namespace local_engine
@@ -24,17 +27,17 @@ NativeWriterInMemory::NativeWriterInMemory()
 {
     write_buffer = std::make_unique<WriteBufferFromOwnString>();
 }
-void NativeWriterInMemory::write(Block & block)
+void NativeWriterInMemory::write(const Block & block)
 {
-    if (block.columns() == 0 || block.rows() == 0)
+    if (block.empty() || block.rows() == 0)
         return;
     if (!writer)
     {
-        writer = std::make_unique<NativeWriter>(*write_buffer, 0, block.cloneEmpty());
+        writer = std::make_unique<NativeWriter>(*write_buffer, 0, toShared(block.cloneEmpty()));
     }
     writer->write(block);
 }
-std::string & NativeWriterInMemory::collect()
+std::string & NativeWriterInMemory::collect() const
 {
     return write_buffer->str();
 }

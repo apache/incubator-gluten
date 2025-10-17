@@ -16,24 +16,27 @@
  */
 package org.apache.gluten.vectorized;
 
-import io.github.zhztheplayer.velox4j.type.*;
-
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.TimeStampMicroVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,7 +49,7 @@ import java.util.Map;
 public abstract class ArrowVectorAccessor {
   private interface AccessorBuilder {
     ArrowVectorAccessor build(FieldVector vector);
-  };
+  }
 
   // Exact class matches
   private static final Map<Class<? extends FieldVector>, AccessorBuilder> accessorBuilders =
@@ -55,10 +58,12 @@ public abstract class ArrowVectorAccessor {
           Map.entry(IntVector.class, vector -> new IntVectorAccessor(vector)),
           Map.entry(BigIntVector.class, vector -> new BigIntVectorAccessor(vector)),
           Map.entry(Float8Vector.class, vector -> new DoubleVectorAccessor(vector)),
+          Map.entry(DecimalVector.class, vector -> new DecimalVectorAccessor(vector)),
           Map.entry(VarCharVector.class, vector -> new VarCharVectorAccessor(vector)),
           Map.entry(StructVector.class, vector -> new StructVectorAccessor(vector)),
           Map.entry(ListVector.class, vector -> new ListVectorAccessor(vector)),
           Map.entry(DateDayVector.class, vector -> new DateDayVectorAccessor(vector)),
+          Map.entry(TimeStampMicroVector.class, vector -> new TimeStampMicroVectorAccessor(vector)),
           Map.entry(MapVector.class, vector -> new MapVectorAccessor(vector)));
 
   public static ArrowVectorAccessor create(FieldVector vector) {
@@ -144,6 +149,24 @@ class DoubleVectorAccessor extends BaseArrowVectorAccessor<Float8Vector> {
   @Override
   protected Object getImpl(int rowIndex) {
     return typedVector.get(rowIndex);
+  }
+}
+
+class DecimalVectorAccessor extends BaseArrowVectorAccessor<DecimalVector> {
+
+  private int precision = 0;
+  private int scale = 0;
+
+  public DecimalVectorAccessor(FieldVector vector) {
+    super(vector);
+    this.precision = typedVector.getPrecision();
+    this.scale = typedVector.getScale();
+  }
+
+  @Override
+  protected Object getImpl(int rowIndex) {
+    BigDecimal decimalData = (BigDecimal) typedVector.getObject(rowIndex);
+    return DecimalData.fromBigDecimal(decimalData, precision, scale);
   }
 }
 
@@ -242,5 +265,18 @@ class MapVectorAccessor extends BaseArrowVectorAccessor<MapVector> {
       mapEntries.put(key, value);
     }
     return new GenericMapData(mapEntries);
+  }
+}
+
+class TimeStampMicroVectorAccessor extends BaseArrowVectorAccessor<TimeStampMicroVector> {
+
+  public TimeStampMicroVectorAccessor(FieldVector vector) {
+    super(vector);
+  }
+
+  @Override
+  public Object getImpl(int rowIndex) {
+    long milliseconds = typedVector.get(rowIndex) / 1000;
+    return TimestampData.fromEpochMillis(milliseconds);
   }
 }

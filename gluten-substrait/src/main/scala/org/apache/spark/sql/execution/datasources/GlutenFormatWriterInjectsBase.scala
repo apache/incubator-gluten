@@ -17,12 +17,11 @@
 package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.{ColumnarToCarrierRowExecBase, ProjectExecTransformer, SortExecTransformer, TransformSupport, WholeStageTransformer}
+import org.apache.gluten.execution._
 import org.apache.gluten.execution.datasource.GlutenFormatWriterInjects
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
+import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, SparkPlan}
 import org.apache.spark.sql.execution.ColumnarCollapseTransformStages.transformStageCounter
 
@@ -36,14 +35,15 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
    *   must be a FakeRowAdaptor
    * @return
    */
-  override def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow] = {
+  override def getWriterWrappedSparkPlan(plan: SparkPlan): SparkPlan = {
     if (plan.isInstanceOf[ColumnarToCarrierRowExecBase]) {
       // here, the FakeRowAdaptor is simply a R2C converter
-      return plan.execute()
+      return plan
     }
 
+    val transitionsRemoved = RemoveTransitions.apply(plan)
     // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
-    val transformed = transform(plan)
+    val transformed = transform(transitionsRemoved)
 
     if (!transformed.isInstanceOf[TransformSupport]) {
       throw new IllegalStateException(
@@ -67,6 +67,8 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     val transformedWithAdapter = injectAdapter(transformed)
     val wst = WholeStageTransformer(transformedWithAdapter, materializeInput = true)(
       transformStageCounter.incrementAndGet())
-    BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(wst).execute()
+    val wstWithTransitions = BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(
+      InsertTransitions.create(outputsColumnar = true, wst.batchType()).apply(wst))
+    wstWithTransitions
   }
 }

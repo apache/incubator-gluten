@@ -27,10 +27,13 @@ import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import java.util.List;
@@ -103,7 +106,20 @@ public class LogicalTypeConverter {
                 Type keyType = toVLType(mapType.getKeyType());
                 Type valueType = toVLType(mapType.getValueType());
                 return io.github.zhztheplayer.velox4j.type.MapType.create(keyType, valueType);
-              }));
+              }),
+          // Map the flink's `TimestampLTZ` type to velox `Timestamp` type. And the timezone would
+          // be specified by using flink's table config `LOCAL_TIME_ZONE`, which would be passed to
+          // velox's `session_timezone` config.
+          // TODO: may need precision
+          Map.entry(
+              LocalZonedTimestampType.class,
+              logicalType -> new io.github.zhztheplayer.velox4j.type.TimestampType()),
+          Map.entry(
+              TinyIntType.class,
+              logicalType -> new io.github.zhztheplayer.velox4j.type.TinyIntType()),
+          Map.entry(
+              SymbolType.class,
+              logicalType -> new io.github.zhztheplayer.velox4j.type.VarCharType()));
 
   public static Type toVLType(LogicalType logicalType) {
     VLTypeConverter converter = converters.get(logicalType.getClass());

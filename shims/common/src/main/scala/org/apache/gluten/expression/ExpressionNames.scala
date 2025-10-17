@@ -217,7 +217,8 @@ object ExpressionNames {
   final val TRUNC = "trunc"
   final val DATE_TRUNC = "date_trunc"
   final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
-  final val TIMESTAMP_ADD = "timestamp_add"
+  final val TIMESTAMP_ADD = "timestampadd"
+  final val TIMESTAMP_DIFF = "timestampdiff"
   final val NEXT_DAY = "next_day"
   final val LAST_DAY = "last_day"
   final val MONTHS_BETWEEN = "months_between"
@@ -370,4 +371,12 @@ object ExpressionNames {
   // A placeholder for native UDF functions
   final val UDF_PLACEHOLDER = "udf_placeholder"
   final val UDAF_PLACEHOLDER = "udaf_placeholder"
+
+  // Iceberg function names
+  final val YEARS = "years"
+  final val MONTHS = "months"
+  final val DAYS = "days"
+  final val HOURS = "hours"
+  final val BUCKET = "bucket"
+  final val TRUNCATE = "truncate"
 }

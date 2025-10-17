@@ -17,6 +17,7 @@
 package org.apache.gluten.ras.property
 
 import org.apache.gluten.ras.{GroupLeafBuilder, PlanModel, Property, PropertyDef, PropertyModel}
+import org.apache.gluten.ras.property.role.MemoRoleAwarePropertySetFactory
 import org.apache.gluten.ras.rule.EnforcerRuleFactory
 
 import scala.collection.mutable
@@ -32,8 +33,10 @@ trait PropertySetFactory[T <: AnyRef] {
 object PropertySetFactory {
   def apply[T <: AnyRef](
       propertyModel: PropertyModel[T],
-      planModel: PlanModel[T]): PropertySetFactory[T] =
-    new Impl[T](propertyModel, planModel)
+      planModel: PlanModel[T]): PropertySetFactory[T] = {
+    val userPropSetFactory = new Impl[T](propertyModel, planModel)
+    new MemoRoleAwarePropertySetFactory[T](planModel, userPropSetFactory)
+  }
 
   private class Impl[T <: AnyRef](propertyModel: PropertyModel[T], planModel: PlanModel[T])
     extends PropertySetFactory[T] {

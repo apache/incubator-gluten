@@ -31,7 +31,7 @@ import scala.collection.mutable.ListBuffer
 
 object DeltaPostTransformRules {
   def rules: Seq[Rule[SparkPlan]] =
-    RemoveTransitions :: columnMappingRule :: pushDownInputFileExprRule :: Nil
+    RemoveTransitions :: pushDownInputFileExprRule :: columnMappingRule :: Nil
 
   private val COLUMN_MAPPING_RULE_TAG: TreeNodeTag[String] =
     TreeNodeTag[String]("org.apache.gluten.delta.column.mapping")
@@ -76,6 +76,16 @@ object DeltaPostTransformRules {
     }
   }
 
+  private def isInputFileRelatedAttribute(attr: Attribute): Boolean = {
+    attr match {
+      case AttributeReference(name, _, _, _) =>
+        Seq(InputFileName(), InputFileBlockStart(), InputFileBlockLength())
+          .map(_.prettyName)
+          .contains(name)
+      case _ => false
+    }
+  }
+
   private[gluten] def containsIncrementMetricExpr(expr: Expression): Boolean = {
     expr match {
       case e if e.prettyName == "increment_metric" => true
@@ -108,12 +118,14 @@ object DeltaPostTransformRules {
       val originColumnNames = ListBuffer.empty[String]
       val transformedAttrs = ListBuffer.empty[Attribute]
       def mapAttribute(attr: Attribute) = {
-        val newAttr = if (!plan.isMetadataColumn(attr)) {
+        val newAttr = if (plan.isMetadataColumn(attr)) {
+          attr
+        } else if (isInputFileRelatedAttribute(attr)) {
+          attr
+        } else {
           DeltaColumnMapping
             .createPhysicalAttributes(Seq(attr), fmt.referenceSchema, fmt.columnMappingMode)
             .head
-        } else {
-          attr
         }
         if (!originColumnNames.contains(attr.name)) {
           transformedAttrs += newAttr

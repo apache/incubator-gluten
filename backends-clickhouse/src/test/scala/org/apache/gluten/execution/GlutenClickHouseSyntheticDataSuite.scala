@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
@@ -51,7 +53,7 @@ class GlutenClickHouseSyntheticDataSuite
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.sql.legacy.createHiveTableByDefault", "false")
       .set("spark.shuffle.manager", "sort")
@@ -161,7 +163,7 @@ class GlutenClickHouseSyntheticDataSuite
     }
     val df = spark.sql(sqlStr)
     df.collect()
-    WholeStageTransformerSuite.checkFallBack(df)
+    GlutenQueryComparisonTest.checkFallBack(df)
     checkAnswer(df, expected)
   }
 
@@ -193,7 +195,7 @@ class GlutenClickHouseSyntheticDataSuite
     }
     val df = spark.sql(sqlStr)
     df.collect()
-    WholeStageTransformerSuite.checkFallBack(df)
+    GlutenQueryComparisonTest.checkFallBack(df)
     checkAnswer(df, expected)
   }
 
@@ -223,7 +225,7 @@ class GlutenClickHouseSyntheticDataSuite
     }
     val df = spark.sql(sqlStr)
     df.collect()
-    WholeStageTransformerSuite.checkFallBack(df)
+    GlutenQueryComparisonTest.checkFallBack(df)
     checkAnswer(df, expected)
   }
 

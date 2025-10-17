@@ -56,12 +56,12 @@ object NativeMemoryManager {
           .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
     )
     spillers.append(new Spiller() {
-      override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-        if (!Spillers.PHASE_SET_SHRINK_ONLY.contains(phase)) {
-          // Only respond for shrinking.
-          return 0L
-        }
-        NativeMemoryManagerJniWrapper.shrink(handle, size)
+      override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = phase match {
+        case Spiller.Phase.SHRINK => // Only respond for shrinking.
+          val shrunk = NativeMemoryManagerJniWrapper.shrink(handle, size)
+          LOGGER.info(s"NativeMemoryManager: Shrunk $shrunk / $size bytes of data.")
+          shrunk
+        case _ => 0L
       }
     })
     mutableStats += "single" -> new MemoryUsageStatsBuilder {

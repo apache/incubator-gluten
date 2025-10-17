@@ -69,6 +69,11 @@ void QueryContext::resetGlobal()
     Data::shared_context.reset();
 }
 
+void QueryContext::reset()
+{
+    query_map_.clear();
+}
+
 DB::ContextMutablePtr QueryContext::createGlobal()
 {
     assert(Data::shared_context.get() == nullptr);

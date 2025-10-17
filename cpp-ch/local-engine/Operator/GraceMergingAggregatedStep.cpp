@@ -19,6 +19,7 @@
 #include <Processors/Port.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace DB
@@ -49,8 +50,8 @@ static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Ag
 }
 
 GraceMergingAggregatedStep::GraceMergingAggregatedStep(
-    DB::ContextPtr context_, const DB::Block & input_header, DB::Aggregator::Params params_, bool no_pre_aggregated_)
-    : DB::ITransformingStep(input_header, buildOutputHeader(input_header, params_, true), getTraits())
+    DB::ContextPtr context_, const DB::SharedHeader & input_header, DB::Aggregator::Params params_, bool no_pre_aggregated_)
+    : DB::ITransformingStep(input_header, toShared(buildOutputHeader(*input_header, params_, true)), getTraits())
     , context(context_)
     , params(std::move(params_))
     , no_pre_aggregated(no_pre_aggregated_)
@@ -65,14 +66,14 @@ void GraceMergingAggregatedStep::transformPipeline(DB::QueryPipelineBuilder & pi
             DB::ErrorCodes::LOGICAL_ERROR, "max_bytes_before_external_group_by is not supported in GraceMergingAggregatedStep");
     }
     auto num_streams = pipeline.getNumStreams();
-    auto transform_params = std::make_shared<DB::AggregatingTransformParams>(pipeline.getHeader(), params, true);
+    auto transform_params = std::make_shared<DB::AggregatingTransformParams>(pipeline.getSharedHeader(), params, true);
     pipeline.resize(1);
     auto build_transform = [&](DB::OutputPortRawPtrs outputs)
     {
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto op = std::make_shared<GraceAggregatingTransform>(pipeline.getHeader(), transform_params, context, no_pre_aggregated, true);
+            auto op = std::make_shared<GraceAggregatingTransform>(pipeline.getSharedHeader(), transform_params, context, no_pre_aggregated, true);
             new_processors.push_back(op);
             DB::connect(*output, op->getInputs().front());
         }
@@ -94,7 +95,7 @@ void GraceMergingAggregatedStep::describeActions(DB::JSONBuilder::JSONMap & map)
 
 void GraceMergingAggregatedStep::updateOutputHeader()
 {
-    output_header = buildOutputHeader(input_headers.front(), params, true);
+    output_header = toShared(buildOutputHeader(*input_headers.front(), params, true));
 }
 
 }

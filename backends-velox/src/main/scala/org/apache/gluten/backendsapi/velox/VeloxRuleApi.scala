@@ -16,12 +16,13 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.backendsapi.RuleApi
+import org.apache.gluten.backendsapi.{BackendsApiManager, RuleApi}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{PreventBatchTypeMismatchInTableCache, RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
-import org.apache.gluten.extension.columnar.enumerated.{RasOffload, RemoveSort}
+import org.apache.gluten.extension.columnar.V2WritePostRule
+import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
 import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.rewrite._
@@ -53,14 +54,28 @@ class VeloxRuleApi extends RuleApi {
 }
 
 object VeloxRuleApi {
+
+  /**
+   * Registers Spark rules or extensions, except for Gluten's columnar rules that are supposed to be
+   * injected through [[injectLegacy]] / [[injectRas]].
+   */
   private def injectSpark(injector: SparkInjector): Unit = {
     // Inject the regular Spark rules directly.
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
     injector.injectOptimizerRule(CollapseGetJsonObjectExpressionRule.apply)
+    injector.injectOptimizerRule(RewriteCastFromArray.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
+    injector.injectOptimizerRule(RewriteUnboundedWindow.apply)
+    if (BackendsApiManager.getSettings.supportAppendDataExec()) {
+      injector.injectPlannerStrategy(SparkShimLoader.getSparkShims.getRewriteCreateTableAsSelect(_))
+    }
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed by default in Gluten for
+   * columnar query planning.
+   */
   private def injectLegacy(injector: LegacyInjector): Unit = {
     // Legacy: Pre-transform rules.
     injector.injectPreTransform(_ => RemoveTransitions)
@@ -96,6 +111,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
+    injector.injectPostTransform(_ => PartialGenerateRule())
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(_ => PushDownFilterToScan)
     injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
@@ -107,6 +123,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(_ => CollectTailTransformerRule())
+    injector.injectPostTransform(_ => V2WritePostRule())
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatchType))
 
     // Gluten columnar: Fallback policies.
@@ -118,6 +135,8 @@ object VeloxRuleApi {
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => each(c.session)))
     injector.injectPost(c => ColumnarCollapseTransformStages(new GlutenConfig(c.sqlConf)))
+    injector.injectPost(c => CudfNodeValidationRule(new GlutenConfig(c.sqlConf)))
+
     injector.injectPost(c => GlutenNoopWriterRule(c.session))
 
     // Gluten columnar: Final rules.
@@ -130,6 +149,12 @@ object VeloxRuleApi {
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed only when RAS (relational
+   * algebra selector) is enabled by spark.gluten.ras.enabled=true.
+   *
+   * These rules are covered by CI test job spark-test-spark35-ras.
+   */
   private def injectRas(injector: RasInjector): Unit = {
     // Gluten RAS: Pre rules.
     injector.injectPreTransform(_ => RemoveTransitions)
@@ -143,7 +168,6 @@ object VeloxRuleApi {
 
     // Gluten RAS: The RAS rule.
     val validatorBuilder: GlutenConfig => Validator = conf => Validators.newValidator(conf)
-    injector.injectRasRule(_ => RemoveSort)
     val rewrites =
       Seq(
         RewriteIn,
@@ -184,10 +208,12 @@ object VeloxRuleApi {
           c => RasOffload.Rule(offload, validatorBuilder(new GlutenConfig(c.sqlConf)), rewrites)))
 
     // Gluten RAS: Post rules.
+    injector.injectPostTransform(_ => DistinguishIdenticalScans)
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
     injector.injectPostTransform(_ => RemoveTransitions)
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
+    injector.injectPostTransform(_ => PartialGenerateRule())
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(_ => PushDownFilterToScan)
     injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
@@ -199,12 +225,14 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(_ => CollectTailTransformerRule())
+    injector.injectPostTransform(_ => V2WritePostRule())
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatchType))
     injector.injectPostTransform(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPostTransform(c => each(c.session)))
     injector.injectPostTransform(c => ColumnarCollapseTransformStages(new GlutenConfig(c.sqlConf)))
+    injector.injectPostTransform(c => CudfNodeValidationRule(new GlutenConfig(c.sqlConf)))
     injector.injectPostTransform(c => GlutenNoopWriterRule(c.session))
     injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow(c.session))
     injector.injectPostTransform(

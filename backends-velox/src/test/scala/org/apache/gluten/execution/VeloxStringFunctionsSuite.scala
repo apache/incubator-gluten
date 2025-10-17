@@ -17,9 +17,9 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.{Alias, Literal}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
+import org.apache.spark.sql.classic.ClassicColumn
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StringType
 
@@ -38,7 +38,7 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
     createTPCHNotNullTables()
     spark
       .table("lineitem")
-      .select(col("*"), new Column(Alias(Literal(null, StringType), NULL_STR_COL)()))
+      .select(col("*"), ClassicColumn(Alias(Literal(null, StringType), NULL_STR_COL)()))
       .createOrReplaceTempView(LINEITEM_TABLE)
   }
 
@@ -669,6 +669,12 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
   testWithMinSparkVersion("luhn_check", "3.5") {
     runQueryAndCompare(
       s"select l_orderkey, luhn_check(l_comment) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("base64 and unbase64") {
+    runQueryAndCompare(
+      s"select l_orderkey, unbase64(base64(l_comment)) " +
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 }

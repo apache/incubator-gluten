@@ -35,7 +35,7 @@ class ExpandTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
-    ExpandTransform(const DB::Block & input_, const DB::Block & output_, const ExpandField & project_set_exprs_);
+    ExpandTransform(const DB::SharedHeader & input_, const DB::SharedHeader & output_, const ExpandField & project_set_exprs_);
 
     Status prepare() override;
     void work() override;

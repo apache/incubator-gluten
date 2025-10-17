@@ -31,8 +31,8 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
-import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
+import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -46,14 +46,14 @@ import scala.collection.JavaConverters._
  * would be transformed to `ValueStreamNode` at native side.
  */
 case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupport {
-  assert(child.isInstanceOf[ColumnarInputAdapter])
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(
       child,
       sparkContext,
-      forBroadcast())
+      forBroadcast(),
+      forShuffle())
 
   override def simpleString(maxFields: Int): String = {
     s"$nodeName${truncatedString(output, "[", ", ", "]", maxFields)}"
@@ -68,10 +68,12 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   override def doExecuteBroadcast[T](): Broadcast[T] = {
+    assert(child.isInstanceOf[ColumnarInputAdapter])
     child.doExecuteBroadcast()
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
+    assert(child.isInstanceOf[ColumnarInputAdapter])
     val operatorId = context.nextOperatorId(nodeName)
     val readRel = RelBuilder.makeReadRelForInputIterator(child.output.asJava, context, operatorId)
     TransformContext(output, readRel)
@@ -83,8 +85,19 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
 
   private def forBroadcast(): Boolean = {
     child match {
-      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastQueryStageExec] => true
-      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastExchangeLike] => true
+      case ColumnarInputAdapter(c)
+          if c.isInstanceOf[BroadcastQueryStageExec] ||
+            c.isInstanceOf[BroadcastExchangeLike] =>
+        true
+      case _ => false
+    }
+  }
+
+  private def forShuffle(): Boolean = {
+    child match {
+      case ColumnarInputAdapter(c)
+          if c.isInstanceOf[ShuffleQueryStageExec] || c.isInstanceOf[ShuffleExchangeLike] =>
+        true
       case _ => false
     }
   }
@@ -131,9 +144,6 @@ case class ColumnarCollapseTransformStages(
     transformStageCounter: AtomicInteger = ColumnarCollapseTransformStages.transformStageCounter)
   extends Rule[SparkPlan] {
 
-  def separateScanRDD: Boolean =
-    BackendsApiManager.getSettings.excludeScanExecFromCollapsedStage()
-
   def apply(plan: SparkPlan): SparkPlan = {
     insertWholeStageTransformer(plan)
   }
@@ -143,7 +153,8 @@ case class ColumnarCollapseTransformStages(
    * WholeStageTransformer.
    */
   private def isSeparateBaseScanExecTransformer(plan: SparkPlan): Boolean = plan match {
-    case _: BasicScanExecTransformer if separateScanRDD => true
+    case _: BasicScanExecTransformer =>
+      BackendsApiManager.getSettings.excludeScanExecFromCollapsedStage()
     case _ => false
   }
 

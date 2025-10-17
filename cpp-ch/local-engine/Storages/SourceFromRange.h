@@ -27,7 +27,7 @@ class SourceFromRange : public DB::ISource
 {
 public:
     SourceFromRange(
-        const DB::Block & header,
+        const DB::SharedHeader & header,
         Int64 start_,
         Int64 end_,
         Int64 step_,
@@ -60,4 +60,3 @@ private:
     bool overflow;
 };
 }
-

@@ -120,7 +120,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
       const std::shared_ptr<ShuffleWriterOptions>& options,
       MemoryManager* memoryManager)
       : ShuffleWriter(numPartitions, options->partitioning),
-        partitionBufferPool_(memoryManager->createArrowMemoryPool("VeloxShuffleWriter.partitionBufferPool")),
+        partitionBufferPool_(memoryManager->getOrCreateArrowMemoryPool("VeloxShuffleWriter.partitionBufferPool")),
         veloxPool_(dynamic_cast<VeloxMemoryManager*>(memoryManager)->getLeafMemoryPool()),
         partitionWriter_(partitionWriter) {
     partitioner_ = Partitioner::make(options->partitioning, numPartitions_, options->startPartitionId);

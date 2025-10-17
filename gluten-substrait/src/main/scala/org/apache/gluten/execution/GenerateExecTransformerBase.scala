@@ -19,7 +19,6 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
@@ -27,6 +26,7 @@ import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionB
 import org.apache.gluten.substrait.rel.RelNode
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.JavaConverters._
@@ -62,6 +62,8 @@ abstract class GenerateExecTransformerBase(
   }
 
   override def output: Seq[Attribute] = requiredChildOutput ++ generatorOutput
+
+  override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def producedAttributes: AttributeSet = AttributeSet(generatorOutput)
 

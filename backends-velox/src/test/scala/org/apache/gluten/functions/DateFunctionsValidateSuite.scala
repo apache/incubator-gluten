@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.functions
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.SparkConf
@@ -27,14 +28,14 @@ import java.sql.Timestamp
 class DateFunctionsValidateSuiteRasOff extends DateFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "false")
+      .set(GlutenConfig.RAS_ENABLED.key, "false")
   }
 }
 
 class DateFunctionsValidateSuiteRasOn extends DateFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "true")
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
   }
 }
 
@@ -277,6 +278,34 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithMinSparkVersion("timestampadd", "3.3") {
+    withTempPath {
+      path =>
+        val ts = Timestamp.valueOf("2020-02-29 00:00:00.500")
+        val quantity = 1
+        Seq((ts, quantity)).toDF("ts", "quantity").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select timestampadd(day, quantity, ts) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  testWithMinSparkVersion("timestampdiff", "3.3") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2020-03-01 00:00:00.500")
+        val t2 = Timestamp.valueOf("2020-02-29 00:00:00.500")
+        Seq((t1, t2)).toDF("t1", "t2").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select timestampdiff(SECOND, t1, t2) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("to_date") {
     withTempPath {
       path =>
@@ -439,6 +468,23 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
               s"Expect ProjectExec doesn't exist " +
                 s"in executedPlan:\n ${executedPlan.last}"
             )
+        }
+    }
+  }
+
+  test("unix_timestamp with timestamp and format - no fallback") {
+    withTempPath {
+      path =>
+        Seq(
+          (Timestamp.valueOf("2016-04-08 13:10:15"), "yyyy-MM-dd"),
+          (Timestamp.valueOf("2017-05-19 18:25:30"), "MM/dd/yyyy")
+        ).toDF("ts", "fmt").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("unix_timestamp_test")
+
+        // Test unix_timestamp(timestamp, format) - should use native execution without fallback
+        runQueryAndCompare("SELECT unix_timestamp(ts, fmt) FROM unix_timestamp_test") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }

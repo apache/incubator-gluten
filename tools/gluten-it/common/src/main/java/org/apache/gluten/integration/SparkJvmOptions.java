@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.integration;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 public class SparkJvmOptions {
-  private static final String MODULE_OPTIONS_CLASS_NAME = "org.apache.spark.launcher.JavaModuleOptions";
+  private static final String MODULE_OPTIONS_CLASS_NAME =
+      "org.apache.spark.launcher.JavaModuleOptions";
 
   public static String read() {
     try {

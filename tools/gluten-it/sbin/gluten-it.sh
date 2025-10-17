@@ -30,7 +30,7 @@ SPARK_JVM_OPTIONS=$($JAVA_HOME/bin/java -cp $JAR_PATH org.apache.gluten.integrat
 
 EMBEDDED_SPARK_HOME=$BASEDIR/../spark-home
 
-mkdir $EMBEDDED_SPARK_HOME && ln -snf $BASEDIR/../package/target/lib $EMBEDDED_SPARK_HOME/jars
+mkdir -p $EMBEDDED_SPARK_HOME && ln -snf ../package/target/lib $EMBEDDED_SPARK_HOME/jars
 
 # We temporarily disallow setting these two variables by caller.
 SPARK_HOME=""
@@ -49,4 +49,4 @@ $JAVA_HOME/bin/java \
     -XX:ErrorFile=/var/log/java/hs_err_pid%p.log \
     -Dio.netty.tryReflectionSetAccessible=true \
     -cp $JAR_PATH \
-    org.apache.gluten.integration.Cli $@
+    org.apache.gluten.integration.Cli "$@"

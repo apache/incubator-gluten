@@ -18,10 +18,10 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class NothingNode implements TypeNode, Serializable {
-  public NothingNode() {}
+public class NothingNode extends TypeNode {
+  public NothingNode() {
+    super(true);
+  }
 
   @Override
   public Type toProtobuf() {
@@ -29,10 +29,5 @@ public class NothingNode implements TypeNode, Serializable {
     Type.Builder builder = Type.newBuilder();
     builder.setNothing(nothingBuilder.build());
     return builder.build();
-  }
-
-  @Override
-  public Boolean nullable() {
-    return true;
   }
 }

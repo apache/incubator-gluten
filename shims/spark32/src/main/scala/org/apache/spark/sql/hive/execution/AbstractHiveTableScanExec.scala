@@ -50,11 +50,15 @@ import scala.collection.JavaConverters._
  *   The Hive table be scanned.
  * @param partitionPruningPred
  *   An optional partition pruning predicate for partitioned table.
+ * @param prunedOutput
+ *   The pruned output.
  */
 abstract private[hive] class AbstractHiveTableScanExec(
     requestedAttributes: Seq[Attribute],
     relation: HiveTableRelation,
-    partitionPruningPred: Seq[Expression])(@transient protected val sparkSession: SparkSession)
+    partitionPruningPred: Seq[Expression],
+    prunedOutput: Seq[Attribute] = Seq.empty[Attribute])(
+    @transient protected val sparkSession: SparkSession)
   extends LeafExecNode
   with CastSupport {
 
@@ -74,9 +78,13 @@ abstract private[hive] class AbstractHiveTableScanExec(
 
   private val originalAttributes = AttributeMap(relation.output.map(a => a -> a))
 
-  override val output: Seq[Attribute] = {
-    // Retrieve the original attributes based on expression ID so that capitalization matches.
-    requestedAttributes.map(attr => originalAttributes.getOrElse(attr, attr)).distinct
+  override def output: Seq[Attribute] = {
+    if (prunedOutput.nonEmpty) {
+      prunedOutput
+    } else {
+      // Retrieve the original attributes based on expression ID so that capitalization matches.
+      requestedAttributes.map(attr => originalAttributes.getOrElse(attr, attr)).distinct
+    }
   }
 
   // Bind all partition key attribute references in the partition pruning predicate for later

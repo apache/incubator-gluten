@@ -16,6 +16,7 @@
  */
 package org.apache.spark.shuffle
 
+import org.apache.gluten.config.{HashShuffleWriterType, ShuffleWriterType}
 import org.apache.gluten.vectorized.NativePartitioning
 
 import org.apache.spark.{Aggregator, Partitioner, ShuffleDependency, SparkEnv}
@@ -59,7 +60,7 @@ class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
     override val shuffleWriterProcessor: ShuffleWriteProcessor = new ShuffleWriteProcessor,
     val nativePartitioning: NativePartitioning,
     val metrics: Map[String, SQLMetric],
-    val isSort: Boolean = false)
+    val shuffleWriterType: ShuffleWriterType = HashShuffleWriterType)
   extends ShuffleDependency[K, V, C](
     _rdd,
     partitioner,

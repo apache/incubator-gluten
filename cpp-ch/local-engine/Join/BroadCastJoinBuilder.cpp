@@ -148,7 +148,8 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
 
         NativeReader block_stream(input);
         ProfileInfo info;
-        while (Block block = block_stream.read())
+        Block block = block_stream.read();
+        while (!block.empty())
         {
             DB::ColumnsWithTypeAndName columns;
             for (size_t i = 0; i < block.columns(); ++i)
@@ -168,6 +169,8 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
             DB::Block final_block(columns);
             info.update(final_block);
             data.emplace_back(std::move(final_block));
+
+            block = block_stream.read();
         }
     };
     /// Record memory usage in Total Memory Tracker

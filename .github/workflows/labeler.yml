@@ -13,12 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: "Label pull requests"
+name: Label Pull Requests
 on: pull_request_target
 
 jobs:
   label:
-    name: Label pull requests
     runs-on: ubuntu-latest
     permissions:
       contents: read

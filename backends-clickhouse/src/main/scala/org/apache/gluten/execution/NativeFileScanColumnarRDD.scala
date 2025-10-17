@@ -45,7 +45,9 @@ class NativeFileScanColumnarRDD(
 
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
-      .splitInfosByteArray
+      .splitInfos
+      .map(splitInfo => splitInfo.toProtobuf.toByteArray)
+      .toArray
 
     val resIter = GlutenTimeMetric.millis(scanTime) {
       _ =>

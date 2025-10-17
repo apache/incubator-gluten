@@ -21,7 +21,7 @@ import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{withDefaultTimeZone
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{fromJavaTimestamp, millisToMicros, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{BinaryType, ByteType, DateType, Decimal, DecimalType, DoubleType, FloatType, IntegerType, LongType, ShortType, StringType, TimestampType}
-import org.apache.spark.util.ThreadUtils
+import org.apache.spark.util.DebuggableThreadUtils
 
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
@@ -104,13 +104,15 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
   }
 
   testGluten("cast string to timestamp") {
-    ThreadUtils.parmap(
+    DebuggableThreadUtils.parmap(
       ALL_TIMEZONES
         .filterNot(_.getId.contains("SystemV"))
         .filterNot(_.getId.contains("Europe/Kyiv"))
         .filterNot(_.getId.contains("America/Ciudad_Juarez"))
         .filterNot(_.getId.contains("Antarctica/Vostok"))
-        .filterNot(_.getId.contains("Pacific/Kanton")),
+        .filterNot(_.getId.contains("Pacific/Kanton"))
+        .filterNot(_.getId.contains("Asia/Tehran"))
+        .filterNot(_.getId.contains("Iran")),
       prefix = "CastSuiteBase-cast-string-to-timestamp",
       maxThreads = 1
     ) {

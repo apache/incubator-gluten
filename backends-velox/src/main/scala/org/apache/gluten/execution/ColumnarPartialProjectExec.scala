@@ -20,7 +20,6 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.{ArrowProjection, ExpressionMappings, ExpressionUtils}
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
@@ -175,23 +174,25 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
               val start = System.currentTimeMillis()
               val childData = ColumnarBatches
                 .select(BackendsApiManager.getBackendName, batch, projectIndexInChild.toArray)
-              val projectedBatch = getProjectedBatchArrow(childData, c2a, a2c)
-
-              val batchIterator = projectedBatch.map {
-                b =>
-                  if (b.numCols() != 0) {
-                    val compositeBatch = VeloxColumnarBatches.compose(batch, b)
-                    b.close()
-                    compositeBatch
-                  } else {
-                    b.close()
-                    ColumnarBatches.retain(batch)
-                    batch
-                  }
+              try {
+                val projectedBatch = getProjectedBatchArrow(childData, c2a, a2c)
+                val batchIterator = projectedBatch.map {
+                  b =>
+                    if (b.numCols() != 0) {
+                      val compositeBatch = VeloxColumnarBatches.compose(batch, b)
+                      b.close()
+                      compositeBatch
+                    } else {
+                      b.close()
+                      ColumnarBatches.retain(batch)
+                      batch
+                    }
+                }
+                totalTime += System.currentTimeMillis() - start
+                batchIterator
+              } finally {
+                childData.close()
               }
-              childData.close()
-              totalTime += System.currentTimeMillis() - start
-              batchIterator
             }
           }
         }

@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.rdd.RDD
@@ -144,6 +143,10 @@ case class TakeOrderedAndProjectExecTransformer(
       } else {
         val limitStagePlan =
           WholeStageTransformer(limitBeforeShuffle)(transformStageCounter.incrementAndGet())
+        val cudfTag = child.getTagValue(CudfTag.CudfTag)
+        if (cudfTag.isDefined) {
+          limitStagePlan.setTagValue(CudfTag.CudfTag, cudfTag.get)
+        }
         val shuffleExec = ShuffleExchangeExec(SinglePartition, limitStagePlan)
         val transformedShuffleExec =
           ColumnarShuffleExchangeExec(shuffleExec, limitStagePlan, shuffleExec.child.output)
@@ -167,7 +170,7 @@ case class TakeOrderedAndProjectExecTransformer(
 
       val finalPlan =
         WholeStageTransformer(collapsed)(transformStageCounter.incrementAndGet())
-
+      finalPlan.copyTagsFrom(child)
       finalPlan.executeColumnar()
     }
   }

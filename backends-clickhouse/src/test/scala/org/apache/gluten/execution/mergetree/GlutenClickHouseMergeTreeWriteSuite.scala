@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
+import org.apache.gluten.backendsapi.clickhouse.{CHBackendSettings, CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.utils.Arm
@@ -1873,8 +1873,7 @@ class GlutenClickHouseMergeTreeWriteSuite extends CreateMergeTreeSuite {
                  |""".stripMargin)
     Seq(("-1", 3), ("3", 3), ("6", 1)).foreach(
       conf => {
-        withSQLConf(
-          "spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold" -> conf._1) {
+        withSQLConf(CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD -> conf._1) {
           val sql =
             s"""
                |select count(1), min(l_returnflag) from lineitem_split

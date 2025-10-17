@@ -71,23 +71,6 @@ int64_t getMaxCompressedBufferSize(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     arrow::util::Codec* codec);
 
-arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeCompressedRecordBatch(
-    uint32_t numRows,
-    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    const std::shared_ptr<arrow::Schema> compressWriteSchema,
-    arrow::MemoryPool* pool,
-    arrow::util::Codec* codec,
-    int32_t bufferCompressThreshold,
-    CompressionMode compressionMode,
-    int64_t& compressionTime);
-
-// generate the new big one row several columns binary recordbatch
-arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeUncompressedRecordBatch(
-    uint32_t numRows,
-    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    const std::shared_ptr<arrow::Schema> writeSchema,
-    arrow::MemoryPool* pool);
-
 std::shared_ptr<arrow::Buffer> zeroLengthNullBuffer();
 
 // MmapFileStream is used to optimize sequential file reading. It uses madvise

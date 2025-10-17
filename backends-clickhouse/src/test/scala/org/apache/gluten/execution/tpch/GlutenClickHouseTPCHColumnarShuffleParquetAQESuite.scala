@@ -100,7 +100,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite extends ParquetTPCHSuit
   }
 
   test("Check the metrics values") {
-    withSQLConf(("spark.gluten.sql.columnar.sort", "false")) {
+    withSQLConf((GlutenConfig.COLUMNAR_SORT_ENABLED.key, "false")) {
       customCheck(1, native = false) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])

@@ -16,14 +16,17 @@
  */
 package org.apache.gluten.integration
 
-import org.apache.spark.sql.types.{DataType, DecimalType, DoubleType, StructField, StructType}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
+
+import scala.collection.mutable
 
 trait DataGen {
   def gen(): Unit
 }
 
 abstract class TypeModifier(val predicate: DataType => Boolean, val to: DataType)
-    extends Serializable {
+  extends Serializable {
   def modValue(value: Any): Any
 }
 
@@ -32,30 +35,29 @@ class NoopModifier(t: DataType) extends TypeModifier(_ => true, t) {
 }
 
 object DataGen {
-  def getRowModifier(
-      schema: StructType,
-      typeModifiers: List[TypeModifier]): Int => TypeModifier = {
-    val modifiers = schema.fields.map { f =>
-      val matchedModifiers = typeModifiers.flatMap { m =>
-        if (m.predicate.apply(f.dataType)) {
-          Some(m)
+  def getRowModifier(schema: StructType, typeModifiers: Seq[TypeModifier]): Int => TypeModifier = {
+    val modifiers = schema.fields.map {
+      f =>
+        val matchedModifiers = typeModifiers.flatMap {
+          m =>
+            if (m.predicate.apply(f.dataType)) {
+              Some(m)
+            } else {
+              None
+            }
+        }
+        if (matchedModifiers.isEmpty) {
+          new NoopModifier(f.dataType)
         } else {
-          None
+          if (matchedModifiers.size > 1) {
+            println(
+              s"More than one type modifiers specified for type ${f.dataType}, " +
+                s"use first one in the list")
+          }
+          matchedModifiers.head // use the first one that matches
         }
-      }
-      if (matchedModifiers.isEmpty) {
-        new NoopModifier(f.dataType)
-      } else {
-        if (matchedModifiers.size > 1) {
-          println(
-            s"More than one type modifiers specified for type ${f.dataType}, " +
-              s"use first one in the list")
-        }
-        matchedModifiers.head // use the first one that matches
-      }
     }
-    i =>
-      modifiers(i)
+    i => modifiers(i)
   }
 
   def modifySchema(schema: StructType, rowModifier: Int => TypeModifier): StructType = {
@@ -65,5 +67,27 @@ object DataGen {
         StructField(f.name, modifier.to, f.nullable, f.metadata)
     })
     modifiedSchema
+  }
+
+  trait Feature extends Serializable {
+    def name(): String
+    def run(spark: SparkSession, source: String)
+  }
+
+  class FeatureRegistry extends Serializable {
+    private val lookup: mutable.LinkedHashMap[String, Feature] = mutable.LinkedHashMap()
+
+    def register(feature: Feature): Unit = {
+      require(feature.name().matches("^\\w+$"))
+      require(!lookup.contains(feature.name()))
+      lookup(feature.name()) = feature
+    }
+
+    def getFeature(name: String): Feature = {
+      require(
+        lookup.contains(name),
+        s"No feature found by name: $name, available features: ${lookup.keys.mkString(", ")}")
+      lookup(name)
+    }
   }
 }

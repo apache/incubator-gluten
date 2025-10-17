@@ -48,6 +48,9 @@ public:
     size_t currentPeakMemory(int64_t id);
     void finalizeQuery(int64_t id);
 
+    // Clear resources held by the QueryContext instance.
+    void reset();
+
 private:
     QueryContext() = default;
     LoggerPtr logger_ = getLogger("QueryContextManager");

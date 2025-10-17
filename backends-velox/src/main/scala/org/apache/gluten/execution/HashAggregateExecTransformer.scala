@@ -96,18 +96,10 @@ abstract class HashAggregateExecTransformer(
    * @return
    *   extracting needed or not.
    */
-  private def extractStructNeeded(): Boolean = {
-    aggregateExpressions.exists {
-      expr =>
-        expr.aggregateFunction match {
-          case aggFunc if aggFunc.aggBufferAttributes.size > 1 =>
-            expr.mode match {
-              case Partial | PartialMerge => true
-              case _ => false
-            }
-          case _ => false
-        }
-    }
+  private def extractStructNeeded(): Boolean = aggregateExpressions.exists {
+    case AggregateExpression(aggFunc, Partial | PartialMerge, _, _, _) =>
+      aggFunc.aggBufferAttributes.size > 1
+    case _ => false
   }
 
   /**
@@ -205,58 +197,24 @@ abstract class HashAggregateExecTransformer(
       childrenNodeList: JList[ExpressionNode],
       aggregateMode: AggregateMode,
       aggregateNodeList: JList[AggregateFunctionNode]): Unit = {
-    val modeKeyWord = modeToKeyWord(aggregateMode)
 
-    def generateMergeCompanionNode(): Unit = {
-      aggregateMode match {
-        case Partial | PartialMerge =>
-          val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-            childrenNodeList,
-            modeKeyWord,
-            VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
-          )
-          aggregateNodeList.add(aggFunctionNode)
-        case Final | Complete =>
-          val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-            childrenNodeList,
-            modeKeyWord,
-            ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
-          )
-          aggregateNodeList.add(aggFunctionNode)
-        case other =>
-          throw new GlutenNotSupportException(s"$other is not supported.")
-      }
+    val outputTypeNode = aggregateMode match {
+      case Partial | PartialMerge if aggregateFunction.aggBufferAttributes.size > 1 =>
+        VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
+      case Partial | PartialMerge =>
+        ConverterUtils.getTypeNode(
+          aggregateFunction.inputAggBufferAttributes.head.dataType,
+          aggregateFunction.inputAggBufferAttributes.head.nullable)
+      case Final | Complete =>
+        ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
     }
-
-    aggregateFunction match {
-      case _ if aggregateFunction.aggBufferAttributes.size > 1 =>
-        generateMergeCompanionNode()
-      case _ =>
-        aggregateMode match {
-          case Partial | PartialMerge =>
-            val partialNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-              childrenNodeList,
-              modeKeyWord,
-              ConverterUtils.getTypeNode(
-                aggregateFunction.inputAggBufferAttributes.head.dataType,
-                aggregateFunction.inputAggBufferAttributes.head.nullable)
-            )
-            aggregateNodeList.add(partialNode)
-          case Final | Complete =>
-            val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
-              childrenNodeList,
-              modeKeyWord,
-              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
-            )
-            aggregateNodeList.add(aggFunctionNode)
-          case other =>
-            throw new GlutenNotSupportException(s"$other is not supported.")
-        }
-    }
+    val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
+      VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
+      childrenNodeList,
+      modeToKeyWord(aggregateMode),
+      outputTypeNode
+    )
+    aggregateNodeList.add(aggFunctionNode)
   }
 
   /**

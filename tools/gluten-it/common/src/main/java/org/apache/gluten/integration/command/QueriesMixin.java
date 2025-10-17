@@ -16,34 +16,61 @@
  */
 package org.apache.gluten.integration.command;
 
-import com.google.common.base.Preconditions;
+import org.apache.gluten.integration.QuerySet;
 import org.apache.gluten.integration.Suite;
 import org.apache.gluten.integration.action.Actions;
+import org.apache.gluten.integration.collections.JavaCollectionConverter;
+
+import com.google.common.base.Preconditions;
 import picocli.CommandLine;
-import scala.collection.Seq;
-import scala.collection.JavaConverters;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class QueriesMixin {
-  @CommandLine.Option(names = {"--queries"}, description = "Set a comma-separated list of query IDs to run, run all queries if not specified. Example: --queries=q1,q6", split = ",")
+  @CommandLine.Option(
+      names = {"--queries"},
+      description =
+          "Set a comma-separated list of query IDs to run, run all queries if not specified. Example: --queries=q1,q6",
+      split = ",")
   private String[] queries = new String[0];
 
-  @CommandLine.Option(names = {"--excluded-queries"}, description = "Set a comma-separated list of query IDs to exclude. Example: --exclude-queries=q1,q6", split = ",")
+  @CommandLine.Option(
+      names = {"--excluded-queries"},
+      description =
+          "Set a comma-separated list of query IDs to exclude. Example: --exclude-queries=q1,q6",
+      split = ",")
   private String[] excludedQueries = new String[0];
 
-  @CommandLine.Option(names = {"--shard"}, description = "Divide the queries to execute into N shards, then pick one single shard and run it. Example: --shard=1/3", defaultValue = "1/1")
+  @CommandLine.Option(
+      names = {"--shard"},
+      description =
+          "Divide the queries to execute into N shards, then pick one single shard and run it. Example: --shard=1/3",
+      defaultValue = "1/1")
   private String shard;
 
-  @CommandLine.Option(names = {"--explain"}, description = "Output explain result for queries", defaultValue = "false")
+  @CommandLine.Option(
+      names = {"--explain"},
+      description = "Output explain result for queries",
+      defaultValue = "false")
   private boolean explain;
 
-  @CommandLine.Option(names = {"--iterations"}, description = "How many iterations to run", defaultValue = "1")
+  @CommandLine.Option(
+      names = {"--iterations"},
+      description = "How many iterations to run",
+      defaultValue = "1")
   private int iterations;
 
-  @CommandLine.Option(names = {"--no-session-reuse"}, description = "Recreate new Spark session each time a query is about to run", defaultValue = "false")
+  @CommandLine.Option(
+      names = {"--no-session-reuse"},
+      description = "Recreate new Spark session each time a query is about to run",
+      defaultValue = "false")
   private boolean noSessionReuse;
+
+  @CommandLine.Option(
+      names = {"--suppress-failure-messages"},
+      description = "Do not printing failures on error",
+      defaultValue = "false")
+  private boolean suppressFailureMessages;
 
   public boolean explain() {
     return explain;
@@ -57,66 +84,32 @@ public class QueriesMixin {
     return noSessionReuse;
   }
 
+  public boolean suppressFailureMessages() {
+    return suppressFailureMessages;
+  }
+
   public Actions.QuerySelector queries() {
     return new Actions.QuerySelector() {
       @Override
-      public Seq<String> select(Suite suite) {
-        final List<String> all = select0(suite);
-        final Division div = Division.parse(shard);
-        final List<String> out = div(all, div);
-        System.out.println("About to run queries: " + out + "... ");
-        return JavaConverters.asScalaBuffer(out);
-      }
-
-      private List<String> div(List<String> from, Division div) {
-        final int queryCount = from.size();
-        final int shardCount = div.shardCount;
-        final int least = queryCount / shardCount;
-        final int shardIdx = div.shard - 1;
-        final int shardStart = shardIdx * least;
-        final int numQueriesInShard;
-        if (shardIdx == shardCount - 1) {
-          final int remaining = queryCount - least * shardCount;
-          numQueriesInShard = least + remaining;
-        } else {
-          numQueriesInShard = least;
-        }
-        final List<String> out = new ArrayList<>();
-        for (int i = shardStart; i < shardStart + numQueriesInShard; i++) {
-          out.add(from.get(i));
-        }
-        return out;
-      }
-
-      private List<String> select0(Suite suite) {
+      public QuerySet select(Suite suite) {
         final String[] queryIds = queries;
         final String[] excludedQueryIds = excludedQueries;
         if (queryIds.length > 0 && excludedQueryIds.length > 0) {
           throw new IllegalArgumentException(
               "Should not specify queries and excluded queries at the same time");
         }
-        String[] all = suite.allQueryIds();
-        Set<String> allSet = new HashSet<>(Arrays.asList(all));
+        QuerySet querySet = suite.allQueries();
         if (queryIds.length > 0) {
-          for (String id : queryIds) {
-            if (!allSet.contains(id)) {
-              throw new IllegalArgumentException("Invalid query ID: " + id);
-            }
-          }
-          return Arrays.asList(queryIds);
+          querySet = querySet.filter(JavaCollectionConverter.asScalaSeq(Arrays.asList(queryIds)));
         }
         if (excludedQueryIds.length > 0) {
-          for (String id : excludedQueryIds) {
-            if (!allSet.contains(id)) {
-              throw new IllegalArgumentException("Invalid query ID to exclude: " + id);
-            }
-          }
-          Set<String> excludedSet = new HashSet<>(Arrays.asList(excludedQueryIds));
-          return Arrays.stream(all)
-              .filter(id -> !excludedSet.contains(id))
-              .collect(Collectors.toList());
+          querySet =
+              querySet.exclude(JavaCollectionConverter.asScalaSeq(Arrays.asList(excludedQueryIds)));
         }
-        return Arrays.asList(all);
+        final Division div = Division.parse(shard);
+        querySet = querySet.getShard(div.shard - 1, div.shardCount);
+        System.out.println("About to run queries: " + querySet.queryIds() + "... ");
+        return querySet;
       }
     };
   }

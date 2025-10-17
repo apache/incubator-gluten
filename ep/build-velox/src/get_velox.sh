@@ -16,13 +16,17 @@
 
 set -exu
 
+CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_06_18
+VELOX_BRANCH=2025_10_09
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
-VELOX_ENHANCED_REPO=https://github.com/oap-project/velox.git
-VELOX_ENHANCED_BRANCH=2025_06_10
+VELOX_ENHANCED_REPO=https://github.com/IBM/velox.git
+VELOX_ENHANCED_BRANCH=ibm-2025_10_09
 ENABLE_ENHANCED_FEATURES=OFF
+
+# Developer use only for testing Velox PR.
+UPSTREAM_VELOX_PR_ID=""
 
 OS=`uname -s`
 
@@ -59,78 +63,16 @@ for arg in "$@"; do
   esac
 done
 
-function ensure_pattern_matched {
-  if [ $# -ne 2 ]; then
-    echo "Exactly 2 arguments are required."
-    return 1
-  fi
-  pattern=$1
-  file=$2
-  matched_lines=$(grep -c "$pattern" $file)
-  if [ $matched_lines -eq 0 ]; then
-    return 1
-  fi
-}
+if [ "$VELOX_HOME" == "" ]; then
+  VELOX_HOME="$CURRENT_DIR/../build/velox_ep"
+fi
 
 function process_setup_ubuntu {
-  if [ -z "$(which git)" ]; then
-    sudo --preserve-env apt install -y git
-  fi
-  # make this function Reentrant
-  git checkout scripts/setup-ubuntu.sh
-
-  # No need to re-install git.
-  ensure_pattern_matched 'git ' scripts/setup-ubuntu.sh
-  sed -i '/git \\/d' scripts/setup-ubuntu.sh
-  # Do not install libunwind which can cause interruption when catching native exception.
-  ensure_pattern_matched '\${SUDO} apt install -y libunwind-dev' scripts/setup-ubuntu.sh
-  sed -i 's/${SUDO} apt install -y libunwind-dev//' scripts/setup-ubuntu.sh
-  ensure_pattern_matched 'ccache' scripts/setup-ubuntu.sh
-  sed -i '/ccache/a\    *thrift* \\' scripts/setup-ubuntu.sh
-  sed -i '/ccache/a\    libiberty-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/ccache/a\    libxml2-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/ccache/a\    libkrb5-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/ccache/a\    libgsasl7-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/ccache/a\    libuuid1 \\' scripts/setup-ubuntu.sh
-  sed -i '/ccache/a\    uuid-dev \\' scripts/setup-ubuntu.sh
-  ensure_pattern_matched 'libgmock-dev' scripts/setup-ubuntu.sh
-  sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
-  # Required by lib hdfs.
-  ensure_pattern_matched 'ccache ' scripts/setup-ubuntu.sh
-  sed -i '/ccache /a\    yasm \\' scripts/setup-ubuntu.sh
-  ensure_pattern_matched 'run_and_time install_conda' scripts/setup-ubuntu.sh
-  sed -i '/run_and_time install_conda/d' scripts/setup-ubuntu.sh
-  # Just depends on Gluten to install arrow libs since Gluten requires some patches are applied and some different build options are used.
-  ensure_pattern_matched 'run_and_time install_arrow' scripts/setup-ubuntu.sh
-  sed -i '/run_and_time install_arrow/d' scripts/setup-ubuntu.sh
+  echo "Using setup script from Velox"
 }
 
 function process_setup_centos9 {
-  # Allows other version of git already installed.
-  if [ -z "$(which git)" ]; then
-    dnf install -y -q --setopt=install_weak_deps=False git
-  fi
-  # make this function Reentrant
-  git checkout scripts/setup-centos9.sh
-  # No need to re-install git.
-
-  ensure_pattern_matched 'dnf_install' scripts/setup-centos9.sh
-  sed -i 's/dnf_install ninja-build cmake curl ccache gcc-toolset-12 git/dnf_install ninja-build cmake curl ccache gcc-toolset-12/' scripts/setup-centos9.sh
-  sed -i '/^.*dnf_install autoconf/a\  dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos9.sh
-  
-  ensure_pattern_matched 'install_gflags' scripts/setup-centos9.sh
-  sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/releases/download/openssl-3.2.2/openssl-3.2.2.tar.gz openssl \n ( cd ${DEPENDENCY_DIR}/openssl \n  ./config no-shared && make depend && make && sudo make install ) \n}\n'     scripts/setup-centos9.sh
-
-  ensure_pattern_matched 'install_fbthrift' scripts/setup-centos9.sh
-  sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos9.sh
-
-  # Required by lib hdfs.
-  ensure_pattern_matched 'dnf_install ninja-build' scripts/setup-centos9.sh
-  sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos9.sh
-
-  # Just depends on Gluten to install arrow libs since Gluten requires some patches are applied and some different build options are used.
-  ensure_pattern_matched 'run_and_time install_arrow' scripts/setup-centos9.sh
-  sed -i '/run_and_time install_arrow/d' scripts/setup-centos9.sh
+  echo "Using setup script from Velox"
 }
 
 function process_setup_alinux3 {
@@ -149,56 +91,63 @@ function process_setup_tencentos32 {
   sed -i "/^[[:space:]]*#/!s/.*dnf config-manager --set-enabled powertools/#&/" ${CURRENT_DIR}/setup-centos8.sh
 }
 
-echo "Preparing Velox source code..."
+function prepare_velox_source_code {
+  echo "Preparing Velox source code..."
 
-CURRENT_DIR=$(
-  cd "$(dirname "$BASH_SOURCE")"
-  pwd
-)
-
-if [ "$VELOX_HOME" == "" ]; then
-  VELOX_HOME="$CURRENT_DIR/../build/velox_ep"
-fi
-VELOX_SOURCE_DIR="${VELOX_HOME}"
-
-# checkout code
-TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}' | head -n 1)"
-if [ -d $VELOX_SOURCE_DIR ]; then
-  echo "Velox source folder $VELOX_SOURCE_DIR already exists..."
-  cd $VELOX_SOURCE_DIR
-  # if velox_branch exists, check it out, 
-  # otherwise assume that user prepared velox source in velox_home, skip checkout
-  if [ -n "$TARGET_BUILD_COMMIT" ]; then
-    git init .
-    EXISTS=$(git show-ref refs/tags/build_$TARGET_BUILD_COMMIT || true)
-    if [ -z "$EXISTS" ]; then
-      git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:refs/tags/build_$TARGET_BUILD_COMMIT
+  # checkout code
+  TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}' | head -n 1)"
+  if [ -d $VELOX_HOME ]; then
+    echo "Velox source folder $VELOX_HOME already exists..."
+    cd $VELOX_HOME
+    # if velox_branch exists, check it out,
+    # otherwise assume that user prepared velox source in velox_home, skip checkout
+    if [ -n "$TARGET_BUILD_COMMIT" ]; then
+      git init .
+      EXISTS=$(git show-ref refs/tags/build_$TARGET_BUILD_COMMIT || true)
+      if [ -z "$EXISTS" ]; then
+        git fetch $VELOX_REPO $TARGET_BUILD_COMMIT:refs/tags/build_$TARGET_BUILD_COMMIT
+      fi
+      git reset --hard HEAD
+      git checkout refs/tags/build_$TARGET_BUILD_COMMIT
+    else
+      echo "$VELOX_BRANCH can't be found in $VELOX_REPO, skipping the download..."
     fi
-    git reset --hard HEAD
-    git checkout refs/tags/build_$TARGET_BUILD_COMMIT
   else
-    echo "$VELOX_BRANCH can't be found in $VELOX_REPO, skipping the download..."
+    git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_HOME
+    cd $VELOX_HOME
+    git checkout $TARGET_BUILD_COMMIT
   fi
-else
-  git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
-  cd $VELOX_SOURCE_DIR
-  git checkout $TARGET_BUILD_COMMIT
-fi
 
-#sync submodules
-git submodule sync --recursive
-git submodule update --init --recursive
+  #sync submodules
+  git submodule sync --recursive
+  git submodule update --init --recursive
+}
+
+function apply_provided_velox_patch {
+  if [[ -n "$UPSTREAM_VELOX_PR_ID" ]]; then
+     echo "Applying patch for PR #$UPSTREAM_VELOX_PR_ID ..."
+     local patch_name="$UPSTREAM_VELOX_PR_ID.patch"
+     pushd $VELOX_HOME
+     rm -f $patch_name
+     wget -nv "https://patch-diff.githubusercontent.com/raw/facebookincubator/velox/pull/$UPSTREAM_VELOX_PR_ID.patch" \
+       -O "$patch_name" || {
+       echo "Failed to download the Velox patch from GitHub"
+       exit 1
+     }
+     (git apply --check $patch_name && git apply $patch_name) || {
+       echo "Failed to apply the provided Velox patch"
+       exit 1
+     }
+     popd
+  fi
+}
 
 function apply_compilation_fixes {
-  current_dir=$1
-  velox_home=$2
+  sudo cp ${CURRENT_DIR}/modify_arrow.patch ${VELOX_HOME}/CMake/resolve_dependency_modules/arrow/
+  sudo cp ${CURRENT_DIR}/modify_arrow_dataset_scan_option.patch ${VELOX_HOME}/CMake/resolve_dependency_modules/arrow/
 
-  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/CMake/resolve_dependency_modules/arrow/
-  sudo cp ${current_dir}/modify_arrow_dataset_scan_option.patch ${velox_home}/CMake/resolve_dependency_modules/arrow/
-
-  git add ${velox_home}/CMake/resolve_dependency_modules/arrow/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
-  git add ${velox_home}/CMake/resolve_dependency_modules/arrow/modify_arrow_dataset_scan_option.patch # to avoid the file from being deleted by git clean -dffx :/
-
+  git add ${VELOX_HOME}/CMake/resolve_dependency_modules/arrow/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
+  git add ${VELOX_HOME}/CMake/resolve_dependency_modules/arrow/modify_arrow_dataset_scan_option.patch # to avoid the file from being deleted by git clean -dffx :/
 }
 
 function setup_linux {
@@ -219,6 +168,9 @@ function setup_linux {
       ;;
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "openEuler" ]]; then
+    # this is workaround for gcc-12.3.1
+    # https://github.com/facebookincubator/velox/blob/b263d9dd8b8910dc642d8fdb0c0adee4b2a1fb29/CMakeLists.txt#L433
+    sed -i "s|no-unknown-warning-option|no-unknown-warning-option -Wno-restrict|g" ../../src/build_velox.sh
     case "$LINUX_VERSION_ID" in
       24.03) ;;
       *)
@@ -258,7 +210,7 @@ function setup_linux {
   fi
 }
 
-if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
+function apply_setup_fixes() {
   if [ $OS == 'Linux' ]; then
     setup_linux
   elif [ $OS == 'Darwin' ]; then
@@ -267,8 +219,16 @@ if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
     echo "Unsupported kernel: $OS"
     exit 1
   fi
+}
+
+prepare_velox_source_code
+
+if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
+  apply_setup_fixes
 fi
 
-apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
+apply_provided_velox_patch
+
+apply_compilation_fixes
 
 echo "Finished getting Velox code"

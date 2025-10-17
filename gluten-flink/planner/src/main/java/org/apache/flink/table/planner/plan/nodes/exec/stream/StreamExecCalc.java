@@ -19,18 +19,21 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.rexnode.Utils;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.plan.EmptyNode;
 import io.github.zhztheplayer.velox4j.plan.FilterNode;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.ProjectNode;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -55,6 +58,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /** Gluten Stream {@link ExecNode} for Calc to use {@link GlutenSingleInputOperator}. */
 @ExecNodeMetadata(
@@ -124,21 +128,25 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
       filter =
           new FilterNode(
               PlanNodeIdGenerator.newId(),
-              List.of(),
+              List.of(new EmptyNode(inputType)),
               RexNodeConverter.toTypedExpr(condition, conversionContext));
     }
     List<TypedExpr> projectExprs = RexNodeConverter.toTypedExpr(projection, conversionContext);
     PlanNode project =
         new ProjectNode(
             PlanNodeIdGenerator.newId(),
-            filter == null ? List.of() : List.of(filter),
+            filter == null ? List.of(new EmptyNode(inputType)) : List.of(filter),
             Utils.getNamesFromRowType(getOutputType()),
             projectExprs);
     io.github.zhztheplayer.velox4j.type.RowType outputType =
         (io.github.zhztheplayer.velox4j.type.RowType)
             LogicalTypeConverter.toVLType(getOutputType());
-    final GlutenSingleInputOperator calOperator =
-        new GlutenSingleInputOperator(project, PlanNodeIdGenerator.newId(), inputType, outputType);
+    final OneInputStreamOperator calOperator =
+        new GlutenVectorOneInputOperator(
+            new StatefulPlanNode(project.getId(), project),
+            PlanNodeIdGenerator.newId(),
+            inputType,
+            Map.of(project.getId(), outputType));
     return ExecNodeUtil.createOneInputTransformation(
         inputTransform,
         new TransformationMetadata("gluten-calc", "Gluten cal operator"),

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.backendsapi
 
+import org.apache.gluten.config.ShuffleWriterType
 import org.apache.gluten.metrics.{IMetrics, MetricsUpdater}
 import org.apache.gluten.substrait.{AggregationParams, JoinParams}
 
@@ -36,7 +37,8 @@ trait MetricsApi extends Serializable {
   def genInputIteratorTransformerMetrics(
       child: SparkPlan,
       sparkContext: SparkContext,
-      forBroadcast: Boolean): Map[String, SQLMetric]
+      forBroadcast: Boolean,
+      forShuffle: Boolean): Map[String, SQLMetric]
 
   def genInputIteratorTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric],
@@ -84,7 +86,7 @@ trait MetricsApi extends Serializable {
 
   def genColumnarShuffleExchangeMetrics(
       sparkContext: SparkContext,
-      isSort: Boolean): Map[String, SQLMetric]
+      shuffleWriterType: ShuffleWriterType): Map[String, SQLMetric]
 
   def genWindowTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 

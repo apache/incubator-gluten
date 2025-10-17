@@ -18,8 +18,8 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.{BatchCarrierRow, PlaceholderRow, SparkRowIterator, TerminalRow}
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
 import org.apache.spark.rdd.RDD

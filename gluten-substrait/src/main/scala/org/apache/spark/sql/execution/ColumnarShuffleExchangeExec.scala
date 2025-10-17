@@ -17,9 +17,9 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.ReservedKeys
+import org.apache.gluten.config.ShuffleWriterType
 import org.apache.gluten.execution.ValidatablePlan
-import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.CoalesceExec.EmptyPartition
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.metric.SQLShuffleWriteMetricsReporter
@@ -53,15 +54,15 @@ case class ColumnarShuffleExchangeExec(
   private[sql] lazy val readMetrics =
     SQLColumnarShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
-  val useSortBasedShuffle: Boolean =
-    BackendsApiManager.getSparkPlanExecApiInstance.useSortBasedShuffle(outputPartitioning, output)
+  val shuffleWriterType: ShuffleWriterType =
+    BackendsApiManager.getSparkPlanExecApiInstance.getShuffleWriterType(outputPartitioning, output)
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance
       .genColumnarShuffleExchangeMetrics(
         sparkContext,
-        useSortBasedShuffle) ++ readMetrics ++ writeMetrics
+        shuffleWriterType) ++ readMetrics ++ writeMetrics
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -89,12 +90,12 @@ case class ColumnarShuffleExchangeExec(
       serializer,
       writeMetrics,
       metrics,
-      useSortBasedShuffle)
+      shuffleWriterType)
   }
 
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema, metrics, useSortBasedShuffle)
+    .createColumnarBatchSerializer(schema, metrics, shuffleWriterType)
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
@@ -121,16 +122,16 @@ case class ColumnarShuffleExchangeExec(
     Statistics(dataSize, Some(rowCount))
   }
 
+  // Required for Spark 4.0 to implement a trait method.
+  // The "override" keyword is omitted to maintain compatibility with earlier Spark versions.
+  def shuffleId: Int = columnarShuffleDependency.shuffleId
+
   override def getShuffleRDD(partitionSpecs: Array[ShufflePartitionSpec]): RDD[ColumnarBatch] = {
     new ShuffledColumnarBatchRDD(columnarShuffleDependency, readMetrics, partitionSpecs)
   }
 
   override def stringArgs: Iterator[Any] = {
-    val shuffleWriterType = {
-      if (useSortBasedShuffle) ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
-      else ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
-    }
-    super.stringArgs ++ Iterator(s"[shuffle_writer_type=$shuffleWriterType]")
+    super.stringArgs ++ Iterator(s"[shuffle_writer_type=${shuffleWriterType.name}]")
   }
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
@@ -148,12 +149,16 @@ case class ColumnarShuffleExchangeExec(
     cachedShuffleRDD
   }
 
-  override def verboseString(maxFields: Int): String = toString(super.verboseString(maxFields))
+  override def verboseString(maxFields: Int): String =
+    toString(super.verboseString(maxFields), maxFields)
 
-  override def simpleString(maxFields: Int): String = toString(super.simpleString(maxFields))
-
-  private def toString(original: String): String = {
-    original + ", [OUTPUT] " + output.map(attr => attr.name + ":" + attr.dataType).toString()
+  private def toString(original: String, maxFields: Int): String = {
+    original + ", [output=" + truncatedString(
+      output.map(_.verboseString(maxFields)),
+      "[",
+      ", ",
+      "]",
+      maxFields) + "]"
   }
 
   override def output: Seq[Attribute] = if (projectOutputAttributes != null) {

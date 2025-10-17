@@ -1,4 +1,4 @@
-set(GEOS_VERSION 3.10.2)
+set(GEOS_VERSION 3.10.7)
 
 vcpkg_download_distfile(
   ARCHIVE
@@ -7,7 +7,7 @@ vcpkg_download_distfile(
   FILENAME
   "geos-${GEOS_VERSION}.tar.bz2"
   SHA512
-  390381711ccf56b862c2736cf6329200822f121de1c49df52b8b85cabea8c7787b199df2196acacc2e5c677ff3ebe042d93d70e89deadbc19d754499edb65126
+  22d91894a5c1449a11da5b9f064a77a55383601fd04b4eb7d2d40f0e85e3bb74389b12c437269b40e0286f2e9d6e90d73de89fadc391f696513f57dc066d8df5
 )
 vcpkg_extract_source_archive_ex(
   OUT_SOURCE_PATH
@@ -20,7 +20,6 @@ vcpkg_extract_source_archive_ex(
   disable-warning-4996.patch
   fix-exported-config.patch
   # The two patches below come from Velox.
-  geos-build.patch
   geos-cmakelists.patch)
 
 if(VCPKG_TARGET_IS_MINGW)

@@ -31,10 +31,7 @@ class GraceMergingAggregatedStep : public DB::ITransformingStep
 {
 public:
     explicit GraceMergingAggregatedStep(
-        DB::ContextPtr context_,
-        const DB::Block & input_header,
-        DB::Aggregator::Params params_,
-        bool no_pre_aggregated_);
+        DB::ContextPtr context_, const DB::SharedHeader & input_header, DB::Aggregator::Params params_, bool no_pre_aggregated_);
     ~GraceMergingAggregatedStep() override = default;
 
     String getName() const override { return "GraceMergingAggregatedStep"; }
@@ -43,10 +40,12 @@ public:
 
     void describeActions(DB::JSONBuilder::JSONMap & map) const override;
     void describeActions(DB::IQueryPlanStep::FormatSettings & settings) const override;
+
 private:
     DB::ContextPtr context;
     DB::Aggregator::Params params;
     bool no_pre_aggregated;
+
 protected:
     void updateOutputHeader() override;
 };

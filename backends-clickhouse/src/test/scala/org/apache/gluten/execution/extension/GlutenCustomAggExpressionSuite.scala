@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.extension
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
@@ -32,7 +33,7 @@ class GlutenCustomAggExpressionSuite extends ParquetSuite {
     super.sparkConf
       .set("spark.sql.adaptive.enabled", "false")
       .set(
-        "spark.gluten.sql.columnar.extended.expressions.transformer",
+        GlutenConfig.EXTENDED_EXPRESSION_TRAN_CONF.key,
         "org.apache.gluten.execution.extension.CustomAggExpressionTransformer")
   }
 
@@ -69,7 +70,7 @@ class GlutenCustomAggExpressionSuite extends ParquetSuite {
          |""".stripMargin
     val df = spark.sql(sql)
     // Final stage is not supported, it will be fallback
-    WholeStageTransformerSuite.checkFallBack(df, noFallback = false)
+    GlutenQueryComparisonTest.checkFallBack(df, noFallback = false)
 
     val planExecs = df.queryExecution.executedPlan.collect {
       case agg: HashAggregateExec => agg

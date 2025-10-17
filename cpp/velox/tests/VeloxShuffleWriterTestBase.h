@@ -22,6 +22,7 @@
 #include <gtest/gtest.h>
 
 #include <compute/VeloxBackend.h>
+#include "../utils/VeloxArrowUtils.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/PartitionWriter.h"
@@ -29,7 +30,6 @@
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/LocalRssClient.h"
 #include "utils/TestAllocationListener.h"
-#include "utils/VeloxArrowUtils.h"
 #include "velox/type/Type.h"
 
 #include "velox/vector/tests/VectorTestUtils.h"
@@ -92,8 +92,8 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
              std::nullopt}),
         makeNullableFlatVector<float>(
             {-0.1234567,
-             std::nullopt,
              0.1234567,
+             std::nullopt,
              std::nullopt,
              -0.142857,
              std::nullopt,
@@ -104,9 +104,18 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
         makeNullableFlatVector<bool>(
             {std::nullopt, true, false, std::nullopt, true, true, false, true, std::nullopt, std::nullopt}),
         makeFlatVector<facebook::velox::StringView>(
-            {"alice0", "bob1", "alice2", "bob3", "Alice4", "Bob5", "AlicE6", "boB7", "ALICE8", "BOB9"}),
+            {"a",
+             "bobbobbobooooooooooooooooooooooooooooob1",
+             "alice2",
+             "bob3",
+             "Alice4",
+             "Bob5",
+             "AlicE6",
+             "boB7",
+             "ALICE8",
+             "BOB9"}),
         makeNullableFlatVector<facebook::velox::StringView>(
-            {"alice_0",
+            {std::nullopt,
              "bob_1",
              std::nullopt,
              std::nullopt,

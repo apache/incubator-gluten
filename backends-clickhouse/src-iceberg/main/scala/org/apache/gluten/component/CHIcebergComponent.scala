@@ -18,7 +18,7 @@
 package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackend
-import org.apache.gluten.execution.OffloadIcebergScan
+import org.apache.gluten.extension.OffloadIcebergScan
 import org.apache.gluten.extension.injector.Injector
 
 class CHIcebergComponent extends Component {

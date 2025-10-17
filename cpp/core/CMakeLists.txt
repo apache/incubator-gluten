@@ -128,6 +128,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     memory/MemoryManager.cc
     memory/ArrowMemoryPool.cc
     memory/ColumnarBatch.cc
+    shuffle/Dictionary.cc
     shuffle/FallbackRangePartitioner.cc
     shuffle/HashPartitioner.cc
     shuffle/LocalPartitionWriter.cc
@@ -177,13 +178,6 @@ endif()
 find_arrow_lib(${ARROW_LIB_NAME})
 find_arrow_lib(${ARROW_BUNDLED_DEPS})
 
-if(ENABLE_HBM)
-  include(BuildMemkind)
-  target_sources(gluten PRIVATE memory/HbwAllocator.cc)
-  target_link_libraries(gluten PRIVATE memkind::memkind)
-  add_definitions(-DGLUTEN_ENABLE_HBM)
-endif()
-
 if(ENABLE_QAT)
   include(BuildQATzip)
   include(BuildQATZstd)
@@ -191,13 +185,6 @@ if(ENABLE_QAT)
   target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR}
                                            ${QATZSTD_INCLUDE_DIR})
   target_link_libraries(gluten PUBLIC qatzip::qatzip qatzstd::qatzstd)
-endif()
-
-if(ENABLE_IAA)
-  include(BuildQpl)
-  target_include_directories(gluten PUBLIC ${QPL_INCLUDE_DIR})
-  target_sources(gluten PRIVATE utils/qpl/QplJobPool.cc utils/qpl/QplCodec.cc)
-  target_link_libraries(gluten PUBLIC qpl::qpl)
 endif()
 
 find_protobuf()

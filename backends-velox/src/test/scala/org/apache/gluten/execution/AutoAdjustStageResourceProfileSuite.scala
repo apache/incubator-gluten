@@ -39,7 +39,7 @@ class AutoAdjustStageResourceProfileSuite
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.auto.adjustStageResource.enabled", "true")
+      .set(GlutenConfig.AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED.key, "true")
   }
 
   override def beforeAll(): Unit = {
@@ -92,7 +92,9 @@ class AutoAdjustStageResourceProfileSuite
   test("stage contains fallback nodes and apply new resource profile") {
     withSQLConf(
       GlutenConfig.COLUMNAR_SHUFFLE_ENABLED.key -> "false",
-      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD.key -> "0.1") {
+      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO.key -> "0.6",
+      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD.key -> "0.1"
+    ) {
       runQueryAndCompare("select c1, count(*) from tmp1 group by c1") {
         df =>
           val plan = df.queryExecution.executedPlan

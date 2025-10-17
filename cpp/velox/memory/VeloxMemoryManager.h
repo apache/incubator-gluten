@@ -83,7 +83,7 @@ class VeloxMemoryManager final : public MemoryManager {
     return defaultArrowPool_.get();
   }
 
-  std::shared_ptr<arrow::MemoryPool> createArrowMemoryPool(const std::string& name) override;
+  std::shared_ptr<arrow::MemoryPool> getOrCreateArrowMemoryPool(const std::string& name) override;
 
   const MemoryUsageStats collectMemoryUsageStats() const override;
 
@@ -104,10 +104,6 @@ class VeloxMemoryManager final : public MemoryManager {
   bool tryDestructSafe();
 
   void dropMemoryPool(const std::string& name);
-
-#ifdef GLUTEN_ENABLE_HBM
-  std::unique_ptr<VeloxMemoryAllocator> wrappedAlloc_;
-#endif
 
   std::unique_ptr<AllocationListener> listener_;
   std::unique_ptr<AllocationListener> blockListener_;

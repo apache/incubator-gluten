@@ -164,7 +164,7 @@ class ClickhouseOptimisticTransaction(
 
       try {
         val format = tableV2.getFileFormat(protocol, metadata)
-        GlutenWriterColumnarRules.injectSparkLocalProperty(spark, Some(format.shortName()))
+        GlutenWriterColumnarRules.injectSparkLocalProperty(spark, Some(format.shortName()), None)
         MergeTreeFileFormatWriter.write(
           sparkSession = spark,
           plan = newQueryPlan,
@@ -193,7 +193,7 @@ class ClickhouseOptimisticTransaction(
             throw s
           }
       } finally {
-        GlutenWriterColumnarRules.injectSparkLocalProperty(spark, None)
+        GlutenWriterColumnarRules.injectSparkLocalProperty(spark, None, None)
       }
     }
     committer.addedStatuses.toSeq ++ committer.changeFiles

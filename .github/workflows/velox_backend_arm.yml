@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend Github Runner (ARM)
+name: Velox Backend (ARM)
 
 on:
   pull_request:
@@ -30,7 +30,9 @@ on:
       - 'gluten-delta/**'
       - 'gluten-iceberg/**'
       - 'gluten-hudi/**'
+      - 'gluten-paimon/**'
       - 'gluten-ut/**'
+      - 'package/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
@@ -43,24 +45,6 @@ env:
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
-  # for JDK17 unit tests
-  EXTRA_FLAGS:  "-XX:+IgnoreUnrecognizedVMOptions 
-                --add-opens=java.base/java.lang=ALL-UNNAMED
-                --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
-                --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
-                --add-opens=java.base/java.io=ALL-UNNAMED
-                --add-opens=java.base/java.net=ALL-UNNAMED
-                --add-opens=java.base/java.nio=ALL-UNNAMED
-                --add-opens=java.base/java.util=ALL-UNNAMED
-                --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
-                --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
-                --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
-                --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
-                --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
-                --add-opens=java.base/sun.security.action=ALL-UNNAMED
-                --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
-                -Djdk.reflect.useDirectMethodHandle=false
-                -Dio.netty.tryReflectionSetAccessible=true"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -132,7 +116,6 @@ jobs:
       - name: Setup java and maven
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           $SETUP install_maven
       - name: Set environment variables
         run: |
@@ -195,7 +178,11 @@ jobs:
       - name: Run UDF test
         run: |
           # Depends on --build_example=ON.
-          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None \
+          yum install -y java-17-openjdk-devel
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
+          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Pjava-17 -Piceberg -Pdelta -Ppaimon -DtagsToExclude=None \
           -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload test report
         uses: actions/upload-artifact@v4

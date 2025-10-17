@@ -79,7 +79,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.supported.scala.udfs", "my_add")
+      .set(GlutenConfig.GLUTEN_SUPPORTED_SCALA_UDFS.key, "my_add")
   }
 
   final override val testCases: Seq[Int] = Seq(
@@ -1194,8 +1194,8 @@ class GlutenClickHouseTPCHSaltNullParquetSuite
 
   test("test 'ColumnarToRowExec should not be used'") {
     withSQLConf(
-      "spark.gluten.sql.columnar.filescan" -> "false",
-      "spark.gluten.sql.columnar.filter" -> "false"
+      GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false",
+      GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false"
     ) {
       runQueryAndCompare(
         "select l_shipdate from lineitem where l_shipdate = '1996-05-07'",
@@ -3006,6 +3006,17 @@ class GlutenClickHouseTPCHSaltNullParquetSuite
         """
           |select * from(
           |select a, b, c, row_number() over (partition by a order by b , c) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        compareResult = true,
+        checkWindowGroupLimit
+      )
+
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c, row_number() over (partition by a order by b, c, a) as r
           |from test_win_top)
           |where r <= 1
           |""".stripMargin,

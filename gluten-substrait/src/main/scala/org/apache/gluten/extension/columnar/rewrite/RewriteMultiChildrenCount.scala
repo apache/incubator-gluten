@@ -49,7 +49,10 @@ object RewriteMultiChildrenCount extends RewriteSingleNode with PullOutProjectHe
   private lazy val shouldRewriteCount = BackendsApiManager.getSettings.shouldRewriteCount()
 
   override def isRewritable(plan: SparkPlan): Boolean = {
-    RewriteEligibility.isRewritable(plan)
+    plan match {
+      case _: BaseAggregateExec => true
+      case _ => false
+    }
   }
 
   private def extractCountForRewrite(aggExpr: AggregateExpression): Option[Count] = {

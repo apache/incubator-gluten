@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.metrics.GlutenTimeMetric
-import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
@@ -59,9 +58,9 @@ abstract class FileSourceScanExecShim(
 
   protected lazy val driverMetricsAlias = driverMetrics
 
-  def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
-    attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
-  })
+  def dataFiltersInScan: Seq[Expression] = {
+    throw new UnsupportedOperationException("Not implemented")
+  }
 
   def hasUnsupportedColumns: Boolean = {
     // TODO, fallback if user define same name column due to we can't right now
@@ -76,7 +75,7 @@ abstract class FileSourceScanExecShim(
 
   def hasFieldIds: Boolean = ParquetUtils.hasFieldIds(requiredSchema)
 
-  private def isDynamicPruningFilter(e: Expression): Boolean =
+  protected def isDynamicPruningFilter(e: Expression): Boolean =
     e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
 
   protected def setFilesNumAndSizeMetric(
@@ -121,6 +120,10 @@ abstract class FileSourceScanExecShim(
     }
     sendDriverMetrics()
     selected
+  }
+
+  def getPartitionArray(): Array[PartitionDirectory] = {
+    dynamicallySelectedPartitions
   }
 }
 

@@ -59,7 +59,12 @@ class BlockAllocationListener final : public AllocationListener {
     if (granted == 0) {
       return;
     }
-    delegated_->allocationChanged(granted);
+    try {
+      delegated_->allocationChanged(granted);
+    } catch (const std::exception&) {
+      reserve(-diff);
+      throw;
+    }
   }
 
   int64_t currentBytes() override {

@@ -29,6 +29,7 @@ class GenerateMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metric
       metrics("wallNanos") += nativeMetrics.wallNanos
       metrics("peakMemoryBytes") += nativeMetrics.peakMemoryBytes
       metrics("numMemoryAllocations") += nativeMetrics.numMemoryAllocations
+      metrics("loadLazyVectorTime") += nativeMetrics.loadLazyVectorTime
     }
   }
 }

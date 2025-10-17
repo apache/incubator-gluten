@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.config.HashShuffleWriterType
 import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.execution.VeloxResizeBatchesExec
 
@@ -24,7 +25,7 @@ import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQueryStageExec}
 
 /**
- * Try to append [[VeloxResizeBatchesExec]] for shuffle input and ouput to make the batch sizes in
+ * Try to append [[VeloxResizeBatchesExec]] for shuffle input and output to make the batch sizes in
  * good shape.
  */
 case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
@@ -32,7 +33,7 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
     plan.transformUp {
       case shuffle: ColumnarShuffleExchangeExec
-          if !shuffle.useSortBasedShuffle &&
+          if shuffle.shuffleWriterType == HashShuffleWriterType &&
             VeloxConfig.get.veloxResizeBatchesShuffleInput =>
         val appendBatches =
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
