@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Note: The script looks up the release JARs inside $GLUTEN_HOME/package/target/.
+# Note: Manually create $GLUTEN_HOME/release/ and place the release JARs inside.
 #       Provide the release tag (e.g., v1.5.0-rc0) as an argument to this script.
 
 set -eu
@@ -33,40 +33,38 @@ RELEASE_VERSION=${TAG_VERSION%-rc*}
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 GLUTEN_HOME=${CURRENT_DIR}/../../
-if [ ! -d "$GLUTEN_HOME/package/target/" ]; then
-  echo "Build target directory does not exist."
+if [ ! -d "$GLUTEN_HOME/release/" ]; then
+  echo "Release directory does not exist."
 fi
 
-mkdir -p $GLUTEN_HOME/release/
-
-pushd $GLUTEN_HOME/package/target/
+pushd $GLUTEN_HOME/release/
 
 SPARK_VERSIONS="3.2 3.3 3.4 3.5"
 
 for v in $SPARK_VERSIONS; do
   JAR="gluten-velox-bundle-spark${v}_2.12-linux_amd64-${RELEASE_VERSION}.jar"
   if [[ ! -f "$JAR" ]]; then
-    echo "Missing Gluten build target JAR under $GLUTEN_HOME/package/target/ for Spark $v: $JAR"
+    echo "Missing Gluten release JAR under $GLUTEN_HOME/release/ for Spark $v: $JAR"
     exit 1
   fi
   echo "Packaging for Spark $v..."
-  tar -czf $GLUTEN_HOME/release/apache-gluten-${RELEASE_VERSION}-incubating-bin-spark-${v}.tar.gz \
+  tar -czf apache-gluten-${RELEASE_VERSION}-incubating-bin-spark-${v}.tar.gz \
       ${GLUTEN_HOME}/DISCLAIMER \
       $JAR
 done
 
-pushd $GLUTEN_HOME/release/
-
 SRC_ZIP="${TAG}.zip"
-SRC_DIR="incubator-gluten-${TAG_VERSION}"
+SRC_DIR="incubator-gluten-${RELEASE_VERSION}"
 
 echo "Packaging source code..."
 wget https://github.com/apache/incubator-gluten/archive/refs/tags/${SRC_ZIP}
 unzip -q ${SRC_ZIP}
+
+# Rename folder to remove "rc*" for formal release.
+mv incubator-gluten-${TAG_VERSION} ${SRC_DIR}
 tar -czf apache-gluten-${RELEASE_VERSION}-incubating-src.tar.gz ${SRC_DIR}
 rm -r ${SRC_ZIP} ${SRC_DIR}
 
-popd
 popd
 
 echo "Finished packaging release binaries and source code."

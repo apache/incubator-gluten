@@ -48,6 +48,14 @@ cd /workspace
 bash dev/release/build-release.sh
 ```
 
+### Copy the target binaries to release directory
+
+```bash
+cd /workspace
+mkdir -p release
+copy -R package/target/* release/
+```
+
 ### Package the release sources and binaries
 
 By following this step you will create the release distribution that comply with the common name
