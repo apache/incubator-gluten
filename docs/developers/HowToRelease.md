@@ -85,7 +85,7 @@ total 481628
 -rw-r--r--. 1 root root 104595103 Oct 14 14:19 apache-gluten-1.6.0-example-incubating-bin-spark-3.5.tar.gz
 ```
 
-[//]: # Moved from https://github.com/apache/incubator-gluten-site/blob/main/_docs/v1.3.0/developers/HowToRelease.md
+<!--- Moved from https://github.com/apache/incubator-gluten-site/blob/main/_docs/v1.3.0/developers/HowToRelease.md --->
 # Publish the Release
 
 This section outlines the steps for releasing Apache Gluten (incubating) according to the Apache release guidelines.
