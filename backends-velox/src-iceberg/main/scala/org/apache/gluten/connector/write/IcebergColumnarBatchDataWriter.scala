@@ -21,6 +21,7 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.execution.IcebergWriteJniWrapper
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.connector.metric.CustomTaskMetric
 import org.apache.spark.sql.connector.write.{DataWriter, WriterCommitMessage}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -80,5 +81,9 @@ case class IcebergColumnarBatchDataWriter(
       case 1 => FileFormat.PARQUET
       case _ => throw new UnsupportedOperationException()
     }
+  }
+
+  override def currentMetricsValues(): Array[CustomTaskMetric] = {
+    jniWrapper.metrics(writer).toCustomTaskMetrics
   }
 }

@@ -472,4 +472,8 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater = {
     new WriteFilesMetricsUpdater(metrics)
   }
+
+  override def genBatchWriteMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
+    throw new UnsupportedOperationException("BatchWrite is not supported in CH backend")
+  }
 }

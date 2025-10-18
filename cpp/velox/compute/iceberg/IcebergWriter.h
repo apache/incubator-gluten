@@ -19,10 +19,22 @@
 
 #include "IcebergNestedField.pb.h"
 #include "memory/VeloxColumnarBatch.h"
+#include "utils/Metrics.h"
 #include "velox/connectors/hive/iceberg/IcebergColumnHandle.h"
 #include "velox/connectors/hive/iceberg/IcebergDataSink.h"
 
 namespace gluten {
+
+struct WriteStats {
+  uint64_t physicalWrittenBytes{0};
+  uint32_t numWrittenFiles{0};
+  uint64_t writeIOTimeNs{0};
+  uint64_t writeWallNs{0};
+
+  bool empty() const;
+
+  std::string toString() const;
+};
 
 class IcebergWriter {
  public:
@@ -41,6 +53,8 @@ class IcebergWriter {
 
   std::vector<std::string> commit();
 
+  WriteStats writeStats() const;
+
  private:
   facebook::velox::RowTypePtr rowType_;
   const facebook::velox::connector::hive::iceberg::IcebergNestedField field_;
@@ -52,6 +66,9 @@ class IcebergWriter {
   std::unique_ptr<facebook::velox::connector::ConnectorQueryCtx> connectorQueryCtx_;
 
   std::unique_ptr<facebook::velox::connector::hive::iceberg::IcebergDataSink> dataSink_;
+
+  // Records the writer creation time in ns.
+  const uint64_t createTimeNs_{0};
 };
 
 std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec>
