@@ -28,7 +28,7 @@ import org.apache.spark.sql.connector.write.{BatchWrite, WriterCommitMessage}
 import org.apache.spark.sql.datasources.v2.{DataWritingColumnarBatchSparkTask, DataWritingColumnarBatchSparkTaskResult, StreamWriterCommitProgressUtil, WritingColumnarBatchSparkTask}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2._
-import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.LongAccumulator
@@ -111,6 +111,15 @@ trait ColumnarV2TableWriteExec extends V2ExistingTableWriteExec with Validatable
         logError(s"Data source write support $batchWrite aborted.")
         throw cause
     }
+  }
 
+  override val customMetrics: Map[String, SQLMetric] = {
+    write
+      .supportedCustomMetrics()
+      .map {
+        customMetric =>
+          customMetric.name() -> SQLMetrics.createV2CustomMetric(sparkContext, customMetric)
+      }
+      .toMap ++ BackendsApiManager.getMetricsApiInstance.genBatchWriteMetrics(sparkContext)
   }
 }
