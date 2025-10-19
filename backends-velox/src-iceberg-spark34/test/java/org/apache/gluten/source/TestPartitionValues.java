@@ -52,8 +52,6 @@ import java.util.stream.IntStream;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 
-// testPartitionValueTypes failed by Non-whitespace character found after end of conversion: ""
-// Change the schema to test orc
 @RunWith(Parameterized.class)
 public class TestPartitionValues extends SparkTestBase {
   @Parameterized.Parameters(name = "format = {0}, vectorized = {1}")
@@ -77,8 +75,8 @@ public class TestPartitionValues extends SparkTestBase {
           required(105, "f", Types.FloatType.get()),
           required(106, "d", Types.DoubleType.get()),
           required(107, "date", Types.DateType.get()),
-          // Change the type to withoutZone because orc throws exception
-          required(108, "ts", Types.TimestampType.withoutZone()),
+          // Change the type to withoutZone because orc throws exception, this is TimestampNTZType
+          //          required(108, "ts", Types.TimestampType.withoutZone()),
           required(110, "s", Types.StringType.get()),
           required(113, "bytes", Types.BinaryType.get()),
           required(114, "dec_9_0", Types.DecimalType.of(9, 0)),
