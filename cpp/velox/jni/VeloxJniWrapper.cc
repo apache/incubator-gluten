@@ -829,7 +829,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrappe
   jobject writeMetrics = env->NewObject(
     batchWriteMetricsClass,
     batchWriteMetricsConstructor,
-    writeStats.physicalWrittenBytes,
+    writeStats.numWrittenBytes,
     writeStats.numWrittenFiles,
     writeStats.writeIOTimeNs,
     writeStats.writeWallNs);

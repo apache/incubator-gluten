@@ -26,7 +26,7 @@
 namespace gluten {
 
 struct WriteStats {
-  uint64_t physicalWrittenBytes{0};
+  uint64_t numWrittenBytes{0};
   uint32_t numWrittenFiles{0};
   uint64_t writeIOTimeNs{0};
   uint64_t writeWallNs{0};

@@ -462,9 +462,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
 
   def genBatchWriteMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "physicalWrittenBytes" -> SQLMetrics.createSizeMetric(
-        sparkContext,
-        "number of written bytes"),
+      "numWrittenBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of written bytes"),
       "writeIOTimeNs" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write IO"),
       "writeWallNs" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write"),
       "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")

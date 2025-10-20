@@ -285,9 +285,9 @@ class VeloxIcebergSuite extends IcebergSuite {
   }
 
   test("iceberg write metrics") {
-    withTable("iceberg_tb") {
-      spark.sql("create table if not exists iceberg_tb (id int) using iceberg".stripMargin)
-      val df = spark.sql("insert into iceberg_tb values 1")
+    withTable("iceberg_tbl") {
+      spark.sql("create table if not exists iceberg_tbl (id int) using iceberg".stripMargin)
+      val df = spark.sql("insert into iceberg_tbl values 1")
       val metrics =
         df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan.metrics
       val statusStore = spark.sharedState.statusStore

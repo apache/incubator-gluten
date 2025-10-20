@@ -21,14 +21,14 @@ import org.apache.spark.sql.connector.metric.CustomTaskMetric;
 import java.util.ArrayList;
 
 public class BatchWriteMetrics {
-  private final long physicalWrittenBytes;
+  private final long numWrittenBytes;
   private final int numWrittenFiles;
   private final long writeIOTimeNs;
   private final long writeWallNs;
 
   public BatchWriteMetrics(
-      long physicalWrittenBytes, int numWrittenFiles, long writeIOTimeNs, long writeWallNs) {
-    this.physicalWrittenBytes = physicalWrittenBytes;
+      long numWrittenBytes, int numWrittenFiles, long writeIOTimeNs, long writeWallNs) {
+    this.numWrittenBytes = numWrittenBytes;
     this.numWrittenFiles = numWrittenFiles;
     this.writeIOTimeNs = writeIOTimeNs;
     this.writeWallNs = writeWallNs;
@@ -36,7 +36,7 @@ public class BatchWriteMetrics {
 
   public CustomTaskMetric[] toCustomTaskMetrics() {
     ArrayList<CustomTaskMetric> customTaskMetrics = new ArrayList<>();
-    customTaskMetrics.add(customTaskMetric("physicalWrittenBytes", physicalWrittenBytes));
+    customTaskMetrics.add(customTaskMetric("numWrittenBytes", numWrittenBytes));
     customTaskMetrics.add(customTaskMetric("numWrittenFiles", numWrittenFiles));
     customTaskMetrics.add(customTaskMetric("writeIOTimeNs", writeIOTimeNs));
     customTaskMetrics.add(customTaskMetric("writeWallNs", writeWallNs));
