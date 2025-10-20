@@ -78,6 +78,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
 
+  def cudfEnableValidation: Boolean = getConf(CUDF_ENABLE_VALIDATION)
+
   def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
 
   def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
@@ -623,6 +625,14 @@ object VeloxConfig extends ConfigRegistry {
       .doc("Enable cudf table scan")
       .booleanConf
       .createWithDefault(false)
+
+  val CUDF_ENABLE_VALIDATION =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableValidation")
+      .doc(
+        "Heuristics you can apply to validate a cuDF/GPU plan and only offload when " +
+          "the entire stage can be fully and profitably executed on GPU")
+      .booleanConf
+      .createWithDefault(true)
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
