@@ -2,7 +2,7 @@
 layout: page
 title: How to Release
 nav_order: 17
-parent: Getting-Started
+parent: Developer Overview
 ---
 
 # Create Release Source and Binaries
