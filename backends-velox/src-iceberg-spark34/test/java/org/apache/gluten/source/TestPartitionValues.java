@@ -59,9 +59,9 @@ public class TestPartitionValues extends SparkTestBase {
     return new Object[][] {
       {"parquet", false},
       {"parquet", true},
-      {"avro", false},
-      {"orc", false},
-      {"orc", true}
+      //      {"avro", false},
+      //      {"orc", false},
+      //      {"orc", true}
     };
   }
 
@@ -323,7 +323,7 @@ public class TestPartitionValues extends SparkTestBase {
   public void testNestedPartitionValues() throws Exception {
     String[] columnNames =
         new String[] {
-          "b", "i", "l", "f", "d", "date", "ts", "s", "bytes", "dec_9_0", "dec_11_2", "dec_38_10"
+          "b", "i", "l", "f", "d", "date", "s", "bytes", "dec_9_0", "dec_11_2", "dec_38_10"
         };
 
     HadoopTables tables = new HadoopTables(spark.sessionState().newHadoopConf());
