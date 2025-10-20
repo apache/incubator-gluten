@@ -59,9 +59,9 @@ public class TestPartitionValues extends SparkTestBase {
     return new Object[][] {
       {"parquet", false},
       {"parquet", true},
-      //      {"avro", false},
-      //      {"orc", false},
-      //      {"orc", true}
+      {"avro", false},
+      {"orc", false},
+      {"orc", true}
     };
   }
 
