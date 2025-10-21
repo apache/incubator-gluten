@@ -55,7 +55,7 @@ trait IcebergWriteExec extends ColumnarV2TableWriteExec {
 
   private def validatePartitionType(schema: Schema, field: PartitionField): Boolean = {
     val partitionType = schema.findType(field.sourceId())
-    val unSupportType = Seq(TypeID.DOUBLE, TypeID.FLOAT, TypeID.DECIMAL)
+    val unSupportType = Seq(TypeID.DOUBLE, TypeID.FLOAT)
     !unSupportType.contains(partitionType.typeId())
   }
 
