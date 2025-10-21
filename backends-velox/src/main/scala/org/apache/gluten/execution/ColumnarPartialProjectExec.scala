@@ -214,11 +214,15 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
     val proj = ArrowProjection.create(replacedAlias, projectAttributes.toSeq)
     val numRows = childData.numRows()
     val start = System.currentTimeMillis()
-    val arrowBatch = if (childData.numCols() == 0) {
+    val sparkColumnarBatch = if (childData.numCols() == 0) {
       childData
     } else {
       ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
     }
+    // In spark with version belows 4.0, the `ColumnarRow`'s get method doesn't check whether the
+    // column to get is null, so we change it to `ArrowColumnarBatch` manually. `ArrowColumnarBatch`
+    // returns `ArrowColumnarRow`, which fixes the bug.
+    val arrowBatch = ColumnarBatches.convertToArrowColumnarBatch(sparkColumnarBatch)
     c2a += System.currentTimeMillis() - start
 
     val schema =
