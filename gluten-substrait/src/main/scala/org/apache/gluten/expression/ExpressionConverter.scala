@@ -212,7 +212,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case i: StaticInvoke =>
         throw new GlutenNotSupportException(
           s"Not supported to transform StaticInvoke with object: ${i.staticObject.getName}, " +
-            s"function: $i.functionName")
+            s"function: ${i.functionName}")
       case _ =>
     }
 
