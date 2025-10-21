@@ -36,6 +36,7 @@ GLUTEN_HOME=${CURRENT_DIR}/../../
 if [ ! -d "$GLUTEN_HOME/release/" ]; then
   echo "Release directory does not exist."
 fi
+
 pushd $GLUTEN_HOME/release/
 
 SPARK_VERSIONS="3.2 3.3 3.4 3.5"
@@ -53,13 +54,17 @@ for v in $SPARK_VERSIONS; do
 done
 
 SRC_ZIP="${TAG}.zip"
-SRC_DIR="incubator-gluten-${TAG_VERSION}"
+SRC_DIR="incubator-gluten-${RELEASE_VERSION}"
 
 echo "Packaging source code..."
 wget https://github.com/apache/incubator-gluten/archive/refs/tags/${SRC_ZIP}
 unzip -q ${SRC_ZIP}
+
+# Rename folder to remove "rc*" for formal release.
+mv incubator-gluten-${TAG_VERSION} ${SRC_DIR}
 tar -czf apache-gluten-${RELEASE_VERSION}-incubating-src.tar.gz ${SRC_DIR}
 rm -r ${SRC_ZIP} ${SRC_DIR}
 
 popd
+
 echo "Finished packaging release binaries and source code."
