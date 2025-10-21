@@ -381,6 +381,16 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("Test get_json_object 13") {
+    val sql =
+      """
+        |SELECT
+        | explode(array(get_json_object(get_json_object('{"a": "{\\\"b\\\":1}"}', '$.a'), '$.b')))
+        | from range(1)
+        |""".stripMargin
+    runQueryAndCompare(sql) { df => }
+  }
+
   test("GLUTEN-8557: Optimize nested and/or") {
     def checkFlattenedFunctions(plan: SparkPlan, functionName: String, argNum: Int): Boolean = {
 

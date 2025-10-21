@@ -38,10 +38,6 @@ public:
 
     void rewrite(substrait::Rel & rel) override
     {
-        if (!rel.has_filter() && !rel.has_project())
-        {
-            return;
-        }
         prepare(rel);
         rewriteImpl(rel);
     }
@@ -64,6 +60,14 @@ private:
                 prepareOnExpression(expr);
             }
         }
+        if (rel.has_generate())
+        {
+            for (auto & expr : rel.generate().child_output())
+            {
+                prepareOnExpression(expr);
+            }
+            prepareOnExpression(rel.generate().generator());
+        }
     }
 
     void rewriteImpl(substrait::Rel & rel)
@@ -83,6 +87,17 @@ private:
                 auto * expr = exprssions->Mutable(i);
                 rewriteExpression(*expr);
             }
+        }
+        if (rel.has_generate())
+        {
+            auto * generate = rel.mutable_generate();
+            auto * child_outputs = generate->mutable_child_output();
+            for (int i = 0; i < child_outputs->size(); ++i)
+            {
+                auto * expr = child_outputs->Mutable(i);
+                rewriteExpression(*expr);
+            }
+            rewriteExpression(*generate->mutable_generator());
         }
     }
     void prepareOnExpression(const substrait::Expression & expr)
