@@ -35,7 +35,6 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.executor.memory", "2GB")
       .set("spark.memory.offHeap.enabled", "false")
-      .set("spark.memory.offHeap.size", "0")
       .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION.key, "0.95")
       .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, "true")
   }
@@ -72,7 +71,7 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
   }
 
   test("Dynamic off-heap sizing with setting offheap") {
-    withSQLConf(GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY -> "false") {
+    withSQLConf(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY -> "1GB") {
       if (DynamicOffHeapSizingMemoryTarget.isJava9OrLater()) {
         val query =
           """

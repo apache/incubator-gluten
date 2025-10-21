@@ -119,6 +119,7 @@ private object GlutenDriverPlugin extends Logging {
             1024 * 1024 * 1024
           }
         conf.set(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY, "0")
+        conf.set(GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY, "false")
         ((onHeapSize - (300 * 1024 * 1024)) *
           conf.getDouble(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION.key, 0.6d)).toLong
       } else {
