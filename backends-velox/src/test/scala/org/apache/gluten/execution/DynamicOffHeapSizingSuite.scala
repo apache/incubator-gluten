@@ -39,7 +39,7 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
       .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, "true")
   }
 
-  test("Dynamic off-heap sizing") {
+  test("Dynamic off-heap sizing without setting offheap") {
     if (DynamicOffHeapSizingMemoryTarget.isJava9OrLater()) {
       val query =
         """
