@@ -56,6 +56,9 @@ jmethodID infoClsInitMethod;
 
 jclass blockStripesClass;
 jmethodID blockStripesConstructor;
+
+jclass batchWriteMetricsClass;
+jmethodID batchWriteMetricsConstructor;
 } // namespace
 
 #ifdef __cplusplus
@@ -79,6 +82,10 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
   blockStripesConstructor = getMethodIdOrError(env, blockStripesClass, "<init>", "(J[J[II[[B)V");
+
+  batchWriteMetricsClass =
+    createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/BatchWriteMetrics;");
+  batchWriteMetricsConstructor = getMethodIdOrError(env, batchWriteMetricsClass, "<init>", "(JIJJ)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
 
@@ -808,6 +815,25 @@ JNIEXPORT jobjectArray JNICALL Java_org_apache_gluten_execution_IcebergWriteJniW
     env->SetObjectArrayElement(ret, i, env->NewStringUTF(commitMessages[i].data()));
   }
   return ret;
+
+  JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jobject JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_metrics( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong writerHandle) {
+  JNI_METHOD_START
+  auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
+  auto writeStats = writer->writeStats();
+  jobject writeMetrics = env->NewObject(
+    batchWriteMetricsClass,
+    batchWriteMetricsConstructor,
+    writeStats.numWrittenBytes,
+    writeStats.numWrittenFiles,
+    writeStats.writeIOTimeNs,
+    writeStats.writeWallNs);
+  return writeMetrics;
 
   JNI_METHOD_END(nullptr)
 }
