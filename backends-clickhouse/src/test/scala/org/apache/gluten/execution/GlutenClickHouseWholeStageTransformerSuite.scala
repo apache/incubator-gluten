@@ -89,7 +89,7 @@ class GlutenClickHouseWholeStageTransformerSuite
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")
       .set(RuntimeConfig.PATH.key, UTSystemParameters.diskOutputDataPath)
-      .set(RuntimeConfig.TMP_PATH.key, s"/tmp/libch/$SPARK_DIR_NAME")
+      .set(RuntimeConfig.TMP_PATH.key, s"/tmp/libch/")
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
       minioHelper.setFileSystem(conf)
       minioHelper.setStoreConfig(conf, BUCKET_NAME)
