@@ -8,7 +8,7 @@ parent: Developer Overview
 ## Dynamic Off-heap Sizing
 Gluten requires setting both on-heap and off-heap memory sizes, which initializes different memory layouts. Improper configuration of these settings can lead to lower performance. 
 
-To fix this issue, dynamic off-heap sizing is an experimental feature designed to simplify this process. When enabled, off-heap settings are ignored, and Velox uses the on-heap size as the memory size.
+To fix this issue, dynamic off-heap sizing is an experimental feature designed to simplify this process. Please note when enabled, user defined spark off-heap settings(`spark.memory.offHeap.enabled`, `spark.memory.offHeap.size`) will not be effective, and Velox uses the on-heap size as the memory size.
 To enable this feature, users need to add below entry in Spark conf:
 ```
 --conf spark.gluten.memory.dynamic.offHeap.sizing.enabled=true 
