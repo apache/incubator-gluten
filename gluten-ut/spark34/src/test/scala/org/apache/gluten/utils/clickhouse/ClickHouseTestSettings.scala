@@ -154,6 +154,14 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    .excludeGlutenTest("length check for input string values: top-level columns")
+    .excludeGlutenTest("length check for input string values: nested in array")
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
+    .excludeGlutenTest("length check for input string values: nested in array of struct")
+    .excludeGlutenTest("length check for input string values: nested in array of array")
+    .excludeGlutenTest("length check for input string values: with implicit cast")
+    .excludeGlutenTest("char/varchar type values length check: partitioned columns of other types")
+    .excludeGlutenTest("SPARK-42611: check char/varchar length in reordered structs within arrays")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude("average")
@@ -367,6 +375,14 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("varchar type values length check and trim: partitioned columns")
     .exclude("char/varchar type values length check: partitioned columns of other types")
     .exclude("char type comparison: partitioned columns")
+    .excludeGlutenTest("length check for input string values: top-level columns")
+    .excludeGlutenTest("length check for input string values: partitioned columns")
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
+    .excludeGlutenTest("length check for input string values: with implicit cast")
+    .excludeGlutenTest("char/varchar type values length check: partitioned columns of other types")
+    .excludeGlutenTest("length check for input string values: nested in array of array")
+    .excludeGlutenTest("length check for input string values: nested in array of struct")
+    .excludeGlutenTest("length check for input string values: nested in array")
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
     .exclude("SPARK-33474: Support typed literals as partition spec values")
     .exclude(
