@@ -47,7 +47,7 @@ abstract class HashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan)
   extends HashAggregateExecBaseTransformer(
@@ -655,7 +655,7 @@ case class RegularHashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    override val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan)
   extends HashAggregateExecTransformer(
@@ -666,6 +666,46 @@ case class RegularHashAggregateExecTransformer(
     initialInputBufferOffset,
     resultExpressions,
     child) {
+
+  override def isOffloadedSortExec: Boolean = false
+
+  override protected def allowFlush: Boolean = false
+
+  override def simpleString(maxFields: Int): String =
+    s"${super.simpleString(maxFields)}"
+
+  override def verboseString(maxFields: Int): String =
+    s"${super.verboseString(maxFields)}"
+
+  override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
+    copy(child = newChild)
+  }
+}
+
+// Hash aggregation that is offloaded from sort aggregation.
+// Is identical to RegularHashAggregateExecTransformer but with a
+// different value of isOffloadedSortExec.
+case class HashFromSortAggregateExecTransformer(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    override val initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan,
+    ignoreNullKeys: Boolean = false)
+  extends HashAggregateExecTransformer(
+    requiredChildDistributionExpressions,
+    groupingExpressions,
+    aggregateExpressions,
+    aggregateAttributes,
+    initialInputBufferOffset,
+    resultExpressions,
+    child,
+    ignoreNullKeys
+  ) {
+
+  override def isOffloadedSortExec: Boolean = true
 
   override protected def allowFlush: Boolean = false
 
@@ -687,7 +727,7 @@ case class FlushableHashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    override val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan)
   extends HashAggregateExecTransformer(
