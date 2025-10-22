@@ -20,11 +20,20 @@ import org.apache.gluten.backendsapi.velox.VeloxBackend
 import org.apache.gluten.extension.{OffloadIcebergScan, OffloadIcebergWrite}
 import org.apache.gluten.extension.injector.Injector
 
+import org.apache.spark.sql.internal.SQLConf
+
 class VeloxIcebergComponent extends Component {
   override def name(): String = "velox-iceberg"
   override def buildInfo(): Component.BuildInfo =
     Component.BuildInfo("VeloxIceberg", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
+
+  override def shouldRegister: Boolean = {
+    SQLConf.get
+      .getConfString("spark.sql.extensions", "")
+      .contains("org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+  }
+
   override def injectRules(injector: Injector): Unit = {
     OffloadIcebergScan.inject(injector)
     OffloadIcebergWrite.inject(injector)
