@@ -421,6 +421,7 @@ object ColumnarPartialProjectExec {
           alias.nonInheritableMetadataKeys)
       case x if isConditionalExpression(x) =>
         try {
+          TransformerState.enterValidation
           if (!doNativeValidateExpression(x, replacedAlias, childOutput)) {
             replaceByAlias(x, replacedAlias)
           } else {
@@ -429,6 +430,8 @@ object ColumnarPartialProjectExec {
         } catch {
           case _: GlutenNotSupportException | _: UnsupportedOperationException =>
             replaceByAlias(x, replacedAlias)
+        } finally {
+          TransformerState.finishValidation
         }
       case p =>
         try {
