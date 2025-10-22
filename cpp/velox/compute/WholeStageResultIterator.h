@@ -23,7 +23,6 @@
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "utils/Metrics.h"
-#include "VeloxBackend.h"
 #include "velox/common/config/Config.h"
 #include "velox/connectors/hive/iceberg/IcebergSplit.h"
 #include "velox/core/PlanNode.h"
@@ -47,10 +46,6 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
     if (task_ != nullptr && task_->isRunning()) {
       // calling .wait() may take no effect in single thread execution mode
       task_->requestCancel().wait();
-    }
-    {
-      std::lock_guard<std::mutex> l(gluten::VeloxBackend::get()->registerMutex);
-      gluten::VeloxBackend::get()->alreadyRegistered = false;
     }
 #ifdef GLUTEN_ENABLE_GPU
     if (enableCudf_ && lock_.owns_lock()) {
@@ -129,7 +124,6 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   /// Metrics
   std::unique_ptr<Metrics> metrics_{};
 
-  void doRegister(const std::shared_ptr<facebook::velox::config::ConfigBase>& veloxCfg);
 #ifdef GLUTEN_ENABLE_GPU
   // Mutex for thread safety.
   static std::mutex mutex_;

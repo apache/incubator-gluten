@@ -59,8 +59,7 @@ class VeloxBackend {
   void tearDown();
 
   void initConnector(const std::shared_ptr<facebook::velox::config::ConfigBase>& hiveConf);
-  std::mutex registerMutex;
-  std::atomic<bool> alreadyRegistered{false};
+  std::once_flag regFlag;
 
  private:
   explicit VeloxBackend(
