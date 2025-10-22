@@ -42,7 +42,14 @@ trait Component {
   private val uid = nextUid.getAndIncrement()
   private val isRegistered = new AtomicBoolean(false)
 
+  protected def shouldRegister: Boolean = {
+    true
+  }
+
   def ensureRegistered(): Unit = {
+    if (!shouldRegister) {
+      return
+    }
     if (!isRegistered.compareAndSet(false, true)) {
       return
     }
