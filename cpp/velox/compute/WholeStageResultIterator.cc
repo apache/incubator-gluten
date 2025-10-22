@@ -175,7 +175,8 @@ WholeStageResultIterator::WholeStageResultIterator(
       } else {
         auto connectorId = kHiveConnectorId;
 #ifdef GLUTEN_ENABLE_GPU
-        if (canUseCudfConnector) {
+        if (canUseCudfConnector && enableCudf_ &&
+            veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault)) {
           connectorId = kCudfHiveConnectorId;
           VELOX_CHECK_EQ(starts[idx], 0, "Not support split file");
           VELOX_CHECK_EQ(lengths[idx], scanInfo->properties[idx]->fileSize, "Not support split file");
@@ -702,7 +703,7 @@ std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConne
   configs[velox::connector::hive::HiveConfig::kParquetUseColumnNamesSession] =
       std::to_string(veloxCfg_->get<bool>(kParquetUseColumnNames, true));
   configs[velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] =
-        std::to_string(veloxCfg_->get<bool>(kOrcUseColumnNames, true));
+      std::to_string(veloxCfg_->get<bool>(kOrcUseColumnNames, true));
   return std::make_shared<velox::config::ConfigBase>(std::move(configs));
 }
 
