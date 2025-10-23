@@ -501,10 +501,14 @@ void VeloxHashShuffleReaderDeserializer::loadNextStream() {
     return;
   }
 
-  GLUTEN_ASSIGN_OR_THROW(
-      in_,
-      arrow::io::BufferedInputStream::Create(
-          readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+  if (readerBufferSize_ > 0) {
+    GLUTEN_ASSIGN_OR_THROW(
+          in_,
+          arrow::io::BufferedInputStream::Create(
+              readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+  } else {
+    in_ = std::move(in);
+  }
 }
 
 std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
@@ -656,10 +660,14 @@ void VeloxSortShuffleReaderDeserializer::loadNextStream() {
     GLUTEN_ASSIGN_OR_THROW(
         in_, CompressedInputStream::Make(codec_.get(), std::move(in), memoryManager_->defaultArrowMemoryPool()));
   } else {
-    GLUTEN_ASSIGN_OR_THROW(
-        in_,
-        arrow::io::BufferedInputStream::Create(
-            readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+    if (readerBufferSize_ > 0) {
+      GLUTEN_ASSIGN_OR_THROW(
+          in_,
+          arrow::io::BufferedInputStream::Create(
+              readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+    } else {
+      in_ = std::move(in);
+    }
   }
 }
 
