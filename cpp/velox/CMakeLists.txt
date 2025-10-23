@@ -421,7 +421,6 @@ if(ENABLE_GPU)
   target_include_directories(
     velox
     PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-src/cpp/include
-            ${VELOX_BUILD_PATH}/_deps/jitify-src
             ${VELOX_BUILD_PATH}/_deps/rmm-src/cpp/include
             ${VELOX_BUILD_PATH}/_deps/kvikio-src/cpp/include
             ${VELOX_BUILD_PATH}/_deps/nvtx3-src/c/include
