@@ -1291,6 +1291,9 @@ jobs:
             ccache-centos9-release-shared-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
+          repo_url="https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo"
+          dnf config-manager --add-repo "$repo_url"
+          dnf install -y libnvjitlink-devel-12-8
           df -a
           bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_gpu=ON
           ccache -s
