@@ -23,10 +23,10 @@
 #include "velox/exec/PlanNodeStats.h"
 #ifdef GLUTEN_ENABLE_GPU
 #include <cudf/io/types.hpp>
-#include <mutex>
 #include "velox/experimental/cudf/CudfConfig.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveConnectorSplit.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
+#include "cudf/GpuLock.h"
 #endif
 
 using namespace facebook;
@@ -77,9 +77,6 @@ WholeStageResultIterator::WholeStageResultIterator(
           std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
-#ifdef GLUTEN_ENABLE_GPU
-      lock_(mutex_, std::defer_lock),
-#endif
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
@@ -92,9 +89,6 @@ WholeStageResultIterator::WholeStageResultIterator(
 
 #ifdef GLUTEN_ENABLE_GPU
   enableCudf_ = veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault);
-  if (enableCudf_) {
-    lock_.lock();
-  }
 #endif
 
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
@@ -213,10 +207,6 @@ WholeStageResultIterator::WholeStageResultIterator(
   }
 }
 
-#ifdef GLUTEN_ENABLE_GPU
-std::mutex WholeStageResultIterator::mutex_;
-#endif
-
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
@@ -236,12 +226,15 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
 }
 
 std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
+  std::cout <<"get the next WholeStageResultIterator, enableCudf_ " << enableCudf_ << std::endl;
   auto result = nextInternal();
-#ifdef GLUTEN_ENABLE_GPU
-  if (result == nullptr && enableCudf_) {
-    lock_.unlock();
-  }
-#endif
+// #ifdef GLUTEN_ENABLE_GPU
+//   if (enableCudf_ && result == nullptr) {
+//     std::cout <<"unlock GPU " << std::endl;
+//     unlockGpu();
+//     std::cout <<"unlocked GPU " << std::endl;
+//   }
+// #endif
 
   return result;
 }
