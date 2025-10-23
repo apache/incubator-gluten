@@ -707,10 +707,22 @@ std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConne
 
 void WholeStageResultIterator::doRegister(const std::shared_ptr<facebook::velox::config::ConfigBase>& veloxCfg) {
   std::lock_guard<std::mutex> l(gluten::VeloxBackend::get()->registerMutex);
+  if (gluten::VeloxBackend::get()->lastSessionConf == nullptr) {
+    if (!gluten::VeloxBackend::get()->alreadyRegistered) {
+      gluten::VeloxBackend::get()->initConnector(veloxCfg);
+      gluten::VeloxBackend::get()->lastSessionConf = veloxCfg;
+      gluten::VeloxBackend::get()->alreadyRegistered = true;
+    }
+    return;
+  }
+  if (gluten::VeloxBackend::get()->lastSessionConf != nullptr &&
+    gluten::VeloxBackend::get()->lastSessionConf->rawConfigs() != veloxCfg->rawConfigs()) {
   if (!gluten::VeloxBackend::get()->alreadyRegistered) {
     gluten::VeloxBackend::get()->initConnector(veloxCfg);
+    gluten::VeloxBackend::get()->lastSessionConf = veloxCfg;
     gluten::VeloxBackend::get()->alreadyRegistered = true;
   }
+}
 }
 
 } // namespace gluten
