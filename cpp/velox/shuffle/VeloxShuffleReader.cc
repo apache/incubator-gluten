@@ -538,7 +538,7 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
       BlockPayload::deserialize(
           in_.get(), codec_, memoryManager_->defaultArrowMemoryPool(), numRows, deserializeTime_, decompressTime_));
 
-  auto batch  = makeColumnarBatch(
+  return makeColumnarBatch(
       rowType_,
       numRows,
       std::move(arrowBuffers),
@@ -546,7 +546,6 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
       dictionaries_,
       memoryManager_->getLeafMemoryPool().get(),
       deserializeTime_);
-  return batch;
 }
 
 VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(

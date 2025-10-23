@@ -75,6 +75,9 @@ WholeStageResultIterator::WholeStageResultIterator(
     : memoryManager_(memoryManager),
       veloxCfg_(
           std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
+#ifdef GLUTEN_ENABLE_GPU
+      enableCudf_(veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault));
+#endif
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
       scanNodeIds_(scanNodeIds),
@@ -86,10 +89,6 @@ WholeStageResultIterator::WholeStageResultIterator(
     spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
   }
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
-
-#ifdef GLUTEN_ENABLE_GPU
-  enableCudf_ = veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault);
-#endif
 
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
   GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
@@ -226,20 +225,6 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
 }
 
 std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
-  std::cout <<"get the next WholeStageResultIterator, enableCudf_ " << enableCudf_ << std::endl;
-  auto result = nextInternal();
-// #ifdef GLUTEN_ENABLE_GPU
-//   if (enableCudf_ && result == nullptr) {
-//     std::cout <<"unlock GPU " << std::endl;
-//     unlockGpu();
-//     std::cout <<"unlocked GPU " << std::endl;
-//   }
-// #endif
-
-  return result;
-}
-
-std::shared_ptr<ColumnarBatch> WholeStageResultIterator::nextInternal() {
   tryAddSplitsToTask();
   if (task_->isFinished()) {
     return nullptr;

@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "memory/VeloxMemoryManager.h"
 #include "shuffle/Payload.h"
 #include "shuffle/ShuffleReader.h"
-#include "memory/VeloxMemoryManager.h"
 
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/type/Type.h"

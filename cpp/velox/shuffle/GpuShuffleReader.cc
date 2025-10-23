@@ -21,7 +21,6 @@
 #include <arrow/io/buffered.h>
 
 #include "memory/VeloxColumnarBatch.h"
-#include "shuffle/GlutenByteStream.h"
 #include "shuffle/Payload.h"
 #include "shuffle/Utils.h"
 #include "utils/Common.h"
@@ -29,7 +28,6 @@
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/common/caching/AsyncDataCache.h"
-#include "velox/row/CompactRow.h"
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/vector/ComplexVector.h"
 #include "velox/vector/FlatVector.h"
@@ -386,10 +384,8 @@ std::shared_ptr<ColumnarBatch> GpuHashShuffleReaderDeserializer::next() {
       dictionaries_,
       memoryManager_->getLeafMemoryPool().get(),
       deserializeTime_);
-  std::cout <<"lock the gpu in GpuHashShuffleReaderDeserializer"<< std::endl;
-    // Lock here and unlock when this batch processed completely.
+
   lockGpu();
-  std::cout <<"locked the gpu GpuHashShuffleReaderDeserializer"<< std::endl;
 
   return batch;
 }
