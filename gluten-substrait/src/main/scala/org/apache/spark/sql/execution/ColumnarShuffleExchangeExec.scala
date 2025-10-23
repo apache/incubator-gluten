@@ -186,16 +186,4 @@ object ColumnarShuffleExchangeExec extends Logging {
     )
   }
 
-  class DummyPairRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)
-    extends RDD[Product2[Int, InternalRow]](sc, Nil) {
-
-    override def getPartitions: Array[Partition] =
-      Array.tabulate(numPartitions)(i => EmptyPartition(i))
-
-    override def compute(
-        split: Partition,
-        context: TaskContext): Iterator[Product2[Int, InternalRow]] = {
-      throw new UnsupportedOperationException
-    }
-  }
 }
