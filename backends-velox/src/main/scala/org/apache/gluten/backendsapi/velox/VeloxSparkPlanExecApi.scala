@@ -633,7 +633,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def createColumnarBatchSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric],
-      shuffleWriterType: ShuffleWriterType): Serializer = {
+      shuffleWriterType: ShuffleWriterType,
+      enableCudf: Boolean): Serializer = {
     val numOutputRows = metrics("numOutputRows")
     val deserializeTime = metrics("deserializeTime")
     val readBatchNumRows = metrics("avgReadBatchNumRows")
@@ -658,7 +659,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           numOutputRows,
           deserializeTime,
           decompressTime,
-          shuffleWriterType)
+          shuffleWriterType,
+          enableCudf)
     }
   }
 

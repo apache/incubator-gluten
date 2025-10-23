@@ -27,6 +27,9 @@
 #include "velox/connectors/hive/iceberg/IcebergSplit.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
+#ifdef GLUTEN_ENABLE_GPU
+#include "cudf/GpuLock.h"
+#endif
 
 namespace gluten {
 
@@ -48,8 +51,10 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       task_->requestCancel().wait();
     }
 #ifdef GLUTEN_ENABLE_GPU
-    if (enableCudf_ && lock_.owns_lock()) {
-      lock_.unlock();
+    if (enableCudf_) {
+      std::cout <<"unlock GPU in dtor " << std::endl;
+      unlockGpu();
+      std::cout <<"unlocked GPU in dtor" << std::endl;
     }
 #endif
   }
@@ -125,9 +130,6 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   std::unique_ptr<Metrics> metrics_{};
 
 #ifdef GLUTEN_ENABLE_GPU
-  // Mutex for thread safety.
-  static std::mutex mutex_;
-  std::unique_lock<std::mutex> lock_;
   bool enableCudf_;
 #endif
 
