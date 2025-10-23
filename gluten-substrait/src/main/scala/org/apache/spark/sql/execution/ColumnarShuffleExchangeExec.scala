@@ -32,7 +32,6 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.execution.CoalesceExec.EmptyPartition
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.metric.SQLShuffleWriteMetricsReporter
 import org.apache.spark.sql.metric.SQLColumnarShuffleReadMetricsReporter
