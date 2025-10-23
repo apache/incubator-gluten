@@ -654,6 +654,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("length check for input string values: nested in both map key and value")
     .exclude("length check for input string values: nested in array of struct")
     .exclude("length check for input string values: nested in array of array")
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
     .exclude("length check for input string values: top-level columns")
     .exclude("length check for input string values: partitioned columns")
     .exclude("length check for input string values: nested in struct of array")
@@ -661,6 +664,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("char/varchar type values length check: partitioned columns of other types")
 
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
     .exclude("SPARK-42611: check char/varchar length in reordered structs within arrays")
     .exclude("char/varchar type values length check: partitioned columns of other types")
     .exclude("length check for input string values: top-level columns")
