@@ -31,4 +31,4 @@ void lockGpu();
  */
 void unlockGpu();
 
-}
+} // namespace gluten

@@ -50,7 +50,6 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
           shuffle.advisoryPartitionSize)
 
       case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
-        log.info("Set cuDF tag for ColumnarShuffleExchangeExec")
         setTagForWholeStageTransformer(w)
         GPUColumnarShuffleExchangeExec(
           shuffle.outputPartitioning,
