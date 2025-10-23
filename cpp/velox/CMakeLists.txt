@@ -410,13 +410,13 @@ endif()
 if(ENABLE_GPU)
   import_library(
     facebook::velox::velox_cudf_exec
-    ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.so)
   import_library(
     facebook::velox::velox_cudf_vector
-    ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_vector.a)
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_vector.so)
   import_library(
     facebook::velox::velox_cudf_hive_connector
-    ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/hive/libvelox_cudf_hive_connector.a
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/hive/libvelox_cudf_hive_connector.so
   )
   target_include_directories(
     velox
