@@ -26,6 +26,7 @@ ENV SPARK_HOME=/opt/spark-3.4.4-bin-hadoop3
 ENV PATH=$SPARK_HOME/bin:$PATH
 ENV CUDA_ARCHITECTURES=70
 
+
 WORKDIR /opt/gluten
 RUN bash ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --enable_gpu=ON && rm -rf /opt/gluten
 
