@@ -298,9 +298,9 @@ function setup_dependencies {
 
 OS=`uname -s`
 ARCH=`uname -m`
-commands_to_run=${OTHER_ARGUMENTS[@]:-}
+commands_to_run=(${OTHER_ARGUMENTS[@]:-})
 (
-  if [[ "x$commands_to_run" == "x" ]]; then
+  if [[ ${#commands_to_run[@]} -eq 0 ]]; then
     get_velox
     if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
       setup_dependencies
