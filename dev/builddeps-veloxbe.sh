@@ -298,7 +298,7 @@ function setup_dependencies {
 
 OS=`uname -s`
 ARCH=`uname -m`
-commands_to_run=${OTHER_ARGUMENTS:-}
+commands_to_run=${OTHER_ARGUMENTS[@]:-}
 (
   if [[ "x$commands_to_run" == "x" ]]; then
     get_velox
@@ -307,8 +307,8 @@ commands_to_run=${OTHER_ARGUMENTS:-}
     fi
     build_velox_backend
   else
-    echo "Commands to run: $commands_to_run"
-    for cmd in "$commands_to_run"; do
+    echo "Commands to run: ${commands_to_run[@]}"
+    for cmd in "${commands_to_run[@]}"; do
        "${cmd}"
     done
   fi
