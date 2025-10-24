@@ -68,7 +68,7 @@ std::string VeloxSubstraitSignature::toSubstraitSignature(const TypePtr& type) {
       return "u!name";
     default:
       VELOX_UNSUPPORTED(
-          "Substrait type signature conversion not supported for type {}.", mapTypeKindToName(type->kind()));
+          "Substrait type signature conversion not supported for type {}.", TypeKindName::toName(type->kind()));
   }
 }
 
