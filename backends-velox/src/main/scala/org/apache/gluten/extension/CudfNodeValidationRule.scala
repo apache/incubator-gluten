@@ -18,10 +18,11 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.cudf.VeloxCudfPlanValidatorJniWrapper
-import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, TransformSupport, WholeStageTransformer}
+import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, TransformSupport, VeloxResizeBatchesExec, WholeStageTransformer}
+import org.apache.gluten.extension.CudfNodeValidationRule.setTagForWholeStageTransformer
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, GPUColumnarShuffleExchangeExec, SparkPlan}
 
 // Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
 case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPlan] {
@@ -31,33 +32,65 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
       return plan
     }
     plan.transformUp {
+      case shuffle @ ColumnarShuffleExchangeExec(
+            _,
+            v @ VeloxResizeBatchesExec(w: WholeStageTransformer, _, _),
+            _,
+            _,
+            _) =>
+        setTagForWholeStageTransformer(w)
+        if (w.isCudf) {
+          log.info("VeloxResizeBatchesExec is not supported in GPU")
+        }
+        GPUColumnarShuffleExchangeExec(
+          shuffle.outputPartitioning,
+          w,
+          shuffle.shuffleOrigin,
+          shuffle.projectOutputAttributes,
+          shuffle.advisoryPartitionSize)
+
+      case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
+        setTagForWholeStageTransformer(w)
+        GPUColumnarShuffleExchangeExec(
+          shuffle.outputPartitioning,
+          w,
+          shuffle.shuffleOrigin,
+          shuffle.projectOutputAttributes,
+          shuffle.advisoryPartitionSize)
+
       case transformer: WholeStageTransformer =>
-        if (!VeloxConfig.get.cudfEnableTableScan) {
-          // Spark3.2 does not have exists
-          val hasLeaf = transformer.find {
-            case _: LeafTransformSupport => true
-            case _ => false
-          }.isDefined
-          if (!hasLeaf && VeloxConfig.get.cudfEnableValidation) {
-            if (
-              VeloxCudfPlanValidatorJniWrapper.validate(
-                transformer.substraitPlan.toProtobuf.toByteArray)
-            ) {
-              transformer.foreach {
-                case _: LeafTransformSupport =>
-                case t: TransformSupport =>
-                  t.setTagValue(CudfTag.CudfTag, true)
-                case _ =>
-              }
-              transformer.setTagValue(CudfTag.CudfTag, true)
-            }
-          } else {
-            transformer.setTagValue(CudfTag.CudfTag, !hasLeaf)
+        setTagForWholeStageTransformer(transformer)
+        transformer
+    }
+  }
+}
+
+object CudfNodeValidationRule {
+  def setTagForWholeStageTransformer(transformer: WholeStageTransformer): Unit = {
+    if (!VeloxConfig.get.cudfEnableTableScan) {
+      // Spark3.2 does not have exists
+      val hasLeaf = transformer.find {
+        case _: LeafTransformSupport => true
+        case _ => false
+      }.isDefined
+      if (!hasLeaf && VeloxConfig.get.cudfEnableValidation) {
+        if (
+          VeloxCudfPlanValidatorJniWrapper.validate(
+            transformer.substraitPlan.toProtobuf.toByteArray)
+        ) {
+          transformer.foreach {
+            case _: LeafTransformSupport =>
+            case t: TransformSupport =>
+              t.setTagValue(CudfTag.CudfTag, true)
+            case _ =>
           }
-        } else {
           transformer.setTagValue(CudfTag.CudfTag, true)
         }
-        transformer
+      } else {
+        transformer.setTagValue(CudfTag.CudfTag, !hasLeaf)
+      }
+    } else {
+      transformer.setTagValue(CudfTag.CudfTag, true)
     }
   }
 }
