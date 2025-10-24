@@ -298,17 +298,17 @@ function setup_dependencies {
 
 OS=`uname -s`
 ARCH=`uname -m`
-commands_to_run=${OTHER_ARGUMENTS:-}
+commands_to_run=(${OTHER_ARGUMENTS[@]:-})
 (
-  if [[ "x$commands_to_run" == "x" ]]; then
+  if [[ ${#commands_to_run[@]} -eq 0 ]]; then
     get_velox
     if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
       setup_dependencies
     fi
     build_velox_backend
   else
-    echo "Commands to run: $commands_to_run"
-    for cmd in "$commands_to_run"; do
+    echo "Commands to run: ${commands_to_run[@]}"
+    for cmd in "${commands_to_run[@]}"; do
        "${cmd}"
     done
   fi
