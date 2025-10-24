@@ -54,9 +54,7 @@ import scala.collection.mutable.ListBuffer
  * @param child
  *   child plan
  */
-case class ColumnarPartialProjectExec(
-    projectList: Seq[Expression],
-    child: SparkPlan,
+case class ColumnarPartialProjectExec(projectList: Seq[Expression], child: SparkPlan)(
     replacedAlias: Seq[Alias])
   extends UnaryExecNode
   with ValidatablePlan {
@@ -83,7 +81,7 @@ case class ColumnarPartialProjectExec(
     super
       .doCanonicalize()
       .asInstanceOf[ColumnarPartialProjectExec]
-      .copy(replacedAlias = replacedAlias.map(QueryPlan.normalizeExpressions(_, child.output)))
+      .copy()(replacedAlias = replacedAlias.map(QueryPlan.normalizeExpressions(_, child.output)))
   }
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
@@ -93,6 +91,10 @@ case class ColumnarPartialProjectExec(
   final override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(
       s"${this.getClass.getSimpleName} doesn't support doExecute")
+  }
+
+  final override protected def otherCopyArgs: Seq[AnyRef] = {
+    replacedAlias :: Nil
   }
 
   private def validateExpression(expr: Expression): Boolean = {
@@ -275,13 +277,15 @@ case class ColumnarPartialProjectExec(
     super.simpleString(maxFields) + " PartialProject " + replacedAlias
 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarPartialProjectExec = {
-    copy(child = newChild, replacedAlias = replacedAlias)
+    copy(child = newChild)(replacedAlias)
   }
 }
 
 object ColumnarPartialProjectExec {
 
   val projectPrefix = "_SparkPartialProject"
+
+  val dummyPrefix = "_dummy"
 
   /** Check if it's a hive udf but not transformable */
   private def containsUnsupportedHiveUDF(h: Expression): Boolean = {
@@ -388,8 +392,18 @@ object ColumnarPartialProjectExec {
       case child =>
         val newChild = child.withNewChildren(
           child.children.map(c => traverseUpExpression(c, replacedAlias, childOutput)))
-        if (!doNativeValidateExpression(child, replacedAlias, childOutput)) {
-          replaceByAlias(child, replacedAlias)
+        // To prevent nested expressions be validated multiple times, before doing the validation,
+        // we replace it by `Alias`.
+        val tempAlias = new ListBuffer[Alias]()
+        val toValidatedExpression = child.withNewChildren(
+          child.children.zipWithIndex.map(
+            c => {
+              val alias = Alias(c._1, s"$dummyPrefix${c._2}")()
+              tempAlias.append(alias)
+              alias.toAttribute
+            }))
+        if (!doNativeValidateExpression(toValidatedExpression, tempAlias, childOutput)) {
+          replaceByAlias(newChild, replacedAlias)
         } else {
           newChild
         }
@@ -462,7 +476,7 @@ object ColumnarPartialProjectExec {
       p => replaceExpression(p, original.child.output, replacedAlias).asInstanceOf[NamedExpression]
     }
     val partialProject =
-      ColumnarPartialProjectExec(original.projectList, original.child, replacedAlias.toSeq)
+      ColumnarPartialProjectExec(original.projectList, original.child)(replacedAlias.toSeq)
     ProjectExecTransformer(newProjectList, partialProject)
   }
 }
