@@ -438,7 +438,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
           default:
             LOG_VALIDATION_MSG(
                 "Validation failed for input type validation in WriteRel, not support partition column type: " +
-                TypeKindName::toName(types[i]->kind()));
+                std::string(TypeKindName::toName(types[i]->kind())));
             return false;
         }
       }
