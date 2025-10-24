@@ -25,6 +25,7 @@ import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.util.SparkReflectionUtil
 
 class VeloxPaimonComponent extends Component {
   override def name(): String = "velox-paimon"
