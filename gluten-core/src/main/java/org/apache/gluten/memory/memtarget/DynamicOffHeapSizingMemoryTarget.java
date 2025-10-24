@@ -271,7 +271,7 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
         // Limit GC frequency to prevent performance impact from excessive garbage collection.
         && totalOnHeapMemory > TOTAL_MEMORY_SHARED * ASYNC_GC_MAX_ON_HEAP_MEMORY_RATIO
         && (!ASYNC_GC_SUSPEND.get()
-            || freeOnHeapMemory > totalOnHeapMemory * (ORIGINAL_MIN_HEAP_FREE_RATIO / 100.0));
+            && freeOnHeapMemory > totalOnHeapMemory * (ORIGINAL_MIN_HEAP_FREE_RATIO / 100.0));
   }
 
   private static long shrinkOnHeapMemoryInternal(
