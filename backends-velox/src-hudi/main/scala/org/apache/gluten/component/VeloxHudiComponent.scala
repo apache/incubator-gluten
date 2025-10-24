@@ -31,6 +31,17 @@ class VeloxHudiComponent extends Component {
   override def buildInfo(): Component.BuildInfo =
     Component.BuildInfo("VeloxHudi", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
+
+  override def isRuntimeCompatible: Boolean = {
+    try {
+      SparkReflectionUtil.classForName("org.apache.spark.sql.hudi.HoodieSparkSessionExtension")
+      true
+    } catch {
+      case _: ClassNotFoundException =>
+        false
+    }
+  }
+
   override def injectRules(injector: Injector): Unit = {
     val legacy = injector.gluten.legacy
     val ras = injector.gluten.ras

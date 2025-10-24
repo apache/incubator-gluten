@@ -29,7 +29,7 @@ package object component extends Logging {
     }
 
     // Load all components in classpath.
-    val all = Discovery.discoverAll()
+    val all = Discovery.discoverAll().filter(_.isRuntimeCompatible)
 
     // Register all components.
     all.foreach(_.ensureRegistered())

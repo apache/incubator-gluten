@@ -28,10 +28,15 @@ class VeloxIcebergComponent extends Component {
     Component.BuildInfo("VeloxIceberg", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
 
-  override def shouldRegister: Boolean = {
-    SQLConf.get
-      .getConfString("spark.sql.extensions", "")
-      .contains("org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+  override def isRuntimeCompatible: Boolean = {
+    try {
+      SparkReflectionUtil.classForName(
+        "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+      true
+    } catch {
+      case _: ClassNotFoundException =>
+        false
+    }
   }
 
   override def injectRules(injector: Injector): Unit = {
