@@ -445,6 +445,17 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCustomerExtensionSuite]
   enableSuite[GlutenDDLSourceLoadSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    // Excluded. The Gluten tests for char/varchar validation were rewritten for Velox.
+    // ClickHouse backend doesn't support this feature and falls back to vanilla Spark,
+    // causing mismatches in error messages.
+    .excludeGlutenTest("length check for input string values: top-level columns")
+    .excludeGlutenTest("length check for input string values: nested in array")
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
+    .excludeGlutenTest("length check for input string values: nested in array of struct")
+    .excludeGlutenTest("length check for input string values: nested in array of array")
+    .excludeGlutenTest("length check for input string values: with implicit cast")
+    .excludeGlutenTest("char/varchar type values length check: partitioned columns of other types")
+    .excludeGlutenTest("SPARK-42611: check char/varchar length in reordered structs within arrays")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenDataFrameAggregateSuite]
     // Test for vanilla spark codegen, not apply for Gluten
@@ -848,6 +859,17 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("length check for input string values: nested in both map key and value")
     .includeCH("length check for input string values: nested in array of struct")
     .includeCH("length check for input string values: nested in array of array")
+    // Excluded. The Gluten tests for char/varchar validation were rewritten for Velox.
+    // ClickHouse backend doesn't support this feature and falls back to vanilla Spark,
+    // causing mismatches in error messages.
+    .excludeGlutenTest("length check for input string values: top-level columns")
+    .excludeGlutenTest("length check for input string values: partitioned columns")
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
+    .excludeGlutenTest("length check for input string values: with implicit cast")
+    .excludeGlutenTest("char/varchar type values length check: partitioned columns of other types")
+    .excludeGlutenTest("length check for input string values: nested in array")
+    .excludeGlutenTest("length check for input string values: nested in array of struct")
+    .excludeGlutenTest("length check for input string values: nested in array of array")
   enableSuite[GlutenFileSourceCustomMetadataStructSuite]
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
     .excludeCH("SPARK-33474: Support typed literals as partition spec values")

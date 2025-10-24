@@ -16,8 +16,73 @@
  */
 package org.apache.spark.sql
 
+import org.apache.spark.SparkException
+
 class GlutenFileSourceCharVarcharTestSuite
   extends FileSourceCharVarcharTestSuite
-  with GlutenSQLTestsTrait {}
+  with GlutenSQLTestsTrait {
 
-class GlutenDSV2CharVarcharTestSuite extends DSV2CharVarcharTestSuite with GlutenSQLTestsTrait {}
+  private def testTableWrite(f: String => Unit): Unit = {
+    withTable("t")(f("char"))
+    withTable("t")(f("varchar"))
+  }
+
+  private val VELOX_ERROR_MESSAGE = "Exceeds allowed length limitation: 5"
+
+  testGluten("length check for input string values: nested in struct") {
+    testTableWrite {
+      typeName =>
+        sql(s"CREATE TABLE t(c STRUCT<c: $typeName(5)>) USING $format")
+        sql("INSERT INTO t SELECT struct(null)")
+        checkAnswer(spark.table("t"), Row(Row(null)))
+        val e = intercept[SparkException] {
+          sql("INSERT INTO t SELECT struct('123456')")
+        }
+        assert(e.getCause.getMessage.contains(VELOX_ERROR_MESSAGE))
+    }
+  }
+
+  testGluten("length check for input string values: nested in struct of array") {
+    testTableWrite {
+      typeName =>
+        sql(s"CREATE TABLE t(c STRUCT<c: ARRAY<$typeName(5)>>) USING $format")
+        sql("INSERT INTO t SELECT struct(array(null))")
+        checkAnswer(spark.table("t"), Row(Row(Seq(null))))
+        val e = intercept[SparkException](sql("INSERT INTO t SELECT struct(array('123456'))"))
+        assert(e.getCause.getMessage.contains(VELOX_ERROR_MESSAGE))
+    }
+  }
+}
+
+class GlutenDSV2CharVarcharTestSuite extends DSV2CharVarcharTestSuite with GlutenSQLTestsTrait {
+  private def testTableWrite(f: String => Unit): Unit = {
+    withTable("t")(f("char"))
+    withTable("t")(f("varchar"))
+  }
+
+  private val VELOX_ERROR_MESSAGE = "Exceeds allowed length limitation: 5"
+
+  testGluten("length check for input string values: nested in struct") {
+    testTableWrite {
+      typeName =>
+        sql(s"CREATE TABLE t(c STRUCT<c: $typeName(5)>) USING $format")
+        sql("INSERT INTO t SELECT struct(null)")
+        checkAnswer(spark.table("t"), Row(Row(null)))
+        val e = intercept[SparkException] {
+          sql("INSERT INTO t SELECT struct('123456')")
+        }
+        assert(e.getCause.getMessage.contains(VELOX_ERROR_MESSAGE))
+    }
+  }
+
+  testGluten("length check for input string values: nested in struct of array") {
+    testTableWrite {
+      typeName =>
+        sql(s"CREATE TABLE t(c STRUCT<c: ARRAY<$typeName(5)>>) USING $format")
+        sql("INSERT INTO t SELECT struct(array(null))")
+        checkAnswer(spark.table("t"), Row(Row(Seq(null))))
+        val e = intercept[SparkException](sql("INSERT INTO t SELECT struct(array('123456'))"))
+        assert(e.getCause.getMessage.contains(VELOX_ERROR_MESSAGE))
+    }
+  }
+}
