@@ -92,7 +92,7 @@ const ::substrait::Expression_Literal& toSubstraitNullLiteral(
       break;
     }
     default: {
-      VELOX_UNSUPPORTED("Unsupported type '{}'", mapTypeKindToName(typeKind));
+      VELOX_UNSUPPORTED("Unsupported type '{}'", TypeKindName::toName(typeKind));
     }
   }
   substraitField->set_nullable(true);
@@ -148,7 +148,7 @@ const ::substrait::Expression_Literal& toSubstraitNotNullLiteral(
       break;
     }
     default:
-      VELOX_NYI("Unsupported constant Type '{}' ", mapTypeKindToName(variantValue.kind()));
+      VELOX_NYI("Unsupported constant Type '{}' ", TypeKindName::toName(variantValue.kind()));
   }
   literalExpr->set_nullable(false);
   return *literalExpr;
