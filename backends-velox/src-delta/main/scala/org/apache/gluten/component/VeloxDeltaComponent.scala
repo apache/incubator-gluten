@@ -25,6 +25,7 @@ import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, ProjectExec}
+import org.apache.spark.util.SparkReflectionUtil
 
 class VeloxDeltaComponent extends Component {
   override def name(): String = "velox-delta"

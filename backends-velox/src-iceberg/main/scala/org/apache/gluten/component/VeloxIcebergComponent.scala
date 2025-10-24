@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.velox.VeloxBackend
 import org.apache.gluten.extension.{OffloadIcebergScan, OffloadIcebergWrite}
 import org.apache.gluten.extension.injector.Injector
 
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.util.SparkReflectionUtil
 
 class VeloxIcebergComponent extends Component {
   override def name(): String = "velox-iceberg"
