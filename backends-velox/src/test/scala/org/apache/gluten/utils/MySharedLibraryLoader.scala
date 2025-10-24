@@ -17,12 +17,12 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.jni.JniLibLoader
-import org.apache.gluten.spi.SharedLibraryLoader
+import org.apache.gluten.spi.{SharedLibraryLoader => SpiSharedLibraryLoader}
 import org.apache.gluten.utils.MySharedLibraryLoader.LOADED
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-class MySharedLibraryLoader extends SharedLibraryLoader {
+class MySharedLibraryLoader extends SpiSharedLibraryLoader {
   override def accepts(osName: String, osVersion: String): Boolean = {
     osName == "My OS" && osVersion == "1.0"
   }

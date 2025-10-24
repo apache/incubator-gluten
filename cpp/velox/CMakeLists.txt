@@ -439,6 +439,20 @@ if(ENABLE_GPU)
                         PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so)
 endif()
 
+find_package(wangle REQUIRED)
+# 查找 FBThrift
+find_package(FBThrift REQUIRED)
+
+# 链接 FBThrift 库
+target_link_libraries(velox PUBLIC 
+    FBThrift::thriftcpp2
+    FBThrift::thriftprotocol
+)
+
+target_link_libraries(
+    velox
+    PUBLIC ${VELOX_BUILD_PATH}/velox/dwio/parquet/thrift/libvelox_dwio_parquet_thrift_raw.a)
+
 add_custom_command(
   TARGET velox
   POST_BUILD
