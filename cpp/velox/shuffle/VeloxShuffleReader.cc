@@ -281,7 +281,7 @@ RowVectorPtr deserialize(
 std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     RowTypePtr type,
     uint32_t numRows,
-    std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers,
+    std::vector<std::shared_ptr<arrow::Buffer>>& arrowBuffers,
     const std::vector<int32_t>& dictionaryFields,
     const std::vector<VectorPtr>& dictionaries,
     memory::MemoryPool* pool,
