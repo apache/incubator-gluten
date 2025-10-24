@@ -18,6 +18,10 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, ValidatorApi}
 import org.apache.gluten.execution.ValidationResult
+import org.apache.gluten.substrait.`type`.TypeNode
+import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.expression.ExpressionNode
+import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.NativePlanEvaluator
@@ -28,7 +32,10 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 import org.apache.spark.task.TaskResources
 
+import io.substrait.proto.SimpleExtensionDeclaration
+
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class VeloxValidatorApi extends ValidatorApi {
   import VeloxValidatorApi._
@@ -41,6 +48,25 @@ class VeloxValidatorApi extends ValidatorApi {
     TaskResources.runUnsafe {
       val validator = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
       asValidationResult(validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray))
+    }
+  }
+
+  override def doNativeValidateExpression(
+      substraitContext: SubstraitContext,
+      expression: ExpressionNode,
+      inputTypeNode: TypeNode): Boolean = {
+    TaskResources.runUnsafe {
+      val validator = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
+      val extensionNodes =
+        new ArrayBuffer[SimpleExtensionDeclaration](substraitContext.registeredFunction.size)
+      substraitContext.registeredFunction.forEach {
+        (key, value) =>
+          extensionNodes.append(ExtensionBuilder.makeFunctionMapping(key, value).toProtobuf)
+      }
+      validator.doNativeValidateExpression(
+        expression.toProtobuf.toByteArray,
+        inputTypeNode.toProtobuf.toByteArray,
+        extensionNodes.map(_.toByteArray).toArray)
     }
   }
 

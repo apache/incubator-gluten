@@ -182,6 +182,59 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   JNI_METHOD_END(nullptr)
 }
 
+JNIEXPORT jboolean JNICALL
+Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateExpression( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jbyteArray exprArray,
+    jbyteArray inputTypeArray,
+    jobjectArray mappings) {
+  JNI_METHOD_START
+  auto safeExprArray = getByteArrayElementsSafe(env, exprArray);
+  auto safeInputTypeArray = getByteArrayElementsSafe(env, inputTypeArray);
+  auto exprData = safeExprArray.elems();
+  auto exprSize = env->GetArrayLength(exprArray);
+  auto inputTypeData = safeInputTypeArray.elems();
+  auto inputTypeSize = env->GetArrayLength(inputTypeArray);
+
+  ::substrait::Expression expression;
+  parseProtobuf(exprData, exprSize, &expression);
+  ::substrait::Type inputSubstraitType;
+  parseProtobuf(inputTypeData, inputTypeSize, &inputSubstraitType);
+
+  // Get the function mappings.
+  auto mappingSize = env->GetArrayLength(mappings);
+  std::unordered_map<uint64_t, std::string> functionMappings;
+  for (jsize i = 0; i < mappingSize; ++i) {
+    jbyteArray mapping = (jbyteArray)env->GetObjectArrayElement(mappings, i);
+    auto safeMappingArray = getByteArrayElementsSafe(env, mapping);
+    auto mappingData = safeMappingArray.elems();
+    auto mappingSize = env->GetArrayLength(mapping);
+
+    ::substrait::extensions::SimpleExtensionDeclaration mappingDecl;
+    parseProtobuf(mappingData, mappingSize, &mappingDecl);
+
+    const auto& sFmap = mappingDecl.extension_function();
+    auto id = sFmap.function_anchor();
+    auto name = sFmap.name();
+    functionMappings.emplace(id, name);
+  }
+
+  auto pool = defaultLeafVeloxMemoryPool().get();
+  SubstraitToVeloxPlanValidator planValidator(pool);
+  auto inputType = SubstraitParser::parseType(inputSubstraitType);
+  if (inputType->kind() != TypeKind::ROW) {
+    throw GlutenException("Input type is not a RowType.");
+  }
+  auto rowType = std::dynamic_pointer_cast<const RowType>(inputType);
+  try {
+    return planValidator.validate(expression, rowType, std::move(functionMappings));
+  } catch (std::invalid_argument& e) {
+    return false;
+  }
+  JNI_METHOD_END(false)
+}
+
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_from( // NOLINT
     JNIEnv* env,
     jobject wrapper,

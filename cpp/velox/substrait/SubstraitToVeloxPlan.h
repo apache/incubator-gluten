@@ -157,6 +157,8 @@ class SubstraitToVeloxPlanConverter {
   /// converter based on the constructed function map.
   void constructFunctionMap(const ::substrait::Plan& substraitPlan);
 
+  void constructFunctionMap(std::unordered_map<uint64_t, std::string> substraitPlan);
+
   /// Will return the function map used by this plan converter.
   const std::unordered_map<uint64_t, std::string>& getFunctionMap() const {
     return functionMap_;
