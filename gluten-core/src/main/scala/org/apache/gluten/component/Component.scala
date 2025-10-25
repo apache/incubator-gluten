@@ -42,6 +42,15 @@ trait Component {
   private val uid = nextUid.getAndIncrement()
   private val isRegistered = new AtomicBoolean(false)
 
+  /**
+   * Determines whether a component should be registered based on runtime conditions. For instance,
+   * if a component depends on a Spark extension's JAR, this method should be overridden to check
+   * whether its core class (e.g., the extension class) is available in the runtime environment.
+   */
+  def isRuntimeCompatible: Boolean = {
+    true
+  }
+
   def ensureRegistered(): Unit = {
     if (!isRegistered.compareAndSet(false, true)) {
       return
