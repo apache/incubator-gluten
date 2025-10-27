@@ -69,7 +69,10 @@ class VeloxTransformerApi extends TransformerApi with Logging {
   override def postProcessNativeConfig(
       nativeConfMap: JMap[String, String],
       backendPrefix: String): Unit = {
-    // TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
+    // 'spark.hadoop.fs.s3a.connection.timeout' by velox requires time unit.
+    nativeConfMap.put(
+      "spark.hadoop.fs.s3a.connection.timeout",
+      s"${nativeConfMap.getOrDefault("spark.hadoop.fs.s3a.connection.timeout", "200000")}ms")
   }
 
   override def createCheckOverflowExprNode(
