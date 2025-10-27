@@ -97,11 +97,6 @@ case class ColumnarPartialProjectExec(projectList: Seq[Expression], child: Spark
     replacedAlias :: Nil
   }
 
-  private def validateExpression(expr: Expression): Boolean = {
-    expr.deterministic && !expr.isInstanceOf[LambdaFunction] && expr.children
-      .forall(validateExpression)
-  }
-
   private def getProjectIndexInChildOutput(exprs: Seq[Expression]): Unit = {
     exprs.forall {
       case a: AttributeReference =>
@@ -148,7 +143,7 @@ case class ColumnarPartialProjectExec(projectList: Seq[Expression], child: Spark
       // e.g. udf1(col) + udf2(col), it will introduce 2 cols for a2c
       return ValidationResult.failed("Number of RowToColumn columns is more than ProjectExec")
     }
-    if (!projectList.forall(validateExpression(_))) {
+    if (!projectList.forall(ColumnarPartialProjectExec.validateExpression)) {
       return ValidationResult.failed("Contains expression not supported")
     }
     if (
@@ -287,6 +282,11 @@ object ColumnarPartialProjectExec {
 
   val dummyPrefix = "_dummy"
 
+  def validateExpression(expr: Expression): Boolean = {
+    expr.deterministic && !expr.isInstanceOf[LambdaFunction] && expr.children
+      .forall(validateExpression)
+  }
+
   /** Check if it's a hive udf but not transformable */
   private def containsUnsupportedHiveUDF(h: Expression): Boolean = {
     HiveUDFTransformer.isHiveUDF(h) && !VeloxHiveUDFTransformer.isSupportedHiveUDF(h)
@@ -421,7 +421,7 @@ object ColumnarPartialProjectExec {
       replacedAlias: ListBuffer[Alias]): Expression = {
     if (expr == null) return null
     val newExpr = replaceExpression(expr, replacedAlias)
-    if (!GlutenConfig.get.enableNativeValidation) {
+    if (!GlutenConfig.get.enableNativeValidation || !validateExpression(newExpr)) {
       return newExpr
     }
     newExpr match {
