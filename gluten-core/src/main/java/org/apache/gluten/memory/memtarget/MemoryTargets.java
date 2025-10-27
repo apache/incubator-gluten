@@ -52,7 +52,7 @@ public final class MemoryTargets {
   @Experimental
   public static MemoryTarget dynamicOffHeapSizingIfEnabled(MemoryTarget memoryTarget) {
     if (GlutenCoreConfig.get().dynamicOffHeapSizingEnabled()) {
-      return new DynamicOffHeapSizingMemoryTarget();
+      return new DynamicOffHeapSizingMemoryTarget(memoryTarget);
     }
 
     return memoryTarget;
