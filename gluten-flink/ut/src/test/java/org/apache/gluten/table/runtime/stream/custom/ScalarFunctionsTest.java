@@ -294,4 +294,16 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
             "+I[1, 2024-12-31 12:12:12, 2024-12-31 20:12:12]",
             "+I[2, 2025-02-28 12:12:12, 2024-02-28 20:12:12]"));
   }
+
+  @Test
+  void testNotEqual() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(new BigDecimal("1.2"), 1L, "2", "1"),
+            Row.of(new BigDecimal("2.2"), 2L, "2", "2"),
+            Row.of(new BigDecimal("3.2"), 3L, "2", "1"));
+    createSimpleBoundedValuesTable("tblLess", "a decimal(4,2), b bigint, c string, d string", rows);
+    String query = "select a <> 2.20 as x from tblLess where a > 0";
+    runAndCheck(query, Arrays.asList("+I[true]", "+I[false]", "+I[true]"));
+  }
 }
