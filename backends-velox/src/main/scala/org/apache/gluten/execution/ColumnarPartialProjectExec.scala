@@ -443,7 +443,9 @@ object ColumnarPartialProjectExec {
           }
         } catch {
           case _: GlutenNotSupportException | _: UnsupportedOperationException =>
-            replaceByAlias(x, replacedAlias)
+            // If the process of conversion of the expression throws exception, then we need to
+            // fallback the whole operator.
+            newExpr
         } finally {
           TransformerState.finishValidation
         }
@@ -461,9 +463,11 @@ object ColumnarPartialProjectExec {
           }
         } catch {
           case _: GlutenNotSupportException | _: UnsupportedOperationException =>
-            // If the process of conversion of the expression throws exception, then we
-            // replace it as a whole.
-            replaceByAlias(newExpr, replacedAlias)
+            // If the process of conversion of the expression throws exception, then we need to
+            // fallback the whole operator. The unsupported expression may cause the calculation
+            // crash. For example, the result data type of the expression is decimal and the scale
+            // of the decimal is negative, but velox don't allow decimal type with negative scale.
+            newExpr
         } finally {
           TransformerState.finishValidation
         }
