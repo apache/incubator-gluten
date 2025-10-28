@@ -28,11 +28,13 @@ package object component extends Logging {
       return
     }
 
-    // Load all components in classpath.
-    val all = Discovery.discoverAll().filter(_.isRuntimeCompatible)
-
-    // Register all components.
-    all.foreach(_.ensureRegistered())
+    // Discover all components available in the classpath.
+    val all = Discovery.discoverAll()
+    val (compatibleComponents, incompatibleComponents) = all.partition(_.isRuntimeCompatible)
+    incompatibleComponents.foreach(
+      c => logWarning(s"Excluding runtime-incompatible component: ${c.name}"))
+    // Register all runtime-compatible components.
+    compatibleComponents.foreach(_.ensureRegistered())
 
     // Output log so user could view the component loading order.
     // Call #sortedUnsafe than on #sorted to avoid unnecessary recursion.
