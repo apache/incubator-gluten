@@ -25,12 +25,24 @@ import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, ProjectExec}
+import org.apache.spark.util.SparkReflectionUtil
 
 class VeloxDeltaComponent extends Component {
   override def name(): String = "velox-delta"
   override def buildInfo(): Component.BuildInfo =
     Component.BuildInfo("VeloxDelta", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
+
+  override def isRuntimeCompatible: Boolean = {
+    try {
+      SparkReflectionUtil.classForName("io.delta.sql.DeltaSparkSessionExtension")
+      true
+    } catch {
+      case _: ClassNotFoundException =>
+        false
+    }
+  }
+
   override def injectRules(injector: Injector): Unit = {
     val legacy = injector.gluten.legacy
     val ras = injector.gluten.ras
