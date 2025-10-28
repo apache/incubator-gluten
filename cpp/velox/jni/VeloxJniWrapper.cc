@@ -608,7 +608,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_start(
   JNI_METHOD_START
 #ifdef ENABLE_JEMALLOC_STATS
   bool active = true;
-  mallctl("prof.active", NULL, NULL, &active, sizeof(bool));
+  mallctl("prof.active", nullptr, nullptr, &active, sizeof(bool));
 #endif
   JNI_METHOD_END()
 }
@@ -618,7 +618,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_dump( 
     jclass) {
   JNI_METHOD_START
 #ifdef ENABLE_JEMALLOC_STATS
-  mallctl("prof.dump", NULL, NULL, NULL, 0);
+  mallctl("prof.dump", nullptr, nullptr, nullptr, 0);
 #endif
   JNI_METHOD_END()
 }
@@ -629,7 +629,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_stop( 
   JNI_METHOD_START
 #ifdef ENABLE_JEMALLOC_STATS
   bool active = false;
-  mallctl("prof.active", NULL, NULL, &active, sizeof(bool));
+  mallctl("prof.active", nullptr, nullptr, &active, sizeof(bool));
 #endif
   JNI_METHOD_END()
 }
