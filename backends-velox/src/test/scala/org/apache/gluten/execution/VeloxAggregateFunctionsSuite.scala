@@ -116,7 +116,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
             getExecutedPlan(df).count(
               plan => {
                 plan.isInstanceOf[HashAggregateExecTransformer]
-              }) == 4)
+              }) == 3)
         }
     }
   }
