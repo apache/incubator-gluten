@@ -72,4 +72,4 @@ class GpuHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
   std::vector<int32_t> dictionaryFields_{};
   std::vector<facebook::velox::VectorPtr> dictionaries_{};
 };
-}
+} // namespace gluten
