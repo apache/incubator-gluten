@@ -721,6 +721,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeGlutenTest("describe")
     // Rewrite this test since it checks the physical operator which is changed in Gluten
     .exclude("SPARK-27439: Explain result should match collected result after view change")
+    // https://github.com/apache/incubator-gluten/issues/10963
+    .exclude("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
