@@ -398,9 +398,8 @@ object ColumnarPartialProjectExec {
         val toValidatedExpression = child.withNewChildren(
           child.children.zipWithIndex.map(
             c => {
-              val alias = Alias(c._1, s"$dummyPrefix${c._2}")()
-              tempAlias.append(alias)
-              alias.toAttribute
+              val child = c._1
+              AttributeReference(s"$dummyPrefix${c._2}", child.dataType, child.nullable)()
             }))
         if (!doNativeValidateExpression(toValidatedExpression, tempAlias, childOutput)) {
           replaceByAlias(newChild, replacedAlias)
