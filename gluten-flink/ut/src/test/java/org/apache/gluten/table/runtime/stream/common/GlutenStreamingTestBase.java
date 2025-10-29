@@ -138,7 +138,11 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
             Thread.sleep(10);
           }
           long fileSize = -1L;
+          startTime = System.currentTimeMillis();
           while (printResultFile.length() > fileSize) {
+            if (System.currentTimeMillis() - startTime > timeoutMS) {
+              break;
+            }
             fileSize = printResultFile.length();
             Thread.sleep(3000);
           }
