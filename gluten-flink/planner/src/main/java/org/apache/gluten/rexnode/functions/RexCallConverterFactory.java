@@ -81,7 +81,7 @@ public class RexCallConverterFactory {
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
           Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
           Map.entry("SPLIT_INDEX", Arrays.asList(() -> new SplitIndexRexCallConverter())),
-          Map.entry("SEARCH", Arrays.asList(() -> new DefaultRexCallConverter("in"))),
+          Map.entry("SEARCH", Arrays.asList(() -> new SearchRexCallConverter())),
           Map.entry("DATE_FORMAT", Arrays.asList(() -> new DefaultRexCallConverter("date_format"))),
           Map.entry(
               ">=",
@@ -104,7 +104,8 @@ public class RexCallConverterFactory {
               "REGEXP_EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("regexp_extract"))),
           Map.entry("LOWER", Arrays.asList(() -> new DefaultRexCallConverter("lower"))),
           Map.entry("count_char", Arrays.asList(() -> new DefaultRexCallConverter("count_char"))),
-          Map.entry("EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("extract"))));
+          Map.entry("EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("extract"))),
+          Map.entry("IS TRUE", Arrays.asList(() -> new IsTrueRexCallConverter())));
 
   public static RexCallConverter getConverter(RexCall callNode, RexConversionContext context) {
     String operatorName = callNode.getOperator().getName();

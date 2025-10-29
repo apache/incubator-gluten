@@ -35,6 +35,7 @@ import io.github.zhztheplayer.velox4j.variant.VarBinaryValue;
 import io.github.zhztheplayer.velox4j.variant.VarCharValue;
 import io.github.zhztheplayer.velox4j.variant.Variant;
 
+import org.apache.flink.calcite.shaded.com.google.common.collect.Range;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.util.Preconditions;
 
@@ -44,10 +45,14 @@ import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.Sarg;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Convertor to convert RexNode to velox TypedExpr */
@@ -126,6 +131,32 @@ public class RexNodeConverter {
       default:
         throw new RuntimeException(
             "Unsupported rex node type: " + literal.getType().getSqlTypeName());
+    }
+  }
+
+  public static List<TypedExpr> toTypedExpr(Sarg sarg, RelDataType relDataType) {
+    Set<Range> ranges = sarg.rangeSet.asRanges();
+    if (ranges.size() > 1) {
+      throw new RuntimeException("Too many ranges for " + sarg);
+    }
+    List<TypedExpr> results = new ArrayList<>(2);
+    Type resType = toType(relDataType);
+    Range range = ranges.iterator().next();
+    results.add(
+        new ConstantTypedExpr(
+            resType, toVariant(range.lowerEndpoint(), relDataType.getSqlTypeName()), null));
+    results.add(
+        new ConstantTypedExpr(
+            resType, toVariant(range.upperEndpoint(), relDataType.getSqlTypeName()), null));
+    return results;
+  }
+
+  public static Variant toVariant(Comparable comparable, SqlTypeName typeName) {
+    switch (typeName) {
+      case INTEGER:
+        return new IntegerValue(((BigDecimal) comparable).intValue());
+      default:
+        throw new RuntimeException("Unsupported range type: " + typeName);
     }
   }
 }
