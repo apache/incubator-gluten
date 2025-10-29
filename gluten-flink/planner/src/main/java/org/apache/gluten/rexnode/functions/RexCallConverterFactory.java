@@ -103,7 +103,8 @@ public class RexCallConverterFactory {
                   () -> new TimestampIntervalRexCallConverter("lessthanorequal"))),
           Map.entry("PROCTIME", Arrays.asList(() -> new DefaultRexCallConverter("unix_timestamp"))),
           Map.entry("OR", Arrays.asList(() -> new DefaultRexCallConverter("or"))),
-          Map.entry("IS NOT NULL", Arrays.asList(() -> new DefaultRexCallConverter("is_not_null"))),
+          Map.entry("IS NOT NULL", Arrays.asList(() -> new DefaultRexCallConverter("isnotnull"))),
+          Map.entry("IS NULL", Arrays.asList(() -> new DefaultRexCallConverter("isnull"))),
           Map.entry(
               "REGEXP_EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("regexp_extract"))),
           Map.entry("LOWER", Arrays.asList(() -> new DefaultRexCallConverter("lower"))),
