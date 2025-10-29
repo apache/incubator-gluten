@@ -130,9 +130,9 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
       JobClient jobClient = tableResult.getJobClient().get();
       if (deleteResultFile) {
         try {
-          long timeout = System.currentTimeMillis() + timeoutMS;
+          long startTime = System.currentTimeMillis();
           while (!printResultFile.exists()) {
-            if (System.currentTimeMillis() > timeoutMS) {
+            if (System.currentTimeMillis() - startTime > timeoutMS) {
               break;
             }
             Thread.sleep(10);
