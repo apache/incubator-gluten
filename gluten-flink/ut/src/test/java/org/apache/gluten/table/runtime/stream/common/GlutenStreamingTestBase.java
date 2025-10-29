@@ -45,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class GlutenStreamingTestBase extends StreamingTestBase {
   private static final Logger LOG = LoggerFactory.getLogger(GlutenStreamingTestBase.class);
   private static final String EXECUTION_PLAN_PREIFX = "== Physical Execution Plan ==";
+  private static final long timeoutMS = 30000;
 
   @BeforeAll
   public static void setup() throws Exception {
@@ -129,7 +130,11 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
       JobClient jobClient = tableResult.getJobClient().get();
       if (deleteResultFile) {
         try {
+          long timeout = System.currentTimeMillis() + timeoutMS;
           while (!printResultFile.exists()) {
+            if (System.currentTimeMillis() > timeoutMS) {
+              break;
+            }
             Thread.sleep(10);
           }
           long fileSize = -1L;
