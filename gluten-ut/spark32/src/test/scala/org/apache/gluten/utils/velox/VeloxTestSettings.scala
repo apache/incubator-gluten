@@ -139,8 +139,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-22271: mean overflows and returns null for some decimal variables")
     // Rewrite this test since it checks the physical operator which is changed in Gluten
     .exclude("SPARK-27439: Explain result should match collected result after view change")
-    // https://github.com/apache/incubator-gluten/issues/10963
-    .exclude("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
     .exclude(
