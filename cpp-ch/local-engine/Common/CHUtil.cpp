@@ -1097,9 +1097,11 @@ std::pair<DB::JoinKind, DB::JoinStrictness> JoinUtil::getCrossJoinKindAndStrictn
     switch (join_type)
     {
         case substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
-        case substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
-        case substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
             return {DB::JoinKind::Cross, DB::JoinStrictness::All};
+        case substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+            return {DB::JoinKind::Left, DB::JoinStrictness::All};
+        case substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
+            return {DB::JoinKind::Full, DB::JoinStrictness::All};
         default:
             throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
     }
