@@ -1167,8 +1167,22 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     for (const auto& signature : signaturesOpt.value()) {
       exec::SignatureBinder binder(*signature, types);
       if (binder.tryBind()) {
-        auto resolveType = binder.tryResolveType(
-            exec::isPartialOutput(funcStep) ? signature->intermediateType() : signature->returnType());
+        TypePtr resolveType = nullptr;
+        try {
+          resolveType = binder.tryResolveType(
+              exec::isPartialOutput(funcStep) ? signature->intermediateType() : signature->returnType());
+        } catch (const VeloxException& e) {
+          if (!exec::isPartialOutput(funcStep) && funcName.find("merge_extract") != std::string::npos) {
+            // For the merge_extract companion function, result
+            // types may not always be inferable from the intermediate types. As a
+            // result, an exception might be thrown during the type resolution process.  More
+            // details can be found in
+            // https://github.com/facebookincubator/velox/pull/11999#issuecomment-3274577979
+            // and https://github.com/facebookincubator/velox/issues/12830.
+            return true;
+          }
+        }
+
         if (resolveType == nullptr) {
           LOG_VALIDATION_MSG("Validation failed for function " + funcName + " resolve type in AggregateRel.");
           return false;
