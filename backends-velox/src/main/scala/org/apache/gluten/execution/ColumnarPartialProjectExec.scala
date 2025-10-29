@@ -394,14 +394,21 @@ object ColumnarPartialProjectExec {
           child.children.map(c => traverseUpExpression(c, replacedAlias, childOutput)))
         // To prevent nested expressions be validated multiple times, before doing the validation,
         // we replace it by `Alias`.
-        val tempAlias = new ListBuffer[Alias]()
+        val tempAttributes = new ListBuffer[Attribute]()
         val toValidatedExpression = child.withNewChildren(
           child.children.zipWithIndex.map(
             c => {
               val child = c._1
-              AttributeReference(s"$dummyPrefix${c._2}", child.dataType, child.nullable)()
+              val a = AttributeReference(s"$dummyPrefix${c._2}", child.dataType, child.nullable)()
+              tempAttributes.append(a)
+              a
             }))
-        if (!doNativeValidateExpression(toValidatedExpression, tempAlias, childOutput)) {
+        if (
+          !doNativeValidateExpression(
+            toValidatedExpression,
+            replacedAlias,
+            childOutput ++ tempAttributes)
+        ) {
           replaceByAlias(newChild, replacedAlias)
         } else {
           newChild
