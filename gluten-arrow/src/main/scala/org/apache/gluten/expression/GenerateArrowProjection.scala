@@ -18,7 +18,7 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.vectorized.ArrowColumnarRow
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GenericInternalRow}
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.expressions.codegen._
@@ -87,13 +87,9 @@ object GenerateArrowProjection extends CodeGenerator[Seq[Expression], ArrowProje
             """.stripMargin,
             FalseLiteral)
         }
-        val update = CodeGenerator.updateColumn(
-          "mutableRow",
-          e.dataType,
-          i,
-          ExprCode(isNull, value),
-          e.nullable,
-          isVectorized = true)
+        // update value into intermediate
+        val update = CodeGenerator
+          .updateColumn("intermediate", e.dataType, i, ExprCode(isNull, value), e.nullable)
         (code, update)
     }
 
@@ -112,11 +108,13 @@ object GenerateArrowProjection extends CodeGenerator[Seq[Expression], ArrowProje
 
         private Object[] references;
         private ${classOf[ArrowColumnarRow].getName} mutableRow;
+        private ${classOf[GenericInternalRow].getName} intermediate;
         ${ctx.declareMutableStates()}
 
         public SpecificArrowProjection(Object[] references) {
           this.references = references;
           mutableRow = null;
+          intermediate = new ${classOf[GenericInternalRow].getName}(${expressions.size});
           ${ctx.initMutableStates()}
         }
 
@@ -139,8 +137,10 @@ object GenerateArrowProjection extends CodeGenerator[Seq[Expression], ArrowProje
           InternalRow ${ctx.INPUT_ROW} = (InternalRow) _i;
           $evalSubexpr
           $allProjections
-          // copy all the results into MutableRow
+          // copy all the results into intermediate
           $allUpdates
+          // write intermediate to mutableRow
+          mutableRow.writeRow(intermediate);
           return mutableRow;
         }
 
