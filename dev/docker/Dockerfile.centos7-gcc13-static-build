@@ -25,8 +25,6 @@ ENV VCPKG_BINARY_SOURCES=clear;files,${VCPKG_PATH},readwrite
 
 
 RUN set -ex; \
-    sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true; \
-    sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true; \
     yum install -y epel-release centos-release-scl; \
     rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f; \
     sed -i \
@@ -35,7 +33,7 @@ RUN set -ex; \
        -e 's/mirror\.centos\.org/vault.centos.org/' \
        /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo; \
     yum install -y git patch wget sudo java-1.8.0-openjdk-devel ccache; \
-    git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
+    git clone --depth=1 https://github.com/zhouyuan/gluten /opt/gluten; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh; \
     mkdir -p ${VCPKG_PATH}; \
