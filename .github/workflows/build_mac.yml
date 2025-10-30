@@ -17,7 +17,7 @@ name: macOS Build
 on:
   push:
     paths:
-      - '.github/workflows/velox_build_mac.yml'
+      - '.github/workflows/build_mac.yml'
       - 'pom.xml'
       - 'backends-velox/**'
       - 'gluten-uniffle/**'
