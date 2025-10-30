@@ -198,30 +198,6 @@ function install_c-ares {
   cmake_install_dir c-ares -DCMAKE_BUILD_TYPE=Release
 }
 
-function install_arrow {
-  wget_and_untar https://github.com/apache/arrow/archive/apache-arrow-${ARROW_VERSION}.tar.gz arrow
-  cmake_install_dir arrow/cpp \
-    -DgRPC_SOURCE=BUNDLED \
-    -DProtobuf_SOURCE=BUNDLED \
-    -Dabsl_SOURCE=BUNDLED \
-    -DARROW_PARQUET=OFF \
-    -DARROW_WITH_THRIFT=ON \
-    -DARROW_WITH_LZ4=ON \
-    -DARROW_WITH_SNAPPY=ON \
-    -DARROW_WITH_ZLIB=ON \
-    -DARROW_WITH_ZSTD=ON \
-    -DARROW_JEMALLOC=OFF \
-    -DARROW_SIMD_LEVEL=NONE \
-    -DARROW_RUNTIME_SIMD_LEVEL=NONE \
-    -DARROW_WITH_UTF8PROC=OFF \
-    -DARROW_TESTING=OFF \
-    -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DARROW_BUILD_STATIC=ON \
-    -DBOOST_ROOT=${INSTALL_PREFIX} \
-    ${EXTRA_ARROW_OPTIONS}
-}
-
 function install_s3 {
   install_aws_deps
 
@@ -277,7 +253,6 @@ function install_velox_deps {
   run_and_time install_duckdb
   run_and_time install_stemmer
   run_and_time install_thrift
-  run_and_time install_arrow
   run_and_time install_simdjson
   run_and_time install_geos
 }
