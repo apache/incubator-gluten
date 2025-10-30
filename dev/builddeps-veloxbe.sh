@@ -207,7 +207,7 @@ concat_velox_param
 
 function build_arrow {
   if [ ! -d "$VELOX_HOME" ]; then
-    get_velox && setup_dependencies
+    get_velox && setup_dependencies_arrow
   fi
   cd $GLUTEN_DIR/dev
   source ./build-arrow.sh
@@ -294,6 +294,13 @@ function setup_dependencies {
     install_azure-storage-sdk-cpp
   fi
   popd
+}
+
+function setup_dependencies_arrow {
+  DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
+  mkdir -p ${DEPENDENCY_DIR}
+
+  source ${VELOX_HOME}/scripts/setup-common.sh
 }
 
 OS=`uname -s`
