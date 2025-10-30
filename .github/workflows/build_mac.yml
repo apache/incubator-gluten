@@ -64,7 +64,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install wget pkgconfig abseil
+          brew install wget pkgconfig abseil ccache
 
       - name: Build
         run: |
