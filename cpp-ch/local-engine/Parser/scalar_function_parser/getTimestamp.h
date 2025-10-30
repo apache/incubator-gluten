@@ -78,7 +78,7 @@ public:
         UInt32 s_count = std::count(fmt.begin(), fmt.end(), 'S');
         String time_parser_policy = getContext()->getSettingsRef().has(TIMER_PARSER_POLICY) ? toString(getContext()->getSettingsRef().get(TIMER_PARSER_POLICY)) : "";
         boost::to_lower(time_parser_policy);
-        if (time_parser_policy == "legacy" && checkDateFormat(fmt))
+        if (time_parser_policy == "legacy" && checkFormat(fmt))
         {
             if (s_count == 0)
             {
@@ -106,7 +106,7 @@ public:
     }
 
 private:
-    bool checkDateFormat(const String& fmt) const
+    bool checkFormat(const String& fmt) const
     {
         if (fmt.size() < 10)
         {
