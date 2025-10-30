@@ -69,7 +69,7 @@ jobs:
           HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 'TRUE'
           CMAKE_POLICY_VERSION_MINIMUM: '3.5'
         run: |
-          brew install wget pkgconfig abseil binutils llvm
+          brew install wget pkgconfig abseil binutils llvm ccache
           echo "NJOBS=`sysctl -n hw.ncpu`" >> $GITHUB_ENV
           majorVersion=$(sw_vers -productVersion | awk -F '.' '{print $1}')
           echo "$INSTALL_PREFIX/bin" >> $GITHUB_PATH
