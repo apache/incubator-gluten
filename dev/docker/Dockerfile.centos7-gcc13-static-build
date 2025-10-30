@@ -36,11 +36,10 @@ RUN set -ex; \
     git clone --depth=1 https://github.com/zhouyuan/gluten /opt/gluten; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh; \
+    yum remove gcc -y && yum clean all; \
     mkdir -p ${VCPKG_PATH}; \
     echo "Build arrow, then install the native libs to system paths and jar package to .m2/ directory."; \
     cd /opt/gluten; \
-    source /opt/rh/devtoolset-11/enable; \
-    source /opt/rh/rh-git227/enable; \
     bash ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=ON --enable_s3=ON --enable_gcs=ON \
                                        --enable_hdfs=ON --enable_abfs=ON  build_arrow; \
     mvn dependency:go-offline -Pbackends-velox -Piceberg -Pdelta -Pspark-3.5 -DskipTests; \
