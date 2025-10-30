@@ -169,8 +169,7 @@ class VeloxShuffleReaderDeserializerFactory {
       int64_t readerBufferSize,
       int64_t deserializerBufferSize,
       VeloxMemoryManager* memoryManager,
-      ShuffleWriterType shuffleWriterType,
-      bool enableCudf);
+      ShuffleWriterType shuffleWriterType);
 
   std::unique_ptr<ColumnarBatchIterator> createDeserializer(const std::shared_ptr<StreamReader>& streamReader);
 
@@ -181,7 +180,6 @@ class VeloxShuffleReaderDeserializerFactory {
  private:
   void initFromSchema();
 
-  const bool enableCudf_;
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::common::CompressionKind veloxCompressionType_;
