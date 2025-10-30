@@ -199,7 +199,8 @@ if(ENABLE_S3)
 endif()
 
 if(ENABLE_GPU)
-  list(APPEND VELOX_SRCS cudf/CudfPlanValidator.cc)
+  list(APPEND VELOX_SRCS cudf/CudfPlanValidator.cc cudf/GpuLock.cc
+       shuffle/GpuShuffleReader.cc)
 endif()
 
 if(ENABLE_ENHANCED_FEATURES)

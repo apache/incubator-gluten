@@ -69,7 +69,7 @@ trait TransformSupport extends ValidatablePlan {
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 
-  protected def isCudf: Boolean = getTagValue[Boolean](CudfTag.CudfTag).getOrElse(false)
+  def isCudf: Boolean = getTagValue[Boolean](CudfTag.CudfTag).getOrElse(false)
 
   // Use super.nodeName will cause exception scala 213 Super calls can only target methods
   // for FileSourceScan.

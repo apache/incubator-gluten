@@ -25,7 +25,8 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.exchange._
 
-case class ColumnarShuffleExchangeExec(
+// The write is Velox RowVector, but the reader transforms it to cudf table
+case class GPUColumnarShuffleExchangeExec(
     override val outputPartitioning: Partitioning,
     child: SparkPlan,
     shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
@@ -35,23 +36,23 @@ case class ColumnarShuffleExchangeExec(
 
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema, metrics, shuffleWriterType)
+    .createColumnarBatchSerializer(schema, metrics, shuffleWriterType, true)
 
-  override def nodeName: String = "ColumnarExchange"
+  override def nodeName: String = "CudfColumnarExchange"
 
-  protected def withNewChildInternal(newChild: SparkPlan): ColumnarShuffleExchangeExec =
+  protected def withNewChildInternal(newChild: SparkPlan): GPUColumnarShuffleExchangeExec =
     copy(child = newChild)
 
   override def getSerializer: Serializer = serializer
 }
 
-object ColumnarShuffleExchangeExec extends Logging {
+object GPUColumnarShuffleExchangeExec extends Logging {
 
   def apply(
       plan: ShuffleExchangeExec,
       child: SparkPlan,
-      shuffleOutputAttributes: Seq[Attribute]): ColumnarShuffleExchangeExec = {
-    ColumnarShuffleExchangeExec(
+      shuffleOutputAttributes: Seq[Attribute]): GPUColumnarShuffleExchangeExec = {
+    GPUColumnarShuffleExchangeExec(
       plan.outputPartitioning,
       child,
       plan.shuffleOrigin,
@@ -59,5 +60,4 @@ object ColumnarShuffleExchangeExec extends Logging {
       advisoryPartitionSize = SparkShimLoader.getSparkShims.getShuffleAdvisoryPartitionSize(plan)
     )
   }
-
 }

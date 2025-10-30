@@ -454,7 +454,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   override def createColumnarBatchSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric],
-      shuffleWriterType: ShuffleWriterType): Serializer = {
+      shuffleWriterType: ShuffleWriterType,
+      enableCudf: Boolean): Serializer = {
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val numOutputRows = metrics("numOutputRows")
     val dataSize = metrics("dataSize")

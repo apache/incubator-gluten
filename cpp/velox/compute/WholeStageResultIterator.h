@@ -27,6 +27,9 @@
 #include "velox/connectors/hive/iceberg/IcebergSplit.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
+#ifdef GLUTEN_ENABLE_GPU
+#include "cudf/GpuLock.h"
+#endif
 
 namespace gluten {
 
@@ -48,8 +51,8 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       task_->requestCancel().wait();
     }
 #ifdef GLUTEN_ENABLE_GPU
-    if (enableCudf_ && lock_.owns_lock()) {
-      lock_.unlock();
+    if (enableCudf_) {
+      unlockGpu();
     }
 #endif
   }
@@ -75,8 +78,6 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   }
 
  private:
-  std::shared_ptr<ColumnarBatch> nextInternal();
-
   /// Get the Spark confs to Velox query context.
   std::unordered_map<std::string, std::string> getQueryContextConf();
 
@@ -113,6 +114,9 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
   /// Config, task and plan.
   std::shared_ptr<config::ConfigBase> veloxCfg_;
+#ifdef GLUTEN_ENABLE_GPU
+  const bool enableCudf_;
+#endif
   const SparkTaskInfo taskInfo_;
   std::shared_ptr<facebook::velox::exec::Task> task_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
@@ -123,13 +127,6 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
   /// Metrics
   std::unique_ptr<Metrics> metrics_{};
-
-#ifdef GLUTEN_ENABLE_GPU
-  // Mutex for thread safety.
-  static std::mutex mutex_;
-  std::unique_lock<std::mutex> lock_;
-  bool enableCudf_;
-#endif
 
   /// All the children plan node ids with postorder traversal.
   std::vector<facebook::velox::core::PlanNodeId> orderedNodeIds_;
