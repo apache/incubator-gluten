@@ -23,9 +23,18 @@
 
 namespace gluten {
 
-static std::mutex gGpuMutex;
-static std::condition_variable gGpuCv;
-static std::optional<std::thread::id> gGpuOwner;
+namespace {
+struct GpuLockState {
+  std::mutex gGpuMutex;
+  std::condition_variable gGpuCv;
+  std::optional<std::thread::id> gGpuOwner;
+};
+
+GpuLockState& getGpuLockState() {
+  static GpuLockState gGpuLockState;
+  return gGpuLockState;
+}
+}
 
 void lockGpu() {
     std::thread::id tid = std::this_thread::get_id();
