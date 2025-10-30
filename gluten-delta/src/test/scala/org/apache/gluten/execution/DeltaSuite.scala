@@ -40,7 +40,6 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
       .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-      .set("spark.sql.ansi.enabled", "false")
   }
 
   // IdMapping is supported in Delta 2.2 (related to Spark3.3.1)
