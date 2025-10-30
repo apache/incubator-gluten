@@ -78,10 +78,11 @@ public:
         UInt32 s_count = std::count(fmt.begin(), fmt.end(), 'S');
         String time_parser_policy = getContext()->getSettingsRef().has(TIMER_PARSER_POLICY) ? toString(getContext()->getSettingsRef().get(TIMER_PARSER_POLICY)) : "";
         boost::to_lower(time_parser_policy);
-        if (time_parser_policy == "legacy")
+        if (time_parser_policy == "legacy" && checkDateFormat(fmt))
         {
             if (s_count == 0)
             {
+                // If fmt == "yyyy-MM-dd" or fmt == "yyyy-MM-dd HH" or fmt == "yyyy-MM-dd HH:mm" or fmt == "yyyy-MM-dd HH:mm:ss", parse the timestamp by using the following logic.
                 const auto * index_begin_node = addColumnToActionsDAG(actions_dag, std::make_shared<DB::DataTypeUInt64>(), 1);
                 const auto * index_end_node = addColumnToActionsDAG(actions_dag, std::make_shared<DB::DataTypeUInt64>(), fmt.size());
                 const auto * substr_node = toFunctionNode(actions_dag, "substringUTF8", {expr_arg, index_begin_node, index_end_node});
@@ -93,7 +94,6 @@ public:
                 fmt += String(3 - s_count, 'S');
             else
                 fmt = fmt.substr(0, fmt.size() - (s_count - 3));
-
             const auto * fmt_node = addColumnToActionsDAG(actions_dag, std::make_shared<DB::DataTypeString>(), fmt);
             const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_node});
             return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
@@ -102,6 +102,49 @@ public:
         {
             const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_arg});
             return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
+        }
+    }
+
+private:
+    bool checkDateFormat(const String& fmt) const
+    {
+        if (fmt.size() < 10)
+        {
+            return false;
+        }
+        else
+        {
+            const String yearFmt = fmt.substr(0, 4);
+            const String monthFmt = fmt.substr(5, 2);
+            const String dayFmt = fmt.substr(8, 2);
+            bool yearMonthDayValid = yearFmt == "yyyy" && monthFmt == "MM" && dayFmt == "dd";
+            if (fmt.size() == 10)
+            {
+                return yearMonthDayValid;
+            }
+            else if (yearMonthDayValid)
+            {
+                const String splitChar = fmt.size() >= 11 ? fmt.substr(10, 1) : "";
+                if (splitChar != " " && splitChar != "T")
+                {
+                    return false;
+                }
+                const String hourFmt = fmt.size() >= 13 ? fmt.substr(11, 2) : "";
+                const String minuteFmt = fmt.size() >= 15 ? fmt.substr(14, 2) : "";
+                const String secondFmt = fmt.size() >= 17 ? fmt.substr(17, 2) : "";
+                bool hourValid = hourFmt == "HH";
+                bool minuteValid = minuteFmt == "mm";
+                bool secondValid = secondFmt == "ss";
+                if ((fmt.size() == 13 && hourValid) || (fmt.size() == 16 && hourValid && minuteValid) || (fmt.size() == 19 && hourValid && minuteValid && secondValid)) 
+                {
+                    return true;
+                }
+                if (fmt.size() > 19 && fmt.substr(19, 1) == ".") 
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 };
