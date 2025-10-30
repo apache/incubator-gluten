@@ -16,9 +16,7 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.ExpressionConverter.conf
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions.{Add, BinaryArithmetic, Cast, Divide, Expression, Literal, Multiply, Pmod, PromotePrecision, Remainder, Subtract}
@@ -220,14 +218,5 @@ object DecimalArithmeticUtil {
       wider: DecimalType): Boolean = {
     val widerType = SparkShimLoader.getSparkShims.widerDecimalType(left, right)
     widerType.equals(wider)
-  }
-
-  def checkAllowDecimalArithmetic(): Unit = {
-    // PrecisionLoss=false: velox not support
-    if (!BackendsApiManager.getSettings.allowDecimalArithmetic) {
-      throw new GlutenNotSupportException(
-        s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} " +
-          s"${conf.decimalOperationsAllowPrecisionLoss} mode")
-    }
   }
 }

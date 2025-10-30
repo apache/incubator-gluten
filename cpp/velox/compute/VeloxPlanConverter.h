@@ -48,6 +48,7 @@ class VeloxPlanConverter {
  private:
   bool validationMode_;
 
+  const facebook::velox::config::ConfigBase* veloxCfg_;
   SubstraitToVeloxPlanConverter substraitVeloxPlanConverter_;
 };
 

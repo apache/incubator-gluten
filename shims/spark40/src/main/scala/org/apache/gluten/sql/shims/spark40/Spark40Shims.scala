@@ -51,7 +51,7 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
-import org.apache.spark.sql.execution.window.{WindowGroupLimitExec, WindowGroupLimitExecShim}
+import org.apache.spark.sql.execution.window.{Final, GlutenFinal, GlutenPartial, Partial, WindowGroupLimitExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.internal.{LegacyBehaviorPolicy, SQLConf}
 import org.apache.spark.sql.types.{DecimalType, IntegerType, LongType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -303,24 +303,32 @@ class Spark40Shims extends SparkShims {
 
   override def getWindowGroupLimitExecShim(plan: SparkPlan): WindowGroupLimitExecShim = {
     val windowGroupLimitPlan = plan.asInstanceOf[WindowGroupLimitExec]
+    val mode = windowGroupLimitPlan.mode match {
+      case Partial => GlutenPartial
+      case Final => GlutenFinal
+    }
     WindowGroupLimitExecShim(
       windowGroupLimitPlan.partitionSpec,
       windowGroupLimitPlan.orderSpec,
       windowGroupLimitPlan.rankLikeFunction,
       windowGroupLimitPlan.limit,
-      windowGroupLimitPlan.mode,
+      mode,
       windowGroupLimitPlan.child
     )
   }
 
-  override def getWindowGroupLimitExec(windowGroupLimitPlan: SparkPlan): SparkPlan = {
-    val windowGroupLimitExecShim = windowGroupLimitPlan.asInstanceOf[WindowGroupLimitExecShim]
+  override def getWindowGroupLimitExec(
+      windowGroupLimitExecShim: WindowGroupLimitExecShim): SparkPlan = {
+    val mode = windowGroupLimitExecShim.mode match {
+      case GlutenPartial => Partial
+      case GlutenFinal => Final
+    }
     WindowGroupLimitExec(
       windowGroupLimitExecShim.partitionSpec,
       windowGroupLimitExecShim.orderSpec,
       windowGroupLimitExecShim.rankLikeFunction,
       windowGroupLimitExecShim.limit,
-      windowGroupLimitExecShim.mode,
+      mode,
       windowGroupLimitExecShim.child
     )
   }

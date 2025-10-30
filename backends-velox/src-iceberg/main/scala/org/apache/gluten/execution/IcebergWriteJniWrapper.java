@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution;
 
-import org.apache.gluten.proto.IcebergPartitionSpec;
+import org.apache.gluten.metrics.BatchWriteMetrics;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
 
@@ -34,10 +34,12 @@ public class IcebergWriteJniWrapper implements RuntimeAware {
                           byte[] partitionSpec,
                           byte[] field);
 
-  // Returns the json iceberg Datafile represent
   public native void write(long writerHandle, long batch);
 
+  // Returns the json iceberg Datafile represent
   public native String[] commit(long writerHandle);
+
+  public native BatchWriteMetrics metrics(long writerHandle);
 
   @Override
   public long rtHandle() {

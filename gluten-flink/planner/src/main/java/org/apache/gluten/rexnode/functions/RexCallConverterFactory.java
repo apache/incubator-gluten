@@ -43,13 +43,15 @@ public class RexCallConverterFactory {
               Arrays.asList(
                   () -> new BasicArithmeticOperatorRexCallConverter("greaterthan"),
                   () -> new StringCompareRexCallConverter("greaterthan"),
-                  () -> new StringNumberCompareRexCallConverter("greaterthan"))),
+                  () -> new StringNumberCompareRexCallConverter("greaterthan"),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("greaterthan"))),
           Map.entry(
               "<",
               Arrays.asList(
                   () -> new BasicArithmeticOperatorRexCallConverter("lessthan"),
                   () -> new StringCompareRexCallConverter("lessthan"),
-                  () -> new StringNumberCompareRexCallConverter("lessthan"))),
+                  () -> new StringNumberCompareRexCallConverter("lessthan"),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("lessthan"))),
           Map.entry(
               "=",
               Arrays.asList(
@@ -80,6 +82,7 @@ public class RexCallConverterFactory {
           Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
           Map.entry("SPLIT_INDEX", Arrays.asList(() -> new SplitIndexRexCallConverter())),
           Map.entry("SEARCH", Arrays.asList(() -> new DefaultRexCallConverter("in"))),
+          Map.entry("DATE_FORMAT", Arrays.asList(() -> new DefaultRexCallConverter("date_format"))),
           Map.entry(
               ">=",
               Arrays.asList(
@@ -99,7 +102,9 @@ public class RexCallConverterFactory {
           Map.entry("IS NOT NULL", Arrays.asList(() -> new DefaultRexCallConverter("is_not_null"))),
           Map.entry(
               "REGEXP_EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("regexp_extract"))),
-          Map.entry("LOWER", Arrays.asList(() -> new DefaultRexCallConverter("lower"))));
+          Map.entry("LOWER", Arrays.asList(() -> new DefaultRexCallConverter("lower"))),
+          Map.entry("count_char", Arrays.asList(() -> new DefaultRexCallConverter("count_char"))),
+          Map.entry("EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("extract"))));
 
   public static RexCallConverter getConverter(RexCall callNode, RexConversionContext context) {
     String operatorName = callNode.getOperator().getName();

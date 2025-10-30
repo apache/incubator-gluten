@@ -15,15 +15,30 @@
  * limitations under the License.
  */
 package org.apache.gluten.component
+
 import org.apache.gluten.backendsapi.velox.VeloxBackend
-import org.apache.gluten.execution.{OffloadIcebergScan, OffloadIcebergWrite}
+import org.apache.gluten.extension.{OffloadIcebergScan, OffloadIcebergWrite}
 import org.apache.gluten.extension.injector.Injector
+
+import org.apache.spark.util.SparkReflectionUtil
 
 class VeloxIcebergComponent extends Component {
   override def name(): String = "velox-iceberg"
   override def buildInfo(): Component.BuildInfo =
     Component.BuildInfo("VeloxIceberg", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
+
+  override def isRuntimeCompatible: Boolean = {
+    try {
+      SparkReflectionUtil.classForName(
+        "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+      true
+    } catch {
+      case _: ClassNotFoundException =>
+        false
+    }
+  }
+
   override def injectRules(injector: Injector): Unit = {
     OffloadIcebergScan.inject(injector)
     OffloadIcebergWrite.inject(injector)

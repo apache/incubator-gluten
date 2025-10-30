@@ -17,6 +17,7 @@
 package org.apache.gluten.datasource
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.exception.SchemaMismatchException
 import org.apache.gluten.execution.RowToVeloxColumnarExec
 import org.apache.gluten.iterator.Iterators
@@ -312,7 +313,8 @@ object ArrowCSVFileFormat {
     val veloxBatch = RowToVeloxColumnarExec.toColumnarBatchIterator(
       it,
       schema,
-      batchSize
+      batchSize,
+      VeloxConfig.get.veloxPreferredBatchBytes
     )
     veloxBatch
       .map(v => ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), v))

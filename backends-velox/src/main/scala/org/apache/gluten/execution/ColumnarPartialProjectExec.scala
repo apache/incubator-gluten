@@ -164,6 +164,10 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
     child.executeColumnar().mapPartitions {
       batches =>
         val res: Iterator[Iterator[ColumnarBatch]] = new Iterator[Iterator[ColumnarBatch]] {
+          // select part of child output and child data
+          val projection: ArrowProjection =
+            ArrowProjection.create(replacedAlias, projectAttributes.toSeq)
+
           override def hasNext: Boolean = batches.hasNext
 
           override def next(): Iterator[ColumnarBatch] = {
@@ -175,7 +179,7 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
               val childData = ColumnarBatches
                 .select(BackendsApiManager.getBackendName, batch, projectIndexInChild.toArray)
               try {
-                val projectedBatch = getProjectedBatchArrow(childData, c2a, a2c)
+                val projectedBatch = getProjectedBatchArrow(childData, projection, c2a, a2c)
                 val batchIterator = projectedBatch.map {
                   b =>
                     if (b.numCols() != 0) {
@@ -208,17 +212,20 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
 
   private def getProjectedBatchArrow(
       childData: ColumnarBatch,
+      proj: ArrowProjection,
       c2a: SQLMetric,
       a2c: SQLMetric): Iterator[ColumnarBatch] = {
-    // select part of child output and child data
-    val proj = ArrowProjection.create(replacedAlias, projectAttributes.toSeq)
     val numRows = childData.numRows()
     val start = System.currentTimeMillis()
-    val arrowBatch = if (childData.numCols() == 0) {
+    val sparkColumnarBatch = if (childData.numCols() == 0) {
       childData
     } else {
       ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
     }
+    // In spark with version belows 4.0, the `ColumnarRow`'s get method doesn't check whether the
+    // column to get is null, so we change it to `ArrowColumnarBatch` manually. `ArrowColumnarBatch`
+    // returns `ArrowColumnarRow`, which fixes the bug.
+    val arrowBatch = ColumnarBatches.convertToArrowColumnarBatch(sparkColumnarBatch)
     c2a += System.currentTimeMillis() - start
 
     val schema =

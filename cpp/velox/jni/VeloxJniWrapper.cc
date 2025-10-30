@@ -56,6 +56,9 @@ jmethodID infoClsInitMethod;
 
 jclass blockStripesClass;
 jmethodID blockStripesConstructor;
+
+jclass batchWriteMetricsClass;
+jmethodID batchWriteMetricsConstructor;
 } // namespace
 
 #ifdef __cplusplus
@@ -79,6 +82,10 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
   blockStripesConstructor = getMethodIdOrError(env, blockStripesClass, "<init>", "(J[J[II[[B)V");
+
+  batchWriteMetricsClass =
+    createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/BatchWriteMetrics;");
+  batchWriteMetricsConstructor = getMethodIdOrError(env, batchWriteMetricsClass, "<init>", "(JIJJ)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
 
@@ -207,6 +214,55 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
     batches.push_back(batch);
   }
   auto newBatch = VeloxColumnarBatch::compose(runtime->memoryManager()->getLeafMemoryPool().get(), std::move(batches));
+  return ctx->saveObject(newBatch);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_repeatedThenCompose( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong repeatedBatchHandle,
+    jlong nonRepeatedBatchHandle,
+    jintArray rowId2RowNums) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
+
+  int rowId2RowNumsSize = env->GetArrayLength(rowId2RowNums);
+  auto safeRowId2RowNumsArray = getIntArrayElementsSafe(env, rowId2RowNums);
+
+  auto veloxPool = runtime->memoryManager()->getLeafMemoryPool();
+  vector_size_t rowNums = 0;
+  for (int i = 0; i < rowId2RowNumsSize; ++i) {
+    rowNums += safeRowId2RowNumsArray.elems()[i];
+  }
+
+  // Create a indices vector.
+  // The indices will be used to create a dictionary vector for the first batch.
+  auto repeatedIndices = AlignedBuffer::allocate<vector_size_t>(rowNums, veloxPool.get(), 0);
+  auto* rawRepeatedIndices = repeatedIndices->asMutable<vector_size_t>();
+  int lastRowIndexEnd = 0;
+  for (int i = 0; i < rowId2RowNumsSize; ++i) {
+    auto rowNum = safeRowId2RowNumsArray.elems()[i];
+    std::fill(rawRepeatedIndices + lastRowIndexEnd, rawRepeatedIndices + lastRowIndexEnd + rowNum, i);
+    lastRowIndexEnd += rowNum;
+  }
+
+  auto repeatedBatch = ObjectStore::retrieve<ColumnarBatch>(repeatedBatchHandle);
+  auto nonRepeatedBatch = ObjectStore::retrieve<ColumnarBatch>(nonRepeatedBatchHandle);
+  GLUTEN_CHECK(rowNums == nonRepeatedBatch->numRows(), "Row numbers after repeated do not match the expected size");
+
+  // wrap repeatedBatch's rowVector in dictionary vector.
+  auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(repeatedBatch);
+  auto rowVector = vb->getRowVector();
+  std::vector<VectorPtr> outputs(rowVector->childrenSize());
+  for (int i = 0; i < outputs.size(); i++) {
+    outputs[i] = BaseVector::wrapInDictionary(nullptr /*nulls*/, repeatedIndices, rowNums, rowVector->childAt(i));
+  }
+  auto newRowVector =
+      std::make_shared<RowVector>(veloxPool.get(), rowVector->type(), BufferPtr(nullptr), rowNums, std::move(outputs));
+  repeatedBatch = std::make_shared<VeloxColumnarBatch>(std::move(newRowVector));
+  auto newBatch = VeloxColumnarBatch::compose(veloxPool.get(), {std::move(repeatedBatch), std::move(nonRepeatedBatch)});
   return ctx->saveObject(newBatch);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
@@ -759,6 +815,25 @@ JNIEXPORT jobjectArray JNICALL Java_org_apache_gluten_execution_IcebergWriteJniW
     env->SetObjectArrayElement(ret, i, env->NewStringUTF(commitMessages[i].data()));
   }
   return ret;
+
+  JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jobject JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_metrics( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong writerHandle) {
+  JNI_METHOD_START
+  auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
+  auto writeStats = writer->writeStats();
+  jobject writeMetrics = env->NewObject(
+    batchWriteMetricsClass,
+    batchWriteMetricsConstructor,
+    writeStats.numWrittenBytes,
+    writeStats.numWrittenFiles,
+    writeStats.writeIOTimeNs,
+    writeStats.writeWallNs);
+  return writeMetrics;
 
   JNI_METHOD_END(nullptr)
 }

@@ -33,6 +33,7 @@ class ProjectMetricsUpdater(
       metrics("wallNanos") += operatorMetrics.wallNanos
       metrics("peakMemoryBytes") += operatorMetrics.peakMemoryBytes
       metrics("numMemoryAllocations") += operatorMetrics.numMemoryAllocations
+      metrics("loadLazyVectorTime") += operatorMetrics.loadLazyVectorTime
       extraMetrics.foreach {
         case (name, metric) =>
           name match {

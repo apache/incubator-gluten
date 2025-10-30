@@ -57,10 +57,8 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
     numRows_ = endRow - startRow;
   }
 
-  if (nullptr == veloxBuffers_) {
+  if (nullptr == veloxBuffers_ || veloxBuffers_->capacity() < totalMemorySize) {
     veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(totalMemorySize, veloxPool_.get());
-  } else if (veloxBuffers_->capacity() < totalMemorySize) {
-    velox::AlignedBuffer::reallocate<uint8_t>(&veloxBuffers_, totalMemorySize);
   }
 
   bufferAddress_ = veloxBuffers_->asMutable<uint8_t>();
@@ -69,7 +67,7 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
 
 void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb, int64_t startRow) {
   auto veloxBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
-  refreshStates(veloxBatch->getFlattenedRowVector(), startRow);
+  refreshStates(veloxBatch->getRowVector(), startRow);
 
   // Initialize the offsets_ , lengths_
   lengths_.clear();

@@ -18,6 +18,8 @@
 #include <Interpreters/Context_fwd.h>
 #include <Common/ConcurrentMap.h>
 #include <Common/ThreadStatus.h>
+#include <mutex>
+#include <set>
 
 namespace DB
 {
@@ -25,7 +27,7 @@ struct ContextSharedPart;
 }
 namespace local_engine
 {
-
+class LocalExecutor;
 class QueryContext
 {
     struct Data;
@@ -47,11 +49,30 @@ public:
     void logCurrentPerformanceCounters(ProfileEvents::Counters & counters, const String & task_id) const;
     size_t currentPeakMemory(int64_t id);
     void finalizeQuery(int64_t id);
+    void attachLocalExecutor(LocalExecutor * executor)
+    {
+        std::lock_guard<std::mutex> lock(local_executor_mutex_);
+        active_executors_.insert(executor);
+    }
+
+    // If the executor is found and detached, return true; otherwise return false.
+    bool detachLocalExecutor(LocalExecutor * executor)
+    {
+        std::lock_guard<std::mutex> lock(local_executor_mutex_);
+        auto n = active_executors_.erase(executor);
+        return n > 0;
+    }
+
+    // Clear resources held by the QueryContext instance.
+    void reset();
 
 private:
     QueryContext() = default;
     LoggerPtr logger_ = getLogger("QueryContextManager");
     ConcurrentMap<int64_t, std::shared_ptr<Data>> query_map_{};
+
+    std::mutex local_executor_mutex_;
+    std::set<LocalExecutor *> active_executors_{};
 };
 
 size_t currentThreadGroupMemoryUsage();

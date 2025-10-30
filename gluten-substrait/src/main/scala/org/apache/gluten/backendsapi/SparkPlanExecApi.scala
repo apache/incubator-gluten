@@ -242,6 +242,8 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
+  def getDecimalArithmeticExprName(exprName: String): String = exprName
+
   /** Transform map_entries to Substrait. */
   def genMapEntriesTransformer(
       substraitExprName: String,
@@ -728,7 +730,7 @@ trait SparkPlanExecApi {
       orderSpec: Seq[SortOrder],
       rankLikeFunction: Expression,
       limit: Int,
-      mode: WindowGroupLimitMode,
+      mode: GlutenWindowGroupLimitMode,
       child: SparkPlan): SparkPlan =
     WindowGroupLimitExecTransformer(partitionSpec, orderSpec, rankLikeFunction, limit, mode, child)
 
@@ -799,6 +801,13 @@ trait SparkPlanExecApi {
       original: Expression): ExpressionTransformer = {
     throw new GlutenNotSupportException("timestampdiff is not supported")
   }
+
+  def genMonthsBetweenTransformer(
+      substraitExprName: String,
+      date1: ExpressionTransformer,
+      date2: ExpressionTransformer,
+      roundOff: ExpressionTransformer,
+      original: MonthsBetween): ExpressionTransformer
 
   def isRowIndexMetadataColumn(columnName: String): Boolean = {
     SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(columnName)

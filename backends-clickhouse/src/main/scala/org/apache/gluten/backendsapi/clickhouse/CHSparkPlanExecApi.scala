@@ -607,16 +607,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   override def extraExpressionConverter(
       substraitExprName: String,
       expr: Expression,
-      attributeSeq: Seq[Attribute]): Option[ExpressionTransformer] = expr match {
-    case e if ExpressionExtensionTrait.findExpressionExtension(e.getClass).nonEmpty =>
-      // Use extended expression transformer to replace custom expression first
-      Some(
-        ExpressionExtensionTrait
-          .findExpressionExtension(e.getClass)
-          .get
-          .replaceWithExtensionExpressionTransformer(substraitExprName, e, attributeSeq))
-    case _ => None
-  }
+      attributeSeq: Seq[Attribute]): Option[ExpressionTransformer] =
+    // Use extended expression transformer to replace custom expression first
+    ExpressionExtensionTrait
+      .findExpressionExtension(expr.getClass)
+      .map(_.replaceWithExtensionExpressionTransformer(substraitExprName, expr, attributeSeq))
 
   override def genStringTranslateTransformer(
       substraitExprName: String,
@@ -943,7 +938,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       orderSpec: Seq[SortOrder],
       rankLikeFunction: Expression,
       limit: Int,
-      mode: WindowGroupLimitMode,
+      mode: GlutenWindowGroupLimitMode,
       child: SparkPlan): SparkPlan =
     CHWindowGroupLimitExecTransformer(
       partitionSpec,
@@ -1047,5 +1042,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       right,
       extract.get.last,
       original)
+  }
+
+  override def genMonthsBetweenTransformer(
+      substraitExprName: String,
+      date1: ExpressionTransformer,
+      date2: ExpressionTransformer,
+      roundOff: ExpressionTransformer,
+      original: MonthsBetween): ExpressionTransformer = {
+    CHMonthsBetweenTransformer(substraitExprName, date1, date2, roundOff, original)
   }
 }

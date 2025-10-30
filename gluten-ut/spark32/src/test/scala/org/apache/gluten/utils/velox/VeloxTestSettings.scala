@@ -219,6 +219,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp exception mode")
     // Replaced by a gluten test to pass timezone through config.
     .exclude("from_unixtime")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("months_between")
     // https://github.com/facebookincubator/velox/pull/10563/files#diff-140dc50e6dac735f72d29014da44b045509df0dd1737f458de1fe8cfd33d8145
     .excludeGlutenTest("from_unixtime")
   enableSuite[GlutenDecimalExpressionSuite]
@@ -369,6 +371,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenJsonExpressionsSuite]
     // https://github.com/apache/incubator-gluten/issues/8102
     .exclude("$.store.book")
+    // https://github.com/apache/incubator-gluten/issues/10948
+    .exclude("$['key with spaces']")
     .exclude("$")
     .exclude("$.store.book[0]")
     .exclude("$.store.book[*]")
@@ -420,7 +424,17 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-24705")
     .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
+    .exclude("length check for input string values: nested in struct")
+    .exclude("length check for input string values: nested in struct of array")
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
+    .exclude("length check for input string values: nested in struct")
+    .exclude("length check for input string values: nested in struct of array")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenNestedDataSourceV1Suite]
   enableSuite[GlutenNestedDataSourceV2Suite]
@@ -433,7 +447,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
@@ -445,10 +458,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
     // file cars.csv include null string, Arrow not support to read
     .exclude("DDL test with schema")
-    .exclude("old csv data source name works")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
@@ -463,22 +474,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
     .exclude("DDL test parsing decimal type")
     .exclude("test with tab delimiter and double quote")
   enableSuite[GlutenJsonV1Suite]
-    // FIXME: Array direct selection fails
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonV2Suite]
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenTextV1Suite]
   enableSuite[GlutenTextV2Suite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]

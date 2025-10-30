@@ -149,22 +149,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         ExpressionMappings.expressionsMap(classOf[TryEval]),
         Seq(GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)),
         original)
-    } else if (
-      left.dataType.isInstanceOf[DecimalType] &&
-      right.dataType.isInstanceOf[DecimalType] &&
-      !SQLConf.get.decimalOperationsAllowPrecisionLoss
-    ) {
-      if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
-        throw new GlutenNotSupportException(s"$substraitExprName with ansi mode is not supported")
-      }
-      val newName = substraitExprName + "_deny_precision_loss"
-      GenericExpressionTransformer(newName, Seq(left, right), original)
     } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
       GenericExpressionTransformer(checkArithmeticExprName, Seq(left, right), original)
     } else {
       GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
     }
   }
+
+  override def getDecimalArithmeticExprName(exprName: String): String = if (
+    !SQLConf.get.decimalOperationsAllowPrecisionLoss
+  ) { exprName + "_deny_precision_loss" }
+  else { exprName }
 
   /** Transform map_entries to Substrait. */
   override def genMapEntriesTransformer(
@@ -203,6 +198,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           "forall on array with lambda using index argument is not supported yet")
       case _ => GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
     }
+  }
+
+  override def genArraySortTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArraySort): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
   }
 
   /** Transform array exists to Substrait */
@@ -1060,5 +1063,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       format: ExpressionTransformer,
       original: Expression): ExpressionTransformer = {
     ToUnixTimestampTransformer(substraitExprName, timeExp, format, original)
+  }
+
+  override def genMonthsBetweenTransformer(
+      substraitExprName: String,
+      date1: ExpressionTransformer,
+      date2: ExpressionTransformer,
+      roundOff: ExpressionTransformer,
+      original: MonthsBetween): ExpressionTransformer = {
+    MonthsBetweenTransformer(substraitExprName, date1, date2, roundOff, original)
   }
 }

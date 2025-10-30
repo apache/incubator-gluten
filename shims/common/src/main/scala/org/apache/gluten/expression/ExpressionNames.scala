@@ -372,6 +372,11 @@ object ExpressionNames {
   final val UDF_PLACEHOLDER = "udf_placeholder"
   final val UDAF_PLACEHOLDER = "udaf_placeholder"
 
+  // Spark StaticInvoke Catalyst util functions
+  final val VARCHAR_TYPE_WRITE_SIDE_CHECK = "varchar_type_write_side_check"
+  final val CHAR_TYPE_WRITE_SIDE_CHECK = "char_type_write_side_check"
+  final val READ_SIDE_PADDING = "read_side_padding"
+
   // Iceberg function names
   final val YEARS = "years"
   final val MONTHS = "months"

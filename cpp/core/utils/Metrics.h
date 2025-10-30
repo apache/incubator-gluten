@@ -80,11 +80,17 @@ struct Metrics {
     kLocalReadBytes,
     kRamReadBytes,
     kPreloadSplits,
+    kPageLoadTime,
+    kDataSourceAddSplitWallNanos,
+    kDataSourceReadWallNanos,
 
     // Write metrics.
     kPhysicalWrittenBytes,
     kWriteIOTime,
     kNumWrittenFiles,
+
+    // Load lazy vector.
+    kLoadLazyVectorTime,
 
     // The end of enum items.
     kEnd,

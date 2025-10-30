@@ -47,7 +47,7 @@ case object RssSortShuffleWriterType extends ShuffleWriterType {
 
 /*
  * Note: Gluten configiguration.md is automatically generated from this code.
- * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
  */
 class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   import GlutenConfig._
@@ -55,8 +55,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   def enableAnsiFallback: Boolean = getConf(GLUTEN_ANSI_FALLBACK_ENABLED)
-
-  def glutenUiEnabled: Boolean = getConf(GLUTEN_UI_ENABLED)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = getConf(NATIVE_VALIDATION_ENABLED)
@@ -91,6 +89,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def enableReplaceData: Boolean = getConf(COLUMNAR_REPLACE_DATA_ENABLED)
 
   def enableOverwriteByExpression: Boolean = getConf(COLUMNAR_OVERWRIET_BY_EXPRESSION_ENABLED)
+
+  def enableOverwritePartitionsDynamic: Boolean =
+    getConf(COLUMNAR_OVERWRIET_PARTITIONS_DYNAMIC_ENABLED)
 
   def enableColumnarShuffledHashJoin: Boolean = getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
@@ -275,16 +276,17 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def extendedExpressionTransformer: String = getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
   def expressionBlacklist: Set[String] = {
-    val blacklist = getConf(EXPRESSION_BLACK_LIST)
-    val blacklistSet: Set[String] = if (blacklist.isDefined) {
-      blacklist.get.toLowerCase(Locale.ROOT).trim.split(",").toSet
-    } else {
-      Set.empty
-    }
+    val blacklistSet = getConf(EXPRESSION_BLACK_LIST)
+      .map(_.toLowerCase(Locale.ROOT).split(",").map(_.trim()).filter(_.nonEmpty).toSet)
+      .getOrElse(Set.empty[String])
 
     if (getConf(FALLBACK_REGEXP_EXPRESSIONS)) {
-      val regexpList = "rlike,regexp_replace,regexp_extract,regexp_extract_all,split"
-      regexpList.trim.split(",").toSet ++ blacklistSet
+      blacklistSet ++ Set(
+        "rlike",
+        "regexp_replace",
+        "regexp_extract",
+        "regexp_extract_all",
+        "split")
     } else {
       blacklistSet
     }
@@ -325,6 +327,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableColumnarPartialProject: Boolean = getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
 
+  def enableColumnarPartialGenerate: Boolean = getConf(ENABLE_COLUMNAR_PARTIAL_GENERATE)
+
   def enableCastAvgAggregateFunction: Boolean = getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
 
   def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
@@ -358,14 +362,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
     JavaUtils.byteStringAsBytes(conf.getConfString(SPARK_MAX_BROADCAST_TABLE_SIZE, "8GB"))
 }
 
-object GlutenConfig {
-  import SQLConf._
-
-  def buildConf(key: String): ConfigBuilder = ConfigBuilder(key)
-
-  def buildStaticConf(key: String): ConfigBuilder = {
-    ConfigBuilder(key).onCreate(_ => SQLConf.registerStaticConfigKey(key))
-  }
+object GlutenConfig extends ConfigRegistry {
 
   // Hive configurations.
   val SPARK_SQL_PARQUET_COMPRESSION_CODEC: String = "spark.sql.parquet.compression.codec"
@@ -485,7 +482,9 @@ object GlutenConfig {
     "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace",
     "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
     "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
-    "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
+    "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks",
+    "spark.gluten.sql.columnar.backend.velox.preferredBatchBytes",
+    "spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan"
   )
 
   /**
@@ -500,9 +499,11 @@ object GlutenConfig {
     nativeConfMap.putAll(conf.filter(e => nativeKeys.contains(e._1)).asJava)
 
     val keyWithDefault = ImmutableList.of(
-      (CASE_SENSITIVE.key, CASE_SENSITIVE.defaultValueString),
-      (IGNORE_MISSING_FILES.key, IGNORE_MISSING_FILES.defaultValueString),
-      (LEGACY_STATISTICAL_AGGREGATE.key, LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
+      (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
+      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
+      (
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
@@ -510,9 +511,9 @@ object GlutenConfig {
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
       (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
-      (MAP_KEY_DEDUP_POLICY.key, MAP_KEY_DEDUP_POLICY.defaultValueString),
-      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString),
-      (ANSI_ENABLED.key, ANSI_ENABLED.defaultValueString)
+      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
+      (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString),
+      (SQLConf.ANSI_ENABLED.key, SQLConf.ANSI_ENABLED.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     GlutenConfigUtil.mapByteConfValue(
@@ -528,11 +529,11 @@ object GlutenConfig {
       v => nativeConfMap.put(SPARK_SHUFFLE_FILE_BUFFER, (v * 1024).toString))
 
     conf
-      .get(LEGACY_TIME_PARSER_POLICY.key)
+      .get(SQLConf.LEGACY_TIME_PARSER_POLICY.key)
       .foreach(
         v =>
           nativeConfMap
-            .put(LEGACY_TIME_PARSER_POLICY.key, v.toUpperCase(Locale.ROOT)))
+            .put(SQLConf.LEGACY_TIME_PARSER_POLICY.key, v.toUpperCase(Locale.ROOT)))
 
     // Backend's dynamic session conf only.
     val confPrefix = prefixOf(backendName)
@@ -593,7 +594,7 @@ object GlutenConfig {
       ("spark.gluten.velox.awsSdkLogLevel", "FATAL"),
       ("spark.gluten.velox.s3UseProxyFromEnv", "false"),
       ("spark.gluten.velox.s3PayloadSigningPolicy", "Never"),
-      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
+      (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -606,10 +607,10 @@ object GlutenConfig {
       GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES.key,
       GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
       GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY,
-      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
+      SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       SPARK_REDACTION_REGEX,
-      LEGACY_TIME_PARSER_POLICY.key,
-      LEGACY_STATISTICAL_AGGREGATE.key,
+      SQLConf.LEGACY_TIME_PARSER_POLICY.key,
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
       COLUMNAR_CUDF_ENABLED.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
@@ -862,6 +863,12 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_OVERWRIET_PARTITIONS_DYNAMIC_ENABLED =
+    buildConf("spark.gluten.sql.columnar.overwritePartitionsDynamic")
+      .doc("Enable or disable columnar v2 command overwrite partitions dynamic.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_PREFER_STREAMING_AGGREGATE =
     buildConf("spark.gluten.sql.columnar.preferStreamingAggregate")
       .doc(
@@ -961,7 +968,7 @@ object GlutenConfig {
       .createWithDefault(100000)
 
   val COLUMNAR_TABLE_CACHE_ENABLED =
-    buildConf("spark.gluten.sql.columnar.tableCache")
+    buildStaticConf("spark.gluten.sql.columnar.tableCache")
       .doc("Enable or disable columnar table cache.")
       .booleanConf
       .createWithDefault(false)
@@ -1374,6 +1381,12 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val ENABLE_COLUMNAR_PARTIAL_GENERATE =
+    buildConf("spark.gluten.sql.columnar.partial.generate")
+      .doc("Evaluates the non-offload-able HiveUDTF using vanilla Spark generator")
+      .booleanConf
+      .createWithDefault(true)
+
   val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
     buildConf("spark.gluten.sql.commonSubexpressionEliminate")
       .internal()
@@ -1490,7 +1503,7 @@ object GlutenConfig {
 
   val AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED =
     buildConf("spark.gluten.auto.adjustStageResource.enabled")
-      .internal()
+      .experimental()
       .doc("Experimental: If enabled, gluten will try to set the stage resource according " +
         "to stage execution plan. Only worked when aqe is enabled at the same time!!")
       .booleanConf
@@ -1498,21 +1511,21 @@ object GlutenConfig {
 
   val AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO =
     buildConf("spark.gluten.auto.adjustStageResources.heap.ratio")
-      .internal()
+      .experimental()
       .doc("Experimental: Increase executor heap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(2.0d)
 
   val AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO =
     buildConf("spark.gluten.auto.adjustStageResources.offheap.ratio")
-      .internal()
+      .experimental()
       .doc("Experimental: Decrease executor offheap memory when match adjust stage resource rule.")
       .doubleConf
       .createWithDefault(0.5d)
 
   val AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD =
     buildConf("spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold")
-      .internal()
+      .experimental()
       .doc("Experimental: Increase executor heap memory when stage contains fallen node " +
         "count exceeds the total node count ratio.")
       .doubleConf
@@ -1540,7 +1553,7 @@ object GlutenConfig {
 
   val COLUMNAR_CUDF_ENABLED =
     buildConf("spark.gluten.sql.columnar.cudf")
-      .internal()
+      .experimental()
       .doc("Enable or disable cudf support. This is an experimental feature.")
       .booleanConf
       .createWithDefault(false)

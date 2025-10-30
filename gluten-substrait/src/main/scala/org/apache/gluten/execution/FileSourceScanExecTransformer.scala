@@ -23,11 +23,11 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils.FileIndexUtil
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
@@ -123,18 +123,19 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
-  override def getPartitions: Seq[InputPartition] = {
-    BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
-      relation,
-      requiredSchema,
-      getPartitionArray(),
-      output,
-      bucketedScan,
-      optionalBucketSet,
-      optionalNumCoalescedBuckets,
-      disableBucketedScan,
-      filterExprs()
-    )
+  override def getPartitions: Seq[Partition] = {
+    BackendsApiManager.getTransformerApiInstance
+      .genPartitionSeq(
+        relation,
+        requiredSchema,
+        getPartitionArray(),
+        output,
+        bucketedScan,
+        optionalBucketSet,
+        optionalNumCoalescedBuckets,
+        disableBucketedScan,
+        filterExprs()
+      )
   }
 
   override def getPartitionSchema: StructType = relation.partitionSchema

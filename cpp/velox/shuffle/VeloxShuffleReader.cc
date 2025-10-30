@@ -296,23 +296,6 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
-std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
-    RowTypePtr type,
-    std::unique_ptr<InMemoryPayload> payload,
-    memory::MemoryPool* pool,
-    int64_t& deserializeTime) {
-  ScopedTimer timer(&deserializeTime);
-  std::vector<BufferPtr> veloxBuffers;
-  auto numBuffers = payload->numBuffers();
-  veloxBuffers.reserve(numBuffers);
-  for (size_t i = 0; i < numBuffers; ++i) {
-    GLUTEN_ASSIGN_OR_THROW(auto buffer, payload->readBufferAt(i));
-    veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
-  }
-  auto rowVector = deserialize(type, payload->numRows(), veloxBuffers, {}, {}, pool);
-  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
-}
-
 arrow::Result<BufferPtr>
 readDictionaryBuffer(arrow::io::InputStream* in, facebook::velox::memory::MemoryPool* pool, arrow::util::Codec* codec) {
   size_t bufferSize;
@@ -518,10 +501,14 @@ void VeloxHashShuffleReaderDeserializer::loadNextStream() {
     return;
   }
 
-  GLUTEN_ASSIGN_OR_THROW(
-      in_,
-      arrow::io::BufferedInputStream::Create(
-          readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+  if (readerBufferSize_ > 0) {
+    GLUTEN_ASSIGN_OR_THROW(
+          in_,
+          arrow::io::BufferedInputStream::Create(
+              readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+  } else {
+    in_ = std::move(in);
+  }
 }
 
 std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
@@ -673,10 +660,14 @@ void VeloxSortShuffleReaderDeserializer::loadNextStream() {
     GLUTEN_ASSIGN_OR_THROW(
         in_, CompressedInputStream::Make(codec_.get(), std::move(in), memoryManager_->defaultArrowMemoryPool()));
   } else {
-    GLUTEN_ASSIGN_OR_THROW(
-        in_,
-        arrow::io::BufferedInputStream::Create(
-            readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+    if (readerBufferSize_ > 0) {
+      GLUTEN_ASSIGN_OR_THROW(
+          in_,
+          arrow::io::BufferedInputStream::Create(
+              readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+    } else {
+      in_ = std::move(in);
+    }
   }
 }
 

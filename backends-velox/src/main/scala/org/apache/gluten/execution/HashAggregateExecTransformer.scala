@@ -49,8 +49,7 @@ abstract class HashAggregateExecTransformer(
     aggregateAttributes: Seq[Attribute],
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
-    child: SparkPlan,
-    ignoreNullKeys: Boolean)
+    child: SparkPlan)
   extends HashAggregateExecBaseTransformer(
     requiredChildDistributionExpressions,
     groupingExpressions,
@@ -58,9 +57,7 @@ abstract class HashAggregateExecTransformer(
     aggregateAttributes,
     initialInputBufferOffset,
     resultExpressions,
-    child,
-    ignoreNullKeys
-  ) {
+    child) {
 
   override def output: Seq[Attribute] = {
     // TODO: We should have a check to make sure the returned schema actually matches the output
@@ -186,8 +183,7 @@ abstract class HashAggregateExecTransformer(
   private def formatExtOptimizationString(isStreaming: Boolean): String = {
     val isStreamingStr = if (isStreaming) "1" else "0"
     val allowFlushStr = if (allowFlush) "1" else "0"
-    val ignoreNullKeysStr = if (ignoreNullKeys) "1" else "0"
-    s"isStreaming=$isStreamingStr\nallowFlush=$allowFlushStr\nignoreNullKeys=$ignoreNullKeysStr\n"
+    s"isStreaming=$isStreamingStr\nallowFlush=$allowFlushStr\n"
   }
 
   // Create aggregate function node and add to list.
@@ -661,8 +657,7 @@ case class RegularHashAggregateExecTransformer(
     aggregateAttributes: Seq[Attribute],
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
-    child: SparkPlan,
-    ignoreNullKeys: Boolean = false)
+    child: SparkPlan)
   extends HashAggregateExecTransformer(
     requiredChildDistributionExpressions,
     groupingExpressions,
@@ -670,9 +665,7 @@ case class RegularHashAggregateExecTransformer(
     aggregateAttributes,
     initialInputBufferOffset,
     resultExpressions,
-    child,
-    ignoreNullKeys
-  ) {
+    child) {
 
   override protected def allowFlush: Boolean = false
 
@@ -696,8 +689,7 @@ case class FlushableHashAggregateExecTransformer(
     aggregateAttributes: Seq[Attribute],
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
-    child: SparkPlan,
-    ignoreNullKeys: Boolean = false)
+    child: SparkPlan)
   extends HashAggregateExecTransformer(
     requiredChildDistributionExpressions,
     groupingExpressions,
@@ -705,9 +697,7 @@ case class FlushableHashAggregateExecTransformer(
     aggregateAttributes,
     initialInputBufferOffset,
     resultExpressions,
-    child,
-    ignoreNullKeys
-  ) {
+    child) {
 
   override protected def allowFlush: Boolean = true
 

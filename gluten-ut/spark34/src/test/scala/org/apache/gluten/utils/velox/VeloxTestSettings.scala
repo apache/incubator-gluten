@@ -137,6 +137,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp exception mode")
     // Replaced by a gluten test to pass timezone through config.
     .exclude("from_unixtime")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("months_between")
     // Vanilla Spark does not have a unified DST Timestamp fastTime. 1320570000000L and
     // 1320566400000L both represent 2011-11-06 01:00:00
     .exclude("SPARK-42635: timestampadd near daylight saving transition")
@@ -151,6 +153,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenJsonExpressionsSuite]
     // https://github.com/apache/incubator-gluten/issues/8102
     .exclude("$.store.book")
+    // https://github.com/apache/incubator-gluten/issues/10948
+    .exclude("$['key with spaces']")
     .exclude("$")
     .exclude("$.store.book[0]")
     .exclude("$.store.book[*]")
@@ -226,7 +230,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
@@ -237,11 +240,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // file cars.csv include null string, Arrow not support to read
-    .exclude("old csv data source name works")
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
@@ -255,7 +256,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
@@ -264,17 +264,10 @@ class VeloxTestSettings extends BackendTestSettings {
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   enableSuite[GlutenJsonV1Suite]
-    // FIXME: Array direct selection fails
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonV2Suite]
     // exception test
     .exclude("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern")
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenValidateRequirementsSuite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]
@@ -663,7 +656,28 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("length check for input string values: nested in both map key and value")
     .exclude("length check for input string values: nested in array of struct")
     .exclude("length check for input string values: nested in array of array")
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
+    .exclude("length check for input string values: top-level columns")
+    .exclude("length check for input string values: partitioned columns")
+    .exclude("length check for input string values: nested in struct of array")
+    .exclude("length check for input string values: with implicit cast")
+    .exclude("char/varchar type values length check: partitioned columns of other types")
+
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
+    .exclude("SPARK-42611: check char/varchar length in reordered structs within arrays")
+    .exclude("char/varchar type values length check: partitioned columns of other types")
+    .exclude("length check for input string values: top-level columns")
+    .exclude("length check for input string values: nested in array")
+    .exclude("length check for input string values: nested in struct of array")
+    .exclude("length check for input string values: nested in array of struct")
+    .exclude("length check for input string values: nested in array of array")
+    .exclude("length check for input string values: with implicit cast")
+
   enableSuite[GlutenColumnExpressionSuite]
     // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.
     // The final caught Spark exception's getCause().getMessage() contains 'errMsg' but does not

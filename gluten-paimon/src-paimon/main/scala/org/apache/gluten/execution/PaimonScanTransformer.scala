@@ -21,6 +21,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.{PaimonLocalFilesBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
+import org.apache.spark.Partition
 import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.InternalRow
@@ -28,7 +29,7 @@ import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
-import org.apache.spark.sql.connector.read.{InputPartition, Scan}
+import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -119,16 +120,17 @@ case class PaimonScanTransformer(
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = throw new UnsupportedOperationException()
 
-  override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
+  override def getSplitInfosFromPartitions(partitions: Seq[Partition]): Seq[SplitInfo] = {
     val partitionComputer = PaimonScanTransformer.getRowDataPartitionComputer(scan)
-    getPartitions.zipWithIndex.map {
-      case (p, index) =>
-        p match {
+    partitions.map {
+      case p: SparkDataSourceRDDPartition =>
+        val paths = mutable.ListBuffer.empty[String]
+        val starts = mutable.ListBuffer.empty[JLong]
+        val lengths = mutable.ListBuffer.empty[JLong]
+        val partitionColumns = mutable.ListBuffer.empty[JMap[String, String]]
+
+        p.inputPartitions.foreach {
           case partition: PaimonInputPartition =>
-            val paths = mutable.ListBuffer.empty[String]
-            val starts = mutable.ListBuffer.empty[JLong]
-            val lengths = mutable.ListBuffer.empty[JLong]
-            val partitionColumns = mutable.ListBuffer.empty[JMap[String, String]]
             partition.splits.foreach {
               split =>
                 val rawFilesOpt = split.convertToRawFiles()
@@ -145,21 +147,24 @@ case class PaimonScanTransformer(
                     "Cannot get raw files from paimon SparkInputPartition.")
                 }
             }
-            val preferredLoc =
-              SoftAffinity.getFilePartitionLocations(paths.toArray, partition.preferredLocations())
-            PaimonLocalFilesBuilder.makePaimonLocalFiles(
-              index,
-              paths.asJava,
-              starts.asJava,
-              lengths.asJava,
-              partitionColumns.asJava,
-              fileFormat,
-              preferredLoc.toList.asJava,
-              new JHashMap[String, String]()
-            )
-          case _ =>
-            throw new GlutenNotSupportException("Only support paimon SparkInputPartition.")
+          case o =>
+            throw new GlutenNotSupportException(s"Unsupported input partition type: $o")
         }
+
+        PaimonLocalFilesBuilder.makePaimonLocalFiles(
+          p.index,
+          paths.asJava,
+          starts.asJava,
+          lengths.asJava,
+          partitionColumns.asJava,
+          fileFormat,
+          SoftAffinity
+            .getFilePartitionLocations(paths.toArray, p.preferredLocations())
+            .toList
+            .asJava,
+          new JHashMap[String, String]()
+        )
+      case _ => throw new GlutenNotSupportException()
     }
   }
 

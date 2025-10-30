@@ -22,6 +22,7 @@
 #include <Poco/Logger.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
+#include <mutex>
 
 namespace DB
 {
@@ -45,6 +46,108 @@ jmethodID GetStaticMethodID(JNIEnv * env, jclass this_class, const char * name, 
 jstring charTojstring(JNIEnv * env, const char * pat);
 
 jbyteArray stringTojbyteArray(JNIEnv * env, const std::string & str);
+
+// A watcher to monitor JNIEnv status: it's active or not
+class JniEnvStatusWatcher
+{
+public:
+    static JniEnvStatusWatcher & instance();
+    void setActive() { is_active.store(true, std::memory_order_release); }
+    void setInactive() { is_active.store(false, std::memory_order_release); }
+    bool isActive() const { return is_active.load(std::memory_order_acquire); }
+protected:
+    JniEnvStatusWatcher() = default;
+    ~JniEnvStatusWatcher() = default;
+    std::atomic<bool> is_active = false;
+};
+
+// A counter to track ongoing JNI method calls
+// It help to ensure that no JNI method is running when we are destroying the JNI resources
+class JniMethodCallCounter
+{
+public:
+    static JniMethodCallCounter & instance();
+    void increment() { counter.fetch_add(1, std::memory_order_acq_rel); }
+    void decrement() {
+        auto old_val = counter.fetch_sub(1, std::memory_order_acq_rel);
+        if (old_val == 1)
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            cv.notify_all();
+        }
+        else if (old_val < 1) [[unlikely]]
+        {
+            // This should never happen
+            LOG_ERROR(getLogger("jni"), "JniMethodCallCounter counter underflow: {}", old_val);
+        }
+    }
+    // This will only be called in the destroy JNI method to wait for all ongoing JNI method calls to finish
+    void waitForZero()
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [this] {
+          return counter.load(std::memory_order_acquire) <= 0;
+        });
+    }
+protected:
+    JniMethodCallCounter() = default;
+    ~JniMethodCallCounter() = default;
+private:
+    std::atomic<int64_t> counter{0};
+    std::mutex mutex;
+    std::condition_variable cv;
+};
+
+class JniMethodGuard
+{
+public:
+    JniMethodGuard();
+    ~JniMethodGuard();
+    bool couldInvoke();
+};
+
+#define LOCAL_ENGINE_JNI_DESTROY_METHOD_START \
+    local_engine::JniEnvStatusWatcher::instance().setInactive(); \
+    local_engine::JniMethodCallCounter::instance().waitForZero(); \
+    do \
+    { \
+        try \
+        {
+
+#define LOCAL_ENGINE_JNI_METHOD_START \
+    local_engine::JniMethodGuard jni_method_guard; \
+    do \
+    { \
+        try \
+        { \
+            if (!jni_method_guard.couldInvoke()) \
+            { \
+                LOG_ERROR(getLogger("jni"), "Call JNI method {} when JNIEnv is not active!", __FUNCTION__); \
+                break; \
+            }   
+
+#define LOCAL_ENGINE_JNI_METHOD_END(env, ret) \
+        } \
+        catch (DB::Exception & e) \
+        { \
+            local_engine::JniErrorsGlobalState::instance().throwException(env, e); \
+            break; \
+        } \
+        catch (std::exception & e) \
+        { \
+            local_engine::JniErrorsGlobalState::instance().throwException(env, e); \
+            break; \
+        } \
+        catch (...) \
+        { \
+            DB::WriteBufferFromOwnString ostr; \
+            auto trace = boost::stacktrace::stacktrace(); \
+            boost::stacktrace::detail::to_string(&trace.as_vector()[0], trace.size()); \
+            local_engine::JniErrorsGlobalState::instance().throwRuntimeException(env, "Unknown Exception", ostr.str().c_str()); \
+            break; \
+        } \
+    } while (0); \
+    return ret;
 
 #define LOCAL_ENGINE_JNI_JMETHOD_START
 #define LOCAL_ENGINE_JNI_JMETHOD_END(env) \

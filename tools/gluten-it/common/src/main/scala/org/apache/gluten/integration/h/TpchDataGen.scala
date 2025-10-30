@@ -58,11 +58,7 @@ class TpchDataGen(
     generate(dir, "part", partSchema, partitions, partGenerator, partParser)
     generate(dir, "region", regionSchema, regionGenerator, regionParser)
 
-    features.foreach {
-      feature =>
-        println(s"Execute feature: ${feature.name()}")
-        feature.run(spark, source)
-    }
+    features.foreach(feature => DataGen.Feature.run(spark, source, feature))
   }
 
   // lineitem

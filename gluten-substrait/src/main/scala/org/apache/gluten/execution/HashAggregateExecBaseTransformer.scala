@@ -39,8 +39,7 @@ abstract class HashAggregateExecBaseTransformer(
     aggregateAttributes: Seq[Attribute],
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
-    child: SparkPlan,
-    ignoreNullKeys: Boolean = false)
+    child: SparkPlan)
   extends BaseAggregateExec
   with UnaryTransformSupport {
 
@@ -87,13 +86,11 @@ abstract class HashAggregateExecBaseTransformer(
       s"HashAggregateTransformer(keys=$keyString, " +
         s"functions=$functionString, " +
         s"isStreamingAgg=$isCapableForStreamingAggregation, " +
-        s"ignoreNullKeys=$ignoreNullKeys, " +
         s"output=$outputString)"
     } else {
       s"HashAggregateTransformer(keys=$keyString, " +
         s"functions=$functionString, " +
-        s"isStreamingAgg=$isCapableForStreamingAggregation, " +
-        s"ignoreNullKeys=$ignoreNullKeys)"
+        s"isStreamingAgg=$isCapableForStreamingAggregation)"
     }
   }
 

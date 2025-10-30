@@ -1398,8 +1398,8 @@ select TIMESTAMP_SECONDS(1230219000123123)
 -- !query schema
 struct<>
 -- !query output
-java.lang.ArithmeticException
-long overflow
+org.apache.gluten.exception.GlutenException
+Could not convert Timestamp(1230219000123123, 0) to microseconds
 
 
 -- !query
@@ -1407,8 +1407,8 @@ select TIMESTAMP_SECONDS(-1230219000123123)
 -- !query schema
 struct<>
 -- !query output
-java.lang.ArithmeticException
-long overflow
+org.apache.gluten.exception.GlutenException
+Could not convert Timestamp(-1230219000123123, 0) to microseconds
 
 
 -- !query

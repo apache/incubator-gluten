@@ -31,7 +31,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.execution.CoalesceExec.EmptyPartition
+import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.metric.SQLShuffleWriteMetricsReporter
 import org.apache.spark.sql.metric.SQLColumnarShuffleReadMetricsReporter
@@ -148,12 +148,16 @@ case class ColumnarShuffleExchangeExec(
     cachedShuffleRDD
   }
 
-  override def verboseString(maxFields: Int): String = toString(super.verboseString(maxFields))
+  override def verboseString(maxFields: Int): String =
+    toString(super.verboseString(maxFields), maxFields)
 
-  override def simpleString(maxFields: Int): String = toString(super.simpleString(maxFields))
-
-  private def toString(original: String): String = {
-    original + ", [OUTPUT] " + output.map(attr => attr.name + ":" + attr.dataType).toString()
+  private def toString(original: String, maxFields: Int): String = {
+    original + ", [output=" + truncatedString(
+      output.map(_.verboseString(maxFields)),
+      "[",
+      ", ",
+      "]",
+      maxFields) + "]"
   }
 
   override def output: Seq[Attribute] = if (projectOutputAttributes != null) {
@@ -181,16 +185,4 @@ object ColumnarShuffleExchangeExec extends Logging {
     )
   }
 
-  class DummyPairRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)
-    extends RDD[Product2[Int, InternalRow]](sc, Nil) {
-
-    override def getPartitions: Array[Partition] =
-      Array.tabulate(numPartitions)(i => EmptyPartition(i))
-
-    override def compute(
-        split: Partition,
-        context: TaskContext): Iterator[Product2[Int, InternalRow]] = {
-      throw new UnsupportedOperationException
-    }
-  }
 }

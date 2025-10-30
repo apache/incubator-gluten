@@ -161,8 +161,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("null input for array_size", "3.3") {
     withTempPath {
       path =>
-        Seq[(Array[Int])](
-          (null.asInstanceOf[Array[Int]])
+        Seq[Array[Int]](
+          null.asInstanceOf[Array[Int]]
         )
           .toDF("txt")
           .write
@@ -190,7 +190,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("shiftright") {
-    val df = runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
+    runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -381,7 +381,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   test("map_filter") {
     withTempPath {
       path =>
-        Seq((Map("a" -> 1, "b" -> 2, "c" -> 3)))
+        Seq(Map("a" -> 1, "b" -> 2, "c" -> 3))
           .toDF("m")
           .write
           .parquet(path.getCanonicalPath)
@@ -619,6 +619,47 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         runQueryAndCompare("select url_encode(a) from url_tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
+    }
+  }
+
+  // Add test suite for CharVarcharCodegenUtils functions.
+  // A ProjectExecTransformer is expected to be constructed after expr support.
+  // We currently test below functions with Spark v3.4
+  testWithMinSparkVersion("charTypeWriteSideCheck", "3.4") {
+    withTable("src", "dest") {
+
+      sql("create table src(id string) USING PARQUET")
+      sql("insert into src values('s')")
+      sql("create table dest(id char(3)) USING PARQUET")
+      // check whether the executed plan of a dataframe contains the expected plan.
+      runQueryAndCompare("insert into dest select id from src") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
+  testWithMinSparkVersion("varcharTypeWriteSideCheck", "3.4") {
+    withTable("src", "dest") {
+
+      sql("create table src(id string) USING PARQUET")
+      sql("insert into src values('abc')")
+      sql("create table dest(id varchar(10)) USING PARQUET")
+      // check whether the executed plan of a dataframe contains the expected plan.
+      runQueryAndCompare("insert into dest select id from src") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
+  testWithMinSparkVersion("readSidePadding", "3.4") {
+    withTable("src", "dest") {
+
+      sql("create table tgt(id char(3)) USING PARQUET")
+      sql("insert into tgt values('p')")
+      // check whether the executed plan of a dataframe contains the expected plan.
+      runQueryAndCompare("select id from tgt") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
     }
   }
 
@@ -1002,7 +1043,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           runQueryAndCompare("SELECT l_orderkey, input_file_name() as name FROM lineitem") {
             df =>
               val plan = df.queryExecution.executedPlan
-              assert(collect(plan) { case f: ProjectExecTransformer => f }.size == 0)
+              assert(collect(plan) { case f: ProjectExecTransformer => f }.isEmpty)
               assert(collect(plan) { case f: ProjectExec => f }.size == 1)
           }
         }
@@ -1060,7 +1101,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     withTempView("try_cast_table") {
       withTempPath {
         path =>
-          Seq[(String)](("123456"), ("000A1234"))
+          Seq[String]("123456", "000A1234")
             .toDF("str")
             .write
             .parquet(path.getCanonicalPath)
@@ -1112,7 +1153,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     withTempView("cast_table") {
       withTempPath {
         path =>
-          Seq[(String)](("123456"), ("000A1234"))
+          Seq[String]("123456", "000A1234")
             .toDF("str")
             .write
             .parquet(path.getCanonicalPath)
