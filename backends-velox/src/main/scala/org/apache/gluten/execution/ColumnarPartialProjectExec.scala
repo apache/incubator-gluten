@@ -19,7 +19,6 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.{ArrowProjection, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionUtils, TransformerState}
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.Iterators
@@ -395,14 +394,18 @@ object ColumnarPartialProjectExec {
         // To prevent nested expressions be validated multiple times, before doing the validation,
         // we replace it by `Alias`.
         val tempAttributes = new ListBuffer[Attribute]()
-        val toValidatedExpression = child.withNewChildren(
-          child.children.zipWithIndex.map(
-            c => {
-              val child = c._1
-              val a = AttributeReference(s"$dummyPrefix${c._2}", child.dataType, child.nullable)()
-              tempAttributes.append(a)
-              a
-            }))
+        val tempChildren = child.children.zipWithIndex.map(
+          c => {
+            val child = c._1
+            val a = AttributeReference(s"$dummyPrefix${c._2}", child.dataType, child.nullable)()
+            tempAttributes.append(a)
+            a
+          })
+        // For CreateNamedStruct, we need to create it with `CreateStruct.apply`.
+        val toValidatedExpression = child match {
+          case CreateNamedStruct(_) => CreateStruct(tempChildren)
+          case _ => child.withNewChildren(tempChildren)
+        }
         if (
           !doNativeValidateExpression(
             toValidatedExpression,
@@ -448,7 +451,7 @@ object ColumnarPartialProjectExec {
             x
           }
         } catch {
-          case _: GlutenNotSupportException | _: UnsupportedOperationException =>
+          case _: Throwable =>
             // If the process of conversion of the expression throws exception, then we need to
             // fallback the whole operator.
             newExpr
@@ -468,7 +471,7 @@ object ColumnarPartialProjectExec {
             traverseUpExpression(p, replacedAlias, childOutput)
           }
         } catch {
-          case _: GlutenNotSupportException | _: UnsupportedOperationException =>
+          case _: Throwable =>
             // If the process of conversion of the expression throws exception, then we need to
             // fallback the whole operator. The unsupported expression may cause the calculation
             // crash. For example, the result data type of the expression is decimal and the scale
