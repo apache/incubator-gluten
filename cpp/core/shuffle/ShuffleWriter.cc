@@ -51,8 +51,8 @@ std::string ShuffleWriter::typeToString(ShuffleWriterType type) {
       return kSortShuffleName;
     case ShuffleWriterType::kRssSortShuffle:
       return kRssSortShuffleName;
-    case ShuffleWriterType::kGpuShuffle:
-      return kGpuShuffleName;
+    case ShuffleWriterType::kGpuHashShuffle:
+      return kGpuHashShuffleName;
   }
   GLUTEN_UNREACHABLE();
 }
