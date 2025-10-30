@@ -834,6 +834,7 @@ std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::cr
           deserializeTime_,
           decompressTime_);
 #endif
+    case ShuffleWriterType::kHashShuffle:
       return std::make_unique<VeloxHashShuffleReaderDeserializer>(
           streamReader,
           schema_,
