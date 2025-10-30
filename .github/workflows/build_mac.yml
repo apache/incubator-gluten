@@ -49,13 +49,8 @@ jobs:
   macos-build:
     if: ${{ github.repository == 'wangyum/incubator-gluten' }}
     name: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
     runs-on: macos-15
     env:
-      CCACHE_DIR: ${{ github.workspace }}/ccache
-      # The arm runners have only 7GB RAM
-      BUILD_TYPE: ${{ 'Release' || 'Debug' }}
       INSTALL_PREFIX: /tmp/deps-install
     steps:
       - name: Checkout
@@ -66,12 +61,9 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-          check-latest: true
-          cache: maven
 
       - name: Install Dependencies
         run: |
-          java -version
           brew install wget pkgconfig abseil
 
       - name: Build
