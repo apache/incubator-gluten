@@ -21,8 +21,13 @@ import org.apache.gluten.rexnode.RexNodeConverter;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.CastTypedExpr;
+import io.github.zhztheplayer.velox4j.expression.ConstantTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.BooleanType;
 import io.github.zhztheplayer.velox4j.type.Type;
+import io.github.zhztheplayer.velox4j.variant.BooleanValue;
+
+import org.apache.flink.calcite.shaded.com.google.common.collect.Range;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
@@ -31,6 +36,7 @@ import org.apache.calcite.util.Sarg;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.apache.calcite.sql.type.SqlTypeName.SARG;
 
@@ -51,17 +57,26 @@ public class SearchRexCallConverter extends BaseRexCallConverter {
           List<TypedExpr> params = new ArrayList<>();
           TypedExpr col = RexNodeConverter.toTypedExpr(callNode.getOperands().get(0), context);
           params.add(col);
-          Sarg sarg = (Sarg) rexLiteral.getValue();
-          List<TypedExpr> ranges = RexNodeConverter.toTypedExpr(sarg, rexLiteral.getType());
-          if (col.getReturnType().getClass() != ranges.get(0).getReturnType().getClass()) {
-            params.add(CastTypedExpr.create(col.getReturnType(), ranges.get(0), true));
-            params.add(CastTypedExpr.create(col.getReturnType(), ranges.get(1), true));
-          } else {
-            params.addAll(ranges);
-          }
-
           Type resultType = getResultType(callNode);
-          return new CallTypedExpr(resultType, params, "between");
+          Sarg sarg = (Sarg) rexLiteral.getValue();
+          Set<Range> ranges = sarg.rangeSet.asRanges();
+          if (ranges.size() > 1) {
+            params.addAll(RexNodeConverter.toTypedExpr(ranges, rexLiteral.getType()));
+            TypedExpr ignore =
+                new ConstantTypedExpr(new BooleanType(), new BooleanValue(true), null);
+            return new CallTypedExpr(resultType, params, "in");
+          } else {
+            List<TypedExpr> exprs =
+                RexNodeConverter.toTypedExpr(ranges.iterator().next(), rexLiteral.getType());
+            if (col.getReturnType().getClass() != exprs.get(0).getReturnType().getClass()) {
+              params.add(CastTypedExpr.create(col.getReturnType(), exprs.get(0), true));
+              params.add(CastTypedExpr.create(col.getReturnType(), exprs.get(1), true));
+            } else {
+              params.addAll(exprs);
+            }
+
+            return new CallTypedExpr(resultType, params, "between");
+          }
         }
       }
     }
