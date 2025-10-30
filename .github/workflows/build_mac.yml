@@ -30,7 +30,6 @@ on:
       - 'gluten-iceberg/**'
       - 'gluten-hudi/**'
       - 'gluten-paimon/**'
-      - 'gluten-ut/**'
       - 'package/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
@@ -61,27 +60,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
         with:
-          persist-credentials: false
+          distribution: temurin
+          java-version: 17
+          check-latest: true
+          cache: maven
 
       - name: Install Dependencies
-        env:
-          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 'TRUE'
-          CMAKE_POLICY_VERSION_MINIMUM: '3.5'
         run: |
-          brew install wget pkgconfig abseil binutils llvm ccache
-          echo "NJOBS=`sysctl -n hw.ncpu`" >> $GITHUB_ENV
-          majorVersion=$(sw_vers -productVersion | awk -F '.' '{print $1}')
-          echo "$INSTALL_PREFIX/bin" >> $GITHUB_PATH
-
-      - name: Configure Build
-        env:
-          fmt_SOURCE: BUNDLED #brew fmt11 is not supported
-          faiss_SOURCE: BUNDLED #brew faiss is not supported
-          CMAKE_POLICY_VERSION_MINIMUM: '3.5'
-        run: |
-          ccache -sz -M 5Gi
+          java -version
+          brew install wget pkgconfig abseil
 
       - name: Build
         run: |
-          ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON
+          ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON --spark_version=3.5
