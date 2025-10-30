@@ -1,24 +1,43 @@
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
+# Copyright (c) Facebook, Inc. and its affiliates.
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-name: Velox macOS Build
+#
+name: macOS Build
 
 on:
-  schedule:
-    - cron: '0 2 * * 1'
-  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/velox_build_mac.yml'
+      - 'pom.xml'
+      - 'backends-velox/**'
+      - 'gluten-uniffle/**'
+      - 'gluten-celeborn/**'
+      - 'gluten-ras/**'
+      - 'gluten-core/**'
+      - 'gluten-substrait/**'
+      - 'gluten-arrow/**'
+      - 'gluten-delta/**'
+      - 'gluten-iceberg/**'
+      - 'gluten-hudi/**'
+      - 'gluten-paimon/**'
+      - 'gluten-ut/**'
+      - 'package/**'
+      - 'shims/**'
+      - 'tools/gluten-it/**'
+      - 'ep/build-velox/**'
+      - 'cpp/**'
+      - 'dev/**'
+
 
 permissions:
   contents: read
@@ -29,23 +48,40 @@ concurrency:
 
 jobs:
   macos-build:
-    if: ${{ github.repository == 'apache/incubator-gluten' }}
-    name: macOS Velox Build
-    runs-on: macos-latest
+    if: ${{ github.repository == 'wangyum/incubator-gluten' }}
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+    runs-on: macos-15
     env:
+      CCACHE_DIR: ${{ github.workspace }}/ccache
+      # The arm runners have only 7GB RAM
+      BUILD_TYPE: ${{ 'Release' || 'Debug' }}
       INSTALL_PREFIX: /tmp/deps-install
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
+          persist-credentials: false
 
       - name: Install Dependencies
-        run: brew install wget pkgconfig abseil ccache
+        env:
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 'TRUE'
+          CMAKE_POLICY_VERSION_MINIMUM: '3.5'
+        run: |
+          brew install wget pkgconfig abseil binutils llvm ccache
+          echo "NJOBS=`sysctl -n hw.ncpu`" >> $GITHUB_ENV
+          majorVersion=$(sw_vers -productVersion | awk -F '.' '{print $1}')
+          echo "$INSTALL_PREFIX/bin" >> $GITHUB_PATH
+
+      - name: Configure Build
+        env:
+          fmt_SOURCE: BUNDLED #brew fmt11 is not supported
+          faiss_SOURCE: BUNDLED #brew faiss is not supported
+          CMAKE_POLICY_VERSION_MINIMUM: '3.5'
+        run: |
+          ccache -sz -M 5Gi
 
       - name: Build
-        run: ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON --spark_version=3.5
+        run: |
+          ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON
