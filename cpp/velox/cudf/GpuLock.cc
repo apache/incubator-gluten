@@ -38,35 +38,35 @@ GpuLockState& getGpuLockState() {
 
 void lockGpu() {
     std::thread::id tid = std::this_thread::get_id();
-    std::unique_lock<std::mutex> lock(gGpuMutex);
-    if (gGpuOwner == tid) {
+    std::unique_lock<std::mutex> lock(getGpuLockState().gGpuMutex);
+    if (getGpuLockState().gGpuOwner == tid) {
         // Reentrant call from the same thread — do nothing
         return;
     }
 
 
     // Wait until the GPU lock becomes available
-    gGpuCv.wait(lock, [] {
-        return !gGpuOwner.has_value();
+    getGpuLockState().gGpuCv.wait(lock, [] {
+        return !getGpuLockState().gGpuOwner.has_value();
     });
 
     // Acquire ownership
-    gGpuOwner = tid;
+    getGpuLockState().gGpuOwner = tid;
 }
 
 void unlockGpu() {
     std::thread::id tid = std::this_thread::get_id();
-    std::unique_lock<std::mutex> lock(gGpuMutex);
-    if (!gGpuOwner.has_value() || gGpuOwner != tid) {
+    std::unique_lock<std::mutex> lock(getGpuLockState().gGpuMutex);
+    if (!getGpuLockState().gGpuOwner.has_value() || getGpuLockState().gGpuOwner != tid) {
         throw std::runtime_error("unlockGpu() called by non-owner thread!");
     }
 
     // Release ownership
-    gGpuOwner = std::nullopt;
+    getGpuLockState().gGpuOwner = std::nullopt;
 
     // Notify one waiting thread
     lock.unlock();
-    gGpuCv.notify_one();
+    getGpuLockState().gGpuCv.notify_one();
 }
 
 
