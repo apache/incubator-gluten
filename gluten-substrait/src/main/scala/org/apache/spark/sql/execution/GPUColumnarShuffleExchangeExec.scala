@@ -17,10 +17,11 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.HashShuffleWriterType
 import org.apache.gluten.config.GpuHashShuffleWriterType
+import org.apache.gluten.config.HashShuffleWriterType
 import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.sql.catalyst.expressions.Attribute
