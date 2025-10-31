@@ -275,7 +275,6 @@ object ExpressionMappings {
     // Directly use child expression transformer
     Sig[KnownNotNull](KNOWN_NOT_NULL),
     Sig[KnownFloatingPointNormalized](KNOWN_FLOATING_POINT_NORMALIZED),
-    Sig[KnownNotContainsNull](KNOWN_NOT_CONTAINS_NULL),
     Sig[NormalizeNaNAndZero](NORMALIZE_NANAND_ZERO),
     // Specific expression
     Sig[If](IF),
