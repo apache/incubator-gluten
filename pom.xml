@@ -1168,8 +1168,8 @@
         <!-- TODO: This hudi version is invalid for Spark 4.0. -->
         <hudi.version>0.15.0</hudi.version>
         <fasterxml.version>2.15.1</fasterxml.version>
-        <hadoop.version>3.3.4</hadoop.version>
-        <antlr4.version>4.9.3</antlr4.version>
+        <hadoop.version>3.4.1</hadoop.version>
+        <antlr4.version>4.13.1</antlr4.version>
         <guava.version>33.4.0-jre</guava.version>
         <slf4j.version>2.0.16</slf4j.version>
         <log4j.version>2.24.3</log4j.version>
