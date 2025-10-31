@@ -23,6 +23,7 @@
 #include <Parser/FunctionParser.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/CHUtil.h>
+#include <regex>
 
 namespace DB
 {
@@ -82,7 +83,6 @@ public:
         {
             if (s_count == 0)
             {
-                // If fmt == "yyyy-MM-dd" or fmt == "yyyy-MM-dd HH" or fmt == "yyyy-MM-dd HH:mm" or fmt == "yyyy-MM-dd HH:mm:ss", parse the timestamp by using the following logic.
                 const auto * index_begin_node = addColumnToActionsDAG(actions_dag, std::make_shared<DB::DataTypeUInt64>(), 1);
                 const auto * index_end_node = addColumnToActionsDAG(actions_dag, std::make_shared<DB::DataTypeUInt64>(), fmt.size());
                 const auto * substr_node = toFunctionNode(actions_dag, "substringUTF8", {expr_arg, index_begin_node, index_end_node});
@@ -114,37 +114,19 @@ private:
         }
         else
         {
-            const String yearFmt = fmt.substr(0, 4);
-            const String monthFmt = fmt.substr(5, 2);
-            const String dayFmt = fmt.substr(8, 2);
-            bool yearMonthDayValid = yearFmt == "yyyy" && monthFmt == "MM" && dayFmt == "dd";
-            if (fmt.size() == 10)
-            {
-                return yearMonthDayValid;
-            }
-            else if (yearMonthDayValid)
-            {
-                const String splitChar = fmt.size() >= 11 ? fmt.substr(10, 1) : "";
-                if (splitChar != " " && splitChar != "T")
-                {
-                    return false;
-                }
-                const String hourFmt = fmt.size() >= 13 ? fmt.substr(11, 2) : "";
-                const String minuteFmt = fmt.size() >= 15 ? fmt.substr(14, 2) : "";
-                const String secondFmt = fmt.size() >= 17 ? fmt.substr(17, 2) : "";
-                bool hourValid = hourFmt == "HH";
-                bool minuteValid = minuteFmt == "mm";
-                bool secondValid = secondFmt == "ss";
-                if ((fmt.size() == 13 && hourValid) || (fmt.size() == 16 && hourValid && minuteValid) || (fmt.size() == 19 && hourValid && minuteValid && secondValid)) 
-                {
-                    return true;
-                }
-                if (fmt.size() > 19 && fmt.substr(19, 1) == ".") 
-                {
-                    return true;
-                }
-            }
-            return false;
+            /**
+             * Match the format to the regex pattern, the following format will be matched:
+             * yyyy-MM-dd, yyyy/MM/dd
+             * yyyy-MM-dd HH, yyyy/MM/dd HH, yyyy-MM-ddTHH, yyyy/MM/ddTHH
+             * yyyy-MM-dd HH:mm, yyyy/MM/dd HH:mm, yyyy-MM-ddTHH:mm, yyyy/MM/ddTHH:mm
+             * yyyy-MM-dd HH:mm:ss, yyyy/MM/dd HH:mm:ss, yyyy-MM-ddTHH:mm:ss, yyyy/MM/ddTHH:mm:ss
+             * yyyy-MM-dd HH:mm:ss., yyyy/MM/dd HH:mm:ss., yyyy-MM-ddTHH:mm:ss., yyyy/MM/ddTHH:mm:ss.
+             * yyyy-MM-dd HH:mm:ss.S, yyyy/MM/dd HH:mm:ss.S, yyyy-MM-ddTHH:mm:ss.S, yyyy/MM/ddTHH:mm:ss.S
+             * yyyy-MM-dd HH:mm:ss.SS, yyyy/MM/dd HH:mm:ss.SS, yyyy-MM-ddTHH:mm:ss.SS, yyyy/MM/ddTHH:mm:ss.SS
+             * yyyy-MM-dd HH:mm:ss.SSS, yyyy/MM/dd HH:mm:ss.SSS, yyyy-MM-ddTHH:mm:ss.SSS, yyyy/MM/ddTHH:mm:ss.SSS
+             */
+            std::regex fmtPattern(R"(^yyyy[-/]MM[-/]dd([ T](HH(:mm(:ss(\.([S]{1,3})?)?)?)?)?)?$)");
+            return std::regex_match(fmt, fmtPattern);
         }
     }
 };
