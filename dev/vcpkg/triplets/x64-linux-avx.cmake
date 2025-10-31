@@ -8,3 +8,7 @@ set(VCPKG_CMAKE_SYSTEM_NAME Linux)
 set(VCPKG_C_FLAGS "-mavx2 -mfma -mavx -mf16c -mlzcnt -mbmi2")
 set(VCPKG_CXX_FLAGS "-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17 -mbmi2")
 set(VCPKG_LINKER_FLAGS "-static-libstdc++ -static-libgcc")
+
+if("${PORT}" STREQUAL "snappy")
+    list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS -DSNAPPY_HAVE_BMI2=ON)
+endif()
