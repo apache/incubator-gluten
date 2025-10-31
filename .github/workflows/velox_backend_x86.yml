@@ -1324,7 +1324,7 @@ jobs:
       - name: Prepare Spark Resources for Spark 4.0.1 #TODO remove after image update
         run: |
           rm -rf /opt/shims/spark40
-          bash .github/workflows/util/install_spark_resources.sh 4.0
+          bash .github/workflows/util/install-spark-resources.sh 4.0
       - name: Build and Run unit test for Spark 4.0.0 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1371,7 +1371,7 @@ jobs:
       - name: Prepare Spark Resources for Spark 4.0.1 #TODO remove after image update
         run: |
           rm -rf /opt/shims/spark40
-          bash .github/workflows/util/install_spark_resources.sh 4.0
+          bash .github/workflows/util/install-spark-resources.sh 4.0
       - name: Build and Run unit test for Spark 4.0 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
