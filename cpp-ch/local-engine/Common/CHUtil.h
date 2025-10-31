@@ -42,6 +42,8 @@ static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_w
 static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
 static const std::string DECIMAL_OPERATIONS_ALLOW_PREC_LOSS = "spark.sql.decimalOperations.allowPrecisionLoss";
 static const std::string TIMER_PARSER_POLICY = "spark.sql.legacy.timeParserPolicy";
+// static constexpr auto CROSS_REL_CONST_KEY_COLUMN = "__CROSS_REL_CONST_KEY_COLUMN__";
+
 
 static const std::unordered_set<String> BOOL_VALUE_SETTINGS{
     MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, DECIMAL_OPERATIONS_ALLOW_PREC_LOSS};
@@ -52,7 +54,7 @@ class BlockUtil
 {
 public:
     static constexpr auto VIRTUAL_ROW_COUNT_COLUMN = "__VIRTUAL_ROW_COUNT_COLUMN__";
-    static constexpr auto RIHGT_COLUMN_PREFIX = "broadcast_right_";
+    static constexpr auto RIGHT_COLUMN_PREFIX = "broadcast_right_";
 
     // Build a header block with a virtual column which will be
     // use to indicate the number of rows in a block.
@@ -249,6 +251,9 @@ public:
 class JoinUtil
 {
 public:
+    static constexpr auto CROSS_REL_LEFT_CONST_KEY_COLUMN = "__CROSS_REL_LEFT_CONST_KEY_COLUMN__";
+    static constexpr auto CROSS_REL_RIGHT_CONST_KEY_COLUMN = "__CROSS_REL_RIGHT_CONST_KEY_COLUMN__";
+
     static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
     static std::pair<DB::JoinKind, DB::JoinStrictness>
     getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool is_existence_join);

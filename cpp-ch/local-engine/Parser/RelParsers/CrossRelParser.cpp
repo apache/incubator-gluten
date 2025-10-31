@@ -35,6 +35,7 @@
 #include <Common/CHUtil.h>
 #include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
+#include <DataTypes/DataTypesNumber.h>
 
 namespace DB
 {
@@ -93,11 +94,39 @@ std::optional<const substrait::Rel *> CrossRelParser::getSingleInput(const subst
     throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call getSingleInput().");
 }
 
+// For non-cross join, CH uses constant join keys. We keep the same implementation here.
+void CrossRelParser::addConstJoinKeys(DB::QueryPlan & left, DB::QueryPlan & right)
+{
+    auto data_type_u8 = std::make_shared<DataTypeUInt8>();
+    auto const_key_col = data_type_u8->createColumnConst(1, UInt8(0));
+
+    String left_key = JoinUtil::CROSS_REL_LEFT_CONST_KEY_COLUMN;
+    auto left_columns = left.getCurrentHeader()->getColumnsWithTypeAndName();
+    DB::ActionsDAG left_project_actions(left_columns);
+    const auto & left_key_node = left_project_actions.addColumn({const_key_col, data_type_u8, left_key});
+    left_project_actions.addOrReplaceInOutputs(left_key_node);
+    auto left_project_step = std::make_unique<ExpressionStep>(left.getCurrentHeader(), std::move(left_project_actions));
+    left_project_step->setStepDescription("Add const join key for cross rel left");
+    left.addStep(std::move(left_project_step));
+
+    String right_key = JoinUtil::CROSS_REL_RIGHT_CONST_KEY_COLUMN;
+    auto right_columns = right.getCurrentHeader()->getColumnsWithTypeAndName();
+    DB::ActionsDAG right_project_actions(right_columns);
+    const auto & right_key_node = right_project_actions.addColumn({const_key_col, data_type_u8, right_key});
+    right_project_actions.addOrReplaceInOutputs(right_key_node);
+    auto right_project_step = std::make_unique<ExpressionStep>(right.getCurrentHeader(), std::move(right_project_actions));
+    right_project_step->setStepDescription("Add const join key for cross rel right");
+    right.addStep(std::move(right_project_step));
+}
+
 DB::QueryPlanPtr
 CrossRelParser::parse(std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
 {
     assert(input_plans_.size() == 2);
     const auto & join = rel.cross();
+    std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getCrossJoinKindAndStrictness(join.type());
+    if (kind_and_strictness.first != JoinKind::Cross)
+        addConstJoinKeys(*input_plans_[0], *input_plans_[1]);
     return parseJoin(join, std::move(input_plans_[0]), std::move(input_plans_[1]));
 }
 
@@ -168,6 +197,16 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
 
     auto left_header = left->getCurrentHeader();
     auto right_header = right->getCurrentHeader();
+
+
+    if (table_join->kind() != JoinKind::Cross)
+    {
+        table_join->addDisjunct();
+        auto & join_clause = table_join->getClauses().back();
+        String left_key = JoinUtil::CROSS_REL_LEFT_CONST_KEY_COLUMN;
+        String right_key = JoinUtil::CROSS_REL_RIGHT_CONST_KEY_COLUMN;
+        join_clause.addKey(left_key, right_key, false);
+    }
 
     QueryPlanPtr query_plan;
     if (storage_join)
