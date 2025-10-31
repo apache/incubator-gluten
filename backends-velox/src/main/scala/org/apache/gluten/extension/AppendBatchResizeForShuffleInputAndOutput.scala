@@ -30,30 +30,46 @@ import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQuery
  */
 case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
+    val resizeBatchesShuffleInputEnabled = VeloxConfig.get.veloxResizeBatchesShuffleInput
+    val resizeBatchesShuffleOutputEnabled = VeloxConfig.get.veloxResizeBatchesShuffleOutput
+    if (!resizeBatchesShuffleInputEnabled && !resizeBatchesShuffleOutputEnabled) {
+      return plan
+    }
+
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
     plan.transformUp {
-      case shuffle: ColumnarShuffleExchangeExec
-          if shuffle.shuffleWriterType == HashShuffleWriterType &&
-            VeloxConfig.get.veloxResizeBatchesShuffleInput =>
+      case ColumnarHashShuffleExchangeExec(shuffle) if resizeBatchesShuffleInputEnabled =>
         val appendBatches =
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
         shuffle.withNewChildren(Seq(appendBatches))
-      case a @ AQEShuffleReadExec(ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _), _)
-          if VeloxConfig.get.veloxResizeBatchesShuffleOutput =>
+      case a @ AQEShuffleReadExec(
+            ShuffleQueryStageExec(_, ColumnarHashShuffleExchangeExec(_), _),
+            _) if resizeBatchesShuffleOutputEnabled =>
         VeloxResizeBatchesExec(a, range.min, range.max)
       // Since it's transformed in a bottom to up order, so we may first encountered
       // ShuffeQueryStageExec, which is transformed to VeloxResizeBatchesExec(ShuffeQueryStageExec),
       // then we see AQEShuffleReadExec
       case a @ AQEShuffleReadExec(
             VeloxResizeBatchesExec(
-              s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _),
+              s @ ShuffleQueryStageExec(_, ColumnarHashShuffleExchangeExec(_), _),
               _,
               _),
-            _) if VeloxConfig.get.veloxResizeBatchesShuffleOutput =>
+            _) if resizeBatchesShuffleOutputEnabled =>
         VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max)
-      case s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _)
-          if VeloxConfig.get.veloxResizeBatchesShuffleOutput =>
+      case s @ ShuffleQueryStageExec(_, ColumnarHashShuffleExchangeExec(_), _)
+          if resizeBatchesShuffleOutputEnabled =>
         VeloxResizeBatchesExec(s, range.min, range.max)
+    }
+  }
+
+  private object ColumnarHashShuffleExchangeExec {
+    def unapply(plan: SparkPlan): Option[ColumnarShuffleExchangeExec] = {
+      plan match {
+        case shuffle: ColumnarShuffleExchangeExec
+            if shuffle.shuffleWriterType == HashShuffleWriterType =>
+          Some(shuffle)
+        case _ => None
+      }
     }
   }
 }
