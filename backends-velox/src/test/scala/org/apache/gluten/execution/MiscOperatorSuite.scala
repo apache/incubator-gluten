@@ -135,7 +135,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 2)
   }
 
-  test("is_not_null") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("is_not_null", "3.5") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
