@@ -86,17 +86,13 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       joinType match {
         case _: InnerLike => right.outputPartitioning
         case RightOuter => right.outputPartitioning
-        case x =>
-          throw new IllegalArgumentException(
-            s"BroadcastNestedLoopJoin should not take $x as the JoinType with building left side")
+        case _ => super.outputPartitioning
       }
     case BuildRight =>
       joinType match {
         case _: InnerLike => left.outputPartitioning
         case LeftOuter | ExistenceJoin(_) => left.outputPartitioning
-        case x =>
-          throw new IllegalArgumentException(
-            s"BroadcastNestedLoopJoin should not take $x as the JoinType with building right side")
+        case _ => super.outputPartitioning
       }
   }
 
