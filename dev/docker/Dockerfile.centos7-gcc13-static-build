@@ -37,7 +37,7 @@ RUN set -ex; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh; \
     yum remove gcc -y && yum clean all; \
-    cp /usr/local/share/aclocal/* /usr/share/aclocal/; \
+    yes | cp -rf /usr/share/aclocal/* /usr/local/share/aclocal/; \
     mkdir -p ${VCPKG_PATH}; \
     echo "Build arrow, then install the native libs to system paths and jar package to .m2/ directory."; \
     cd /opt/gluten; \
