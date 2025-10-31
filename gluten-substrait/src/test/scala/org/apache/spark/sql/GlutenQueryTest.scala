@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan, SQLExecution, UnaryExecNode}
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ResultQueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.storage.StorageLevel
 
@@ -358,7 +358,9 @@ abstract class GlutenQueryTest extends PlanTest {
   private def getExecutedPlan(plan: SparkPlan): Seq[SparkPlan] = {
     val subTree = plan match {
       case exec: AdaptiveSparkPlanExec =>
-        getExecutedPlan(exec.finalPhysicalPlan)
+        getExecutedPlan(exec.executedPlan)
+      case exec: ResultQueryStageExec =>
+        getExecutedPlan(exec.plan)
       case cmd: CommandResultExec =>
         getExecutedPlan(cmd.commandPhysicalPlan)
       case s: ShuffleQueryStageExec =>
