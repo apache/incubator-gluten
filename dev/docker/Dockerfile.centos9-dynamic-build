@@ -27,7 +27,7 @@ ENV PATH=${PATH}:/usr/lib/maven/bin
 
 RUN set -ex; \
     yum update -y && yum install -y epel-release sudo dnf && yum install -y ccache; \
-    dnf install -y --setopt=install_weak_deps=False gcc-toolset-12; \
+    dnf install -y --setopt=install_weak_deps=False gcc-toolset-12 gcc-toolset-13; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     yum install -y java-${JAVA_VERSION}-openjdk-devel patch wget git perl; \
     maven_version=3.9.2; \
