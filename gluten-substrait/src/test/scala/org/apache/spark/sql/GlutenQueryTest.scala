@@ -36,6 +36,7 @@ import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQu
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.util.SparkVersionUtil
 
 import org.junit.Assert
 import org.scalatest.Assertions
@@ -357,7 +358,11 @@ abstract class GlutenQueryTest extends PlanTest with AdaptiveSparkPlanHelper {
   }
 
   private def getExecutedPlan(plan: SparkPlan): Seq[SparkPlan] = {
-    val stripPlan = stripAQEPlan(plan)
+    val stripPlan = if (SparkVersionUtil.gteSpark40) {
+      stripAQEPlan(plan)
+    } else {
+      plan
+    }
     val subTree = stripPlan match {
       case exec: AdaptiveSparkPlanExec =>
         getExecutedPlan(exec.executedPlan)
