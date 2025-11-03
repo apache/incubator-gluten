@@ -21,9 +21,10 @@ import org.apache.gluten.execution.TransformSupport
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.UI.UI_ENABLED
-import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, SparkSession}
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.classic.SparkSession
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.SQLConf
 
