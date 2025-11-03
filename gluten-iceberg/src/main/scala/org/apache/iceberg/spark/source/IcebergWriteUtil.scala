@@ -20,7 +20,6 @@ import org.apache.spark.sql.connector.write.{Write, WriterCommitMessage}
 
 import org.apache.iceberg._
 import org.apache.iceberg.spark.SparkWriteConf
-import org.apache.iceberg.spark.source.SparkWrite
 import org.apache.iceberg.spark.source.SparkWrite.TaskCommit
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
@@ -28,31 +27,31 @@ import org.apache.iceberg.types.Types.{ListType, MapType}
 
 object IcebergWriteUtil {
 
-  private lazy val writeSchemaField: Field = {
+  private lazy val writeSchemaField = {
     val field = classOf[SparkWrite].getDeclaredField("writeSchema")
     field.setAccessible(true)
     field
   }
 
-  private lazy val writePropertiesField: Field = {
+  private lazy val writePropertiesField = {
     val field = classOf[SparkWrite].getDeclaredField("writeProperties")
     field.setAccessible(true)
     field
   }
 
-  private lazy val writeConfField: Field = {
+  private lazy val writeConfField = {
     val field = classOf[SparkWrite].getDeclaredField("writeConf")
     field.setAccessible(true)
     field
   }
 
-  private lazy val tableField: Field = {
+  private lazy val tableField = {
     val field = classOf[SparkWrite].getDeclaredField("table")
     field.setAccessible(true)
     field
   }
 
-  private lazy val fileFormatField: Field = {
+  private lazy val fileFormatField = {
     val field = classOf[SparkWrite].getDeclaredField("format")
     field.setAccessible(true)
     field
