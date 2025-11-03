@@ -17,10 +17,10 @@
 package org.apache.iceberg.spark.source
 
 import org.apache.spark.sql.connector.write.{Write, WriterCommitMessage}
-import org.apache.spark.util.SparkReflectionUtil
 
 import org.apache.iceberg._
 import org.apache.iceberg.spark.SparkWriteConf
+import org.apache.iceberg.spark.source.SparkWrite
 import org.apache.iceberg.spark.source.SparkWrite.TaskCommit
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
@@ -29,7 +29,7 @@ import org.apache.iceberg.types.Types.{ListType, MapType}
 object IcebergWriteUtil {
 
   def supportsWrite(write: Write): Boolean = {
-    SparkReflectionUtil.isInstanceOfClassName(write, "org.apache.iceberg.spark.source.SparkWrite")
+    write.isInstanceOf[SparkWrite]
   }
 
   def hasUnsupportedDataType(write: Write): Boolean = {

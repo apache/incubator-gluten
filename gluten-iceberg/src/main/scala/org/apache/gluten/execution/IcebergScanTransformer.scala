@@ -35,7 +35,7 @@ import org.apache.spark.sql.types.{ArrayType, DataType, StructType}
 
 import org.apache.iceberg.{BaseTable, MetadataColumns, Schema, SnapshotSummary}
 import org.apache.iceberg.avro.AvroSchemaUtil
-import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
+import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkBatchQueryScan, SparkTable}
 import org.apache.iceberg.spark.source.metrics.NumSplits
 import org.apache.iceberg.types.{Type, Types}
 import org.apache.iceberg.types.Type.TypeID
@@ -253,7 +253,7 @@ object IcebergScanTransformer {
   }
 
   def supportsBatchScan(scan: Scan): Boolean = {
-    scan.getClass.getName == "org.apache.iceberg.spark.source.SparkBatchQueryScan"
+    scan.getClass == classOf[SparkBatchQueryScan]
   }
 
   private def containsUuidOrFixedType(dataType: Type): Boolean = {

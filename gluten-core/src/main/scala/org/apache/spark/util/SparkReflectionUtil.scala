@@ -27,13 +27,4 @@ object SparkReflectionUtil {
       noSparkClassLoader: Boolean = false): Class[C] = {
     Utils.classForName(className, initialize, noSparkClassLoader)
   }
-
-  def isInstanceOfClassName(obj: Any, className: String): Boolean = {
-    try {
-      val cls = classForName(className)
-      cls.isInstance(obj)
-    } catch {
-      case _: ClassNotFoundException => false
-    }
-  }
 }
