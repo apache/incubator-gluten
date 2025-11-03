@@ -1048,16 +1048,25 @@ UInt64 MemoryUtil::getMemoryRSS()
     return rss * sysconf(_SC_PAGESIZE);
 }
 
-
-void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
+void JoinUtil::adjustJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 {
-    ActionsDAG project{plan.getCurrentHeader()->getNamesAndTypesList()};
-    NamesWithAliases project_cols;
+    auto header = plan.getCurrentHeader();
+    std::unordered_map<String, const DB::ActionsDAG::Node *> name_to_node;
+    ActionsDAG project;
+    for (const auto & col : header->getColumnsWithTypeAndName())
+    {
+        const auto * node = &(project.addInput(col));
+        name_to_node[col.name] = node;
+    }
     for (const auto & col : cols)
     {
-        project_cols.emplace_back(NameWithAlias(col, col));
+        const auto it = name_to_node.find(col);
+        if (it == name_to_node.end())
+        {
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Column {} not found in header", col);
+        }
+        project.addOrReplaceInOutputs(*(it->second));
     }
-    project.project(project_cols);
     QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentHeader(), std::move(project));
     project_step->setStepDescription("Reorder Join Output");
     plan.addStep(std::move(project_step));

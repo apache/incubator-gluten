@@ -189,15 +189,7 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
             right->getCurrentHeader()->dumpNames());
     }
 
-    Names after_join_names;
-    auto left_names = left->getCurrentHeader()->getNames();
-    after_join_names.insert(after_join_names.end(), left_names.begin(), left_names.end());
-    auto right_name = table_join->columnsFromJoinedTable().getNames();
-    after_join_names.insert(after_join_names.end(), right_name.begin(), right_name.end());
-
-    auto left_header = left->getCurrentHeader();
-    auto right_header = right->getCurrentHeader();
-
+    Names after_join_names = collectOutputColumnsName(*left, *right);
 
     if (table_join->kind() != JoinKind::Cross)
     {
@@ -223,15 +215,7 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
         extra_plan_holder.emplace_back(std::move(right));
 
         addPostFilter(*query_plan, join);
-        Names cols;
-        for (auto after_join_name : after_join_names)
-        {
-            if (BlockUtil::VIRTUAL_ROW_COUNT_COLUMN == after_join_name)
-                continue;
-
-            cols.emplace_back(after_join_name);
-        }
-        JoinUtil::reorderJoinOutput(*query_plan, cols);
+        JoinUtil::adjustJoinOutput(*query_plan, after_join_names);
     }
     else
     {
@@ -255,7 +239,7 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
 
         query_plan = std::make_unique<QueryPlan>();
         query_plan->unitePlans(std::move(join_step), {std::move(plans)});
-        JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
+        JoinUtil::adjustJoinOutput(*query_plan, after_join_names);
     }
 
     return query_plan;
@@ -357,6 +341,26 @@ void CrossRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left
     }
 }
 
+DB::Names CrossRelParser::collectOutputColumnsName(const DB::QueryPlan & left, const DB::QueryPlan & right)
+{
+    Names join_result_names;
+    auto is_unused_column = [](const String & name)
+    {
+        return name == JoinUtil::CROSS_REL_LEFT_CONST_KEY_COLUMN || name == JoinUtil::CROSS_REL_RIGHT_CONST_KEY_COLUMN
+            || name == BlockUtil::VIRTUAL_ROW_COUNT_COLUMN;
+    };
+    for (auto & col : left.getCurrentHeader()->getColumnsWithTypeAndName())
+    {
+        if (!is_unused_column(col.name))
+            join_result_names.emplace_back(col.name);
+    }
+    for (auto & col : right.getCurrentHeader()->getColumnsWithTypeAndName())
+    {
+        if (!is_unused_column(col.name))
+            join_result_names.emplace_back(col.name);
+    }
+    return join_result_names;
+}
 
 void registerCrossRelParser(RelParserFactory & factory)
 {

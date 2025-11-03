@@ -67,6 +67,7 @@ private:
         bool allow_mixed_condition);
 
     void addConstJoinKeys(DB::QueryPlan & left, DB::QueryPlan & right);
+    DB::Names collectOutputColumnsName(const DB::QueryPlan & left, const DB::QueryPlan & right);
 };
 
 }

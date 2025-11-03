@@ -42,8 +42,6 @@ static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_w
 static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
 static const std::string DECIMAL_OPERATIONS_ALLOW_PREC_LOSS = "spark.sql.decimalOperations.allowPrecisionLoss";
 static const std::string TIMER_PARSER_POLICY = "spark.sql.legacy.timeParserPolicy";
-// static constexpr auto CROSS_REL_CONST_KEY_COLUMN = "__CROSS_REL_CONST_KEY_COLUMN__";
-
 
 static const std::unordered_set<String> BOOL_VALUE_SETTINGS{
     MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, DECIMAL_OPERATIONS_ALLOW_PREC_LOSS};
@@ -254,7 +252,8 @@ public:
     static constexpr auto CROSS_REL_LEFT_CONST_KEY_COLUMN = "__CROSS_REL_LEFT_CONST_KEY_COLUMN__";
     static constexpr auto CROSS_REL_RIGHT_CONST_KEY_COLUMN = "__CROSS_REL_RIGHT_CONST_KEY_COLUMN__";
 
-    static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
+    // Keep necessarily columns and reorder them according to cols
+    static void adjustJoinOutput(DB::QueryPlan & plan, DB::Names cols);
     static std::pair<DB::JoinKind, DB::JoinStrictness>
     getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool is_existence_join);
     static std::pair<DB::JoinKind, DB::JoinStrictness> getCrossJoinKindAndStrictness(substrait::CrossRel_JoinType join_type);
