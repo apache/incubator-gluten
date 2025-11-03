@@ -42,6 +42,14 @@ trait Component {
   private val uid = nextUid.getAndIncrement()
   private val isRegistered = new AtomicBoolean(false)
 
+  final def ensureRegistered(): Unit = {
+    if (!isRegistered.compareAndSet(false, true)) {
+      return
+    }
+    graph.add(this)
+    dependencies().foreach(req => graph.declareDependency(this, req))
+  }
+
   /**
    * Determines whether a component should be registered based on runtime conditions. For instance,
    * if a component depends on a Spark extension's JAR, this method should be overridden to check
@@ -49,14 +57,6 @@ trait Component {
    */
   def isRuntimeCompatible: Boolean = {
     true
-  }
-
-  def ensureRegistered(): Unit = {
-    if (!isRegistered.compareAndSet(false, true)) {
-      return
-    }
-    graph.add(this)
-    dependencies().foreach(req => graph.declareDependency(this, req))
   }
 
   /** Base information. */
@@ -108,8 +108,8 @@ object Component {
    *   2. [component-C, component-B, component-A]
    *   3. [component-B, component-C, component-A]
    *
-   * By all means component B will be placed before component A because of the declared
-   * dependency from component A to component B.
+   * By all means component B will be placed before component A because component B is a declared
+   * dependency of component A.
    *
    * @throws UnsupportedOperationException When cycles in dependency graph are found.
    */
