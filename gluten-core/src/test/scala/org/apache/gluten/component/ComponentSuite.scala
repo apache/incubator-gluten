@@ -18,6 +18,7 @@ package org.apache.gluten.component
 
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.extension.injector.Injector
+
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -91,16 +92,20 @@ object ComponentSuite {
     }
   }
 
-  private abstract class DummyComponent(override val name: String) extends Component with DependencyBuilder {
+  abstract private class DummyComponent(override val name: String)
+    extends Component
+    with DependencyBuilder {
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo(name, "N/A", "N/A", "N/A")
+
     /** Query planner rules. */
     override def injectRules(injector: Injector): Unit = {}
   }
 
-  private abstract class DummyBackend(override val name: String) extends Backend {
+  abstract private class DummyBackend(override val name: String) extends Backend {
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo(name, "N/A", "N/A", "N/A")
+
     /** Query planner rules. */
     override def injectRules(injector: Injector): Unit = {}
   }
