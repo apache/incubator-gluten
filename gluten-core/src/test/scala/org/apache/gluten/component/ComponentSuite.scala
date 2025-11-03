@@ -18,26 +18,32 @@ package org.apache.gluten.component
 
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.extension.injector.Injector
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
+
+import scala.collection.mutable
 
 class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
   import ComponentSuite._
 
-  private val d = new DummyComponentD()
-  d.ensureRegistered()
-  private val b = new DummyBackendB()
-  b.ensureRegistered()
-  private val a = new DummyBackendA()
-  a.ensureRegistered()
-  private val c = new DummyComponentC()
-  c.ensureRegistered()
-  private val e = new DummyComponentE()
-  e.ensureRegistered()
-
   test("Load order - sanity") {
-    val possibleOrders =
+    val a = new DummyBackend("A") {}
+    val b = new DummyBackend("B") {}
+    val c = new DummyComponent("C") {}
+    val d = new DummyComponent("D") {}
+    val e = new DummyComponent("E") {}
+
+    c.dependsOn(a)
+    d.dependsOn(a, b)
+    e.dependsOn(a, d)
+
+    a.ensureRegistered()
+    b.ensureRegistered()
+    c.ensureRegistered()
+    d.ensureRegistered()
+    e.ensureRegistered()
+
+    val possibleOrders: Set[Seq[Component]] =
       Set(
         Seq(a, b, c, d, e),
         Seq(a, b, d, c, e),
@@ -49,53 +55,53 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
   }
 
   test("Register again") {
+    class DummyBackendA extends DummyBackend("A")
+    new DummyBackendA().ensureRegistered()
     assertThrows[IllegalArgumentException] {
       new DummyBackendA().ensureRegistered()
     }
   }
+
+  test("Dependencies not registered") {
+    val a = new DummyBackend("A") {}
+    val c = new DummyComponent("C") {}
+
+    c.dependsOn(a)
+
+    c.ensureRegistered()
+
+    assertThrows[IllegalArgumentException] {
+      Component.sorted()
+    }
+
+    a.ensureRegistered()
+
+    assert(Component.sorted() === Seq(a, c))
+  }
 }
 
 object ComponentSuite {
-  private class DummyBackendA extends Backend {
-    override def name(): String = "dummy-backend-a"
+  private trait DependencyBuilder extends Component {
+    private val dependencyBuffer = mutable.Set[Class[_ <: Component]]()
+
+    override def dependencies(): Seq[Class[_ <: Component]] = dependencyBuffer.toSeq
+
+    def dependsOn(component: Component*): Unit = {
+      dependencyBuffer ++= component.map(_.getClass)
+    }
+  }
+
+  private abstract class DummyComponent(override val name: String) extends Component with DependencyBuilder {
     override def buildInfo(): Component.BuildInfo =
-      Component.BuildInfo("DUMMY_BACKEND_A", "N/A", "N/A", "N/A")
+      Component.BuildInfo(name, "N/A", "N/A", "N/A")
+    /** Query planner rules. */
     override def injectRules(injector: Injector): Unit = {}
   }
 
-  private class DummyBackendB extends Backend {
-    override def name(): String = "dummy-backend-b"
+  private abstract class DummyBackend(override val name: String) extends Backend {
     override def buildInfo(): Component.BuildInfo =
-      Component.BuildInfo("DUMMY_BACKEND_B", "N/A", "N/A", "N/A")
-    override def injectRules(injector: Injector): Unit = {}
-  }
-
-  private class DummyComponentC extends Component {
-    override def dependencies(): Seq[Class[_ <: Component]] = classOf[DummyBackendA] :: Nil
-
-    override def name(): String = "dummy-component-c"
-    override def buildInfo(): Component.BuildInfo =
-      Component.BuildInfo("DUMMY_COMPONENT_C", "N/A", "N/A", "N/A")
-    override def injectRules(injector: Injector): Unit = {}
-  }
-
-  private class DummyComponentD extends Component {
-    override def dependencies(): Seq[Class[_ <: Component]] =
-      Seq(classOf[DummyBackendA], classOf[DummyBackendB])
-
-    override def name(): String = "dummy-component-d"
-    override def buildInfo(): Component.BuildInfo =
-      Component.BuildInfo("DUMMY_COMPONENT_D", "N/A", "N/A", "N/A")
-    override def injectRules(injector: Injector): Unit = {}
-  }
-
-  private class DummyComponentE extends Component {
-    override def dependencies(): Seq[Class[_ <: Component]] =
-      Seq(classOf[DummyBackendA], classOf[DummyComponentD])
-
-    override def name(): String = "dummy-component-e"
-    override def buildInfo(): Component.BuildInfo =
-      Component.BuildInfo("DUMMY_COMPONENT_E", "N/A", "N/A", "N/A")
+      Component.BuildInfo(name, "N/A", "N/A", "N/A")
+    /** Query planner rules. */
     override def injectRules(injector: Injector): Unit = {}
   }
 }
