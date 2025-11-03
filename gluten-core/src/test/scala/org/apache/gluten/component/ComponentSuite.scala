@@ -68,15 +68,12 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
     val c = new DummyComponent("C") {}
 
     c.dependsOn(a)
-
     c.ensureRegistered()
-
     assertThrows[IllegalArgumentException] {
       Component.sorted()
     }
 
     a.ensureRegistered()
-
     assert(Component.sorted().filter(Seq(a, c).contains(_)) === Seq(a, c))
   }
 }
