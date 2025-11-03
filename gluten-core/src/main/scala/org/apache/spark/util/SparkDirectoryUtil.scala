@@ -47,11 +47,11 @@ class SparkDirectoryUtil private (val roots: Array[String]) extends Logging {
               }
             })
         } catch {
-          case _: IllegalStateException =>
+          case ise: IllegalStateException =>
             // Shutdown hooks cannot be modified during shutdown. If the Gluten plugin
             // is being initialized during Spark context shutdown we can safely ignore
             // the hook registration since cleanup is not critical during shutdown.
-            logWarning(s"Cannot register shutdown hook for $localDir")
+            logWarning(s"Cannot register shutdown hook for $localDir: ${ise.getMessage}")
         }
         logInfo(s"Created local directory at $localDir")
         Some(localDir)
