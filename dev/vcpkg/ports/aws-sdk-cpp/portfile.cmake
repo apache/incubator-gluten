@@ -45,7 +45,7 @@ vcpkg_cmake_configure(
         "-DBUILD_SHARED_LIBS=OFF"
         "-DAWS_SDK_WARNINGS_ARE_ERRORS=OFF"
         "-DCMAKE_INSTALL_RPATH=${rpath}"
-        "-DCMAKE_MODULE_PATH=${CURRENT_INSTALLED_DIR}/share/aws-c-common" # use extra cmake files
+        "-DCMAKE_MODULE_PATH=${CURRENT_INSTALLED_DIR}/share/aws-c-common/modules" # use extra cmake files
 )
 vcpkg_cmake_install()
 
