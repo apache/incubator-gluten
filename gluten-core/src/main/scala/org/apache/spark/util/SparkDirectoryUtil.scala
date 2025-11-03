@@ -37,14 +37,22 @@ class SparkDirectoryUtil private (val roots: Array[String]) extends Logging {
     rootDir =>
       try {
         val localDir = Utils.createDirectory(rootDir, "gluten")
-        SparkShutdownManagerUtil.addHookForTempDirRemoval(
-          () => {
-            try FileUtils.forceDelete(localDir)
-            catch {
-              case e: Exception =>
-                throw new GlutenException(e)
-            }
-          })
+        try {
+          SparkShutdownManagerUtil.addHookForTempDirRemoval(
+            () => {
+              try FileUtils.forceDelete(localDir)
+              catch {
+                case e: Exception =>
+                  throw new GlutenException(e)
+              }
+            })
+        } catch {
+          case _: IllegalStateException =>
+            // Shutdown hooks cannot be modified during shutdown. If the Gluten plugin
+            // is being initialized during Spark context shutdown we can safely ignore
+            // the hook registration since cleanup is not critical during shutdown.
+            logWarning(s"Cannot register shutdown hook for $localDir")
+        }
         logInfo(s"Created local directory at $localDir")
         Some(localDir)
       } catch {
