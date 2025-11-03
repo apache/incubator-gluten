@@ -22,6 +22,7 @@ import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.InferFiltersFromConstraints
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.parseColumnPath
 import org.apache.spark.sql.execution.datasources.{DataSourceStrategy, HadoopFsRelation, LogicalRelation, PushableColumnAndNestedColumn}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
@@ -328,7 +329,7 @@ class GlutenParquetV1FilterSuite extends GlutenParquetFilterSuite with GlutenSQL
               case PhysicalOperation(
                     _,
                     filters,
-                    LogicalRelation(relation: HadoopFsRelation, _, _, _)) =>
+                    LogicalRelation(relation: HadoopFsRelation, _, _, _, _)) =>
                 maybeRelation = Some(relation)
                 filters
             }
@@ -423,8 +424,7 @@ class GlutenParquetV2FilterSuite extends GlutenParquetFilterSuite with GlutenSQL
 
           checker(stripSparkFilter(query), expected)
 
-        case _ =>
-          throw new AnalysisException("Can not match ParquetTable in the query.")
+        case _ => assert(false, "Can not match ParquetTable in the query.")
       }
     }
   }

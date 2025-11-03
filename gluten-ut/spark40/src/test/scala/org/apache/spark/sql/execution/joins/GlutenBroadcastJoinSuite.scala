@@ -21,6 +21,7 @@ import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.internal.SQLConf
 
 /**

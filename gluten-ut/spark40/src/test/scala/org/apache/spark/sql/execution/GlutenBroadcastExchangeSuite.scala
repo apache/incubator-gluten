@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.spark.{LocalSparkContext, SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.broadcast.TorrentBroadcast
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestsBaseTrait, SparkSession}
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.broadcast
 

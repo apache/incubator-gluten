@@ -20,6 +20,7 @@ import org.apache.gluten.execution.{ProjectExecTransformer, WholeStageTransforme
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression}
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.exchange.{ReusedExchangeExec, ShuffleExchangeExec}
