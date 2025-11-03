@@ -61,7 +61,7 @@ public:
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
-        const auto * expr_arg = parsed_args[0];
+        const auto * expr_arg = convertArabicIndicDigit(actions_dag, parsed_args[0]);
         const auto * fmt_arg = parsed_args[1];
         
         const auto & args = substrait_func.arguments();
@@ -128,6 +128,12 @@ private:
             std::regex fmtPattern(R"(^yyyy[-/]MM[-/]dd([ T](HH(:mm(:ss(\.([S]{1,3})?)?)?)?)?)?$)");
             return std::regex_match(fmt, fmtPattern);
         }
+    }
+
+    const DB::ActionsDAG::Node * convertArabicIndicDigit(DB::ActionsDAG & actions_dag, const DB::ActionsDAG::Node * node) const
+    {
+        const auto * func_node = toFunctionNode(actions_dag, "arabic_indic_to_ascii_digit_for_date", {node});
+        return func_node;
     }
 };
 }
