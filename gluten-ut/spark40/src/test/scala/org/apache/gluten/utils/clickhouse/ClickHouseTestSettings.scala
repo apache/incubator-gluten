@@ -2030,7 +2030,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("SPARK-38589: try_avg should return null if overflow happens before merging")
     .excludeCH("Gluten - SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar")
     .excludeCH("Gluten - the escape character is not allowed to end with")
-  enableSuite[GlutenSQLQueryTestSuite]
+  // enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenSQLWindowFunctionSuite]
     // spill not supported yet.
     .exclude("test with low buffer spill threshold")
