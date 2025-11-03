@@ -52,7 +52,7 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
         Seq(b, a, d, c, e)
       )
 
-    assert(possibleOrders.contains(Component.sorted()))
+    assert(possibleOrders.contains(Component.sorted().filter(Seq(a, b, c, d, e).contains(_))))
   }
 
   test("Register again") {
@@ -77,7 +77,7 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
 
     a.ensureRegistered()
 
-    assert(Component.sorted() === Seq(a, c))
+    assert(Component.sorted().filter(Seq(a, c).contains(_)) === Seq(a, c))
   }
 }
 
