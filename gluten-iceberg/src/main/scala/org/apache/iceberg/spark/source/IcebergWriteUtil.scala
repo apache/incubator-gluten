@@ -28,6 +28,36 @@ import org.apache.iceberg.types.Types.{ListType, MapType}
 
 object IcebergWriteUtil {
 
+  private lazy val writeSchemaField: Field = {
+    val field = classOf[SparkWrite].getDeclaredField("writeSchema")
+    field.setAccessible(true)
+    field
+  }
+
+  private lazy val writePropertiesField: Field = {
+    val field = classOf[SparkWrite].getDeclaredField("writeProperties")
+    field.setAccessible(true)
+    field
+  }
+
+  private lazy val writeConfField: Field = {
+    val field = classOf[SparkWrite].getDeclaredField("writeConf")
+    field.setAccessible(true)
+    field
+  }
+
+  private lazy val tableField: Field = {
+    val field = classOf[SparkWrite].getDeclaredField("table")
+    field.setAccessible(true)
+    field
+  }
+
+  private lazy val fileFormatField: Field = {
+    val field = classOf[SparkWrite].getDeclaredField("format")
+    field.setAccessible(true)
+    field
+  }
+
   def supportsWrite(write: Write): Boolean = {
     write.isInstanceOf[SparkWrite]
   }
@@ -50,38 +80,26 @@ object IcebergWriteUtil {
 
   def getWriteSchema(write: Write): Schema = {
     assert(write.isInstanceOf[SparkWrite])
-    val field = classOf[SparkWrite].getDeclaredField("writeSchema")
-    field.setAccessible(true)
-    field.get(write).asInstanceOf[Schema]
+    writeSchemaField.get(write).asInstanceOf[Schema]
   }
 
   def getWriteProperty(write: Write): java.util.Map[String, String] = {
-    val field = classOf[SparkWrite].getDeclaredField("writeProperties")
-    field.setAccessible(true)
-    field.get(write).asInstanceOf[java.util.Map[String, String]]
+    writePropertiesField.get(write).asInstanceOf[java.util.Map[String, String]]
   }
 
   def getWriteConf(write: Write): SparkWriteConf = {
-    val field = classOf[SparkWrite].getDeclaredField("writeConf")
-    field.setAccessible(true)
-    field.get(write).asInstanceOf[SparkWriteConf]
+    writeConfField.get(write).asInstanceOf[SparkWriteConf]
   }
 
   def getTable(write: Write): Table = {
-    val field = classOf[SparkWrite].getDeclaredField("table")
-    field.setAccessible(true)
-    field.get(write).asInstanceOf[Table]
+    tableField.get(write).asInstanceOf[Table]
   }
 
   def getFileFormat(write: Write): FileFormat = {
-    val field = classOf[SparkWrite].getDeclaredField("format")
-    field.setAccessible(true)
-    field.get(write).asInstanceOf[FileFormat]
+    fileFormatField.get(write).asInstanceOf[FileFormat]
   }
 
   def getDirectory(write: Write): String = {
-    val field = classOf[SparkWrite].getDeclaredField("table")
-    field.setAccessible(true)
     val loc = getTable(write).locationProvider().newDataLocation("")
     loc.substring(0, loc.length - 1)
   }
@@ -91,8 +109,6 @@ object IcebergWriteUtil {
   }
 
   def getPartitionSpec(write: Write): PartitionSpec = {
-    val field = classOf[SparkWrite].getDeclaredField("table")
-    field.setAccessible(true)
     getTable(write).specs().get(getWriteConf(write).outputSpecId())
   }
 
