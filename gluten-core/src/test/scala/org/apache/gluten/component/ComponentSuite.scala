@@ -92,7 +92,7 @@ object ComponentSuite {
     }
   }
 
-  abstract private class DummyComponent(override val name: String)
+  private abstract class DummyComponent(override val name: String)
     extends Component
     with DependencyBuilder {
     override def buildInfo(): Component.BuildInfo =
@@ -102,7 +102,7 @@ object ComponentSuite {
     override def injectRules(injector: Injector): Unit = {}
   }
 
-  abstract private class DummyBackend(override val name: String) extends Backend {
+  private abstract class DummyBackend(override val name: String) extends Backend {
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo(name, "N/A", "N/A", "N/A")
 
