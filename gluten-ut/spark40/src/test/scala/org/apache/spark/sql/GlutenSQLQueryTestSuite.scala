@@ -220,7 +220,7 @@ class GlutenSQLQueryTestSuite
         Seq(TestPythonUDTF("udtf")).map {
           udtf =>
             UDTFTestCase(
-              s"$testCaseName - ${udtf.prettyName}",
+              s"$testCaseName - Python UDTFs",
               absPath,
               resultFile,
               udtf
@@ -671,8 +671,8 @@ class GlutenSQLQueryTestSuite
     testCase match {
       case udfTestCase: UDFTest =>
         registerTestUDF(udfTestCase.udf, localSparkSession)
-      case udtfTestCase: UDTFTest =>
-        registerTestUDTF(udtfTestCase.udtf, localSparkSession)
+      case udtfTestCase: SQLQueryTestSuite#UDTFSetTest =>
+        registerTestUDTFs(udtfTestCase.udtfSet, localSparkSession)
       case _ =>
     }
 

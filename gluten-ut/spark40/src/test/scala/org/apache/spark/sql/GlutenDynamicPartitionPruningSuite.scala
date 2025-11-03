@@ -294,7 +294,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
 
     val buf = collectDynamicPruningExpressions(df.queryExecution.executedPlan).collect {
       case InSubqueryExec(_, b: SubqueryBroadcastExec, _, _, _, _) =>
-        b.index
+        b.indices
       case InSubqueryExec(_, b: ColumnarSubqueryBroadcastExec, _, _, _, _) =>
         b.indices
     }

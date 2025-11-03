@@ -21,7 +21,7 @@ import org.apache.gluten.execution.SortMergeJoinExecTransformer
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
-import org.apache.spark.sql.connector.catalog.{Identifier, InMemoryTableCatalog}
+import org.apache.spark.sql.connector.catalog.{Column, Identifier, InMemoryTableCatalog}
 import org.apache.spark.sql.connector.distributions.Distributions
 import org.apache.spark.sql.connector.expressions.Expressions.{bucket, days, identity}
 import org.apache.spark.sql.connector.expressions.Transform
@@ -49,12 +49,12 @@ class GlutenKeyGroupedPartitioningSuite
   }
   private def createTable(
       table: String,
-      schema: StructType,
+      columns: Array[Column],
       partitions: Array[Transform],
       catalog: InMemoryTableCatalog = catalog): Unit = {
     catalog.createTable(
       Identifier.of(Array("ns"), table),
-      schema,
+      columns,
       partitions,
       emptyProps,
       Distributions.unspecified(),
@@ -77,26 +77,25 @@ class GlutenKeyGroupedPartitioningSuite
   }
 
   private val customers: String = "customers"
-  private val customers_schema = new StructType()
-    .add("customer_name", StringType)
-    .add("customer_age", IntegerType)
-    .add("customer_id", LongType)
+  private val customersColumns: Array[Column] = Array(
+    Column.create("customer_name", StringType),
+    Column.create("customer_age", IntegerType),
+    Column.create("customer_id", LongType))
 
   private val orders: String = "orders"
-  private val orders_schema = new StructType()
-    .add("order_amount", DoubleType)
-    .add("customer_id", LongType)
+  private val ordersColumns: Array[Column] =
+    Array(Column.create("order_amount", DoubleType), Column.create("customer_id", LongType))
 
   private def testWithCustomersAndOrders(
       customers_partitions: Array[Transform],
       orders_partitions: Array[Transform],
       expectedNumOfShuffleExecs: Int): Unit = {
-    createTable(customers, customers_schema, customers_partitions)
+    createTable(customers, customersColumns, customers_partitions)
     sql(
       s"INSERT INTO testcat.ns.$customers VALUES " +
         s"('aaa', 10, 1), ('bbb', 20, 2), ('ccc', 30, 3)")
 
-    createTable(orders, orders_schema, orders_partitions)
+    createTable(orders, ordersColumns, orders_partitions)
     sql(
       s"INSERT INTO testcat.ns.$orders VALUES " +
         s"(100.0, 1), (200.0, 1), (150.0, 2), (250.0, 2), (350.0, 2), (400.50, 3)")
@@ -134,22 +133,22 @@ class GlutenKeyGroupedPartitioningSuite
   }
 
   private val items: String = "items"
-  private val items_schema: StructType = new StructType()
-    .add("id", LongType)
-    .add("name", StringType)
-    .add("price", FloatType)
-    .add("arrive_time", TimestampType)
+  private val itemsColumns: Array[Column] = Array(
+    Column.create("id", LongType),
+    Column.create("name", StringType),
+    Column.create("price", FloatType),
+    Column.create("arrive_time", TimestampType))
   private val purchases: String = "purchases"
-  private val purchases_schema: StructType = new StructType()
-    .add("item_id", LongType)
-    .add("price", FloatType)
-    .add("time", TimestampType)
+  private val purchasesColumns: Array[Column] = Array(
+    Column.create("item_id", LongType),
+    Column.create("price", FloatType),
+    Column.create("time", TimestampType))
 
   testGluten(
     "SPARK-41413: partitioned join: partition values" +
       " from one side are subset of those from the other side") {
     val items_partitions = Array(bucket(4, "id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
 
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
@@ -158,7 +157,7 @@ class GlutenKeyGroupedPartitioningSuite
         "(4, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(bucket(4, "item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
 
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
@@ -190,7 +189,7 @@ class GlutenKeyGroupedPartitioningSuite
 
   testGluten("SPARK-41413: partitioned join: partition values from both sides overlaps") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
 
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
@@ -199,7 +198,7 @@ class GlutenKeyGroupedPartitioningSuite
         "(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         "(1, 42.0, cast('2020-01-01' as timestamp)), " +
@@ -231,7 +230,7 @@ class GlutenKeyGroupedPartitioningSuite
 
   testGluten("SPARK-41413: partitioned join: non-overlapping partition values from both sides") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         "(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -239,7 +238,7 @@ class GlutenKeyGroupedPartitioningSuite
         "(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         "(4, 42.0, cast('2020-01-01' as timestamp)), " +
@@ -273,7 +272,7 @@ class GlutenKeyGroupedPartitioningSuite
     "SPARK-42038: partially clustered:" +
       " with same partition keys and one side fully clustered") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -281,7 +280,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(1, 45.0, cast('2020-01-01' as timestamp)), " +
@@ -325,7 +324,7 @@ class GlutenKeyGroupedPartitioningSuite
     "SPARK-42038: partially clustered:" +
       " with same partition keys and both sides partially clustered") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -334,7 +333,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(1, 45.0, cast('2020-01-01' as timestamp)), " +
@@ -387,7 +386,7 @@ class GlutenKeyGroupedPartitioningSuite
     "SPARK-42038: partially clustered: with different" +
       " partition keys and both sides partially clustered") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -397,7 +396,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(4, 'dd', 18.0, cast('2023-01-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(1, 45.0, cast('2020-01-01' as timestamp)), " +
@@ -457,7 +456,7 @@ class GlutenKeyGroupedPartitioningSuite
     "SPARK-42038: partially clustered: with different" +
       " partition keys and missing keys on left-hand side") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -466,7 +465,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(4, 'dd', 18.0, cast('2023-01-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(1, 45.0, cast('2020-01-01' as timestamp)), " +
@@ -517,7 +516,7 @@ class GlutenKeyGroupedPartitioningSuite
     "SPARK-42038: partially clustered:" +
       " with different partition keys and missing keys on right-hand side") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -526,7 +525,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(2, 15.0, cast('2020-01-02' as timestamp)), " +
@@ -567,7 +566,7 @@ class GlutenKeyGroupedPartitioningSuite
 
   testGluten("SPARK-42038: partially clustered: left outer join") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -577,7 +576,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(2, 20.0, cast('2020-01-01' as timestamp)), " +
@@ -629,7 +628,7 @@ class GlutenKeyGroupedPartitioningSuite
 
   testGluten("SPARK-42038: partially clustered: right outer join") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -638,7 +637,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(1, 45.0, cast('2020-01-01' as timestamp)), " +
@@ -695,7 +694,7 @@ class GlutenKeyGroupedPartitioningSuite
 
   testGluten("SPARK-42038: partially clustered: full outer join is not applicable") {
     val items_partitions = Array(identity("id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -704,7 +703,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(3, 'cc', 15.5, cast('2020-01-01' as timestamp))")
 
     val purchases_partitions = Array(identity("item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(1, 45.0, cast('2020-01-01' as timestamp)), " +
@@ -761,7 +760,7 @@ class GlutenKeyGroupedPartitioningSuite
 
   testGluten("SPARK-44641: duplicated records when SPJ is not triggered") {
     val items_partitions = Array(bucket(8, "id"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(s"""
         INSERT INTO testcat.ns.$items VALUES
         (1, 'aa', 40.0, cast('2020-01-01' as timestamp)),
@@ -771,7 +770,7 @@ class GlutenKeyGroupedPartitioningSuite
         (3, 'cc', 15.5, cast('2020-02-01' as timestamp))""")
 
     val purchases_partitions = Array(bucket(8, "item_id"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(s"""INSERT INTO testcat.ns.$purchases VALUES
         (1, 42.0, cast('2020-01-01' as timestamp)),
         (1, 44.0, cast('2020-01-15' as timestamp)),
@@ -820,7 +819,7 @@ class GlutenKeyGroupedPartitioningSuite
 
   testGluten("partitioned join:  join with two partition keys and matching & sorted partitions") {
     val items_partitions = Array(bucket(8, "id"), days("arrive_time"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -830,7 +829,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(bucket(8, "item_id"), days("time"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(1, 42.0, cast('2020-01-01' as timestamp)), " +
@@ -859,7 +858,7 @@ class GlutenKeyGroupedPartitioningSuite
 
   testGluten("partitioned join: join with two partition keys and unsorted partitions") {
     val items_partitions = Array(bucket(8, "id"), days("arrive_time"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
         s"(3, 'cc', 15.5, cast('2020-02-01' as timestamp)), " +
@@ -869,7 +868,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(2, 'bb', 10.5, cast('2020-01-01' as timestamp))")
 
     val purchases_partitions = Array(bucket(8, "item_id"), days("time"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(2, 11.0, cast('2020-01-01' as timestamp)), " +
@@ -898,7 +897,7 @@ class GlutenKeyGroupedPartitioningSuite
 
   testGluten("partitioned join: join with two partition keys and different # of partition keys") {
     val items_partitions = Array(bucket(8, "id"), days("arrive_time"))
-    createTable(items, items_schema, items_partitions)
+    createTable(items, itemsColumns, items_partitions)
 
     sql(
       s"INSERT INTO testcat.ns.$items VALUES " +
@@ -907,7 +906,7 @@ class GlutenKeyGroupedPartitioningSuite
         s"(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
     val purchases_partitions = Array(bucket(8, "item_id"), days("time"))
-    createTable(purchases, purchases_schema, purchases_partitions)
+    createTable(purchases, purchasesColumns, purchases_partitions)
     sql(
       s"INSERT INTO testcat.ns.$purchases VALUES " +
         s"(1, 42.0, cast('2020-01-01' as timestamp)), " +
@@ -931,7 +930,7 @@ class GlutenKeyGroupedPartitioningSuite
       SQLConf.DYNAMIC_PARTITION_PRUNING_FALLBACK_FILTER_RATIO.key -> "10"
     ) {
       val items_partitions = Array(identity("id"))
-      createTable(items, items_schema, items_partitions)
+      createTable(items, itemsColumns, items_partitions)
       sql(
         s"INSERT INTO testcat.ns.$items VALUES " +
           s"(1, 'aa', 40.0, cast('2020-01-01' as timestamp)), " +
@@ -941,7 +940,7 @@ class GlutenKeyGroupedPartitioningSuite
           s"(3, 'cc', 15.5, cast('2020-02-01' as timestamp))")
 
       val purchases_partitions = Array(identity("item_id"))
-      createTable(purchases, purchases_schema, purchases_partitions)
+      createTable(purchases, purchasesColumns, purchases_partitions)
       sql(
         s"INSERT INTO testcat.ns.$purchases VALUES " +
           s"(1, 42.0, cast('2020-01-01' as timestamp)), " +
