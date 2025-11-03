@@ -32,8 +32,8 @@
   <url>https://github.com/apache/incubator-gluten.git</url>
 
   <organization>
-    <name>Apache</name>
-    <url>https://gluten.apache.org</url>
+    <name>Apache Software Foundation</name>
+    <url>https://www.apache.org</url>
   </organization>
 
   <licenses>
