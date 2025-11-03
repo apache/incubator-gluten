@@ -1167,7 +1167,8 @@
         <delta.binary.version>40</delta.binary.version>
         <!-- TODO: This hudi version is invalid for Spark 4.0. -->
         <hudi.version>0.15.0</hudi.version>
-        <fasterxml.version>2.15.1</fasterxml.version>
+        <fasterxml.jackson.version>2.18.2</fasterxml.jackson.version>
+        <fasterxml.jackson.databind.version>2.18.2</fasterxml.jackson.databind.version>
         <hadoop.version>3.4.1</hadoop.version>
         <antlr4.version>4.13.1</antlr4.version>
         <guava.version>33.4.0-jre</guava.version>
