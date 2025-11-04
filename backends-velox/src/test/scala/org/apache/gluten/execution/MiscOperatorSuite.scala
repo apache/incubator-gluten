@@ -24,7 +24,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec, ShuffleQueryStageExec}
-import org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -2062,25 +2061,6 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("support null type in aggregate") {
     runQueryAndCompare("SELECT max(null), min(null) from range(10)".stripMargin) {
       checkGlutenOperatorMatch[HashAggregateExecTransformer]
-    }
-  }
-
-  test("FullOuter in BroadcastNestLoopJoin") {
-    withTable("t1", "t2") {
-      spark.range(10).write.format("parquet").saveAsTable("t1")
-      spark.range(10).write.format("parquet").saveAsTable("t2")
-
-      // with join condition should fallback.
-      withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
-        runQueryAndCompare("SELECT * FROM t1 FULL OUTER JOIN t2 ON t1.id < t2.id") {
-          checkSparkOperatorMatch[BroadcastNestedLoopJoinExec]
-        }
-
-        // without join condition should offload to gluten operator.
-        runQueryAndCompare("SELECT * FROM t1 FULL OUTER JOIN t2") {
-          checkGlutenOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
-        }
-      }
     }
   }
 
