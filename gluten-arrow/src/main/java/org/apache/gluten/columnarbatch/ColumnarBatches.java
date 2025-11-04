@@ -106,9 +106,7 @@ public final class ColumnarBatches {
     return identifyBatchType(batch) == BatchType.ZERO_COLUMN;
   }
 
-  /**
-   * This method will always return a velox based ColumnarBatch.
-   */
+  /** This method will always return a velox based ColumnarBatch. */
   public static ColumnarBatch select(String backendName, ColumnarBatch batch, int[] columnIndices) {
     final Runtime runtime = Runtimes.contextInstance(backendName, "ColumnarBatches#select");
     switch (identifyBatchType(batch)) {
