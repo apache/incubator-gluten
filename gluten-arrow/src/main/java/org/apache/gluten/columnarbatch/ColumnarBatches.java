@@ -107,8 +107,7 @@ public final class ColumnarBatches {
   }
 
   /**
-   * This method will always return a velox based ColumnarBatch. This method will close the input
-   * column batch.
+   * This method will always return a velox based ColumnarBatch.
    */
   public static ColumnarBatch select(String backendName, ColumnarBatch batch, int[] columnIndices) {
     final Runtime runtime = Runtimes.contextInstance(backendName, "ColumnarBatches#select");
