@@ -43,7 +43,7 @@ static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
 static constexpr bool kDefaultEnableDictionary = false;
 
-enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
+enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle, kGpuHashShuffle };
 
 enum class PartitionWriterType { kLocal, kRss };
 
@@ -62,11 +62,6 @@ struct ShuffleReaderOptions {
 
   // Buffer size when deserializing rows into columnar batches. Only used for sort-based shuffle.
   int64_t deserializerBufferSize = kDefaultDeserializerBufferSize;
-
-  // When true, convert the buffers to cudf table.
-  // Add a lock after reader produces the Vector, the next operator should be CudfFromVelox.
-  // After move the shuffle read operation to gpu, move the lock to start read.
-  bool enableCudf = false;
 };
 
 struct ShuffleWriterOptions {

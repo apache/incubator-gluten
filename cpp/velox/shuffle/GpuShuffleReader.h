@@ -27,6 +27,9 @@
 
 namespace gluten {
 
+/// Convert the buffers to cudf table.
+/// Add a lock after reader produces the Vector, relase the lock after the thread processes all the batches.
+/// After move the shuffle read operation to gpu, move the lock to start read.
 class GpuHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
  public:
   GpuHashShuffleReaderDeserializer(

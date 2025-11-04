@@ -154,7 +154,6 @@ void StorageJoinFromReadBuffer::buildJoinLazily(const DB::SharedHeader & header,
     thread.join();
 }
 
-
 /// The column names of 'right_header' could be different from the ones in `input_blocks`, and we must
 /// use 'right_header' to build the HashJoin. Otherwise, it will cause exceptions with name mismatches.
 ///
