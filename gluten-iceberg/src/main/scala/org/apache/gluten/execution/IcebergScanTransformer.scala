@@ -253,7 +253,7 @@ object IcebergScanTransformer {
   }
 
   def supportsBatchScan(scan: Scan): Boolean = {
-    scan.getClass.getName == "org.apache.iceberg.spark.source.SparkBatchQueryScan"
+    scan.getClass == GlutenIcebergSourceUtil.getClassOfSparkBatchQueryScan
   }
 
   private def containsUuidOrFixedType(dataType: Type): Boolean = {

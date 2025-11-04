@@ -34,13 +34,7 @@ class VeloxDeltaComponent extends Component {
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
 
   override def isRuntimeCompatible: Boolean = {
-    try {
-      SparkReflectionUtil.classForName("io.delta.sql.DeltaSparkSessionExtension")
-      true
-    } catch {
-      case _: ClassNotFoundException =>
-        false
-    }
+    SparkReflectionUtil.isClassPresent("io.delta.sql.DeltaSparkSessionExtension")
   }
 
   override def injectRules(injector: Injector): Unit = {
