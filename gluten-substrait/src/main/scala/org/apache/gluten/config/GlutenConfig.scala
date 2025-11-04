@@ -993,7 +993,7 @@ object GlutenConfig extends ConfigRegistry {
     buildConf("spark.gluten.sql.columnar.scanOnly")
       .doc("When enabled, only scan and the filter after scan will be offloaded to native.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val COLUMNAR_TEMP_DIR =
     buildConf("spark.gluten.sql.columnar.tmp_dir")
