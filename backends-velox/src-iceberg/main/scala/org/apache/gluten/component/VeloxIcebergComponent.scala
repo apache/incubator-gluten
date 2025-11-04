@@ -29,14 +29,8 @@ class VeloxIcebergComponent extends Component {
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
 
   override def isRuntimeCompatible: Boolean = {
-    try {
-      SparkReflectionUtil.classForName(
-        "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-      true
-    } catch {
-      case _: ClassNotFoundException =>
-        false
-    }
+    SparkReflectionUtil.isClassPresent(
+      "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
   }
 
   override def injectRules(injector: Injector): Unit = {
