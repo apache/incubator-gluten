@@ -464,11 +464,24 @@ class GlutenClickHouseTPCHSuite extends MergeTreeSuite {
                 | insert into cross_join_t
                 | select id as a, cast(id as string) as b,
                 |   concat('1231231232323232322', cast(id as string)) as c
-                | from range(0, 100000)
+                | from range(0, 10000)
                 |""".stripMargin
     spark.sql(sql)
     sql = """
-            | select * from cross_join_t as t1 full join cross_join_t as t2 limit 10
+            | insert into cross_join_t
+            | select id as a, cast(id as string) as b,
+            |   concat('1231231232323232322', cast(id as string)) as c
+            | from range(10000, 20000)
+            |""".stripMargin
+    spark.sql(sql)
+    sql = """
+            |select * from (
+            | select a as a1, b as b1, c as c1 from cross_join_t
+            |) as t1 full join (
+            | select a as a2, b as b2, c as c2 from cross_join_t
+            |) as t2
+            |order by a1, b1, c1, a2, b2, c2
+            |limit 10
             |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
     spark.sql("drop table cross_join_t")
