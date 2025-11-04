@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.config.RssSortShuffleWriterType
-import org.apache.gluten.config.SortShuffleWriterType
 import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.execution.VeloxResizeBatchesExec
 
@@ -39,42 +37,30 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
 
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
     plan.transformUp {
-      case ColumnarResizeableShuffleExchangeExec(shuffle) if resizeBatchesShuffleInputEnabled =>
+      case shuffle: ColumnarShuffleExchangeExec
+          if resizeBatchesShuffleInputEnabled && shuffle.shuffleWriterType.requiresResizingShuffleInput =>
         val appendBatches =
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
         shuffle.withNewChildren(Seq(appendBatches))
       case a @ AQEShuffleReadExec(
-            ShuffleQueryStageExec(_, ColumnarResizeableShuffleExchangeExec(_), _),
-            _) if resizeBatchesShuffleOutputEnabled =>
+            ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _),
+            _)
+          if resizeBatchesShuffleOutputEnabled && shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
         VeloxResizeBatchesExec(a, range.min, range.max)
       // Since it's transformed in a bottom to up order, so we may first encountered
       // ShuffeQueryStageExec, which is transformed to VeloxResizeBatchesExec(ShuffeQueryStageExec),
       // then we see AQEShuffleReadExec
       case a @ AQEShuffleReadExec(
             VeloxResizeBatchesExec(
-              s @ ShuffleQueryStageExec(_, ColumnarResizeableShuffleExchangeExec(_), _),
+              s @ ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _),
               _,
               _),
-            _) if resizeBatchesShuffleOutputEnabled =>
+            _)
+          if resizeBatchesShuffleOutputEnabled && shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
         VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max)
-      case s @ ShuffleQueryStageExec(_, ColumnarResizeableShuffleExchangeExec(_), _)
-          if resizeBatchesShuffleOutputEnabled =>
+      case s @ ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _)
+          if resizeBatchesShuffleOutputEnabled && shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
         VeloxResizeBatchesExec(s, range.min, range.max)
-    }
-  }
-
-  private object ColumnarResizeableShuffleExchangeExec {
-    def unapply(plan: SparkPlan): Option[ColumnarShuffleExchangeExec] = {
-      plan match {
-        // sort-based/rss-sort shuffle has already resized the batch size in shuffle read,
-        // so no need to resize again
-        case shuffle: ColumnarShuffleExchangeExec
-            if shuffle.shuffleWriterType == SortShuffleWriterType
-              || shuffle.shuffleWriterType == RssSortShuffleWriterType =>
-          None
-        case shuffle: ColumnarShuffleExchangeExec => Some(shuffle)
-        case _ => None
-      }
     }
   }
 }
