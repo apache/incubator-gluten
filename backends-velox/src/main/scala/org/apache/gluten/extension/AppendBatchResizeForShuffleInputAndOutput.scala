@@ -38,14 +38,16 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
     plan.transformUp {
       case shuffle: ColumnarShuffleExchangeExec
-          if resizeBatchesShuffleInputEnabled && shuffle.shuffleWriterType.requiresResizingShuffleInput =>
+          if resizeBatchesShuffleInputEnabled &&
+            shuffle.shuffleWriterType.requiresResizingShuffleInput =>
         val appendBatches =
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
         shuffle.withNewChildren(Seq(appendBatches))
       case a @ AQEShuffleReadExec(
             ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _),
             _)
-          if resizeBatchesShuffleOutputEnabled && shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
+          if resizeBatchesShuffleOutputEnabled &&
+            shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
         VeloxResizeBatchesExec(a, range.min, range.max)
       // Since it's transformed in a bottom to up order, so we may first encountered
       // ShuffeQueryStageExec, which is transformed to VeloxResizeBatchesExec(ShuffeQueryStageExec),
@@ -56,10 +58,12 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
               _,
               _),
             _)
-          if resizeBatchesShuffleOutputEnabled && shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
+          if resizeBatchesShuffleOutputEnabled &&
+            shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
         VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max)
       case s @ ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _)
-          if resizeBatchesShuffleOutputEnabled && shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
+          if resizeBatchesShuffleOutputEnabled &&
+            shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
         VeloxResizeBatchesExec(s, range.min, range.max)
     }
   }
