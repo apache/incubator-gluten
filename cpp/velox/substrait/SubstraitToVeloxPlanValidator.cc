@@ -1179,7 +1179,8 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
             // details can be found in
             // https://github.com/facebookincubator/velox/pull/11999#issuecomment-3274577979
             // and https://github.com/facebookincubator/velox/issues/12830.
-            return true;
+            resolved = true;
+            break;
           }
         }
 
