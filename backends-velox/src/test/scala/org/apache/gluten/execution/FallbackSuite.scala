@@ -304,4 +304,12 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
         }
     }
   }
+
+  test("fallback on spilt with unsupported regex") {
+    runQueryAndCompare("SELECT split(cast(c1 as string), '(?<=\\\\}),(?=\\\\{)') from tmp1") {
+      df =>
+        val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
+        assert(columnarToRow == 1)
+    }
+  }
 }
