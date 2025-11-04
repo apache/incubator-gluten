@@ -47,11 +47,22 @@ env:
     --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
     --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
     --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
+  CI_DOCKER_IMAGE_PREFIX_DYNAMIC: 'apache/gluten:centos'
 
 jobs:
+  setup-image-prefix-for-test:
+    runs-on: ubuntu-22.04
+    outputs:
+      # This is workaround to pass docker image tag to downstream jobs.
+      image_tag_prefix: ${{ steps.set_image.outputs.image }}
+    steps:
+    - id: set_image
+      run: echo "::set-output name=image::${CI_DOCKER_IMAGE_PREFIX_DYNAMIC}"
   flink-test:
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk17
+    needs: setup-image-prefix-for-test
+    container:
+      image: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix }}-8-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Prepare

@@ -45,15 +45,29 @@ env:
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup-helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  CI_DOCKER_IMAGE_PREFIX_STATIC: 'apache/gluten:vcpkg-centos'
+  CI_DOCKER_IMAGE_PREFIX_DYNAMIC: 'apache/gluten:centos'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
+  setup-image-prefix-for-test:
+    runs-on: ubuntu-22.04
+    outputs:
+      # This is workaround to pass docker image tag to downstream jobs.
+      image_tag_prefix_static: ${{ steps.set_image.outputs.image_static }}
+      image_tag_prefix_dynamic: ${{ steps.set_image.outputs.image_dynamic }}
+    steps:
+    - id: set_image
+      run: echo "::set-output name=image_static::${CI_DOCKER_IMAGE_PREFIX_STATIC}" && echo "::set-output name=image_dynamic::${CI_DOCKER_IMAGE_PREFIX_DYNAMIC}"
+
   build-native-lib-centos-8:
     runs-on: ubuntu-24.04-arm
-    container: apache/gluten:vcpkg-centos-8
+    needs: setup-image-prefix-for-test
+    container:
+      image: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix_static }}-8
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
@@ -148,7 +162,9 @@ jobs:
 
   cpp-test-udf-test:
     runs-on: ubuntu-24.04-arm
-    container: apache/gluten:centos-8-jdk8
+    needs: setup-image-prefix-for-test
+    container:
+      image: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix_dynamic }}-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache

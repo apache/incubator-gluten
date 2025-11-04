@@ -23,12 +23,24 @@ on:
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  CI_DOCKER_IMAGE_PREFIX_STATIC: 'apache/gluten:vcpkg-centos'
+  CI_DOCKER_IMAGE_PREFIX_DYNAMIC: 'apache/gluten:centos'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}
   cancel-in-progress: false
 
 jobs:
+  setup-image-prefix-for-test:
+    runs-on: ubuntu-22.04
+    outputs:
+      # This is workaround to pass docker image tag to downstream jobs.
+      image_tag_prefix_static: ${{ steps.set_image.outputs.image_static }}
+      image_tag_prefix_dynamic: ${{ steps.set_image.outputs.image_dynamic }}
+    steps:
+    - id: set_image
+      run: echo "::set-output name=image_static::${CI_DOCKER_IMAGE_PREFIX_STATIC}" && echo "::set-output name=image_dynamic::${CI_DOCKER_IMAGE_PREFIX_DYNAMIC}"
+
   cache-native-lib-centos-7:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
@@ -43,7 +55,7 @@ jobs:
             ccache-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker run -v $GITHUB_WORKSPACE:/work -w /work ${CI_DOCKER_IMAGE_PREFIX_STATIC}-7 bash -c "
             export CCACHE_DIR=/work/.ccache
             mkdir -p /work/.ccache
             bash dev/ci-velox-buildstatic-centos-7.sh
@@ -58,7 +70,9 @@ jobs:
   cache-native-lib-centos-8:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
-    container: apache/gluten:vcpkg-centos-8
+    needs: setup-image-prefix-for-test
+    container:
+      image: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix_static }}-8
     strategy:
       matrix:
         os: [ ubuntu-22.04, ubuntu-24.04-arm ]
@@ -84,10 +98,12 @@ jobs:
   cache-shared-lib-centos-8:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
+    needs: setup-image-prefix-for-test
     strategy:
       matrix:
         os: [ ubuntu-22.04, ubuntu-24.04-arm ]
-    container: apache/gluten:centos-8-jdk8
+    container:
+      image: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix_dynamic }}-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
@@ -123,7 +139,7 @@ jobs:
             ccache-enhanced-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker run -v $GITHUB_WORKSPACE:/work -w /work ${CI_DOCKER_IMAGE_PREFIX_STATIC}-7 bash -c "
             export CCACHE_DIR=/work/.ccache
             mkdir -p /work/.ccache
             bash dev/ci-velox-buildstatic-centos-7-enhanced-features.sh
@@ -138,10 +154,12 @@ jobs:
   cache-shared-lib-centos-9:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
+    needs: setup-image-prefix-for-test
     strategy:
       matrix:
         os: [ ubuntu-22.04 ]
-    container: apache/gluten:centos-9-jdk8-cudf
+    container:
+      image: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix_dynamic }}-9-jdk8-cudf
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache

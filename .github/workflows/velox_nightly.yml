@@ -28,12 +28,24 @@ env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
   SETUP: 'bash .github/workflows/util/setup-helper.sh'
+  CI_DOCKER_IMAGE_PREFIX_STATIC: 'apache/gluten:vcpkg-centos'
+  CI_DOCKER_IMAGE_PREFIX_DYNAMIC: 'apache/gluten:centos'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
+  setup-image-prefix-for-test:
+    runs-on: ubuntu-22.04
+    outputs:
+      # This is workaround to pass docker image tag to downstream jobs.
+      image_tag_prefix_static: ${{ steps.set_image.outputs.image_static }}
+      image_tag_prefix_dynamic: ${{ steps.set_image.outputs.image_dynamic }}
+    steps:
+    - id: set_image
+      run: echo "::set-output name=image_static::${CI_DOCKER_IMAGE_PREFIX_STATIC}" && echo "::set-output name=image_dynamic::${CI_DOCKER_IMAGE_PREFIX_DYNAMIC}"
+
   build-native-lib-x86:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
@@ -48,7 +60,7 @@ jobs:
             ccache-centos7-release-default
       - name: Build Gluten velox third party
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker run -v $GITHUB_WORKSPACE:/work -w /work ${CI_DOCKER_IMAGE_PREFIX_STATIC}-7 bash -c "
             df -a
             cd /work
             export CCACHE_DIR=/work/.ccache
@@ -156,7 +168,8 @@ jobs:
   build-native-lib-centos-8-arm64:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-24.04-arm
-    container: apache/gluten:vcpkg-centos-8
+    needs: setup-image-prefix-for-test
+    container: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix_static }}-8
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache

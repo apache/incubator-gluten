@@ -19,6 +19,8 @@ env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
   SETUP: 'bash .github/workflows/util/setup-helper.sh'
+  CI_DOCKER_IMAGE_PREFIX_STATIC: 'apache/gluten:vcpkg-centos'
+  CI_DOCKER_IMAGE_PREFIX_DYNAMIC: 'apache/gluten:centos'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -28,11 +30,11 @@ on:
   workflow_dispatch:
     inputs:
       spark:
-        description: 'Spark version: spark-3.2, spark-3.3, spark-3.4 or spark-3.5'
+        description: 'Spark version: spark-3.2, spark-3.3, spark-3.4, spark-3.5 or spark-4.0'
         required: true
         default: 'spark-3.5'
       hadoop:
-        description: 'Hadoop version: 2.7.4, 3.2.0, 3.2.2, 3.3.1, 3.3.3 or 3.3.6'
+        description: 'Hadoop version: 2.7.4, 3.2.0, 3.2.2, 3.3.1, 3.3.3, 3.3.6 or 3.4.1'
         required: true
         default: '3.3.3'
       ref:
@@ -56,7 +58,7 @@ jobs:
             ccache-centos7-release-default
       - name: Build Gluten velox third party
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker run -v $GITHUB_WORKSPACE:/work -w /work ${CI_DOCKER_IMAGE_PREFIX_STATIC}-7 bash -c "
             df -a
             cd /work
             export CCACHE_DIR=/work/.ccache

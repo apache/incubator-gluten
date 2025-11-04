@@ -44,12 +44,24 @@ env:
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup-helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  CI_DOCKER_IMAGE_PREFIX_STATIC: 'apache/gluten:vcpkg-centos'
+  CI_DOCKER_IMAGE_PREFIX_DYNAMIC: 'apache/gluten:centos'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
+  setup-image-prefix-for-test:
+    runs-on: ubuntu-22.04
+    outputs:
+      # This is workaround to pass docker image tag to downstream jobs.
+      image_tag_prefix_static: ${{ steps.set_image.outputs.image_static }}
+      image_tag_prefix_dynamic: ${{ steps.set_image.outputs.image_dynamic }}
+    steps:
+    - id: set_image
+      run: echo "::set-output name=image_static::${CI_DOCKER_IMAGE_PREFIX_STATIC}" && echo "::set-output name=image_dynamic::${CI_DOCKER_IMAGE_PREFIX_DYNAMIC}"
+
   build-native-lib-centos-7:
     runs-on: ubuntu-22.04
     steps:
@@ -63,8 +75,7 @@ jobs:
             ccache-enhanced-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          docker pull apache/gluten:vcpkg-centos-7
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker run -v $GITHUB_WORKSPACE:/work -w /work ${CI_DOCKER_IMAGE_PREFIX_STATIC}-7 bash -c "
             set -e
             yum install tzdata -y
             df -a
@@ -95,9 +106,9 @@ jobs:
           if-no-files-found: error
 
   spark-test-spark34:
-    needs: build-native-lib-centos-7
+    needs: [build-native-lib-centos-7, setup-image-prefix-for-test]
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
+    container: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix_dynamic }}-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -153,9 +164,9 @@ jobs:
           path: /tmp/tpch-approved-plan/**
 
   spark-test-spark35:
-    needs: build-native-lib-centos-7
+    needs: [build-native-lib-centos-7, setup-image-prefix-for-test]
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
+    container: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix_dynamic }}-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -211,9 +222,9 @@ jobs:
           path: /tmp/tpch-approved-plan/**
 
   spark-test-spark35-slow:
-    needs: build-native-lib-centos-7
+    needs: [build-native-lib-centos-7, setup-image-prefix-for-test]
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
+    container: ${{ needs.setup-image-prefix-for-test.outputs.image_tag_prefix_dynamic }}-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
