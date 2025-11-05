@@ -35,6 +35,7 @@
 #include <arrow/ipc/writer.h>
 #include <base/types.h>
 #include <substrait/plan.pb.h>
+#include <substrait/extensions/gluten_extensions.pb.h>
 #include <Common/BlockIterator.h>
 
 namespace local_engine

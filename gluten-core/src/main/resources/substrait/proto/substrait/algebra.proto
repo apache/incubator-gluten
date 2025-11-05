@@ -420,7 +420,7 @@ message RelRoot {
   Rel input = 1;
   // Field names in depth-first order
   repeated string names = 2;
-  Type.Struct output_schema = 3;
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
 }
 
 // A relation (used internally in a plan)

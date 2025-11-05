@@ -483,47 +483,58 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
         }
 
         // fixes: issue-1874, to keep the nullability as expected.
-        const auto & output_schema = root_rel.root().output_schema();
-        if (output_schema.types_size())
+        // Check if output_schema is present in the advanced_extension
+        if (root_rel.root().has_advanced_extension() && root_rel.root().advanced_extension().has_enhancement())
         {
-            auto original_header = query_plan->getCurrentDataStream().header;
-            const auto & original_cols = original_header.getColumnsWithTypeAndName();
-            if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
+            const auto & enhancement = root_rel.root().advanced_extension().enhancement();
+            if (enhancement.Is<substrait::extensions::RelRootOutputSchema>())
             {
-                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Mismatch output schema");
-            }
-            bool need_final_project = false;
-            DB::ColumnsWithTypeAndName final_cols;
-            for (int i = 0; i < output_schema.types_size(); ++i)
-            {
-                const auto & col = original_cols[i];
-                auto type = TypeParser::parseType(output_schema.types(i));
-                // At present, we only check nullable mismatch.
-                // intermediate aggregate data is special, no check here.
-                if (type->isNullable() != col.type->isNullable() && !typeid_cast<const DB::DataTypeAggregateFunction *>(col.type.get()))
+                substrait::extensions::RelRootOutputSchema output_schema_ext;
+                enhancement.UnpackTo(&output_schema_ext);
+                const auto & output_schema = output_schema_ext.output_schema();
+
+                if (output_schema.types_size())
                 {
-                    if (type->isNullable())
+                    auto original_header = query_plan->getCurrentDataStream().header;
+                    const auto & original_cols = original_header.getColumnsWithTypeAndName();
+                    if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
                     {
-                        final_cols.emplace_back(type->createColumn(), std::make_shared<DB::DataTypeNullable>(col.type), col.name);
+                        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Mismatch output schema");
                     }
-                    else
+                    bool need_final_project = false;
+                    DB::ColumnsWithTypeAndName final_cols;
+                    for (int i = 0; i < output_schema.types_size(); ++i)
                     {
-                        final_cols.emplace_back(type->createColumn(), DB::removeNullable(col.type), col.name);
+                        const auto & col = original_cols[i];
+                        auto type = TypeParser::parseType(output_schema.types(i));
+                        // At present, we only check nullable mismatch.
+                        // intermediate aggregate data is special, no check here.
+                        if (type->isNullable() != col.type->isNullable() && !typeid_cast<const DB::DataTypeAggregateFunction *>(col.type.get()))
+                        {
+                            if (type->isNullable())
+                            {
+                                final_cols.emplace_back(type->createColumn(), std::make_shared<DB::DataTypeNullable>(col.type), col.name);
+                            }
+                            else
+                            {
+                                final_cols.emplace_back(type->createColumn(), DB::removeNullable(col.type), col.name);
+                            }
+                            need_final_project = true;
+                        }
+                        else
+                        {
+                            final_cols.push_back(col);
+                        }
                     }
-                    need_final_project = true;
+                    if (need_final_project)
+                    {
+                        ActionsDAGPtr final_project
+                            = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
+                        QueryPlanStepPtr final_project_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), final_project);
+                        final_project_step->setStepDescription("Project for output schema");
+                        query_plan->addStep(std::move(final_project_step));
+                    }
                 }
-                else
-                {
-                    final_cols.push_back(col);
-                }
-            }
-            if (need_final_project)
-            {
-                ActionsDAGPtr final_project
-                    = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
-                QueryPlanStepPtr final_project_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), final_project);
-                final_project_step->setStepDescription("Project for output schema");
-                query_plan->addStep(std::move(final_project_step));
             }
         }
         return query_plan;

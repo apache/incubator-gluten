@@ -21,9 +21,11 @@ import io.glutenproject.substrait.extensions.FunctionMappingNode;
 import io.glutenproject.substrait.rel.RelNode;
 import io.glutenproject.substrait.type.TypeNode;
 
+import com.google.protobuf.Any;
 import io.substrait.proto.Plan;
 import io.substrait.proto.PlanRel;
 import io.substrait.proto.RelRoot;
+import io.substrait.proto.extensions.GlutenExtensions.RelRootOutputSchema;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -76,7 +78,15 @@ public class PlanNode implements Serializable {
         relRootBuilder.addNames(name);
       }
       if (outputSchema != null) {
-        relRootBuilder.setOutputSchema(outputSchema.toProtobuf().getStruct());
+        // Pack output_schema into RelRootOutputSchema extension
+        RelRootOutputSchema outputSchemaExt = RelRootOutputSchema.newBuilder()
+            .setOutputSchema(outputSchema.toProtobuf().getStruct())
+            .build();
+        io.substrait.proto.extensions.Extensions.AdvancedExtension advancedExt =
+            io.substrait.proto.extensions.Extensions.AdvancedExtension.newBuilder()
+            .setEnhancement(Any.pack(outputSchemaExt))
+            .build();
+        relRootBuilder.setAdvancedExtension(advancedExt);
       }
       planRelBuilder.setRoot(relRootBuilder.build());
 

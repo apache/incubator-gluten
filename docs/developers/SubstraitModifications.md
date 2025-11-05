@@ -21,7 +21,7 @@ alternatives like `AdvancedExtension` could be considered.
 * Changed join type `JOIN_TYPE_SEMI` to `JOIN_TYPE_LEFT_SEMI` and `JOIN_TYPE_RIGHT_SEMI`([#408](https://github.com/oap-project/gluten/pull/408)).
 * Added `WindowRel`, added `column_name` and `window_type` in `WindowFunction`,
 changed `Unbounded` in `WindowFunction` into `Unbounded_Preceding` and `Unbounded_Following`, and added WindowType([#485](https://github.com/oap-project/gluten/pull/485)).
-* Added `output_schema` in RelRoot([#1901](https://github.com/oap-project/gluten/pull/1901)).
+* Added `advanced_extension` in `RelRoot` and moved `output_schema` to `RelRootOutputSchema` extension.
 * Added `ExpandRel`([#1361](https://github.com/oap-project/gluten/pull/1361)).
 * Added `GenerateRel`([#574](https://github.com/oap-project/gluten/pull/574)).
 * Added `PartitionColumn` in `LocalFiles`([#2405](https://github.com/oap-project/gluten/pull/2405)).
@@ -33,3 +33,8 @@ changed `Unbounded` in `WindowFunction` into `Unbounded_Preceding` and `Unbounde
 * Added `names` in `Struct`([#1878](https://github.com/oap-project/gluten/pull/1878)).
 * Added `PartitionColumns` in `NamedStruct`([#320](https://github.com/oap-project/gluten/pull/320)).
 * Remove `PartitionColumns` and add `column_types` in `NamedStruct`([#2405](https://github.com/oap-project/gluten/pull/2405)).
+
+## Gluten-specific extensions
+
+* Created `gluten_extensions.proto` to store Gluten-specific extensions using Substrait's `AdvancedExtension` mechanism.
+* Added `RelRootOutputSchema` extension to preserve output schema information (nullability, etc.) for ClickHouse backend.
