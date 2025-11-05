@@ -28,6 +28,8 @@ import java.io.File
 
 case class MyStruct(a: Long, b: Array[Long])
 
+case class MyStructWithNullValue(a: Option[Long], b: Array[Long])
+
 class UDFPartialProjectSuiteRasOff extends UDFPartialProjectSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -245,6 +247,29 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
             }
           }
         }
+    }
+  }
+
+  test("test struct data with null fields") {
+    spark.udf.register(
+      "struct_plus_one",
+      udf(
+        (m: MyStructWithNullValue) =>
+          MyStructWithNullValue(if (m.a.isEmpty) None else Some(m.a.get + 1), m.b.map(_ + 1))))
+    runQueryAndCompare("""
+                         |SELECT
+                         |  l_partkey,
+                         |  struct_plus_one(struct_data)
+                         |FROM (
+                         | SELECT l_partkey,
+                         | struct(
+                         |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END as a,
+                         |   array(l_orderkey % 2, l_orderkey % 2 + 1, l_orderkey % 2 + 2) as b
+                         | ) as struct_data
+                         | FROM lineitem
+                         |)
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
 }

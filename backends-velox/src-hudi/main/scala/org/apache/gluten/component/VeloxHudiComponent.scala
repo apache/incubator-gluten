@@ -25,12 +25,18 @@ import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.util.SparkReflectionUtil
 
 class VeloxHudiComponent extends Component {
   override def name(): String = "velox-hudi"
   override def buildInfo(): Component.BuildInfo =
     Component.BuildInfo("VeloxHudi", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
+
+  override def isRuntimeCompatible: Boolean = {
+    SparkReflectionUtil.isClassPresent("org.apache.spark.sql.hudi.HoodieSparkSessionExtension")
+  }
+
   override def injectRules(injector: Injector): Unit = {
     val legacy = injector.gluten.legacy
     val ras = injector.gluten.ras

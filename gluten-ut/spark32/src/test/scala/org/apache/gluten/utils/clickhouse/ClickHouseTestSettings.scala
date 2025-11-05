@@ -135,6 +135,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDSV2CharVarcharTestSuite]
     // failed on spark32 UT, see https://github.com/oap-project/gluten/issues/4043
     .exclude("SPARK-34833: right-padding applied correctly for correlated subqueries - other preds")
+    // Excluded. The Gluten tests for char/varchar validation were rewritten for Velox.
+    // ClickHouse backend doesn't support this feature and falls back to vanilla Spark,
+    // causing mismatches in error messages.
+    .excludeGlutenTest("length check for input string values: nested in struct")
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude("average")
@@ -354,6 +359,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("varchar type values length check and trim: partitioned columns")
     .exclude("char/varchar type values length check: partitioned columns of other types")
     .exclude("char type comparison: partitioned columns")
+    // Excluded. The Gluten tests for char/varchar validation were rewritten for Velox.
+    // ClickHouse backend doesn't support this feature and falls back to vanilla Spark,
+    // causing mismatches in error messages.
+    .excludeGlutenTest("length check for input string values: nested in struct")
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
     .exclude("SPARK-33474: Support typed literals as partition spec values")
     .exclude(

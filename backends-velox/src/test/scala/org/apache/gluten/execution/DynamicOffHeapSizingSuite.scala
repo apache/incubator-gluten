@@ -35,12 +35,11 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.executor.memory", "2GB")
       .set("spark.memory.offHeap.enabled", "false")
-      .set("spark.memory.offHeap.size", "0")
       .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION.key, "0.95")
       .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, "true")
   }
 
-  test("Dynamic off-heap sizing") {
+  test("Dynamic off-heap sizing without setting offheap") {
     if (DynamicOffHeapSizingMemoryTarget.isJava9OrLater()) {
       val query =
         """
@@ -68,6 +67,39 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
       assert(newTotalMemory < totalMemory)
       // Verify that the query can run with dynamic off-heap sizing enabled.
       runAndCompare(query)
+    }
+  }
+
+  test("Dynamic off-heap sizing with setting offheap") {
+    withSQLConf(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY -> "1GB") {
+      if (DynamicOffHeapSizingMemoryTarget.isJava9OrLater()) {
+        val query =
+          """
+            | select l_quantity, c_acctbal, o_orderdate, p_type, n_name, s_suppkey
+            | from customer, orders, lineitem, part, supplier, nation
+            | where c_custkey = o_custkey and o_orderkey = l_orderkey and l_partkey = p_partkey
+            | and l_suppkey = s_suppkey and s_nationkey = n_nationkey
+            | order by c_acctbal desc, o_orderdate, s_suppkey, n_name, p_type, l_quantity
+            | limit 1
+      """.stripMargin
+        var totalMemory = Runtime.getRuntime().totalMemory()
+        var freeMemory = Runtime.getRuntime().freeMemory()
+        // Ensure that the JVM memory is not too small to trigger dynamic off-heap sizing.
+        while (!DynamicOffHeapSizingMemoryTarget.canShrinkJVMMemory(totalMemory, freeMemory)) {
+          withSQLConf(("spark.gluten.enabled", "false")) {
+            spark.sql(query).collect()
+          }
+          totalMemory = Runtime.getRuntime().totalMemory()
+          freeMemory = Runtime.getRuntime().freeMemory()
+        }
+        val newTotalMemory =
+          DynamicOffHeapSizingMemoryTarget.shrinkOnHeapMemory(totalMemory, freeMemory, false)
+        assert(DynamicOffHeapSizingMemoryTarget.getTotalExplicitGCCount() > 0)
+        // Verify that the total memory is reduced after shrink.
+        assert(newTotalMemory < totalMemory)
+        // Verify that the query can run with dynamic off-heap sizing enabled.
+        runAndCompare(query)
+      }
     }
   }
 }

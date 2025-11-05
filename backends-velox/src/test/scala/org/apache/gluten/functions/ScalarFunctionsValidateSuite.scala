@@ -622,6 +622,47 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  // Add test suite for CharVarcharCodegenUtils functions.
+  // A ProjectExecTransformer is expected to be constructed after expr support.
+  // We currently test below functions with Spark v3.4
+  testWithMinSparkVersion("charTypeWriteSideCheck", "3.4") {
+    withTable("src", "dest") {
+
+      sql("create table src(id string) USING PARQUET")
+      sql("insert into src values('s')")
+      sql("create table dest(id char(3)) USING PARQUET")
+      // check whether the executed plan of a dataframe contains the expected plan.
+      runQueryAndCompare("insert into dest select id from src") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
+  testWithMinSparkVersion("varcharTypeWriteSideCheck", "3.4") {
+    withTable("src", "dest") {
+
+      sql("create table src(id string) USING PARQUET")
+      sql("insert into src values('abc')")
+      sql("create table dest(id varchar(10)) USING PARQUET")
+      // check whether the executed plan of a dataframe contains the expected plan.
+      runQueryAndCompare("insert into dest select id from src") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
+  testWithMinSparkVersion("readSidePadding", "3.4") {
+    withTable("src", "dest") {
+
+      sql("create table tgt(id char(3)) USING PARQUET")
+      sql("insert into tgt values('p')")
+      // check whether the executed plan of a dataframe contains the expected plan.
+      runQueryAndCompare("select id from tgt") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
   test("soundex") {
     runQueryAndCompare("select soundex(c_comment) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]

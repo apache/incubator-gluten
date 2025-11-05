@@ -210,6 +210,6 @@ object PaimonScanTransformer {
   }
 
   def supportsBatchScan(scan: Scan): Boolean = {
-    scan.getClass.getName == "org.apache.paimon.spark.PaimonScan"
+    scan.getClass == classOf[PaimonScan]
   }
 }

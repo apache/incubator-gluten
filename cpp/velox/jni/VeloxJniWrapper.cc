@@ -56,6 +56,9 @@ jmethodID infoClsInitMethod;
 
 jclass blockStripesClass;
 jmethodID blockStripesConstructor;
+
+jclass batchWriteMetricsClass;
+jmethodID batchWriteMetricsConstructor;
 } // namespace
 
 #ifdef __cplusplus
@@ -79,6 +82,10 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
   blockStripesConstructor = getMethodIdOrError(env, blockStripesClass, "<init>", "(J[J[II[[B)V");
+
+  batchWriteMetricsClass =
+    createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/BatchWriteMetrics;");
+  batchWriteMetricsConstructor = getMethodIdOrError(env, batchWriteMetricsClass, "<init>", "(JIJJ)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
 
@@ -608,7 +615,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_start(
   JNI_METHOD_START
 #ifdef ENABLE_JEMALLOC_STATS
   bool active = true;
-  mallctl("prof.active", NULL, NULL, &active, sizeof(bool));
+  mallctl("prof.active", nullptr, nullptr, &active, sizeof(bool));
 #endif
   JNI_METHOD_END()
 }
@@ -618,7 +625,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_dump( 
     jclass) {
   JNI_METHOD_START
 #ifdef ENABLE_JEMALLOC_STATS
-  mallctl("prof.dump", NULL, NULL, NULL, 0);
+  mallctl("prof.dump", nullptr, nullptr, nullptr, 0);
 #endif
   JNI_METHOD_END()
 }
@@ -629,7 +636,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_stop( 
   JNI_METHOD_START
 #ifdef ENABLE_JEMALLOC_STATS
   bool active = false;
-  mallctl("prof.active", NULL, NULL, &active, sizeof(bool));
+  mallctl("prof.active", nullptr, nullptr, &active, sizeof(bool));
 #endif
   JNI_METHOD_END()
 }
@@ -808,6 +815,25 @@ JNIEXPORT jobjectArray JNICALL Java_org_apache_gluten_execution_IcebergWriteJniW
     env->SetObjectArrayElement(ret, i, env->NewStringUTF(commitMessages[i].data()));
   }
   return ret;
+
+  JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jobject JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_metrics( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong writerHandle) {
+  JNI_METHOD_START
+  auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
+  auto writeStats = writer->writeStats();
+  jobject writeMetrics = env->NewObject(
+    batchWriteMetricsClass,
+    batchWriteMetricsConstructor,
+    writeStats.numWrittenBytes,
+    writeStats.numWrittenFiles,
+    writeStats.writeIOTimeNs,
+    writeStats.writeWallNs);
+  return writeMetrics;
 
   JNI_METHOD_END(nullptr)
 }

@@ -18,11 +18,11 @@ set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_10_17
+VELOX_BRANCH=2025_11_03
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
 VELOX_ENHANCED_REPO=https://github.com/IBM/velox.git
-VELOX_ENHANCED_BRANCH=ibm-2025_10_17
+VELOX_ENHANCED_BRANCH=ibm-2025_11_03_fix
 ENABLE_ENHANCED_FEATURES=OFF
 
 # Developer use only for testing Velox PR.
@@ -72,6 +72,7 @@ function process_setup_ubuntu {
 }
 
 function process_setup_centos9 {
+  sed -i "s|-DFOLLY_HAVE_INT128_T=ON|-DFOLLY_HAVE_INT128_T=ON -DFOLLY_NO_EXCEPTION_TRACER=ON|g" scripts/setup-common.sh
   echo "Using setup script from Velox"
 }
 

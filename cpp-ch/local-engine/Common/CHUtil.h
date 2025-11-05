@@ -52,7 +52,7 @@ class BlockUtil
 {
 public:
     static constexpr auto VIRTUAL_ROW_COUNT_COLUMN = "__VIRTUAL_ROW_COUNT_COLUMN__";
-    static constexpr auto RIHGT_COLUMN_PREFIX = "broadcast_right_";
+    static constexpr auto RIGHT_COLUMN_PREFIX = "broadcast_right_";
 
     // Build a header block with a virtual column which will be
     // use to indicate the number of rows in a block.
@@ -249,7 +249,11 @@ public:
 class JoinUtil
 {
 public:
-    static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
+    static constexpr auto CROSS_REL_LEFT_CONST_KEY_COLUMN = "__CROSS_REL_LEFT_CONST_KEY_COLUMN__";
+    static constexpr auto CROSS_REL_RIGHT_CONST_KEY_COLUMN = "__CROSS_REL_RIGHT_CONST_KEY_COLUMN__";
+
+    // Keep necessarily columns and reorder them according to cols
+    static void adjustJoinOutput(DB::QueryPlan & plan, DB::Names cols);
     static std::pair<DB::JoinKind, DB::JoinStrictness>
     getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool is_existence_join);
     static std::pair<DB::JoinKind, DB::JoinStrictness> getCrossJoinKindAndStrictness(substrait::CrossRel_JoinType join_type);
