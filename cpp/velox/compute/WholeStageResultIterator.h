@@ -42,7 +42,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       const std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
       const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
       const std::string spillDir,
-      const std::unordered_map<std::string, std::string>& confMap,
+      const facebook::velox::config::ConfigBase* veloxCfg,
       const SparkTaskInfo& taskInfo);
 
   virtual ~WholeStageResultIterator() {
@@ -113,7 +113,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   VeloxMemoryManager* memoryManager_;
 
   /// Config, task and plan.
-  std::shared_ptr<config::ConfigBase> veloxCfg_;
+  const config::ConfigBase* veloxCfg_;
 #ifdef GLUTEN_ENABLE_GPU
   const bool enableCudf_;
 #endif
