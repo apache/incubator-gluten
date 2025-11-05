@@ -417,6 +417,8 @@
               <include>src-delta/test/scala/**/*.scala</include>
               <include>src-delta${delta.binary.version}/main/scala/**/*.scala</include>
               <include>src-delta${delta.binary.version}/test/scala/**/*.scala</include>
+              <include>src-iceberg/main/scala/**/*.scala</include>
+              <include>src-iceberg/test/scala/**/*.scala</include>
             </includes>
             <excludes>
               <exclude>src-delta${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/*.scala</exclude>
