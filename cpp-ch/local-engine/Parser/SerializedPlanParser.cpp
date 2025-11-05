@@ -487,9 +487,9 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
         if (root_rel.root().has_advanced_extension() && root_rel.root().advanced_extension().has_enhancement())
         {
             const auto & enhancement = root_rel.root().advanced_extension().enhancement();
-            if (enhancement.Is<substrait::extensions::RelRootOutputSchema>())
+            if (enhancement.Is<gluten::RelRootOutputSchema>())
             {
-                substrait::extensions::RelRootOutputSchema output_schema_ext;
+                gluten::RelRootOutputSchema output_schema_ext;
                 enhancement.UnpackTo(&output_schema_ext);
                 const auto & output_schema = output_schema_ext.output_schema();
 

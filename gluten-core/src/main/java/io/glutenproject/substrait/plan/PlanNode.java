@@ -22,10 +22,10 @@ import io.glutenproject.substrait.rel.RelNode;
 import io.glutenproject.substrait.type.TypeNode;
 
 import com.google.protobuf.Any;
+import io.glutenproject.proto.GlutenExtensions.RelRootOutputSchema;
 import io.substrait.proto.Plan;
 import io.substrait.proto.PlanRel;
 import io.substrait.proto.RelRoot;
-import io.substrait.proto.extensions.GlutenExtensions.RelRootOutputSchema;
 
 import java.io.Serializable;
 import java.util.ArrayList;

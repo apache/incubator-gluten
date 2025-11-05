@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 syntax = "proto3";
 
-package substrait.extensions;
+package gluten;
 
 import "substrait/type.proto";
 
-option csharp_namespace = "Substrait.Protobuf";
-option go_package = "github.com/substrait-io/substrait-go/proto/extensions";
+option java_package = "io.glutenproject.proto";
 option java_multiple_files = true;
-option java_package = "io.substrait.proto";
 
 // Gluten-specific extensions for Substrait
 
 // Extension for RelRoot to store output schema information.
 // This is used to preserve nullability and type information
 // that may be lost during plan conversion.
+//
+// This extension should be packed into RelRoot.advanced_extension.enhancement
+// using google.protobuf.Any.
 message RelRootOutputSchema {
   // The output schema for the root relation
   substrait.Type.Struct output_schema = 1;
