@@ -31,12 +31,14 @@ import scala.collection.JavaConverters._
 
 trait ShuffleWriterType {
   val name: String
-  val requiresResizingShuffleInput: Boolean = true
-  val requiresResizingShuffleOutput: Boolean = true
+  val requiresResizingShuffleInput: Boolean
+  val requiresResizingShuffleOutput: Boolean
 }
 
 case object HashShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = true
+  override val requiresResizingShuffleOutput: Boolean = true
 }
 
 case object SortShuffleWriterType extends ShuffleWriterType {
@@ -53,6 +55,8 @@ case object RssSortShuffleWriterType extends ShuffleWriterType {
 
 case object GpuHashShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_GPU_HASH_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = true
+  override val requiresResizingShuffleOutput: Boolean = true
 }
 
 /*
