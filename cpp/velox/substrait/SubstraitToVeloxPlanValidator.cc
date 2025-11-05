@@ -56,7 +56,8 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "regexp_extract",
     "regexp_extract_all",
     "regexp_replace",
-    "rlike"};
+    "rlike",
+    "split"};
 
 const std::unordered_set<std::string> kBlackList =
     {"split_part", "sequence", "approx_percentile", "map_from_arrays"};
@@ -1101,13 +1102,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT_SEMI:
       break;
-    case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
-      if (crossRel.has_expression()) {
-        LOG_VALIDATION_MSG("Full outer join type with condition is not supported in CrossRel");
-        return false;
-      } else {
-        break;
-      }
     default:
       LOG_VALIDATION_MSG("Unsupported Join type in CrossRel");
       return false;
@@ -1179,7 +1173,8 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
             // details can be found in
             // https://github.com/facebookincubator/velox/pull/11999#issuecomment-3274577979
             // and https://github.com/facebookincubator/velox/issues/12830.
-            return true;
+            resolved = true;
+            break;
           }
         }
 

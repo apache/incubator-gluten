@@ -149,8 +149,6 @@ trait BackendSettingsApi {
 
   def needPreComputeRangeFrameBoundary(): Boolean = false
 
-  def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = false
-
   def supportIcebergEqualityDeleteRead(): Boolean = true
 
   def reorderColumnsForPartitionWrite(): Boolean = false

@@ -76,6 +76,32 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
     a.ensureRegistered()
     assert(Component.sorted().filter(Seq(a, c).contains(_)) === Seq(a, c))
   }
+
+  test("Dependency cycle") {
+    val a = new DummyComponent("A") {}
+    val b = new DummyComponent("B") {}
+    val c = new DummyComponent("C") {}
+    val d = new DummyComponent("D") {}
+    val e = new DummyComponent("E") {}
+
+    // Cycle: b -> c -> d.
+    d.dependsOn(c)
+    c.dependsOn(b)
+    b.dependsOn(d)
+
+    b.dependsOn(a)
+    e.dependsOn(a)
+
+    a.ensureRegistered()
+    b.ensureRegistered()
+    c.ensureRegistered()
+    d.ensureRegistered()
+    e.ensureRegistered()
+
+    assertThrows[UnsupportedOperationException] {
+      Component.sorted()
+    }
+  }
 }
 
 object ComponentSuite {
