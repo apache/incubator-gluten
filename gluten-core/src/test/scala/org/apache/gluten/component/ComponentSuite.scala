@@ -27,7 +27,7 @@ import scala.collection.mutable
 class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
   import ComponentSuite._
 
-  test("Load order - sanity") {
+  test("Load order") {
     val a = new DummyBackend("A") {}
     val b = new DummyBackend("B") {}
     val c = new DummyComponent("C") {}
@@ -61,6 +61,61 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
     assertThrows[IllegalArgumentException] {
       new DummyBackendA().ensureRegistered()
     }
+  }
+
+  test("Incompatible component") {
+    val a = new DummyBackend("A") {}
+    val b = new DummyBackend("B") {}
+    val c = new DummyComponent("C") {}
+    val d = new DummyComponent("D") {}
+    val e = new DummyComponent("E") {}
+
+    c.dependsOn(a)
+    d.dependsOn(a, b)
+    e.dependsOn(a, d)
+
+    d.setIncompatible()
+
+    a.ensureRegistered()
+    b.ensureRegistered()
+    c.ensureRegistered()
+    d.ensureRegistered()
+    e.ensureRegistered()
+
+    val possibleOrders: Set[Seq[Component]] =
+      Set(
+        Seq(a, b, c),
+        Seq(b, a, c)
+      )
+
+    assert(possibleOrders.contains(Component.sorted().filter(Seq(a, b, c, d, e).contains(_))))
+  }
+
+  test("Incompatible backend") {
+    val a = new DummyBackend("A") {}
+    val b = new DummyBackend("B") {}
+    val c = new DummyComponent("C") {}
+    val d = new DummyComponent("D") {}
+    val e = new DummyComponent("E") {}
+
+    c.dependsOn(a)
+    d.dependsOn(a, b)
+    e.dependsOn(a, d)
+
+    b.setIncompatible()
+
+    a.ensureRegistered()
+    b.ensureRegistered()
+    c.ensureRegistered()
+    d.ensureRegistered()
+    e.ensureRegistered()
+
+    val possibleOrders: Set[Seq[Component]] =
+      Set(
+        Seq(a, c)
+      )
+
+    assert(possibleOrders.contains(Component.sorted().filter(Seq(a, b, c, d, e).contains(_))))
   }
 
   test("Dependencies not registered") {
@@ -115,9 +170,21 @@ object ComponentSuite {
     }
   }
 
+  private trait CompatibilityHelper extends Component {
+    private var _isRuntimeCompatible: Boolean = true;
+
+    override def isRuntimeCompatible: Boolean = _isRuntimeCompatible
+
+    def setIncompatible(): Unit = {
+      _isRuntimeCompatible = false
+    }
+  }
+
   abstract private class DummyComponent(override val name: String)
     extends Component
-    with DependencyBuilder {
+    with DependencyBuilder
+    with CompatibilityHelper {
+
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo(name, "N/A", "N/A", "N/A")
 
@@ -125,7 +192,10 @@ object ComponentSuite {
     override def injectRules(injector: Injector): Unit = {}
   }
 
-  abstract private class DummyBackend(override val name: String) extends Backend {
+  abstract private class DummyBackend(override val name: String)
+    extends Backend
+    with CompatibilityHelper {
+
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo(name, "N/A", "N/A", "N/A")
 
