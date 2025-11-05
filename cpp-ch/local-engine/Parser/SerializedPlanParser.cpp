@@ -483,41 +483,44 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
         }
 
         // fixes: issue-1874, to keep the nullability as expected.
-        // Check if output_schema is present in the advanced_extension
+        // Check if expected output schema is present in the advanced_extension.
+        // This is a workaround for ClickHouse not preserving nullability correctly
+        // during plan conversion. The extension provides the expected schema so we
+        // can insert casts to correct any nullability mismatches.
         if (root_rel.root().has_advanced_extension() && root_rel.root().advanced_extension().has_enhancement())
         {
             const auto & enhancement = root_rel.root().advanced_extension().enhancement();
-            if (enhancement.Is<gluten::RelRootOutputSchema>())
+            if (enhancement.Is<gluten::CHExpectedOutputSchema>())
             {
-                gluten::RelRootOutputSchema output_schema_ext;
-                enhancement.UnpackTo(&output_schema_ext);
-                const auto & output_schema = output_schema_ext.output_schema();
+                gluten::CHExpectedOutputSchema expected_schema_ext;
+                enhancement.UnpackTo(&expected_schema_ext);
+                const auto & expected_schema = expected_schema_ext.expected_schema();
 
-                if (output_schema.types_size())
+                if (expected_schema.types_size())
                 {
                     auto original_header = query_plan->getCurrentDataStream().header;
                     const auto & original_cols = original_header.getColumnsWithTypeAndName();
-                    if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
+                    if (static_cast<size_t>(expected_schema.types_size()) != original_cols.size())
                     {
-                        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Mismatch output schema");
+                        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Mismatch between expected and actual output schema");
                     }
                     bool need_final_project = false;
                     DB::ColumnsWithTypeAndName final_cols;
-                    for (int i = 0; i < output_schema.types_size(); ++i)
+                    for (int i = 0; i < expected_schema.types_size(); ++i)
                     {
                         const auto & col = original_cols[i];
-                        auto type = TypeParser::parseType(output_schema.types(i));
+                        auto expected_type = TypeParser::parseType(expected_schema.types(i));
                         // At present, we only check nullable mismatch.
                         // intermediate aggregate data is special, no check here.
-                        if (type->isNullable() != col.type->isNullable() && !typeid_cast<const DB::DataTypeAggregateFunction *>(col.type.get()))
+                        if (expected_type->isNullable() != col.type->isNullable() && !typeid_cast<const DB::DataTypeAggregateFunction *>(col.type.get()))
                         {
-                            if (type->isNullable())
+                            if (expected_type->isNullable())
                             {
-                                final_cols.emplace_back(type->createColumn(), std::make_shared<DB::DataTypeNullable>(col.type), col.name);
+                                final_cols.emplace_back(expected_type->createColumn(), std::make_shared<DB::DataTypeNullable>(col.type), col.name);
                             }
                             else
                             {
-                                final_cols.emplace_back(type->createColumn(), DB::removeNullable(col.type), col.name);
+                                final_cols.emplace_back(expected_type->createColumn(), DB::removeNullable(col.type), col.name);
                             }
                             need_final_project = true;
                         }
@@ -531,7 +534,7 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
                         ActionsDAGPtr final_project
                             = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
                         QueryPlanStepPtr final_project_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), final_project);
-                        final_project_step->setStepDescription("Project for output schema");
+                        final_project_step->setStepDescription("Correct nullability to match expected schema");
                         query_plan->addStep(std::move(final_project_step));
                     }
                 }

@@ -22,7 +22,7 @@ import io.glutenproject.substrait.rel.RelNode;
 import io.glutenproject.substrait.type.TypeNode;
 
 import com.google.protobuf.Any;
-import io.glutenproject.proto.GlutenExtensions.RelRootOutputSchema;
+import io.glutenproject.proto.GlutenExtensions.CHExpectedOutputSchema;
 import io.substrait.proto.Plan;
 import io.substrait.proto.PlanRel;
 import io.substrait.proto.RelRoot;
@@ -78,13 +78,14 @@ public class PlanNode implements Serializable {
         relRootBuilder.addNames(name);
       }
       if (outputSchema != null) {
-        // Pack output_schema into RelRootOutputSchema extension
-        RelRootOutputSchema outputSchemaExt = RelRootOutputSchema.newBuilder()
-            .setOutputSchema(outputSchema.toProtobuf().getStruct())
+        // Pack expected output schema into CHExpectedOutputSchema extension
+        // This provides the expected schema for ClickHouse to validate nullability
+        CHExpectedOutputSchema expectedSchemaExt = CHExpectedOutputSchema.newBuilder()
+            .setExpectedSchema(outputSchema.toProtobuf().getStruct())
             .build();
         io.substrait.proto.extensions.Extensions.AdvancedExtension advancedExt =
             io.substrait.proto.extensions.Extensions.AdvancedExtension.newBuilder()
-            .setEnhancement(Any.pack(outputSchemaExt))
+            .setEnhancement(Any.pack(expectedSchemaExt))
             .build();
         relRootBuilder.setAdvancedExtension(advancedExt);
       }

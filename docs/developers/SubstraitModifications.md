@@ -36,5 +36,6 @@ changed `Unbounded` in `WindowFunction` into `Unbounded_Preceding` and `Unbounde
 
 ## Gluten-specific extensions
 
-* Created `gluten_extensions.proto` to store Gluten-specific extensions using Substrait's `AdvancedExtension` mechanism.
-* Added `RelRootOutputSchema` extension to preserve output schema information (nullability, etc.) for ClickHouse backend.
+* Created `gluten_extensions.proto` in the `gluten` package to store Gluten-specific extensions using Substrait's `AdvancedExtension` mechanism.
+* Added `CHExpectedOutputSchema` extension: A ClickHouse-specific workaround for issue-1874. ClickHouse's plan conversion does not always preserve nullability correctly. Rather than fixing ClickHouse's complex plan conversion logic, this extension provides the expected output schema so ClickHouse can compare its actual output against expectations and insert casts to correct nullability mismatches. This is not needed by backends that correctly preserve type information (like Velox).
+  - Note: The output schema can already be computed from any Substrait plan. This extension exists solely because ClickHouse's implementation sometimes produces incorrect nullability, and providing the expected schema is simpler than fixing the root cause.

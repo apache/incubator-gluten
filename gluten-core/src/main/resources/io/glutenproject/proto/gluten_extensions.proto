@@ -10,13 +10,25 @@ option java_multiple_files = true;
 
 // Gluten-specific extensions for Substrait
 
-// Extension for RelRoot to store output schema information.
-// This is used to preserve nullability and type information
-// that may be lost during plan conversion.
+// Extension for RelRoot to store the expected output schema for ClickHouse backend.
 //
-// This extension should be packed into RelRoot.advanced_extension.enhancement
-// using google.protobuf.Any.
-message RelRootOutputSchema {
-  // The output schema for the root relation
-  substrait.Type.Struct output_schema = 1;
+// Background: ClickHouse's plan conversion does not always preserve nullability
+// correctly (see issue-1874). While the output schema can be computed from the
+// Substrait plan, ClickHouse's implementation sometimes produces columns with
+// incorrect nullability compared to what Spark expects.
+//
+// Rather than fixing ClickHouse's plan conversion (which would be complex), this
+// extension provides the expected output schema so ClickHouse can compare its
+// actual output against the expected schema and insert cast operations to correct
+// nullability mismatches.
+//
+// This is a workaround specific to the ClickHouse backend and should not be needed
+// by backends that correctly preserve type information through plan conversion.
+//
+// Usage: Pack this message into RelRoot.advanced_extension.enhancement using
+// google.protobuf.Any.
+message CHExpectedOutputSchema {
+  // The expected output schema (primarily nullability information)
+  substrait.Type.Struct expected_schema = 1;
 }
+
