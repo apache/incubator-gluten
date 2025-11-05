@@ -59,6 +59,10 @@ public class RexCallConverterFactory {
                   () -> new StringCompareRexCallConverter("equalto"),
                   () -> new StringNumberCompareRexCallConverter("equalto"))),
           Map.entry(
+              "<>",
+              Arrays.asList(
+                  () -> new DecimalArithmeticOperatorRexCallConverters("decimal_notequalto"))),
+          Map.entry(
               "/", Arrays.asList(() -> new DecimalArithmeticOperatorRexCallConverters("divide"))),
           Map.entry(
               "*",
