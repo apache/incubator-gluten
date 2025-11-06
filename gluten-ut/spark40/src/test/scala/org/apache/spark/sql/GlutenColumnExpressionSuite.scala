@@ -18,7 +18,7 @@ package org.apache.spark.sql
 
 import org.apache.gluten.config.GlutenConfig
 
-import org.apache.spark.SparkException
+import org.apache.spark.SparkRuntimeException
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.functions.{assert_true, expr, input_file_name, lit, raise_error}
 
@@ -27,12 +27,12 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
   testGluten("raise_error") {
     val strDf = Seq(("hello")).toDF("a")
 
-    val e1 = intercept[SparkException] {
+    val e1 = intercept[SparkRuntimeException] {
       strDf.select(raise_error(lit(null.asInstanceOf[String]))).collect()
     }
     assert(e1.getCause.isInstanceOf[RuntimeException])
 
-    val e2 = intercept[SparkException] {
+    val e2 = intercept[SparkRuntimeException] {
       strDf.select(raise_error($"a")).collect()
     }
     assert(e2.getCause.isInstanceOf[RuntimeException])
@@ -46,7 +46,7 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
       booleanDf.filter("cond = true").select(assert_true($"cond")),
       Row(null) :: Nil
     )
-    val e1 = intercept[SparkException] {
+    val e1 = intercept[SparkRuntimeException] {
       booleanDf.select(assert_true($"cond", lit(null.asInstanceOf[String]))).collect()
     }
     assert(e1.getCause.isInstanceOf[RuntimeException])
@@ -56,7 +56,7 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
       nullDf.filter("cond = true").select(assert_true($"cond", $"cond")),
       Row(null) :: Nil
     )
-    val e2 = intercept[SparkException] {
+    val e2 = intercept[SparkRuntimeException] {
       nullDf.select(assert_true($"cond", $"n")).collect()
     }
     assert(e2.getCause.isInstanceOf[RuntimeException])
@@ -65,7 +65,7 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
     // assert_true(condition)
     val intDf = Seq((0, 1)).toDF("a", "b")
     checkAnswer(intDf.select(assert_true($"a" < $"b")), Row(null) :: Nil)
-    val e3 = intercept[SparkException] {
+    val e3 = intercept[SparkRuntimeException] {
       intDf.select(assert_true($"a" > $"b")).collect()
     }
     assert(e3.getCause.isInstanceOf[RuntimeException])
