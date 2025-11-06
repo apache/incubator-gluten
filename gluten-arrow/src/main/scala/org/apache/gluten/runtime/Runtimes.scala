@@ -23,7 +23,16 @@ import java.util
 object Runtimes {
 
   /** Get or create the runtime which bound with Spark TaskContext. */
-  def contextInstance(
+  def contextInstance(backendName: String, name: String): Runtime = {
+    if (!TaskResources.inSparkTask()) {
+      throw new IllegalStateException("This method must be called in a Spark task.")
+    }
+    TaskResources.addResourceIfNotRegistered(
+      s"$backendName:$name",
+      () => Runtime(backendName, name))
+  }
+
+  def newInstance(
       backendName: String,
       name: String,
       extraConf: util.Map[String, String]): Runtime = {
@@ -33,10 +42,6 @@ object Runtimes {
     TaskResources.addResourceIfNotRegistered(
       s"$backendName:$name",
       () => Runtime(backendName, name, extraConf))
-  }
-
-  def contextInstance(backendName: String, name: String): Runtime = {
-    contextInstance(backendName, name, new util.HashMap[String, String]())
   }
 
 }

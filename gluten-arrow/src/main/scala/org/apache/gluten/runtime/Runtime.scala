@@ -35,6 +35,10 @@ trait Runtime {
 }
 
 object Runtime {
+  private[runtime] def apply(backendName: String, name: String): Runtime with TaskResource = {
+    new RuntimeImpl(backendName, name, new util.HashMap[String, String]())
+  }
+
   private[runtime] def apply(
       backendName: String,
       name: String,
