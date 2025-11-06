@@ -336,7 +336,7 @@ std::unique_ptr<VeloxBackend> VeloxBackend::instance_ = nullptr;
 void VeloxBackend::create(
     std::unique_ptr<AllocationListener> listener,
     const std::unordered_map<std::string, std::string>& conf) {
-  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(std::move(listener), conf));
+  instance_ = std::make_unique<VeloxBackend>(std::move(listener), conf);
 }
 
 VeloxBackend* VeloxBackend::get() {
