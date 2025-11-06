@@ -20,6 +20,32 @@ namespace gluten {
 
 using namespace facebook::velox;
 
+std::pair<common::Subfield, std::unique_ptr<common::Filter>> SparkExprToSubfieldFilterParser::toSubfieldFilter(
+    const core::TypedExprPtr& expr,
+    core::ExpressionEvaluator* evaluator) {
+  if (expr->isCallKind(); auto* call = expr->asUnchecked<core::CallTypedExpr>()) {
+    if (call->name() == "or") {
+      auto left = toSubfieldFilter(call->inputs()[0], evaluator);
+      auto right = toSubfieldFilter(call->inputs()[1], evaluator);
+      VELOX_CHECK(left.first == right.first);
+      return {std::move(left.first), makeOrFilter(std::move(left.second), std::move(right.second))};
+    }
+    common::Subfield subfield;
+    std::unique_ptr<common::Filter> filter;
+    if (call->name() == "not") {
+      if (auto* inner = call->inputs()[0]->asUnchecked<core::CallTypedExpr>()) {
+        filter = leafCallToSubfieldFilter(*inner, subfield, evaluator, true);
+      }
+    } else {
+      filter = leafCallToSubfieldFilter(*call, subfield, evaluator, false);
+    }
+    if (filter) {
+      return std::make_pair(std::move(subfield), std::move(filter));
+    }
+  }
+  VELOX_UNSUPPORTED("Unsupported expression for range filter: {}", expr->toString());
+}
+
 std::unique_ptr<common::Filter> SparkExprToSubfieldFilterParser::leafCallToSubfieldFilter(
     const core::CallTypedExpr& call,
     common::Subfield& subfield,

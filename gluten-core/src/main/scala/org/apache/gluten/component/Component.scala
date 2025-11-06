@@ -23,6 +23,7 @@ import org.apache.gluten.extension.injector.Injector
 import org.apache.spark.SparkContext
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.api.plugin.PluginContext
+import org.apache.spark.internal.Logging
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
@@ -91,7 +92,7 @@ trait Component {
   def injectRules(injector: Injector): Unit
 }
 
-object Component {
+object Component extends Logging {
   private val nextUid = new AtomicInteger()
   private val graph: Graph = new Graph()
 
@@ -134,8 +135,8 @@ object Component {
       require(
         !lookupByClass.contains(clazz),
         s"Component class $clazz already registered: ${comp.name()}")
-      lookupByUid += uid -> comp
-      lookupByClass += clazz -> comp
+      lookupByUid(uid) = comp
+      lookupByClass(clazz) = comp
     }
 
     def isUidRegistered(uid: Int): Boolean = synchronized {
@@ -164,7 +165,8 @@ object Component {
   private class Graph {
     import Graph._
     private val registry: Registry = new Registry()
-    private val dependencies: mutable.Buffer[(Int, Class[_ <: Component])] = mutable.Buffer()
+    private val uidAndDependencyPairs: mutable.Buffer[(Int, Class[_ <: Component])] =
+      mutable.Buffer()
 
     private var sortedComponents: Option[Seq[Component]] = None
 
@@ -183,38 +185,38 @@ object Component {
       synchronized {
         require(registry.isUidRegistered(comp.uid))
         require(registry.isClassRegistered(comp.getClass))
-        dependencies += comp.uid -> dependencyCompClass
+        uidAndDependencyPairs += comp.uid -> dependencyCompClass
         sortedComponents = None
       }
 
-    private def newLookup(): mutable.Map[Int, Node] = {
-      val lookup: mutable.Map[Int, Node] = mutable.Map()
+    private def newLookup(): Map[Int, Node] = {
+      val uidToNodeLookup: mutable.Map[Int, Node] = mutable.Map()
 
       registry.allUids().foreach {
         uid =>
-          require(!lookup.contains(uid))
+          require(!uidToNodeLookup.contains(uid))
           val n = new Node(uid)
-          lookup += uid -> n
+          uidToNodeLookup(uid) = n
       }
 
-      dependencies.foreach {
+      uidAndDependencyPairs.foreach {
         case (uid, dependencyCompClass) =>
           require(
             registry.isClassRegistered(dependencyCompClass),
             s"Dependency class not registered yet: ${dependencyCompClass.getName}")
           val dependencyUid = registry.findByClass(dependencyCompClass).uid
           require(uid != dependencyUid)
-          require(lookup.contains(uid))
-          require(lookup.contains(dependencyUid))
-          val n = lookup(uid)
-          val r = lookup(dependencyUid)
+          require(uidToNodeLookup.contains(uid))
+          require(uidToNodeLookup.contains(dependencyUid))
+          val n = uidToNodeLookup(uid)
+          val r = uidToNodeLookup(dependencyUid)
           require(!n.parents.contains(r.uid))
           require(!r.children.contains(n.uid))
-          n.parents += r.uid -> r
-          r.children += n.uid -> n
+          n.parents(r.uid) = r
+          r.children(n.uid) = n
       }
 
-      lookup
+      uidToNodeLookup.toMap
     }
 
     def sorted(): Seq[Component] = synchronized {
@@ -222,10 +224,11 @@ object Component {
         return sortedComponents.get
       }
 
-      val lookup: mutable.Map[Int, Node] = newLookup()
+      val lookup: Map[Int, Node] = newLookup()
 
-      val out = mutable.Buffer[Component]()
-      val uidToNumParents = lookup.map { case (uid, node) => uid -> node.parents.size }
+      val sortedComponentsBuffer = mutable.Buffer[Component]()
+      val uidToNumParents = mutable.Map[Int, Int]()
+      uidToNumParents ++= lookup.map { case (uid, node) => uid -> node.parents.size }
       val removalQueue = mutable.Queue[Int]()
 
       // 1. Find out all nodes with zero parents then enqueue them.
@@ -235,10 +238,10 @@ object Component {
       while (removalQueue.nonEmpty) {
         val parentUid = removalQueue.dequeue()
         val node = lookup(parentUid)
-        out += registry.findByUid(parentUid)
+        sortedComponentsBuffer += registry.findByUid(parentUid)
         node.children.keys.foreach {
           childUid =>
-            uidToNumParents += childUid -> (uidToNumParents(childUid) - 1)
+            uidToNumParents(childUid) = uidToNumParents(childUid) - 1
             val updatedNumParents = uidToNumParents(childUid)
             assert(updatedNumParents >= 0)
             if (updatedNumParents == 0) {
@@ -256,8 +259,17 @@ object Component {
           s"Cycle detected in the component graph: $cycleNodeNames")
       }
 
-      // 4. Return the ordered nodes.
-      sortedComponents = Some(out.toSeq)
+      // 4. Return the ordered components, with the incompatible ones excluded.
+      def isRuntimeCompatible(component: Component): Boolean = {
+        val parents = lookup(component.uid).parents.keys.map(registry.findByUid)
+        component.isRuntimeCompatible && parents.forall(isRuntimeCompatible)
+      }
+      val (compatibleComponents, incompatibleComponents) =
+        sortedComponentsBuffer.partition(isRuntimeCompatible)
+      incompatibleComponents.foreach {
+        component => logWarning(s"Excluding runtime-incompatible component: ${component.name()}.")
+      }
+      sortedComponents = Some(compatibleComponents.toSeq)
       sortedComponents.get
     }
   }
