@@ -81,6 +81,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private final int nativeBufferSize = GlutenConfig.get().maxBatchSize();
   private final int bufferSize;
   private final int numPartitions;
+  private final boolean isSort;
 
   private final ColumnarShuffleDependency<K, V, V> columnarDep;
   private final SparkConf sparkConf;
@@ -136,6 +137,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
         this.codecBackend = codecBackend.get();
       }
     }
+    isSort = SortShuffleWriterType$.MODULE$.name().equals(columnarDep.shuffleWriterType().name());
   }
 
   @Override
@@ -232,15 +234,26 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       throw new RssException(e);
     }
     columnarDep.metrics().get("shuffleWallTime").get().add(System.nanoTime() - startTime);
-    columnarDep
-        .metrics()
-        .get("splitTime")
-        .get()
-        .add(
-            columnarDep.metrics().get("shuffleWallTime").get().value()
-                - splitResult.getTotalPushTime()
-                - splitResult.getTotalWriteTime()
-                - splitResult.getTotalCompressTime());
+    if (!isSort) {
+      columnarDep
+          .metrics()
+          .get("splitTime")
+          .get()
+          .add(
+              columnarDep.metrics().get("shuffleWallTime").get().value()
+                  - splitResult.getTotalPushTime()
+                  - splitResult.getTotalWriteTime()
+                  - splitResult.getTotalCompressTime());
+      columnarDep
+          .metrics()
+          .get("avgDictionaryFields")
+          .get()
+          .set(splitResult.getAvgDictionaryFields());
+      columnarDep.metrics().get("dictionarySize").get().add(splitResult.getDictionarySize());
+    } else {
+      columnarDep.metrics().get("sortTime").get().add(splitResult.getSortTime());
+      columnarDep.metrics().get("c2rTime").get().add(splitResult.getC2RTime());
+    }
 
     // bytesWritten is calculated in uniffle side: WriteBufferManager.createShuffleBlock
     // shuffleWriteMetrics.incBytesWritten(splitResult.getTotalBytesWritten());
