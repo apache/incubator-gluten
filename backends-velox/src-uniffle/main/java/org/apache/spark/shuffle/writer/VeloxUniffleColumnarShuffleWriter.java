@@ -137,7 +137,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
         this.codecBackend = codecBackend.get();
       }
     }
-    isSort = SortShuffleWriterType$.MODULE$.name().equals(columnarDep.shuffleWriterType().name());
+    isSort = columnarDep.shuffleWriterType().equals(SortShuffleWriterType$.MODULE$);
   }
 
   @Override
@@ -165,7 +165,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   bufferSize,
                   partitionPusher);
 
-          if (columnarDep.shuffleWriterType().equals(SortShuffleWriterType$.MODULE$)) {
+          if (isSort) {
             nativeShuffleWriter =
                 shuffleWriterJniWrapper.createSortShuffleWriter(
                     numPartitions,
