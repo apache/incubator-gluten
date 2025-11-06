@@ -18,7 +18,7 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - main
+      - branch-1.5
     paths:
       - '.github/workflows/docker_image.yml'
       - '.github/workflows/util/install_spark_resources.sh'
@@ -28,8 +28,6 @@ on:
       - 'dev/docker/Dockerfile.centos8-dynamic-build'
       - 'dev/docker/Dockerfile.centos9-dynamic-build'
       - 'dev/docker/cudf/Dockerfile'
-  schedule:
-    - cron: '0 20 * * 0'
 
 env:
   DOCKERHUB_REPO: apache/gluten
@@ -58,7 +56,7 @@ jobs:
           context: .
           file: dev/docker/Dockerfile.centos7-static-build
           push: true
-          tags: ${{ env.DOCKERHUB_REPO }}:vcpkg-centos-7
+          tags: ${{ env.DOCKERHUB_REPO }}:1.5-vcpkg-centos-7
 
   build-centos-9-jdk8-cudf:
     if: ${{ startsWith(github.repository, 'apache/') }}
@@ -89,7 +87,7 @@ jobs:
           context: .
           file: dev/docker/cudf/Dockerfile
           push: true
-          tags: ${{ env.DOCKERHUB_REPO }}:centos-9-jdk8-cudf
+          tags: ${{ env.DOCKERHUB_REPO }}:1.5-centos-9-jdk8-cudf
 
   build-vcpkg-centos-8:
     if: ${{ startsWith(github.repository, 'apache/') }}
@@ -350,7 +348,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.DOCKERHUB_REPO }}
-          tags: ${{ matrix.digests }}
+          tags: 1.5-${{ matrix.digests }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
@@ -360,5 +358,5 @@ jobs:
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.DOCKERHUB_REPO }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ${{ env.DOCKERHUB_REPO }}:1.5-${{ steps.meta.outputs.version }}
 
