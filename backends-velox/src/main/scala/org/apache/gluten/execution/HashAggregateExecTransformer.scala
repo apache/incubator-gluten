@@ -467,7 +467,7 @@ abstract class HashAggregateExecTransformer(
       validation: Boolean,
       rowConstructed: Boolean): RelNode = {
     var colIdx = -1
-    val toExpressionTransformer: Expression => ExpressionNode = if (rowConstructed) {
+    val toExpressionNode: Expression => ExpressionNode = if (rowConstructed) {
       // If the input is row constructed, use selection to get the column.
       (_: Expression) =>
         colIdx += 1
@@ -479,14 +479,14 @@ abstract class HashAggregateExecTransformer(
           .doTransform(context)
     }
 
-    val groupingList = groupingExpressions.map(toExpressionTransformer).asJava
+    val groupingList = groupingExpressions.map(toExpressionNode).asJava
     // Get the aggregate function nodes.
     val aggFilterList = new JArrayList[ExpressionNode]()
     val aggregateFunctionList = new JArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(
       aggExpr => {
         if (aggExpr.filter.isDefined) {
-          aggFilterList.add(toExpressionTransformer(aggExpr.filter.get))
+          aggFilterList.add(toExpressionNode(aggExpr.filter.get))
         } else {
           // The number of filters should be aligned with that of aggregate functions.
           aggFilterList.add(null)
@@ -494,16 +494,16 @@ abstract class HashAggregateExecTransformer(
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodes = aggExpr.mode match {
           case Partial | Complete =>
-            aggregateFunc.children.toList.map(toExpressionTransformer)
+            aggregateFunc.children.toList.map(toExpressionNode)
           case PartialMerge | Final =>
             if (rowConstructed) {
               // Only occupies one column due to intermediate results are combined
               // by previous row construct projection.
-              Seq(toExpressionTransformer.apply(null))
+              Seq(toExpressionNode.apply(null))
             } else {
               rewriteAggBufferAttributes(
                 aggregateFunc.inputAggBufferAttributes,
-                originalInputAttributes).map(toExpressionTransformer)
+                originalInputAttributes).map(toExpressionNode)
             }
           case other =>
             throw new GlutenNotSupportException(s"$other not supported.")
