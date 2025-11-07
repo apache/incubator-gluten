@@ -62,19 +62,19 @@ function get_cxx_flags {
   case $CPU_ARCH in
 
     "arm64")
-      echo -n "-mcpu=apple-m1+crc -std=c++17 -fvisibility=hidden $ADDITIONAL_FLAGS"
+      echo -n "-mcpu=apple-m1+crc -std=c++20 -fvisibility=hidden $ADDITIONAL_FLAGS"
     ;;
 
     "avx")
-      echo -n "-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17 -mbmi2 $ADDITIONAL_FLAGS"
+      echo -n "-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++20 -mbmi2 $ADDITIONAL_FLAGS"
     ;;
 
     "sse")
-      echo -n "-msse4.2 -std=c++17 $ADDITIONAL_FLAGS"
+      echo -n "-msse4.2 -std=c++20 $ADDITIONAL_FLAGS"
     ;;
 
     "aarch64")
-      echo -n "-mcpu=neoverse-n1 -std=c++17 $ADDITIONAL_FLAGS"
+      echo -n "-mcpu=neoverse-n1 -std=c++20 $ADDITIONAL_FLAGS"
     ;;
   *)
     echo -n "Architecture not supported!"
@@ -129,7 +129,7 @@ function cmake_install {
   cmake -Wno-dev -B"${BINARY_DIR}" \
     -GNinja \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-    -DCMAKE_CXX_STANDARD=17 \
+    -DCMAKE_CXX_STANDARD=20 \
     "${INSTALL_PREFIX+-DCMAKE_PREFIX_PATH=}${INSTALL_PREFIX-}" \
     "${INSTALL_PREFIX+-DCMAKE_INSTALL_PREFIX=}${INSTALL_PREFIX-}" \
     -DCMAKE_CXX_FLAGS="$COMPILER_FLAGS" \
