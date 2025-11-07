@@ -28,12 +28,13 @@ object SparkReflectionUtil {
     Utils.classForName(className, initialize, noSparkClassLoader)
   }
 
-  def isInstanceOfClassName(obj: Any, className: String): Boolean = {
+  def isClassPresent(className: String): Boolean = {
     try {
-      val cls = classForName(className)
-      cls.isInstance(obj)
+      classForName(className)
+      true
     } catch {
-      case _: ClassNotFoundException => false
+      case _: ClassNotFoundException =>
+        false
     }
   }
 }

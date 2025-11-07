@@ -305,8 +305,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
         kDefaultReadBufferSize,
         GetParam().deserializerBufferSize,
         getDefaultMemoryManager(),
-        GetParam().shuffleWriterType,
-        false);
+        GetParam().shuffleWriterType);
 
     const auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
 

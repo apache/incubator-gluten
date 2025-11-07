@@ -17,6 +17,9 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GpuHashShuffleWriterType
+import org.apache.gluten.config.HashShuffleWriterType
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.internal.Logging
@@ -34,9 +37,19 @@ case class GPUColumnarShuffleExchangeExec(
     advisoryPartitionSize: Option[Long] = None)
   extends ColumnarShuffleExchangeExecBase(outputPartitioning, child, projectOutputAttributes) {
 
+  override protected def doValidateInternal(): ValidationResult = {
+    val validation = super.doValidateInternal()
+    if (!validation.ok()) {
+      return validation
+    }
+    if (shuffleWriterType != HashShuffleWriterType) {
+      return ValidationResult.failed("Only support hash partitioning")
+    }
+    ValidationResult.succeeded
+  }
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema, metrics, shuffleWriterType, true)
+    .createColumnarBatchSerializer(schema, metrics, GpuHashShuffleWriterType)
 
   override def nodeName: String = "CudfColumnarExchange"
 

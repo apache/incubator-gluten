@@ -803,10 +803,8 @@ VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(
     int64_t readerBufferSize,
     int64_t deserializerBufferSize,
     VeloxMemoryManager* memoryManager,
-    ShuffleWriterType shuffleWriterType,
-    bool enableCudf)
-    : enableCudf_(enableCudf),
-      schema_(schema),
+    ShuffleWriterType shuffleWriterType)
+    : schema_(schema),
       codec_(codec),
       veloxCompressionType_(veloxCompressionType),
       rowType_(rowType),
@@ -821,10 +819,9 @@ VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(
 std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::createDeserializer(
     const std::shared_ptr<StreamReader>& streamReader) {
   switch (shuffleWriterType_) {
-    case ShuffleWriterType::kHashShuffle:
- #ifdef GLUTEN_ENABLE_GPU       
-      if (enableCudf_) {
-        return std::make_unique<GpuHashShuffleReaderDeserializer>(
+    case ShuffleWriterType::kGpuHashShuffle:
+#ifdef GLUTEN_ENABLE_GPU
+      return std::make_unique<GpuHashShuffleReaderDeserializer>(
           streamReader,
           schema_,
           codec_,
@@ -836,8 +833,8 @@ std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::cr
           hasComplexType_,
           deserializeTime_,
           decompressTime_);
-      }
 #endif
+    case ShuffleWriterType::kHashShuffle:
       return std::make_unique<VeloxHashShuffleReaderDeserializer>(
           streamReader,
           schema_,

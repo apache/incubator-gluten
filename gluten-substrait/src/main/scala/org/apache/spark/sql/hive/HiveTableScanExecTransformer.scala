@@ -45,12 +45,12 @@ case class HiveTableScanExecTransformer(
     requestedAttributes: Seq[Attribute],
     relation: HiveTableRelation,
     partitionPruningPred: Seq[Expression],
-    prunedOutput: Seq[Attribute] = Seq.empty[Attribute])(@transient session: SparkSession)
+    prunedOutput: Seq[Attribute] = Seq.empty[Attribute])(@transient newSession: SparkSession)
   extends AbstractHiveTableScanExec(
     requestedAttributes,
     relation,
     partitionPruningPred,
-    prunedOutput)(session)
+    prunedOutput)(newSession)
   with BasicScanExecTransformer {
 
   @transient override lazy val metrics: Map[String, SQLMetric] =

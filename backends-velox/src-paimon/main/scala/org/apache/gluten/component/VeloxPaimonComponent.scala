@@ -34,14 +34,8 @@ class VeloxPaimonComponent extends Component {
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
 
   override def isRuntimeCompatible: Boolean = {
-    try {
-      SparkReflectionUtil.classForName(
-        "org.apache.paimon.spark.extensions.PaimonSparkSessionExtensions")
-      true
-    } catch {
-      case _: ClassNotFoundException =>
-        false
-    }
+    SparkReflectionUtil.isClassPresent(
+      "org.apache.paimon.spark.extensions.PaimonSparkSessionExtensions")
   }
 
   override def injectRules(injector: Injector): Unit = {

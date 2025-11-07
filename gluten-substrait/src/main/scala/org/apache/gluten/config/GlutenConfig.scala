@@ -31,18 +31,32 @@ import scala.collection.JavaConverters._
 
 trait ShuffleWriterType {
   val name: String
+  val requiresResizingShuffleInput: Boolean
+  val requiresResizingShuffleOutput: Boolean
 }
 
 case object HashShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = true
+  override val requiresResizingShuffleOutput: Boolean = true
 }
 
 case object SortShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = false
+  override val requiresResizingShuffleOutput: Boolean = false
 }
 
 case object RssSortShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_RSS_SORT_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = false
+  override val requiresResizingShuffleOutput: Boolean = false
+}
+
+case object GpuHashShuffleWriterType extends ShuffleWriterType {
+  override val name: String = ReservedKeys.GLUTEN_GPU_HASH_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = true
+  override val requiresResizingShuffleOutput: Boolean = true
 }
 
 /*
@@ -633,6 +647,11 @@ object GlutenConfig extends ConfigRegistry {
     // put in all GCS configs
     conf
       .filter(_._1.startsWith(HADOOP_PREFIX + GCS_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // put in all gluten velox configs
+    conf
+      .filter(_._1.startsWith(s"spark.gluten.$backendName"))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return

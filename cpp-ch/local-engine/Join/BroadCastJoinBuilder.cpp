@@ -29,6 +29,7 @@
 #include <Common/CHUtil.h>
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
+#include <DataTypes/DataTypesNumber.h>
 
 namespace DB
 {
@@ -67,12 +68,12 @@ DB::Block resetBuildTableBlockName(Block & block, bool only_one = false)
       // add a sequence to avoid duplicate name in some rare cases
       if (names.find(col.name) == names.end())
       {
-         new_name << BlockUtil::RIHGT_COLUMN_PREFIX << col.name;
+         new_name << BlockUtil::RIGHT_COLUMN_PREFIX << col.name;
          names.insert(col.name);
       }
       else
       {
-        new_name << BlockUtil::RIHGT_COLUMN_PREFIX  << (seq++) << "_" << col.name;
+        new_name << BlockUtil::RIGHT_COLUMN_PREFIX  << (seq++) << "_" << col.name;
       }
       new_cols.emplace_back(col.column, col.type, new_name.str());
 
@@ -108,6 +109,51 @@ std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & key)
     return wrapper;
 }
 
+// A join in cross rel.
+static bool isCrossRelJoin(const std::string & key)
+{
+    return key.starts_with("BuiltBNLJBroadcastTable-");
+}
+
+static void collectBlocksForCountingRows(NativeReader & block_stream, Block & header, Blocks & result)
+{
+    ProfileInfo profile;
+    Block block = block_stream.read();
+    while (!block.empty())
+    {
+        const auto & col = block.getByPosition(0);
+        auto counting_col = BlockUtil::buildRowCountBlock(col.column->size()).getColumnsWithTypeAndName()[0];
+        DB::ColumnsWithTypeAndName columns;
+        columns.emplace_back(counting_col.column->convertToFullColumnIfConst(), counting_col.type, counting_col.name);
+        DB::Block new_block(columns);
+        profile.update(new_block);
+        result.emplace_back(std::move(new_block));
+        block = block_stream.read();
+    }
+    header = BlockUtil::buildRowCountHeader();
+}
+
+static void collectBlocksForJoinRel(NativeReader & reader, Block & header, Blocks & result)
+{
+    ProfileInfo profile;
+    Block block = reader.read();
+    while (!block.empty())
+    {
+        DB::ColumnsWithTypeAndName columns;
+        for (size_t i = 0; i < block.columns(); ++i)
+        {
+            const auto & column = block.getByPosition(i);
+            columns.emplace_back(BlockUtil::convertColumnAsNecessary(column, header.getByPosition(i)));
+        }
+
+        DB::Block final_block(columns);
+        profile.update(final_block);
+        result.emplace_back(std::move(final_block));
+
+        block = reader.read();
+    }
+}
+
 std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     const std::string & key,
     DB::ReadBuffer & input,
@@ -123,12 +169,14 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     auto join_key_list = Poco::StringTokenizer(join_keys, ",");
     Names key_names;
     for (const auto & key_name : join_key_list)
-        key_names.emplace_back(BlockUtil::RIHGT_COLUMN_PREFIX + key_name);
+        key_names.emplace_back(BlockUtil::RIGHT_COLUMN_PREFIX + key_name);
 
     DB::JoinKind kind;
     DB::JoinStrictness strictness;
+    bool is_cross_rel_join = isCrossRelJoin(key);
+    assert(is_cross_rel_join && key_names.empty()); // cross rel join should not have join keys
 
-    if (key.starts_with("BuiltBNLJBroadcastTable-"))
+    if (is_cross_rel_join)
         std::tie(kind, strictness) = JoinUtil::getCrossJoinKindAndStrictness(static_cast<substrait::CrossRel_JoinType>(join_type));
     else
         std::tie(kind, strictness) = JoinUtil::getJoinKindAndStrictness(static_cast<substrait::JoinRel_JoinType>(join_type), is_existence_join);
@@ -139,40 +187,41 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     Block header = TypeParser::buildBlockFromNamedStruct(substrait_struct);
     header = resetBuildTableBlockName(header);
 
+    bool only_one_column = header.getNamesAndTypesList().empty();
+    if (only_one_column)
+        header = BlockUtil::buildRowCountBlock(0).getColumnsWithTypeAndName();
+
     Blocks data;
-    auto collect_data = [&]
+    auto collect_data = [&]()
     {
-        bool only_one_column = header.getNamesAndTypesList().empty();
-        if (only_one_column)
-            header = BlockUtil::buildRowCountBlock(0).getColumnsWithTypeAndName();
-
         NativeReader block_stream(input);
-        ProfileInfo info;
-        Block block = block_stream.read();
-        while (!block.empty())
+        if (only_one_column)
+            collectBlocksForCountingRows(block_stream, header, data);
+        else
+            collectBlocksForJoinRel(block_stream, header, data);
+
+        // For not cross join, we need to add a constant join key column
+        // to make it behavior like a normal join.
+        if (is_cross_rel_join && kind != JoinKind::Cross)
         {
-            DB::ColumnsWithTypeAndName columns;
-            for (size_t i = 0; i < block.columns(); ++i)
+            auto data_type_u8 = std::make_shared<DataTypeUInt8>();
+            UInt8 const_key_val = 0;
+            String const_key_name = JoinUtil::CROSS_REL_RIGHT_CONST_KEY_COLUMN;
+            Blocks new_data;
+            for (const auto & block : data)
             {
-                const auto & column = block.getByPosition(i);
-                if (only_one_column)
-                {
-                    auto virtual_block = BlockUtil::buildRowCountBlock(column.column->size()).getColumnsWithTypeAndName();
-                    header = virtual_block;
-                    columns.emplace_back(virtual_block.back());
-                    break;
-                }
-
-                columns.emplace_back(BlockUtil::convertColumnAsNecessary(column, header.getByPosition(i)));
+                auto cols = block.getColumnsWithTypeAndName();
+                cols.emplace_back(data_type_u8->createColumnConst(block.rows(), const_key_val), data_type_u8, const_key_name);
+                new_data.emplace_back(Block(cols));
             }
-
-            DB::Block final_block(columns);
-            info.update(final_block);
-            data.emplace_back(std::move(final_block));
-
-            block = block_stream.read();
+            data.swap(new_data);
+            key_names.emplace_back(const_key_name);
+            auto cols = header.getColumnsWithTypeAndName();
+            cols.emplace_back(data_type_u8->createColumnConst(0, const_key_val), data_type_u8, const_key_name);
+            header = Block(cols);
         }
     };
+
     /// Record memory usage in Total Memory Tracker
     ThreadFromGlobalPoolNoTracingContextPropagation thread(collect_data);
     thread.join();

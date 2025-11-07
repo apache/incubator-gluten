@@ -398,8 +398,7 @@ trait SparkPlanExecApi {
   def createColumnarBatchSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric],
-      shuffleWriterType: ShuffleWriterType,
-      enableCudf: Boolean = false): Serializer
+      shuffleWriterType: ShuffleWriterType): Serializer
 
   /** Create broadcast relation for BroadcastExchangeExec */
   def createBroadcastRelation(

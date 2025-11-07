@@ -51,8 +51,7 @@ class ColumnarBatchSerializer(
     numOutputRows: SQLMetric,
     deserializeTime: SQLMetric,
     decompressTime: SQLMetric,
-    shuffleWriterType: ShuffleWriterType,
-    enableCudf: Boolean)
+    shuffleWriterType: ShuffleWriterType)
   extends Serializer
   with Serializable {
 
@@ -64,8 +63,7 @@ class ColumnarBatchSerializer(
       numOutputRows,
       deserializeTime,
       decompressTime,
-      shuffleWriterType,
-      enableCudf)
+      shuffleWriterType)
   }
 
   override def supportsRelocationOfSerializedObjects: Boolean = true
@@ -77,8 +75,7 @@ private class ColumnarBatchSerializerInstanceImpl(
     numOutputRows: SQLMetric,
     deserializeTime: SQLMetric,
     decompressTime: SQLMetric,
-    shuffleWriterType: ShuffleWriterType,
-    enableCudf: Boolean)
+    shuffleWriterType: ShuffleWriterType)
   extends ColumnarBatchSerializerInstance
   with Logging {
 
@@ -114,8 +111,7 @@ private class ColumnarBatchSerializerInstanceImpl(
       batchSize,
       readerBufferSize,
       deserializerBufferSize,
-      shuffleWriterType.name,
-      enableCudf)
+      shuffleWriterType.name)
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
     // was used to create all buffers read from shuffle reader. The pool

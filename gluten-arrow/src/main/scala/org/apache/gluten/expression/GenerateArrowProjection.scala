@@ -88,8 +88,14 @@ object GenerateArrowProjection extends CodeGenerator[Seq[Expression], ArrowProje
             FalseLiteral)
         }
         // update value into intermediate
-        val update = CodeGenerator
-          .updateColumn("intermediate", e.dataType, i, ExprCode(isNull, value), e.nullable)
+        val update =
+          s"""
+             |if (!$isNull) {
+             |  values[$i] = $value;
+             |} else {
+             |  values[$i] = null;
+             |}
+             |""".stripMargin
         (code, update)
     }
 
@@ -108,13 +114,15 @@ object GenerateArrowProjection extends CodeGenerator[Seq[Expression], ArrowProje
 
         private Object[] references;
         private ${classOf[ArrowColumnarRow].getName} mutableRow;
+        private Object[] values;
         private ${classOf[GenericInternalRow].getName} intermediate;
         ${ctx.declareMutableStates()}
 
         public SpecificArrowProjection(Object[] references) {
           this.references = references;
           mutableRow = null;
-          intermediate = new ${classOf[GenericInternalRow].getName}(${expressions.size});
+          values = new Object[${expressions.size}];
+          intermediate = new ${classOf[GenericInternalRow].getName}(values);
           ${ctx.initMutableStates()}
         }
 

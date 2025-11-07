@@ -30,12 +30,16 @@ import org.apache.spark.sql.types.StructType
 import org.apache.iceberg._
 import org.apache.iceberg.spark.SparkSchemaUtil
 
-import java.lang.{Long => JLong}
+import java.lang.{Class, Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
 
 import scala.collection.JavaConverters._
 
 object GlutenIcebergSourceUtil {
+
+  def getClassOfSparkBatchQueryScan(): Class[SparkBatchQueryScan] = {
+    classOf[SparkBatchQueryScan]
+  }
 
   def genSplitInfo(
       partition: SparkDataSourceRDDPartition,

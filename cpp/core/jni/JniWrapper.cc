@@ -1083,8 +1083,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
     jint batchSize,
     jlong readerBufferSize,
     jlong deserializerBufferSize,
-    jstring shuffleWriterType,
-    jboolean enableCudf) {
+    jstring shuffleWriterType) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
 
@@ -1096,7 +1095,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
   options.batchSize = batchSize;
   options.readerBufferSize = readerBufferSize;
   options.deserializerBufferSize = deserializerBufferSize;
-  options.enableCudf = enableCudf;
 
   options.shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterType));
   std::shared_ptr<arrow::Schema> schema =

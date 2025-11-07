@@ -27,6 +27,7 @@
 #include "compute/VeloxRuntime.h"
 
 #include "velox/common/compression/Compression.h"
+#include "velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.h"
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
@@ -46,6 +47,7 @@ class VeloxParquetDataSourceABFS final : public VeloxParquetDataSource {
     auto hiveConf = getHiveConfig(
         std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(sparkConfs)),
         FileSystemType::kAbfs);
+    facebook::velox::filesystems::registerAzureClientProvider(*hiveConf);
     auto fileSystem = filesystems::getFileSystem(filePath_, hiveConf);
     auto* abfsFileSystem = dynamic_cast<filesystems::AbfsFileSystem*>(fileSystem.get());
     sink_ = std::make_unique<dwio::common::WriteFileSink>(
