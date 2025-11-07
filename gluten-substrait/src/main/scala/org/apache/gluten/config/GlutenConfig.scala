@@ -649,6 +649,11 @@ object GlutenConfig extends ConfigRegistry {
       .filter(_._1.startsWith(HADOOP_PREFIX + GCS_PREFIX))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
+    // put in all gluten velox configs
+    conf
+      .filter(_._1.startsWith(s"spark.gluten.$backendName"))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
     // return
     nativeConfMap
   }
