@@ -130,7 +130,7 @@ public class Parameterized implements Callable<Integer> {
 
       final List<Map.Entry<String, String>> options = new ArrayList<>();
       final List<String> splits =
-          Arrays.stream(confText.split(",")).filter(s -> !s.isEmpty()).toList();
+          Arrays.stream(confText.split(",")).filter(s -> !s.isEmpty()).collect(Collectors.toList());
       for (String split : splits) {
         String[] kv = split.split("=");
         if (kv.length != 2) {
