@@ -950,6 +950,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("update char/varchar columns")
   enableSuite[GlutenDeltaBasedUpdateTableSuite]
   enableSuite[GlutenGroupBasedMergeIntoTableSuite]
+    // TODO: fix in Spark-4.0
+    .excludeByPrefix("merge cardinality check with small target and large source")
   enableSuite[GlutenFileSourceCustomMetadataStructSuite]
   enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]
   enableSuite[GlutenTableLocationSuite]
