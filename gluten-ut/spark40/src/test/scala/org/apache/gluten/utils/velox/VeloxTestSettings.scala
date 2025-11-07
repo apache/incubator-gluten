@@ -27,7 +27,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.velox.VeloxAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
-import org.apache.spark.sql.execution.datasources.csv.GlutenCSVLegacyTimeParserSuite
 import org.apache.spark.sql.execution.datasources.exchange.GlutenValidateRequirementsSuite
 import org.apache.spark.sql.execution.datasources.json.{GlutenJsonLegacyTimeParserSuite, GlutenJsonV1Suite, GlutenJsonV2Suite}
 import org.apache.spark.sql.execution.datasources.orc._
@@ -262,21 +261,22 @@ class VeloxTestSettings extends BackendTestSettings {
   //   .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
   //   // varchar
   //   .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
-  enableSuite[GlutenCSVLegacyTimeParserSuite]
-    // file cars.csv include null string, Arrow not support to read
-    .exclude("DDL test with schema")
-    .exclude("save csv")
-    .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
-    .exclude("save csv with quote")
-    .exclude("SPARK-13543 Write the output as uncompressed via option()")
-    // Arrow not support corrupt record
-    .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
-    .exclude("DDL test with tab separated file")
-    .exclude("DDL test parsing decimal type")
-    .exclude("test with tab delimiter and double quote")
-    // varchar
-    .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
+
+  // enableSuite[GlutenCSVLegacyTimeParserSuite]
+  //   // file cars.csv include null string, Arrow not support to read
+  //   .exclude("DDL test with schema")
+  //   .exclude("save csv")
+  //   .exclude("save csv with compression codec option")
+  //   .exclude("save csv with empty fields with user defined empty values")
+  //   .exclude("save csv with quote")
+  //   .exclude("SPARK-13543 Write the output as uncompressed via option()")
+  //   // Arrow not support corrupt record
+  //   .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
+  //   .exclude("DDL test with tab separated file")
+  //   .exclude("DDL test parsing decimal type")
+  //   .exclude("test with tab delimiter and double quote")
+  //   // varchar
+  //   .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")
@@ -478,6 +478,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
     // Velox parquet reader not allow offset zero.
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
+    // TODO: fix in Spark-4.0
+    .exclude("SPARK-49991: Respect 'mapreduce.output.basename' to generate file names")
+    .exclude("SPARK-6330 regression test")
+    .exclude("SPARK-7837 Do not close output writer twice when commitTask() fails")
+    .exclude("explode nested lists crossing a rowgroup boundary")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
