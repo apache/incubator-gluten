@@ -207,7 +207,12 @@ concat_velox_param
 
 function build_arrow {
   if [ ! -d "$VELOX_HOME" ]; then
-    get_velox && setup_dependencies_arrow
+    get_velox
+    if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
+      setup_dependencies
+    else
+      setup_dependencies_arrow
+    fi
   fi
   cd $GLUTEN_DIR/dev
   source ./build-arrow.sh
