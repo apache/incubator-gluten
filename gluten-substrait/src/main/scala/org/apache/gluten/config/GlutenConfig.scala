@@ -641,7 +641,7 @@ object GlutenConfig extends ConfigRegistry {
 
     // put in all gluten velox configs
     conf
-      .filter(_._1.startsWith("spark.gluten.velox"))
+      .filter(_._1.startsWith(s"spark.gluten.$backendName"))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
