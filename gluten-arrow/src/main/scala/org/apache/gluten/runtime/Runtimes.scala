@@ -40,7 +40,7 @@ object Runtimes {
       throw new IllegalStateException("This method must be called in a Spark task.")
     }
     TaskResources.addResourceIfNotRegistered(
-      s"$backendName:$name",
+      s"$backendName:$name:${extraConf.hashCode()}",
       () => Runtime(backendName, name, extraConf))
   }
 
