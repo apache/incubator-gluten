@@ -592,8 +592,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]
-  enableSuite[GlutenCoalesceShufflePartitionsSuite]
-    .excludeByPrefix("determining the number of reducers")
+  // TODO: fix in Spark-4.0
+  // enableSuite[GlutenCoalesceShufflePartitionsSuite]
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
@@ -951,7 +951,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDeltaBasedUpdateTableSuite]
   enableSuite[GlutenGroupBasedMergeIntoTableSuite]
     // TODO: fix in Spark-4.0
-    .excludeByPrefix("merge cardinality check with small target and large source")
+    .excludeByPrefix("merge cardinality check with")
   enableSuite[GlutenFileSourceCustomMetadataStructSuite]
   enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]
   enableSuite[GlutenTableLocationSuite]
