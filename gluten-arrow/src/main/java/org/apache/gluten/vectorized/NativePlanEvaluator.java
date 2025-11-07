@@ -46,7 +46,7 @@ public class NativePlanEvaluator {
 
   public static NativePlanEvaluator create(String backendName, Map<String, String> extraConf) {
     return new NativePlanEvaluator(
-        Runtimes.newInstance(
+        Runtimes.contextInstance(
             backendName, String.format("NativePlanEvaluator-%d", id.getAndIncrement()), extraConf));
   }
 
