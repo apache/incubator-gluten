@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.text
 
-import org.apache.spark.{SparkConf, TestUtils}
+import org.apache.spark.{SparkConf, SparkIllegalArgumentException, TestUtils}
 import org.apache.spark.sql.{AnalysisException, DataFrame, GlutenSQLTestsBaseTrait, QueryTest, Row, SaveMode}
 import org.apache.spark.sql.execution.datasources.CommonFileDataSourceSuite
 import org.apache.spark.sql.internal.SQLConf
@@ -102,13 +102,21 @@ abstract class GlutenTextSuite
         verifyFrame(spark.read.text(tempDirPath))
     }
 
-    val errMsg = intercept[IllegalArgumentException] {
-      val tempDirPath = Utils.createTempDir().getAbsolutePath
-      testDf.write.option("compression", "illegal").mode(SaveMode.Overwrite).text(tempDirPath)
+    withTempDir {
+      dir =>
+        checkError(
+          exception = intercept[SparkIllegalArgumentException] {
+            testDf.write
+              .option("compression", "illegal")
+              .mode(SaveMode.Overwrite)
+              .text(dir.getAbsolutePath)
+          },
+          condition = "CODEC_NOT_AVAILABLE.WITH_AVAILABLE_CODECS_SUGGESTION",
+          parameters = Map(
+            "codecName" -> "illegal",
+            "availableCodecs" -> "bzip2, deflate, uncompressed, snappy, none, lz4, gzip")
+        )
     }
-    assert(
-      errMsg.getMessage.contains("Codec [illegal] is not available. " +
-        "Known codecs are"))
   }
 
   testGluten("SPARK-13543 Write the output as uncompressed via option()") {
