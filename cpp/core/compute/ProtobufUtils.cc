@@ -21,7 +21,7 @@
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/util/type_resolver_util.h>
 #include <fstream>
-
+#include <mutex>
 #include "utils/Exception.h"
 
 namespace gluten {
