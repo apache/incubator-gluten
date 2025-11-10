@@ -1390,4 +1390,39 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     val sql = "select map(string_field1, int_field1) from json_test where string_field1 is not null"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("arabic_indic digit date") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
+        (ConstantFolding.ruleName + "," + NullPropagation.ruleName),
+      ("spark.sql.legacy.timeParserPolicy", "LEGACY")) {
+      sql("create table tb_arabic_date(d string) using parquet")
+      sql("""
+            |insert into tb_arabic_date values
+            |'2aLZoNmi2aQt2aDZpi3ZoNmh',
+            |'2aLZoNmi2aQt2aHZoi3Zo9mh',
+            |'2aLZoNmi2aQt2aHZoi3Zo9mh'
+            |""".stripMargin)
+      var query_sql = """
+                        |select
+                        |from_unixtime(unix_timestamp(cast(unbase64(d) as string), 'yyyy-MM-dd'))
+                        |from tb_arabic_date
+                        |""".stripMargin
+      compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+
+      query_sql = """
+                    |select from_unixtime(
+                    | unix_timestamp(cast(unbase64('2aLZoNmi2aQt2aDZpi3ZoNmh') as string),
+                    | 'yyyy-MM-dd'))
+                    |""".stripMargin
+      compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+
+      query_sql = """
+                    |select from_unixtime(unix_timestamp('2020-01-01', 'yyyy-MM-dd'))
+                    |""".stripMargin
+      compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+
+      sql("drop table tb_arabic_date")
+    }
+  }
 }
