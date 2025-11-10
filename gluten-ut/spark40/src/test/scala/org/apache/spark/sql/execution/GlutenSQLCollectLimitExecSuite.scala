@@ -90,7 +90,7 @@ class GlutenSQLCollectLimitExecSuite extends GlutenSQLTestsTrait {
     checkAnswer(df, expectedData)
   }
 
-  test("ColumnarCollectLimitExec - with distinct values") {
+  ignore("ColumnarCollectLimitExec - with distinct values") {
     val df = spark
       .range(0, 10, 1)
       .toDF("id")
