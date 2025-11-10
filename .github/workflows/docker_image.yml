@@ -154,6 +154,56 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
+  build-vcpkg-centos-8-gcc13:
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ] #TODO: adding arm back
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_REPO }}
+          tags: vcpkg-centos-8-gcc13
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: dev/docker/Dockerfile.centos8-gcc13-static-build
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,"name=${{ env.DOCKERHUB_REPO }}",push-by-digest=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p ${{ runner.temp }}/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-vcpkg-centos-8-gcc13-${{ matrix.os }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
   build-vcpkg-centos-9:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
@@ -335,9 +385,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        digests: [ vcpkg-centos-8, vcpkg-centos-9, centos-8-jdk8, centos-8-jdk11, centos-8-jdk17, centos-9-jdk8, centos-9-jdk11, centos-9-jdk17 ]
+        digests: [ vcpkg-centos-8, vcpkg-centos-8-gcc13, vcpkg-centos-9, centos-8-jdk8, centos-8-jdk11, centos-8-jdk17, centos-9-jdk8, centos-9-jdk11, centos-9-jdk17 ]
     needs:
       - build-vcpkg-centos-8
+      - build-vcpkg-centos-8-gcc13
       - build-vcpkg-centos-9
       - build-centos-8
       - build-centos-9
