@@ -115,7 +115,7 @@ jobs:
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup java and maven
         run: |
-          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget procps
           $SETUP install_maven
       - name: Set environment variables
         run: |
