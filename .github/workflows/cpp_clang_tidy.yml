@@ -1,0 +1,100 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Clang Tidy Check
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cpp_clang_tidy.yml'
+      - 'cpp/**'
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  MVN_CMD: 'mvn -ntp'
+  WGET_CMD: 'wget -nv'
+  SETUP: 'source .github/workflows/util/setup-helper.sh'
+  CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  # spark.sql.ansi.enabled defaults to false.
+  SPARK_ANSI_SQL_MODE: false
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  build-native-lib-centos-7:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos7-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos7-release-default
+      - name: Build Gluten native libraries
+        run: |
+          docker pull apache/gluten:vcpkg-centos-7
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            set -e
+            yum install tzdata -y
+            df -a
+            cd /work
+            export CCACHE_DIR=/work/.ccache
+            mkdir -p /work/.ccache
+            bash dev/ci-velox-buildstatic-centos-7.sh
+            ls ./cpp/build/
+            mv ./cpp/build/compile_commands.json ./cpp/build/releases/
+            ccache -s
+            mkdir -p /work/.m2/repository/org/apache/arrow/
+            cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
+          "
+
+      - name: "Save ccache"
+        uses: actions/cache/save@v4
+        id: ccache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos7-release-default-${{github.sha}}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arrow-jars-centos-7-${{github.sha}}
+          path: .m2/repository/org/apache/arrow/
+          if-no-files-found: error
+
+  clang-tidy-check:
+    needs: build-native-lib-centos-7
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk8
+    steps:
+      - uses: actions/checkout@v4
+        with: fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Check Clang Tidy
+        run: |
+          pip3 install regex
+          cd $GITHUB_WORKSPACE/
+          python3 dev/check.py tidy commit --fix
+
