@@ -20,26 +20,26 @@ import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkRuntimeException
 import org.apache.spark.sql.execution.ProjectExec
-import org.apache.spark.sql.functions.{assert_true, expr, input_file_name, lit, raise_error}
+import org.apache.spark.sql.functions.{assert_true, expr, input_file_name, lit}
 
 class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTestsTrait {
   import testImplicits._
 
   // TODO: fix in Spark-4.0
-  ignore("raise_error") {
-    val strDf = Seq(("hello")).toDF("a")
+  // ignore("raise_error") {
+  //   val strDf = Seq(("hello")).toDF("a")
 
-    val e1 = intercept[SparkRuntimeException] {
-      strDf.select(raise_error(lit(null.asInstanceOf[String]))).collect()
-    }
-    assert(e1.getCause.isInstanceOf[RuntimeException])
+  //   val e1 = intercept[SparkRuntimeException] {
+  //     strDf.select(raise_error(lit(null.asInstanceOf[String]))).collect()
+  //   }
+  //   assert(e1.getCause.isInstanceOf[RuntimeException])
 
-    val e2 = intercept[SparkRuntimeException] {
-      strDf.select(raise_error($"a")).collect()
-    }
-    assert(e2.getCause.isInstanceOf[RuntimeException])
-    assert(e2.getCause.getMessage.contains("hello"))
-  }
+  //   val e2 = intercept[SparkRuntimeException] {
+  //     strDf.select(raise_error($"a")).collect()
+  //   }
+  //   assert(e2.getCause.isInstanceOf[RuntimeException])
+  //   assert(e2.getCause.getMessage.contains("hello"))
+  // }
 
   // TODO: fix in Spark-4.0
   ignore("assert_true") {
