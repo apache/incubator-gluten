@@ -113,53 +113,25 @@ def check_output_has_warnings(output):
     return bool(regex.search(r"(?i)\b(warning|error):", output))
 
 
-def get_modified_cpp_files(commit="HEAD"):
-    cmd = f"git diff-tree --no-commit-id --name-status -r {commit}"
-    status, stdout, stderr = run(cmd)
-    if status != 0:
-        print("Error running git diff-tree:", stderr, file=sys.stderr)
-        return []
-
-    files = []
-    for line in stdout.splitlines():
-        parts = line.strip().split("\t")
-        if len(parts) < 2:
-            continue
-        change_type, path = parts[0], parts[1]
-        if change_type in ("A", "M") and path.endswith((".cpp", ".cc", ".h")):
-            files.append(path)
-
-    return files
-
-
 def ensure_compile_db(build_dir):
     path = os.path.join(build_dir, "compile_commands.json")
     return os.path.exists(path)
 
 
 def tidy(args):
-    clang_tidy_bin = args.clang_tidy or "clang-tidy"
-    build_dir = args.build_dir or "cpp/build"
-    project_root = args.project_root or "/app/dps-ssc-core-gluten/incubator-gluten"
-
-    files = get_modified_cpp_files()
-    if not files:
-        print("No modified .cc/.cpp/.h files in the latest commit. Nothing to do.")
-        return 0
+    build_dir = "cpp/build/"
 
     if not ensure_compile_db(build_dir):
         print("No compile_commands.json found in '{}'.".format(build_dir))
         return 1
 
     fix = "--fix" if args.fix == "fix" else ""
-    header_filter = "^(?!.*build).*".format(regex.escape(project_root))
+    files = args.files
 
     cmd = (
-        "xargs {clang} -p={build}/releases --format-style=file --header-filter='{hf}' "
+        "xargs clang-tidy -p={build} --format-style=file "
         "--checks='{checks}' {fix} --quiet".format(
-            clang=clang_tidy_bin,
             build=build_dir,
-            hf=header_filter,
             checks=CODE_CHECKS,
             fix=fix,
         )
@@ -199,19 +171,17 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Run clang-tidy with project settings (compatible with older Python versions)"
     )
-    parser.add_argument("--fix", help="Apply automatic fixes (use 'fix' to enable)")
-    parser.add_argument("--clang-tidy", help="Path to clang-tidy binary")
-    parser.add_argument(
-        "--build-dir", help="Path to build directory with compile_commands.json"
-    )
-    parser.add_argument(
-        "--project-root", help="Root path of the source project (for header-filter)"
-    )
+    parser.add_argument("--fix", action="store_const", default="show", const="fix")
+    parser.add_argument("--commit", default="", help="Commit for check")
+    parser.add_argument("files", metavar="FILES", nargs="*", help="files to process")
     return parser.parse_args()
 
 
 def main():
-    return tidy(parse_args())
+    args = parse_args()
+    if not args.files:
+        args.files = [line.strip() for line in sys.stdin if line.strip()]
+    return tidy(args)
 
 
 if __name__ == "__main__":
