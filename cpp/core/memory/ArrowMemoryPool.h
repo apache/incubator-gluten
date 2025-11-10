@@ -17,12 +17,13 @@
 
 #pragma once
 
-#include "arrow/memory_pool.h"
+#include "arrow/memory_pool.h" // IWYU pragma: keep
 
-#include "MemoryAllocator.h"
+#include "MemoryAllocator.h" // IWYU pragma: keep
 
 namespace gluten {
 
+// NOLINTNEXTLINE(cert-dcl58-cpp)
 using ArrowMemoryPoolReleaser = std::function<void(arrow::MemoryPool*)>;
 
 /// This pool was not tracked by Spark, should only used in test.
@@ -33,6 +34,12 @@ class ArrowMemoryPool final : public arrow::MemoryPool {
         releaser_(std::move(releaser)) {}
 
   ~ArrowMemoryPool() override;
+
+  ArrowMemoryPool(const ArrowMemoryPool&) = delete;
+  ArrowMemoryPool& operator=(const ArrowMemoryPool&) = delete;
+
+  ArrowMemoryPool(ArrowMemoryPool&&) = delete;
+  ArrowMemoryPool& operator=(ArrowMemoryPool&&) = delete;
 
   arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
 
@@ -53,7 +60,8 @@ class ArrowMemoryPool final : public arrow::MemoryPool {
   MemoryAllocator* allocator() const;
 
  private:
-  std::unique_ptr<MemoryAllocator> allocator_;
+  std::unique_ptr<MemoryAllocator> allocator_ = nullptr;
+
   ArrowMemoryPoolReleaser releaser_;
 };
 
