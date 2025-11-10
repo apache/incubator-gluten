@@ -53,7 +53,7 @@ concurrency:
 jobs:
   build-native-lib-centos-8:
     runs-on: ubuntu-24.04-arm
-    container: apache/gluten:vcpkg-centos-8
+    container: apache/gluten:vcpkg-centos-9
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
@@ -66,7 +66,7 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           df -a
-          bash dev/ci-velox-buildstatic-centos-8.sh
+          bash dev/ci-velox-buildstatic-centos-9.sh
           ccache -s
           mkdir -p $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
           cp -r /root/.m2/repository/org/apache/arrow/* $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
