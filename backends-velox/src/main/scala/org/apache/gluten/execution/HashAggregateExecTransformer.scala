@@ -264,7 +264,7 @@ abstract class HashAggregateExecTransformer(
 
   // Add a projection node before aggregation for row constructing.
   // Mainly used for aggregation whose intermediate type is a compound type in Velox.
-  // Pre-projection is always not required for final stage.
+  // Pre-projection is never required for final stages.
   private def applyRowConstruct(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
