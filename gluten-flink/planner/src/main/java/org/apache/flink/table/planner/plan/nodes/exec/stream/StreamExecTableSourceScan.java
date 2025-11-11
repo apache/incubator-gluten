@@ -106,7 +106,10 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
             .getScanTableSource(
                 planner.getFlinkContext(), ShortcutUtils.unwrapTypeFactory(planner));
     Transformation<RowData> sourceTransformation = super.translateToPlanInternal(planner, config);
-    return VeloxSourceBuilder.build(sourceTransformation, tableSource);
+    return VeloxSourceBuilder.build(
+        sourceTransformation,
+        tableSource,
+        planner.getExecEnv().getCheckpointConfig().isCheckpointingEnabled());
     // --- End Gluten-specific code changes ---
   }
 }
