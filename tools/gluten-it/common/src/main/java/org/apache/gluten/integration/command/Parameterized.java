@@ -68,8 +68,8 @@ public class Parameterized implements Callable<Integer> {
   private String[] excludedDims = new String[0];
 
   private static final Pattern dimPattern1 =
-      Pattern.compile("([\\w-]+):([^,:]+)((?:,[^=,]+=[^=,]+)+)");
-  private static final Pattern dimPattern2 = Pattern.compile("([^,:]+)((?:,[^=,]+=[^=,]+)+)");
+      Pattern.compile("([\\w-]+):([^,:]+)((?:,[^=,]+=[^=,]+)*)");
+  private static final Pattern dimPattern2 = Pattern.compile("([^,:]+)((?:,[^=,]+=[^=,]+)*)");
 
   private static final Pattern excludedDimsPattern =
       Pattern.compile("[\\w-]+:[^,:]+(?:,[\\w-]+:[^,:]+)*");
@@ -120,19 +120,17 @@ public class Parameterized implements Callable<Integer> {
       if (matcher1.matches()) {
         dimName = matcher1.group(1);
         dimValueName = matcher1.group(2);
-        confText = matcher1.group(3).substring(1); // trim leading ","
+        confText = matcher1.group(3);
       } else {
         // matcher2.matches
         dimName = matcher2.group(1);
         dimValueName = matcher2.group(0);
-        confText = matcher2.group(2).substring(1); // trim leading ","
+        confText = matcher2.group(2);
       }
 
       final List<Map.Entry<String, String>> options = new ArrayList<>();
-      String[] splits = confText.split(",");
-      if (splits.length == 0) {
-        throw new IllegalArgumentException("Unexpected dim: " + dim);
-      }
+      final List<String> splits =
+          Arrays.stream(confText.split(",")).filter(s -> !s.isEmpty()).collect(Collectors.toList());
       for (String split : splits) {
         String[] kv = split.split("=");
         if (kv.length != 2) {
