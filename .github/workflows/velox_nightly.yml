@@ -48,7 +48,7 @@ jobs:
             ccache-centos7-release-default
       - name: Build Gluten velox third party
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:1.5-vcpkg-centos-7 bash -c "
             df -a
             cd /work
             export CCACHE_DIR=/work/.ccache
@@ -173,7 +173,7 @@ jobs:
   #TODO: split ARM section into different file
   build-native-lib-centos-8-arm64:
     runs-on: ubuntu-24.04-arm
-    container: apache/gluten:vcpkg-centos-8
+    container: apache/gluten:1.5-vcpkg-centos-8
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache

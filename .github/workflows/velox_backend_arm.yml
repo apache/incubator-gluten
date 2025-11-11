@@ -52,7 +52,7 @@ concurrency:
 jobs:
   build-native-lib-centos-8:
     runs-on: ubuntu-24.04-arm
-    container: apache/gluten:vcpkg-centos-8
+    container: apache/gluten:1.5-vcpkg-centos-8
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
@@ -147,7 +147,7 @@ jobs:
 
   cpp-test-udf-test:
     runs-on: ubuntu-24.04-arm
-    container: apache/gluten:centos-8-jdk8
+    container: apache/gluten:1.5-centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
