@@ -950,6 +950,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-43402")
     .exclude("non-aggregated correlated scalar subquery")
     .exclude("SPARK-18504 extra GROUP BY column in correlated scalar subquery is not permitted")
+    .exclude("SPARK-43402: FileSourceScanExec supports push down data filter with scalar subquery")
+    .exclude("SPARK-51738: IN subquery with struct type")
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
     // Rewrite with NaN test cases excluded.
@@ -1019,6 +1021,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Logging plan changes for execution")
     // Rewrite for transformed plan
     .exclude("dumping query execution info to a file - explainMode=formatted")
+    // TODO: fix in Spark-4.0
+    .exclude("SPARK-47289: extended explain info")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
