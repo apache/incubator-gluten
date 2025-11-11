@@ -30,7 +30,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
-import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, PartitioningPreservingNodeShim, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.hive.{HiveUDFTransformer, VeloxHiveUDFTransformer}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
@@ -53,6 +53,8 @@ import scala.collection.mutable.ListBuffer
 case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: SparkPlan)(
     replacedAlias: Seq[Alias])
   extends UnaryExecNode
+  with OrderPreservingNodeShim
+  with PartitioningPreservingNodeShim
   with ValidatablePlan {
 
   private val projectAttributes: ListBuffer[Attribute] = ListBuffer()
@@ -275,6 +277,10 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarPartialProjectExec = {
     copy(child = newChild)(replacedAlias)
   }
+
+  override protected def orderingExpressions: Seq[SortOrder] = child.outputOrdering
+
+  override protected def outputExpressions: Seq[NamedExpression] = child.output ++ replacedAlias
 }
 
 object ColumnarPartialProjectExec {
