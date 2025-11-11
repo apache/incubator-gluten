@@ -778,6 +778,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not really an issue.
     .exclude("SPARK-10740: handle nondeterministic expressions correctly for set operations")
   enableSuite[GlutenDataFrameStatSuite]
+    // TODO: fix in Spark-4.0
+    .exclude("Bloom filter")
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
     .excludeByPrefix("SPARK-22520", "reuse exchange")

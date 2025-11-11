@@ -42,7 +42,7 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
   // }
 
   // TODO: fix in Spark-4.0
-  ignore("assert_true") {
+  ignoreGluten("assert_true") {
     // assert_true(condition, errMsgCol)
     val booleanDf = Seq((true), (false)).toDF("cond")
     checkAnswer(
