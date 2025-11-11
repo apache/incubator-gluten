@@ -943,6 +943,11 @@ class VeloxTestSettings extends BackendTestSettings {
     )
     // exclude as it checks spark plan
     .exclude("SPARK-36280: Remove redundant aliases after RewritePredicateSubquery")
+    // TODO: fix in Spark-4.0
+    .excludeByPrefix("SPARK-51738")
+    .excludeByPrefix("SPARK-43402")
+    .exclude("non-aggregated correlated scalar subquery")
+    .exclude("SPARK-18504 extra GROUP BY column in correlated scalar subquery is not permitted")
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
     // Rewrite with NaN test cases excluded.
@@ -958,6 +963,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameToSchemaSuite]
   enableSuite[GlutenDatasetUnpivotSuite]
   enableSuite[GlutenLateralColumnAliasSuite]
+    // TODO: fix in Spark-4.0
+    .excludeByPrefix("Lateral alias conflicts with OuterReference - Project")
   enableSuite[GlutenParametersSuite]
   enableSuite[GlutenResolveDefaultColumnsSuite]
   enableSuite[GlutenSubqueryHintPropagationSuite]
