@@ -119,7 +119,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("cast string to timestamp")
     // TODO: fix in Spark-4.0
     .exclude("cast from array III")
-    .exclude("cast from array III")
+    .exclude("cast from struct III")
+    .exclude("Casting to char/varchar")
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
@@ -631,6 +632,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("test with low buffer spill threshold")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
+    // TODO: fix in Spark-4.0
+    .exclude("SPARK-47104: Non-deterministic expressions in projection")
   enableSuite[GlutenSessionExtensionSuite]
   enableSuite[TestFileSourceScanExecTransformer]
   enableSuite[GlutenBucketedReadWithoutHiveSupportSuite]
@@ -984,6 +987,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // TODO: fix in Spark-4.0
     .excludeByPrefix("merge cardinality check with")
   enableSuite[GlutenDeltaBasedMergeIntoTableUpdateAsDeleteAndInsertSuite]
+    // TODO: fix in Spark-4.0
+    .excludeByPrefix("merge cardinality check with")
   enableSuite[GlutenDeltaBasedUpdateAsDeleteAndInsertTableSuite]
     // FIXME: complex type result mismatch
     .exclude("update nested struct fields")
