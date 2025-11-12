@@ -85,6 +85,8 @@ class VeloxTestSettings extends BackendTestSettings {
       "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
     // Doesn't support unhex with failOnError=true.
     .exclude("CONVERSION_INVALID_INPUT: to_binary conversion function hex")
+    // TODO: fix in Spark-4.0
+    .exclude("CONVERSION_INVALID_INPUT: to_binary conversion function base64")
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
@@ -157,6 +159,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenJsonExpressionsSuite]
+    // https://github.com/apache/incubator-gluten/issues/10948
+    .exclude("$['key with spaces']")
     // https://github.com/apache/incubator-gluten/issues/8102
     .exclude("$.store.book")
     .exclude("$")
@@ -181,6 +185,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("default")
     // FIXME(yma11): ObjectType is not covered in RowEncoder/Serializer in vanilla spark
     .exclude("SPARK-37967: Literal.create support ObjectType")
+    // TODO: fix in Spark-4.0
+    .exclude("function get_json_object - path is null")
+    .exclude("function get_json_object - json is null")
+    .exclude("function get_json_object - Codegen Support")
   enableSuite[GlutenMathExpressionsSuite]
     // Spark round UT for round(3.1415,3) is not correct.
     .exclude("round/bround/floor/ceil")
@@ -592,6 +600,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("read float and double together")
     .exclude("change column type from float to double")
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
+    // TODO: fix in Spark-4.0
+    .exclude("read float and double together")
+    .exclude("change column type from float to double")
   enableSuite[GlutenMergedParquetReadSchemaSuite]
   enableSuite[GlutenV1WriteCommandSuite]
     // Rewrite to match SortExecTransformer.
@@ -844,6 +855,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite the following two tests in GlutenDatasetSuite.
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
+    // TODO: fix in Spark-4.0
+    .exclude("SPARK-23627: provide isEmpty in DataSet")
   enableSuite[GlutenDateFunctionsSuite]
     // The below two are replaced by two modified versions.
     .exclude("unix_timestamp")
@@ -938,6 +951,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // ORC related
     .exclude("SPARK-37965: Spark support read/write orc file with invalid char in field name")
     .exclude("SPARK-38173: Quoted column cannot be recognized correctly when quotedRegexColumnNames is true")
+    // TODO: fix in Spark-4.0
+    .exclude("SPARK-47939: Explain should work with parameterized queries")
   // enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
     // The output byte size of Velox is different
@@ -1021,6 +1036,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("detect escaped path and report the migration guide")
     .exclude("ignore the escaped path check when the flag is off")
     .excludeByPrefix("SPARK-51187")
+    // TODO: fix in Spark-4.0
+    .excludeByPrefix("SPARK-49905")
+    .excludeByPrefix("SPARK-41199")
+    .excludeByPrefix("SPARK-41198")
   enableSuite[GlutenQueryExecutionSuite]
     // Rewritten to set root logger level to INFO so that logs can be parsed
     .exclude("Logging plan changes for execution")

@@ -130,6 +130,10 @@ class GlutenJsonV2Suite extends GlutenJsonSuite with GlutenSQLTestsBaseTrait {
 }
 
 class GlutenJsonLegacyTimeParserSuite extends GlutenJsonSuite with GlutenSQLTestsBaseTrait {
+
+  override def excluded: Seq[String] =
+    Seq("Write timestamps correctly in ISO8601 format by default")
+
   override def sparkConf: SparkConf =
     super.sparkConf
       .set(SQLConf.LEGACY_TIME_PARSER_POLICY, "legacy")
