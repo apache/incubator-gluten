@@ -21,7 +21,7 @@
   <parent>
     <artifactId>gluten-ut</artifactId>
     <groupId>org.apache.gluten</groupId>
-    <version>1.5.0</version>
+    <version>1.5.1-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>

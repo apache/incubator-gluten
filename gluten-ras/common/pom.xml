@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.gluten</groupId>
     <artifactId>gluten-ras</artifactId>
-    <version>1.5.0</version>
+    <version>1.5.1-SNAPSHOT</version>
   </parent>
   <artifactId>gluten-ras-common</artifactId>
   <name>Gluten Ras Common</name>
