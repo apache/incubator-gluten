@@ -45,10 +45,15 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
         shuffle.withNewChildren(Seq(appendBatches))
       case a @ AQEShuffleReadExec(
+            ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _),
+            _)
+          if resizeBatchesShuffleOutputEnabled &&
+            shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
+        VeloxResizeBatchesExec(a, range.min, range.max)
+      case a @ AQEShuffleReadExec(
             ShuffleQueryStageExec(
               _,
-              shuffle: ColumnarShuffleExchangeExec |
-              ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec),
+              ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeExec),
               _),
             _)
           if resizeBatchesShuffleOutputEnabled &&
@@ -59,10 +64,18 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
       // then we see AQEShuffleReadExec
       case a @ AQEShuffleReadExec(
             VeloxResizeBatchesExec(
+              s @ ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _),
+              _,
+              _),
+            _)
+          if resizeBatchesShuffleOutputEnabled &&
+            shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
+        VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max)
+      case a @ AQEShuffleReadExec(
+            VeloxResizeBatchesExec(
               s @ ShuffleQueryStageExec(
                 _,
-                shuffle: ColumnarShuffleExchangeExec |
-                ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec),
+                ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeExec),
                 _),
               _,
               _),
@@ -70,10 +83,13 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
           if resizeBatchesShuffleOutputEnabled &&
             shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
         VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max)
+      case s @ ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _)
+          if resizeBatchesShuffleOutputEnabled &&
+            shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
+        VeloxResizeBatchesExec(s, range.min, range.max)
       case s @ ShuffleQueryStageExec(
             _,
-            shuffle: ColumnarShuffleExchangeExec |
-            ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec),
+            ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeExec),
             _)
           if resizeBatchesShuffleOutputEnabled &&
             shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
