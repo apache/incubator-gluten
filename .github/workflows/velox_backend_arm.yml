@@ -146,7 +146,7 @@ jobs:
             --extra-conf=spark.gluten.ras.enabled=true 
 
   cpp-test-udf-test:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-22.04-arm
     container: apache/gluten:1.5-centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
