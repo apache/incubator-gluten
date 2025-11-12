@@ -57,9 +57,7 @@ class VeloxBackend {
     return globalMemoryManager_.get();
   }
 
-  void tearDown() {
-    gluten::hashTableObjStore.reset();
-  }
+  void tearDown();
 
  private:
   explicit VeloxBackend(
