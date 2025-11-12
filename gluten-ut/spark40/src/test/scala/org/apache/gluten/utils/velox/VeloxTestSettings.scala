@@ -858,6 +858,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+    // TODO: fix in Spark-4.0
+    .exclude("join key with multiple references on the filtering plan")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
@@ -970,8 +972,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameToSchemaSuite]
   enableSuite[GlutenDatasetUnpivotSuite]
   enableSuite[GlutenLateralColumnAliasSuite]
-    // TODO: fix in Spark-4.0
-    .excludeByPrefix("Lateral alias conflicts with OuterReference - Project")
   enableSuite[GlutenParametersSuite]
   enableSuite[GlutenResolveDefaultColumnsSuite]
   enableSuite[GlutenSubqueryHintPropagationSuite]

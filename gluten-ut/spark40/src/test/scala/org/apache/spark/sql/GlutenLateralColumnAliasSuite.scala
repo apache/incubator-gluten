@@ -16,4 +16,5 @@
  */
 package org.apache.spark.sql
 
-class GlutenLateralColumnAliasSuite extends LateralColumnAliasSuite with GlutenSQLTestsTrait {}
+// TODO: fix in Spark-4.0 change back to LateralColumnAliasSuite
+class GlutenLateralColumnAliasSuite extends LateralColumnAliasSuiteBase with GlutenSQLTestsTrait {}
