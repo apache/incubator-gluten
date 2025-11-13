@@ -57,8 +57,7 @@ class VeloxRuntime final : public Runtime {
   // FIXME This is not thread-safe?
   std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,
-      const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
-      const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
+      const std::vector<std::shared_ptr<ResultIterator>>& inputs = {}) override;
 
   std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(int64_t column2RowMemThreshold) override;
 

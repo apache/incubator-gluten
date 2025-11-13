@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenPlan}
+import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenColumnarToColumnarTransition, GlutenPlan}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -146,10 +146,11 @@ object TransitionSuiteBase {
   }
 
   case class BatchToBatch(
-      from: Convention.BatchType,
-      to: Convention.BatchType,
+      override val from: Convention.BatchType,
+      override val to: Convention.BatchType,
       override val child: SparkPlan)
-    extends ColumnarToColumnarExec(from, to) {
+    extends ColumnarToColumnarExec(child)
+    with GlutenColumnarToColumnarTransition {
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()

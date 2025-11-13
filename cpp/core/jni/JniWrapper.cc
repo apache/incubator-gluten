@@ -447,15 +447,10 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jint partitionId,
     jlong taskId,
     jboolean enableDumping,
-    jstring spillDir,
-    jboolean enableCudf) {
+    jstring spillDir) {
   JNI_METHOD_START
 
   auto ctx = getRuntime(env, wrapper);
-  auto conf = ctx->getConfMap();
-#ifdef GLUTEN_ENABLE_GPU
-  conf[kCudfEnabled] = std::to_string(enableCudf);
-#endif
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
@@ -489,7 +484,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     inputIters.push_back(std::move(resultIter));
   }
 
-  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters, conf));
+  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters));
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
