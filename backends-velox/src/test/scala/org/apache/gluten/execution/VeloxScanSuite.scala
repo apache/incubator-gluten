@@ -197,6 +197,19 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("remove pushed down filter in filter node") {
+    createTPCHNotNullTables()
+    val query = "select l_partkey from lineitem where l_partkey = 1"
+    runQueryAndCompare(query) {
+      df =>
+        {
+          val executedPlan = getExecutedPlan(df)
+          val filter = executedPlan.collect { case f: FilterExecTransformerBase => f }
+          assert(filter.isEmpty)
+        }
+    }
+  }
+
   test("test binary as string") {
     withTempDir {
       dir =>

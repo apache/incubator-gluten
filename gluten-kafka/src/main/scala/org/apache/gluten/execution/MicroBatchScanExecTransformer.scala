@@ -22,7 +22,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory, Scan}
 import org.apache.spark.sql.connector.read.streaming.{MicroBatchStream, Offset}
@@ -96,6 +96,9 @@ case class MicroBatchScanExecTransformer(
     ctx.root.asInstanceOf[ReadRelNode].setStreamKafka(true);
     ctx
   }
+
+  override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer =
+    copy(output = newOutput.map(_.asInstanceOf[AttributeReference]))
 }
 
 object MicroBatchScanExecTransformer {

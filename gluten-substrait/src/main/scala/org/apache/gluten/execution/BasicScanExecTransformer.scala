@@ -40,6 +40,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   /** Returns the filters that can be pushed down to native file scan */
   def filterExprs(): Seq[Expression]
 
+  def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer
+
   def getMetadataColumns(): Seq[AttributeReference]
 
   /** This can be used to report FileFormat for a file based scan operator. */

@@ -77,6 +77,9 @@ case class DeltaScanTransformer(
       disableBucketedScan
     )
   }
+
+  override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer =
+    copy(output = newOutput)
 }
 
 object DeltaScanTransformer {

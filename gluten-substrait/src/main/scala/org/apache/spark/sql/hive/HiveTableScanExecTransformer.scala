@@ -172,6 +172,9 @@ case class HiveTableScanExecTransformer(
       QueryPlan.normalizePredicates(partitionPruningPred, input)
     )(sparkSession)
   }
+
+  override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer =
+    copy(prunedOutput = newOutput)(sparkSession)
 }
 
 object HiveTableScanExecTransformer {

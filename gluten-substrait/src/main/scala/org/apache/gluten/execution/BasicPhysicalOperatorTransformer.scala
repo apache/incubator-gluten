@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.{ExpressionConverter, ExpressionTransformer}
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.MetricsUpdater
@@ -26,9 +25,9 @@ import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{PredicateHelper, _}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -42,26 +41,11 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   with Logging {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
+  @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
-  // Split out all the IsNotNulls from condition.
-  protected val (notNullPreds, _) = splitConjunctivePredicates(cond).partition {
-    case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
-    case _ => false
-  }
-
-  // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
-  protected val notNullAttributes: Seq[ExprId] =
-    notNullPreds.flatMap(_.references).distinct.map(_.exprId)
-
-  override def isNoop: Boolean = getRemainingCondition == null
-
-  override def metricsUpdater(): MetricsUpdater = if (isNoop) {
-    MetricsUpdater.None
-  } else {
+  override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
-  }
 
   def getRelNode(
       context: SubstraitContext,
@@ -84,8 +68,48 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     )
   }
 
-  override def output: Seq[Attribute] = {
-    child.output.map {
+  override def output: Seq[Attribute] = FilterExecTransformerBase.buildNewOutput(child.output, cond)
+
+  override protected def orderingExpressions: Seq[SortOrder] = child.outputOrdering
+
+  override protected def outputExpressions: Seq[NamedExpression] = child.output
+
+  override protected def doValidateInternal(): ValidationResult = {
+    val substraitContext = new SubstraitContext
+    val operatorId = substraitContext.nextOperatorId(this.nodeName)
+    // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
+    val relNode =
+      getRelNode(substraitContext, cond, child.output, operatorId, null, validation = true)
+    // Then, validate the generated plan in native engine.
+    doNativeValidation(substraitContext, relNode)
+  }
+
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
+    val operatorId = context.nextOperatorId(this.nodeName)
+    val currRel =
+      getRelNode(context, cond, child.output, operatorId, childCtx.root, validation = false)
+    assert(currRel != null, "Filter rel should be valid.")
+    TransformContext(output, currRel)
+  }
+}
+
+object FilterExecTransformerBase extends PredicateHelper {
+
+  def buildNewOutput(output: Seq[Attribute], cond: Expression): Seq[Attribute] = {
+    buildNewOutput(output, splitConjunctivePredicates(cond))
+  }
+
+  def buildNewOutput(output: Seq[Attribute], conds: Seq[Expression]): Seq[Attribute] = {
+    // Split out all the IsNotNulls from condition.
+    val (notNullPreds, _) = conds.partition {
+      case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(AttributeSet(output))
+      case _ => false
+    }
+
+    // The columns that will filter out by `IsNotNull` could be considered as not nullable.
+    val notNullAttributes: Seq[ExprId] = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
+    output.map {
       a =>
         if (a.nullable && notNullAttributes.contains(a.exprId)) {
           a.withNullability(false)
@@ -93,73 +117,6 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
           a
         }
     }
-  }
-
-  override protected def orderingExpressions: Seq[SortOrder] = child.outputOrdering
-
-  override protected def outputExpressions: Seq[NamedExpression] = child.output
-
-  // FIXME: Should use field "condition" to store the actual executed filter expressions.
-  //  To make optimization easier (like to remove filter when it actually does nothing)
-  protected def getRemainingCondition: Expression = {
-    val scanFilters = child match {
-      // Get the filters including the manually pushed down ones.
-      case basicScanExecTransformer: BasicScanExecTransformer =>
-        basicScanExecTransformer.filterExprs()
-      // For fallback scan, we need to keep original filter.
-      case _ =>
-        Seq.empty[Expression]
-    }
-    if (scanFilters.isEmpty) {
-      cond
-    } else {
-      val remainingFilters =
-        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(cond))
-      remainingFilters.reduceLeftOption(And).orNull
-    }
-  }
-
-  override protected def doValidateInternal(): ValidationResult = {
-    val remainingCondition = getRemainingCondition
-    if (remainingCondition == null) {
-      // All the filters can be pushed down and the computing of this Filter
-      // is not needed.
-      return ValidationResult.succeeded
-    }
-    val substraitContext = new SubstraitContext
-    val operatorId = substraitContext.nextOperatorId(this.nodeName)
-    // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val relNode = getRelNode(
-      substraitContext,
-      remainingCondition,
-      child.output,
-      operatorId,
-      null,
-      validation = true)
-    // Then, validate the generated plan in native engine.
-    doNativeValidation(substraitContext, relNode)
-  }
-
-  override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    if (isNoop) {
-      // The computing for this filter is not needed.
-      // Since some columns' nullability will be removed after this filter, we need to update the
-      // outputAttributes of child context.
-      return TransformContext(output, childCtx.root)
-    }
-
-    val operatorId = context.nextOperatorId(this.nodeName)
-    val remainingCondition = getRemainingCondition
-    val currRel = getRelNode(
-      context,
-      remainingCondition,
-      child.output,
-      operatorId,
-      childCtx.root,
-      validation = false)
-    assert(currRel != null, "Filter rel should be valid.")
-    TransformContext(output, currRel)
   }
 }
 
@@ -171,7 +128,7 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
   with Logging {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
+  @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
 
   override protected def doValidateInternal(): ValidationResult = {
@@ -281,36 +238,10 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends ValidatablePlan {
 }
 
 /**
- * Contains functions for the comparision and separation of the filter conditions in Scan and
- * Filter. Contains the function to manually push down the conditions into Scan.
+ * Contains functions for the comparison and separation of the filter conditions in Scan and Filter.
+ * Contains the function to manually push down the conditions into Scan.
  */
 object FilterHandler extends PredicateHelper {
-
-  /**
-   * Get the original filter conditions in Scan for the comparison with those in Filter.
-   *
-   * @param plan
-   *   : the Spark plan
-   * @return
-   *   If the plan is FileSourceScanExec or BatchScanExec, return the filter conditions in it.
-   *   Otherwise, return empty sequence.
-   */
-  def getScanFilters(plan: SparkPlan): Seq[Expression] = {
-    plan match {
-      case fileSourceScan: FileSourceScanExec =>
-        fileSourceScan.dataFilters
-      case batchScan: BatchScanExec =>
-        batchScan.scan match {
-          case scan: FileScan =>
-            scan.dataFilters
-          case _ =>
-            throw new GlutenNotSupportException(
-              s"${batchScan.scan.getClass.toString} is not supported")
-        }
-      case _ =>
-        Seq()
-    }
-  }
 
   /**
    * Compare the semantics of the filter conditions pushed down to Scan and in the Filter.

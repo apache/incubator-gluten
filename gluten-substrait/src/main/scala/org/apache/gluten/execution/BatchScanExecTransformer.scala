@@ -68,6 +68,10 @@ case class BatchScanExecTransformer(
         output)
     )
   }
+
+  override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer = {
+    copy(output = newOutput.map(_.asInstanceOf[AttributeReference]))
+  }
 }
 
 abstract class BatchScanExecTransformerBase(

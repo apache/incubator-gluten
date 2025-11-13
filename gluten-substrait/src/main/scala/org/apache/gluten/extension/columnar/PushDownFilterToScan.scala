@@ -17,9 +17,9 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.{BatchScanExecTransformerBase, FileSourceScanExecTransformer, FilterExecTransformerBase}
+import org.apache.gluten.execution.{BasicScanExecTransformer, BatchScanExecTransformerBase, FileSourceScanExecTransformer, FilterExecTransformerBase, FilterHandler}
 
-import org.apache.spark.sql.catalyst.expressions.PredicateHelper
+import org.apache.spark.sql.catalyst.expressions.{And, PredicateHelper}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 
@@ -37,11 +37,7 @@ object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
               splitConjunctivePredicates(filter.cond),
               fileScan)
           val newScan = fileScan.copy(dataFilters = pushDownFilters)
-          if (newScan.doValidate().ok()) {
-            filter.withNewChildren(Seq(newScan))
-          } else {
-            filter
-          }
+          buildNewFilter(newScan, filter)
         case batchScan: BatchScanExecTransformerBase =>
           val pushDownFilters =
             BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
@@ -52,15 +48,40 @@ object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
           val newScan = batchScan
           if (pushDownFilters.nonEmpty) {
             newScan.setPushDownFilters(pushDownFilters)
-            if (newScan.doValidate().ok()) {
-              filter.withNewChildren(Seq(newScan))
-            } else {
-              filter
-            }
+            buildNewFilter(newScan, filter)
           } else {
             filter
           }
         case _ => filter
       }
+  }
+
+  private def buildNewFilter(
+      scan: BasicScanExecTransformer,
+      filter: FilterExecTransformerBase): SparkPlan = {
+    if (scan.doValidate().ok()) {
+      val pushedFilter = scan.filterExprs()
+      if (pushedFilter.nonEmpty) {
+        // Build new scan with new output based on pushed filters.
+        val newScan =
+          scan.withNewOutput(FilterExecTransformerBase.buildNewOutput(scan.output, pushedFilter))
+
+        // Build new filter with remaining filters.
+        val remainingFilters =
+          FilterHandler.getRemainingFilters(pushedFilter, splitConjunctivePredicates(filter.cond))
+        val newCond = remainingFilters.reduceLeftOption(And).orNull
+        // If all the filters have been pushed down, remove the filter node.
+        if (newCond == null) {
+          newScan
+        } else {
+          BackendsApiManager.getSparkPlanExecApiInstance.genFilterExecTransformer(newCond, newScan)
+        }
+      } else {
+        // If no filters have been pushed down, return the original filter node.
+        filter
+      }
+    } else {
+      filter
+    }
   }
 }
