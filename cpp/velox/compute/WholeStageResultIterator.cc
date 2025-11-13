@@ -71,11 +71,10 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
     const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
-    const std::unordered_map<std::string, std::string>& confMap,
+    const facebook::velox::config::ConfigBase* veloxCfg,
     const SparkTaskInfo& taskInfo)
     : memoryManager_(memoryManager),
-      veloxCfg_(
-          std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
+      veloxCfg_(veloxCfg),
 #ifdef GLUTEN_ENABLE_GPU
       enableCudf_(veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)),
 #endif
