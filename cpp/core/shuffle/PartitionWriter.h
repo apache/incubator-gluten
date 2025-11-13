@@ -48,7 +48,12 @@ class PartitionWriter : public Reclaimable {
 
   ~PartitionWriter() override = default;
 
-  virtual arrow::Status stop(ShuffleWriterMetrics* metrics) = 0;
+  void acceptMetrics(ShuffleWriterMetrics* metrics) {
+    metrics_ = metrics;
+    GLUTEN_CHECK(metrics_ != nullptr, "Partition writer need to pass shuffle metrics.");
+  }
+
+  virtual arrow::Status stop() = 0;
 
   /// Evict buffers for `partitionId` partition.
   virtual arrow::Status hashEvict(
@@ -74,6 +79,8 @@ class PartitionWriter : public Reclaimable {
   // Memory Pool used to track memory allocation of partition payloads.
   // The actual allocation is delegated to options_.memoryPool.
   std::shared_ptr<arrow::MemoryPool> payloadPool_;
+
+  ShuffleWriterMetrics* metrics_{nullptr};
 
   int64_t compressTime_{0};
   int64_t spillTime_{0};

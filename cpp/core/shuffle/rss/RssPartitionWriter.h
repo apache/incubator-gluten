@@ -53,7 +53,7 @@ class RssPartitionWriter final : public PartitionWriter {
 
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
-  arrow::Status stop(ShuffleWriterMetrics* metrics) override;
+  arrow::Status stop() override;
 
  private:
   void init();

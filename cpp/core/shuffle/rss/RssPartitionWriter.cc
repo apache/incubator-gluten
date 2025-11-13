@@ -29,7 +29,7 @@ void RssPartitionWriter::init() {
   rawPartitionLengths_.resize(numPartitions_, 0);
 }
 
-arrow::Status RssPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
+arrow::Status RssPartitionWriter::stop() {
   if (rssOs_ != nullptr && !rssOs_->closed()) {
     if (compressedOs_ != nullptr) {
       RETURN_NOT_OK(compressedOs_->Close());
@@ -45,12 +45,12 @@ arrow::Status RssPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
 
   auto totalBytesEvicted = std::accumulate(bytesEvicted_.begin(), bytesEvicted_.end(), 0LL);
   // Populate metrics.
-  metrics->totalCompressTime += compressTime_;
-  metrics->totalEvictTime += spillTime_;
-  metrics->totalBytesEvicted += totalBytesEvicted;
-  metrics->totalBytesWritten += totalBytesEvicted;
-  metrics->partitionLengths = std::move(bytesEvicted_);
-  metrics->rawPartitionLengths = std::move(rawPartitionLengths_);
+  metrics_->totalCompressTime += compressTime_;
+  metrics_->totalEvictTime += spillTime_;
+  metrics_->totalBytesEvicted += totalBytesEvicted;
+  metrics_->totalBytesWritten += totalBytesEvicted;
+  metrics_->partitionLengths = std::move(bytesEvicted_);
+  metrics_->rawPartitionLengths = std::move(rawPartitionLengths_);
   return arrow::Status::OK();
 }
 
