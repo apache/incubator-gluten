@@ -181,14 +181,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-42782: Hive compatibility check for get_json_object")
     // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")
-  enableSuite[GlutenLiteralExpressionSuite]
-    .exclude("default")
-    // FIXME(yma11): ObjectType is not covered in RowEncoder/Serializer in vanilla spark
-    .exclude("SPARK-37967: Literal.create support ObjectType")
     // TODO: fix in Spark-4.0
     .exclude("function get_json_object - path is null")
     .exclude("function get_json_object - json is null")
     .exclude("function get_json_object - Codegen Support")
+  enableSuite[GlutenLiteralExpressionSuite]
+    .exclude("default")
+    // FIXME(yma11): ObjectType is not covered in RowEncoder/Serializer in vanilla spark
+    .exclude("SPARK-37967: Literal.create support ObjectType")
   enableSuite[GlutenMathExpressionsSuite]
     // Spark round UT for round(3.1415,3) is not correct.
     .exclude("round/bround/floor/ceil")
