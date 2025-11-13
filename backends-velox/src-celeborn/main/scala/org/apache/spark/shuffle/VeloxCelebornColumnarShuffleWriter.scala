@@ -77,7 +77,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         val columnarBatchHandle =
           ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
         val startTime = System.nanoTime()
-        shuffleWriterJniWrapper.write(
+        val bytesWritten = shuffleWriterJniWrapper.write(
           nativeShuffleWriter,
           cb.numRows,
           columnarBatchHandle,
@@ -86,6 +86,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
+        writeMetrics.incBytesWritten(bytesWritten)
         writeMetrics.incRecordsWritten(cb.numRows())
       }
     }

@@ -76,6 +76,7 @@ class ShuffleWriter : public Reclaimable {
   Partitioning partitioning_;
 
   ShuffleWriterMetrics metrics_{};
+  int64_t writtenBytes_{0};
 };
 
 } // namespace gluten
