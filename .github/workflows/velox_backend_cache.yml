@@ -42,7 +42,7 @@ jobs:
             ccache-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:1.5-vcpkg-centos-7 bash -c "
             export CCACHE_DIR=/work/.ccache
             mkdir -p /work/.ccache
             bash dev/ci-velox-buildstatic-centos-7.sh
@@ -56,7 +56,7 @@ jobs:
 
   cache-native-lib-centos-8:
     runs-on: ${{ matrix.os }}
-    container: apache/gluten:vcpkg-centos-8
+    container: apache/gluten:1.5-vcpkg-centos-8
     strategy:
       matrix:
         os: [ ubuntu-22.04, ubuntu-24.04-arm ]
@@ -84,7 +84,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-22.04, ubuntu-24.04-arm ]
-    container: apache/gluten:centos-8-jdk8
+    container: apache/gluten:1.5-centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
@@ -119,7 +119,7 @@ jobs:
             ccache-enhanced-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:1.5-vcpkg-centos-7 bash -c "
             export CCACHE_DIR=/work/.ccache
             mkdir -p /work/.ccache
             bash dev/ci-velox-buildstatic-centos-7-enhanced-features.sh
@@ -136,7 +136,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-22.04 ]
-    container: apache/gluten:centos-9-jdk8-cudf
+    container: apache/gluten:1.5-centos-9-jdk8-cudf
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache

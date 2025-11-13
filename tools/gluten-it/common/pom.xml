@@ -23,11 +23,11 @@
   <parent>
     <groupId>org.apache.gluten</groupId>
     <artifactId>gluten-it</artifactId>
-    <version>1.5.0</version>
+    <version>1.5.1-SNAPSHOT</version>
   </parent>
 
   <artifactId>gluten-it-common</artifactId>
-  <version>1.5.0</version>
+  <version>1.5.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <dependencies>
