@@ -289,6 +289,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def extendedExpressionTransformer: String = getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
+  def smallFileThreshold: Double = getConf(SMALL_FILE_THRESHOLD)
+
   def expressionBlacklist: Set[String] = {
     val blacklistSet = getConf(EXPRESSION_BLACK_LIST)
       .map(_.toLowerCase(Locale.ROOT).split(",").map(_.trim()).filter(_.nonEmpty).toSet)
@@ -1582,4 +1584,14 @@ object GlutenConfig extends ConfigRegistry {
       .doc("Enable or disable columnar collectTail.")
       .booleanConf
       .createWithDefault(true)
+
+  val SMALL_FILE_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.smallFileThreshold")
+      .doc(
+        "The total size threshold of small files in table scan." +
+          "To avoid small files being placed into the same partition, " +
+          "Gluten will try to distribute small files into different partitions when the " +
+          "total size of small files is below this threshold.")
+      .doubleConf
+      .createWithDefault(0.5)
 }
