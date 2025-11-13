@@ -47,7 +47,7 @@ concurrency:
 
 jobs:
   macos-build:
-    if: ${{ github.repository == 'apache/incubator-gluten' }}
+    if: ${{ github.repository == 'wangyum/incubator-gluten' }}
     name: macOS Velox Build
     runs-on: macos-latest
     env:
