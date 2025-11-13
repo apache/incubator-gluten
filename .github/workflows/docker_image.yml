@@ -159,7 +159,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, ubuntu-24.04-arm ]
+        os: [ ubuntu-latest ] #TODO: adding arm back
 
     steps:
       - name: Checkout repository

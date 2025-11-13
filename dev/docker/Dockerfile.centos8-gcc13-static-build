@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM inteldpo/gluten-ci-images:centos-8_gcc13
+FROM inteldpo/gluten:centos8_gcc13
 
 
 ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
@@ -34,6 +34,8 @@ RUN set -ex; \
     dnf clean all; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
     cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh; \
+    yum remove gcc -y && yum clean all; \
+    yes | cp -rf /usr/share/aclocal/* /usr/local/share/aclocal/; \
     mkdir -p ${VCPKG_PATH}; \
     echo "Build arrow, then install the native libs to system paths and jar package to .m2/ directory."; \
     if [ "$(uname -m)" = "aarch64" ]; then \
