@@ -16,17 +16,19 @@
  */
 
 
-#include <Columns/IColumn.h>
-#include <Columns/ColumnNullable.h>
 #include <Columns/ColumnConst.h>
+#include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
+#include <Columns/IColumn.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Functions/IFunction.h>
+#include <boost/iostreams/detail/select.hpp>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
+#include "base/types.h"
 
 namespace DB
 {
@@ -40,12 +42,12 @@ namespace local_engine
 {
 // Since spark 3.3, unix_timestamp support arabic number input, e.g., "٢٠٢١-٠٧-٠١ ١٢:٠٠:٠٠".
 // We implement a function to translate arabic indic digits to ascii digits here.
-class ArabicIndicToAsciiDigitForDateFunction : public DB::IFunction
+class LocalDigitsToAsciiDigitForDateFunction : public DB::IFunction
 {
 public:
-    static constexpr auto name = "arabic_indic_to_ascii_digit_for_date";
+    static constexpr auto name = "local_digit_to_ascii_digit_for_date";
 
-    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<ArabicIndicToAsciiDigitForDateFunction>(); }
+    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<LocalDigitsToAsciiDigitForDateFunction>(); }
 
     String getName() const override { return name; }
 
@@ -56,7 +58,11 @@ public:
     {
         auto nested_type = DB::removeNullable(arguments[0]);
         if (!DB::WhichDataType(nested_type).isString())
-            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Argument for function {} must be String, but got {}", getName(), arguments[0]->getName());
+            throw DB::Exception(
+                DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                "Argument for function {} must be String, but got {}",
+                getName(),
+                arguments[0]->getName());
         return arguments[0];
     }
 
@@ -85,9 +91,13 @@ public:
                 col_str = DB::checkAndGetColumn<DB::ColumnString>(data_col.get());
             }
             if (!col_str)
-                throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Argument for function {} must be String, but got {}", getName(), data_col->getName());
+                throw DB::Exception(
+                    DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                    "Argument for function {} must be String, but got {}",
+                    getName(),
+                    data_col->getName());
             auto date_str = col_str->getDataAt(0);
-            auto new_str = convertArabicIndicDigit(date_str);
+            auto new_str = convertLocalDigit(date_str);
             auto new_data_col = data_col->cloneEmpty();
             new_data_col->insertData(new_str.c_str(), new_str.size());
             return DB::ColumnConst::create(std::move(new_data_col), input_rows_count);
@@ -104,10 +114,14 @@ public:
             col_str = DB::checkAndGetColumn<DB::ColumnString>(data_col.get());
         }
         if (!col_str)
-            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Argument for function {} must be String, but got {}", getName(), data_col->getName());
+            throw DB::Exception(
+                DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                "Argument for function {} must be String, but got {}",
+                getName(),
+                data_col->getName());
 
         auto nested_data_col = DB::removeNullable(arguments[0].column);
-        bool has_arabic_indic_digit = false;
+        bool has_local_digit = false;
         size_t row_index = 0;
         for (row_index = 0; row_index < input_rows_count; ++row_index)
         {
@@ -116,16 +130,16 @@ public:
                 continue;
             }
             auto str = col_str->getDataAt(row_index);
-            if (hasArabicIndicDigit(str))
+            if (hasLocalDigit(str))
             {
-                has_arabic_indic_digit = true;
+                has_local_digit = true;
                 break;
             }
         }
 
-        if (!has_arabic_indic_digit)
+        if (!has_local_digit)
         {
-            // No Arabic indic digits found, return the original column
+            // No local language digits found, return the original column
             return arguments[0].column;
         }
 
@@ -141,14 +155,15 @@ public:
                 res_col->insertDefault();
                 continue;
             }
-            auto str = convertArabicIndicDigit(col_str->getDataAt(row_index));
+            auto str = convertLocalDigit(col_str->getDataAt(row_index));
+            LOG_ERROR(getLogger("LocalDigitsToAsciiDigitForDateFunction"), "Converted local digit string {} to ascii digit string: {}", col_str->getDataAt(row_index).toString(), str);
             res_col->insertData(str.c_str(), str.size());
         }
         return res_col;
     }
 
 private:
-    bool hasArabicIndicDigit(StringRef str) const
+    bool hasLocalDigit(StringRef str) const
     {
         // In most cases, the first byte is a digit.
         char c = reinterpret_cast<char>(str.data[0]);
@@ -159,11 +174,26 @@ private:
         return true;
     }
 
+    char toAsciiDigit(char32_t c) const {
+        // In Thai and Persian, dates typically do not use the Gregorian calendar.
+        // This may cause failures in unix_timestamp parsing.
+        if (c >= 0x0660 && c <= 0x0669)
+            return static_cast<char>(c - 0x0660 + '0');
+        else if (c >= 0x06F0 && c <= 0x06F9)
+            return static_cast<char>(c - 0x06F0 + '0');
+        else if (c >= 0x0966 && c <= 0x096F)
+            return static_cast<char>(c - 0x0966 + '0');
+        else if (c >= 0x0E50 && c <= 0x0E59)
+            return static_cast<char>(c - 0x0E50 + '0');
+        else if (c >= 0x17E0 && c <= 0x17E9)
+            return static_cast<char>(c - 0x17E0 + '0');
+        else if (c >= 0x09E6 && c <= 0x09EF)
+            return static_cast<char>(c - 0x09E6 + '0');
+        else
+            return 0;
+    }
 
-    bool isArabicIndicDigit(char32_t c) const { return c >= 0x0660 && c <= 0x0669; }
-    char toAsciiDigit(char32_t c) const { return static_cast<char>(c - 0x0660 + '0'); }
-
-    String convertArabicIndicDigit(const StringRef & str) const
+    String convertLocalDigit(const StringRef & str) const
     {
         std::string result;
         result.reserve(str.size);
@@ -191,8 +221,9 @@ private:
                 cp = ((c & 0x07) << 18) | ((str.data[i + 1] & 0x3F) << 12) | ((str.data[i + 2] & 0x3F) << 6) | (str.data[i + 3] & 0x3F);
                 i += 4;
             }
-            if (isArabicIndicDigit(cp))
-                result.push_back(toAsciiDigit(cp));
+            auto local_digit = toAsciiDigit(cp);
+            if (local_digit)
+                result.push_back(local_digit);
             else
                 result.push_back(cp);
         }
@@ -201,8 +232,8 @@ private:
 };
 
 using namespace DB;
-REGISTER_FUNCTION(ArabicIndicToAsciiDigitForDate)
+REGISTER_FUNCTION(LocalDigitToAsciiDigitForDate)
 {
-    factory.registerFunction<ArabicIndicToAsciiDigitForDateFunction>();
+    factory.registerFunction<LocalDigitsToAsciiDigitForDateFunction>();
 }
 }
