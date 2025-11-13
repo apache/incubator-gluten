@@ -35,7 +35,7 @@ env:
 jobs:
   flink-test:
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk17
+    container: apache/gluten:1.5-centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Prepare

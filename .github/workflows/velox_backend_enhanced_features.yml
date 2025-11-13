@@ -62,8 +62,8 @@ jobs:
             ccache-enhanced-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          docker pull apache/gluten:vcpkg-centos-7
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker pull apache/gluten:1.5-vcpkg-centos-7
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:1.5-vcpkg-centos-7 bash -c "
             set -e
             yum install tzdata -y
             df -a
@@ -96,7 +96,7 @@ jobs:
   spark-test-spark34:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
+    container: apache/gluten:1.5-centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -154,7 +154,7 @@ jobs:
   spark-test-spark35:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
+    container: apache/gluten:1.5-centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -212,7 +212,7 @@ jobs:
   spark-test-spark35-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
+    container: apache/gluten:1.5-centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
