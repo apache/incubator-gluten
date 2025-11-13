@@ -68,7 +68,7 @@ class LocalPartitionWriter : public PartitionWriter {
   /// If spill is triggered by 2.c, cached payloads of the remaining unmerged partitions will be spilled.
   /// In both cases, if the cached payload size doesn't free enough memory,
   /// it will shrink partition buffers to free more memory.
-  arrow::Status stop(ShuffleWriterMetrics* metrics) override;
+  arrow::Status stop() override;
 
   // Spill source:
   // 1. Other op.
@@ -99,7 +99,7 @@ class LocalPartitionWriter : public PartitionWriter {
 
   arrow::Status clearResource();
 
-  arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
+  arrow::Status populateMetrics();
 
   std::shared_ptr<LocalPartitionWriterOptions> options_;
   std::string dataFile_;
