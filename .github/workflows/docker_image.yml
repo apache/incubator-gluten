@@ -396,7 +396,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/digests
-          pattern: digests-${{ matrix.digests }}-*
+          pattern: digests-${{ matrix.digests }}-ubuntu*
           merge-multiple: true
 
       - name: Login to Docker Hub
