@@ -65,6 +65,7 @@ arrow::Status VeloxRssSortShuffleWriter::doSort(facebook::velox::RowVectorPtr rv
 }
 
 arrow::Status VeloxRssSortShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, int64_t /* memLimit */) {
+  writtenBytes_ = 0;
   if (partitioning_ == Partitioning::kSingle) {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
@@ -125,7 +126,7 @@ arrow::Status VeloxRssSortShuffleWriter::evictBatch(uint32_t partitionId) {
   auto arrowBuffer = std::make_shared<arrow::Buffer>(buffer->as<uint8_t>(), buffer->size());
   ARROW_ASSIGN_OR_RAISE(
       auto payload, BlockPayload::fromBuffers(Payload::kRaw, 0, {std::move(arrowBuffer)}, nullptr, nullptr, nullptr));
-  RETURN_NOT_OK(partitionWriter_->evict(partitionId, std::move(payload), stopped_));
+  RETURN_NOT_OK(partitionWriter_->evict(partitionId, std::move(payload), stopped_, writtenBytes_));
   batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get(), serde_.get());
   batch_->createStreamTree(rowType_, splitBufferSize_, &serdeOptions_);
   return arrow::Status::OK();
@@ -190,6 +191,7 @@ arrow::Status VeloxRssSortShuffleWriter::evictRowVector(uint32_t partitionId) {
 }
 
 arrow::Status VeloxRssSortShuffleWriter::stop() {
+  writtenBytes_ = 0;
   stopped_ = true;
   for (auto pid = 0; pid < numPartitions(); ++pid) {
     RETURN_NOT_OK(evictRowVector(pid));
@@ -199,7 +201,7 @@ arrow::Status VeloxRssSortShuffleWriter::stop() {
   {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingStop]);
     setSortState(RssSortState::kSortStop);
-    RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
+    RETURN_NOT_OK(partitionWriter_->stop(&metrics_, writtenBytes_));
   }
 
   stat();

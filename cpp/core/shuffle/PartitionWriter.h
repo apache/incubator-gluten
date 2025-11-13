@@ -48,19 +48,20 @@ class PartitionWriter : public Reclaimable {
 
   ~PartitionWriter() override = default;
 
-  virtual arrow::Status stop(ShuffleWriterMetrics* metrics) = 0;
+  virtual arrow::Status stop(ShuffleWriterMetrics* metrics, int64_t& evictBytes) = 0;
 
   /// Evict buffers for `partitionId` partition.
   virtual arrow::Status hashEvict(
       uint32_t partitionId,
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
-      bool reuseBuffers) = 0;
+      bool reuseBuffers,
+      int64_t& evictBytes) = 0;
 
   virtual arrow::Status
-  sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal) = 0;
+  sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal, int64_t& evictBytes) = 0;
 
-  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) = 0;
+  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes) = 0;
 
   uint64_t cachedPayloadSize() {
     return payloadPool_->bytes_allocated();
