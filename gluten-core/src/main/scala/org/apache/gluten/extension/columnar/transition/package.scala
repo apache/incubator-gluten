@@ -69,7 +69,7 @@ package object transition {
   object ColumnarToColumnarLike {
     def unapply(plan: SparkPlan): Option[SparkPlan] = {
       plan match {
-        case c2c: ColumnarToColumnarTransition if !c2c.isSameConvention =>
+        case c2c: ColumnarToColumnarTransition =>
           Some(c2c.child)
         case _ => None
       }

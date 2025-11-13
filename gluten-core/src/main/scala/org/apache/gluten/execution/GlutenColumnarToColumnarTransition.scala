@@ -16,11 +16,25 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.execution.UnaryExecNode
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 
 /**
- * A columnar-to-columnar transition. By implementing this trait, the class will be seen by
+ * A convenience trait for [[GlutenPlan]] to implement [[ColumnarToColumnarTransition]] at the same
+ * time. Note the implementation class will be seen by
  * [[org.apache.gluten.extension.columnar.transition.RemoveTransitions]] and removed when that rule
  * is executed.
  */
-trait ColumnarToColumnarTransition extends UnaryExecNode
+trait GlutenColumnarToColumnarTransition extends ColumnarToColumnarTransition with GlutenPlan {
+  protected val from: Convention.BatchType
+  protected val to: Convention.BatchType
+
+  override def batchType(): Convention.BatchType = to
+
+  override def rowType0(): Convention.RowType = {
+    Convention.RowType.None
+  }
+
+  override def requiredChildConvention(): Seq[ConventionReq] = {
+    List(ConventionReq.ofBatch(ConventionReq.BatchType.Is(from)))
+  }
+}
