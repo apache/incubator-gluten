@@ -32,7 +32,6 @@ on:
       - 'gluten-paimon/**'
       - 'package/**'
       - 'shims/**'
-      - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
       - 'cpp/**'
       - 'dev/**'
@@ -47,9 +46,9 @@ concurrency:
 
 jobs:
   macos-build:
-    if: ${{ github.repository == 'wangyum/incubator-gluten' }}
-    name: ${{ matrix.os }}
-    runs-on: macos-15
+    if: ${{ github.repository == 'apache/incubator-gluten' }}
+    name: macOS Velox Build
+    runs-on: macos-latest
     env:
       INSTALL_PREFIX: /tmp/deps-install
     steps:
@@ -63,9 +62,7 @@ jobs:
           java-version: 17
 
       - name: Install Dependencies
-        run: |
-          brew install wget pkgconfig abseil ccache
+        run: brew install wget pkgconfig abseil ccache
 
       - name: Build
-        run: |
-          ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON --spark_version=3.5
+        run: ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON --spark_version=3.5
