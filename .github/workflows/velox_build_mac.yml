@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: macOS Build
+name: macOS Velox Weekly Build
 
 on:
   schedule:
@@ -48,4 +48,4 @@ jobs:
         run: brew install wget pkgconfig abseil ccache
 
       - name: Build
-        run: ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON --spark_version=3.5
+        run: ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON
