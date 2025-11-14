@@ -350,7 +350,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         | from store_sales ss, dd
         | where ss_sold_date_sk=dd.d_date_sk+1
         |""".stripMargin
-    runQueryAndCompare(q)(checkGlutenOperatorMatch[TakeOrderedAndProjectExecTransformer])
+    runQueryAndCompare(q)(checkGlutenPlan[TakeOrderedAndProjectExecTransformer])
   }
 
 }

@@ -209,37 +209,37 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   test("Test get_json_object 1") {
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.a') from json_test") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
   test("Test get_json_object 2") {
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.1a') from json_test") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
   test("Test get_json_object 3") {
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.a_2') from json_test") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
   ignore("Test get_json_object 4") {
     runQueryAndCompare("SELECT get_json_object(string_field1, '$[a]') from json_test") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
   test("Test get_json_object 5") {
     runQueryAndCompare("SELECT get_json_object(string_field1, '$[\\\'a\\\']') from json_test") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
   test("Test get_json_object 6") {
     runQueryAndCompare("SELECT get_json_object(string_field1, '$[\\\'a 2\\\']') from json_test") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
@@ -264,7 +264,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   test("Test nested get_json_object") {
     runQueryAndCompare(
       "SELECT get_json_object(get_json_object(string_field1, '$.a'), '$.x') from json_test") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
@@ -448,7 +448,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         "xxhash64(cast(from_unixtime(id) as timestamp)), xxhash64(cast(id as decimal(5, 2))), " +
         "xxhash64(cast(id as decimal(10, 2))), xxhash64(cast(id as decimal(30, 2))) " +
         "from range(10)"
-    )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenPlan[ProjectExecTransformer])
     checkLengthAndPlan(df1, 10)
 
     val df2 = runQueryAndCompare(
@@ -461,7 +461,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         "xxhash64(cast(id as decimal(5, 2)), 'spark'), " +
         "xxhash64(cast(id as decimal(10, 2)), 'spark'), " +
         "xxhash64(cast(id as decimal(30, 2)), 'spark') from range(10)"
-    )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenPlan[ProjectExecTransformer])
     checkLengthAndPlan(df2, 10)
   }
 
@@ -478,7 +478,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         |  xxhash64(struct(id, cast(id as string), 100, 'spark', null))
         |from range(10);
       """.stripMargin
-    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test 'function murmur3hash'") {
@@ -489,7 +489,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         "hash(cast(from_unixtime(id) as date)), " +
         "hash(cast(from_unixtime(id) as timestamp)), hash(cast(id as decimal(5, 2))), " +
         "hash(cast(id as decimal(10, 2))), hash(cast(id as decimal(30, 2))) from range(10)"
-    )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenPlan[ProjectExecTransformer])
     checkLengthAndPlan(df1, 10)
 
     val df2 = runQueryAndCompare(
@@ -501,7 +501,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         "hash(cast(from_unixtime(id) as timestamp), 'spark'), " +
         "hash(cast(id as decimal(5, 2)), 'spark'), hash(cast(id as decimal(10, 2)), 'spark'), " +
         "hash(cast(id as decimal(30, 2)), 'spark') from range(10)"
-    )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenPlan[ProjectExecTransformer])
     checkLengthAndPlan(df2, 10)
   }
 
@@ -518,7 +518,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         |  hash(struct(id, cast(id as string), 100, 'spark', null))
         |from range(10);
       """.stripMargin
-    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test next_day const") {
@@ -539,7 +539,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       """
         |select array(null, array(id,2)) from range(10)
         |""".stripMargin
-    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test issue: https://github.com/oap-project/gluten/issues/2947") {
@@ -547,7 +547,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       """
         |select if(id % 2 = 0, null, array(id, 2, null)) from range(10)
         |""".stripMargin
-    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test str2map") {
@@ -555,7 +555,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       """
         |select str, str_to_map(str, ',', ':') from str2map_table
         |""".stripMargin
-    runQueryAndCompare(sql1)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql1)(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test str2map, regular expression") {
@@ -568,7 +568,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         | str_to_map('a,b', ',', ''),
         | str_to_map('a:c|b:c', '\\|', ':')
         |""".stripMargin
-    runQueryAndCompare(sql1)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql1)(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test parse_url") {
@@ -576,49 +576,49 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       """
         | select url, parse_url(url, "HOST") from url_table order by url
       """.stripMargin
-    runQueryAndCompare(sql1)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql1)(checkGlutenPlan[ProjectExecTransformer])
 
     val sql2 =
       """
         | select url, parse_url(url, "QUERY") from url_table order by url
       """.stripMargin
-    runQueryAndCompare(sql2)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql2)(checkGlutenPlan[ProjectExecTransformer])
 
     val sql3 =
       """
         | select url, parse_url(url, "QUERY", "x") from url_table order by url
       """.stripMargin
-    runQueryAndCompare(sql3)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql3)(checkGlutenPlan[ProjectExecTransformer])
 
     val sql5 =
       """
         | select url, parse_url(url, "FILE") from url_table order by url
       """.stripMargin
-    runQueryAndCompare(sql5)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql5)(checkGlutenPlan[ProjectExecTransformer])
 
     val sql6 =
       """
         | select url, parse_url(url, "REF") from url_table order by url
       """.stripMargin
-    runQueryAndCompare(sql6)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql6)(checkGlutenPlan[ProjectExecTransformer])
 
     val sql7 =
       """
         | select url, parse_url(url, "USERINFO") from url_table order by url
       """.stripMargin
-    runQueryAndCompare(sql7)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql7)(checkGlutenPlan[ProjectExecTransformer])
 
     val sql8 =
       """
         | select url, parse_url(url, "AUTHORITY") from url_table order by url
       """.stripMargin
-    runQueryAndCompare(sql8)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql8)(checkGlutenPlan[ProjectExecTransformer])
 
     val sql9 =
       """
         | select url, parse_url(url, "PROTOCOL") from url_table order by url
       """.stripMargin
-    runQueryAndCompare(sql9)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql9)(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test decode and encode") {
@@ -628,19 +628,19 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       // Test codec with 'US-ASCII'
       runQueryAndCompare(
         "SELECT decode(encode('Spark SQL', 'US-ASCII'), 'US-ASCII')"
-      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenPlan[ProjectExecTransformer])
 
       // Test codec with 'UTF-16'
       runQueryAndCompare(
         "SELECT decode(encode('Spark SQL', 'UTF-16'), 'UTF-16')"
-      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenPlan[ProjectExecTransformer])
     }
   }
 
   test("test cast float string to int") {
     runQueryAndCompare(
       "select cast(concat(cast(id as string), '.1') as int) from range(10)"
-    )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test cast string to float") {
@@ -649,7 +649,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select cast('7.921901' as float), cast('7.921901' as double)"
-      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+      )(checkGlutenPlan[ProjectExecTransformer])
     }
   }
 
@@ -663,7 +663,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
     runSql("select round(0.41875d * id , 4) from range(10);")(
       df => {
-        checkGlutenOperatorMatch[ProjectExecTransformer](df)
+        checkGlutenPlan[ProjectExecTransformer](df)
 
         checkResult(
           df,
@@ -684,7 +684,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
     runSql("select round(0.41875f * id , 4) from range(10);")(
       df => {
-        checkGlutenOperatorMatch[ProjectExecTransformer](df)
+        checkGlutenPlan[ProjectExecTransformer](df)
 
         checkResult(
           df,
@@ -735,18 +735,18 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       runQueryAndCompare(
         "SELECT array(array(1,2,3), array(4,5,6))[1], " +
           "array(array(id,id+1,id+2), array(id+3,id+4,id+5)) from range(100)")(
-        checkGlutenOperatorMatch[ProjectExecTransformer])
+        checkGlutenPlan[ProjectExecTransformer])
 
       // input type is array<array<string>>
       runQueryAndCompare(
         "SELECT array(array('1','2','3'), array('4','5','6'))[1], " +
           "array(array('1','2',cast(id as string)), array('4','5',cast(id as string)))[1] " +
-          "from range(100)")(checkGlutenOperatorMatch[ProjectExecTransformer])
+          "from range(100)")(checkGlutenPlan[ProjectExecTransformer])
 
       // input type is array<map<string, int>>
       runQueryAndCompare(
         "SELECT array(map(cast(id as string), id), map(cast(id+1 as string), id+1))[1] " +
-          "from range(100)")(checkGlutenOperatorMatch[ProjectExecTransformer])
+          "from range(100)")(checkGlutenPlan[ProjectExecTransformer])
     }
   }
 
@@ -857,7 +857,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         |  FROM range(10)
         |) t
       """.stripMargin
-    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenPlan[ProjectExecTransformer])
   }
 
   test("test parse string with blank to integer") {
