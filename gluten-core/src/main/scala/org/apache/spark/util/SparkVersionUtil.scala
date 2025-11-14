@@ -24,6 +24,7 @@ object SparkVersionUtil {
   val lteSpark33: Boolean = lteSpark32 || eqSpark33
   val gteSpark33: Boolean = comparedWithSpark33 >= 0
   val gteSpark35: Boolean = comparedWithSpark35 >= 0
+  val gteSpark40: Boolean = compareMajorMinorVersion((4, 0)) >= 0
 
   // Returns X. X < 0 if one < other, x == 0 if one == other, x > 0 if one > other.
   def compareMajorMinorVersion(other: (Int, Int)): Int = {

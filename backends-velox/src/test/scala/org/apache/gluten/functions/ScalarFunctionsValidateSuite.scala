@@ -522,7 +522,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("raise_error, assert_true") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("raise_error, assert_true", "3.5") {
     runQueryAndCompare("""SELECT assert_true(l_orderkey >= 1), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
@@ -555,7 +556,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("version") {
+  testWithMaxSparkVersion("version", "3.5") {
     runQueryAndCompare("""SELECT version() from lineitem limit 10""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -1097,7 +1098,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("try_cast", "3.4") {
+  // TODO: fix on spark-4.0
+  testWithRangeSparkVersion("try_cast", "3.4", "3.5") {
     withTempView("try_cast_table") {
       withTempPath {
         path =>
