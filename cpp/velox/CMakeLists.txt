@@ -163,6 +163,7 @@ set(VELOX_SRCS
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
     operators/functions/SparkExprToSubfieldFilterParser.cc
+    operators/plannodes/RowVectorStream.cc
     operators/reader/FileReaderIterator.cc
     operators/reader/ParquetReaderIterator.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
@@ -200,7 +201,7 @@ endif()
 
 if(ENABLE_GPU)
   list(APPEND VELOX_SRCS cudf/CudfPlanValidator.cc cudf/GpuLock.cc
-       shuffle/GpuShuffleReader.cc)
+       shuffle/GpuShuffleReader.cc shuffle/GpuShuffleWriter.cc utils/GpuBufferBatchResizer.cc memory/GpuBufferColumnarBatch.cc)
 endif()
 
 if(ENABLE_ENHANCED_FEATURES)
@@ -409,6 +410,9 @@ if(BUILD_EXAMPLES)
 endif()
 
 if(ENABLE_GPU)
+   import_library(
+    facebook::velox::velox_cudf_expression
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/expression/libvelox_cudf_expression.a)
   import_library(
     facebook::velox::velox_cudf_exec
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)
