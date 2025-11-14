@@ -50,6 +50,7 @@ BOOST_VERSION="boost-1.84.0"
 DUCKDB_VERSION="v0.8.1"
 GEOS_VERSION="3.10.7"
 ABSEIL_VERSION="20240116.2"
+GRPC_VERSION="v1.48.1"
 
 function dnf_install {
   dnf install -y -q --setopt=install_weak_deps=False "$@"
@@ -170,6 +171,19 @@ function install_geos {
   fi
 }
 
+function install_grpc {
+  github_checkout grpc/grpc "${GRPC_VERSION}" --depth 1
+  cmake_install_dir grpc \
+    -DgRPC_BUILD_TESTS=OFF \
+    -DgRPC_ABSL_PROVIDER=package \
+    -DgRPC_ZLIB_PROVIDER=package \
+    -DgRPC_CARES_PROVIDER=package \
+    -DgRPC_RE2_PROVIDER=package \
+    -DgRPC_SSL_PROVIDER=package \
+    -DgRPC_PROTOBUF_PROVIDER=package \
+    -DgRPC_INSTALL=ON
+}
+
 function install_abseil {
   wget_and_untar https://github.com/abseil/abseil-cpp/archive/refs/tags/"${ABSEIL_VERSION}".tar.gz abseil-cpp
   cmake_install_dir abseil-cpp \
@@ -194,6 +208,7 @@ function install_velox_deps {
   run_and_time install_mvfst
   run_and_time install_fbthrift
   run_and_time install_abseil
+  run_and_time install_grpc
   run_and_time install_duckdb
   run_and_time install_geos
 }
