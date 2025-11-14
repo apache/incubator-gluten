@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, VeloxConfig}
+import org.apache.gluten.config.{HashShuffleWriterType, VeloxConfig}
 import org.apache.gluten.execution.{GpuResizeBufferColumnarBatchExec, VeloxResizeBatchesExec}
 
 import org.apache.spark.sql.catalyst.rules.Rule

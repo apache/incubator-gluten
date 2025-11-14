@@ -86,7 +86,7 @@ class CudfValueStreamNode final : public facebook::velox::core::PlanNode {
   }
 
  private:
-  void addDetails(std::stringstream& stream) const override {};
+  void addDetails(std::stringstream& stream) const override{};
 
   const facebook::velox::RowTypePtr outputType_;
   std::shared_ptr<ResultIterator> iterator_;
@@ -94,9 +94,7 @@ class CudfValueStreamNode final : public facebook::velox::core::PlanNode {
 };
 
 // Extends NvtxHelper to identify it as GPU node, so not add CudfFormVelox operator.
-class CudfValueStream : public facebook::velox::exec::SourceOperator,
-                        public facebook::velox::cudf_velox::NvtxHelper
-{
+class CudfValueStream : public facebook::velox::exec::SourceOperator, public facebook::velox::cudf_velox::NvtxHelper {
  public:
   CudfValueStream(
       int32_t operatorId,
@@ -111,8 +109,7 @@ class CudfValueStream : public facebook::velox::exec::SourceOperator,
         facebook::velox::cudf_velox::NvtxHelper(
             nvtx3::rgb{160, 82, 45}, // Sienna
             operatorId,
-            fmt::format("[{}]", valueStreamNode->id()))
-  {
+            fmt::format("[{}]", valueStreamNode->id())) {
     ResultIterator* itr = valueStreamNode->iterator();
     rvStream_ = std::make_unique<CudfVectorStream>(driverCtx, pool(), itr, outputType_);
   }
