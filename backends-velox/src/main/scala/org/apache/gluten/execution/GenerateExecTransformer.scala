@@ -239,18 +239,18 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
           )
         case JsonTuple(Seq(jsonObj, jsonPaths @ _*)) =>
           val getJsons: IndexedSeq[Expression] = {
+            def toJsonPathLiteral(path: String): String = {
+              if (path.contains(".")) s"""$$['$path']""" else s"$$.$path"
+            }
             jsonPaths.map {
               case jsonPath if jsonPath.foldable =>
                 Option(jsonPath.eval()) match {
-                  case Some(path) =>
-                    GetJsonObject(jsonObj, Literal.create(JSON_PATH_PREFIX + path))
+                  case Some(cs: CharSequence) =>
+                    GetJsonObject(jsonObj, Literal.create(toJsonPathLiteral(cs.toString)))
                   case _ =>
                     Literal.create(null)
                 }
               case jsonPath =>
-                // TODO: The prefix is just for adapting to GetJsonObject.
-                // Maybe, we can remove this handling in the future by
-                // making path without "$." recognized
                 GetJsonObject(jsonObj, Concat(Seq(Literal.create(JSON_PATH_PREFIX), jsonPath)))
             }.toIndexedSeq
           }
