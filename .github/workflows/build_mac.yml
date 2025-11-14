@@ -16,27 +16,9 @@
 name: macOS Build
 
 on:
-  push:
-    paths:
-      - '.github/workflows/build_mac.yml'
-      - 'pom.xml'
-      - 'backends-velox/**'
-      - 'gluten-uniffle/**'
-      - 'gluten-celeborn/**'
-      - 'gluten-ras/**'
-      - 'gluten-core/**'
-      - 'gluten-substrait/**'
-      - 'gluten-arrow/**'
-      - 'gluten-delta/**'
-      - 'gluten-iceberg/**'
-      - 'gluten-hudi/**'
-      - 'gluten-paimon/**'
-      - 'package/**'
-      - 'shims/**'
-      - 'ep/build-velox/**'
-      - 'cpp/**'
-      - 'dev/**'
-
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -47,7 +29,7 @@ concurrency:
 
 jobs:
   macos-build:
-    if: ${{ github.repository == 'wangyum/incubator-gluten' }}
+    if: ${{ github.repository == 'apache/incubator-gluten' }}
     name: macOS Velox Build
     runs-on: macos-latest
     env:
