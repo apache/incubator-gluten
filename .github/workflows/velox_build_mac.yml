@@ -48,4 +48,4 @@ jobs:
         run: brew install wget pkgconfig abseil ccache
 
       - name: Build
-        run: ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON
+        run: ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON --build_benchmarks=ON
