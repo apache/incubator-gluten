@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM inteldpo/gluten:centos8_gcc13
+FROM inteldpo/gluten-ci-images:centos-8_gcc13
 
 
 ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
@@ -27,15 +27,16 @@ ENV VCPKG_BINARY_SOURCES=clear;files,${VCPKG_PATH},readwrite
 
 RUN set -ex; \
     yum update -y && yum install -y epel-release sudo dnf && yum install -y ccache; \
-    dnf install -y --setopt=install_weak_deps=False gcc-toolset-11; \
     echo "check_certificate = off" >> ~/.wgetrc; \
-    yum install -y java-1.8.0-openjdk-devel patch wget git perl; \
+    yum install -y java-1.8.0-openjdk-devel patch wget git perl python3 automake libtool flex; \
+    dnf -y --enablerepo=powertools install autoconf-archive ninja-build; \
+    pip3 install --upgrade pip; \
+    pip3 install cmake; \
     rpm -qa | grep tzdata; \
     dnf clean all; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
-    cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh; \
-    yum remove gcc -y && yum clean all; \
-    yes | cp -rf /usr/share/aclocal/* /usr/local/share/aclocal/; \
+    cd /opt/gluten; bash .github/workflows/util/setup-helper.sh install_maven; \
+    export PATH=/usr/lib/maven/bin:$PATH; \
     mkdir -p ${VCPKG_PATH}; \
     echo "Build arrow, then install the native libs to system paths and jar package to .m2/ directory."; \
     if [ "$(uname -m)" = "aarch64" ]; then \
@@ -45,6 +46,5 @@ RUN set -ex; \
     cd /opt/gluten; \
     bash ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=ON --enable_s3=ON --enable_gcs=ON \
                                     --enable_hdfs=ON --enable_abfs=ON  build_arrow; \
-    mvn dependency:go-offline -Pbackends-velox -Piceberg -Pdelta -Pspark-3.5 -DskipTests; \
     rm -rf /opt/gluten; \
     rm -rf /root/.cache/ccache;

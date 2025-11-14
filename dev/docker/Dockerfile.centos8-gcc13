@@ -16,11 +16,19 @@
 # copied from https://github.com/jeromerobert/centos7-gcc13
 FROM centos:8 as base0
 
-FROM base0 as base
+FROM base0 as base1
 RUN /usr/bin/sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-*; sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*;
 RUN yum update -y && yum install epel-release wget perl -y
-RUN yum -y install ftp://ftp.icm.edu.pl/vol/rzm5/linux-centos-vault/8.0.1905/PowerTools/aarch64/kickstart/Packages/perl-Unicode-EastAsianWidth-1.33-13.el8.noarch.rpm ftp://ftp.icm.edu.pl/vol/rzm5/linux-centos-vault/8.2.2004/PowerTools/x86_64/kickstart/Packages/texinfo-6.5-6.el8.x86_64.rpm
 
+# texinfo
+FROM base1 as base
+RUN curl -kLO https://ftp.gnu.org/gnu/texinfo/texinfo-6.8.tar.xz
+RUN tar xf texinfo*.tar.*
+WORKDIR build-texinfo
+RUN yum -y install gcc make m4
+RUN ../texinfo*/configure
+RUN make -j$(nproc)
+RUN make install
 
 # Git
 FROM base as git
