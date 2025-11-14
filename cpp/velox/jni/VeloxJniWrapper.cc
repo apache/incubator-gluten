@@ -821,7 +821,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
   auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
-  auto backendConf = VeloxBackend::get()->getBackendConf()->rawConfigs();
+  auto backendConf = VeloxBackend::get()->getBackendConf()->rawConfigsCopy();
   auto sparkConf = ctx->getConfMap();
   sparkConf.merge(backendConf);
   auto safeArray = gluten::getByteArrayElementsSafe(env, partition);
