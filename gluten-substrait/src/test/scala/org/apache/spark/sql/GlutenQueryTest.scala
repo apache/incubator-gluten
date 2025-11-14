@@ -685,24 +685,22 @@ object GlutenQueryTest extends Assertions {
       return None
     }
 
-    // if answer is not fully sorted, we should sort the answer first, then compare them
-    val sortedExpected = expected.sortBy(_.toString())
-    val sortedActual = actual.sortBy(_.toString())
-    if (!compare(sortedExpected, sortedActual)) {
-      return Some(genError(sortedExpected, sortedActual))
+    if (sortedColIdxes.nonEmpty) {
+      // if answer is partially sorted, we should compare the sorted part
+      val expectedPart = expected.map(row => sortedColIdxes.map(row.get))
+      val actualPart = actual.map(row => sortedColIdxes.map(row.get))
+      if (!compare(expectedPart, actualPart)) {
+        return Some(genError(expected, actual))
+      }
+    } else {
+      // if answer is not fully sorted, we should sort the answer first, then compare them
+      val sortedExpected = expected.sortBy(_.toString())
+      val sortedActual = actual.sortBy(_.toString())
+      if (!compare(sortedExpected, sortedActual)) {
+        return Some(genError(sortedExpected, sortedActual))
+      }
     }
 
-    // if answer is absolutely not sorted, the compare above is enough
-    if (sortedColIdxes.isEmpty) {
-      return None
-    }
-
-    // if answer is partially sorted, we should compare the sorted part
-    val expectedPart = expected.map(row => sortedColIdxes.map(row.get))
-    val actualPart = actual.map(row => sortedColIdxes.map(row.get))
-    if (!compare(expectedPart, actualPart)) {
-      return Some(genError(expected, actual))
-    }
     None
   }
 
