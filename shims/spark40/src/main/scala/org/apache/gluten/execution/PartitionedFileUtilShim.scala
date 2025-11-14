@@ -58,6 +58,22 @@ object PartitionedFileUtilShim {
     }
   }
 
+  private lazy val getPartitionedFileByPathSizeMethod: Method = {
+    try {
+      val m = clz.getDeclaredMethod(
+        "getPartitionedFile",
+        classOf[FileStatusWithMetadata],
+        classOf[Path],
+        classOf[InternalRow],
+        classOf[Long],
+        classOf[Long])
+      m.setAccessible(true)
+      m
+    } catch {
+      case _: NoSuchMethodException => null
+    }
+  }
+
   def getPartitionedFile(
       file: FileStatusWithMetadata,
       partitionValues: InternalRow): PartitionedFile = {
@@ -68,6 +84,10 @@ object PartitionedFileUtilShim {
     } else if (getPartitionedFileByPathMethod != null) {
       getPartitionedFileByPathMethod
         .invoke(module, file, file.getPath, partitionValues)
+        .asInstanceOf[PartitionedFile]
+    } else if (getPartitionedFileByPathSizeMethod != null) {
+      getPartitionedFileByPathSizeMethod
+        .invoke(module, file, file.getPath, partitionValues, 0, file.getLen)
         .asInstanceOf[PartitionedFile]
     } else {
       val params = clz.getDeclaredMethods

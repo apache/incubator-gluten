@@ -33,8 +33,10 @@ import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan, SQLExecution, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.util.SparkVersionUtil
 
 import org.junit.Assert
 import org.scalatest.Assertions
@@ -45,7 +47,7 @@ import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 
-abstract class GlutenQueryTest extends PlanTest {
+abstract class GlutenQueryTest extends PlanTest with AdaptiveSparkPlanHelper {
 
   // TODO: remove this if we can suppress unused import error.
   locally {
@@ -356,7 +358,12 @@ abstract class GlutenQueryTest extends PlanTest {
   }
 
   private def getExecutedPlan(plan: SparkPlan): Seq[SparkPlan] = {
-    val subTree = plan match {
+    val stripPlan = if (SparkVersionUtil.gteSpark40) {
+      stripAQEPlan(plan)
+    } else {
+      plan
+    }
+    val subTree = stripPlan match {
       case exec: AdaptiveSparkPlanExec =>
         getExecutedPlan(exec.executedPlan)
       case cmd: CommandResultExec =>

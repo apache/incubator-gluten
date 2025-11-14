@@ -219,5 +219,11 @@
         <module>spark35</module>
       </modules>
     </profile>
+    <profile>
+      <id>spark-4.0</id>
+      <modules>
+        <module>spark40</module>
+      </modules>
+    </profile>
   </profiles>
 </project>
