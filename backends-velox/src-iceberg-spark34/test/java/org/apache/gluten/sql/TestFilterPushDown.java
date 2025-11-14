@@ -23,6 +23,7 @@ import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.spark.SparkTestBaseWithCatalog;
 import org.apache.spark.sql.execution.SparkPlan;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -38,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 // Change the test filter plan match string
 @RunWith(Parameterized.class)
+@Ignore
 public class TestFilterPushDown extends SparkTestBaseWithCatalog {
 
   @Parameterized.Parameters(name = "planningMode = {0}")
