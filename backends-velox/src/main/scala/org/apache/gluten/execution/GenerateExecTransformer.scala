@@ -244,11 +244,9 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
                 Option(jsonPath.eval()) match {
                   case Some(path) =>
                     if (path.toString.contains('.')) {
-                      GetJsonObject(
-                        jsonObj,
-                        Literal.create("$[" + path + "]"))
+                      GetJsonObject(jsonObj, Literal.create("$[" + path + "]"))
                     } else {
-                        GetJsonObject(jsonObj, Literal.create(JSON_PATH_PREFIX + path.toString))
+                      GetJsonObject(jsonObj, Literal.create(JSON_PATH_PREFIX + path.toString))
                     }
                   case _ =>
                     Literal.create(null)
