@@ -120,6 +120,8 @@ class ColumnarShuffleWriter[K, V](
 
   private var partitionLengths: Array[Long] = _
 
+  private var bytesWritten: Long = 0L
+
   private val taskContext: TaskContext = TaskContext.get()
 
   private def availableOffHeapPerTask(): Long = {
@@ -203,7 +205,7 @@ class ColumnarShuffleWriter[K, V](
         val columnarBatchHandle =
           ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
         val startTime = System.nanoTime()
-        shuffleWriterJniWrapper.write(
+        val curBytesWritten = shuffleWriterJniWrapper.write(
           nativeShuffleWriter,
           rows,
           columnarBatchHandle,
@@ -213,6 +215,8 @@ class ColumnarShuffleWriter[K, V](
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
         writeMetrics.incRecordsWritten(rows)
+        writeMetrics.incBytesWritten(curBytesWritten - bytesWritten)
+        bytesWritten = curBytesWritten
       }
       cb.close()
     }
@@ -245,7 +249,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("peakBytes").add(splitResult.getPeakBytes)
-    writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
+    writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten - bytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
     taskContext.taskMetrics().incMemoryBytesSpilled(splitResult.getBytesToEvict)
     taskContext.taskMetrics().incDiskBytesSpilled(splitResult.getTotalBytesSpilled)

@@ -107,8 +107,10 @@ arrow::Status RssPartitionWriter::doEvict(uint32_t partitionId, std::unique_ptr<
   // Push.
   ScopedTimer timer(&spillTime_);
   ARROW_ASSIGN_OR_RAISE(auto buffer, rssBufferOs->Finish());
-  bytesEvicted_[partitionId] += rssClient_->pushPartitionData(
+  auto delta = rssClient_->pushPartitionData(
       partitionId, reinterpret_cast<char*>(const_cast<uint8_t*>(buffer->data())), buffer->size());
+  bytesEvicted_[partitionId] += delta;
+  metrics_->totalBytesWritten += delta;
   return arrow::Status::OK();
 }
 } // namespace gluten
