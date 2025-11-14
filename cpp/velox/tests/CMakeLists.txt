@@ -94,7 +94,8 @@ if(ENABLE_GPU)
         /usr/local/cuda-12.8/lib64/libcudart.so.12)
     target_link_libraries(
       ${TEST_EXEC}
-      PUBLIC facebook::velox::velox_cudf_exec
+      PUBLIC facebook::velox::velox_cudf_expression
+             facebook::velox::velox_cudf_exec
              facebook::velox::velox_cudf_vector
              facebook::velox::velox_cudf_hive_connector)
     target_link_libraries(${TEST_EXEC} PRIVATE velox GTest::gtest

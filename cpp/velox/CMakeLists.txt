@@ -417,9 +417,10 @@ if(BUILD_EXAMPLES)
 endif()
 
 if(ENABLE_GPU)
-   import_library(
+  import_library(
     facebook::velox::velox_cudf_expression
-    ${VELOX_BUILD_PATH}/velox/experimental/cudf/expression/libvelox_cudf_expression.a)
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/expression/libvelox_cudf_expression.a
+  )
   import_library(
     facebook::velox::velox_cudf_exec
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)

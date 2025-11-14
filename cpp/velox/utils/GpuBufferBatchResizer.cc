@@ -173,9 +173,9 @@ struct DispatchColumn {
   rmm::cuda_stream_view stream;
   rmm::device_async_resource_ref mr;
   std::vector<std::shared_ptr<arrow::Buffer>> buffers;
-  int32_t bufferIdx;
-  // numRows.
+    // numRows.
   const int32_t numRows;
+  int32_t bufferIdx = 0;
 
   std::unique_ptr<rmm::device_buffer> getMaskBuffer(const std::shared_ptr<arrow::Buffer>& buffer) {
     if (buffer == nullptr || buffer->size() == 0) {
@@ -278,9 +278,8 @@ std::shared_ptr<VeloxColumnarBatch> makeCudfTable(
   std::vector<std::unique_ptr<cudf::column>> cudfColumns;
   cudfColumns.reserve(type->size());
 
-  int32_t bufferIdx = 0;
   auto stream = cudf_velox::cudfGlobalStreamPool().get_stream();
-  DispatchColumn dispatch{stream, cudf::get_current_device_resource_ref(), std::move(buffers), bufferIdx, numRows};
+  DispatchColumn dispatch{stream, cudf::get_current_device_resource_ref(), std::move(buffers), numRows};
   for (const auto& colType : type->children()) {
     auto res = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
         dispatch.readFlatColumn, colType->kind(), cudf_velox::veloxToCudfTypeId(colType));

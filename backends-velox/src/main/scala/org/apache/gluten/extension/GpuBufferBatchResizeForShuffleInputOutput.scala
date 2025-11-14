@@ -30,7 +30,7 @@ import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
  */
 case class GpuBufferBatchResizeForShuffleInputOutput() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (VeloxConfig.get.enableColumnarCudf) {
+    if (!VeloxConfig.get.enableColumnarCudf) {
       return plan
     }
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
