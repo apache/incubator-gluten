@@ -36,7 +36,7 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
   // TODO: fix on spark-4.0
   testWithMaxSparkVersion("add", "3.5") {
     runQueryAndCompare("SELECT int_field1 + 100 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
     intercept[ArithmeticException] {
       sql("SELECT 2147483647 + 1").collect()
@@ -45,14 +45,14 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
 
   test("subtract") {
     runQueryAndCompare("SELECT int_field1 - 50 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
   // TODO: fix on spark-4.0
   testWithMaxSparkVersion("multiply", "3.5") {
     runQueryAndCompare("SELECT int_field1 * 2 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
     intercept[ArithmeticException] {
       sql("SELECT 2147483647 * 2").collect()
@@ -61,7 +61,7 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
 
   test("divide") {
     runQueryAndCompare("SELECT int_field1 / 2 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
     if (isSparkVersionGE("3.4")) {
       // Spark 3.4+ throws exception for division by zero in ANSI mode

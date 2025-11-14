@@ -160,7 +160,7 @@ abstract class ArrowCsvScanSuite extends ArrowCsvScanSuiteBase {
       runQueryAndCompare("""
                            |insert into insert_csv_t select * from student;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[BaseArrowScanExec]
+        checkGlutenPlan[BaseArrowScanExec]
       }
     }
   }

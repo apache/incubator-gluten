@@ -199,7 +199,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
       "select type1.short, int from type1" +
         " where type1.short = 1",
       false) {
-      checkGlutenOperatorMatch[BatchScanExecTransformer]
+      checkGlutenPlan[BatchScanExecTransformer]
     }
 
     // Validation: BatchScan Project Aggregate Expand Sort Limit
@@ -270,13 +270,13 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
                          | select date, int from type1 limit 100
                          |) where int != 0 limit 10;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[LimitExecTransformer]
+      checkGlutenPlan[LimitExecTransformer]
     }
 
     // Validation: Window.
     runQueryAndCompare(
       "select row_number() over (partition by date order by int) from type1 order by int, date") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
+      checkGlutenPlan[WindowExecTransformer]
     }
 
     // Validation: BroadHashJoin.
@@ -284,7 +284,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare(
         "select type1.date from type1," +
           " type2 where type1.date = type2.date") {
-        checkGlutenOperatorMatch[BroadcastHashJoinExecTransformer]
+        checkGlutenPlan[BroadcastHashJoinExecTransformer]
       }
     }
 
@@ -295,7 +295,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare(
         "select type1.date from type1," +
           " type2 where type1.date = type2.date") {
-        checkGlutenOperatorMatch[ShuffledHashJoinExecTransformer]
+        checkGlutenPlan[ShuffledHashJoinExecTransformer]
       }
     }
 
@@ -305,7 +305,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
         runQueryAndCompare(
           "select type1.date from type1," +
             " type2 where type1.date = type2.date") {
-          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+          checkGlutenPlan[SortMergeJoinExecTransformer]
         }
       }
     }
@@ -334,7 +334,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
     withSQLConf(("spark.gluten.sql.complexType.scan.fallback.enabled", "false")) {
       // Validation: BatchScan.
       runQueryAndCompare("select array from type1") {
-        checkGlutenOperatorMatch[BatchScanExecTransformer]
+        checkGlutenPlan[BatchScanExecTransformer]
       }
 
       // Validation: BatchScan Project Aggregate Expand Sort Limit
