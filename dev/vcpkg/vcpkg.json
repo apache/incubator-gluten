@@ -95,12 +95,6 @@
         "duckdb"
       ]
     },
-    "hbm": {
-      "description": "HBM",
-      "dependencies": [
-        "memkind"
-      ]
-    },
     "qat": {
       "description": "QAT",
       "dependencies": [
