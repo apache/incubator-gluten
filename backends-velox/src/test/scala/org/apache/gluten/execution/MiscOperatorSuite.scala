@@ -1908,6 +1908,17 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
+  test("Test json_tuple has '.'") {
+    withTempView("json_tuple_test") {
+      Seq[(String)](("{\"a.b\":\"b\"}"))
+        .toDF("json_field")
+        .createOrReplaceTempView("json_tuple_test")
+      runQueryAndCompare("SELECT json_tuple(json_field, 'a.b') from json_tuple_test") {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+    }
+  }
+
   test("Fix shuffle with null type failure") {
     // single and other partitioning
     Seq("1", "2").foreach {

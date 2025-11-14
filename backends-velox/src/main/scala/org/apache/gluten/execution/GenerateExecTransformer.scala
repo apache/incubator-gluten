@@ -243,7 +243,11 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
               case jsonPath if jsonPath.foldable =>
                 Option(jsonPath.eval()) match {
                   case Some(path) =>
-                    GetJsonObject(jsonObj, Literal.create(JSON_PATH_PREFIX + path))
+                    if (path.toString.contains('.')) {
+                      GetJsonObject(jsonObj, Literal.create("$[" + path + "]"))
+                    } else {
+                      GetJsonObject(jsonObj, Literal.create(JSON_PATH_PREFIX + path.toString))
+                    }
                   case _ =>
                     Literal.create(null)
                 }
