@@ -24,13 +24,13 @@ class WindowFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare(
       "select lag(l_orderkey, -2) over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
+      checkGlutenPlan[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select lead(l_orderkey, -2) over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
+      checkGlutenPlan[WindowExecTransformer]
     }
   }
 

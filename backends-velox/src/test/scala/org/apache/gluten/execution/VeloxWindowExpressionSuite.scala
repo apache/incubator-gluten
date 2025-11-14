@@ -50,28 +50,28 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
       "select max(l_suppkey) over" +
         " (partition by l_suppkey order by l_orderkey " +
         "rows between 2 preceding and 1 preceding) from lineitem ") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
+      checkGlutenPlan[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select max(l_suppkey) over" +
         " (partition by l_suppkey order by l_orderkey " +
         "rows between 2 following and 3 following) from lineitem ") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
+      checkGlutenPlan[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select max(l_suppkey) over" +
         " (partition by l_suppkey order by l_orderkey " +
         "rows between -3 following and -2 following) from lineitem ") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
+      checkGlutenPlan[WindowExecTransformer]
     }
 
     runQueryAndCompare(
       "select max(l_suppkey) over" +
         " (partition by l_suppkey order by l_orderkey " +
         "rows between unbounded preceding and 3 following) from lineitem ") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
+      checkGlutenPlan[WindowExecTransformer]
     }
   }
 
@@ -123,7 +123,7 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
                            | t
                            |ORDER BY 1, 2;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[WindowExecTransformer]
+        checkGlutenPlan[WindowExecTransformer]
       }
 
       runQueryAndCompare(
@@ -138,7 +138,7 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
           |ORDER BY 1, 2;
           |""".stripMargin
       ) {
-        checkGlutenOperatorMatch[WindowExecTransformer]
+        checkGlutenPlan[WindowExecTransformer]
       }
     }
   }
@@ -151,22 +151,22 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
           .write
           .saveAsTable("t")
         runQueryAndCompare("SELECT c1, c2, SUM(c1) OVER (PARTITION BY c2) as sum FROM t") {
-          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+          checkGlutenPlan[HashAggregateExecTransformer]
         }
         runQueryAndCompare("SELECT c1, c2, SUM(c1) OVER (PARTITION BY c2, c3) as sum FROM t") {
-          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+          checkGlutenPlan[HashAggregateExecTransformer]
         }
         runQueryAndCompare("SELECT c1, c2, SUM(c1) OVER () as sum FROM t") {
-          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+          checkGlutenPlan[HashAggregateExecTransformer]
         }
         runQueryAndCompare("SELECT c1, c2, SUM(c1) OVER (PARTITION BY c3/2) as sum FROM t") {
-          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+          checkGlutenPlan[HashAggregateExecTransformer]
         }
         runQueryAndCompare("""
                              |SELECT c1, c2, SUM(c1) OVER (PARTITION BY c2) as sum1,
                              | SUM(c1) OVER (PARTITION BY c2) as sum2 FROM t
                              |""".stripMargin) {
-          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+          checkGlutenPlan[HashAggregateExecTransformer]
         }
       }
     }

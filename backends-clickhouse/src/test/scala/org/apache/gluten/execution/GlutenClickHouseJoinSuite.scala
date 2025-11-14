@@ -95,7 +95,7 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
             |             d_qoy < 4)
             |LIMIT 100
             |""".stripMargin
-        runQueryAndCompare(q)(checkGlutenOperatorMatch[CHShuffledHashJoinExecTransformer])
+        runQueryAndCompare(q)(checkGlutenPlan[CHShuffledHashJoinExecTransformer])
       }
     }
   }

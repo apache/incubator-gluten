@@ -50,7 +50,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
       runQueryAndCompare("""
                            |select * from iceberg_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }
@@ -533,7 +533,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
       runQueryAndCompare("""
                            |select * from iceberg_cow_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }
@@ -585,7 +585,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }
@@ -652,7 +652,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
       runQueryAndCompare("""
                            |select * from iceberg_cow_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }
@@ -722,7 +722,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }

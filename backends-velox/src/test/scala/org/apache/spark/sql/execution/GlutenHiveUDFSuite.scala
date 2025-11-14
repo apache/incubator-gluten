@@ -301,7 +301,7 @@ class GlutenHiveUDFSuite extends GlutenQueryComparisonTest with SQLTestUtils {
                                     |FROM lineitem WHERE l_partkey <= 5 and l_orderkey <1000
                                     |""".stripMargin)
               val executedPlan = getExecutedPlan(df)
-              checkGlutenOperatorMatch[ColumnarPartialProjectExec](df)
+              checkGlutenPlan[ColumnarPartialProjectExec](df)
               val partialProject = executedPlan
                 .filter {
                   _ match {

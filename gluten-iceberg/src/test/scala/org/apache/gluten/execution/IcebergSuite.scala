@@ -52,7 +52,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }
@@ -516,7 +516,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }
@@ -584,7 +584,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }

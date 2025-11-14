@@ -29,7 +29,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare(
       "SELECT get_json_object(string_field1, '$.a') " +
         "from datatab limit 1;") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
 
     withTempPath {
@@ -44,7 +44,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select get_json_object(txt, '$.a') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
 
@@ -54,7 +54,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         " string(X'80'), '\": 3, \"c\": 100}') AS c1")
     withTable("t") {
       runQueryAndCompare("SELECT get_json_object(c1, '$.c') FROM t;") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
+        checkGlutenPlan[ProjectExecTransformer]
       }
     }
   }
@@ -62,7 +62,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   test("json_array_length") {
     runQueryAndCompare(
       s"select *, json_array_length(string_field1) " +
-        s"from datatab limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+        s"from datatab limit 5")(checkGlutenPlan[ProjectExecTransformer])
     withTempPath {
       path =>
         Seq[String](
@@ -76,7 +76,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select json_array_length(txt) from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -98,7 +98,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id BOOLEAN') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -120,7 +120,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id SHORT') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -142,7 +142,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id INT') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -164,7 +164,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id LONG') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -188,7 +188,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id FLOAT') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -212,7 +212,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id DOUBLE') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -234,7 +234,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id STRING') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -254,7 +254,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select from_json(txt, 'array<int>') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -276,7 +276,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select from_json(txt, 'map<string,int>') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -296,7 +296,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select from_json(txt, 'Id STRING, Value STRING') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -316,7 +316,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
 
         runQueryAndCompare(
           "select txt, from_json(txt, 'id INT, _corrupt_record STRING') from tbl") {
-          checkSparkOperatorMatch[ProjectExec]
+          checkSparkPlan[ProjectExec]
         }
     }
   }
@@ -335,15 +335,15 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id INT, Id INT') from tbl") {
-          checkSparkOperatorMatch[ProjectExec]
+          checkSparkPlan[ProjectExec]
         }
 
         runQueryAndCompare("select txt, from_json(txt, 'id INT, id INT') from tbl") {
-          checkSparkOperatorMatch[ProjectExec]
+          checkSparkPlan[ProjectExec]
         }
 
         runQueryAndCompare("select txt, from_json(txt, 'id INT') from tbl") {
-          checkSparkOperatorMatch[ProjectExecTransformer]
+          checkSparkPlan[ProjectExecTransformer]
         }
     }
   }
@@ -373,7 +373,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, json_object_keys(txt) from tbl") {
-          checkSparkOperatorMatch[ProjectExecTransformer]
+          checkSparkPlan[ProjectExecTransformer]
         }
     }
   }
@@ -391,23 +391,23 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
                   |""".stripMargin)
 
       runQueryAndCompare("select to_json(named_struct('a', a, 'b', b, 'c', c, 'd', d)) from t") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
+        checkGlutenPlan[ProjectExecTransformer]
       }
 
       runQueryAndCompare("select to_json(c) from t") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
+        checkGlutenPlan[ProjectExecTransformer]
       }
 
       runQueryAndCompare("select to_json(d) from t") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
+        checkGlutenPlan[ProjectExecTransformer]
       }
 
       runQueryAndCompare("select to_json(e) from t") {
-        checkSparkOperatorMatch[ProjectExec]
+        checkSparkPlan[ProjectExec]
       }
 
       runQueryAndCompare("select to_json(Array(named_struct('aA', a))) from t") {
-        checkSparkOperatorMatch[ProjectExec]
+        checkSparkPlan[ProjectExec]
       }
     }
   }

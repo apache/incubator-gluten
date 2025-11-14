@@ -85,8 +85,8 @@ class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
         noFallBack = noFallback
       )(
         df => {
-          checkGlutenOperatorCount[ProjectExecTransformer](df, expectedProjectCount)
-          checkGlutenOperatorCount[HashAggregateExecBaseTransformer](df, 4)
+          checkGlutenPlan[ProjectExecTransformer](df, expectedProjectCount)
+          checkGlutenPlan[HashAggregateExecBaseTransformer](df, 4)
         })
     }
   }

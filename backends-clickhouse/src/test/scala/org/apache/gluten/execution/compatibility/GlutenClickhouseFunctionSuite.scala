@@ -268,7 +268,7 @@ class GlutenClickhouseFunctionSuite extends ParquetSuite {
         "org.apache.spark.sql.catalyst.optimizer.ConstantFolding," +
           "org.apache.spark.sql.catalyst.optimizer.NullPropagation")) {
       runQueryAndCompare("select cast(map(1,'2') as string)")(
-        checkGlutenOperatorMatch[ProjectExecTransformer])
+        checkGlutenPlan[ProjectExecTransformer])
     }
   }
 
@@ -491,7 +491,7 @@ class GlutenClickhouseFunctionSuite extends ParquetSuite {
             |cast(named_struct("a", "test\'", "b", 1) as string),
             |cast(named_struct("a", "test\'", "b", 1, "c", struct("\'test"), "d", array('123\'')) as string)
             |""".stripMargin
-        )(checkGlutenOperatorMatch[ProjectExecTransformer])
+        )(checkGlutenPlan[ProjectExecTransformer])
       }
     }
   }

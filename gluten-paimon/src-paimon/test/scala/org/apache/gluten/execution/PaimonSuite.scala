@@ -50,7 +50,7 @@ abstract class PaimonSuite extends WholeStageTransformerSuite {
           runQueryAndCompare(s"""
                                 |SELECT * FROM paimon_${format}_tbl;
                                 |""".stripMargin) {
-            checkGlutenOperatorMatch[PaimonScanTransformer]
+            checkGlutenPlan[PaimonScanTransformer]
           }
         }
     }
@@ -65,32 +65,32 @@ abstract class PaimonSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |SELECT p1 FROM paimon_tbl WHERE p1 = '1' ORDER BY id;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[PaimonScanTransformer]
+        checkGlutenPlan[PaimonScanTransformer]
       }
       runQueryAndCompare("""
                            |SELECT p2 FROM paimon_tbl WHERE p1 = '1' ORDER BY id;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[PaimonScanTransformer]
+        checkGlutenPlan[PaimonScanTransformer]
       }
       runQueryAndCompare("""
                            |SELECT p1 FROM paimon_tbl WHERE p2 = '1';
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[PaimonScanTransformer]
+        checkGlutenPlan[PaimonScanTransformer]
       }
       runQueryAndCompare("""
                            |SELECT p2 FROM paimon_tbl WHERE p2 = '1';
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[PaimonScanTransformer]
+        checkGlutenPlan[PaimonScanTransformer]
       }
       runQueryAndCompare("""
                            |SELECT id, p2 FROM paimon_tbl WHERE p1 = '1' and p2 = '2';
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[PaimonScanTransformer]
+        checkGlutenPlan[PaimonScanTransformer]
       }
       runQueryAndCompare("""
                            |SELECT id FROM paimon_tbl ORDER BY id;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[PaimonScanTransformer]
+        checkGlutenPlan[PaimonScanTransformer]
       }
     }
   }
@@ -107,7 +107,7 @@ abstract class PaimonSuite extends WholeStageTransformerSuite {
              |""".stripMargin)
       sql(s"INSERT INTO paimon_tbl VALUES (1, 'Bob'), (2, 'Blue'), (3, 'Mike')")
       runQueryAndCompare("SELECT * FROM paimon_tbl") {
-        checkGlutenOperatorMatch[PaimonScanTransformer]
+        checkGlutenPlan[PaimonScanTransformer]
       }
     }
   }

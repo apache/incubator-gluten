@@ -55,7 +55,7 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
     ).toDF("a", "p_a")
 
     val df2 = base.select("a").withColumn("p_a", pyarrowTestUDF(base("a")))
-    checkSparkOperatorMatch[ColumnarArrowEvalPythonExec](df2)
+    checkSparkPlan[ColumnarArrowEvalPythonExec](df2)
     checkAnswer(df2, expected)
   }
 
@@ -75,7 +75,7 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
     ).toDF("a", "b", "p_a", "d_b")
 
     val df = base.withColumn("p_a", pyarrowTestUDF(base("a"))).withColumn("d_b", base("b") * 2)
-    checkSparkOperatorMatch[ColumnarArrowEvalPythonExec](df)
+    checkSparkPlan[ColumnarArrowEvalPythonExec](df)
     checkAnswer(df, expected)
   }
 
