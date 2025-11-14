@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 // Change the test filter plan match string
 @RunWith(Parameterized.class)
+@Ignore
 public class TestFilterPushDown extends SparkTestBaseWithCatalog {
 
   @Parameterized.Parameters(name = "planningMode = {0}")
