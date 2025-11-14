@@ -101,10 +101,10 @@ VectorPtr readFlatVectorStringView(
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
   auto* rawValues = values->asMutable<StringView>();
   if (length > 0) {
-    rawValues[0] = StringView(valueBufferPtr, rawOffset[0]);
+    rawValues[0] = StringView(valueBufferPtr, rawOffset[1]);
   }
   for (int32_t i = 1; i < length; ++i) {
-    rawValues[i] = StringView(valueBufferPtr + rawOffset[i - 1], rawOffset[i] - rawOffset[i - 1]);
+    rawValues[i] = StringView(valueBufferPtr + rawOffset[i], rawOffset[i + 1] - rawOffset[i]);
   }
 
   std::vector<BufferPtr> stringBuffers;
