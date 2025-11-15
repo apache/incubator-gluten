@@ -1287,7 +1287,7 @@ if __name__ == "__main__":
 
     gluten_version = get_maven_project_version()
     gluten_jar = os.path.join(
-        gluten_home, "package", "target", f"gluten-package-{gluten_version}.jar"
+        gluten_home, "package", "target", f"gluten-package_${scala.binary.version}-{gluten_version}.jar"
     )
     if not os.path.exists(gluten_jar):
         raise Exception(f"Gluten jar not found at {gluten_jar}")

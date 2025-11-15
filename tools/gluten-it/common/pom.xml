@@ -43,7 +43,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-package</artifactId>
+      <artifactId>gluten-package_${scala.binary.version}</artifactId>
       <scope>runtime</scope>
     </dependency>
     <dependency>

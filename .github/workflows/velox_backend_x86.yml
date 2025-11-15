@@ -167,6 +167,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
           echo "JAVA_HOME: $JAVA_HOME"
           if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
+            ./dev/change-scala-version.sh 2.13
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
           else
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
@@ -249,6 +250,7 @@ jobs:
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
           if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
+            ./dev/change-scala-version.sh 2.13
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
           else
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
@@ -981,6 +983,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
+          ./dev/change-scala-version.sh 2.13
           yum install -y java-17-openjdk-devel
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH

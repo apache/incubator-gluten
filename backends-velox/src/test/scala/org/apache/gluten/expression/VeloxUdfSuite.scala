@@ -253,7 +253,7 @@ class VeloxUdfSuiteLocal extends VeloxUdfSuite {
 // VM options:
 // -Dspark.test.home=${SPARK_HOME}
 // -Dgluten.package.jar=\
-// /path/to/gluten/package/target/gluten-package-${project.version}.jar
+// /path/to/gluten/package/target/gluten-package_${scala.binary.version}-${project.version}.jar
 // -Dvelox.udf.lib.path=\
 // /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 @SkipTest
@@ -269,7 +269,7 @@ class VeloxUdfSuiteCluster extends VeloxUdfSuite {
       throw new IllegalArgumentException(
         GLUTEN_JAR + s" cannot be null. You may set it by adding " +
           s"-D$GLUTEN_JAR=" +
-          "/path/to/gluten/package/target/gluten-package-${project.version}.jar")
+          "/path/to/gluten/package/target/gluten-package_${scala.binary.version}-${project.version}.jar")
   }
 
   private lazy val driverUdfLibPath =
