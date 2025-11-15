@@ -74,6 +74,7 @@ function install_folly {
   cmake_install folly -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON -DFOLLY_NO_EXCEPTION_TRACER=ON
 }
 
+# not used
 function install_conda {
   cd "${DEPENDENCY_DIR}"
   mkdir -p conda && pushd conda
@@ -224,7 +225,6 @@ function install_velox_deps {
   run_and_time install_folly
   run_and_time install_protobuf
   run_and_time install_gtest
-  run_and_time install_conda
   run_and_time install_duckdb
   run_and_time install_geos
 }
