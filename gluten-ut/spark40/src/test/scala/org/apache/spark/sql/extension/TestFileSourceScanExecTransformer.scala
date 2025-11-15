@@ -62,5 +62,4 @@ case class TestFileSourceScanExecTransformer(
 
   override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer =
     copy(output = newOutput)
-  }
 }
