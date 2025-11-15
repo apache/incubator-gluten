@@ -32,6 +32,6 @@ public class TimestampLiteralNode extends LiteralNodeWithValue<Long> {
 
   @Override
   protected void updateLiteralBuilder(Builder literalBuilder, Long value) {
-    literalBuilder.setTimestamp(value);
+    literalBuilder.setTimestampTz(value);
   }
 }
