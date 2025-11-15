@@ -25,7 +25,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.Scan
@@ -238,6 +238,9 @@ case class IcebergScanTransformer(
       case _ => false
     }
   }
+
+  override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer =
+    copy(output = newOutput.map(_.asInstanceOf[AttributeReference]))
 }
 
 object IcebergScanTransformer {

@@ -438,9 +438,24 @@ abstract class GlutenQueryTest extends PlanTest with AdaptiveSparkPlanHelper {
     )
   }
 
+  def checkGlutenOperatorNotMatch[T <: GlutenPlan](df: DataFrame)(implicit
+      tag: ClassTag[T]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(
+      !executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)),
+      s"Expect ${tag.runtimeClass.getSimpleName} not exists " +
+        s"in executedPlan:\n ${executedPlan.last}"
+    )
+  }
+
   def checkSparkOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
     assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
+  }
+
+  def checkSparkOperatorNotMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(!executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
   }
 
   /**

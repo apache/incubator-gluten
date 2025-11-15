@@ -74,6 +74,9 @@ case class FileSourceScanExecTransformer(
       disableBucketedScan
     )
   }
+
+  override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer =
+    copy(output = newOutput)
 }
 
 abstract class FileSourceScanExecTransformerBase(

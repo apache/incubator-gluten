@@ -1619,7 +1619,14 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         |select l_partkey
         |from lineitem where (l_partkey % 10 + 5) > 6
         |""".stripMargin
-    )(checkGlutenOperatorMatch[FilterExecTransformer])
+    )(checkGlutenOperatorNotMatch[FilterExecTransformer])
+
+    runQueryAndCompare(
+      """
+        |select l_partkey
+        |from lineitem where (l_partkey % 10 + 5) > 6
+        |""".stripMargin
+    )(checkSparkOperatorNotMatch[FilterExec])
 
     withSQLConf(GlutenConfig.COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD.key -> "2") {
       runQueryAndCompare(
@@ -1966,14 +1973,12 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     // plan check
     val plan = df.queryExecution.executedPlan
     val scans = plan.collect { case scan: FileSourceScanExecTransformer => scan }
-    val filters = plan.collect { case filter: FilterExecTransformer => filter }
+    val glutenFilters = plan.collect { case filter: FilterExecTransformer => filter }
+    val filters = plan.collect { case filter: FilterExec => filter }
     assert(scans.size == 1)
-    assert(filters.size == 1)
-    assert(scans(0).dataFilters.size == 1)
-    val remainingFilters = FilterHandler.getRemainingFilters(
-      scans(0).dataFilters,
-      splitConjunctivePredicates(filters(0).condition))
-    assert(remainingFilters.size == 0)
+    assert(glutenFilters.isEmpty)
+    assert(filters.isEmpty)
+    assert(scans.head.dataFilters.size == 1)
 
     // result length check, table lineitem has 60,000 rows
     val resultLength = df.collect().length

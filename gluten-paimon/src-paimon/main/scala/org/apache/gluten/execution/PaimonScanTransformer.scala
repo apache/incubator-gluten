@@ -26,7 +26,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.Scan
@@ -73,8 +73,6 @@ case class PaimonScanTransformer(
     case _ =>
       throw new GlutenNotSupportException("Only support PaimonScan.")
   }
-
-  override def filterExprs(): Seq[Expression] = pushdownFilters
 
   override def getPartitionSchema: StructType = scan match {
     case paimonScan: PaimonScan =>
@@ -179,6 +177,9 @@ case class PaimonScanTransformer(
 
   override protected[this] def supportsBatchScan(scan: Scan): Boolean =
     PaimonScanTransformer.supportsBatchScan(scan)
+
+  override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer =
+    copy(output = newOutput.map(_.asInstanceOf[AttributeReference]))
 }
 
 object PaimonScanTransformer {

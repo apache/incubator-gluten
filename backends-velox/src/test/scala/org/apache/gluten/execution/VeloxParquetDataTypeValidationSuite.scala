@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.FilterExec
 
 import java.io.File
 
@@ -242,7 +243,8 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
         {
           val executedPlan = getExecutedPlan(df)
           assert(executedPlan.exists(plan => plan.isInstanceOf[ExpandExecTransformer]))
-          assert(executedPlan.exists(plan => plan.isInstanceOf[FilterExecTransformer]))
+          assert(!executedPlan.exists(plan => plan.isInstanceOf[FilterExecTransformer]))
+          assert(!executedPlan.exists(plan => plan.isInstanceOf[FilterExec]))
         }
     }
 
