@@ -162,6 +162,7 @@
       -Dio.netty.tryReflectionSetAccessible=true
     </extraJavaTestArgs>
     <log4j.conf>file:src/test/resources/log4j2.properties</log4j.conf>
+    <gluten.package.classifier>${backend_type}-spark${sparkbundle.version}-${os.full.name}</gluten.package.classifier>
   </properties>
 
   <dependencyManagement>
