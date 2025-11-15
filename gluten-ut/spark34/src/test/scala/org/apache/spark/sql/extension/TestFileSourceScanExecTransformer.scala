@@ -61,7 +61,7 @@ case class TestFileSourceScanExecTransformer(
 
   override val nodeNamePrefix: String = "TestFile"
 
-  override def withNewOutput(newOutput: Seq[Attribute]): TestFileSourceScanExecTransformer = {
+  override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer = {
     copy(output = newOutput)
   }
 }
