@@ -44,6 +44,8 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
+  val enablePushDownFilter = true
+
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
 
@@ -68,7 +70,10 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     )
   }
 
-  override def output: Seq[Attribute] = FilterExecTransformerBase.buildNewOutput(child.output, cond)
+  protected def flattenedCond: Seq[Expression] = splitConjunctivePredicates(cond)
+
+  override def output: Seq[Attribute] =
+    FilterExecTransformerBase.buildNewOutput(child.output, flattenedCond)
 
   override protected def orderingExpressions: Seq[SortOrder] = child.outputOrdering
 
@@ -96,10 +101,6 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
 
 object FilterExecTransformerBase extends PredicateHelper {
 
-  def buildNewOutput(output: Seq[Attribute], cond: Expression): Seq[Attribute] = {
-    buildNewOutput(output, splitConjunctivePredicates(cond))
-  }
-
   def buildNewOutput(output: Seq[Attribute], conds: Seq[Expression]): Seq[Attribute] = {
     // Split out all the IsNotNulls from condition.
     val (notNullPreds, _) = conds.partition {
@@ -109,14 +110,8 @@ object FilterExecTransformerBase extends PredicateHelper {
 
     // The columns that will filter out by `IsNotNull` could be considered as not nullable.
     val notNullAttributes: Seq[ExprId] = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
-    output.map {
-      a =>
-        if (a.nullable && notNullAttributes.contains(a.exprId)) {
-          a.withNullability(false)
-        } else {
-          a
-        }
-    }
+
+    outputWithNullability(output, notNullAttributes)
   }
 }
 

@@ -22,7 +22,7 @@ import org.apache.gluten.execution.{BatchScanExecTransformer, FilterExecTransfor
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.NullPropagation
-import org.apache.spark.sql.execution.ProjectExec
+import org.apache.spark.sql.execution.{FilterExec, ProjectExec}
 import org.apache.spark.sql.types._
 
 class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
@@ -1094,7 +1094,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
 
         val df = spark.read.parquet(path.getCanonicalPath).na.drop(2, Seq("age", "height"))
         checkAnswer(df, rows(0) :: Nil)
-        checkGlutenOperatorMatch[FilterExecTransformer](df)
+        checkGlutenOperatorNotMatch[FilterExecTransformer](df)
+        checkSparkOperatorNotMatch[FilterExec](df)
     }
   }
 

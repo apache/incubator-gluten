@@ -19,7 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, FilterExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
@@ -223,7 +223,8 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
         df =>
           val plan = df.queryExecution.executedPlan
           assert(collect(plan) { case f: FileSourceScanExecTransformer => f }.size == 1)
-          assert(collect(plan) { case f: FilterExecTransformer => f }.size == 1)
+          assert(collect(plan) { case f: FilterExecTransformer => f }.isEmpty)
+          assert(collect(plan) { case f: FilterExec => f }.isEmpty)
       }
     }
   }

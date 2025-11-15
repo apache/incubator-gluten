@@ -29,7 +29,7 @@ import org.apache.spark.sql.execution._
  */
 object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case filter: FilterExecTransformerBase =>
+    case filter: FilterExecTransformerBase if filter.enablePushDownFilter =>
       filter.child match {
         case fileScan: FileSourceScanExecTransformer =>
           val pushDownFilters =
