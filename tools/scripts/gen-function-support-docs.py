@@ -1290,7 +1290,7 @@ if __name__ == "__main__":
         gluten_home,
         "package",
         "target",
-        f"gluten-package_${scala.binary.version}-{gluten_version}.jar"
+        f"gluten-package_${scala.binary.version}-{gluten_version}.jar",
     )
     if not os.path.exists(gluten_jar):
         raise Exception(f"Gluten jar not found at {gluten_jar}")
