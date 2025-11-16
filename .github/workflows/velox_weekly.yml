@@ -117,7 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu:22.04" ] # add "ubuntu:20.04" if needed, disk space is not enough in GHA
+        os: [ "ubuntu:22.04" ] # skip "ubuntu:20.04" due to not enough disk space
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
