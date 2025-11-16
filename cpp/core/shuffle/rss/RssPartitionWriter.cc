@@ -30,17 +30,7 @@ void RssPartitionWriter::init() {
 }
 
 arrow::Status RssPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
-  if (rssOs_ != nullptr && !rssOs_->closed()) {
-    if (compressedOs_ != nullptr) {
-      RETURN_NOT_OK(compressedOs_->Close());
-      compressTime_ = compressedOs_->compressTime();
-      spillTime_ -= compressTime_;
-    }
-    ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
-    bytesEvicted_[lastEvictedPartitionId_] +=
-        rssClient_->pushPartitionData(lastEvictedPartitionId_, buffer->data_as<char>(), buffer->size());
-  }
-
+  spillTime_ -= compressTime_;
   rssClient_->stop();
 
   auto totalBytesEvicted = std::accumulate(bytesEvicted_.begin(), bytesEvicted_.end(), 0LL);
@@ -70,36 +60,25 @@ arrow::Status RssPartitionWriter::hashEvict(
 arrow::Status
 RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal) {
   ScopedTimer timer(&spillTime_);
-  if (lastEvictedPartitionId_ != partitionId) {
-    if (lastEvictedPartitionId_ != -1) {
-      GLUTEN_DCHECK(rssOs_ != nullptr && !rssOs_->closed(), "rssOs_ should not be null");
-      if (compressedOs_ != nullptr) {
-        RETURN_NOT_OK(compressedOs_->Flush());
-      }
-
-      ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
-      bytesEvicted_[lastEvictedPartitionId_] +=
-          rssClient_->pushPartitionData(lastEvictedPartitionId_, buffer->data_as<char>(), buffer->size());
-    }
-
-    ARROW_ASSIGN_OR_RAISE(
-        rssOs_, arrow::io::BufferOutputStream::Create(options_->pushBufferMaxSize, arrow::default_memory_pool()));
-    if (codec_ != nullptr) {
-      ARROW_ASSIGN_OR_RAISE(
-          compressedOs_,
-          ShuffleCompressedOutputStream::Make(
-              codec_.get(), options_->compressionBufferSize, rssOs_, arrow::default_memory_pool()));
-    }
-
-    lastEvictedPartitionId_ = partitionId;
-  }
-
   rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
-  if (compressedOs_ != nullptr) {
-    RETURN_NOT_OK(inMemoryPayload->serialize(compressedOs_.get()));
+  ARROW_ASSIGN_OR_RAISE(
+      auto rssOs, arrow::io::BufferOutputStream::Create(options_->pushBufferMaxSize, arrow::default_memory_pool()));
+  if (codec_ != nullptr) {
+    ARROW_ASSIGN_OR_RAISE(
+        auto compressedOs,
+        ShuffleCompressedOutputStream::Make(
+            codec_.get(), options_->compressionBufferSize, rssOs, arrow::default_memory_pool()));
+    RETURN_NOT_OK(inMemoryPayload->serialize(compressedOs.get()));
+    RETURN_NOT_OK(compressedOs->Flush());
+    RETURN_NOT_OK(compressedOs->Close());
+    compressTime_ += compressedOs->compressTime();
   } else {
-    RETURN_NOT_OK(inMemoryPayload->serialize(rssOs_.get()));
+    RETURN_NOT_OK(inMemoryPayload->serialize(rssOs.get()));
   }
+  ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs->Finish());
+  bytesEvicted_[partitionId] +=
+      rssClient_->pushPartitionData(partitionId, buffer->data_as<char>(), buffer->size());
+  
   return arrow::Status::OK();
 }
 
