@@ -18,7 +18,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.apache.gluten</groupId>
+  <parent>
+    <groupId>org.apache.gluten</groupId>
+    <artifactId>gluten-parent</artifactId>
+    <version>1.6.0-SNAPSHOT</version>
+  </parent>
+
   <artifactId>gluten-it</artifactId>
   <version>1.6.0-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -75,6 +80,7 @@
         <groupId>org.apache.gluten</groupId>
         <artifactId>gluten-package_${scala.binary.version}</artifactId>
         <version>${gluten.version}</version>
+        <classifier>${gluten.package.classifier}</classifier>
         <exclusions>
           <exclusion>
             <groupId>org.apache.gluten</groupId>

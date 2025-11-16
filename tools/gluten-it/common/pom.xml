@@ -44,6 +44,7 @@
     <dependency>
       <groupId>org.apache.gluten</groupId>
       <artifactId>gluten-package_${scala.binary.version}</artifactId>
+      <classifier>${gluten.package.classifier}</classifier>
       <scope>runtime</scope>
     </dependency>
     <dependency>
