@@ -126,7 +126,7 @@ jobs:
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox
       - name: Run TPC-H / TPC-DS
         run: |
           echo "JAVA_HOME: $JAVA_HOME"

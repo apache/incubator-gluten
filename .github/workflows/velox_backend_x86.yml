@@ -315,7 +315,7 @@ jobs:
             # Build gluten-it
             mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
             cd /work/tools/gluten-it
-            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox
 
             # Run TPC-H / TPC-DS
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
