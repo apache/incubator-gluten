@@ -114,7 +114,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       cond
     } else {
       val remainingFilters =
-        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(cond))
+        FilterHandler.subtractFilters(splitConjunctivePredicates(cond), scanFilters)
       remainingFilters.reduceLeftOption(And).orNull
     }
   }
@@ -312,16 +312,11 @@ object FilterHandler extends PredicateHelper {
     }
   }
 
-  /**
-   * Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
-   *
-   * @param scanFilters
-   *   : the conditions pushed down into Scan
-   * @param filters
-   *   : the conditions in the Filter after the Scan
-   * @return
-   *   the filter conditions not pushed down into Scan.
-   */
-  def getRemainingFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] =
-    (filters.toSet -- scanFilters.toSet).toSeq
+  def subtractFilters(left: Seq[Expression], right: Seq[Expression]): Seq[Expression] = {
+    (left.toSet -- right.toSet).toSeq
+  }
+
+  def combineFilters(left: Seq[Expression], right: Seq[Expression]): Seq[Expression] = {
+    (left.toSet ++ right.toSet).toSeq
+  }
 }

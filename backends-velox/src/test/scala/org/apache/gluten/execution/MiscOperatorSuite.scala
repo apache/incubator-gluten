@@ -1977,9 +1977,9 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     assert(scans.size == 1)
     assert(filters.size == 1)
     assert(scans(0).dataFilters.size == 1)
-    val remainingFilters = FilterHandler.getRemainingFilters(
-      scans(0).dataFilters,
-      splitConjunctivePredicates(filters(0).condition))
+    val remainingFilters = FilterHandler.subtractFilters(
+      splitConjunctivePredicates(filters(0).condition),
+      scans(0).dataFilters)
     assert(remainingFilters.size == 0)
 
     // result length check, table lineitem has 60,000 rows

@@ -58,10 +58,6 @@ abstract class FileSourceScanExecShim(
 
   protected lazy val driverMetricsAlias = driverMetrics
 
-  def dataFiltersInScan: Seq[Expression] = {
-    throw new UnsupportedOperationException("Not implemented")
-  }
-
   def hasUnsupportedColumns: Boolean = {
     // TODO, fallback if user define same name column due to we can't right now
     // detect which column is metadata column which is user defined column.

@@ -35,7 +35,8 @@ case class HudiScanTransformer(
     override val optionalNumCoalescedBuckets: Option[Int],
     override val dataFilters: Seq[Expression],
     override val tableIdentifier: Option[TableIdentifier],
-    override val disableBucketedScan: Boolean = false)
+    override val disableBucketedScan: Boolean = false,
+    override val pushDownFilters: Option[Seq[Expression]] = None)
   extends FileSourceScanExecTransformerBase(
     relation,
     output,
@@ -69,6 +70,9 @@ case class HudiScanTransformer(
       disableBucketedScan
     )
   }
+
+  override def withNewPushdownFilters(filters: Seq[Expression]): BasicScanExecTransformer =
+    copy(pushDownFilters = Some(filters))
 }
 
 object HudiScanTransformer {

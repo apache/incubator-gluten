@@ -47,7 +47,8 @@ case class IcebergScanTransformer(
     override val runtimeFilters: Seq[Expression],
     @transient override val table: Table,
     override val keyGroupedPartitioning: Option[Seq[Expression]] = None,
-    override val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None)
+    override val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
+    override val pushDownFilters: Option[Seq[Expression]] = None)
   extends BatchScanExecTransformerBase(
     output = output,
     scan = scan,
@@ -61,6 +62,10 @@ case class IcebergScanTransformer(
   // but the implementation is different.
   // So use Metric to get NumSplits, NumDeletes is not reported by native metric
   private val numSplits = SQLMetrics.createMetric(sparkContext, new NumSplits().description())
+
+  override def withNewPushdownFilters(filters: Seq[Expression]): BatchScanExecTransformerBase = {
+    this.copy(pushDownFilters = Some(filters))
+  }
 
   protected[this] def supportsBatchScan(scan: Scan): Boolean = {
     IcebergScanTransformer.supportsBatchScan(scan)

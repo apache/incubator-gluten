@@ -850,9 +850,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   }
 
   /** Clickhouse Backend only supports part of filters for parquet. */
-  override def postProcessPushDownFilter(
-      extraFilters: Seq[Expression],
-      sparkExecNode: LeafExecNode): Seq[Expression] = {
+  override def isSupportedScanFilter(filter: Expression, sparkExecNode: LeafExecNode): Boolean = {
     // FIXME: DeltaMergeTreeFileFormat should not inherit from ParquetFileFormat.
     def isParquetFormat(fileFormat: FileFormat): Boolean = fileFormat match {
       case p: ParquetFileFormat if p.shortName().equals("parquet") => true
@@ -867,15 +865,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     //
     // Let's make push down functionally same as vanilla Spark for now.
 
-    sparkExecNode match {
+    val isSupported = sparkExecNode match {
       case fileSourceScan: FileSourceScanExecTransformerBase
           if isParquetFormat(fileSourceScan.relation.fileFormat) =>
-        PushDownUtil.removeNotSupportPushDownFilters(
-          fileSourceScan.conf,
-          fileSourceScan.output,
-          fileSourceScan.dataFilters)
-      case _ => super.postProcessPushDownFilter(extraFilters, sparkExecNode)
+        PushDownUtil.isSupportPushDownFilters(fileSourceScan.conf, fileSourceScan.output, filter)
+      case _ => true
     }
+    isSupported && super.isSupportedScanFilter(filter, sparkExecNode)
   }
 
   override def genGenerateTransformer(
