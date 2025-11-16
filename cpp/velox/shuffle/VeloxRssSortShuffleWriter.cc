@@ -199,7 +199,7 @@ arrow::Status VeloxRssSortShuffleWriter::stop() {
   {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingStop]);
     setSortState(RssSortState::kSortStop);
-    RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
+    RETURN_NOT_OK(partitionWriter_->stop());
   }
 
   stat();

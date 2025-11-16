@@ -126,6 +126,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
     partitioner_ = Partitioner::make(options->partitioning, numPartitions_, options->startPartitionId);
     arenas_.resize(numPartitions);
     serdeOptions_.useLosslessTimestamp = true;
+    partitionWriter_->acceptMetrics(&metrics_);
   }
 
   virtual ~VeloxShuffleWriter() = default;

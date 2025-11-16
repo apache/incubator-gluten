@@ -56,6 +56,8 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
   private val partitionWriterJniWrapper = CelebornPartitionWriterJniWrapper.create(runtime)
   private val shuffleWriterJniWrapper = ShuffleWriterJniWrapper.create(runtime)
 
+  private var bytesWritten: Long = 0L
+
   private var splitResult: GlutenSplitResult = _
 
   private def availableOffHeapPerTask(): Long = {
@@ -77,7 +79,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         val columnarBatchHandle =
           ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
         val startTime = System.nanoTime()
-        shuffleWriterJniWrapper.write(
+        val curBytesWritten = shuffleWriterJniWrapper.write(
           nativeShuffleWriter,
           cb.numRows,
           columnarBatchHandle,
@@ -87,6 +89,8 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
         writeMetrics.incRecordsWritten(cb.numRows())
+        writeMetrics.incBytesWritten(curBytesWritten - bytesWritten)
+        bytesWritten = curBytesWritten
       }
     }
 
@@ -120,7 +124,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         dep.metrics("c2rTime").add(splitResult.getC2RTime)
     }
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
-    writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
+    writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten - bytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalPushTime)
 
     partitionLengths = splitResult.getPartitionLengths
