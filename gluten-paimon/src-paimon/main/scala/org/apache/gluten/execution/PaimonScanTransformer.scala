@@ -52,7 +52,8 @@ case class PaimonScanTransformer(
     override val runtimeFilters: Seq[Expression],
     @transient override val table: Table,
     override val keyGroupedPartitioning: Option[Seq[Expression]] = None,
-    override val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None)
+    override val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
+    override val pushDownFilters: Option[Seq[Expression]] = None)
   extends BatchScanExecTransformerBase(
     output = output,
     scan = scan,
@@ -74,8 +75,6 @@ case class PaimonScanTransformer(
       throw new GlutenNotSupportException("Only support PaimonScan.")
   }
 
-  override def filterExprs(): Seq[Expression] = pushdownFilters
-
   override def getPartitionSchema: StructType = scan match {
     case paimonScan: PaimonScan =>
       val partitionKeys = paimonScan.table.partitionKeys()
@@ -85,6 +84,10 @@ case class PaimonScanTransformer(
   }
 
   override def getDataSchema: StructType = new StructType()
+
+  def withNewPushdownFilters(filters: Seq[Expression]): PaimonScanTransformer = {
+    this.copy(pushDownFilters = Some(filters))
+  }
 
   override lazy val fileFormat: ReadFileFormat = {
     val formatStr = coreOptions.fileFormatString()
@@ -180,7 +183,8 @@ case class PaimonScanTransformer(
       output = output.map(QueryPlan.normalizeExpressions(_, output)),
       runtimeFilters = QueryPlan.normalizePredicates(
         runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
-        output)
+        output),
+      pushDownFilters = pushDownFilters.map(QueryPlan.normalizePredicates(_, output))
     )
   }
 

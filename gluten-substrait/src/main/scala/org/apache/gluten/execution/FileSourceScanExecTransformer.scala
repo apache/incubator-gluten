@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -33,7 +32,6 @@ import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.SparkVersionUtil
 import org.apache.spark.util.collection.BitSet
 
 import org.apache.commons.lang3.StringUtils
@@ -47,7 +45,8 @@ case class FileSourceScanExecTransformer(
     override val optionalNumCoalescedBuckets: Option[Int],
     override val dataFilters: Seq[Expression],
     override val tableIdentifier: Option[TableIdentifier],
-    override val disableBucketedScan: Boolean = false)
+    override val disableBucketedScan: Boolean = false,
+    override val pushDownFilters: Option[Seq[Expression]] = None)
   extends FileSourceScanExecTransformerBase(
     relation,
     output,
@@ -71,9 +70,13 @@ case class FileSourceScanExecTransformer(
       optionalNumCoalescedBuckets,
       QueryPlan.normalizePredicates(dataFilters, output),
       None,
-      disableBucketedScan
+      disableBucketedScan,
+      pushDownFilters.map(QueryPlan.normalizePredicates(_, output))
     )
   }
+
+  override def withNewPushdownFilters(filters: Seq[Expression]): FileSourceScanExecTransformer =
+    copy(pushDownFilters = Some(filters))
 }
 
 abstract class FileSourceScanExecTransformerBase(
@@ -104,22 +107,7 @@ abstract class FileSourceScanExecTransformerBase(
       .genFileSourceScanTransformerMetrics(sparkContext)
       .filter(m => !driverMetricsAlias.contains(m._1)) ++ driverMetricsAlias
 
-  override def filterExprs(): Seq[Expression] = dataFiltersInScan.filter {
-    expr =>
-      ExpressionConverter.canReplaceWithExpressionTransformer(
-        ExpressionConverter.replaceAttributeReference(expr),
-        output)
-  }
-
-  override def dataFiltersInScan: Seq[Expression] = {
-    if (SparkVersionUtil.gteSpark35) {
-      dataFilters.filterNot(_.references.exists {
-        attr => BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)
-      })
-    } else {
-      super.dataFiltersInScan
-    }
-  }
+  override def scanFilters: Seq[Expression] = dataFilters
 
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
