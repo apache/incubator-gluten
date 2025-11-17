@@ -590,8 +590,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenPruneFileSourcePartitionsSuite]
   // TODO: fix in Spark-4.0
   // enableSuite[GlutenCSVReadSchemaSuite]
-  enableSuite[GlutenHeaderCSVReadSchemaSuite]
-    .exclude("change column type from int to long")
+  // enableSuite[GlutenHeaderCSVReadSchemaSuite]
+  //   .exclude("change column type from int to long")
   enableSuite[GlutenJsonReadSchemaSuite]
   enableSuite[GlutenOrcReadSchemaSuite]
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
