@@ -114,6 +114,7 @@
     { "name": "abseil", "version": "20230802.1"},
     { "name": "re2", "version": "2023-07-01"},
     { "name": "glog", "version": "0.6.0"},
-    { "name": "gflags", "version": "2.2.2"}
+    { "name": "gflags", "version": "2.2.2"},
+    { "name": "azure-identity-cpp", "version": "1.11.0"}
   ]
 }
