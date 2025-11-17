@@ -79,7 +79,8 @@ jobs:
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Update mirror list
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -116,7 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu:20.04", "ubuntu:22.04" ]
+        os: [ "ubuntu:22.04" ] # skip "ubuntu:20.04" due to not enough disk space
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
@@ -143,6 +144,8 @@ jobs:
             tar xf v1.13.0.tar.gz && cd googletest-1.13.0/
             export CXXFLAGS=-fPIC
             cmake . && make install -j
+            apt autoremove -y
+            rm -rf /tmp/*
           fi
           sudo apt-get install -y openjdk-8-jdk python3-pip cmake
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
@@ -211,7 +214,7 @@ jobs:
     strategy:
       fail-fast: false
     if: ${{ startsWith(github.repository, 'apache/') }}
-    runs-on: macos-latest
+    runs-on: macos-15
     env:
       INSTALL_PREFIX: /tmp/deps-install
     steps:
