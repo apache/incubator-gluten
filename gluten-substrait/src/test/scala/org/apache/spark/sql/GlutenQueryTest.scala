@@ -454,7 +454,7 @@ abstract class GlutenQueryTest extends PlanTest with AdaptiveSparkPlanHelper {
    * @tparam T:
    *   type of the expected plan.
    */
-  def checkGlutenPlan[T <: GlutenPlan](df: DataFrame, count: Int)(implicit
+  def checkGlutenPlanCount[T <: GlutenPlan](df: DataFrame, count: Int)(implicit
       tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
     assert(
