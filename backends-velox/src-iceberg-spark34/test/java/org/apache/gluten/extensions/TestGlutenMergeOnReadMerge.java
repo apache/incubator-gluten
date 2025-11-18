@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.extensions;
 
-import org.apache.iceberg.PlanningMode;
 import org.apache.iceberg.RowLevelOperationMode;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
@@ -26,35 +25,12 @@ import org.apache.spark.sql.execution.SparkPlan;
 import org.apache.spark.sql.internal.SQLConf;
 import org.junit.Test;
 
-import java.util.Map;
-
 import static org.apache.iceberg.RowLevelOperationMode.COPY_ON_WRITE;
 import static org.apache.iceberg.TableProperties.MERGE_MODE;
 import static org.apache.iceberg.TableProperties.MERGE_MODE_DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGlutenMergeOnReadMerge extends TestMergeOnReadMerge {
-  public TestGlutenMergeOnReadMerge(
-      String catalogName,
-      String implementation,
-      Map<String, String> config,
-      String fileFormat,
-      boolean vectorized,
-      String distributionMode,
-      boolean fanoutEnabled,
-      String branch,
-      PlanningMode planningMode) {
-    super(
-        catalogName,
-        implementation,
-        config,
-        fileFormat,
-        vectorized,
-        distributionMode,
-        fanoutEnabled,
-        branch,
-        planningMode);
-  }
 
   @Test
   public synchronized void testMergeWithConcurrentTableRefresh() {

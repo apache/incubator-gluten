@@ -14,8 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.source;
+package org.apache.iceberg.spark;
 
-import org.apache.iceberg.spark.source.TestSparkStagedScan;
+import org.apache.gluten.TestConfUtil;
 
-public class TestGlutenSparkStagedScan extends TestSparkStagedScan {}
+import org.apache.iceberg.ParameterizedTestExtension;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+@ExtendWith(ParameterizedTestExtension.class)
+public abstract class GlutenTestBaseWithCatalog extends TestBaseWithCatalog {
+
+  @BeforeEach
+  public void setGluten() {
+    TestConfUtil.GLUTEN_CONF.forEach((k, v) -> spark.conf().set(k, (String) v));
+  }
+}

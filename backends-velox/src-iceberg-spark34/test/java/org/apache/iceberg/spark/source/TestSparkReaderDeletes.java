@@ -299,7 +299,7 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
 
     for (CombinedScanTask task : tasks) {
       try (EqualityDeleteRowReader reader =
-          new EqualityDeleteRowReader(task, table, null, table.schema(), false)) {
+          new EqualityDeleteRowReader(task, table, null, table.schema(), false, true)) {
         while (reader.next()) {
           actualRowSet.add(
               new InternalRowWrapper(

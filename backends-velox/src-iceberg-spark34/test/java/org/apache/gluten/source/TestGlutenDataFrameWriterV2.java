@@ -16,6 +16,9 @@
  */
 package org.apache.gluten.source;
 
+import org.apache.iceberg.ParameterizedTestExtension;
 import org.apache.iceberg.spark.source.TestDataFrameWriterV2;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(ParameterizedTestExtension.class)
 public class TestGlutenDataFrameWriterV2 extends TestDataFrameWriterV2 {}
