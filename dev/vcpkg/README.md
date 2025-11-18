@@ -4,7 +4,7 @@
 
 Currently, the `builtin-baseline` set in `vcpkg.json` is the commit hash for the `2025.09.17` tag of vcpkg.
 The versions of all dependency libraries are determined by their respective ports at this vcpkg version,
-except for those overridden in `vcpkg.json` and `vcpkg-configuration.json`.
+except for those overridden in `vcpkg.json`, `vcpkg-configuration.json`, and overlay ports.
 
 ## Build in docker
 
@@ -25,7 +25,7 @@ Please install build depends on your system to compile all libraries:
 sudo $GLUTEN_REPO/dev/vcpkg/setup-build-depends.sh
 ```
 
-GCC-11 is the minimum required compiler. It needs to be enabled beforehand. Take Centos-7/8 as example:
+GCC 11 is the minimum required compiler. It needs to be enabled beforehand. Take Centos 7/8 as example:
 
 ``` sh
 # CentOS 8
