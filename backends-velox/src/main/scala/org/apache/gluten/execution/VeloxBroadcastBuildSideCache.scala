@@ -57,17 +57,17 @@ object VeloxBroadcastBuildSideCache
 
   def getOrBuildBroadcastHashTable(
       broadcast: Broadcast[BuildSideRelation],
-      broadCastContext: BroadcastHashJoinContext): BroadcastHashTable = synchronized {
+      broadcastContext: BroadcastHashJoinContext): BroadcastHashTable = synchronized {
 
     buildSideRelationCache
       .get(
-        broadCastContext.buildHashTableId,
+        broadcastContext.buildHashTableId,
         (broadcast_id: String) => {
           val (pointer, relation) = broadcast.value match {
             case columnar: ColumnarBuildSideRelation =>
-              columnar.buildHashTable(broadCastContext)
+              columnar.buildHashTable(broadcastContext)
             case unsafe: UnsafeColumnarBuildSideRelation =>
-              unsafe.buildHashTable(broadCastContext)
+              unsafe.buildHashTable(broadcastContext)
           }
 
           logWarning(s"Create bhj $broadcast_id = $pointer")
