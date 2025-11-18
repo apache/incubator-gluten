@@ -68,6 +68,8 @@ SCRIPT_ROOT="$(realpath "$(dirname "$0")")"
 cd "$SCRIPT_ROOT"
 
 if [ ! -d "$VCPKG_ROOT" ] || [ -z "$(ls "$VCPKG_ROOT")" ]; then
+    # The builtin-baseline (commit hash) specified in vcpkg.json should exist in this branch.
+    # Therefore, upgrading the builtin-baseline may require updating the branch.
     git clone https://github.com/microsoft/vcpkg.git --branch 2025.09.17 "$VCPKG_ROOT"
 fi
 [ -f "$VCPKG" ] || "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
