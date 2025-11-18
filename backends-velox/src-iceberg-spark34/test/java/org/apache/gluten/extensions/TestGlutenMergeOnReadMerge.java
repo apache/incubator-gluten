@@ -24,6 +24,7 @@ import org.apache.iceberg.spark.extensions.TestMergeOnReadMerge;
 import org.apache.spark.sql.execution.SparkPlan;
 import org.apache.spark.sql.internal.SQLConf;
 import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import static org.apache.iceberg.RowLevelOperationMode.COPY_ON_WRITE;
 import static org.apache.iceberg.TableProperties.MERGE_MODE;
@@ -48,7 +49,7 @@ public class TestGlutenMergeOnReadMerge extends TestMergeOnReadMerge {
   }
 
   // The matched join string is changed from Join to ShuffledHashJoinExecTransformer
-  @Test
+  @TestTemplate
   public void testMergeConditionSplitIntoTargetPredicateAndJoinCondition() {
     createAndInitTable(
         "id INT, salary INT, dep STRING, sub_dep STRING",
