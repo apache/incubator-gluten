@@ -128,7 +128,8 @@ abstract class BatchScanExecTransformerBase(
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
-  def getPartitions: Seq[Partition] = finalPartitions
+  override def getPartitions: Seq[(Seq[Partition], ReadFileFormat)] =
+    Seq((finalPartitions, fileFormat))
 
   override def getPartitionSchema: StructType = scan match {
     case fileScan: FileScan => fileScan.readPartitionSchema

@@ -139,14 +139,19 @@ case class IcebergScanTransformer(
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
-  override def getSplitInfosFromPartitions(partitions: Seq[Partition]): Seq[SplitInfo] = {
-    val splitInfos = partitions.map {
+  override def getSplitInfosFromPartitions(
+      partitions: Seq[(Seq[Partition], ReadFileFormat)]): Seq[SplitInfo] = {
+    partitions.flatMap { case (parts, _) => parts.map(partitionToSplitInfo) }
+  }
+
+  private def partitionToSplitInfo(partition: Partition): SplitInfo = {
+    val splitInfo = partition match {
       case p: SparkDataSourceRDDPartition =>
         GlutenIcebergSourceUtil.genSplitInfo(p, getPartitionSchema)
       case _ => throw new GlutenNotSupportException()
     }
-    numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
-    splitInfos
+    numSplits.add(splitInfo.asInstanceOf[LocalFilesNode].getPaths.size())
+    splitInfo
   }
 
   override def doCanonicalize(): IcebergScanTransformer = {

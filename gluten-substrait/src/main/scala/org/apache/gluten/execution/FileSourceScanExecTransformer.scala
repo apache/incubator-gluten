@@ -123,8 +123,8 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
-  override def getPartitions: Seq[Partition] = {
-    BackendsApiManager.getTransformerApiInstance
+  override def getPartitions: Seq[(Seq[Partition], ReadFileFormat)] = {
+    val partitions = BackendsApiManager.getTransformerApiInstance
       .genPartitionSeq(
         relation,
         requiredSchema,
@@ -136,6 +136,8 @@ abstract class FileSourceScanExecTransformerBase(
         disableBucketedScan,
         filterExprs()
       )
+
+    Seq((partitions, fileFormat))
   }
 
   override def getPartitionSchema: StructType = relation.partitionSchema

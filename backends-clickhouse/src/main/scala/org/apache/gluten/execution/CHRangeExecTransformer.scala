@@ -23,6 +23,7 @@ import org.apache.gluten.substrait.`type`._
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -51,6 +52,14 @@ case class CHRangeExecTransformer(
       sliceIndex =>
         ExtensionTableBuilder.makeExtensionTable(start, end, step, numSlices, sliceIndex)
     }
+  }
+
+  override def getPartitions: Seq[(Seq[Partition], ReadFileFormat)] = {
+    val partitions = (0 until numSlices).map {
+      sliceIndex => GlutenRangeExecPartition(start, end, step, numSlices, sliceIndex)
+    }
+
+    Seq((partitions, ReadFileFormat.UnknownFormat))
   }
 
   override def getPartitions: Seq[Partition] = {

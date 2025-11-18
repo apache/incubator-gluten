@@ -23,7 +23,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
+import org.apache.spark.sql.catalyst.catalog.{CatalogStorageFormat, HiveTableRelation}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSeq, Expression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.SparkPlan
@@ -67,7 +67,7 @@ case class HiveTableScanExecTransformer(
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
-  override def getPartitions: Seq[Partition] = partitions
+  override def getPartitions: Seq[(Seq[Partition], ReadFileFormat)] = partitions
 
   override def getPartitionSchema: StructType = relation.tableMeta.partitionSchema
 
@@ -82,23 +82,52 @@ case class HiveTableScanExecTransformer(
   @transient private lazy val hivePartitionConverter =
     new HivePartitionConverter(session.sessionState.newHadoopConf(), session)
 
-  @transient private lazy val partitions: Seq[Partition] =
+  @transient private lazy val existsMixedInputFormat: Boolean =
+    prunedPartitions.exists(_.getInputFormatClass != tableDesc.getInputFileFormatClass)
+
+  @transient private lazy val partitions: Seq[(Seq[Partition], ReadFileFormat)] =
     if (!relation.isPartitioned) {
       val tableLocation: URI = relation.tableMeta.storage.locationUri.getOrElse {
         throw new UnsupportedOperationException("Table path not set.")
       }
-      hivePartitionConverter.createFilePartition(tableLocation)
+      Seq((hivePartitionConverter.createFilePartition(tableLocation), fileFormat))
+    } else if (existsMixedInputFormat) {
+      // Currently, we only consider the case where Hive table mix two different input format.
+      val (partitions1, partitions2) =
+        prunedPartitions.partition(_.getInputFormatClass == tableDesc.getInputFileFormatClass)
+      assert(partitions2.forall(_.getInputFormatClass == partitions2.head.getOutputFormatClass))
+
+      val anotherFileFormat = getFileFormat(
+        HiveClientImpl.fromHivePartition(partitions2.head).storage)
+
+      Seq(
+        (
+          hivePartitionConverter.createFilePartition(
+            partitions1,
+            relation.partitionCols.map(_.dataType)),
+          fileFormat),
+        (
+          hivePartitionConverter.createFilePartition(
+            partitions2,
+            relation.partitionCols.map(_.dataType)),
+          anotherFileFormat)
+      )
     } else {
-      hivePartitionConverter.createFilePartition(
-        prunedPartitions,
-        relation.partitionCols.map(_.dataType))
+      Seq(
+        (
+          hivePartitionConverter
+            .createFilePartition(prunedPartitions, relation.partitionCols.map(_.dataType)),
+          fileFormat))
     }
 
-  @transient override lazy val fileFormat: ReadFileFormat = {
-    relation.tableMeta.storage.inputFormat match {
+  @transient override lazy val fileFormat: ReadFileFormat =
+    getFileFormat(relation.tableMeta.storage)
+
+  private def getFileFormat(storage: CatalogStorageFormat): ReadFileFormat = {
+    storage.inputFormat match {
       case Some(inputFormat)
           if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
-        relation.tableMeta.storage.serde match {
+        storage.serde match {
           case Some("org.openx.data.jsonserde.JsonSerDe") | Some(
                 "org.apache.hive.hcatalog.data.JsonSerDe") =>
             ReadFileFormat.JsonReadFormat

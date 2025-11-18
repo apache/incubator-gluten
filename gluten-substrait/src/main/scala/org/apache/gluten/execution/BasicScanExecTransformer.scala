@@ -60,23 +60,30 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     getSplitInfosFromPartitions(getPartitions)
   }
 
-  def getSplitInfosFromPartitions(partitions: Seq[Partition]): Seq[SplitInfo] = {
-    partitions.map(
-      p => {
-        val ps = p match {
-          case sp: SparkDataSourceRDDPartition => sp.inputPartitions.map(_.asInstanceOf[Partition])
-          case o => Seq(o)
-        }
-        BackendsApiManager.getIteratorApiInstance
-          .genSplitInfo(
-            p.index,
-            ps,
-            getPartitionSchema,
-            getDataSchema,
-            fileFormat,
-            getMetadataColumns().map(_.name),
-            getProperties)
-      })
+  def getSplitInfosFromPartitions(
+      partitions: Seq[(Seq[Partition], ReadFileFormat)]): Seq[SplitInfo] = {
+    partitions.flatMap {
+      case (parts, readFileFormat) => parts.map(partitionToSplitInfo(_, readFileFormat))
+    }
+  }
+
+  private def partitionToSplitInfo(
+      partition: Partition,
+      readFileFormat: ReadFileFormat): SplitInfo = {
+    val part = partition match {
+      case sp: SparkDataSourceRDDPartition => sp.inputPartitions.map(_.asInstanceOf[Partition])
+      case _ => Seq(partition)
+    }
+
+    BackendsApiManager.getIteratorApiInstance
+      .genSplitInfo(
+        partition.index,
+        part,
+        getPartitionSchema,
+        getDataSchema,
+        readFileFormat,
+        getMetadataColumns().map(_.name),
+        getProperties)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
