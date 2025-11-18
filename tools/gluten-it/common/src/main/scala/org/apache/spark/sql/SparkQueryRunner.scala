@@ -28,11 +28,8 @@ import org.apache.spark.sql.execution.{QueryExecution, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
-import com.google.common.base.Preconditions
 import org.apache.commons.lang3.RandomUtils
 
-import java.io.ByteArrayOutputStream
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable
