@@ -559,8 +559,8 @@ Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_splitBlockByPartitio
   const auto inputRowVector = veloxBatch->getRowVector();
   const auto numRows = inputRowVector->size();
 
-  connector::hive::PartitionIdGenerator idGen{
-      asRowType(inputRowVector->type()), partitionColIndicesVec, 128, pool.get()};
+  connector::hive::PartitionIdGenerator idGen(
+      asRowType(inputRowVector->type()), partitionColIndicesVec, 128, pool.get());
   raw_vector<uint64_t> partitionIds{};
   idGen.run(inputRowVector, partitionIds);
   GLUTEN_CHECK(partitionIds.size() == numRows, "Mismatched number of partition ids");
