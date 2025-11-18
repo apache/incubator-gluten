@@ -25,7 +25,9 @@ import org.apache.spark.sql.errors.QueryExecutionErrors.toSQLType
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.StoreAssignmentPolicy
+import org.apache.spark.tags.ExtendedSQLTest
 
+@ExtendedSQLTest
 class UpdateSQLSuite extends UpdateSuiteBase with DeltaSQLCommandTest {
 
   import testImplicits._
@@ -168,6 +170,7 @@ class UpdateSQLSuite extends UpdateSuiteBase with DeltaSQLCommandTest {
   }
 }
 
+@ExtendedSQLTest
 class UpdateSQLWithDeletionVectorsSuite
   extends UpdateSQLSuite
   with DeltaExcludedTestMixin
@@ -351,6 +354,7 @@ class UpdateSQLWithDeletionVectorsSuite
   }
 }
 
+@ExtendedSQLTest
 class UpdateSQLWithDeletionVectorsAndPredicatePushdownSuite
   extends UpdateSQLWithDeletionVectorsSuite {
 
