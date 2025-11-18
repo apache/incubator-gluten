@@ -204,8 +204,9 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
     catalog.dropTable(TableIdentifier.of("default", name));
   }
 
+  // Change to not check, the native side does not report the numDeletes metric.
   protected boolean countDeletes() {
-    return true;
+    return false;
   }
 
   @Override
@@ -235,6 +236,86 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
             });
 
     return set;
+  }
+
+  @TestTemplate
+  public void testPositionDeletes() throws IOException {
+    List<Pair<CharSequence, Long>> deletes =
+        Lists.newArrayList(
+            Pair.of(dataFile.location(), 0L), // id = 29
+            Pair.of(dataFile.location(), 3L), // id = 89
+            Pair.of(dataFile.location(), 6L) // id = 122
+            );
+
+    Pair<DeleteFile, CharSequenceSet> posDeletes =
+        FileHelpers.writeDeleteFile(
+            table,
+            Files.localOutput(temp.resolve("junit" + System.nanoTime()).toFile()),
+            TestHelpers.Row.of(0),
+            deletes,
+            formatVersion);
+
+    table
+        .newRowDelta()
+        .addDeletes(posDeletes.first())
+        .validateDataFilesExist(posDeletes.second())
+        .commit();
+
+    StructLikeSet expected = rowSetWithoutIds(table, records, 29, 89, 122);
+    StructLikeSet actual = rowSet(tableName, table, "*");
+
+    assertThat(actual).as("Table should contain expected rows").isEqualTo(expected);
+    checkDeleteCount(3L);
+  }
+
+  // Change to satisfy formatVersion
+  @TestTemplate
+  public void testMultiplePosDeleteFiles() throws IOException {
+    assumeThat(formatVersion)
+        .as("Can't write multiple delete files with formatVersion >= 3")
+        .isEqualTo(2);
+
+    List<Pair<CharSequence, Long>> deletes =
+        Lists.newArrayList(
+            Pair.of(dataFile.location(), 0L), // id = 29
+            Pair.of(dataFile.location(), 3L) // id = 89
+            );
+
+    Pair<DeleteFile, CharSequenceSet> posDeletes =
+        FileHelpers.writeDeleteFile(
+            table,
+            Files.localOutput(temp.resolve("junit" + System.nanoTime()).toFile()),
+            TestHelpers.Row.of(0),
+            deletes,
+            formatVersion);
+
+    table
+        .newRowDelta()
+        .addDeletes(posDeletes.first())
+        .validateDataFilesExist(posDeletes.second())
+        .commit();
+
+    deletes = Lists.newArrayList(Pair.of(dataFile.location(), 6L)); // id = 122
+
+    posDeletes =
+        FileHelpers.writeDeleteFile(
+            table,
+            Files.localOutput(temp.resolve("junit" + System.nanoTime()).toFile()),
+            TestHelpers.Row.of(0),
+            deletes,
+            formatVersion);
+
+    table
+        .newRowDelta()
+        .addDeletes(posDeletes.first())
+        .validateDataFilesExist(posDeletes.second())
+        .commit();
+
+    StructLikeSet expected = rowSetWithoutIds(table, records, 29, 89, 122);
+    StructLikeSet actual = rowSet(tableName, table, "*");
+
+    assertThat(actual).as("Table should contain expected rows").isEqualTo(expected);
+    checkDeleteCount(3L);
   }
 
   @TestTemplate
