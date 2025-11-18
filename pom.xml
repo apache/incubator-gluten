@@ -1651,6 +1651,15 @@
       </build>
     </profile>
     <profile>
+      <id>iceberg-test</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <hadoop.version>3.4.1</hadoop.version>
+      </properties>
+    </profile>
+    <profile>
       <id>hudi</id>
       <activation>
         <activeByDefault>false</activeByDefault>

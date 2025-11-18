@@ -417,21 +417,6 @@
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
-          <artifactId>iceberg-open-api</artifactId>
-          <version>${iceberg.version}</version>
-          <type>test-jar</type>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.iceberg</groupId>
-          <artifactId>iceberg-open-api</artifactId>
-          <version>${iceberg.version}</version>
-          <classifier>test-fixtures</classifier>
-          <type>test-jar</type>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.iceberg</groupId>
           <artifactId>iceberg-hive-metastore</artifactId>
           <version>${iceberg.version}</version>
           <type>test-jar</type>
@@ -498,6 +483,38 @@
           <groupId>org.eclipse.jetty</groupId>
           <artifactId>jetty-servlet</artifactId>
           <version>11.0.26</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.xerial</groupId>
+          <artifactId>sqlite-jdbc</artifactId>
+          <version>3.50.3.0</version>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>iceberg-test</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <hadoop.version>3.4.1</hadoop.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-open-api</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-open-api</artifactId>
+          <version>${iceberg.version}</version>
+          <classifier>test-fixtures</classifier>
+          <type>test-jar</type>
           <scope>test</scope>
         </dependency>
       </dependencies>
