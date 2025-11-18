@@ -16,36 +16,12 @@
  */
 package org.apache.gluten.extensions;
 
-import org.apache.iceberg.PlanningMode;
 import org.apache.iceberg.spark.extensions.TestCopyOnWriteDelete;
 import org.junit.Test;
 
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class TestGlutenCopyOnWriteDelete extends TestCopyOnWriteDelete {
-  public TestGlutenCopyOnWriteDelete(
-      String catalogName,
-      String implementation,
-      Map<String, String> config,
-      String fileFormat,
-      Boolean vectorized,
-      String distributionMode,
-      boolean fanoutEnabled,
-      String branch,
-      PlanningMode planningMode) {
-    super(
-        catalogName,
-        implementation,
-        config,
-        fileFormat,
-        vectorized,
-        distributionMode,
-        fanoutEnabled,
-        branch,
-        planningMode);
-  }
-
   @Test
   public synchronized void testDeleteWithConcurrentTableRefresh() {
     System.out.println("Run timeout");

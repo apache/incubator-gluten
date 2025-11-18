@@ -18,10 +18,4 @@ package org.apache.gluten.sql;
 
 import org.apache.iceberg.spark.sql.TestSelect;
 
-import java.util.Map;
-
-public class TestGlutenSelect extends TestSelect {
-  public TestGlutenSelect(String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
-  }
-}
+public class TestGlutenSelect extends TestSelect {}

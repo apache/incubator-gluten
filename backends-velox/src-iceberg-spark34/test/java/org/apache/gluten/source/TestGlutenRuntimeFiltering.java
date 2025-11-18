@@ -16,11 +16,6 @@
  */
 package org.apache.gluten.source;
 
-import org.apache.iceberg.PlanningMode;
 import org.apache.iceberg.spark.source.TestRuntimeFiltering;
 
-public class TestGlutenRuntimeFiltering extends TestRuntimeFiltering {
-  public TestGlutenRuntimeFiltering(PlanningMode planningMode) {
-    super(planningMode);
-  }
-}
+public class TestGlutenRuntimeFiltering extends TestRuntimeFiltering {}
