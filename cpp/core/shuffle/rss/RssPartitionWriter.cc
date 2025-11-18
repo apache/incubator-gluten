@@ -76,8 +76,9 @@ RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayl
     RETURN_NOT_OK(inMemoryPayload->serialize(rssOs.get()));
   }
   ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs->Finish());
-  bytesEvicted_[partitionId] +=
-      rssClient_->pushPartitionData(partitionId, buffer->data_as<char>(), buffer->size());
+  auto delta = rssClient_->pushPartitionData(partitionId, buffer->data_as<char>(), buffer->size());
+  bytesEvicted_[partitionId] += delta;
+  metrics_->totalBytesWritten += delta;
 
   return arrow::Status::OK();
 }
@@ -86,7 +87,9 @@ arrow::Status RssPartitionWriter::evict(uint32_t partitionId, std::unique_ptr<Bl
   rawPartitionLengths_[partitionId] += blockPayload->rawSize();
   ScopedTimer timer(&spillTime_);
   ARROW_ASSIGN_OR_RAISE(auto buffer, blockPayload->readBufferAt(0));
-  bytesEvicted_[partitionId] += rssClient_->pushPartitionData(partitionId, buffer->data_as<char>(), buffer->size());
+  auto delta = rssClient_->pushPartitionData(partitionId, buffer->data_as<char>(), buffer->size());
+  bytesEvicted_[partitionId] += delta;
+  metrics_->totalBytesWritten += delta;
   return arrow::Status::OK();
 }
 
