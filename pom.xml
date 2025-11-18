@@ -1657,6 +1657,7 @@
       </activation>
       <properties>
         <hadoop.version>3.4.1</hadoop.version>
+        <fasterxml.version>2.19.2</fasterxml.version>
       </properties>
     </profile>
     <profile>
