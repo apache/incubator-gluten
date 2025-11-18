@@ -18,7 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, IteratorApi}
 import org.apache.gluten.backendsapi.velox.VeloxIteratorApi.unescapePathName
-import org.apache.gluten.config.VeloxConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.execution._
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.metrics.{IMetrics, IteratorMetricsJniWrapper}
@@ -215,7 +215,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       new JArrayList[ColumnarBatchInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
       }.asJava)
-    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
+
+    val extraConf = Map(GlutenConfig.COLUMNAR_CUDF_ENABLED.key -> enableCudf.toString).asJava
+    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName, extraConf)
 
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
@@ -233,8 +235,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         splitInfoByteArray,
         columnarNativeIterators,
         partitionIndex,
-        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath),
-        enableCudf
+        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
       )
     val itrMetrics = IteratorMetricsJniWrapper.create()
 
@@ -265,8 +266,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       partitionIndex: Int,
       materializeInput: Boolean,
       enableCudf: Boolean = false): Iterator[ColumnarBatch] = {
-
-    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
+    val extraConf = Map(GlutenConfig.COLUMNAR_CUDF_ENABLED.key -> enableCudf.toString).asJava
+    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName, extraConf)
     val columnarNativeIterator =
       inputIterators.map {
         iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
@@ -283,8 +284,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         new Array[Array[Byte]](0),
         columnarNativeIterator.asJava,
         partitionIndex,
-        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath),
-        enableCudf
+        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
       )
     val itrMetrics = IteratorMetricsJniWrapper.create()
 

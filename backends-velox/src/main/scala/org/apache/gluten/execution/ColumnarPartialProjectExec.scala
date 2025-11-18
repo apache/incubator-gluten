@@ -19,22 +19,25 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.expression.{ArrowProjection, ExpressionMappings, ExpressionUtils}
+import org.apache.gluten.expression.{ArrowProjection, ConverterUtils, ExpressionConverter, ExpressionMappings, ExpressionUtils, TransformerState}
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.substrait.`type`.TypeBuilder
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.vectorized.{ArrowColumnarRow, ArrowWritableColumnVector}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
-import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, PartitioningPreservingNodeShim, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.hive.{HiveUDFTransformer, VeloxHiveUDFTransformer}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -50,9 +53,11 @@ import scala.collection.mutable.ListBuffer
  * @param child
  *   child plan
  */
-case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: SparkPlan)(
+case class ColumnarPartialProjectExec(projectList: Seq[Expression], child: SparkPlan)(
     replacedAlias: Seq[Alias])
   extends UnaryExecNode
+  with OrderPreservingNodeShim
+  with PartitioningPreservingNodeShim
   with ValidatablePlan {
 
   private val projectAttributes: ListBuffer[Attribute] = ListBuffer()
@@ -91,11 +96,6 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
 
   final override protected def otherCopyArgs: Seq[AnyRef] = {
     replacedAlias :: Nil
-  }
-
-  private def validateExpression(expr: Expression): Boolean = {
-    expr.deterministic && !expr.isInstanceOf[LambdaFunction] && expr.children
-      .forall(validateExpression)
   }
 
   private def getProjectIndexInChildOutput(exprs: Seq[Expression]): Unit = {
@@ -144,7 +144,7 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
       // e.g. udf1(col) + udf2(col), it will introduce 2 cols for a2c
       return ValidationResult.failed("Number of RowToColumn columns is more than ProjectExec")
     }
-    if (!projectList.forall(validateExpression(_))) {
+    if (!projectList.forall(ColumnarPartialProjectExec.validateExpression)) {
       return ValidationResult.failed("Contains expression not supported")
     }
     if (
@@ -275,11 +275,22 @@ case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarPartialProjectExec = {
     copy(child = newChild)(replacedAlias)
   }
+
+  override protected def orderingExpressions: Seq[SortOrder] = child.outputOrdering
+
+  override protected def outputExpressions: Seq[NamedExpression] = child.output ++ replacedAlias
 }
 
 object ColumnarPartialProjectExec {
 
   val projectPrefix = "_SparkPartialProject"
+
+  val dummyPrefix = "_dummy"
+
+  def validateExpression(expr: Expression): Boolean = {
+    expr.deterministic && !expr.isInstanceOf[LambdaFunction] && expr.children
+      .forall(validateExpression)
+  }
 
   /** Check if it's a hive udf but not transformable */
   private def containsUnsupportedHiveUDF(h: Expression): Boolean = {
@@ -352,10 +363,136 @@ object ColumnarPartialProjectExec {
     }
   }
 
+  private def doNativeValidateExpression(
+      expr: Expression,
+      replacedAlias: ListBuffer[Alias],
+      childOutput: Seq[Attribute]): Boolean = {
+    val substraitContext = new SubstraitContext
+    val output = childOutput ++ replacedAlias.map(_.toAttribute)
+    val exprTransformer = ExpressionConverter.replaceWithExpressionTransformer(expr, output)
+    val inputTypeNodeList = TypeBuilder.makeStruct(
+      false,
+      output
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava)
+    BackendsApiManager.getValidatorApiInstance.doNativeValidateExpression(
+      substraitContext,
+      exprTransformer.doTransform(substraitContext),
+      inputTypeNodeList)
+  }
+
+  /**
+   * Traverse up the expression (post-order). If the function finds an expression that is not
+   * supported by the native backend, then the function replaces the expression by `Alias`.
+   *
+   * @return
+   *   the new expression
+   */
+  private def traverseUpExpression(
+      expr: Expression,
+      replacedAlias: ListBuffer[Alias],
+      childOutput: Seq[Attribute]): Expression = {
+    val newExpr = expr.withNewChildren(expr.children.map {
+      case a: AttributeReference => a
+      case child =>
+        val newChild = child.withNewChildren(
+          child.children.map(c => traverseUpExpression(c, replacedAlias, childOutput)))
+        // To prevent nested expressions be validated multiple times, before doing the validation,
+        // we replace it by `Alias`.
+        val tempAttributes = new ListBuffer[Attribute]()
+        val tempChildren = child.children.zipWithIndex.map(
+          c => {
+            val child = c._1
+            val a = AttributeReference(s"$dummyPrefix${c._2}", child.dataType, child.nullable)()
+            tempAttributes.append(a)
+            a
+          })
+        // For CreateNamedStruct, we need to create it with `CreateStruct.apply`.
+        val toValidatedExpression = child match {
+          case CreateNamedStruct(_) => CreateStruct(tempChildren)
+          case _ => child.withNewChildren(tempChildren)
+        }
+        if (
+          !doNativeValidateExpression(
+            toValidatedExpression,
+            replacedAlias,
+            childOutput ++ tempAttributes)
+        ) {
+          replaceByAlias(newChild, replacedAlias)
+        } else {
+          newChild
+        }
+    })
+    if (!doNativeValidateExpression(newExpr, replacedAlias, childOutput)) {
+      replaceByAlias(newExpr, replacedAlias)
+    } else {
+      newExpr
+    }
+  }
+
+  private def replaceExpression(
+      expr: Expression,
+      childOutput: Seq[Attribute],
+      replacedAlias: ListBuffer[Alias]): Expression = {
+    if (expr == null) return null
+    val newExpr = replaceExpression(expr, replacedAlias)
+    if (!GlutenConfig.get.enableNativeValidation || !validateExpression(newExpr)) {
+      return newExpr
+    }
+    newExpr match {
+      case _: AttributeReference => newExpr
+      case alias @ Alias(child, name) =>
+        val newChild = replaceExpression(child, childOutput, replacedAlias)
+        Alias(newChild, name)(
+          alias.exprId,
+          alias.qualifier,
+          alias.explicitMetadata,
+          alias.nonInheritableMetadataKeys)
+      case x if isConditionalExpression(x) =>
+        try {
+          TransformerState.enterValidation
+          if (!doNativeValidateExpression(x, replacedAlias, childOutput)) {
+            replaceByAlias(x, replacedAlias)
+          } else {
+            x
+          }
+        } catch {
+          case _: Throwable =>
+            // If the process of conversion of the expression throws exception, then we need to
+            // fallback the whole operator.
+            newExpr
+        } finally {
+          TransformerState.finishValidation
+        }
+      case p =>
+        try {
+          TransformerState.enterValidation
+          if (doNativeValidateExpression(p, replacedAlias, childOutput)) {
+            // Fast path: if the expression is supported by the native backend,
+            // then we don't need to traverse up the expression.
+            newExpr
+          } else {
+            // The expression is not supported by the native backend, then we traverse down the
+            // expression to find which expression the native backend does not support。
+            traverseUpExpression(p, replacedAlias, childOutput)
+          }
+        } catch {
+          case _: Throwable =>
+            // If the process of conversion of the expression throws exception, then we need to
+            // fallback the whole operator. The unsupported expression may cause the calculation
+            // crash. For example, the result data type of the expression is decimal and the scale
+            // of the decimal is negative, but velox don't allow decimal type with negative scale.
+            newExpr
+        } finally {
+          TransformerState.finishValidation
+        }
+    }
+  }
+
   def create(original: ProjectExec): ProjectExecTransformer = {
     val replacedAlias: ListBuffer[Alias] = ListBuffer()
     val newProjectList = original.projectList.map {
-      p => replaceExpression(p, replacedAlias).asInstanceOf[NamedExpression]
+      p => replaceExpression(p, original.child.output, replacedAlias).asInstanceOf[NamedExpression]
     }
     val partialProject =
       ColumnarPartialProjectExec(original.projectList, original.child)(replacedAlias.toSeq)

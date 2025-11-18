@@ -60,8 +60,7 @@ class DummyRuntime final : public Runtime {
 
   std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,
-      const std::vector<std::shared_ptr<ResultIterator>>& inputs,
-      const std::unordered_map<std::string, std::string>& sessionConf) override {
+      const std::vector<std::shared_ptr<ResultIterator>>& inputs) override {
     auto resIter = std::make_unique<DummyResultIterator>();
     auto iter = std::make_shared<ResultIterator>(std::move(resIter));
     return iter;
@@ -150,7 +149,7 @@ TEST(TestRuntime, CreateVeloxRuntime) {
 TEST(TestRuntime, GetResultIterator) {
   DummyMemoryManager mm(kDummyBackendKind);
   auto runtime = std::make_shared<DummyRuntime>(kDummyBackendKind, &mm, std::unordered_map<std::string, std::string>());
-  auto iter = runtime->createResultIterator("/tmp/test-spill", {}, {});
+  auto iter = runtime->createResultIterator("/tmp/test-spill", {});
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();
   ASSERT_NE(next, nullptr);

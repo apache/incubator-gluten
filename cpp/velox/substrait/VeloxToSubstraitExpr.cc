@@ -136,7 +136,7 @@ const ::substrait::Expression_Literal& toSubstraitNotNullLiteral(
     case velox::TypeKind::TIMESTAMP: {
       auto vTimeStamp = variantValue.value<TypeKind::TIMESTAMP>();
       auto micros = vTimeStamp.getSeconds() * 1000000 + vTimeStamp.getNanos() / 1000;
-      literalExpr->set_timestamp(micros);
+      literalExpr->set_timestamp_tz(micros);
       break;
     }
     case velox::TypeKind::VARCHAR: {
@@ -250,7 +250,7 @@ const ::substrait::Expression_Literal& toSubstraitNotNullLiteral<TypeKind::TIMES
   ::substrait::Expression_Literal* literalExpr =
       google::protobuf::Arena::CreateMessage<::substrait::Expression_Literal>(&arena);
   auto micros = value.getSeconds() * 1000000 + value.getNanos() / 1000;
-  literalExpr->set_timestamp(micros);
+  literalExpr->set_timestamp_tz(micros);
   literalExpr->set_nullable(false);
   return *literalExpr;
 }

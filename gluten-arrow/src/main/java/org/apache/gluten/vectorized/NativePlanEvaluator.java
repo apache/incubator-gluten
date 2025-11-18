@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NativePlanEvaluator {
@@ -43,6 +44,12 @@ public class NativePlanEvaluator {
     this.jniWrapper = PlanEvaluatorJniWrapper.create(runtime);
   }
 
+  public static NativePlanEvaluator create(String backendName, Map<String, String> extraConf) {
+    return new NativePlanEvaluator(
+        Runtimes.contextInstance(
+            backendName, String.format("NativePlanEvaluator-%d", id.getAndIncrement()), extraConf));
+  }
+
   public static NativePlanEvaluator create(String backendName) {
     return new NativePlanEvaluator(
         Runtimes.contextInstance(
@@ -51,6 +58,10 @@ public class NativePlanEvaluator {
 
   public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
+  }
+
+  public boolean doNativeValidateExpression(byte[] expression, byte[] inputType, byte[][] mapping) {
+    return jniWrapper.nativeValidateExpression(expression, inputType, mapping);
   }
 
   public static void injectWriteFilesTempPath(String path, String fileName) {
@@ -65,8 +76,7 @@ public class NativePlanEvaluator {
       byte[][] splitInfo,
       List<ColumnarBatchInIterator> iterList,
       int partitionIndex,
-      String spillDirPath,
-      boolean enableCudf)
+      String spillDirPath)
       throws RuntimeException {
     final long itrHandle =
         jniWrapper.nativeCreateKernelWithIterator(
@@ -77,8 +87,7 @@ public class NativePlanEvaluator {
             partitionIndex, // TaskContext.getPartitionId(),
             TaskContext.get().taskAttemptId(),
             DebugUtil.isDumpingEnabledForTask(),
-            spillDirPath,
-            enableCudf);
+            spillDirPath);
     final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle);
     runtime
         .memoryManager()

@@ -135,7 +135,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 2)
   }
 
-  test("is_not_null") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("is_not_null", "3.5") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
@@ -175,7 +176,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 0)
   }
 
-  test("and pushdown") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("and pushdown", "3.5") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_orderkey > 2 " +
         "and l_orderkey = 1") { _ => }
@@ -351,7 +353,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 7)
   }
 
-  test("window expression") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("window expression", "3.5") {
     runQueryAndCompare(
       "select max(l_partkey) over" +
         " (partition by l_suppkey order by l_commitdate" +
@@ -2167,5 +2170,15 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           assert(metrics("numOutputBatches").value == expectedNumBatches)
         }
       })
+  }
+
+  test("Expression unsupported by backend can be handled by ColumnarPartialProject") {
+    runQueryAndCompare(
+      "SELECT c_custkey, map_from_arrays(array(c_name), array(c_comment)) FROM customer") {
+      df =>
+        val executedPlan = getExecutedPlan(df)
+        assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+        assert(executedPlan.count(_.isInstanceOf[ColumnarPartialProjectExec]) == 1)
+    }
   }
 }

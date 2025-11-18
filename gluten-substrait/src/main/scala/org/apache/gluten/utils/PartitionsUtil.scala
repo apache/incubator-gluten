@@ -16,16 +16,20 @@
  */
 package org.apache.gluten.utils
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.utils.PartitionsUtil.regeneratePartition
 
 import org.apache.spark.Partition
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, HadoopFsRelation, PartitionDirectory, PartitionedFile}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
 
 import org.apache.hadoop.fs.Path
+
+import scala.collection.mutable
 
 case class PartitionsUtil(
     relation: HadoopFsRelation,
@@ -96,7 +100,10 @@ case class PartitionsUtil(
       }
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
 
-    FilePartition.getFilePartitions(relation.sparkSession, splitFiles, maxSplitBytes)
+    val inputPartitions =
+      FilePartition.getFilePartitions(relation.sparkSession, splitFiles, maxSplitBytes)
+
+    regeneratePartition(inputPartitions, GlutenConfig.get.smallFileThreshold)
   }
 
   private def genBucketedPartitionSeq(): Seq[Partition] = {
@@ -138,5 +145,92 @@ case class PartitionsUtil(
 
   private def toAttribute(colName: String): Option[Attribute] = {
     output.find(_.name == colName)
+  }
+}
+
+object PartitionsUtil {
+
+  /**
+   * Regenerate the partitions by balancing the number of files per partition and total size per
+   * partition.
+   */
+  def regeneratePartition(
+      inputPartitions: Seq[FilePartition],
+      smallFileThreshold: Double): Seq[FilePartition] = {
+
+    // Flatten and sort descending by file size.
+    val filesSorted: Seq[(PartitionedFile, Long)] =
+      inputPartitions
+        .flatMap(_.files)
+        .map(f => (f, f.length))
+        .sortBy(_._2)(Ordering.Long.reverse)
+
+    val partitions = Array.fill(inputPartitions.size)(mutable.ArrayBuffer.empty[PartitionedFile])
+
+    def addToBucket(
+        heap: mutable.PriorityQueue[(Long, Int, Int)],
+        file: PartitionedFile,
+        sz: Long): Unit = {
+      val (load, numFiles, idx) = heap.dequeue()
+      partitions(idx) += file
+      heap.enqueue((load + sz, numFiles + 1, idx))
+    }
+
+    // First by load, then by numFiles.
+    val heapByFileSize =
+      mutable.PriorityQueue.empty[(Long, Int, Int)](
+        Ordering
+          .by[(Long, Int, Int), (Long, Int)] {
+            case (load, numFiles, _) =>
+              (load, numFiles)
+          }
+          .reverse
+      )
+
+    if (smallFileThreshold > 0) {
+      val smallFileTotalSize = filesSorted.map(_._2).sum * smallFileThreshold
+      // First by numFiles, then by load.
+      val heapByFileNum =
+        mutable.PriorityQueue.empty[(Long, Int, Int)](
+          Ordering
+            .by[(Long, Int, Int), (Int, Long)] {
+              case (load, numFiles, _) =>
+                (numFiles, load)
+            }
+            .reverse
+        )
+
+      inputPartitions.indices.foreach(i => heapByFileNum.enqueue((0L, 0, i)))
+
+      var numSmallFiles = 0
+      var smallFileSize = 0L
+      // Enqueue small files to the least number of files and the least load.
+      filesSorted.reverse.takeWhile(f => f._2 + smallFileSize <= smallFileTotalSize).foreach {
+        case (file, sz) =>
+          addToBucket(heapByFileNum, file, sz)
+          numSmallFiles += 1
+          smallFileSize += sz
+      }
+
+      // Move buckets from heapByFileNum to heapByFileSize.
+      while (heapByFileNum.nonEmpty) {
+        heapByFileSize.enqueue(heapByFileNum.dequeue())
+      }
+
+      // Finally, enqueue remaining files.
+      filesSorted.take(filesSorted.size - numSmallFiles).foreach {
+        case (file, sz) =>
+          addToBucket(heapByFileSize, file, sz)
+      }
+    } else {
+      inputPartitions.indices.foreach(i => heapByFileSize.enqueue((0L, 0, i)))
+
+      filesSorted.foreach {
+        case (file, sz) =>
+          addToBucket(heapByFileSize, file, sz)
+      }
+    }
+
+    partitions.zipWithIndex.map { case (p, idx) => FilePartition(idx, p.toArray) }
   }
 }

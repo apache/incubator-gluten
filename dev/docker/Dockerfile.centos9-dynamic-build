@@ -45,11 +45,12 @@ RUN set -ex; \
     wget -nv https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz -P /opt/; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
     cd /opt/gluten/.github/workflows/util/; \
-    ./install-spark-resources.sh 3.2; \
-    ./install-spark-resources.sh 3.3; \
-    ./install-spark-resources.sh 3.4; \
-    ./install-spark-resources.sh 3.5; \
-    ./install-spark-resources.sh 3.5-scala2.13; \
+    ./install_spark_resources.sh 3.2; \
+    ./install_spark_resources.sh 3.3; \
+    ./install_spark_resources.sh 3.4; \
+    ./install_spark_resources.sh 3.5; \
+    ./install_spark_resources.sh 3.5-scala2.13; \
+    ./install_spark_resources.sh 4.0; \
     if [ "$(uname -m)" = "aarch64" ]; then \
         export CPU_TARGET="aarch64"; \
     fi; \

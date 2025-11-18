@@ -1451,4 +1451,26 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
   }
 }
 
+bool SubstraitToVeloxPlanValidator::validate(
+    const ::substrait::Expression& expression,
+    const RowTypePtr& inputType,
+    std::unordered_map<uint64_t, std::string> functionMappings) {
+  try {
+    // Create plan converter and expression converter to help the validation.
+    planConverter_->constructFunctionMap(std::move(functionMappings));
+    exprConverter_ = planConverter_->getExprConverter();
+
+    if (!validateExpression(expression, inputType)) {
+      return false;
+    }
+    std::vector<core::TypedExprPtr> expressions{exprConverter_->toVeloxExpr(expression, inputType)};
+    // Try to compile the expressions. If there is any unregistered function or
+    // mismatched type, exception will be thrown.
+    exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
+    return true;
+  } catch (const VeloxException& err) {
+    return false;
+  }
+}
+
 } // namespace gluten

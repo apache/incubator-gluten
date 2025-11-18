@@ -17,12 +17,11 @@
 set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_11_07
+VELOX_REPO=https://github.com/IBM/velox.git
+VELOX_BRANCH=oap-2025_11_15
+VELOX_ENHANCED_BRANCH=ibm-2025_11_15
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
-VELOX_ENHANCED_REPO=https://github.com/IBM/velox.git
-VELOX_ENHANCED_BRANCH=ibm-2025_11_07
 ENABLE_ENHANCED_FEATURES=OFF
 
 # Developer use only for testing Velox PR.
@@ -34,7 +33,6 @@ for arg in "$@"; do
   case $arg in
   --velox_repo=*)
     VELOX_REPO=("${arg#*=}")
-    VELOX_ENHANCED_REPO=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --velox_branch=*)
@@ -52,7 +50,6 @@ for arg in "$@"; do
     ;;
   --enable_enhanced_features=*)
     ENABLE_ENHANCED_FEATURES=("${arg#*=}")
-    VELOX_REPO=$VELOX_ENHANCED_REPO
     VELOX_BRANCH=$VELOX_ENHANCED_BRANCH
     shift # Remove argument name from processing
     ;;
