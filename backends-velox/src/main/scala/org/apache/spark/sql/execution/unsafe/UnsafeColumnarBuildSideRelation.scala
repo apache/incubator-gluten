@@ -54,9 +54,9 @@ object UnsafeColumnarBuildSideRelation {
   def apply(
       output: Seq[Attribute],
       batches: Seq[UnsafeByteArray],
-      mode: BroadcastMode，
+      mode: BroadcastMode,
       newBuildKeys: Seq[Expression] = Seq.empty,
-      offload: Boolean = false)): UnsafeColumnarBuildSideRelation = {
+      offload: Boolean = false): UnsafeColumnarBuildSideRelation = {
     val boundMode = mode match {
       case HashedRelationBroadcastMode(keys, isNullAware) =>
         // Bind each key to the build-side output so simple cols become BoundReference
@@ -120,7 +120,7 @@ class UnsafeColumnarBuildSideRelation(
 
   private var hashTableData: Long = 0L
 
-  def buildHashTable(broadCastContext: BroadcastHashJoinContext): (Long, BuildSideRelation) =
+  def buildHashTable(broadcastContext: BroadcastHashJoinContext): (Long, BuildSideRelation) =
     synchronized {
       if (hashTableData == 0) {
         val runtime = Runtimes.contextInstance(
@@ -151,12 +151,12 @@ class UnsafeColumnarBuildSideRelation(
 
         logDebug(
           s"BHJ value size: " +
-            s"${broadCastContext.buildHashTableId} = ${batches.arraySize}")
+            s"${broadcastContext.buildHashTableId} = ${batches.arraySize}")
 
         val (keys, newOutput) = if (newBuildKeys.isEmpty) {
           (
-            broadCastContext.buildSideJoinKeys.asJava,
-            broadCastContext.buildSideStructure.asJava
+            broadcastContext.buildSideJoinKeys.asJava,
+            broadcastContext.buildSideStructure.asJava
           )
         } else {
           (
@@ -176,14 +176,14 @@ class UnsafeColumnarBuildSideRelation(
         // Build the hash table
         hashTableData = HashJoinBuilder
           .nativeBuild(
-            broadCastContext.buildHashTableId,
+            broadcastContext.buildHashTableId,
             batchArray.toArray,
             joinKey,
-            broadCastContext.substraitJoinType.ordinal(),
-            broadCastContext.hasMixedFiltCondition,
-            broadCastContext.isExistenceJoin,
+            broadcastContext.substraitJoinType.ordinal(),
+            broadcastContext.hasMixedFiltCondition,
+            broadcastContext.isExistenceJoin,
             SubstraitUtil.toNameStruct(newOutput).toByteArray,
-            broadCastContext.isNullAwareAntiJoin
+            broadcastContext.isNullAwareAntiJoin
           )
 
         jniWrapper.close(serializeHandle)

@@ -28,7 +28,7 @@ namespace gluten {
 
 inline static JavaVM* vm = nullptr;
 
-static std::unique_ptr<ObjectStore> hashTableObjStore = ObjectStore::create();
+inline static std::unique_ptr<ObjectStore> hashTableObjStore = ObjectStore::create();
 
 // Return the hash table builder address.
 std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
