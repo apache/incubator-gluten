@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "builtin-baseline": "a7b6122f6b6504d16d96117336a0562693579933",
+  "builtin-baseline": "4334d8b4c8916018600212ab4dd4bbdc343065d1",
   "default-features": ["velox"],
   "features": {
     "velox": {
@@ -108,6 +108,13 @@
   "overrides": [
     { "name": "fmt", "version": "10.1.1" },
     { "name": "liblzma", "version": "5.6.2" },
-    { "name": "xsimd", "version": "10.0.0" }
+    { "name": "xsimd", "version": "10.0.0" },
+    { "name": "snappy", "version": "1.1.8"},
+    { "name": "protobuf", "version": "3.21.8"},
+    { "name": "abseil", "version": "20230802.1"},
+    { "name": "re2", "version": "2023-07-01"},
+    { "name": "glog", "version": "0.6.0"},
+    { "name": "gflags", "version": "2.2.2"},
+    { "name": "azure-identity-cpp", "version": "1.11.0"}
   ]
 }
