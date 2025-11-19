@@ -54,7 +54,6 @@ class ArrowMemoryPool final : public arrow::MemoryPool {
 
  private:
   std::unique_ptr<MemoryAllocator> allocator_;
-
   ArrowMemoryPoolReleaser releaser_;
 };
 
