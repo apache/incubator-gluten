@@ -16,27 +16,17 @@
  */
 package org.apache.iceberg.spark;
 
-import org.apache.gluten.TestConfUtil;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.*;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
-import org.apache.iceberg.hive.HiveCatalog;
-import org.apache.iceberg.hive.TestHiveMetastore;
 import org.apache.iceberg.inmemory.InMemoryCatalog;
-import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.rest.RESTCatalog;
 import org.apache.iceberg.util.PropertyUtil;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.internal.SQLConf;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,15 +35,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.Map;
 
 import static org.apache.iceberg.CatalogProperties.CATALOG_IMPL;
 import static org.apache.iceberg.CatalogUtil.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Overwrite super class startMetastoreAndSpark to add Gluten config
-// Must add the config when create spark session because add plugin config
 // And remove rest catalog, we don;t need to test the catalog.
 @ExtendWith(ParameterizedTestExtension.class)
 public abstract class TestBaseWithCatalog extends TestBase {
@@ -148,35 +135,6 @@ public abstract class TestBaseWithCatalog extends TestBase {
       }
     }
     this.validationNamespaceCatalog = (SupportsNamespaces) validationCatalog;
-  }
-
-  @BeforeAll
-  public static void startMetastoreAndSpark() {
-    metastore = new TestHiveMetastore();
-    metastore.start();
-    hiveConf = metastore.hiveConf();
-    spark =
-        SparkSession.builder()
-            .master("local[2]")
-            .config(TestConfUtil.GLUTEN_CONF)
-            .config("spark.driver.host", InetAddress.getLoopbackAddress().getHostAddress())
-            .config(SQLConf.PARTITION_OVERWRITE_MODE().key(), "dynamic")
-            .config(
-                "spark.hadoop." + HiveConf.ConfVars.METASTOREURIS.varname,
-                hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname))
-            .config("spark.sql.legacy.respectNullabilityInTextDatasetConversion", "true")
-            .enableHiveSupport()
-            .getOrCreate();
-    sparkContext = JavaSparkContext.fromSparkContext(spark.sparkContext());
-    catalog =
-        (HiveCatalog)
-            CatalogUtil.loadCatalog(
-                HiveCatalog.class.getName(), "hive", ImmutableMap.of(), hiveConf);
-
-    try {
-      catalog.createNamespace(Namespace.of(new String[] {"default"}));
-    } catch (AlreadyExistsException var1) {
-    }
   }
 
   @BeforeEach
