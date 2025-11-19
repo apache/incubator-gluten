@@ -31,6 +31,7 @@ constexpr uint32_t kMaskLower27Bits = (1 << 27) - 1;
 constexpr uint64_t kMaskLower40Bits = (1UL << 40) - 1;
 constexpr uint32_t kPartitionIdStartByteIndex = 5;
 constexpr uint32_t kPartitionIdEndByteIndex = 7;
+constexpr uint32_t kMaxPageNumber = (1 << 13) - 1; // 13-bit max = 8191
 
 uint64_t toCompactRowId(uint32_t partitionId, uint32_t pageNumber, uint32_t offsetInPage) {
   // |63 partitionId(24) |39 inputIndex(13) |26 rowIndex(27) |
@@ -216,7 +217,7 @@ void VeloxSortShuffleWriter::insertRows(
 }
 
 arrow::Status VeloxSortShuffleWriter::maybeSpill(uint32_t nextRows) {
-  if ((uint64_t)offset_ + nextRows > std::numeric_limits<uint32_t>::max()) {
+  if ((uint64_t)offset_ + nextRows > std::numeric_limits<uint32_t>::max() || pageNumber_ >= kMaxPageNumber) {
     RETURN_NOT_OK(evictAllPartitions());
   }
   return arrow::Status::OK();
