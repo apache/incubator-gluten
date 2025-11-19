@@ -59,7 +59,6 @@ jobs:
             bash dev/ci-velox-buildstatic-centos-7.sh
             ls ./cpp/build/
             mv ./cpp/build/compile_commands.json ./cpp/build/releases/
-            ccache -s
             mkdir -p /work/.m2/repository/org/apache/arrow/
             cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
           "
