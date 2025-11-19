@@ -19,7 +19,6 @@ package org.apache.spark.softaffinity
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.softaffinity.{AffinityManager, SoftAffinityManager}
-import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
 import org.apache.spark.internal.Logging
@@ -81,21 +80,13 @@ abstract class Affinity(val manager: AffinityManager) extends LogLevelUtil with 
   }
 
   /** Update the RDD id to SoftAffinityManager */
-  def updateFilePartitionLocations(
-      allInputPartitions: Seq[Seq[(Seq[Partition], ReadFileFormat)]],
-      rddId: Int): Unit = {
+  def updateFilePartitionLocations(inputPartitions: Seq[Seq[Partition]], rddId: Int): Unit = {
     if (SoftAffinityManager.usingSoftAffinity && SoftAffinityManager.detectDuplicateReading) {
-      allInputPartitions.foreach {
-        inputPartitions =>
-          inputPartitions.foreach {
-            case (currentPartitions, _) =>
-              currentPartitions.foreach {
-                case f: FilePartition =>
-                  SoftAffinityManager.updatePartitionMap(f, rddId)
-                case _ =>
-              }
-          }
-      }
+      inputPartitions.foreach(_.foreach {
+        case f: FilePartition =>
+          SoftAffinityManager.updatePartitionMap(f, rddId)
+        case _ =>
+      })
     }
   }
 }

@@ -121,9 +121,9 @@ case class PaimonScanTransformer(
   override def doExecuteColumnar(): RDD[ColumnarBatch] = throw new UnsupportedOperationException()
 
   override def getSplitInfosFromPartitions(
-      partitions: Seq[(Seq[Partition], ReadFileFormat)]): Seq[SplitInfo] = {
+      partitions: Seq[(Partition, ReadFileFormat)]): Seq[SplitInfo] = {
     val partitionComputer = PaimonScanTransformer.getRowDataPartitionComputer(scan)
-    partitions.flatMap { case (parts, _) => parts.map(partitionToSplitInfo(_, partitionComputer)) }
+    partitions.map { case (partition, _) => partitionToSplitInfo(partition, partitionComputer) }
   }
 
   private def partitionToSplitInfo(

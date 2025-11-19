@@ -49,20 +49,19 @@ case class TestFileSourceScanExecTransformer(
     tableIdentifier,
     disableBucketedScan) {
 
-  override def getPartitions: Seq[(Seq[Partition], ReadFileFormat)] = {
-    val partitions = BackendsApiManager.getTransformerApiInstance
-      .genPartitionSeq(
-        relation,
-        requiredSchema,
-        getPartitionArray(),
-        output,
-        bucketedScan,
-        optionalBucketSet,
-        optionalNumCoalescedBuckets,
-        disableBucketedScan)
+  override def getPartitions: Seq[Partition] =
+    BackendsApiManager.getTransformerApiInstance.genPartitionSeq(
+      relation,
+      requiredSchema,
+      getPartitionArray(),
+      output,
+      bucketedScan,
+      optionalBucketSet,
+      optionalNumCoalescedBuckets,
+      disableBucketedScan)
 
-    Seq((partitions, fileFormat))
-  }
+  override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
+    getPartitions.map((_, fileFormat))
 
   override val nodeNamePrefix: String = "TestFile"
 }

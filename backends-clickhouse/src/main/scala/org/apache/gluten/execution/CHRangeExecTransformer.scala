@@ -54,19 +54,14 @@ case class CHRangeExecTransformer(
     }
   }
 
-  override def getPartitions: Seq[(Seq[Partition], ReadFileFormat)] = {
-    val partitions = (0 until numSlices).map {
-      sliceIndex => GlutenRangeExecPartition(start, end, step, numSlices, sliceIndex)
-    }
-
-    Seq((partitions, ReadFileFormat.UnknownFormat))
-  }
-
   override def getPartitions: Seq[Partition] = {
     (0 until numSlices).map {
       sliceIndex => GlutenRangeExecPartition(start, end, step, numSlices, sliceIndex)
     }
   }
+
+  override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
+    getPartitions.map((_, ReadFileFormat.UnknownFormat))
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =

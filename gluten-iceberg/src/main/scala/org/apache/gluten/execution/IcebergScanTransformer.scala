@@ -140,8 +140,8 @@ case class IcebergScanTransformer(
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
   override def getSplitInfosFromPartitions(
-      partitions: Seq[(Seq[Partition], ReadFileFormat)]): Seq[SplitInfo] = {
-    partitions.flatMap { case (parts, _) => parts.map(partitionToSplitInfo) }
+      partitions: Seq[(Partition, ReadFileFormat)]): Seq[SplitInfo] = {
+    partitions.map { case (partition, _) => partitionToSplitInfo(partition) }
   }
 
   private def partitionToSplitInfo(partition: Partition): SplitInfo = {
