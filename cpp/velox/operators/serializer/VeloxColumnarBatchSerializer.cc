@@ -51,33 +51,40 @@ VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
     rowType_ = asRowType(importFromArrow(*cSchema));
     ArrowSchemaRelease(cSchema); // otherwise the c schema leaks memory
   }
+  arena_ = std::make_unique<StreamArena>(veloxPool_.get());
   serde_ = std::make_unique<serializer::presto::PrestoVectorSerde>();
   options_.useLosslessTimestamp = true;
 }
 
-std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBatches(
-    const std::vector<std::shared_ptr<ColumnarBatch>>& batches) {
-  VELOX_DCHECK(batches.size() != 0, "Should serialize at least 1 vector");
-  const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
-  auto firstRowVector = vb->getRowVector();
-  auto numRows = firstRowVector->size();
-  auto arena = std::make_unique<StreamArena>(veloxPool_.get());
-  auto rowType = asRowType(firstRowVector->type());
-  auto serializer = serde_->createIterativeSerializer(rowType, numRows, arena.get(), &options_);
-  for (auto& batch : batches) {
-    auto rowVector = VeloxColumnarBatch::from(veloxPool_.get(), batch)->getRowVector();
-    const IndexRange allRows{0, rowVector->size()};
-    serializer->append(rowVector, folly::Range(&allRows, 1));
+void VeloxColumnarBatchSerializer::addForSerialization(const std::shared_ptr<ColumnarBatch>& batch) {
+  auto rowVector = VeloxColumnarBatch::from(veloxPool_.get(), batch)->getRowVector();
+  if (serializer_ == nullptr) {
+    // Using first batch's schema to create the Velox serializer. This logic was introduced in
+    // https://github.com/apache/incubator-gluten/pull/1568. It's a bit suboptimal because the schemas
+    // across different batches may vary.
+    auto numRows = rowVector->size();
+    auto rowType = asRowType(rowVector->type());
+    serializer_ = serde_->createIterativeSerializer(rowType, numRows, arena_.get(), &options_);
   }
+  const IndexRange allRows{0, rowVector->size()};
+  serializer_->append(rowVector, folly::Range(&allRows, 1));
+}
 
-  std::shared_ptr<arrow::Buffer> valueBuffer;
-  GLUTEN_ASSIGN_OR_THROW(valueBuffer, arrow::AllocateResizableBuffer(serializer->maxSerializedSize(), arrowPool_));
+int64_t VeloxColumnarBatchSerializer::serializedSize(){
+  VELOX_DCHECK(serializer_ != nullptr, "Should serialize at least 1 vector");
+  return serializer_->maxSerializedSize();
+}
+
+void VeloxColumnarBatchSerializer::serializeTo(uint8_t* address, int64_t size) {
+  VELOX_DCHECK(serializer_ != nullptr, "Should serialize at least 1 vector");
+  auto sizeNeeded = serializer_->maxSerializedSize();
+  GLUTEN_CHECK(size >= sizeNeeded,
+    "The target buffer size is insufficient: " + std::to_string(size) + " vs." + std::to_string(sizeNeeded));
+  std::shared_ptr<arrow::MutableBuffer> valueBuffer = std::make_shared<arrow::MutableBuffer>(address, size);
   auto output = std::make_shared<arrow::io::FixedSizeBufferWriter>(valueBuffer);
   serializer::presto::PrestoOutputStreamListener listener;
   ArrowFixedSizeBufferOutputStream out(output, &listener);
-  serializer->flush(&out);
-  GLUTEN_THROW_NOT_OK(output->Close());
-  return valueBuffer;
+  serializer_->flush(&out);
 }
 
 std::shared_ptr<ColumnarBatch> VeloxColumnarBatchSerializer::deserialize(uint8_t* data, int32_t size) {

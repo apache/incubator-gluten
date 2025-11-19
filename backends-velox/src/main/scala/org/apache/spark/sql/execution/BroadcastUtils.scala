@@ -175,13 +175,18 @@ object BroadcastUtils {
           val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
           numRows += b.numRows()
           try {
-            ColumnarBatchSerializerJniWrapper
+            val unsafeBuffer = ColumnarBatchSerializerJniWrapper
               .create(
                 Runtimes
                   .contextInstance(
                     BackendsApiManager.getBackendName,
                     "BroadcastUtils#serializeStream"))
               .serialize(handle)
+            try {
+              unsafeBuffer.toByteArray
+            } finally {
+              unsafeBuffer.close()
+            }
           } finally {
             ColumnarBatches.release(b)
           }

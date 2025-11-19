@@ -32,13 +32,18 @@ class VeloxColumnarBatchSerializer final : public ColumnarBatchSerializer {
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       struct ArrowSchema* cSchema);
 
-  std::shared_ptr<arrow::Buffer> serializeColumnarBatches(
-      const std::vector<std::shared_ptr<ColumnarBatch>>& batches) override;
+  void addForSerialization(const std::shared_ptr<ColumnarBatch>& batch) override;
+
+  int64_t serializedSize() override;
+
+  void serializeTo(uint8_t* address, int64_t size) override;
 
   std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) override;
 
  private:
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  std::unique_ptr<facebook::velox::StreamArena> arena_;
+  std::unique_ptr<facebook::velox::IterativeVectorSerializer> serializer_;
   facebook::velox::RowTypePtr rowType_;
   std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_;
   facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions options_;
