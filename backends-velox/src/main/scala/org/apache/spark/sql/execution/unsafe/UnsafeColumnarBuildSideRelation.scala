@@ -50,7 +50,7 @@ object UnsafeColumnarBuildSideRelation {
   // Keep constructors with BroadcastMode for compatibility
   def apply(
       output: Seq[Attribute],
-      batches: UnsafeBytesBufferArray,
+      batches: UnsafeByteBufferArray,
       mode: BroadcastMode): UnsafeColumnarBuildSideRelation = {
     val boundMode = mode match {
       case HashedRelationBroadcastMode(keys, isNullAware) =>
@@ -65,7 +65,7 @@ object UnsafeColumnarBuildSideRelation {
   }
   def apply(
       output: Seq[Attribute],
-      bytesBufferArray: Array[Array[Byte]],
+      byteBufferArray: Array[Array[Byte]],
       mode: BroadcastMode): UnsafeColumnarBuildSideRelation = {
     val boundMode = mode match {
       case HashedRelationBroadcastMode(keys, isNullAware) =>
@@ -78,7 +78,7 @@ object UnsafeColumnarBuildSideRelation {
     }
     new UnsafeColumnarBuildSideRelation(
       output,
-      bytesBufferArray,
+      byteBufferArray,
       BroadcastModeUtils.toSafe(boundMode)
     )
   }
@@ -97,7 +97,7 @@ object UnsafeColumnarBuildSideRelation {
 @Experimental
 case class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
-    private var batches: UnsafeBytesBufferArray,
+    private var batches: UnsafeByteBufferArray,
     var safeBroadcastMode: SafeBroadcastMode)
   extends BuildSideRelation
   with Externalizable
@@ -118,27 +118,27 @@ case class UnsafeColumnarBuildSideRelation(
 
   /** needed for serialization. */
   def this() = {
-    this(null, null.asInstanceOf[UnsafeBytesBufferArray], null)
+    this(null, null.asInstanceOf[UnsafeByteBufferArray], null)
   }
 
   def this(
       output: Seq[Attribute],
-      bytesBufferArray: Array[Array[Byte]],
+      byteBufferArray: Array[Array[Byte]],
       safeMode: SafeBroadcastMode
   ) = {
     this(
       output,
-      UnsafeBytesBufferArray(
-        bytesBufferArray.length,
-        bytesBufferArray.map(_.length),
-        bytesBufferArray.map(_.length.toLong).sum
+      UnsafeByteBufferArray(
+        byteBufferArray.length,
+        byteBufferArray.map(_.length),
+        byteBufferArray.map(_.length.toLong).sum
       ),
       safeMode
     )
-    val batchesSize = bytesBufferArray.length
+    val batchesSize = byteBufferArray.length
     for (i <- 0 until batchesSize) {
       // copy the bytes to off-heap memory.
-      batches.putBytesBuffer(i, bytesBufferArray(i))
+      batches.putByteBuffer(i, byteBufferArray(i))
     }
   }
 
@@ -146,10 +146,10 @@ case class UnsafeColumnarBuildSideRelation(
     out.writeObject(output)
     out.writeObject(safeBroadcastMode)
     out.writeInt(batches.arraySize)
-    out.writeObject(batches.bytesBufferLengths)
+    out.writeObject(batches.byteBufferLengths)
     out.writeLong(batches.totalBytes)
     for (i <- 0 until batches.arraySize) {
-      val bytes = batches.getBytesBuffer(i)
+      val bytes = batches.getByteBuffer(i)
       out.write(bytes)
     }
   }
@@ -158,10 +158,10 @@ case class UnsafeColumnarBuildSideRelation(
     kryo.writeObject(out, output.toList)
     kryo.writeClassAndObject(out, safeBroadcastMode)
     out.writeInt(batches.arraySize)
-    kryo.writeObject(out, batches.bytesBufferLengths)
+    kryo.writeObject(out, batches.byteBufferLengths)
     out.writeLong(batches.totalBytes)
     for (i <- 0 until batches.arraySize) {
-      val bytes = batches.getBytesBuffer(i)
+      val bytes = batches.getByteBuffer(i)
       out.write(bytes)
     }
   }
@@ -170,7 +170,7 @@ case class UnsafeColumnarBuildSideRelation(
     output = in.readObject().asInstanceOf[Seq[Attribute]]
     safeBroadcastMode = in.readObject().asInstanceOf[SafeBroadcastMode]
     val totalArraySize = in.readInt()
-    val bytesBufferLengths = in.readObject().asInstanceOf[Array[Int]]
+    val byteBufferLengths = in.readObject().asInstanceOf[Array[Int]]
     val totalBytes = in.readLong()
 
     // scalastyle:off
@@ -180,13 +180,13 @@ case class UnsafeColumnarBuildSideRelation(
      */
     // scalastyle:on
 
-    batches = UnsafeBytesBufferArray(totalArraySize, bytesBufferLengths, totalBytes)
+    batches = UnsafeByteBufferArray(totalArraySize, byteBufferLengths, totalBytes)
 
     for (i <- 0 until totalArraySize) {
-      val length = bytesBufferLengths(i)
+      val length = byteBufferLengths(i)
       val tmpBuffer = new Array[Byte](length)
       in.readFully(tmpBuffer)
-      batches.putBytesBuffer(i, tmpBuffer)
+      batches.putByteBuffer(i, tmpBuffer)
     }
   }
 
@@ -194,16 +194,16 @@ case class UnsafeColumnarBuildSideRelation(
     output = kryo.readObject(in, classOf[List[_]]).asInstanceOf[Seq[Attribute]]
     safeBroadcastMode = kryo.readClassAndObject(in).asInstanceOf[SafeBroadcastMode]
     val totalArraySize = in.readInt()
-    val bytesBufferLengths = kryo.readObject(in, classOf[Array[Int]])
+    val byteBufferLengths = kryo.readObject(in, classOf[Array[Int]])
     val totalBytes = in.readLong()
 
-    batches = UnsafeBytesBufferArray(totalArraySize, bytesBufferLengths, totalBytes)
+    batches = UnsafeByteBufferArray(totalArraySize, byteBufferLengths, totalBytes)
 
     for (i <- 0 until totalArraySize) {
-      val length = bytesBufferLengths(i)
+      val length = byteBufferLengths(i)
       val tmpBuffer = new Array[Byte](length)
       in.read(tmpBuffer)
-      batches.putBytesBuffer(i, tmpBuffer)
+      batches.putByteBuffer(i, tmpBuffer)
     }
   }
 
@@ -252,7 +252,7 @@ case class UnsafeColumnarBuildSideRelation(
 
         override def next: ColumnarBatch = {
           val (offset, length) =
-            batches.getBytesBufferOffsetAndLength(batchId)
+            batches.getByteBufferOffsetAndLength(batchId)
           batchId += 1
           val handle =
             jniWrapper.deserializeDirect(serializerHandle, offset, length)
@@ -309,7 +309,7 @@ case class UnsafeColumnarBuildSideRelation(
         }
 
         override def next(): Iterator[InternalRow] = {
-          val (offset, length) = batches.getBytesBufferOffsetAndLength(batchId)
+          val (offset, length) = batches.getByteBufferOffsetAndLength(batchId)
           batchId += 1
           val batchHandle =
             serializerJniWrapper.deserializeDirect(serializerHandle, offset, length)
