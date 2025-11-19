@@ -101,7 +101,7 @@ function compile {
   # Maybe there is some set option in velox setup script. Run set command again.
   set -exu
 
-  CXX_FLAGS='-Wno-error=stringop-overflow -Wno-error=cpp -Wno-missing-field-initializers -Wno-unknown-warning-option'
+  CXX_FLAGS='-Wno-error=cpp -Wno-missing-field-initializers -Wno-error=uninitialized'
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON -DVELOX_ENABLE_GEO=ON"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
