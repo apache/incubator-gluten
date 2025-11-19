@@ -124,7 +124,6 @@ class VeloxShuffleWriter : public ShuffleWriter {
         veloxPool_(dynamic_cast<VeloxMemoryManager*>(memoryManager)->getLeafMemoryPool()),
         partitionWriter_(partitionWriter) {
     partitioner_ = Partitioner::make(options->partitioning, numPartitions_, options->startPartitionId);
-    arenas_.resize(numPartitions);
     serdeOptions_.useLosslessTimestamp = true;
   }
 
@@ -141,8 +140,6 @@ class VeloxShuffleWriter : public ShuffleWriter {
   std::shared_ptr<PartitionWriter> partitionWriter_;
 
   std::shared_ptr<Partitioner> partitioner_;
-
-  std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
 
   facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
 

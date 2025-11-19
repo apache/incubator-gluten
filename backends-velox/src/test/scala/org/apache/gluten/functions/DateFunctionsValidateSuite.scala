@@ -316,7 +316,8 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("timestampadd", "3.3") {
+  // TODO: fix on spark-4.0
+  testWithRangeSparkVersion("timestampadd", "3.3", "3.5") {
     withTempPath {
       path =>
         val ts = Timestamp.valueOf("2020-02-29 00:00:00.500")

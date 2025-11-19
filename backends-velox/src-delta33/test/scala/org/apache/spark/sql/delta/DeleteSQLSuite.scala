@@ -19,8 +19,10 @@ package org.apache.spark.sql.delta
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.test.{DeltaExcludedTestMixin, DeltaSQLCommandTest}
+import org.apache.spark.tags.ExtendedSQLTest
 
 // spotless:off
+@ExtendedSQLTest
 class DeleteSQLSuite extends DeleteSuiteBase
   with DeltaExcludedTestMixin
   with DeltaSQLCommandTest {
@@ -96,6 +98,7 @@ class DeleteSQLSuite extends DeleteSuiteBase
   }
 }
 
+@ExtendedSQLTest
 class DeleteSQLNameColumnMappingSuite extends DeleteSQLSuite
   with DeltaColumnMappingEnableNameMode {
 
@@ -109,6 +112,7 @@ class DeleteSQLNameColumnMappingSuite extends DeleteSQLSuite
 
 }
 
+@ExtendedSQLTest
 class DeleteSQLWithDeletionVectorsSuite extends DeleteSQLSuite
   with DeltaExcludedTestMixin
   with DeletionVectorsTestUtils {
@@ -142,6 +146,7 @@ class DeleteSQLWithDeletionVectorsSuite extends DeleteSQLSuite
   }
 }
 
+@ExtendedSQLTest
 class DeleteSQLWithDeletionVectorsAndPredicatePushdownSuite
     extends DeleteSQLWithDeletionVectorsSuite {
   override def beforeAll(): Unit = {

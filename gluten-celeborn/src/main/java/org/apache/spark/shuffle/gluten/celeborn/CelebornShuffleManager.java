@@ -134,6 +134,9 @@ public class CelebornShuffleManager
       rowBasedConf.set(SPARK_CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
       rowBasedCelebornConf.set(CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
     }
+
+    // Disable celeborn compression
+    celebornConf.set(CELEBORN_COMPRESSION_CODEC_KEY, "none");
   }
 
   private boolean isDriver() {

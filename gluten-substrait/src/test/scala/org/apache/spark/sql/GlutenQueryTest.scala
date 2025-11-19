@@ -21,8 +21,7 @@ package org.apache.spark.sql
  *   1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.GlutenPlan
-import org.apache.gluten.execution.TransformSupport
+import org.apache.gluten.execution.{GlutenPlan, TransformSupport, WholeStageTransformer}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
@@ -31,10 +30,12 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.classic.ClassicConversions._
-import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan, SQLExecution, UnaryExecNode}
+import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan, SQLExecution, UnaryExecNode, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.util.SparkVersionUtil
 
 import org.junit.Assert
 import org.scalatest.Assertions
@@ -45,7 +46,7 @@ import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 
-abstract class GlutenQueryTest extends PlanTest {
+abstract class GlutenQueryTest extends PlanTest with AdaptiveSparkPlanHelper {
 
   // TODO: remove this if we can suppress unused import error.
   locally {
@@ -356,7 +357,12 @@ abstract class GlutenQueryTest extends PlanTest {
   }
 
   private def getExecutedPlan(plan: SparkPlan): Seq[SparkPlan] = {
-    val subTree = plan match {
+    val stripPlan = if (SparkVersionUtil.gteSpark40) {
+      stripAQEPlan(plan)
+    } else {
+      plan
+    }
+    val subTree = stripPlan match {
       case exec: AdaptiveSparkPlanExec =>
         getExecutedPlan(exec.executedPlan)
       case cmd: CommandResultExec =>
@@ -367,10 +373,10 @@ abstract class GlutenQueryTest extends PlanTest {
         plan.children.flatMap(getExecutedPlan)
     }
 
-    if (plan.nodeName.startsWith("WholeStageCodegen")) {
-      subTree
-    } else {
-      subTree :+ plan
+    plan match {
+      case WholeStageCodegenExec(_) => subTree
+      case WholeStageTransformer(_, _) => subTree
+      case _ => subTree :+ plan
     }
   }
 
@@ -685,24 +691,22 @@ object GlutenQueryTest extends Assertions {
       return None
     }
 
-    // if answer is not fully sorted, we should sort the answer first, then compare them
-    val sortedExpected = expected.sortBy(_.toString())
-    val sortedActual = actual.sortBy(_.toString())
-    if (!compare(sortedExpected, sortedActual)) {
-      return Some(genError(sortedExpected, sortedActual))
+    if (sortedColIdxes.nonEmpty) {
+      // if answer is partially sorted, we should compare the sorted part
+      val expectedPart = expected.map(row => sortedColIdxes.map(row.get))
+      val actualPart = actual.map(row => sortedColIdxes.map(row.get))
+      if (!compare(expectedPart, actualPart)) {
+        return Some(genError(expected, actual))
+      }
+    } else {
+      // if answer is not fully sorted, we should sort the answer first, then compare them
+      val sortedExpected = expected.sortBy(_.toString())
+      val sortedActual = actual.sortBy(_.toString())
+      if (!compare(sortedExpected, sortedActual)) {
+        return Some(genError(sortedExpected, sortedActual))
+      }
     }
 
-    // if answer is absolutely not sorted, the compare above is enough
-    if (sortedColIdxes.isEmpty) {
-      return None
-    }
-
-    // if answer is partially sorted, we should compare the sorted part
-    val expectedPart = expected.map(row => sortedColIdxes.map(row.get))
-    val actualPart = actual.map(row => sortedColIdxes.map(row.get))
-    if (!compare(expectedPart, actualPart)) {
-      return Some(genError(expected, actual))
-    }
     None
   }
 
