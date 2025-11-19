@@ -20,50 +20,60 @@ import org.apache.gluten.TestConfUtil;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.*;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.hive.HiveCatalog;
+import org.apache.iceberg.hive.TestHiveMetastore;
 import org.apache.iceberg.inmemory.InMemoryCatalog;
+import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.rest.RESTCatalog;
-import org.apache.iceberg.rest.RESTCatalogServer;
-import org.apache.iceberg.rest.RESTServerExtension;
 import org.apache.iceberg.util.PropertyUtil;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.internal.SQLConf;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Map;
 
 import static org.apache.iceberg.CatalogProperties.CATALOG_IMPL;
 import static org.apache.iceberg.CatalogUtil.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Overwrite use Gluten config
+// Overwrite super class startMetastoreAndSpark to add Gluten config
+// Must add the config when create spark session because add plugin config
+// And remove rest catalog, we don;t need to test the catalog.
 @ExtendWith(ParameterizedTestExtension.class)
 public abstract class TestBaseWithCatalog extends TestBase {
   protected static File warehouse = null;
 
-  @RegisterExtension
-  private static final RESTServerExtension REST_SERVER_EXTENSION =
-      new RESTServerExtension(
-          Map.of(
-              RESTCatalogServer.REST_PORT,
-              RESTServerExtension.FREE_PORT,
-              // In-memory sqlite database by default is private to the connection that created it.
-              // If more than 1 jdbc connection backed by in-memory sqlite is created behind one
-              // JdbcCatalog, then different jdbc connections could provide different views of table
-              // status even belonging to the same catalog. Reference:
-              // https://www.sqlite.org/inmemorydb.html
-              CatalogProperties.CLIENT_POOL_SIZE,
-              "1"));
+  //  @RegisterExtension
+  //  private static final RESTServerExtension REST_SERVER_EXTENSION =
+  //      new RESTServerExtension(
+  //          Map.of(
+  //              RESTCatalogServer.REST_PORT,
+  //              RESTServerExtension.FREE_PORT,
+  //              // In-memory sqlite database by default is private to the connection that created
+  // it.
+  //              // If more than 1 jdbc connection backed by in-memory sqlite is created behind one
+  //              // JdbcCatalog, then different jdbc connections could provide different views of
+  // table
+  //              // status even belonging to the same catalog. Reference:
+  //              // https://www.sqlite.org/inmemorydb.html
+  //              CatalogProperties.CLIENT_POOL_SIZE,
+  //              "1"));
 
   protected static RESTCatalog restCatalog;
 
@@ -82,7 +92,7 @@ public abstract class TestBaseWithCatalog extends TestBase {
   public static void setUpAll() throws IOException {
     TestBaseWithCatalog.warehouse = File.createTempFile("warehouse", null);
     assertThat(warehouse.delete()).isTrue();
-    restCatalog = REST_SERVER_EXTENSION.client();
+    //    restCatalog = REST_SERVER_EXTENSION.client();
   }
 
   @AfterAll
@@ -119,8 +129,9 @@ public abstract class TestBaseWithCatalog extends TestBase {
               new HadoopCatalog(spark.sessionState().newHadoopConf(), "file:" + warehouse);
           break;
         case ICEBERG_CATALOG_TYPE_REST:
-          this.validationCatalog = restCatalog;
-          break;
+          // remove rest
+          //                    this.validationCatalog = restCatalog;
+          //                    break;
         case ICEBERG_CATALOG_TYPE_HIVE:
           this.validationCatalog = catalog;
           break;
@@ -139,9 +150,33 @@ public abstract class TestBaseWithCatalog extends TestBase {
     this.validationNamespaceCatalog = (SupportsNamespaces) validationCatalog;
   }
 
-  @BeforeEach
-  public void setGluten() {
-    TestConfUtil.GLUTEN_CONF.forEach((k, v) -> spark.conf().set(k, (String) v));
+  @BeforeAll
+  public static void startMetastoreAndSpark() {
+    metastore = new TestHiveMetastore();
+    metastore.start();
+    hiveConf = metastore.hiveConf();
+    spark =
+        SparkSession.builder()
+            .master("local[2]")
+            .config(TestConfUtil.GLUTEN_CONF)
+            .config("spark.driver.host", InetAddress.getLoopbackAddress().getHostAddress())
+            .config(SQLConf.PARTITION_OVERWRITE_MODE().key(), "dynamic")
+            .config(
+                "spark.hadoop." + HiveConf.ConfVars.METASTOREURIS.varname,
+                hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname))
+            .config("spark.sql.legacy.respectNullabilityInTextDatasetConversion", "true")
+            .enableHiveSupport()
+            .getOrCreate();
+    sparkContext = JavaSparkContext.fromSparkContext(spark.sparkContext());
+    catalog =
+        (HiveCatalog)
+            CatalogUtil.loadCatalog(
+                HiveCatalog.class.getName(), "hive", ImmutableMap.of(), hiveConf);
+
+    try {
+      catalog.createNamespace(Namespace.of(new String[] {"default"}));
+    } catch (AlreadyExistsException var1) {
+    }
   }
 
   @BeforeEach
