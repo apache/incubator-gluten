@@ -316,12 +316,6 @@
       </properties>
     </profile>
     <profile>
-      <id>celeborn-0.4</id>
-      <properties>
-        <celeborn.version>0.4.3</celeborn.version>
-      </properties>
-    </profile>
-    <profile>
       <id>celeborn-0.5</id>
       <properties>
         <celeborn.version>0.5.4</celeborn.version>

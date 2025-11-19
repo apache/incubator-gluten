@@ -40,7 +40,6 @@ RUN set -ex; \
     tar -xvf ${local_binary}; \
     mv apache-maven-${maven_version} /usr/lib/maven; \
     rm -rf ${local_binary}; \
-    wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.4.3/apache-celeborn-0.4.3-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.5.4/apache-celeborn-0.5.4-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.6.1/apache-celeborn-0.6.1-bin.tgz -P /opt/; \
     wget -nv https://archive.apache.org/dist/incubator/uniffle/0.9.2/apache-uniffle-0.9.2-incubating-bin.tar.gz -P /opt/; \
