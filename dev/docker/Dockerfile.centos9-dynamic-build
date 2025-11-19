@@ -41,7 +41,7 @@ RUN set -ex; \
     wget -nv ${mirror_host}/celeborn/celeborn-0.5.4/apache-celeborn-0.5.4-bin.tgz?action=download -P /opt/; \
     wget -nv ${mirror_host}/celeborn/celeborn-0.6.1/apache-celeborn-0.6.1-bin.tgz?action=download -P /opt/; \
     wget -nv ${mirror_host}/uniffle/0.9.2/apache-uniffle-0.9.2-incubating-bin.tar.gz?action=download -P /opt/; \
-    wget -nv https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz -P /opt/; \
+    wget -nv ${mirror_host}/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz -P /opt/; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
     cd /opt/gluten/.github/workflows/util/; \
     ./install-spark-resources.sh 3.2; \
