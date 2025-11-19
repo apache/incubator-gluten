@@ -101,13 +101,15 @@ function compile {
   CXX_FLAGS='-Wno-error=cpp -Wno-missing-field-initializers -Wno-error=uninitialized'
   # Set compiler specific flags.
   local compiler="${CXX:-c++}"
-  local compiler_specific_flag="-Wno-error=stringop-overflow"
   # The following flag is not applicable for Clang.
+  local compiler_specific_flag="-Wno-error=stringop-overflow"
   if $compiler $compiler_specific_flag -E - </dev/null >/dev/null 2>&1; then
     CXX_FLAGS="$CXX_FLAGS $compiler_specific_flag"
   fi
 
-  COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON -DVELOX_ENABLE_GEO=ON"
+  COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF \
+      -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON \
+      -DVELOX_ENABLE_GEO=ON"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
@@ -135,7 +137,8 @@ function compile {
   if [ $ENABLE_GPU == "ON" ]; then
     # the cuda default options are for Centos9 image from Meta
     echo "enable GPU support."
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GPU=ON -DVELOX_ENABLE_CUDF=ON -DCMAKE_CUDA_ARCHITECTURES=70 -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc"
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GPU=ON -DVELOX_ENABLE_CUDF=ON -DCMAKE_CUDA_ARCHITECTURES=70 \
+        -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc"
   fi
   if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
