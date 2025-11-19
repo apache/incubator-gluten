@@ -18,6 +18,7 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
+
 import org.apache.spark.unsafe.memory.UnsafeByteBuffer;
 
 public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {

@@ -251,7 +251,8 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   byteArrayClass = createGlobalClassReferenceOrError(env, "[B");
 
   unsafeByteBufferClass = createGlobalClassReferenceOrError(env, "Lorg/apache/spark/unsafe/memory/UnsafeByteBuffer;");
-  unsafeByteBufferAllocate = env->GetStaticMethodID(unsafeByteBufferClass, "allocate", "(J)Lorg/apache/spark/unsafe/memory/UnsafeByteBuffer;");
+  unsafeByteBufferAllocate =
+      env->GetStaticMethodID(unsafeByteBufferClass, "allocate", "(J)Lorg/apache/spark/unsafe/memory/UnsafeByteBuffer;");
   unsafeByteBufferAddress = env->GetMethodID(unsafeByteBufferClass, "address", "()J");
   unsafeByteBufferSize = env->GetMethodID(unsafeByteBufferClass, "size", "()J");
 

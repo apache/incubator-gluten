@@ -16,15 +16,14 @@
  */
 package org.apache.spark.unsafe.memory;
 
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
+
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.spark.task.TaskResources;
 import org.apache.spark.unsafe.Platform;
 
-/**
- * The API is for being called from C++ via JNI.
- */
+/** The API is for being called from C++ via JNI. */
 public class UnsafeByteBuffer {
   private final ArrowBuf buffer;
   private final long size;
@@ -59,7 +58,8 @@ public class UnsafeByteBuffer {
 
   public byte[] toByteArray() {
     final byte[] values = new byte[Math.toIntExact(size)];
-    Platform.copyMemory(null, buffer.memoryAddress(), values, Platform.BYTE_ARRAY_OFFSET, values.length);
+    Platform.copyMemory(
+        null, buffer.memoryAddress(), values, Platform.BYTE_ARRAY_OFFSET, values.length);
     return values;
   }
 }

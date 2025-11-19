@@ -25,7 +25,6 @@ import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.spark.memory.GlobalOffHeapMemory;
-import org.apache.spark.memory.GlobalOffHeapMemoryTarget;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.task.TaskResource;
 import org.apache.spark.task.TaskResources;
@@ -41,7 +40,8 @@ public class ArrowBufferAllocators {
   private static final BufferAllocator GLOBAL_INSTANCE;
 
   static {
-    final AllocationListener listener = new ManagedAllocationListener(GlobalOffHeapMemory.target(), GLOBAL_USAGE);
+    final AllocationListener listener =
+        new ManagedAllocationListener(GlobalOffHeapMemory.target(), GLOBAL_USAGE);
     GLOBAL_INSTANCE = new RootAllocator(listener, Long.MAX_VALUE);
   }
 

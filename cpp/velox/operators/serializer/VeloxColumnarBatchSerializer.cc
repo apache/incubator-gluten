@@ -70,7 +70,7 @@ void VeloxColumnarBatchSerializer::addForSerialization(const std::shared_ptr<Col
   serializer_->append(rowVector, folly::Range(&allRows, 1));
 }
 
-int64_t VeloxColumnarBatchSerializer::serializedSize(){
+int64_t VeloxColumnarBatchSerializer::serializedSize() {
   VELOX_DCHECK(serializer_ != nullptr, "Should serialize at least 1 vector");
   return serializer_->maxSerializedSize();
 }
@@ -78,8 +78,9 @@ int64_t VeloxColumnarBatchSerializer::serializedSize(){
 void VeloxColumnarBatchSerializer::serializeTo(uint8_t* address, int64_t size) {
   VELOX_DCHECK(serializer_ != nullptr, "Should serialize at least 1 vector");
   auto sizeNeeded = serializer_->maxSerializedSize();
-  GLUTEN_CHECK(size >= sizeNeeded,
-    "The target buffer size is insufficient: " + std::to_string(size) + " vs." + std::to_string(sizeNeeded));
+  GLUTEN_CHECK(
+      size >= sizeNeeded,
+      "The target buffer size is insufficient: " + std::to_string(size) + " vs." + std::to_string(sizeNeeded));
   std::shared_ptr<arrow::MutableBuffer> valueBuffer = std::make_shared<arrow::MutableBuffer>(address, size);
   auto output = std::make_shared<arrow::io::FixedSizeBufferWriter>(valueBuffer);
   serializer::presto::PrestoOutputStreamListener listener;
