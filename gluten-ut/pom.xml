@@ -96,11 +96,16 @@
       <type>test-jar</type>
     </dependency>
     <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-tags_${scala.binary.version}</artifactId>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
       <groupId>io.delta</groupId>
       <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
       <scope>test</scope>
     </dependency>
-
+    <!-- Scala -->
     <dependency>
       <groupId>org.scalacheck</groupId>
       <artifactId>scalacheck_${scala.binary.version}</artifactId>

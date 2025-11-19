@@ -38,6 +38,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
 
 // scalastyle:off import.ordering.noEmptyLine
@@ -46,6 +47,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import java.io.{File, FileNotFoundException}
 import java.util.concurrent.atomic.AtomicInteger
 
+@ExtendedSQLTest
 class DeltaSuite
   extends QueryTest
   with SharedSparkSession
@@ -3201,6 +3203,7 @@ class DeltaSuite
   }
 }
 
+@ExtendedSQLTest
 class DeltaNameColumnMappingSuite extends DeltaSuite with DeltaColumnMappingEnableNameMode {
 
   import testImplicits._
