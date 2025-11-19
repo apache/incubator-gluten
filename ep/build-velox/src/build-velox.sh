@@ -98,10 +98,15 @@ for arg in "$@"; do
 done
 
 function compile {
-  # Maybe there is some set option in velox setup script. Run set command again.
-  set -exu
-
   CXX_FLAGS='-Wno-error=cpp -Wno-missing-field-initializers -Wno-error=uninitialized'
+  # Set compiler specific flags.
+  local compiler="${CXX:-c++}"
+  local compiler_specific_flag="-Wno-error=stringop-overflow"
+  # The following flag is not applicable for Clang.
+  if $compiler $compiler_specific_flag -E - </dev/null >/dev/null 2>&1; then
+    CXX_FLAGS="$CXX_FLAGS $compiler_specific_flag"
+  fi
+
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON -DVELOX_ENABLE_GEO=ON"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
