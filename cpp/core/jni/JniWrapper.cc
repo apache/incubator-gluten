@@ -1162,8 +1162,8 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSeriali
   GLUTEN_DCHECK(batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
 
   auto serializer = ctx->createColumnarBatchSerializer(nullptr);
-  serializer->addForSerialization(batch);
-  auto serializedSize = serializer->serializedSize();
+  serializer->append(batch);
+  auto serializedSize = serializer->maxSerializedSize();
   auto byteBuffer = env->CallStaticObjectMethod(unsafeByteBufferClass, unsafeByteBufferAllocate, serializedSize);
   auto byteBufferAddress = env->CallLongMethod(byteBuffer, unsafeByteBufferAddress);
   auto byteBufferSize = env->CallLongMethod(byteBuffer, unsafeByteBufferSize);

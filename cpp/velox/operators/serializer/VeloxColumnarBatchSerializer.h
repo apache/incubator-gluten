@@ -32,9 +32,9 @@ class VeloxColumnarBatchSerializer final : public ColumnarBatchSerializer {
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       struct ArrowSchema* cSchema);
 
-  void addForSerialization(const std::shared_ptr<ColumnarBatch>& batch) override;
+  void append(const std::shared_ptr<ColumnarBatch>& batch) override;
 
-  int64_t serializedSize() override;
+  int64_t maxSerializedSize() override;
 
   void serializeTo(uint8_t* address, int64_t size) override;
 

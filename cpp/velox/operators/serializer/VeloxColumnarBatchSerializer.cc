@@ -56,7 +56,7 @@ VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
   options_.useLosslessTimestamp = true;
 }
 
-void VeloxColumnarBatchSerializer::addForSerialization(const std::shared_ptr<ColumnarBatch>& batch) {
+void VeloxColumnarBatchSerializer::append(const std::shared_ptr<ColumnarBatch>& batch) {
   auto rowVector = VeloxColumnarBatch::from(veloxPool_.get(), batch)->getRowVector();
   if (serializer_ == nullptr) {
     // Using first batch's schema to create the Velox serializer. This logic was introduced in
@@ -70,7 +70,7 @@ void VeloxColumnarBatchSerializer::addForSerialization(const std::shared_ptr<Col
   serializer_->append(rowVector, folly::Range(&allRows, 1));
 }
 
-int64_t VeloxColumnarBatchSerializer::serializedSize() {
+int64_t VeloxColumnarBatchSerializer::maxSerializedSize() {
   VELOX_DCHECK(serializer_ != nullptr, "Should serialize at least 1 vector");
   return serializer_->maxSerializedSize();
 }

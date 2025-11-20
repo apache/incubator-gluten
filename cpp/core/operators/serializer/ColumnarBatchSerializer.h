@@ -29,9 +29,9 @@ class ColumnarBatchSerializer {
 
   virtual ~ColumnarBatchSerializer() = default;
 
-  virtual void addForSerialization(const std::shared_ptr<ColumnarBatch>& batch) = 0;
+  virtual void append(const std::shared_ptr<ColumnarBatch>& batch) = 0;
 
-  virtual int64_t serializedSize() = 0;
+  virtual int64_t maxSerializedSize() = 0;
 
   virtual void serializeTo(uint8_t* address, int64_t size) = 0;
 
