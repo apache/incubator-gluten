@@ -138,15 +138,12 @@ case class IcebergScanTransformer(
       case _ => -1
     }
     if (formatVersion > 0 && formatVersion >= 3) {
-      val hasUnsupportedDelete = filteredPartitions.exists {
-        partitionGroup =>
-          partitionGroup.exists {
-            case p: SparkDataSourceRDDPartition =>
-              GlutenIcebergSourceUtil.deleteExists(p)
-            case other =>
-              return ValidationResult.failed(
-                s"Unsupported partition type: ${other.getClass.getSimpleName}")
-          }
+      val hasUnsupportedDelete = finalPartitions.exists {
+        case p: SparkDataSourceRDDPartition =>
+          GlutenIcebergSourceUtil.deleteExists(p)
+        case other =>
+          return ValidationResult.failed(
+            s"Unsupported partition type: ${other.getClass.getSimpleName}")
       }
       if (hasUnsupportedDelete) {
         return ValidationResult.failed("Delete file format puffin is not supported")

@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 
-import org.apache.iceberg.{FileFormat, PartitionField, PartitionSpec, Schema}
+import org.apache.iceberg.{FileFormat, PartitionField, PartitionSpec, Schema, TableProperties}
 import org.apache.iceberg.TableProperties.{ORC_COMPRESSION, ORC_COMPRESSION_DEFAULT, PARQUET_COMPRESSION, PARQUET_COMPRESSION_DEFAULT}
 import org.apache.iceberg.avro.AvroSchemaUtil
 import org.apache.iceberg.spark.source.IcebergWriteUtil
@@ -100,6 +100,18 @@ trait IcebergWriteExec extends ColumnarV2TableWriteExec {
     }
     if (query.output.exists(a => !AvroSchemaUtil.makeCompatibleName(a.name).equals(a.name))) {
       return ValidationResult.failed("Not support the compatible column name")
+    }
+    if (
+      IcebergWriteUtil
+        .getTable(write)
+        .properties()
+        .getOrDefault(TableProperties.SPARK_WRITE_ACCEPT_ANY_SCHEMA, "false")
+        .equals("true")
+    ) {
+      return ValidationResult.failed("Not support the write with accept any schema")
+    }
+    if (IcebergWriteUtil.getWriteConf(write).mergeSchema()) {
+      return ValidationResult.failed("Not support write with merge schema")
     }
 
     ValidationResult.succeeded
