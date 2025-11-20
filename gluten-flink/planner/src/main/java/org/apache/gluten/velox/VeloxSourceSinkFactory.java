@@ -40,7 +40,7 @@ public interface VeloxSourceSinkFactory {
   /** Build sink transformation that offload the operator to velox. */
   Transformation<RowData> buildSink(ReadableConfig config, Transformation<RowData> transformation);
 
-  /** Choose the right source/sink factory by given transformation. */
+  /** Choose the matched source/sink factory by given transformation. */
   static VeloxSourceSinkFactory getFactory(Transformation<RowData> transformation) {
     ServiceLoader<VeloxSourceSinkFactory> factories =
         ServiceLoader.load(VeloxSourceSinkFactory.class);

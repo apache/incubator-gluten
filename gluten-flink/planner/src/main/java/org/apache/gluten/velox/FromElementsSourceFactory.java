@@ -29,6 +29,7 @@ import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
@@ -43,10 +44,16 @@ import java.util.Map;
 
 public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
 
+  @SuppressWarnings("rawtypes")
   @Override
   public boolean match(Transformation<RowData> transformation) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'match'");
+    if (transformation instanceof LegacySourceTransformation) {
+      StreamSource source = ((LegacySourceTransformation) transformation).getOperator();
+      if (source.getClass().getSimpleName().equals("TestValuesScanLookupTableSource")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -109,7 +116,6 @@ public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
   @Override
   public Transformation<RowData> buildSink(
       ReadableConfig config, Transformation<RowData> transformation) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'buildSink'");
+    throw new FlinkRuntimeException("Unimplemented method 'buildSink'");
   }
 }
