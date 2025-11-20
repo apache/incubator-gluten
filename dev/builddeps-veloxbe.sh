@@ -292,11 +292,11 @@ function setup_dependencies {
     install_aws_deps
   fi
   if [ $ENABLE_GCS == "ON" ]; then
-    install_gcs-sdk-cpp
+    install_gcs_sdk_cpp
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
     export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
-    install_azure-storage-sdk-cpp
+    install_azure_storage_sdk_cpp
   fi
   popd
 }
