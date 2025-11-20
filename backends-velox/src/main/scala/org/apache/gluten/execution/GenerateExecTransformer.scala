@@ -248,7 +248,9 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
                 }
               case jsonPath =>
                 // Build bracket-notation uniformly to support nested paths, e.g., $[a.b]
-                GetJsonObject(jsonObj, Concat(Seq(Literal.create("$["), jsonPath, Literal.create("]"))))
+                GetJsonObject(
+                  jsonObj,
+                  Concat(Seq(Literal.create("$["), jsonPath, Literal.create("]"))))
             }.toIndexedSeq
           }
           val preGenerateExprs =
