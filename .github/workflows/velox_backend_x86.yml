@@ -879,7 +879,7 @@ jobs:
           java -version
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l $SPARK_HOME
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Piceberg-test -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
           -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
