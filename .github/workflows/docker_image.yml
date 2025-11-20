@@ -385,12 +385,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        digests: [ vcpkg-centos-8, vcpkg-centos-9, centos-8-jdk8, centos-8-jdk11, centos-8-jdk17, centos-9-jdk8, centos-9-jdk11, centos-9-jdk17 ]
+        digests: [ vcpkg-centos-8, vcpkg-centos-9 ]
     needs:
       - build-vcpkg-centos-8
       - build-vcpkg-centos-9
-      - build-centos-8
-      - build-centos-9
+
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -466,3 +465,47 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.DOCKERHUB_REPO }}:${{ steps.meta.outputs.version }}
+
+  merge-dynamic:
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        digests: [ centos-8-jdk8, centos-8-jdk11, centos-8-jdk17, centos-9-jdk8, centos-9-jdk11, centos-9-jdk17 ]
+    needs:
+      - build-centos-8
+      - build-centos-9
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.digests }}-*
+          merge-multiple: true
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_REPO }}
+          tags: ${{ matrix.digests }}
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.DOCKERHUB_REPO }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.DOCKERHUB_REPO }}:${{ steps.meta.outputs.version }}
+
