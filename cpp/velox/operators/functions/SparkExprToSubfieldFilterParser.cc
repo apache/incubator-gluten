@@ -21,10 +21,9 @@ namespace gluten {
 using namespace facebook::velox;
 
 namespace {
-std::optional<std::pair<facebook::velox::common::Subfield, 
-              std::unique_ptr<facebook::velox::common::Filter>>>
-combine(facebook::velox::common::Subfield& subfield, 
-       std::unique_ptr<facebook::velox::common::Filter>& filter) {
+std::optional<std::pair<facebook::velox::common::Subfield, std::unique_ptr<facebook::velox::common::Filter>>> combine(
+    facebook::velox::common::Subfield& subfield,
+    std::unique_ptr<facebook::velox::common::Filter>& filter) {
   if (filter != nullptr) {
     return std::make_pair(std::move(subfield), std::move(filter));
   }
@@ -33,11 +32,9 @@ combine(facebook::velox::common::Subfield& subfield,
 }
 } // namespace
 
-std::optional<std::pair<facebook::velox::common::Subfield, 
-              std::unique_ptr<facebook::velox::common::Filter>>>
+std::optional<std::pair<facebook::velox::common::Subfield, std::unique_ptr<facebook::velox::common::Filter>>>
 SparkExprToSubfieldFilterParser::leafCallToSubfieldFilter(
     const core::CallTypedExpr& call,
-    common::Subfield& subfield,
     core::ExpressionEvaluator* evaluator,
     bool negated) {
   if (call.inputs().empty()) {
@@ -49,30 +46,32 @@ SparkExprToSubfieldFilterParser::leafCallToSubfieldFilter(
   common::Subfield subfield;
   if (call.name() == "equalto") {
     if (toSubfield(leftSide, subfield)) {
-      return negated ? makeNotEqualFilter(call.inputs()[1], evaluator) : makeEqualFilter(call.inputs()[1], evaluator);
+      auto filter =
+          negated ? makeNotEqualFilter(call.inputs()[1], evaluator) : makeEqualFilter(call.inputs()[1], evaluator);
+      return combine(subfield, filter);
     }
   } else if (call.name() == "lessthanorequal") {
     if (toSubfield(leftSide, subfield)) {
       auto filter = negated ? makeGreaterThanFilter(call.inputs()[1], evaluator)
-                     : makeLessThanOrEqualFilter(call.inputs()[1], evaluator);
+                            : makeLessThanOrEqualFilter(call.inputs()[1], evaluator);
       return combine(subfield, filter);
     }
   } else if (call.name() == "lessthan") {
     if (toSubfield(leftSide, subfield)) {
       auto filter = negated ? makeGreaterThanOrEqualFilter(call.inputs()[1], evaluator)
-                     : makeLessThanFilter(call.inputs()[1], evaluator);
+                            : makeLessThanFilter(call.inputs()[1], evaluator);
       return combine(subfield, filter);
     }
   } else if (call.name() == "greaterthanorequal") {
     if (toSubfield(leftSide, subfield)) {
       auto filter = negated ? makeLessThanFilter(call.inputs()[1], evaluator)
-                     : makeGreaterThanOrEqualFilter(call.inputs()[1], evaluator);
+                            : makeGreaterThanOrEqualFilter(call.inputs()[1], evaluator);
       return combine(subfield, filter);
     }
   } else if (call.name() == "greaterthan") {
     if (toSubfield(leftSide, subfield)) {
       auto filter = negated ? makeLessThanOrEqualFilter(call.inputs()[1], evaluator)
-                     : makeGreaterThanFilter(call.inputs()[1], evaluator);
+                            : makeGreaterThanFilter(call.inputs()[1], evaluator);
       return combine(subfield, filter);
     }
   } else if (call.name() == "in") {
@@ -83,16 +82,16 @@ SparkExprToSubfieldFilterParser::leafCallToSubfieldFilter(
   } else if (call.name() == "isnull") {
     if (toSubfield(leftSide, subfield)) {
       if (negated) {
-        return std::make_pair(std::move(subfield), isNotNull());
+        return std::make_pair(std::move(subfield), facebook::velox::exec::isNotNull());
       }
-      return std::make_pair(std::move(subfield), isNull());
+      return std::make_pair(std::move(subfield), facebook::velox::exec::isNull());
     }
   } else if (call.name() == "isnotnull") {
     if (toSubfield(leftSide, subfield)) {
       if (negated) {
-        return std::make_pair(std::move(subfield), isNull());
+        return std::make_pair(std::move(subfield), facebook::velox::exec::isNull());
       }
-      return std::make_pair(std::move(subfield), isNotNull());
+      return std::make_pair(std::move(subfield), facebook::velox::exec::isNotNull());
     }
   }
   return std::nullopt;
