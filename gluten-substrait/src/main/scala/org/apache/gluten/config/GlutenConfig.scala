@@ -567,6 +567,11 @@ object GlutenConfig extends ConfigRegistry {
           nativeConfMap
             .put(SQLConf.LEGACY_TIME_PARSER_POLICY.key, v.toUpperCase(Locale.ROOT)))
 
+    // put in all gluten velox configs
+    conf
+      .filter(_._1.startsWith(s"spark.gluten.$backendName"))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
     // Backend's dynamic session conf only.
     val confPrefix = prefixOf(backendName)
     conf
