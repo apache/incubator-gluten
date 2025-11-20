@@ -21,8 +21,10 @@ namespace gluten {
 using namespace facebook::velox;
 
 namespace {
-std::optional<std::pair<common::Subfield, std::unique_ptr<common::Filter>>>
-combine(common::Subfield& subfield, std::unique_ptr<common::Filter>& filter) {
+std::optional<std::pair<facebook::velox::common::Subfield, 
+              std::unique_ptr<facebook::velox::common::Filter>>>
+combine(facebook::velox::common::Subfield& subfield, 
+       std::unique_ptr<facebook::velox::common::Filter>& filter) {
   if (filter != nullptr) {
     return std::make_pair(std::move(subfield), std::move(filter));
   }
@@ -31,7 +33,8 @@ combine(common::Subfield& subfield, std::unique_ptr<common::Filter>& filter) {
 }
 } // namespace
 
-std::optional<std::pair<common::Subfield, std::unique_ptr<common::Filter>>>
+std::optional<std::pair<facebook::velox::common::Subfield, 
+              std::unique_ptr<facebook::velox::common::Filter>>>
 SparkExprToSubfieldFilterParser::leafCallToSubfieldFilter(
     const core::CallTypedExpr& call,
     common::Subfield& subfield,
