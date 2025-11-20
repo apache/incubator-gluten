@@ -99,13 +99,15 @@ done
 
 function compile {
   CXX_FLAGS='-Wno-error=cpp -Wno-missing-field-initializers -Wno-error=uninitialized'
-  # Set compiler specific flags.
+  # Set compiler-specific flags.
   local compiler="${CXX:-c++}"
-  # The following flag is not applicable for Clang.
-  local compiler_specific_flag="-Wno-error=stringop-overflow"
-  if $compiler $compiler_specific_flag -E - </dev/null >/dev/null 2>&1; then
-    CXX_FLAGS="$CXX_FLAGS $compiler_specific_flag"
-  fi
+  local compiler_specific_flags="-Wno-error=stringop-overflow -Wno-unknown-warning-option"
+  for flag in $compiler_specific_flags; do
+    # Validate if a flag is accepted by the compiler.
+    if $compiler $flag -E - </dev/null >/dev/null 2>&1; then
+      CXX_FLAGS="$CXX_FLAGS $flag"
+    fi
+  done
 
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF \
       -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON \
