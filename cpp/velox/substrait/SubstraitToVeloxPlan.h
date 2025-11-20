@@ -55,6 +55,9 @@ struct SplitInfo {
   /// The file sizes and modification times of the files to be scanned.
   std::vector<std::optional<facebook::velox::FileProperties>> properties;
 
+  /// The schema of the table being scanned.
+  RowTypePtr tableSchema;
+
   /// Make SplitInfo polymorphic
   virtual ~SplitInfo() = default;
 
@@ -154,6 +157,8 @@ class SubstraitToVeloxPlanConverter {
   /// converter based on the constructed function map.
   void constructFunctionMap(const ::substrait::Plan& substraitPlan);
 
+  void constructFunctionMap(std::unordered_map<uint64_t, std::string> substraitPlan);
+
   /// Will return the function map used by this plan converter.
   const std::unordered_map<uint64_t, std::string>& getFunctionMap() const {
     return functionMap_;
@@ -173,11 +178,6 @@ class SubstraitToVeloxPlanConverter {
 
   void setSplitInfos(std::vector<std::shared_ptr<SplitInfo>> splitInfos) {
     splitInfos_ = splitInfos;
-  }
-
-  void setValueStreamNodeFactory(
-      std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, int32_t, RowTypePtr)> factory) {
-    valueStreamNodeFactory_ = std::move(factory);
   }
 
   void setInputIters(std::vector<std::shared_ptr<ResultIterator>> inputIters) {
@@ -266,8 +266,6 @@ class SubstraitToVeloxPlanConverter {
 
   /// The map storing the split stats for each PlanNode.
   std::unordered_map<core::PlanNodeId, std::shared_ptr<SplitInfo>> splitInfoMap_;
-
-  std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, int32_t, RowTypePtr)> valueStreamNodeFactory_;
 
   std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 

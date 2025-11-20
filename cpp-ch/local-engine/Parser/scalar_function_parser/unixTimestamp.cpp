@@ -59,7 +59,6 @@ public:
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 
         const auto * expr_arg = parsed_args[0];
-        const auto * fmt_arg = parsed_args[1];
         auto expr_type = removeNullable(expr_arg->result_type);
         if (isString(expr_type))
             return FunctionParserGetTimestamp::parse(substrait_func, actions_dag);

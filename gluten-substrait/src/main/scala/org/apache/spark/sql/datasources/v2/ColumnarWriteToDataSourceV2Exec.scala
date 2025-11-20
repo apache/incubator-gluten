@@ -63,6 +63,8 @@ trait WritingColumnarBatchSparkTask[W <: DataWriter[ColumnarBatch]]
       logInfo(s"Writer for partition ${context.partitionId()} is committing.")
 
       val msg = dataWriter.commit()
+      // Native write's metrics should be updated again after commit.
+      CustomMetrics.updateMetrics(dataWriter.currentMetricsValues, customMetrics)
 
       logInfo(
         s"Committed partition $partId (task $taskId, attempt $attemptId, " +

@@ -26,8 +26,6 @@
 
 namespace gluten {
 
-class RssPartitionWriterOutputStream;
-
 class RssPartitionWriter final : public PartitionWriter {
  public:
   RssPartitionWriter(
@@ -65,10 +63,6 @@ class RssPartitionWriter final : public PartitionWriter {
 
   std::vector<int64_t> bytesEvicted_;
   std::vector<int64_t> rawPartitionLengths_;
-
-  int32_t lastEvictedPartitionId_{-1};
-  std::shared_ptr<arrow::io::BufferOutputStream> rssOs_{nullptr};
-  std::shared_ptr<ShuffleCompressedOutputStream> compressedOs_{nullptr};
 };
 
 } // namespace gluten

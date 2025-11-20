@@ -50,6 +50,7 @@ body:
       description: Please provide the gluten version in your environment.
       options:
         - main branch
+        - Gluten-1.5
         - Gluten-1.4
         - Gluten-1.3
         - Gluten-1.2
@@ -68,6 +69,7 @@ body:
         - Spark-3.3.x
         - Spark-3.4.x
         - Spark-3.5.x
+        - spark-4.0.x
     validations:
       required: false
 

@@ -352,6 +352,7 @@ object ExpressionNames {
   final val KNOWN_NULLABLE = "known_nullable"
   final val KNOWN_NOT_NULL = "known_not_null"
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"
+  final val KNOWN_NOT_CONTAINS_NULL = "known_not_contains_null"
   final val NORMALIZE_NANAND_ZERO = "normalize_nanand_zero"
 
   // Window functions used by Substrait plan.
@@ -371,6 +372,11 @@ object ExpressionNames {
   // A placeholder for native UDF functions
   final val UDF_PLACEHOLDER = "udf_placeholder"
   final val UDAF_PLACEHOLDER = "udaf_placeholder"
+
+  // Spark StaticInvoke Catalyst util functions
+  final val VARCHAR_TYPE_WRITE_SIDE_CHECK = "varchar_type_write_side_check"
+  final val CHAR_TYPE_WRITE_SIDE_CHECK = "char_type_write_side_check"
+  final val READ_SIDE_PADDING = "read_side_padding"
 
   // Iceberg function names
   final val YEARS = "years"

@@ -137,11 +137,7 @@ class TpcdsDataGen(
   override def gen(): Unit = {
     Table.getBaseTables.forEach(t => writeParquetTable(t))
 
-    features.foreach {
-      feature =>
-        println(s"Execute feature: ${feature.name()}")
-        feature.run(spark, source)
-    }
+    features.foreach(feature => DataGen.Feature.run(spark, source, feature))
   }
 }
 

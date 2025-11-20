@@ -181,6 +181,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
+      dataSchema: StructType,
       rootPaths: Seq[String],
       properties: Map[String, String],
       hadoopConf: Configuration): ValidationResult = {

@@ -387,9 +387,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         VELOX_NYI("Unsupported Join type: {}", std::to_string(crossRel.type()));
       }
       break;
-    case ::substrait::CrossRel_JoinType::CrossRel_JoinType_JOIN_TYPE_OUTER:
-      joinType = core::JoinType::kFull;
-      break;
     default:
       VELOX_NYI("Unsupported Join type: {}", std::to_string(crossRel.type()));
   }
@@ -460,11 +457,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "isStreaming=")) {
     preGroupingExprs.reserve(veloxGroupingExprs.size());
     preGroupingExprs.insert(preGroupingExprs.begin(), veloxGroupingExprs.begin(), veloxGroupingExprs.end());
-  }
-
-  if (aggRel.has_advanced_extension() &&
-      SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "ignoreNullKeys=")) {
-    ignoreNullKeys = true;
   }
 
   // Get the output names of Aggregation.
@@ -1335,9 +1327,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   bool filterPushdownEnabled = true;
   auto names = colNameList;
   auto types = veloxTypeList;
-  auto dataColumns = ROW(std::move(names), std::move(types));
+
+  // The columns we project from the file.
+  auto baseSchema = ROW(std::move(names), std::move(types));
+  // The columns present in the table, if not available default to the baseSchema.
+  auto tableSchema = splitInfo->tableSchema ? splitInfo->tableSchema : baseSchema;
+
   connector::ConnectorTableHandlePtr tableHandle;
-  auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), dataColumns) : nullptr;
+  auto remainingFilter = readRel.has_filter() ? exprConverter_->toVeloxExpr(readRel.filter(), baseSchema) : nullptr;
   auto connectorId = kHiveConnectorId;
   if (useCudfTableHandle(splitInfos_) && veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
       veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
@@ -1347,7 +1344,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
   common::SubfieldFilters subfieldFilters;
   tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-      connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, dataColumns);
+      connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, tableSchema);
 
   // Get assignments and out names.
   std::vector<std::string> outNames;
@@ -1508,6 +1505,11 @@ void SubstraitToVeloxPlanConverter::constructFunctionMap(const ::substrait::Plan
     auto name = sFmap.name();
     functionMap_[id] = name;
   }
+  exprConverter_ = std::make_unique<SubstraitVeloxExprConverter>(pool_, functionMap_);
+}
+
+void SubstraitToVeloxPlanConverter::constructFunctionMap(std::unordered_map<uint64_t, std::string> substraitPlan) {
+  functionMap_ = std::move(substraitPlan);
   exprConverter_ = std::make_unique<SubstraitVeloxExprConverter>(pool_, functionMap_);
 }
 

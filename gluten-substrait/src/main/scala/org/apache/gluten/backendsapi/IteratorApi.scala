@@ -23,7 +23,6 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
 
 import org.apache.spark._
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
@@ -32,19 +31,13 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 trait IteratorApi {
 
   def genSplitInfo(
-      partition: InputPartition,
+      partitionIndex: Int,
+      partition: Seq[Partition],
       partitionSchema: StructType,
+      dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo
-
-  def genSplitInfoForPartitions(
-      partitionIndex: Int,
-      partition: Seq[InputPartition],
-      partitionSchema: StructType,
-      fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = throw new UnsupportedOperationException()
 
   /** Generate native row partition. */
   def genPartitions(

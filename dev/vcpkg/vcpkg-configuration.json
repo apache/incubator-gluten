@@ -14,6 +14,12 @@
       "repository": "https://github.com/Microsoft/vcpkg",
       "baseline": "f82160a747b1b529daad7ce2f75a0d6c6a0d285d",
       "packages": [ "google-cloud-cpp"]
+    },
+    {
+      "kind": "git",
+      "repository": "https://github.com/Microsoft/vcpkg",
+      "baseline": "a7b6122f6b6504d16d96117336a0562693579933",
+      "packages": [ "upb"]
     }
 
   ]

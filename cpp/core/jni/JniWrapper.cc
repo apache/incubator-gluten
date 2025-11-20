@@ -259,7 +259,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       env,
       metricsBuilderClass,
       "<init>",
-      "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[JLjava/lang/String;)V");
+      "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[JLjava/lang/String;)V");
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
@@ -447,15 +447,10 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jint partitionId,
     jlong taskId,
     jboolean enableDumping,
-    jstring spillDir,
-    jboolean enableCudf) {
+    jstring spillDir) {
   JNI_METHOD_START
 
   auto ctx = getRuntime(env, wrapper);
-  auto conf = ctx->getConfMap();
-#ifdef GLUTEN_ENABLE_GPU
-  conf[kCudfEnabled] = std::to_string(enableCudf);
-#endif
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
@@ -489,7 +484,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     inputIters.push_back(std::move(resultIter));
   }
 
-  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters, conf));
+  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters));
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
@@ -585,6 +580,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_metrics_IteratorMetricsJniWrapp
       longArray[Metrics::kLocalReadBytes],
       longArray[Metrics::kRamReadBytes],
       longArray[Metrics::kPreloadSplits],
+      longArray[Metrics::kPageLoadTime],
       longArray[Metrics::kDataSourceAddSplitWallNanos],
       longArray[Metrics::kDataSourceReadWallNanos],
       longArray[Metrics::kPhysicalWrittenBytes],

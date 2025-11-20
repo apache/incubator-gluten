@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.init;
 
+import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.memory.listener.ReservationListener;
 import org.apache.gluten.utils.ConfigUtil;
@@ -68,6 +69,10 @@ public final class NativeBackendInitializer {
   private void initialize0(ReservationListener rl, scala.collection.Map<String, String> conf) {
     try {
       Map<String, String> nativeConfMap = GlutenConfig.getNativeBackendConf(backendName, conf);
+      // Get the customer config from SparkConf for each backend.
+      BackendsApiManager.getTransformerApiInstance()
+          .postProcessNativeConfig(
+              nativeConfMap, GlutenConfig.prefixOf(BackendsApiManager.getBackendName()));
       initialize(rl, ConfigUtil.serialize(nativeConfMap));
     } catch (Exception e) {
       LOG.error("Failed to call native backend's initialize method", e);

@@ -1,8 +1,18 @@
 # Build Gluten + Velox in Vcpkg Environment
 
-## Build in Docker
+## Overview
 
-Please install make and docker on your system, then `make`.
+Currently, the `builtin-baseline` set in `vcpkg.json` is the commit hash for the `2025.09.17` tag of vcpkg.
+The versions of all dependency libraries are determined by their respective ports at this vcpkg version,
+except for those overridden in `vcpkg.json`, `vcpkg-configuration.json`, and overlay ports.
+
+## Build in docker
+
+For main branch code, you can follow the commands below.
+- Pull the docker image: `docker pull apache/gluten:vcpkg-centos-7`
+- Build native code: `bash dev/ci-velox-buildstatic-centos-7.sh`
+- Build JVM code: `mvn clean install -Pbackends-velox -Pspark-3.5 -DskipTests`
+
 The gluten packages will be placed in `$GLUTEN_REPO/package/target/gluten-velox-bundle-*.jar`.
 
 ## Setup build environment manually
@@ -15,7 +25,7 @@ Please install build depends on your system to compile all libraries:
 sudo $GLUTEN_REPO/dev/vcpkg/setup-build-depends.sh
 ```
 
-GCC-11 is the minimum required compiler. It needs to be enabled beforehand. Take Centos-7/8 as example:
+GCC 11 is the minimum required compiler. It needs to be enabled beforehand. Take Centos 7/8 as example:
 
 ``` sh
 # CentOS 8
@@ -32,7 +42,7 @@ For unsupported linux distro, you can install the following packages from packag
 * wget
 * curl
 * git >= 2.7.4
-* gcc >= 9
+* gcc >= 11
 * pkg-config
 * autotools
 * flex >= 2.6.0

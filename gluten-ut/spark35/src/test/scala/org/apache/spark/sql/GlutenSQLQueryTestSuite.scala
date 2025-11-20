@@ -116,6 +116,7 @@ class GlutenSQLQueryTestSuite
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set(GlutenConfig.SMALL_FILE_THRESHOLD.key, "0")
 
     if (isCHBackend) {
       conf

@@ -17,6 +17,7 @@
 package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
+import org.apache.gluten.table.runtime.metrics.SourceTaskMetrics;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
@@ -66,6 +67,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
   private BufferAllocator allocator;
   private MemoryManager memoryManager;
   private SerialTask task;
+  private SourceTaskMetrics taskMetrics;
 
   public GlutenVectorSourceFunction(
       StatefulPlanNode planNode,
@@ -108,6 +110,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
       task.addSplit(id, split);
       task.noMoreSplits(id);
     }
+    taskMetrics = new SourceTaskMetrics(getRuntimeContext().getMetricGroup());
   }
 
   @Override
@@ -128,6 +131,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
         LOG.info("Velox task finished");
         break;
       }
+      taskMetrics.updateMetrics(task, id);
     }
 
     task.close();

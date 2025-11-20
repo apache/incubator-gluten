@@ -125,6 +125,8 @@ cmake-format --first-comment-is-literal True --in-place cpp/velox/CMakeLists.txt
 ## Constant
 
 * Prefer const variables to using preprocessor (`#define`) to define constant values.
+* Always use nullptr if you need a constant that represents a null pointer (T* for some T);
+    use 0 otherwise for a zero value.
 
 ## Macro
 

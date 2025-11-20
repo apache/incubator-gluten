@@ -20,6 +20,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.util.{sideBySide, stackTraceToString}
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.SQLExecution
 
 import org.apache.commons.io.FileUtils
@@ -81,6 +82,10 @@ trait GlutenSQLTestsTrait extends QueryTest with GlutenSQLTestsBaseTrait {
 }
 
 object GlutenQueryTestUtil extends Assertions {
+  // TODO: remove this if we can suppress unused import error.
+  locally {
+    new ColumnConstructorExt(Column)
+  }
 
   /**
    * Runs the plan and makes sure the answer matches the expected result.

@@ -25,12 +25,19 @@ import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.util.SparkReflectionUtil
 
 class VeloxPaimonComponent extends Component {
   override def name(): String = "velox-paimon"
   override def buildInfo(): Component.BuildInfo =
     Component.BuildInfo("VeloxPaimon", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
+
+  override def isRuntimeCompatible: Boolean = {
+    SparkReflectionUtil.isClassPresent(
+      "org.apache.paimon.spark.extensions.PaimonSparkSessionExtensions")
+  }
+
   override def injectRules(injector: Injector): Unit = {
     injector.gluten.legacy.injectTransform {
       c =>

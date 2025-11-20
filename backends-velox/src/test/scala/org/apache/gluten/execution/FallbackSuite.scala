@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, SparkPlan}
@@ -123,7 +123,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
             case _: BroadcastHashJoinExecTransformerBase => true
             case _ => false
           }
-          assert(!columnarBhj.isDefined)
+          assert(columnarBhj.isEmpty)
 
           val vanillaBhj = find(plan) {
             case _: BroadcastHashJoinExec => true
@@ -268,6 +268,48 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
           val plan = df.queryExecution.executedPlan
           assert(collect(plan) { case smj: SortMergeJoinExec => smj }.size == 1)
       }
+    }
+  }
+
+  testWithMinSparkVersion("fallback with index based schema evolution", "3.3") {
+    val query = "SELECT c2 FROM test"
+    Seq("parquet", "orc").foreach {
+      format =>
+        Seq("true", "false").foreach {
+          parquetUseColumnNames =>
+            Seq("true", "false").foreach {
+              orcUseColumnNames =>
+                withSQLConf(
+                  VeloxConfig.PARQUET_USE_COLUMN_NAMES.key -> parquetUseColumnNames,
+                  VeloxConfig.ORC_USE_COLUMN_NAMES.key -> orcUseColumnNames
+                ) {
+                  withTable("test") {
+                    spark
+                      .range(100)
+                      .selectExpr("to_timestamp_ntz(from_unixtime(id % 3)) as c1", "id as c2")
+                      .write
+                      .format(format)
+                      .saveAsTable("test")
+
+                    runQueryAndCompare(query) {
+                      df =>
+                        val plan = df.queryExecution.executedPlan
+                        val fallback = parquetUseColumnNames == "false" ||
+                          orcUseColumnNames == "false"
+                        assert(collect(plan) { case g: GlutenPlan => g }.isEmpty == fallback)
+                    }
+                  }
+                }
+            }
+        }
+    }
+  }
+
+  test("fallback on spilt with unsupported regex") {
+    runQueryAndCompare("SELECT split(cast(c1 as string), '(?<=\\\\}),(?=\\\\{)') from tmp1") {
+      df =>
+        val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
+        assert(columnarToRow == 1)
     }
   }
 }

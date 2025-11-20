@@ -40,30 +40,30 @@ the gluten jar is loaded prior to the vanilla spark jar. In this section, we wil
 
 ```
 // spark will upload the gluten jar to hdfs and then the nodemanager will fetch the gluten jar before start the executor process. Here also can set the spark.jars.
-spark.files = {absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+spark.files=<absolute_path_to_Gluten_JAR>
 // The absolute path on running node
-spark.driver.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+spark.driver.extraClassPath=<absolute_path_to_Gluten_JAR>
 // The relative path under the executor working directory
-spark.executor.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+spark.executor.extraClassPath=./<Gluten_JAR>
 ```
 
 #### Configurations for Yarn Cluster mode
 ```
-spark.driver.userClassPathFirst = true
-spark.executor.userClassPathFirst = true
+spark.driver.userClassPathFirst=true
+spark.executor.userClassPathFirst=true
 
-spark.files = {absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+spark.files=<absolute_path_to_Gluten_JAR>
 // The relative path under the executor working directory
-spark.driver.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+spark.driver.extraClassPath=./<Gluten_JAR>
 // The relative path under the executor working directory
-spark.executor.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+spark.executor.extraClassPath=./<Gluten_JAR>
 ```
 #### Configurations for Local & Standalone mode
 ```
 // The absolute path on running node
-spark.driver.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+spark.driver.extraClassPath=<absolute_path_to_Gluten_JAR>
 // The absolute path on running node
-spark.executor.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+spark.executor.extraClassPath=<absolute_path_to_Gluten_JAR>
 ```
 
 ### Invalid pointer error

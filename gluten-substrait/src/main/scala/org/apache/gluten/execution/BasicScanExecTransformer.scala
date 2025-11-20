@@ -25,9 +25,8 @@ import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 import com.google.protobuf.StringValue
@@ -57,39 +56,35 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   /** Returns the file format properties. */
   def getProperties: Map[String, String] = Map.empty
 
-  /** Returns the split infos that will be processed by the underlying native engine. */
   override def getSplitInfos: Seq[SplitInfo] = {
     getSplitInfosFromPartitions(getPartitions)
   }
 
-  def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
+  def getSplitInfosFromPartitions(partitions: Seq[Partition]): Seq[SplitInfo] = {
     partitions.map(
-      BackendsApiManager.getIteratorApiInstance
-        .genSplitInfo(
-          _,
-          getPartitionSchema,
-          fileFormat,
-          getMetadataColumns().map(_.name),
-          getProperties))
+      p => {
+        val ps = p match {
+          case sp: SparkDataSourceRDDPartition => sp.inputPartitions.map(_.asInstanceOf[Partition])
+          case o => Seq(o)
+        }
+        BackendsApiManager.getIteratorApiInstance
+          .genSplitInfo(
+            p.index,
+            ps,
+            getPartitionSchema,
+            getDataSchema,
+            fileFormat,
+            getMetadataColumns().map(_.name),
+            getProperties)
+      })
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    var fields = schema.fields
-
-    this match {
-      case transformer: FileSourceScanExecTransformer =>
-        fields = appendStringFields(transformer.relation.schema, fields)
-      case transformer: HiveTableScanExecTransformer =>
-        fields = appendStringFields(transformer.getDataSchema, fields)
-      case transformer: BatchScanExecTransformer =>
-        fields = appendStringFields(transformer.getDataSchema, fields)
-      case _ =>
-    }
-
     val validationResult = BackendsApiManager.getSettings
       .validateScanExec(
         fileFormat,
-        fields,
+        schema.fields,
+        getDataSchema,
         getRootFilePaths,
         getProperties,
         sparkContext.hadoopConfiguration)

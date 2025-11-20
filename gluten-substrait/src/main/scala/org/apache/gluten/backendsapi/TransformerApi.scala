@@ -20,8 +20,8 @@ import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.ExpressionNode
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.{DataType, DecimalType, StructType}
@@ -33,8 +33,8 @@ import java.util
 
 trait TransformerApi {
 
-  /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
-  def genInputPartitionSeq(
+  /** Generate Seq[Partition] for FileSourceScanExecTransformer. */
+  def genPartitionSeq(
       relation: HadoopFsRelation,
       requiredSchema: StructType,
       selectedPartitions: Array[PartitionDirectory],
@@ -43,7 +43,7 @@ trait TransformerApi {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean,
-      filterExprs: Seq[Expression] = Seq.empty): Seq[InputPartition]
+      filterExprs: Seq[Expression] = Seq.empty): Seq[Partition]
 
   /**
    * Post-process native config, For example, for ClickHouse backend, sync 'spark.executor.cores' to

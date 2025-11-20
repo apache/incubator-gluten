@@ -71,10 +71,8 @@ class VeloxExpandSuite extends VeloxWholeStageTransformerSuite {
         df.collect()
         spark.sparkContext.listenerBus.waitUntilEmpty()
         assert(
-          events
-            .find(_.fallbackNodeToReason.values.toSet.exists(
-              _.contains("Failed to bind reference for")))
-            .isEmpty)
+          !events.exists(
+            _.fallbackNodeToReason.values.toSet.exists(_.contains("Failed to bind reference for"))))
       } finally {
         spark.sparkContext.removeSparkListener(listener)
       }

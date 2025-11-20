@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.ClosableIterator
 import org.apache.gluten.utils.VeloxBatchResizer
 
@@ -35,7 +36,7 @@ case class VeloxResizeBatchesExec(
     override val child: SparkPlan,
     minOutputBatchSize: Int,
     maxOutputBatchSize: Int)
-  extends ColumnarToColumnarExec(VeloxBatchType, VeloxBatchType) {
+  extends ColumnarToColumnarExec(child) {
 
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     VeloxBatchResizer.create(minOutputBatchSize, maxOutputBatchSize, in.asJava).asScala
@@ -54,4 +55,8 @@ case class VeloxResizeBatchesExec(
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
+
+  override def batchType(): Convention.BatchType = VeloxBatchType
+
+  override def rowType0(): Convention.RowType = Convention.RowType.None
 }

@@ -196,7 +196,9 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
       MemoryManager* memoryManager)
       : VeloxShuffleWriter(numPartitions, partitionWriter, options, memoryManager),
         splitBufferSize_(options->splitBufferSize),
-        splitBufferReallocThreshold_(options->splitBufferReallocThreshold) {}
+        splitBufferReallocThreshold_(options->splitBufferReallocThreshold) {
+    arenas_.resize(numPartitions);
+  }
 
   arrow::Status init();
 
@@ -412,6 +414,8 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
   SplitState splitState_{kInit};
 
   std::optional<uint32_t> partitionBufferInUse_{std::nullopt};
+
+  std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
 }; // class VeloxHashBasedShuffleWriter
 
 } // namespace gluten

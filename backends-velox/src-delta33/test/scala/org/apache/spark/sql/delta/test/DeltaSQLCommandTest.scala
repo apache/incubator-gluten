@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.delta.test
 
+import org.apache.gluten.config.VeloxDeltaConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
@@ -47,6 +49,7 @@ trait DeltaSQLCommandTest extends SharedSparkSession {
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
+      .set(VeloxDeltaConfig.ENABLE_NATIVE_WRITE.key, "true")
   }
 }
 // spotless:on

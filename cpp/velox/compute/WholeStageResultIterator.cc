@@ -23,10 +23,10 @@
 #include "velox/exec/PlanNodeStats.h"
 #ifdef GLUTEN_ENABLE_GPU
 #include <cudf/io/types.hpp>
-#include <mutex>
 #include "velox/experimental/cudf/CudfConfig.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveConnectorSplit.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
+#include "cudf/GpuLock.h"
 #endif
 
 using namespace facebook;
@@ -52,7 +52,9 @@ const std::string kStorageReadBytes = "storageReadBytes";
 const std::string kLocalReadBytes = "localReadBytes";
 const std::string kRamReadBytes = "ramReadBytes";
 const std::string kPreloadSplits = "readyPreloadedSplits";
+const std::string kPageLoadTime = "pageLoadTimeNs";
 const std::string kDataSourceAddSplitWallNanos = "dataSourceAddSplitWallNanos";
+const std::string kWaitForPreloadSplitNanos = "waitForPreloadSplitNanos";
 const std::string kDataSourceReadWallNanos = "dataSourceReadWallNanos";
 const std::string kNumWrittenFiles = "numWrittenFiles";
 const std::string kWriteIOTime = "writeIOWallNanos";
@@ -69,16 +71,15 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
     const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
-    const std::unordered_map<std::string, std::string>& confMap,
+    const facebook::velox::config::ConfigBase* veloxCfg,
     const SparkTaskInfo& taskInfo)
     : memoryManager_(memoryManager),
-      veloxCfg_(
-          std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
+      veloxCfg_(veloxCfg),
+#ifdef GLUTEN_ENABLE_GPU
+      enableCudf_(veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)),
+#endif
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
-#ifdef GLUTEN_ENABLE_GPU
-      lock_(mutex_, std::defer_lock),
-#endif
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
@@ -88,13 +89,6 @@ WholeStageResultIterator::WholeStageResultIterator(
     spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
   }
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
-
-#ifdef GLUTEN_ENABLE_GPU
-  enableCudf_ = veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault);
-  if (enableCudf_) {
-    lock_.lock();
-  }
-#endif
 
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
   GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
@@ -140,9 +134,10 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
     const auto& metadataColumns = scanInfo->metadataColumns;
+#ifdef GLUTEN_ENABLE_GPU
     // Under the pre-condition that all the split infos has same partition column and format.
     const auto canUseCudfConnector = scanInfo->canUseCudfConnector();
-
+#endif
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
@@ -175,7 +170,8 @@ WholeStageResultIterator::WholeStageResultIterator(
       } else {
         auto connectorId = kHiveConnectorId;
 #ifdef GLUTEN_ENABLE_GPU
-        if (canUseCudfConnector) {
+        if (canUseCudfConnector && enableCudf_ &&
+            veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault)) {
           connectorId = kCudfHiveConnectorId;
           VELOX_CHECK_EQ(starts[idx], 0, "Not support split file");
           VELOX_CHECK_EQ(lengths[idx], scanInfo->properties[idx]->fileSize, "Not support split file");
@@ -211,10 +207,6 @@ WholeStageResultIterator::WholeStageResultIterator(
   }
 }
 
-#ifdef GLUTEN_ENABLE_GPU
-std::mutex WholeStageResultIterator::mutex_;
-#endif
-
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
@@ -234,17 +226,6 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
 }
 
 std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
-  auto result = nextInternal();
-#ifdef GLUTEN_ENABLE_GPU
-  if (result == nullptr && enableCudf_) {
-    lock_.unlock();
-  }
-#endif
-
-  return result;
-}
-
-std::shared_ptr<ColumnarBatch> WholeStageResultIterator::nextInternal() {
   tryAddSplitsToTask();
   if (task_->isFinished()) {
     return nullptr;
@@ -496,8 +477,10 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kRamReadBytes)[metricIndex] = runtimeMetric("sum", second->customStats, kRamReadBytes);
       metrics_->get(Metrics::kPreloadSplits)[metricIndex] =
           runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
+      metrics_->get(Metrics::kPageLoadTime)[metricIndex] = runtimeMetric("sum", second->customStats, kPageLoadTime);
       metrics_->get(Metrics::kDataSourceAddSplitWallNanos)[metricIndex] =
-          runtimeMetric("sum", second->customStats, kDataSourceAddSplitWallNanos);
+          runtimeMetric("sum", second->customStats, kDataSourceAddSplitWallNanos) +
+          runtimeMetric("sum", second->customStats, kWaitForPreloadSplitNanos);
       metrics_->get(Metrics::kDataSourceReadWallNanos)[metricIndex] =
           runtimeMetric("sum", second->customStats, kDataSourceReadWallNanos);
       metrics_->get(Metrics::kNumWrittenFiles)[metricIndex] =
@@ -699,6 +682,10 @@ std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConne
       std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
   configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
       std::to_string(veloxCfg_->get<bool>(kIgnoreMissingFiles, false));
+  configs[velox::connector::hive::HiveConfig::kParquetUseColumnNamesSession] =
+      std::to_string(veloxCfg_->get<bool>(kParquetUseColumnNames, true));
+  configs[velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] =
+      std::to_string(veloxCfg_->get<bool>(kOrcUseColumnNames, true));
   return std::make_shared<velox::config::ConfigBase>(std::move(configs));
 }
 

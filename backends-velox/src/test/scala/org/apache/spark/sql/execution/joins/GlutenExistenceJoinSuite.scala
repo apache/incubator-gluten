@@ -66,7 +66,7 @@ class GlutenExistenceJoinSuite extends VeloxWholeStageTransformerSuite with SQLT
 
     val existsAttr = AttributeReference("exists", BooleanType, nullable = false)()
 
-    val joinCondition: Expression = LessThan(leftPlan.output(0), rightPlan.output(0))
+    val joinCondition: Expression = LessThan(leftPlan.output.head, rightPlan.output.head)
 
     val existenceJoin = Join(
       left = leftPlan,

@@ -18,6 +18,10 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, ValidatorApi}
 import org.apache.gluten.execution.ValidationResult
+import org.apache.gluten.substrait.`type`.TypeNode
+import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.expression.ExpressionNode
+import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.NativePlanEvaluator
@@ -28,9 +32,13 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 import org.apache.spark.task.TaskResources
 
+import io.substrait.proto.SimpleExtensionDeclaration
+
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class VeloxValidatorApi extends ValidatorApi {
+  import VeloxValidatorApi._
 
   /** For velox backend, key validation is on native side. */
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
@@ -40,6 +48,25 @@ class VeloxValidatorApi extends ValidatorApi {
     TaskResources.runUnsafe {
       val validator = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
       asValidationResult(validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray))
+    }
+  }
+
+  override def doNativeValidateExpression(
+      substraitContext: SubstraitContext,
+      expression: ExpressionNode,
+      inputTypeNode: TypeNode): Boolean = {
+    TaskResources.runUnsafe {
+      val validator = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
+      val extensionNodes =
+        new ArrayBuffer[SimpleExtensionDeclaration](substraitContext.registeredFunction.size)
+      substraitContext.registeredFunction.forEach {
+        (key, value) =>
+          extensionNodes.append(ExtensionBuilder.makeFunctionMapping(key, value).toProtobuf)
+      }
+      validator.doNativeValidateExpression(
+        expression.toProtobuf.toByteArray,
+        inputTypeNode.toProtobuf.toByteArray,
+        extensionNodes.map(_.toByteArray).toArray)
     }
   }
 
@@ -53,37 +80,8 @@ class VeloxValidatorApi extends ValidatorApi {
         info.fallbackInfo.asScala.reduce[String] { case (l, r) => l + "\n   |- " + r }))
   }
 
-  private def isPrimitiveType(dataType: DataType): Boolean = {
-    dataType match {
-      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
-          StringType | BinaryType | _: DecimalType | DateType | TimestampType |
-          YearMonthIntervalType.DEFAULT | NullType =>
-        true
-      case _ => false
-    }
-  }
-
   override def doSchemaValidate(schema: DataType): Option[String] = {
-    if (isPrimitiveType(schema)) {
-      return None
-    }
-    schema match {
-      case map: MapType =>
-        doSchemaValidate(map.keyType).orElse(doSchemaValidate(map.valueType))
-      case struct: StructType =>
-        struct.foreach {
-          field =>
-            val reason = doSchemaValidate(field.dataType)
-            if (reason.isDefined) {
-              return reason
-            }
-        }
-        None
-      case array: ArrayType =>
-        doSchemaValidate(array.elementType)
-      case _ =>
-        Some(s"Schema / data type not supported: $schema")
-    }
+    validateSchema(schema)
   }
 
   override def doColumnarShuffleExchangeExecValidate(
@@ -99,5 +97,40 @@ class VeloxValidatorApi extends ValidatorApi {
       return Some("Shuffle with empty input schema is not supported")
     }
     doSchemaValidate(child.schema)
+  }
+}
+
+object VeloxValidatorApi {
+  private def isPrimitiveType(dataType: DataType): Boolean = {
+    dataType match {
+      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
+          StringType | BinaryType | _: DecimalType | DateType | TimestampType |
+          YearMonthIntervalType.DEFAULT | NullType =>
+        true
+      case _ => false
+    }
+  }
+
+  def validateSchema(schema: DataType): Option[String] = {
+    if (isPrimitiveType(schema)) {
+      return None
+    }
+    schema match {
+      case map: MapType =>
+        validateSchema(map.keyType).orElse(validateSchema(map.valueType))
+      case struct: StructType =>
+        struct.foreach {
+          field =>
+            val reason = validateSchema(field.dataType)
+            if (reason.isDefined) {
+              return reason
+            }
+        }
+        None
+      case array: ArrayType =>
+        validateSchema(array.elementType)
+      case _ =>
+        Some(s"Schema / data type not supported: $schema")
+    }
   }
 }

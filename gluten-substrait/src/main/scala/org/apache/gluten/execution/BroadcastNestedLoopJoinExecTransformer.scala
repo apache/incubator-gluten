@@ -24,7 +24,7 @@ import org.apache.gluten.utils.SubstraitUtil
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftOuter, RightOuter}
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, InnerLike, JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{ExplainUtils, SparkPlan}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
@@ -148,14 +148,6 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   def validateJoinTypeAndBuildSide(): ValidationResult = {
     val result = joinType match {
       case _: InnerLike | LeftOuter | RightOuter => ValidationResult.succeeded
-      case FullOuter
-          if BackendsApiManager.getSettings.broadcastNestedLoopJoinSupportsFullOuterJoin() =>
-        if (condition.isEmpty) {
-          ValidationResult.succeeded
-        } else {
-          ValidationResult.failed(
-            s"FullOuter join with join condition is not supported with BroadcastNestedLoopJoin")
-        }
       case ExistenceJoin(_) =>
         ValidationResult.succeeded
       case _ =>

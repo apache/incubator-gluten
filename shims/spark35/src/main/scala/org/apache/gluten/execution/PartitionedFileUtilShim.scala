@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.paths.SparkPath
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.PartitionedFileUtil
@@ -148,4 +149,8 @@ object PartitionedFileUtilShim {
     }
   }
 
+  // Helper method to create PartitionedFile from path and length.
+  def makePartitionedFileFromPath(path: String, length: Long): PartitionedFile = {
+    PartitionedFile(null, SparkPath.fromPathString(path), 0, length, Array.empty)
+  }
 }

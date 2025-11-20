@@ -358,7 +358,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         }
     }
 
-    JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
+    JoinUtil::adjustJoinOutput(*query_plan, after_join_names);
     /// Need to project the right table column into boolean type
     if (join_opt_info.is_existence_join)
         existenceJoinPostProject(*query_plan, left_names);

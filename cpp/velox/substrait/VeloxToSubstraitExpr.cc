@@ -92,7 +92,7 @@ const ::substrait::Expression_Literal& toSubstraitNullLiteral(
       break;
     }
     default: {
-      VELOX_UNSUPPORTED("Unsupported type '{}'", mapTypeKindToName(typeKind));
+      VELOX_UNSUPPORTED("Unsupported type '{}'", TypeKindName::toName(typeKind));
     }
   }
   substraitField->set_nullable(true);
@@ -136,7 +136,7 @@ const ::substrait::Expression_Literal& toSubstraitNotNullLiteral(
     case velox::TypeKind::TIMESTAMP: {
       auto vTimeStamp = variantValue.value<TypeKind::TIMESTAMP>();
       auto micros = vTimeStamp.getSeconds() * 1000000 + vTimeStamp.getNanos() / 1000;
-      literalExpr->set_timestamp(micros);
+      literalExpr->set_timestamp_tz(micros);
       break;
     }
     case velox::TypeKind::VARCHAR: {
@@ -148,7 +148,7 @@ const ::substrait::Expression_Literal& toSubstraitNotNullLiteral(
       break;
     }
     default:
-      VELOX_NYI("Unsupported constant Type '{}' ", mapTypeKindToName(variantValue.kind()));
+      VELOX_NYI("Unsupported constant Type '{}' ", TypeKindName::toName(variantValue.kind()));
   }
   literalExpr->set_nullable(false);
   return *literalExpr;
@@ -250,7 +250,7 @@ const ::substrait::Expression_Literal& toSubstraitNotNullLiteral<TypeKind::TIMES
   ::substrait::Expression_Literal* literalExpr =
       google::protobuf::Arena::CreateMessage<::substrait::Expression_Literal>(&arena);
   auto micros = value.getSeconds() * 1000000 + value.getNanos() / 1000;
-  literalExpr->set_timestamp(micros);
+  literalExpr->set_timestamp_tz(micros);
   literalExpr->set_nullable(false);
   return *literalExpr;
 }

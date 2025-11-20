@@ -27,4 +27,14 @@ object SparkReflectionUtil {
       noSparkClassLoader: Boolean = false): Class[C] = {
     Utils.classForName(className, initialize, noSparkClassLoader)
   }
+
+  def isClassPresent(className: String): Boolean = {
+    try {
+      classForName(className)
+      true
+    } catch {
+      case _: ClassNotFoundException =>
+        false
+    }
+  }
 }

@@ -23,6 +23,7 @@
 #include <Parser/FunctionParser.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/CHUtil.h>
+#include <regex>
 
 namespace DB
 {
@@ -60,7 +61,7 @@ public:
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
-        const auto * expr_arg = parsed_args[0];
+        const auto * expr_arg = convertArabicIndicDigit(actions_dag, parsed_args[0]);
         const auto * fmt_arg = parsed_args[1];
         
         const auto & args = substrait_func.arguments();
@@ -78,7 +79,7 @@ public:
         UInt32 s_count = std::count(fmt.begin(), fmt.end(), 'S');
         String time_parser_policy = getContext()->getSettingsRef().has(TIMER_PARSER_POLICY) ? toString(getContext()->getSettingsRef().get(TIMER_PARSER_POLICY)) : "";
         boost::to_lower(time_parser_policy);
-        if (time_parser_policy == "legacy")
+        if (time_parser_policy == "legacy" && checkFormat(fmt))
         {
             if (s_count == 0)
             {
@@ -93,7 +94,6 @@ public:
                 fmt += String(3 - s_count, 'S');
             else
                 fmt = fmt.substr(0, fmt.size() - (s_count - 3));
-
             const auto * fmt_node = addColumnToActionsDAG(actions_dag, std::make_shared<DB::DataTypeString>(), fmt);
             const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_node});
             return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
@@ -103,6 +103,37 @@ public:
             const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_arg});
             return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
         }
+    }
+
+private:
+    bool checkFormat(const String& fmt) const
+    {
+        if (fmt.size() < 10)
+        {
+            return false;
+        }
+        else
+        {
+            /**
+             * Match the format to the regex pattern, the following format will be matched:
+             * yyyy-MM-dd, yyyy/MM/dd
+             * yyyy-MM-dd HH, yyyy/MM/dd HH, yyyy-MM-ddTHH, yyyy/MM/ddTHH
+             * yyyy-MM-dd HH:mm, yyyy/MM/dd HH:mm, yyyy-MM-ddTHH:mm, yyyy/MM/ddTHH:mm
+             * yyyy-MM-dd HH:mm:ss, yyyy/MM/dd HH:mm:ss, yyyy-MM-ddTHH:mm:ss, yyyy/MM/ddTHH:mm:ss
+             * yyyy-MM-dd HH:mm:ss., yyyy/MM/dd HH:mm:ss., yyyy-MM-ddTHH:mm:ss., yyyy/MM/ddTHH:mm:ss.
+             * yyyy-MM-dd HH:mm:ss.S, yyyy/MM/dd HH:mm:ss.S, yyyy-MM-ddTHH:mm:ss.S, yyyy/MM/ddTHH:mm:ss.S
+             * yyyy-MM-dd HH:mm:ss.SS, yyyy/MM/dd HH:mm:ss.SS, yyyy-MM-ddTHH:mm:ss.SS, yyyy/MM/ddTHH:mm:ss.SS
+             * yyyy-MM-dd HH:mm:ss.SSS, yyyy/MM/dd HH:mm:ss.SSS, yyyy-MM-ddTHH:mm:ss.SSS, yyyy/MM/ddTHH:mm:ss.SSS
+             */
+            std::regex fmtPattern(R"(^yyyy[-/]MM[-/]dd([ T](HH(:mm(:ss(\.([S]{1,3})?)?)?)?)?)?$)");
+            return std::regex_match(fmt, fmtPattern);
+        }
+    }
+
+    const DB::ActionsDAG::Node * convertArabicIndicDigit(DB::ActionsDAG & actions_dag, const DB::ActionsDAG::Node * node) const
+    {
+        const auto * func_node = toFunctionNode(actions_dag, "arabic_indic_to_ascii_digit_for_date", {node});
+        return func_node;
     }
 };
 }

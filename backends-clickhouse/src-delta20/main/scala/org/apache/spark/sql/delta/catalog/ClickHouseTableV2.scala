@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 package org.apache.spark.sql.delta.catalog
+
+import org.apache.spark.Partition
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog, DeltaTimeTravelSpec, Snapshot}
 import org.apache.spark.sql.delta.actions.Metadata
@@ -153,7 +154,7 @@ object ClickHouseTableV2 extends Logging {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean,
-      filterExprs: Seq[Expression]): Seq[InputPartition] = {
+      filterExprs: Seq[Expression]): Seq[Partition] = {
     val tableV2 = ClickHouseTableV2.getTable(deltaLog)
 
     MergeTreePartsPartitionsUtil.getMergeTreePartsPartitions(

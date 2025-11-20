@@ -89,7 +89,7 @@ class VeloxRasSuite extends SharedSparkSession {
     object ConvertRowUnaryToColumnar extends RasRule[SparkPlan] {
       override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
         case RowUnary(child) => List(ColumnarUnary(child))
-        case other => List.empty
+        case _ => List.empty
       }
 
       override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)

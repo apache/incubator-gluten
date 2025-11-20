@@ -43,7 +43,7 @@ static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
 static constexpr bool kDefaultEnableDictionary = false;
 
-enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
+enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle, kGpuHashShuffle };
 
 enum class PartitionWriterType { kLocal, kRss };
 

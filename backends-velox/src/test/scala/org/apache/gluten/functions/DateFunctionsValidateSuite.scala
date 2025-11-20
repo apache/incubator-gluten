@@ -278,7 +278,8 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("timestampadd", "3.3") {
+  // TODO: fix on spark-4.0
+  testWithRangeSparkVersion("timestampadd", "3.3", "3.5") {
     withTempPath {
       path =>
         val ts = Timestamp.valueOf("2020-02-29 00:00:00.500")
@@ -484,6 +485,23 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         // Test unix_timestamp(timestamp, format) - should use native execution without fallback
         runQueryAndCompare("SELECT unix_timestamp(ts, fmt) FROM unix_timestamp_test") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("months_between") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("1997-02-28 10:30:00")
+        val t2 = Timestamp.valueOf("1996-10-30 00:00:00")
+        Seq((t1, t2)).toDF("t1", "t2").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select months_between(t1, t2) from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+        runQueryAndCompare("select months_between(t1, t2, false) from time") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }

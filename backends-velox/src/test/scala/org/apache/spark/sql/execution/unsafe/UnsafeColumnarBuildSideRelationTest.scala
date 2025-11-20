@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.unsafe;
+package org.apache.spark.sql.execution.unsafe
 
 import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.serializer.{JavaSerializer, KryoSerializer}
@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.physical.IdentityBroadcastMode
 import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.test.SharedSparkSession
-import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.types.StringType
 
 class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
   override protected def sparkConf: SparkConf = {
@@ -31,8 +31,8 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
       .set("spark.memory.offHeap.enabled", "true")
   }
 
-  var unsafeRelWithIdentityMode: UnsafeColumnarBuildSideRelation = null
-  var unsafeRelWithHashMode: UnsafeColumnarBuildSideRelation = null
+  var unsafeRelWithIdentityMode: UnsafeColumnarBuildSideRelation = _
+  var unsafeRelWithHashMode: UnsafeColumnarBuildSideRelation = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()

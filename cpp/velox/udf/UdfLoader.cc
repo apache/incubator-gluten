@@ -36,9 +36,13 @@ void* loadSymFromLibrary(
     const std::string& libPath,
     const std::string& func,
     bool throwIfNotFound = true) {
+  // Clear any existing dlerror() state before calling dlsym.
+  dlerror();
   void* sym = dlsym(handle, func.c_str());
   if (!sym && throwIfNotFound) {
-    throw gluten::GlutenException(func + " not found in " + libPath);
+    const char* error = dlerror();
+    throw gluten::GlutenException(
+        fmt::format("Failed to load {} in {}: {}", func, libPath, error != nullptr ? error : "unknown error"));
   }
   return sym;
 }

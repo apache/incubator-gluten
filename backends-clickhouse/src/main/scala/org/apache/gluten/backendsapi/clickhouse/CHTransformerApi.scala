@@ -22,12 +22,12 @@ import org.apache.gluten.execution.{CHHashAggregateExecTransformer, WriteFilesEx
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
-import org.apache.gluten.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
+import org.apache.gluten.utils.{CHPartitionsUtil, ExpressionDocUtil}
 
+import org.apache.spark.Partition
 import org.apache.spark.internal.Logging
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.MergeTreeFileFormat
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -51,8 +51,7 @@ import java.util
 
 class CHTransformerApi extends TransformerApi with Logging {
 
-  /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
-  def genInputPartitionSeq(
+  def genPartitionSeq(
       relation: HadoopFsRelation,
       requiredSchema: StructType,
       selectedPartitions: Array[PartitionDirectory],
@@ -61,7 +60,7 @@ class CHTransformerApi extends TransformerApi with Logging {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean,
-      filterExprs: Seq[Expression]): Seq[InputPartition] = {
+      filterExprs: Seq[Expression]): Seq[Partition] = {
     relation.location match {
       case index: TahoeFileIndex
           if relation.fileFormat
@@ -81,7 +80,7 @@ class CHTransformerApi extends TransformerApi with Logging {
           )
       case _ =>
         // Generate FilePartition for Parquet
-        CHInputPartitionsUtil(
+        CHPartitionsUtil(
           relation,
           requiredSchema,
           selectedPartitions,
@@ -89,7 +88,7 @@ class CHTransformerApi extends TransformerApi with Logging {
           bucketedScan,
           optionalBucketSet,
           optionalNumCoalescedBuckets,
-          disableBucketedScan).genInputPartitionSeq()
+          disableBucketedScan).genPartitionSeq()
     }
   }
 

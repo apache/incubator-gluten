@@ -27,9 +27,11 @@ import org.apache.gluten.extension.injector.Injector
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, OverwriteByExpressionExec, OverwritePartitionsDynamicExec, ReplaceDataExec}
 
+import org.apache.iceberg.spark.source.IcebergWriteUtil.supportsWrite
+
 case class OffloadIcebergAppend() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case a: AppendDataExec =>
+    case a: AppendDataExec if supportsWrite(a.write) =>
       VeloxIcebergAppendDataExec(a)
     case other => other
   }
@@ -37,7 +39,7 @@ case class OffloadIcebergAppend() extends OffloadSingleNode {
 
 case class OffloadIcebergReplaceData() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case r: ReplaceDataExec =>
+    case r: ReplaceDataExec if supportsWrite(r.write) =>
       VeloxIcebergReplaceDataExec(r)
     case other => other
   }
@@ -45,7 +47,7 @@ case class OffloadIcebergReplaceData() extends OffloadSingleNode {
 
 case class OffloadIcebergOverwrite() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case r: OverwriteByExpressionExec =>
+    case r: OverwriteByExpressionExec if supportsWrite(r.write) =>
       VeloxIcebergOverwriteByExpressionExec(r)
     case other => other
   }
@@ -53,7 +55,7 @@ case class OffloadIcebergOverwrite() extends OffloadSingleNode {
 
 case class OffloadIcebergOverwritePartitionsDynamic() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case r: OverwritePartitionsDynamicExec =>
+    case r: OverwritePartitionsDynamicExec if supportsWrite(r.write) =>
       VeloxIcebergOverwritePartitionsDynamicExec(r)
     case other => other
   }

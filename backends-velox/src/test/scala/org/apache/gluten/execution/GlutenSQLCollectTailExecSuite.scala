@@ -98,7 +98,6 @@ class GlutenSQLCollectTailExecSuite extends WholeStageTransformerSuite {
 
   test("ColumnarCollectTailExec - with filter") {
     val df = spark.range(0, 10000, 1).toDF("id").filter("id % 2 == 0").orderBy("id")
-    val evenCount = 5000
     val expected = (9990L to 9998L by 2).map(Row(_)).takeRight(5)
     verifyTailExec(df, expected, tailCount = 5)
   }

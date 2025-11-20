@@ -31,23 +31,37 @@ import scala.collection.JavaConverters._
 
 trait ShuffleWriterType {
   val name: String
+  val requiresResizingShuffleInput: Boolean
+  val requiresResizingShuffleOutput: Boolean
 }
 
 case object HashShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = true
+  override val requiresResizingShuffleOutput: Boolean = true
 }
 
 case object SortShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = false
+  override val requiresResizingShuffleOutput: Boolean = false
 }
 
 case object RssSortShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_RSS_SORT_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = false
+  override val requiresResizingShuffleOutput: Boolean = false
+}
+
+case object GpuHashShuffleWriterType extends ShuffleWriterType {
+  override val name: String = ReservedKeys.GLUTEN_GPU_HASH_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = true
+  override val requiresResizingShuffleOutput: Boolean = true
 }
 
 /*
  * Note: Gluten configiguration.md is automatically generated from this code.
- * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
  */
 class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   import GlutenConfig._
@@ -274,6 +288,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def extendedColumnarPostRules: String = getConf(EXTENDED_COLUMNAR_POST_RULES)
 
   def extendedExpressionTransformer: String = getConf(EXTENDED_EXPRESSION_TRAN_CONF)
+
+  def smallFileThreshold: Double = getConf(SMALL_FILE_THRESHOLD)
 
   def expressionBlacklist: Set[String] = {
     val blacklistSet = getConf(EXPRESSION_BLACK_LIST)
@@ -633,6 +649,11 @@ object GlutenConfig extends ConfigRegistry {
     // put in all GCS configs
     conf
       .filter(_._1.startsWith(HADOOP_PREFIX + GCS_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // put in all gluten velox configs
+    conf
+      .filter(_._1.startsWith(s"spark.gluten.$backendName"))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
@@ -1563,4 +1584,14 @@ object GlutenConfig extends ConfigRegistry {
       .doc("Enable or disable columnar collectTail.")
       .booleanConf
       .createWithDefault(true)
+
+  val SMALL_FILE_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.smallFileThreshold")
+      .doc(
+        "The total size threshold of small files in table scan." +
+          "To avoid small files being placed into the same partition, " +
+          "Gluten will try to distribute small files into different partitions when the " +
+          "total size of small files is below this threshold.")
+      .doubleConf
+      .createWithDefault(0.5)
 }

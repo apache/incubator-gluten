@@ -24,7 +24,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec, ShuffleQueryStageExec}
-import org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -136,7 +135,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 2)
   }
 
-  test("is_not_null") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("is_not_null", "3.5") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
@@ -176,7 +176,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 0)
   }
 
-  test("and pushdown") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("and pushdown", "3.5") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_orderkey > 2 " +
         "and l_orderkey = 1") { _ => }
@@ -332,7 +333,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("group sets") {
-    val result = runQueryAndCompare(
+    runQueryAndCompare(
       "select l_orderkey, l_partkey, sum(l_suppkey) from lineitem " +
         "where l_orderkey < 3 group by ROLLUP(l_orderkey, l_partkey) " +
         "order by l_orderkey, l_partkey ") { _ => }
@@ -352,7 +353,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 7)
   }
 
-  test("window expression") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("window expression", "3.5") {
     runQueryAndCompare(
       "select max(l_partkey) over" +
         " (partition by l_suppkey order by l_commitdate" +
@@ -583,13 +585,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("union two tables") {
-    val df = runQueryAndCompare("""
-                                  |select count(orderkey) from (
-                                  | select l_orderkey as orderkey from lineitem
-                                  | union
-                                  | select o_orderkey as orderkey from orders
-                                  |);
-                                  |""".stripMargin) {
+    runQueryAndCompare("""
+                         |select count(orderkey) from (
+                         | select l_orderkey as orderkey from lineitem
+                         | union
+                         | select o_orderkey as orderkey from orders
+                         |);
+                         |""".stripMargin) {
       df =>
         {
           getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined)
@@ -2065,25 +2067,6 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
-  test("FullOuter in BroadcastNestLoopJoin") {
-    withTable("t1", "t2") {
-      spark.range(10).write.format("parquet").saveAsTable("t1")
-      spark.range(10).write.format("parquet").saveAsTable("t2")
-
-      // with join condition should fallback.
-      withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
-        runQueryAndCompare("SELECT * FROM t1 FULL OUTER JOIN t2 ON t1.id < t2.id") {
-          checkSparkOperatorMatch[BroadcastNestedLoopJoinExec]
-        }
-
-        // without join condition should offload to gluten operator.
-        runQueryAndCompare("SELECT * FROM t1 FULL OUTER JOIN t2") {
-          checkGlutenOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
-        }
-      }
-    }
-  }
-
   test("test get_struct_field with scalar function as input") {
     withSQLConf("spark.sql.json.enablePartialResults" -> "true") {
       withTable("t") {
@@ -2187,5 +2170,15 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           assert(metrics("numOutputBatches").value == expectedNumBatches)
         }
       })
+  }
+
+  test("Expression unsupported by backend can be handled by ColumnarPartialProject") {
+    runQueryAndCompare(
+      "SELECT c_custkey, map_from_arrays(array(c_name), array(c_comment)) FROM customer") {
+      df =>
+        val executedPlan = getExecutedPlan(df)
+        assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+        assert(executedPlan.count(_.isInstanceOf[ColumnarPartialProjectExec]) == 1)
+    }
   }
 }

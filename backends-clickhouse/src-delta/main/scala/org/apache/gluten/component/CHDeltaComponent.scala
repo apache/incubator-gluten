@@ -29,12 +29,17 @@ import org.apache.gluten.sql.shims.DeltaShimLoader
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.sql.execution.{FilterExec, ProjectExec}
+import org.apache.spark.util.SparkReflectionUtil
 
 class CHDeltaComponent extends Component {
   override def name(): String = "ch-delta"
   override def buildInfo(): Component.BuildInfo =
     Component.BuildInfo("CHDelta", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[CHBackend] :: Nil
+
+  override def isRuntimeCompatible: Boolean = {
+    SparkReflectionUtil.isClassPresent("io.delta.sql.DeltaSparkSessionExtension")
+  }
 
   override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit =
     DeltaShimLoader.getDeltaShims.onDriverStart(sc, pc)

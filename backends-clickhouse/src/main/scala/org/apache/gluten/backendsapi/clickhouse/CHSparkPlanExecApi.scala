@@ -1043,4 +1043,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       extract.get.last,
       original)
   }
+
+  override def genMonthsBetweenTransformer(
+      substraitExprName: String,
+      date1: ExpressionTransformer,
+      date2: ExpressionTransformer,
+      roundOff: ExpressionTransformer,
+      original: MonthsBetween): ExpressionTransformer = {
+    CHMonthsBetweenTransformer(substraitExprName, date1, date2, roundOff, original)
+  }
 }

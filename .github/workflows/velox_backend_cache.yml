@@ -58,7 +58,7 @@ jobs:
   cache-native-lib-centos-8:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
-    container: apache/gluten:vcpkg-centos-8
+    container: apache/gluten:vcpkg-centos-9
     strategy:
       matrix:
         os: [ ubuntu-22.04, ubuntu-24.04-arm ]
@@ -73,7 +73,7 @@ jobs:
             ccache-centos8-release-default-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
-          bash dev/ci-velox-buildstatic-centos-8.sh
+          bash dev/ci-velox-buildstatic-centos-9.sh
       - name: Save Ccache
         uses: actions/cache/save@v3
         id: ccache
@@ -183,7 +183,7 @@ jobs:
   #       run: |
   #         rm -rf /opt/miniconda-for-velox/
   #         cd ep/build-velox/src && \
-  #         ./get_velox.sh
+  #         ./get-velox.sh
   #         cd ../build/velox_ep/
   #         make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
 
@@ -221,7 +221,7 @@ jobs:
 #        run: |
 #          rm -rf /opt/miniconda-for-velox/
 #          cd ep/build-velox/src && \
-#          ./get_velox.sh
+#          ./get-velox.sh
 #          cd ../build/velox_ep/
 #          source /opt/rh/gcc-toolset-9/enable
 #          make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON"

@@ -112,9 +112,9 @@ std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expr
             field = literal.date();
             break;
         }
-        case substrait::Expression_Literal::kTimestamp: {
+        case substrait::Expression_Literal::kTimestampTz: {
             type = std::make_shared<DB::DataTypeDateTime64>(6);
-            field = DecimalField<DB::DateTime64>(literal.timestamp(), 6);
+            field = DecimalField<DB::DateTime64>(literal.timestamp_tz(), 6);
             break;
         }
         case substrait::Expression_Literal::kDecimal: {

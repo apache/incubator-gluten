@@ -62,7 +62,7 @@ private object Discovery extends Logging {
     val out = allFiles.flatMap {
       case componentFilePattern(className) =>
         if (!deDup.add(className)) {
-          logWarning(s"Found duplicated component class $className in then classpath, ignoring.")
+          logWarning(s"Found duplicated component class $className in the classpath, ignoring.")
           None
         } else {
           val clazz =

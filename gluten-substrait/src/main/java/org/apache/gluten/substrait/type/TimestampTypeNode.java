@@ -26,7 +26,7 @@ public class TimestampTypeNode extends TypeNode {
 
   @Override
   public Type toProtobuf() {
-    Type.Timestamp.Builder timestampBuilder = Type.Timestamp.newBuilder();
+    Type.TimestampTZ.Builder timestampBuilder = Type.TimestampTZ.newBuilder();
     if (nullable) {
       timestampBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
     } else {
@@ -34,7 +34,7 @@ public class TimestampTypeNode extends TypeNode {
     }
 
     Type.Builder builder = Type.newBuilder();
-    builder.setTimestamp(timestampBuilder.build());
+    builder.setTimestampTz(timestampBuilder.build());
     return builder.build();
   }
 }

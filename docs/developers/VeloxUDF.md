@@ -87,7 +87,7 @@ It's recommended to create a CMakeLists.txt for the project. Here's an example:
 ```
 project(myudf)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(GLUTEN_HOME /path/to/gluten)

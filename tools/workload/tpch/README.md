@@ -7,7 +7,7 @@ Parquet and DWRF (a fork of the ORC file format) format files are both supported
 Please refer to the scripts in [parquet_dataset](./gen_data/parquet_dataset/) directory to generate parquet dataset. Note this script relies on the [spark-sql-perf](https://github.com/databricks/spark-sql-perf) and [tpch-dbgen](https://github.com/databricks/tpch-dbgen) package from Databricks. Note in the tpch-dbgen kits, we need to do a slight modification to allow Spark to convert the csv based content to parquet, please make sure to use this commit: [0469309147b42abac8857fa61b4cf69a6d3128a8](https://github.com/databricks/tpch-dbgen/commit/0469309147b42abac8857fa61b4cf69a6d3128a8)
 
 
-In tpch_datagen_parquet.sh, several parameters should be configured according to the system.
+In tpch-dategen-parquet.sh, several parameters should be configured according to the system.
 ```
 spark_sql_perf_jar=/PATH/TO/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar
 ...

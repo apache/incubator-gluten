@@ -76,7 +76,7 @@ TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool 
       return UNKNOWN();
     case ::substrait::Type::KindCase::kDate:
       return DATE();
-    case ::substrait::Type::KindCase::kTimestamp:
+    case ::substrait::Type::KindCase::kTimestampTz:
       return TIMESTAMP();
     case ::substrait::Type::KindCase::kDecimal: {
       auto precision = substraitType.decimal().precision();
@@ -368,7 +368,7 @@ bool SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& li
 
 template <>
 Timestamp SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
-  return Timestamp::fromMicros(literal.timestamp());
+  return Timestamp::fromMicros(literal.timestamp_tz());
 }
 
 template <>

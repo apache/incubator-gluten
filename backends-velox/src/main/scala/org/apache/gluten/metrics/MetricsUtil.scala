@@ -133,6 +133,7 @@ object MetricsUtil extends Logging {
     var localReadBytes: Long = 0
     var ramReadBytes: Long = 0
     var preloadSplits: Long = 0
+    var pageLoadTime: Long = 0
     var dataSourceAddSplitTime: Long = 0
     var dataSourceReadTime: Long = 0
     var numWrittenFiles: Long = 0
@@ -166,6 +167,7 @@ object MetricsUtil extends Logging {
       localReadBytes += metrics.localReadBytes
       ramReadBytes += metrics.ramReadBytes
       preloadSplits += metrics.preloadSplits
+      pageLoadTime += metrics.pageLoadTime
       dataSourceAddSplitTime += metrics.dataSourceAddSplitTime
       dataSourceReadTime += metrics.dataSourceReadTime
       numWrittenFiles += metrics.numWrittenFiles
@@ -206,6 +208,7 @@ object MetricsUtil extends Logging {
       localReadBytes,
       ramReadBytes,
       preloadSplits,
+      pageLoadTime,
       dataSourceAddSplitTime,
       dataSourceReadTime,
       physicalWrittenBytes,

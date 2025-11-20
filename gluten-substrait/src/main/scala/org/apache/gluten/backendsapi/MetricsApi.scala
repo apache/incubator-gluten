@@ -104,6 +104,8 @@ trait MetricsApi extends Serializable {
 
   def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
+  def genBatchWriteMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+
   def genSortTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genSortTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater

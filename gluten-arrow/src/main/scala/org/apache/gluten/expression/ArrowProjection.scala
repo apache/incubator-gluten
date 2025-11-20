@@ -19,8 +19,9 @@ package org.apache.gluten.expression
 import org.apache.gluten.vectorized.ArrowColumnarRow
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, Expression, ExpressionsEvaluator}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, CodeGeneratorWithInterpretedFallback, Expression, ExpressionsEvaluator}
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructType}
 
 // Not thread safe.
@@ -32,7 +33,16 @@ abstract class ArrowProjection extends (InternalRow => ArrowColumnarRow) with Ex
 }
 
 /** The factory object for `ArrowProjection`. */
-object ArrowProjection {
+object ArrowProjection
+  extends CodeGeneratorWithInterpretedFallback[Seq[Expression], ArrowProjection] {
+
+  override protected def createCodeGeneratedObject(in: Seq[Expression]): ArrowProjection = {
+    GenerateArrowProjection.generate(in, SQLConf.get.subexpressionEliminationEnabled)
+  }
+
+  override protected def createInterpretedObject(in: Seq[Expression]): ArrowProjection = {
+    InterpretedArrowProjection.createProjection(in)
+  }
 
   /**
    * Returns an ArrowProjection for given StructType.
@@ -52,7 +62,7 @@ object ArrowProjection {
 
   /** Returns an ArrowProjection for given sequence of bound Expressions. */
   def create(exprs: Seq[Expression]): ArrowProjection = {
-    InterpretedArrowProjection.createProjection(exprs)
+    createObject(exprs)
   }
 
   def create(expr: Expression): ArrowProjection = create(Seq(expr))
