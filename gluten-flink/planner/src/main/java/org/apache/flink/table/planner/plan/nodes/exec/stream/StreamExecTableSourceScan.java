@@ -16,7 +16,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.gluten.velox.VeloxSourceBuilder;
+import org.apache.gluten.velox.VeloxSourceSinkFactory;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.io.InputFormat;
@@ -106,7 +106,8 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
             .getScanTableSource(
                 planner.getFlinkContext(), ShortcutUtils.unwrapTypeFactory(planner));
     Transformation<RowData> sourceTransformation = super.translateToPlanInternal(planner, config);
-    return VeloxSourceBuilder.build(
+    VeloxSourceSinkFactory factory = VeloxSourceSinkFactory.getFactory(sourceTransformation);
+    return factory.buildSource(
         sourceTransformation,
         tableSource,
         planner.getExecEnv().getCheckpointConfig().isCheckpointingEnabled());

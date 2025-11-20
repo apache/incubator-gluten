@@ -1,0 +1,3 @@
+org.apache.gluten.velox.FromElementsSourceFactory
+org.apache.gluten.velox.KafkaSourceSinkFactory
+org.apache.gluten.velox.PrintSinkFactory
