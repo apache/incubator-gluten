@@ -1897,6 +1897,15 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
     }
 
+    withTempView("json_tuple_test") {
+      Seq[(String)](("{\"a.b\":\"b\"}"))
+        .toDF("json_field")
+        .createOrReplaceTempView("json_tuple_test")
+      runQueryAndCompare("SELECT json_tuple(json_field, 'a.b') from json_tuple_test") {
+        checkGlutenOperatorMatch[GenerateExecTransformer]
+      }
+    }
+
     runQueryAndCompare(
       """
         |SELECT
@@ -1905,17 +1914,6 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         |from lineitem
         |""".stripMargin) {
       checkGlutenOperatorMatch[GenerateExecTransformer]
-    }
-  }
-
-  test("Test json_tuple has '.'") {
-    withTempView("json_tuple_test") {
-      Seq[(String)](("{\"a.b\":\"b\"}"))
-        .toDF("json_field")
-        .createOrReplaceTempView("json_tuple_test")
-      runQueryAndCompare("SELECT json_tuple(json_field, 'a.b') from json_tuple_test") {
-        checkGlutenOperatorMatch[GenerateExecTransformer]
-      }
     }
   }
 
