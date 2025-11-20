@@ -18,7 +18,6 @@
 #include <arrow/c/bridge.h>
 #include <arrow/io/api.h>
 
-#include "config/GlutenConfig.h"
 #include "shuffle/VeloxHashShuffleWriter.h"
 #include "shuffle/VeloxRssSortShuffleWriter.h"
 #include "shuffle/VeloxSortShuffleWriter.h"
