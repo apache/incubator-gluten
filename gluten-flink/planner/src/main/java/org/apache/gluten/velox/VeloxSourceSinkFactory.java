@@ -52,7 +52,7 @@ public interface VeloxSourceSinkFactory {
       }
     }
     throw new FlinkRuntimeException(
-        "Not find implemented factory to build source transformation, available factories:"
+        "Not find implemented factory to build velox transformation, available factories:"
             + factoryNames);
   }
 }
