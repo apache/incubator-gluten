@@ -45,7 +45,7 @@ object GlutenIcebergSourceUtil {
     p.inputPartitions.exists {
       case ip: SparkInputPartition =>
         val tasks = ip.taskGroup[ScanTask]().tasks().asScala
-        asFileScanTask(tasks.toList).exists(task => task.deletes().isEmpty())
+        asFileScanTask(tasks.toList).exists(task => !task.deletes().isEmpty())
       case _ => throw new UnsupportedOperationException(s"Unsupported InputPartition type")
     }
   }
