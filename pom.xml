@@ -1627,6 +1627,8 @@
                   <sources>
                     <source>${project.basedir}/src-iceberg/test/scala</source>
                     <source>${project.basedir}/src-iceberg/test/java</source>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -1640,6 +1642,9 @@
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-iceberg/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -1658,43 +1663,6 @@
         <hadoop.version>3.4.1</hadoop.version>
         <fasterxml.version>2.19.2</fasterxml.version>
       </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-iceberg-test-sources</id>
-                <goals>
-                  <goal>add-test-source</goal>
-                </goals>
-                <phase>generate-test-sources</phase>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/scala</source>
-                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/java</source>
-                  </sources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-iceberg-test-resources</id>
-                <goals>
-                  <goal>add-test-resource</goal>
-                </goals>
-                <phase>generate-test-resources</phase>
-                <configuration>
-                  <resources>
-                    <resource>
-                      <directory>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/resources</directory>
-                    </resource>
-                  </resources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
     <profile>
       <id>hudi</id>
