@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.{ArrayType, DataType, StructType}
 
-import org.apache.iceberg.{BaseTable, MetadataColumns, Schema, SnapshotSummary}
+import org.apache.iceberg.{BaseTable, MetadataColumns, Schema, SnapshotSummary, TableProperties}
 import org.apache.iceberg.avro.AvroSchemaUtil
 import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
 import org.apache.iceberg.spark.source.metrics.NumSplits
@@ -126,18 +126,19 @@ case class IcebergScanTransformer(
       }
     }
 
-    val formatVersion = table match {
+    val baseTable = table match {
       case t: SparkTable =>
         t.table() match {
-          case t: BaseTable =>
-            t.operations()
-              .current()
-              .formatVersion()
-          case _ => -1
+          case t: BaseTable => t
+          case _ => null
         }
-      case _ => -1
+      case _ => null
     }
-    if (formatVersion > 0 && formatVersion >= 3) {
+    if (baseTable == null) {
+      return ValidationResult.succeeded
+    }
+    val metadata = baseTable.operations().current()
+    if (metadata.formatVersion() >= 3) {
       val hasUnsupportedDelete = finalPartitions.exists {
         case p: SparkDataSourceRDDPartition =>
           GlutenIcebergSourceUtil.deleteExists(p)
@@ -148,6 +149,10 @@ case class IcebergScanTransformer(
       if (hasUnsupportedDelete) {
         return ValidationResult.failed("Delete file format puffin is not supported")
       }
+    }
+    // https://github.com/apache/incubator-gluten/issues/11135
+    if (metadata.propertyAsBoolean(TableProperties.SPARK_WRITE_ACCEPT_ANY_SCHEMA, false)) {
+      return ValidationResult.failed("Not support read the file with accept any schema")
     }
 
     ValidationResult.succeeded
