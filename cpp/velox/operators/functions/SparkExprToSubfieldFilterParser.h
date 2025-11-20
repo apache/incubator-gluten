@@ -24,7 +24,8 @@ namespace gluten {
 class SparkExprToSubfieldFilterParser : public facebook::velox::exec::ExprToSubfieldFilterParser {
  public:
 
-  std::optional<std::pair<common::Subfield, std::unique_ptr<common::Filter>>>
+  std::optional<std::pair<facebook::velox::common::Subfield, 
+                std::unique_ptr<facebook::velox::common::Filter>>>
   leafCallToSubfieldFilter(
       const facebook::velox::core::CallTypedExpr& call,
       facebook::velox::common::Subfield& subfield,
