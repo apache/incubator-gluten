@@ -100,11 +100,10 @@ case class HiveTableScanExecTransformer(
         partition => getReadFileFormat(HiveClientImpl.fromHivePartition(partition).storage)
       }
 
-      val filePartitions = hivePartitionConverter.createFilePartition(
+      hivePartitionConverter.createFilePartition(
         prunedPartitions,
-        relation.partitionCols.map(_.dataType))
-
-      filePartitions.zip(readFileFormats)
+        relation.partitionCols.map(_.dataType),
+        readFileFormats)
     } else {
       val filePartitions = hivePartitionConverter
         .createFilePartition(prunedPartitions, relation.partitionCols.map(_.dataType))

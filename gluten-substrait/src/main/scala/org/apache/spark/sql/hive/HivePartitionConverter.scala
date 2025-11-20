@@ -18,12 +18,13 @@ package org.apache.spark.sql.hive
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
 import org.apache.spark.sql.catalyst.analysis.CastSupport
 import org.apache.spark.sql.catalyst.expressions.Literal
-import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionDirectory, PartitionedFile}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 
@@ -130,35 +131,51 @@ class HivePartitionConverter(hadoopConf: Configuration, session: SparkSession)
     }
   }
 
-  private def createFilePartition(
-      selectedPartitions: Seq[PartitionDirectory]): Seq[FilePartition] = {
+  private def getSplitFile(
+      partitionDirectory: PartitionDirectory,
+      maxSplitBytes: Long): Seq[PartitionedFile] =
+    SparkShimLoader.getSparkShims
+      .getFileStatus(partitionDirectory)
+      .flatMap {
+        f =>
+          SparkShimLoader.getSparkShims.splitFiles(
+            session,
+            f._1,
+            f._1.getPath,
+            isSplitable = canBeSplit(f._1.getPath),
+            maxSplitBytes,
+            partitionDirectory.values
+          )
+      }
+      .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
+
+  def createFilePartition(tableLocation: URI): Seq[FilePartition] = {
+    val selectedPartitions = listFiles(Seq((tableLocation, InternalRow.empty)))
     val maxSplitBytes = FilePartition.maxSplitBytes(session, selectedPartitions)
-    val splitFiles = selectedPartitions.flatMap {
-      partition =>
-        SparkShimLoader.getSparkShims
-          .getFileStatus(partition)
-          .flatMap {
-            f =>
-              SparkShimLoader.getSparkShims.splitFiles(
-                session,
-                f._1,
-                f._1.getPath,
-                isSplitable = canBeSplit(f._1.getPath),
-                maxSplitBytes,
-                partition.values
-              )
-          }
-          .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
-    }
+    val splitFiles = selectedPartitions.flatMap(getSplitFile(_, maxSplitBytes))
     FilePartition.getFilePartitions(session, splitFiles, maxSplitBytes)
   }
 
   def createFilePartition(
       prunedPartitions: Seq[HivePartition],
-      partitionColTypes: Seq[DataType]): Seq[FilePartition] = {
-    createFilePartition(listFiles(prunedPartitions, partitionColTypes))
+      partitionColTypes: Seq[DataType],
+      readFileFormats: Seq[ReadFileFormat]): Seq[(FilePartition, ReadFileFormat)] = {
+    val selectedPartitions = listFiles(prunedPartitions, partitionColTypes)
+    val maxSplitBytes = FilePartition.maxSplitBytes(session, selectedPartitions)
+    selectedPartitions.zip(readFileFormats).flatMap {
+      case (partitionDirectory, readFileFormat) =>
+        val splitFiles = getSplitFile(partitionDirectory, maxSplitBytes)
+        val filePartitions = FilePartition.getFilePartitions(session, splitFiles, maxSplitBytes)
+        filePartitions.map((_, readFileFormat))
+    }
   }
 
-  def createFilePartition(tableLocation: URI): Seq[FilePartition] =
-    createFilePartition(listFiles(Seq((tableLocation, InternalRow.empty))))
+  def createFilePartition(
+      prunedPartitions: Seq[HivePartition],
+      partitionColTypes: Seq[DataType]): Seq[FilePartition] = {
+    val selectedPartitions = listFiles(prunedPartitions, partitionColTypes)
+    val maxSplitBytes = FilePartition.maxSplitBytes(session, selectedPartitions)
+    val splitFiles = selectedPartitions.flatMap(getSplitFile(_, maxSplitBytes))
+    FilePartition.getFilePartitions(session, splitFiles, maxSplitBytes)
+  }
 }
