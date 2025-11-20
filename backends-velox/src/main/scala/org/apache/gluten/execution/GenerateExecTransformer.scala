@@ -178,7 +178,6 @@ object GenerateExecTransformer {
 }
 
 object PullOutGenerateProjectHelper extends PullOutProjectHelper {
-  val JSON_PATH_PREFIX = "$."
   def pullOutPreProject(generate: GenerateExec): SparkPlan = {
     if (GenerateExecTransformer.supportsGenerate(generate.generator)) {
       generate.generator match {
