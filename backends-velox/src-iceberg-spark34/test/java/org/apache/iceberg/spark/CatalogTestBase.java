@@ -14,11 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.source;
+package org.apache.iceberg.spark;
 
 import org.apache.iceberg.ParameterizedTestExtension;
-import org.apache.iceberg.spark.source.TestDataFrameWriterV2;
+import org.apache.iceberg.Parameters;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(ParameterizedTestExtension.class)
-public class TestGlutenDataFrameWriterV2 extends TestDataFrameWriterV2 {}
+public abstract class CatalogTestBase extends TestBaseWithCatalog {
+
+  // these parameters are broken out to avoid changes that need to modify lots of test suites
+  @Parameters(name = "catalogName = {0}, implementation = {1}, config = {2}")
+  protected static Object[][] parameters() {
+    return new Object[][] {
+      {
+        SparkCatalogConfig.HIVE.catalogName(),
+        SparkCatalogConfig.HIVE.implementation(),
+        SparkCatalogConfig.HIVE.properties()
+      },
+      {
+        SparkCatalogConfig.HADOOP.catalogName(),
+        SparkCatalogConfig.HADOOP.implementation(),
+        SparkCatalogConfig.HADOOP.properties()
+      },
+      {
+        SparkCatalogConfig.SPARK.catalogName(),
+        SparkCatalogConfig.SPARK.implementation(),
+        SparkCatalogConfig.SPARK.properties()
+      },
+    };
+  }
+}

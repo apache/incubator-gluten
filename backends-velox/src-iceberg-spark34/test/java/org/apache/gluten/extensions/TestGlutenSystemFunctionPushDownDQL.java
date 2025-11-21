@@ -18,11 +18,4 @@ package org.apache.gluten.extensions;
 
 import org.apache.iceberg.spark.extensions.TestSystemFunctionPushDownDQL;
 
-import java.util.Map;
-
-public class TestGlutenSystemFunctionPushDownDQL extends TestSystemFunctionPushDownDQL {
-  public TestGlutenSystemFunctionPushDownDQL(
-      String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
-  }
-}
+public class TestGlutenSystemFunctionPushDownDQL extends TestSystemFunctionPushDownDQL {}

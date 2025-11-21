@@ -539,8 +539,8 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <properties>
-        <iceberg.flinkConnector.version>1.18.1</iceberg.flinkConnector.version>
-        <iceberg.flinkConnector.subversion>1.18</iceberg.flinkConnector.subversion>
+        <iceberg.flinkConnector.version>1.19.3</iceberg.flinkConnector.version>
+        <iceberg.flinkConnector.subversion>1.19</iceberg.flinkConnector.subversion>
       </properties>
       <dependencies>
         <dependency>

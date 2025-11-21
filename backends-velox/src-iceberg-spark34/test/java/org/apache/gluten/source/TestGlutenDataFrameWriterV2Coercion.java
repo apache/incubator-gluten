@@ -16,11 +16,6 @@
  */
 package org.apache.gluten.source;
 
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.spark.source.TestDataFrameWriterV2Coercion;
 
-public class TestGlutenDataFrameWriterV2Coercion extends TestDataFrameWriterV2Coercion {
-  public TestGlutenDataFrameWriterV2Coercion(FileFormat format, String dataType) {
-    super(format, dataType);
-  }
-}
+public class TestGlutenDataFrameWriterV2Coercion extends TestDataFrameWriterV2Coercion {}
