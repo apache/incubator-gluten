@@ -247,7 +247,8 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
                     Literal.create(null)
                 }
               case jsonPath =>
-                // Build bracket notation uniformly to allow dot-containing field names in JSON paths, e.g., $[a.b]
+                // Build bracket notation uniformly to
+                // allow dot-containing field names in JSON paths, e.g., $[a.b]
                 GetJsonObject(
                   jsonObj,
                   Concat(Seq(Literal.create("$["), jsonPath, Literal.create("]"))))
