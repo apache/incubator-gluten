@@ -40,7 +40,6 @@ import org.apache.spark.util.{KnownSizeEstimation, Utils}
 
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
-import com.google.common.annotations.VisibleForTesting
 import org.apache.arrow.c.ArrowSchema
 
 import java.io.{Externalizable, ObjectInput, ObjectOutput}
@@ -102,7 +101,6 @@ class UnsafeColumnarBuildSideRelation(
     this(null, null, null)
   }
 
-  @VisibleForTesting
   private[unsafe] def getBatches(): Seq[UnsafeByteArray] = {
     batches
   }
