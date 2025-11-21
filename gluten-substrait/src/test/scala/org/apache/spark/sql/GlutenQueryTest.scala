@@ -35,7 +35,6 @@ import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQu
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.util.SparkVersionUtil
 
 import org.junit.Assert
 import org.scalatest.Assertions
