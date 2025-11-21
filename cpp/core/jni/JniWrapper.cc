@@ -997,8 +997,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
 
   // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeShuffleWriter)
   auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
-  auto numBytes = batch->numBytes();
   arrowAssertOkOrThrow(shuffleWriter->write(batch, memLimit), "Native write: shuffle writer failed");
+  auto numBytes = shuffleWriter->totalBytesWritten();
   return numBytes;
   JNI_METHOD_END(kInvalidObjectHandle)
 }
