@@ -71,7 +71,6 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  // TODO: fix on spark-4.0
   test("Test plan json non-empty - AQE on") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
