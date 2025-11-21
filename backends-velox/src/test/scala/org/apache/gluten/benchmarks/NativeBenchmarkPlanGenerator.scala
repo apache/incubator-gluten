@@ -71,8 +71,7 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("Test plan json non-empty - AQE on", "3.5") {
+  test("Test plan json non-empty - AQE on") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT.key -> "true") {
@@ -85,7 +84,7 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
       executedPlan.execute()
 
       val finalPlan = executedPlan.asInstanceOf[AdaptiveSparkPlanExec].executedPlan
-      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
+      val lastStageTransformer = stripAQEPlan(finalPlan).find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
       val planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson
       assert(planJson.nonEmpty)
