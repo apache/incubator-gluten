@@ -600,7 +600,7 @@ arrow::Status LocalPartitionWriter::writeCachedPayloads(uint32_t partitionId, ar
   return arrow::Status::OK();
 }
 
-arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
+arrow::Status LocalPartitionWriter::stop() {
   if (stopped_) {
     return arrow::Status::OK();
   }
@@ -650,7 +650,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   RETURN_NOT_OK(clearResource());
 
   // Populate shuffle writer metrics.
-  RETURN_NOT_OK(populateMetrics(metrics));
+  RETURN_NOT_OK(populateMetrics());
   return arrow::Status::OK();
 }
 
@@ -836,23 +836,23 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
   return arrow::Status::OK();
 }
 
-arrow::Status LocalPartitionWriter::populateMetrics(ShuffleWriterMetrics* metrics) {
+arrow::Status LocalPartitionWriter::populateMetrics() {
   if (payloadCache_) {
     spillTime_ += payloadCache_->getSpillTime();
     writeTime_ += payloadCache_->getWriteTime();
     compressTime_ += payloadCache_->getCompressTime();
-    metrics->avgDictionaryFields = payloadCache_->getAvgDictionaryFields();
-    metrics->dictionarySize = payloadCache_->getDictionarySize();
+    metrics_->avgDictionaryFields = payloadCache_->getAvgDictionaryFields();
+    metrics_->dictionarySize = payloadCache_->getDictionarySize();
   }
 
-  metrics->totalCompressTime += compressTime_;
-  metrics->totalEvictTime += spillTime_;
-  metrics->totalWriteTime += writeTime_;
-  metrics->totalBytesToEvict += totalBytesToEvict_;
-  metrics->totalBytesEvicted += totalBytesEvicted_;
-  metrics->totalBytesWritten += totalBytesWritten_;
-  metrics->partitionLengths = std::move(partitionLengths_);
-  metrics->rawPartitionLengths = std::move(rawPartitionLengths_);
+  metrics_->totalCompressTime += compressTime_;
+  metrics_->totalEvictTime += spillTime_;
+  metrics_->totalWriteTime += writeTime_;
+  metrics_->totalBytesToEvict += totalBytesToEvict_;
+  metrics_->totalBytesEvicted += totalBytesEvicted_;
+  metrics_->totalBytesWritten += totalBytesWritten_;
+  metrics_->partitionLengths = std::move(partitionLengths_);
+  metrics_->rawPartitionLengths = std::move(rawPartitionLengths_);
   return arrow::Status::OK();
 }
 } // namespace gluten

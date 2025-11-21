@@ -90,7 +90,7 @@ arrow::Status VeloxSortShuffleWriter::stop() {
   sortedBuffer_.reset();
   pages_.clear();
   pageAddresses_.clear();
-  RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
+  RETURN_NOT_OK(partitionWriter_->stop());
   return arrow::Status::OK();
 }
 
