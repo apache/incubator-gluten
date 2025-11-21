@@ -135,8 +135,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 2)
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("is_not_null", "3.5") {
+  test("is_not_null") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
@@ -177,10 +176,10 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("and pushdown", "3.5") {
+  test("and pushdown") {
     val df = runQueryAndCompare(
       "select l_orderkey from lineitem where l_orderkey > 2 " +
-        "and l_orderkey = 1") { _ => }
+        "and l_orderkey < 2") { _ => }
     assert(df.isEmpty)
     checkLengthAndPlan(df, 0)
   }
@@ -353,8 +352,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 7)
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("window expression", "3.5") {
+  test("window expression") {
     runQueryAndCompare(
       "select max(l_partkey) over" +
         " (partition by l_suppkey order by l_commitdate" +
