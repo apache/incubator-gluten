@@ -1574,7 +1574,7 @@ object GlutenConfig extends ConfigRegistry {
       .doc(
         "If supplied, `limit` number of files will be checked to determine encryption " +
           s"and falling back java scan. Defaulted to " +
-          s"${PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT.key}")
+          s"${PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT.key}.")
       .intConf
       .checkValue(_ > 0, s"must be positive.")
       .createOptional
