@@ -23,6 +23,7 @@ import org.apache.spark.sql.execution.unsafe.UnsafeByteArray;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ColumnarBatchSerializeResult implements Serializable {
   public static final ColumnarBatchSerializeResult EMPTY =
@@ -40,10 +41,14 @@ public class ColumnarBatchSerializeResult implements Serializable {
     this.isOffHeap = isOffHeap;
     if (isOffHeap) {
       onHeapData = null;
-      offHeapData = serialized.stream().map(JniUnsafeByteBuffer::toUnsafeByteArray).toList();
+      offHeapData =
+          serialized.stream()
+              .map(JniUnsafeByteBuffer::toUnsafeByteArray)
+              .collect(Collectors.toList());
       sizeInBytes = offHeapData.stream().mapToInt(unsafe -> Math.toIntExact(unsafe.size())).sum();
     } else {
-      onHeapData = serialized.stream().map(JniUnsafeByteBuffer::toByteArray).toList();
+      onHeapData =
+          serialized.stream().map(JniUnsafeByteBuffer::toByteArray).collect(Collectors.toList());
       offHeapData = null;
       sizeInBytes = onHeapData.stream().mapToInt(bytes -> bytes.length).sum();
     }

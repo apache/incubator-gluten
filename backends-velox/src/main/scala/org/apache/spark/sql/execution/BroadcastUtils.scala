@@ -107,7 +107,7 @@ object BroadcastUtils {
             if (result.isOffHeap) {
               UnsafeColumnarBuildSideRelation(
                 SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-                result.offHeapData().asScala,
+                result.offHeapData().asScala.toSeq,
                 mode)
             } else {
               ColumnarBuildSideRelation(
