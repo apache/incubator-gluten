@@ -29,18 +29,18 @@ import org.apache.spark.unsafe.memory.MemoryAllocator
  *
  * @param arraySize
  *   underlying array[array[byte]]'s length
- * @param bytesBufferLengths
- *   underlying array[array[byte]] per bytesBuffer length
+ * @param byteBufferLengths
+ *   underlying array[array[byte]] per byteBuffer length
  * @param totalBytes
- *   all bytesBuffer's length plus together
+ *   all byteBuffer's length plus together
  */
 // scalastyle:off no.finalize
 @Experimental
-case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int], totalBytes: Long)
+case class UnsafeByteBufferArray(arraySize: Int, byteBufferLengths: Array[Int], totalBytes: Long)
   extends Logging {
   {
     assert(
-      arraySize == bytesBufferLengths.length,
+      arraySize == byteBufferLengths.length,
       "Unsafe buffer array size " +
         "not equal to buffer lengths!")
     assert(totalBytes >= 0, "Unsafe buffer array total bytes can't be negative!")
@@ -48,29 +48,29 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
   private val allocatedBytes = (totalBytes + 7) / 8 * 8
 
   /**
-   * A single array to store all bytesBufferArray's value, it's inited once when first time get
+   * A single array to store all byteBufferArray's value, it's inited once when first time get
    * accessed.
    */
   private var longArray: LongArray = _
 
   /** Index the start of each byteBuffer's offset to underlying LongArray's initial position. */
-  private val bytesBufferOffset = if (bytesBufferLengths.isEmpty) {
+  private val byteBufferOffset = if (byteBufferLengths.isEmpty) {
     new Array(0)
   } else {
-    bytesBufferLengths.init.scanLeft(0L)(_ + _)
+    byteBufferLengths.init.scanLeft(0L)(_ + _)
   }
 
   /**
-   * Put bytesBuffer at specified array index.
+   * Put byteBuffer at specified array index.
    *
    * @param index
    *   index of the array.
-   * @param bytesBuffer
-   *   bytesBuffer to put.
+   * @param byteBuffer
+   *   byteBuffer to put.
    */
-  def putBytesBuffer(index: Int, bytesBuffer: Array[Byte]): Unit = this.synchronized {
+  def putByteBuffer(index: Int, byteBuffer: Array[Byte]): Unit = this.synchronized {
     assert(index < arraySize)
-    assert(bytesBuffer.length == bytesBufferLengths(index))
+    assert(byteBuffer.length == byteBufferLengths(index))
     // first to allocate underlying long array
     if (null == longArray && index == 0) {
       GlobalOffHeapMemory.acquire(allocatedBytes)
@@ -78,45 +78,45 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
     }
 
     Platform.copyMemory(
-      bytesBuffer,
+      byteBuffer,
       Platform.BYTE_ARRAY_OFFSET,
       longArray.getBaseObject,
-      longArray.getBaseOffset + bytesBufferOffset(index),
-      bytesBufferLengths(index))
+      longArray.getBaseOffset + byteBufferOffset(index),
+      byteBufferLengths(index))
   }
 
   /**
-   * Get bytesBuffer at specified index.
+   * Get byteBuffer at specified index.
    * @param index
    * @return
    */
-  def getBytesBuffer(index: Int): Array[Byte] = {
+  def getByteBuffer(index: Int): Array[Byte] = {
     assert(index < arraySize)
     if (null == longArray) {
       return new Array[Byte](0)
     }
-    val bytes = new Array[Byte](bytesBufferLengths(index))
+    val bytes = new Array[Byte](byteBufferLengths(index))
     Platform.copyMemory(
       longArray.getBaseObject,
-      longArray.getBaseOffset + bytesBufferOffset(index),
+      longArray.getBaseOffset + byteBufferOffset(index),
       bytes,
       Platform.BYTE_ARRAY_OFFSET,
-      bytesBufferLengths(index))
+      byteBufferLengths(index))
     bytes
   }
 
   /**
-   * Get the bytesBuffer memory address and length at specified index, usually used when read memory
+   * Get the byteBuffer memory address and length at specified index, usually used when read memory
    * direct from offheap.
    *
    * @param index
    * @return
    */
-  def getBytesBufferOffsetAndLength(index: Int): (Long, Int) = {
+  def getByteBufferOffsetAndLength(index: Int): (Long, Int) = {
     assert(index < arraySize)
     assert(longArray != null, "The broadcast data in offheap should not be null!")
-    val offset = longArray.getBaseOffset + bytesBufferOffset(index)
-    val length = bytesBufferLengths(index)
+    val offset = longArray.getBaseOffset + byteBufferOffset(index)
+    val length = byteBufferLengths(index)
     (offset, length)
   }
 

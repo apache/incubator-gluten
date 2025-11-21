@@ -44,6 +44,11 @@ namespace {
 
 jclass byteArrayClass;
 
+jclass unsafeByteBufferClass;
+jmethodID unsafeByteBufferAllocate;
+jmethodID unsafeByteBufferAddress;
+jmethodID unsafeByteBufferSize;
+
 jclass jniByteInputStreamClass;
 jmethodID jniByteInputStreamRead;
 jmethodID jniByteInputStreamTell;
@@ -245,6 +250,12 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   byteArrayClass = createGlobalClassReferenceOrError(env, "[B");
 
+  unsafeByteBufferClass = createGlobalClassReferenceOrError(env, "Lorg/apache/spark/unsafe/memory/UnsafeByteBuffer;");
+  unsafeByteBufferAllocate =
+      env->GetStaticMethodID(unsafeByteBufferClass, "allocate", "(J)Lorg/apache/spark/unsafe/memory/UnsafeByteBuffer;");
+  unsafeByteBufferAddress = env->GetMethodID(unsafeByteBufferClass, "address", "()J");
+  unsafeByteBufferSize = env->GetMethodID(unsafeByteBufferClass, "size", "()J");
+
   jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/JniByteInputStream;");
   jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", "(JJ)J");
   jniByteInputStreamTell = getMethodIdOrError(env, jniByteInputStreamClass, "tell", "()J");
@@ -287,6 +298,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(splitResultClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
+  env->DeleteGlobalRef(unsafeByteBufferClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
 
   getJniErrorState()->close();
@@ -1139,28 +1151,25 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
   JNI_METHOD_END()
 }
 
-JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT
+JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong handle) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
 
-  std::vector<std::shared_ptr<ColumnarBatch>> batches;
   auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
   GLUTEN_DCHECK(batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
-  batches.emplace_back(batch);
 
   auto serializer = ctx->createColumnarBatchSerializer(nullptr);
-  auto buffer = serializer->serializeColumnarBatches(batches);
-  auto bufferArr = env->NewByteArray(buffer->size());
-  GLUTEN_CHECK(
-      bufferArr != nullptr,
-      "Cannot construct a byte array of size " + std::to_string(buffer->size()) +
-          " byte(s) to serialize columnar batches");
-  env->SetByteArrayRegion(bufferArr, 0, buffer->size(), reinterpret_cast<const jbyte*>(buffer->data()));
+  serializer->append(batch);
+  auto serializedSize = serializer->maxSerializedSize();
+  auto byteBuffer = env->CallStaticObjectMethod(unsafeByteBufferClass, unsafeByteBufferAllocate, serializedSize);
+  auto byteBufferAddress = env->CallLongMethod(byteBuffer, unsafeByteBufferAddress);
+  auto byteBufferSize = env->CallLongMethod(byteBuffer, unsafeByteBufferSize);
+  serializer->serializeTo(reinterpret_cast<uint8_t*>(byteBufferAddress), byteBufferSize);
 
-  return bufferArr;
+  return byteBuffer;
   JNI_METHOD_END(nullptr)
 }
 

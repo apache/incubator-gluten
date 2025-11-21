@@ -41,12 +41,12 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
     val totalArraySize = 1
     val perArraySize = new Array[Int](totalArraySize)
     perArraySize(0) = 10
-    val bytesArray = UnsafeBytesBufferArray(
+    val bytesArray = UnsafeByteBufferArray(
       1,
       perArraySize,
       10
     )
-    bytesArray.putBytesBuffer(0, "1234567890".getBytes())
+    bytesArray.putByteBuffer(0, "1234567890".getBytes())
     unsafeRelWithIdentityMode = UnsafeColumnarBuildSideRelation(
       output,
       bytesArray,

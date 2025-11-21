@@ -30,7 +30,7 @@ import org.apache.gluten.memory.memtarget.{MemoryTarget, NoopMemoryTarget}
  * BlockId to be extended by user, TestBlockId is chosen for the storage memory reservations.
  */
 object GlobalOffHeapMemory {
-  private val target: MemoryTarget = if (GlutenCoreConfig.get.memoryUntracked) {
+  val target: MemoryTarget = if (GlutenCoreConfig.get.memoryUntracked) {
     new NoopMemoryTarget()
   } else {
     new GlobalOffHeapMemoryTarget()
