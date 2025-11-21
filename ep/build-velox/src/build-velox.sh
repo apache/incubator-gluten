@@ -98,16 +98,11 @@ for arg in "$@"; do
 done
 
 function compile {
-  CXX_FLAGS='-Wno-error=cpp -Wno-missing-field-initializers -Wno-error=uninitialized'
-  # Set compiler-specific flags.
-  local compiler="${CXX:-c++}"
-  local compiler_specific_flags="-Wno-error=stringop-overflow -Wno-unknown-warning-option"
-  for flag in $compiler_specific_flags; do
-    # Validate if a flag is accepted by the compiler.
-    if $compiler $flag -E - </dev/null >/dev/null 2>&1; then
-      CXX_FLAGS="$CXX_FLAGS $flag"
-    fi
-  done
+  # -Wno-unknown-warning-option is a Clang-originated flag. GCC ignores unrecognized -Wno- flags to
+  # maintain compatibility, but it prints a diagnostic note about the unknown flag if a true warning
+  # or error occurs.
+  CXX_FLAGS='-Wno-error=stringop-overflow -Wno-error=cpp -Wno-missing-field-initializers \
+    -Wno-error=uninitialized -Wno-unknown-warning-option'
 
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF \
       -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON \
