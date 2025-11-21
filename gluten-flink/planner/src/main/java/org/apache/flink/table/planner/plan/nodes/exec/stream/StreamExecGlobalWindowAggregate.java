@@ -37,6 +37,7 @@ import io.github.zhztheplayer.velox4j.plan.StreamWindowPartitionFunctionSpec;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -205,11 +206,15 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
     // TODO: support more window types.
     Tuple5<Long, Long, Long, Integer, Integer> windowSpecParams =
         WindowUtils.extractWindowParameters(windowing);
+    Tuple2<Integer, Integer> windowStartAndEndIndexes =
+        WindowUtils.getWindowStartAndEndIndexes(namedWindowProperties, (RowType) getOutputType());
     long size = windowSpecParams.f0;
     long slide = windowSpecParams.f1;
     long offset = windowSpecParams.f2;
     int rowtimeIndex = windowSpecParams.f3;
     int windowType = windowSpecParams.f4;
+    int windowStartIndex = windowStartAndEndIndexes.f0;
+    int windowEndIndex = windowStartAndEndIndexes.f1;
     PartitionFunctionSpec sliceAssignerSpec =
         new StreamWindowPartitionFunctionSpec(
             inputType, rowtimeIndex, size, slide, offset, windowType);
@@ -252,7 +257,10 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             offset,
             windowType,
             outputType,
-            rowtimeIndex);
+            false,
+            rowtimeIndex,
+            windowStartIndex,
+            windowEndIndex);
     final OneInputStreamOperator windowOperator =
         new GlutenVectorOneInputOperator(
             new StatefulPlanNode(windowAgg.getId(), windowAgg),
