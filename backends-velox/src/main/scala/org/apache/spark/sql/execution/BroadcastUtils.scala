@@ -185,7 +185,7 @@ object BroadcastUtils {
             try {
               unsafeBuffer.toByteArray
             } finally {
-              unsafeBuffer.close()
+              unsafeBuffer.release()
             }
           } finally {
             ColumnarBatches.release(b)

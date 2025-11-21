@@ -182,7 +182,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
               try {
                 unsafeBuffer.toByteArray
               } finally {
-                unsafeBuffer.close()
+                unsafeBuffer.release()
               }
             CachedColumnarBatch(batch.numRows(), bytes.length, bytes)
           }

@@ -52,7 +52,7 @@ public class UnsafeByteBuffer {
     return size;
   }
 
-  public void close() {
+  public void release() {
     buffer.close();
   }
 
