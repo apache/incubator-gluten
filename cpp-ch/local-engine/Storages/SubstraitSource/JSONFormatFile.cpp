@@ -39,7 +39,12 @@ JSONFormatFile::createInputFormat(const DB::Block & header, const std::shared_pt
     format_settings.with_names_use_header = true;
     format_settings.skip_unknown_fields = true;
     size_t max_block_size = file_info.json().max_block_size();
-    DB::RowInputFormatParams in_params = {max_block_size};
+    DB::RowInputFormatParams in_params =
+    {
+        .max_block_size = max_block_size,
+        .allow_errors_num = format_settings.input_allow_errors_num,
+        .allow_errors_ratio = format_settings.input_allow_errors_ratio
+    };
     std::shared_ptr<DB::JSONEachRowRowInputFormat> json_input_format
         = std::make_shared<DB::JSONEachRowRowInputFormat>(*read_buffer, toShared(header), in_params, format_settings, false);
 
