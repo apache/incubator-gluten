@@ -95,9 +95,9 @@ object BroadcastUtils {
       from: Broadcast[F],
       fn: Iterator[InternalRow] => Iterator[ColumnarBatch]): Broadcast[T] = {
 
-    def batchIterationToRelation(batchItr: Iterator[ColumnarBatch]): BuildSideRelation = {
+    def batchIterationToRelation(batchItr: () => Iterator[ColumnarBatch]): BuildSideRelation = {
       TaskResources.runUnsafe {
-        serializeStream(batchItr) match {
+        serializeStream(batchItr()) match {
           case ColumnarBatchSerializeResult.EMPTY =>
             ColumnarBuildSideRelation(
               SparkShimLoader.getSparkShims.attributesFromStruct(schema),
@@ -124,14 +124,14 @@ object BroadcastUtils {
         // HashedRelation to ColumnarBuildSideRelation.
         val fromBroadcast = from.asInstanceOf[Broadcast[HashedRelation]]
         val fromRelation = fromBroadcast.value.asReadOnlyCopy()
-        val toRelation = batchIterationToRelation(fn(reconstructRows(fromRelation)))
+        val toRelation = batchIterationToRelation(() => fn(reconstructRows(fromRelation)))
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
       case IdentityBroadcastMode =>
         // Array[InternalRow] to ColumnarBuildSideRelation.
         val fromBroadcast = from.asInstanceOf[Broadcast[Array[InternalRow]]]
         val fromRelation = fromBroadcast.value
-        val toRelation = batchIterationToRelation(fn(fromRelation.iterator))
+        val toRelation = batchIterationToRelation(() => fn(fromRelation.iterator))
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
       case _ => throw new IllegalStateException("Unexpected broadcast mode: " + mode)
