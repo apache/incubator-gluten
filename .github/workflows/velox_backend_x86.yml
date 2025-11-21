@@ -1262,7 +1262,8 @@ jobs:
           --conf $(realpath backends-velox/generated-native-benchmark/conf_12_0_*.ini) \
           --plan $(realpath backends-velox/generated-native-benchmark/plan_12_0_*.json) \
           --data $(realpath backends-velox/generated-native-benchmark/data_12_0_*_0.parquet),$(realpath backends-velox/generated-native-benchmark/data_12_0_*_1.parquet)
-      - name: Install JDK 17
+      - name: Install JDK17
+        run: |
           yum install -y java-17-openjdk-devel
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
