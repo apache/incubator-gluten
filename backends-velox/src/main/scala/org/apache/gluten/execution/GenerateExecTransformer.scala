@@ -178,7 +178,6 @@ object GenerateExecTransformer {
 }
 
 object PullOutGenerateProjectHelper extends PullOutProjectHelper {
-  val JSON_PATH_PREFIX = "$."
   def pullOutPreProject(generate: GenerateExec): SparkPlan = {
     if (GenerateExecTransformer.supportsGenerate(generate.generator)) {
       generate.generator match {
@@ -243,15 +242,16 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
               case jsonPath if jsonPath.foldable =>
                 Option(jsonPath.eval()) match {
                   case Some(path) =>
-                    GetJsonObject(jsonObj, Literal.create(JSON_PATH_PREFIX + path))
+                    GetJsonObject(jsonObj, Literal.create("$[" + path + "]"))
                   case _ =>
                     Literal.create(null)
                 }
               case jsonPath =>
-                // TODO: The prefix is just for adapting to GetJsonObject.
-                // Maybe, we can remove this handling in the future by
-                // making path without "$." recognized
-                GetJsonObject(jsonObj, Concat(Seq(Literal.create(JSON_PATH_PREFIX), jsonPath)))
+                // Build bracket notation uniformly to
+                // allow dot-containing field names in JSON paths, e.g., $[a.b]
+                GetJsonObject(
+                  jsonObj,
+                  Concat(Seq(Literal.create("$["), jsonPath, Literal.create("]"))))
             }.toIndexedSeq
           }
           val preGenerateExprs =
