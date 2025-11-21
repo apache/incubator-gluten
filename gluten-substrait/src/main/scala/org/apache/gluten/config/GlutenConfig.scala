@@ -1572,7 +1572,8 @@ object GlutenConfig extends ConfigRegistry {
   val PARQUET_ENCRYPTED_FALLBACK_FILE_LIMIT =
     buildConf("spark.gluten.sql.fallbackEncryptedParquet.limit")
       .doc("If supplied, `limit` number of files will be checked to determine encryption " +
-        s"and falling back java scan. Defaulted to ${PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT.key}")
+        s"and falling back java scan. Defaulted to " +
+        s"${PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT.key}")
       .intConf
       .checkValue(_ > 0, s"must be positive.")
       .createOptional
