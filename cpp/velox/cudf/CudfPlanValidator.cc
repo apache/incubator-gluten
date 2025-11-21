@@ -20,7 +20,6 @@
 #include "compute/ResultIterator.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
-#include "operators/plannodes/RowVectorStream.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 #include "velox/exec/TableScan.h"
@@ -75,9 +74,6 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
       continue;
     }
     if (isCudfOperator(op)) {
-      continue;
-    }
-    if (dynamic_cast<const ValueStream*>(op) != nullptr) {
       continue;
     }
     LOG(INFO) << "Operator " << op->operatorType() << " is not supported in cudf";
