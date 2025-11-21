@@ -154,16 +154,16 @@ class GlutenSQLQueryTestSuite
    * different names or in different locations.
    */
   protected def resultFileForInputFile(file: File): String = {
-    file.getAbsolutePath.replace(inputFilePath, goldenFilePath) + ".out"
+    file.getAbsolutePath.replace(overwriteInputFilePath, overwriteGoldenFilePath) + ".out"
   }
 
   protected lazy val listTestCases: Seq[TestCase] = {
-    listFilesRecursively(new File(inputFilePath))
+    listFilesRecursively(new File(overwriteInputFilePath))
       .flatMap {
         file =>
           var resultFile = resultFileForInputFile(file)
           var analyzerResultFile =
-            file.getAbsolutePath.replace(inputFilePath, analyzerGoldenFilePath) + ".out"
+            file.getAbsolutePath.replace(overwriteInputFilePath, overwriteGoldenFilePath) + ".out"
           // JDK-4511638 changes 'toString' result of Float/Double
           // JDK-8282081 changes DataTimeFormatter 'F' symbol
           if (Utils.isJavaVersionAtLeast21) {
@@ -171,42 +171,53 @@ class GlutenSQLQueryTestSuite
             if (new File(analyzerResultFile + ".java21").exists()) analyzerResultFile += ".java21"
           }
           val absPath = file.getAbsolutePath
-          val testCaseName = absPath.stripPrefix(inputFilePath).stripPrefix(File.separator)
+          val testCaseName = absPath.stripPrefix(overwriteInputFilePath).stripPrefix(File.separator)
 
           // Create test cases of test types that depend on the input filename.
           val newTestCases: Seq[TestCase] =
             if (
               file.getAbsolutePath.startsWith(
-                s"$inputFilePath${File.separator}udf${File.separator}postgreSQL")
+                s"$overwriteInputFilePath${File.separator}udf${File.separator}postgreSQL")
             ) {
               Seq(TestScalaUDF("udf"), TestPythonUDF("udf"), TestScalarPandasUDF("udf")).map {
                 udf =>
                   UDFPgSQLTestCase(s"$testCaseName - ${udf.prettyName}", absPath, resultFile, udf)
               }
-            } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}udf")) {
+            } else if (
+              file.getAbsolutePath.startsWith(s"$overwriteInputFilePath${File.separator}udf")
+            ) {
               Seq(TestScalaUDF("udf"), TestPythonUDF("udf"), TestScalarPandasUDF("udf")).map {
                 udf => UDFTestCase(s"$testCaseName - ${udf.prettyName}", absPath, resultFile, udf)
               }
-            } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}udaf")) {
+            } else if (
+              file.getAbsolutePath.startsWith(s"$overwriteInputFilePath${File.separator}udaf")
+            ) {
               Seq(TestGroupedAggPandasUDF("udaf")).map {
                 udf => UDAFTestCase(s"$testCaseName - ${udf.prettyName}", absPath, resultFile, udf)
               }
-            } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}udtf")) {
+            } else if (
+              file.getAbsolutePath.startsWith(s"$overwriteInputFilePath${File.separator}udtf")
+            ) {
               Seq(TestUDTFSet(AllTestUDTFs)).map {
                 udtfSet =>
                   UDTFSetTestCase(s"$testCaseName - Python UDTFs", absPath, resultFile, udtfSet)
               }
             } else if (
-              file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}postgreSQL")
+              file.getAbsolutePath.startsWith(s"$overwriteInputFilePath${File.separator}postgreSQL")
             ) {
               PgSQLTestCase(testCaseName, absPath, resultFile) :: Nil
-            } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}nonansi")) {
+            } else if (
+              file.getAbsolutePath.startsWith(s"$overwriteInputFilePath${File.separator}nonansi")
+            ) {
               NonAnsiTestCase(testCaseName, absPath, resultFile) :: Nil
             } else if (
-              file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}timestampNTZ")
+              file.getAbsolutePath.startsWith(
+                s"$overwriteInputFilePath${File.separator}timestampNTZ")
             ) {
               TimestampNTZTestCase(testCaseName, absPath, resultFile) :: Nil
-            } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}cte.sql")) {
+            } else if (
+              file.getAbsolutePath.startsWith(s"$overwriteInputFilePath${File.separator}cte.sql")
+            ) {
               CTETestCase(testCaseName, absPath, resultFile) :: Nil
             } else {
               RegularTestCase(testCaseName, absPath, resultFile) :: Nil
