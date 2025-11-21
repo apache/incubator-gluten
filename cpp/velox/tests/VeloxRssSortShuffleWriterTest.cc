@@ -17,7 +17,6 @@
 
 #include <arrow/util/compression.h>
 
-#include "config/GlutenConfig.h"
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/VeloxRssSortShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
