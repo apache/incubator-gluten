@@ -20,6 +20,7 @@
 
 #include "config/GlutenConfig.h"
 #include "shuffle/VeloxHashShuffleWriter.h"
+#include "shuffle/VeloxGpuShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
 #include "tests/utils/TestAllocationListener.h"
 #include "tests/utils/TestStreamReader.h"
