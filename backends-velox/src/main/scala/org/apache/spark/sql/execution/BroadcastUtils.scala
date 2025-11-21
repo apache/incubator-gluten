@@ -34,6 +34,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 // Utility methods to convert Vanilla broadcast relations from/to Velox broadcast relations.
@@ -94,8 +95,6 @@ object BroadcastUtils {
       from: Broadcast[F],
       fn: Iterator[InternalRow] => Iterator[ColumnarBatch]): Broadcast[T] = {
 
-    val useOffheapBuildRelation = VeloxConfig.get.enableBroadcastBuildRelationInOffheap
-
     def batchIterationToRelation(batchItr: Iterator[ColumnarBatch]): BuildSideRelation = {
       TaskResources.runUnsafe {
         serializeStream(batchItr) match {
@@ -105,15 +104,15 @@ object BroadcastUtils {
               Array[Array[Byte]](),
               mode)
           case result: ColumnarBatchSerializeResult =>
-            if (useOffheapBuildRelation) {
+            if (result.isOffHeap) {
               UnsafeColumnarBuildSideRelation(
                 SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-                result.getSerialized.map(_.toUnsafeByteArray),
+                result.offHeapData().asScala,
                 mode)
             } else {
               ColumnarBuildSideRelation(
                 SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-                result.getSerialized.map(_.toByteArray),
+                result.onHeapData().asScala.toArray,
                 mode)
             }
         }
@@ -176,7 +175,12 @@ object BroadcastUtils {
         })
       .toArray
     if (values.nonEmpty) {
-      new ColumnarBatchSerializeResult(numRows, values)
+      val useOffheapBroadcastBuildRelation =
+        VeloxConfig.get.enableBroadcastBuildRelationInOffheap
+      new ColumnarBatchSerializeResult(
+        useOffheapBroadcastBuildRelation,
+        numRows,
+        values.toSeq.asJava)
     } else {
       ColumnarBatchSerializeResult.EMPTY
     }

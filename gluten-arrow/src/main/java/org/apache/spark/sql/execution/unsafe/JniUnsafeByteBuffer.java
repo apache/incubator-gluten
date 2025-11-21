@@ -19,8 +19,6 @@ package org.apache.spark.sql.execution.unsafe;
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.spark.task.TaskResources;
 import org.apache.spark.unsafe.Platform;
 
 /**
@@ -38,18 +36,8 @@ public class JniUnsafeByteBuffer {
     this.size = size;
   }
 
-  private static BufferAllocator getArrowAllocator() {
-    final BufferAllocator allocator;
-    if (TaskResources.inSparkTask()) {
-      allocator = ArrowBufferAllocators.contextInstance(JniUnsafeByteBuffer.class.getName());
-    } else {
-      allocator = ArrowBufferAllocators.globalInstance();
-    }
-    return allocator;
-  }
-
   public static JniUnsafeByteBuffer allocate(long size) {
-    final ArrowBuf arrowBuf = getArrowAllocator().buffer(size);
+    final ArrowBuf arrowBuf = ArrowBufferAllocators.globalInstance().buffer(size);
     return new JniUnsafeByteBuffer(arrowBuf, size);
   }
 
@@ -69,6 +57,11 @@ public class JniUnsafeByteBuffer {
     }
   }
 
+  private synchronized void release() {
+    ensureOpen();
+    buffer.close();
+  }
+
   private synchronized void close() {
     ensureOpen();
     closed = true;
@@ -81,6 +74,7 @@ public class JniUnsafeByteBuffer {
     final byte[] values = new byte[Math.toIntExact(size)];
     Platform.copyMemory(
         null, buffer.memoryAddress(), values, Platform.BYTE_ARRAY_OFFSET, values.length);
+    release();
     close();
     return values;
   }
@@ -89,6 +83,8 @@ public class JniUnsafeByteBuffer {
     final UnsafeByteArray out;
     ensureOpen();
     out = new UnsafeByteArray(buffer, size);
+    // Do not release the Arrow buffer since we've transferred it to the target unsafe byte array
+    // which will manage its life cycle afterward.
     close();
     return out;
   }

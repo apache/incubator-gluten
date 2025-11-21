@@ -23,8 +23,6 @@ import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.spark.task.TaskResources;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -49,16 +47,6 @@ public class UnsafeByteArray implements Externalizable, KryoSerializable {
 
   public long size() {
     return size;
-  }
-
-  private static BufferAllocator getArrowAllocator() {
-    final BufferAllocator allocator;
-    if (TaskResources.inSparkTask()) {
-      allocator = ArrowBufferAllocators.contextInstance(JniUnsafeByteBuffer.class.getName());
-    } else {
-      allocator = ArrowBufferAllocators.globalInstance();
-    }
-    return allocator;
   }
 
   public void release() {
@@ -101,7 +89,7 @@ public class UnsafeByteArray implements Externalizable, KryoSerializable {
     }
 
     // allocate ArrowBuf
-    this.buffer = getArrowAllocator().buffer((int) size);
+    this.buffer = ArrowBufferAllocators.globalInstance().buffer((int) size);
 
     // stream bytes into ArrowBuf
     final int chunkSize = 8 * 1024;
@@ -147,7 +135,7 @@ public class UnsafeByteArray implements Externalizable, KryoSerializable {
       throw new IllegalArgumentException("UnsafeByteArray size too large: " + size);
     }
 
-    this.buffer = getArrowAllocator().buffer((int) size);
+    this.buffer = ArrowBufferAllocators.globalInstance().buffer((int) size);
 
     final int chunkSize = 8 * 1024;
     byte[] tmp = new byte[chunkSize];
