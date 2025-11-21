@@ -135,7 +135,7 @@ void getS3HiveConfig(
   };
 
   // Convert all Spark bucket configs to Velox bucket configs.
-  for (const auto& [key, value] : conf->rawConfigs()) {
+  for (const auto& [key, value] : conf->rawConfigsCopy()) {
     if (key.find(kSparkHadoopS3BucketPrefix) == 0) {
       std::string_view skey = key;
       auto remaining = skey.substr(kSparkHadoopS3BucketPrefix.size());
@@ -207,7 +207,7 @@ void getAbfsHiveConfig(
 #ifdef ENABLE_ABFS
   std::string_view kSparkHadoopPrefix = "spark.hadoop.";
   std::string_view kSparkHadoopAbfsPrefix = "spark.hadoop.fs.azure.";
-  for (const auto& [key, value] : conf->rawConfigs()) {
+  for (const auto& [key, value] : conf->rawConfigsCopy()) {
     if (key.find(kSparkHadoopAbfsPrefix) == 0) {
       // Remove the SparkHadoopPrefix
       hiveConfMap[key.substr(kSparkHadoopPrefix.size())] = value;
