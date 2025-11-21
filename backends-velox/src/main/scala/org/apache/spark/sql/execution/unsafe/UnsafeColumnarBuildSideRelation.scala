@@ -40,6 +40,7 @@ import org.apache.spark.util.{KnownSizeEstimation, Utils}
 
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
+import com.google.common.annotations.VisibleForTesting
 import org.apache.arrow.c.ArrowSchema
 
 import java.io.{Externalizable, ObjectInput, ObjectOutput}
@@ -47,10 +48,9 @@ import java.io.{Externalizable, ObjectInput, ObjectOutput}
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 object UnsafeColumnarBuildSideRelation {
-  // Keep constructors with BroadcastMode for compatibility
   def apply(
       output: Seq[Attribute],
-      batches: UnsafeByteBufferArray,
+      batches: Seq[UnsafeByteArray],
       mode: BroadcastMode): UnsafeColumnarBuildSideRelation = {
     val boundMode = mode match {
       case HashedRelationBroadcastMode(keys, isNullAware) =>
@@ -62,25 +62,6 @@ object UnsafeColumnarBuildSideRelation {
         m // IdentityBroadcastMode, etc.
     }
     new UnsafeColumnarBuildSideRelation(output, batches, BroadcastModeUtils.toSafe(boundMode))
-  }
-  def apply(
-      output: Seq[Attribute],
-      byteBufferArray: Array[Array[Byte]],
-      mode: BroadcastMode): UnsafeColumnarBuildSideRelation = {
-    val boundMode = mode match {
-      case HashedRelationBroadcastMode(keys, isNullAware) =>
-        // Bind each key to the build-side output so simple cols become BoundReference
-        val boundKeys: Seq[Expression] =
-          keys.map(k => BindReferences.bindReference(k, AttributeSeq(output)))
-        HashedRelationBroadcastMode(boundKeys, isNullAware)
-      case m =>
-        m // IdentityBroadcastMode, etc.
-    }
-    new UnsafeColumnarBuildSideRelation(
-      output,
-      byteBufferArray,
-      BroadcastModeUtils.toSafe(boundMode)
-    )
   }
 }
 
@@ -95,10 +76,10 @@ object UnsafeColumnarBuildSideRelation {
  *   the broadcast mode.
  */
 @Experimental
-case class UnsafeColumnarBuildSideRelation(
+class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
-    private var batches: UnsafeByteBufferArray,
-    var safeBroadcastMode: SafeBroadcastMode)
+    private var batches: Seq[UnsafeByteArray],
+    private var safeBroadcastMode: SafeBroadcastMode)
   extends BuildSideRelation
   with Externalizable
   with Logging
@@ -118,93 +99,36 @@ case class UnsafeColumnarBuildSideRelation(
 
   /** needed for serialization. */
   def this() = {
-    this(null, null.asInstanceOf[UnsafeByteBufferArray], null)
+    this(null, null, null)
   }
 
-  def this(
-      output: Seq[Attribute],
-      byteBufferArray: Array[Array[Byte]],
-      safeMode: SafeBroadcastMode
-  ) = {
-    this(
-      output,
-      UnsafeByteBufferArray(
-        byteBufferArray.length,
-        byteBufferArray.map(_.length),
-        byteBufferArray.map(_.length.toLong).sum
-      ),
-      safeMode
-    )
-    val batchesSize = byteBufferArray.length
-    for (i <- 0 until batchesSize) {
-      // copy the bytes to off-heap memory.
-      batches.putByteBuffer(i, byteBufferArray(i))
-    }
+  @VisibleForTesting
+  private[unsafe] def getBatches(): Seq[UnsafeByteArray] = {
+    batches
   }
 
   override def writeExternal(out: ObjectOutput): Unit = Utils.tryOrIOException {
     out.writeObject(output)
     out.writeObject(safeBroadcastMode)
-    out.writeInt(batches.arraySize)
-    out.writeObject(batches.byteBufferLengths)
-    out.writeLong(batches.totalBytes)
-    for (i <- 0 until batches.arraySize) {
-      val bytes = batches.getByteBuffer(i)
-      out.write(bytes)
-    }
+    out.writeObject(batches.toArray)
   }
 
   override def write(kryo: Kryo, out: Output): Unit = Utils.tryOrIOException {
     kryo.writeObject(out, output.toList)
     kryo.writeClassAndObject(out, safeBroadcastMode)
-    out.writeInt(batches.arraySize)
-    kryo.writeObject(out, batches.byteBufferLengths)
-    out.writeLong(batches.totalBytes)
-    for (i <- 0 until batches.arraySize) {
-      val bytes = batches.getByteBuffer(i)
-      out.write(bytes)
-    }
+    kryo.writeClassAndObject(out, batches.toArray)
   }
 
   override def readExternal(in: ObjectInput): Unit = Utils.tryOrIOException {
     output = in.readObject().asInstanceOf[Seq[Attribute]]
     safeBroadcastMode = in.readObject().asInstanceOf[SafeBroadcastMode]
-    val totalArraySize = in.readInt()
-    val byteBufferLengths = in.readObject().asInstanceOf[Array[Int]]
-    val totalBytes = in.readLong()
-
-    // scalastyle:off
-    /**
-     * We use off-heap memory to reduce on-heap pressure Similar to
-     * https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apache/spark/sql/execution/joins/HashedRelation.scala#L389-L410
-     */
-    // scalastyle:on
-
-    batches = UnsafeByteBufferArray(totalArraySize, byteBufferLengths, totalBytes)
-
-    for (i <- 0 until totalArraySize) {
-      val length = byteBufferLengths(i)
-      val tmpBuffer = new Array[Byte](length)
-      in.readFully(tmpBuffer)
-      batches.putByteBuffer(i, tmpBuffer)
-    }
+    batches = in.readObject().asInstanceOf[Array[UnsafeByteArray]].toSeq
   }
 
   override def read(kryo: Kryo, in: Input): Unit = Utils.tryOrIOException {
     output = kryo.readObject(in, classOf[List[_]]).asInstanceOf[Seq[Attribute]]
     safeBroadcastMode = kryo.readClassAndObject(in).asInstanceOf[SafeBroadcastMode]
-    val totalArraySize = in.readInt()
-    val byteBufferLengths = kryo.readObject(in, classOf[Array[Int]])
-    val totalBytes = in.readLong()
-
-    batches = UnsafeByteBufferArray(totalArraySize, byteBufferLengths, totalBytes)
-
-    for (i <- 0 until totalArraySize) {
-      val length = byteBufferLengths(i)
-      val tmpBuffer = new Array[Byte](length)
-      in.read(tmpBuffer)
-      batches.putByteBuffer(i, tmpBuffer)
-    }
+    batches = kryo.readClassAndObject(in).asInstanceOf[Array[UnsafeByteArray]].toSeq
   }
 
   private def transformProjection: UnsafeProjection = safeBroadcastMode match {
@@ -247,15 +171,17 @@ case class UnsafeColumnarBuildSideRelation(
         var batchId = 0
 
         override def hasNext: Boolean = {
-          batchId < batches.arraySize
+          batchId < batches.size
         }
 
         override def next: ColumnarBatch = {
-          val (offset, length) =
-            batches.getByteBufferOffsetAndLength(batchId)
+          val unsafeByteArray = batches(batchId)
           batchId += 1
           val handle =
-            jniWrapper.deserializeDirect(serializerHandle, offset, length)
+            jniWrapper.deserializeDirect(
+              serializerHandle,
+              unsafeByteArray.address(),
+              Math.toIntExact(unsafeByteArray.size()))
           ColumnarBatches.create(handle)
         }
       })
@@ -296,10 +222,10 @@ case class UnsafeColumnarBuildSideRelation(
     val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
     val c2rId = jniWrapper.nativeColumnarToRowInit()
     var batchId = 0
-    val iterator = if (batches.arraySize > 0) {
+    val iterator = if (batches.nonEmpty) {
       val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
         override def hasNext: Boolean = {
-          val itHasNext = batchId < batches.arraySize
+          val itHasNext = batchId < batches.size
           if (!itHasNext && !closed) {
             jniWrapper.nativeClose(c2rId)
             serializerJniWrapper.close(serializerHandle)
@@ -309,10 +235,13 @@ case class UnsafeColumnarBuildSideRelation(
         }
 
         override def next(): Iterator[InternalRow] = {
-          val (offset, length) = batches.getByteBufferOffsetAndLength(batchId)
+          val unsafeByteArray = batches(batchId)
           batchId += 1
           val batchHandle =
-            serializerJniWrapper.deserializeDirect(serializerHandle, offset, length)
+            serializerJniWrapper.deserializeDirect(
+              serializerHandle,
+              unsafeByteArray.address(),
+              Math.toIntExact(unsafeByteArray.size()))
           val batch = ColumnarBatches.create(batchHandle)
           if (batch.numRows == 0) {
             batch.close()
@@ -370,7 +299,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   override def estimatedSize: Long = {
     if (batches != null) {
-      batches.totalBytes
+      batches.map(_.size()).sum
     } else {
       0L
     }

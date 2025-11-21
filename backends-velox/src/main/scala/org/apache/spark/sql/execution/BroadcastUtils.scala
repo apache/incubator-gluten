@@ -93,58 +93,46 @@ object BroadcastUtils {
       schema: StructType,
       from: Broadcast[F],
       fn: Iterator[InternalRow] => Iterator[ColumnarBatch]): Broadcast[T] = {
+
     val useOffheapBuildRelation = VeloxConfig.get.enableBroadcastBuildRelationInOffheap
+
+    def batchIterationToRelation(batchItr: Iterator[ColumnarBatch]): BuildSideRelation = {
+      TaskResources.runUnsafe {
+        serializeStream(batchItr) match {
+          case ColumnarBatchSerializeResult.EMPTY =>
+            ColumnarBuildSideRelation(
+              SparkShimLoader.getSparkShims.attributesFromStruct(schema),
+              Array[Array[Byte]](),
+              mode)
+          case result: ColumnarBatchSerializeResult =>
+            if (useOffheapBuildRelation) {
+              UnsafeColumnarBuildSideRelation(
+                SparkShimLoader.getSparkShims.attributesFromStruct(schema),
+                result.getSerialized.map(_.toUnsafeByteArray),
+                mode)
+            } else {
+              ColumnarBuildSideRelation(
+                SparkShimLoader.getSparkShims.attributesFromStruct(schema),
+                result.getSerialized.map(_.toByteArray),
+                mode)
+            }
+        }
+      }
+    }
+
     mode match {
       case HashedRelationBroadcastMode(_, _) =>
         // HashedRelation to ColumnarBuildSideRelation.
         val fromBroadcast = from.asInstanceOf[Broadcast[HashedRelation]]
         val fromRelation = fromBroadcast.value.asReadOnlyCopy()
-        val toRelation = TaskResources.runUnsafe {
-          val batchItr: Iterator[ColumnarBatch] = fn(reconstructRows(fromRelation))
-          val serialized: Array[Array[Byte]] = serializeStream(batchItr) match {
-            case ColumnarBatchSerializeResult.EMPTY =>
-              Array()
-            case result: ColumnarBatchSerializeResult =>
-              result.getSerialized
-          }
-          if (useOffheapBuildRelation) {
-            UnsafeColumnarBuildSideRelation(
-              SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-              serialized,
-              mode)
-          } else {
-            ColumnarBuildSideRelation(
-              SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-              serialized,
-              mode)
-          }
-        }
+        val toRelation = batchIterationToRelation(fn(reconstructRows(fromRelation)))
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
       case IdentityBroadcastMode =>
         // Array[InternalRow] to ColumnarBuildSideRelation.
         val fromBroadcast = from.asInstanceOf[Broadcast[Array[InternalRow]]]
         val fromRelation = fromBroadcast.value
-        val toRelation = TaskResources.runUnsafe {
-          val batchItr: Iterator[ColumnarBatch] = fn(fromRelation.iterator)
-          val serialized: Array[Array[Byte]] = serializeStream(batchItr) match {
-            case ColumnarBatchSerializeResult.EMPTY =>
-              Array()
-            case result: ColumnarBatchSerializeResult =>
-              result.getSerialized
-          }
-          if (useOffheapBuildRelation) {
-            UnsafeColumnarBuildSideRelation(
-              SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-              serialized,
-              mode)
-          } else {
-            ColumnarBuildSideRelation(
-              SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-              serialized,
-              mode)
-          }
-        }
+        val toRelation = batchIterationToRelation(fn(fromRelation.iterator))
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
       case _ => throw new IllegalStateException("Unexpected broadcast mode: " + mode)
@@ -175,18 +163,13 @@ object BroadcastUtils {
           val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
           numRows += b.numRows()
           try {
-            val unsafeBuffer = ColumnarBatchSerializerJniWrapper
+            ColumnarBatchSerializerJniWrapper
               .create(
                 Runtimes
                   .contextInstance(
                     BackendsApiManager.getBackendName,
                     "BroadcastUtils#serializeStream"))
               .serialize(handle)
-            try {
-              unsafeBuffer.toByteArray
-            } finally {
-              unsafeBuffer.release()
-            }
           } finally {
             ColumnarBatches.release(b)
           }

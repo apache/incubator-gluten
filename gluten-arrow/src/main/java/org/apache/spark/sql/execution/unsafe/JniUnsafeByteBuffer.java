@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.unsafe.memory;
+package org.apache.spark.sql.execution.unsafe;
 
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 
@@ -23,43 +23,73 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.spark.task.TaskResources;
 import org.apache.spark.unsafe.Platform;
 
-/** The API is for being called from C++ via JNI. */
-public class UnsafeByteBuffer {
-  private final ArrowBuf buffer;
-  private final long size;
+/**
+ * A temperate unsafe byte buffer implementation that is created and operated from C++ via JNI. The
+ * buffer has to be converted either to a Java on-heap byte array or to a Java off-heap unsafe byte
+ * array after Java code receives this object.
+ */
+public class JniUnsafeByteBuffer {
+  private ArrowBuf buffer;
+  private long size;
+  private boolean closed = false;
 
-  private UnsafeByteBuffer(ArrowBuf buffer, long size) {
+  private JniUnsafeByteBuffer(ArrowBuf buffer, long size) {
     this.buffer = buffer;
     this.size = size;
   }
 
-  public static UnsafeByteBuffer allocate(long size) {
+  private static BufferAllocator getArrowAllocator() {
     final BufferAllocator allocator;
     if (TaskResources.inSparkTask()) {
-      allocator = ArrowBufferAllocators.contextInstance(UnsafeByteBuffer.class.getName());
+      allocator = ArrowBufferAllocators.contextInstance(JniUnsafeByteBuffer.class.getName());
     } else {
       allocator = ArrowBufferAllocators.globalInstance();
     }
-    final ArrowBuf arrowBuf = allocator.buffer(size);
-    return new UnsafeByteBuffer(arrowBuf, size);
+    return allocator;
+  }
+
+  public static JniUnsafeByteBuffer allocate(long size) {
+    final ArrowBuf arrowBuf = getArrowAllocator().buffer(size);
+    return new JniUnsafeByteBuffer(arrowBuf, size);
   }
 
   public long address() {
+    ensureOpen();
     return buffer.memoryAddress();
   }
 
   public long size() {
+    ensureOpen();
     return size;
   }
 
-  public void release() {
-    buffer.close();
+  private synchronized void ensureOpen() {
+    if (closed) {
+      throw new IllegalStateException("Already closed");
+    }
   }
 
-  public byte[] toByteArray() {
+  private synchronized void close() {
+    ensureOpen();
+    closed = true;
+    buffer = null;
+    size = 0;
+  }
+
+  public synchronized byte[] toByteArray() {
+    ensureOpen();
     final byte[] values = new byte[Math.toIntExact(size)];
     Platform.copyMemory(
         null, buffer.memoryAddress(), values, Platform.BYTE_ARRAY_OFFSET, values.length);
+    close();
     return values;
+  }
+
+  public synchronized UnsafeByteArray toUnsafeByteArray() {
+    final UnsafeByteArray out;
+    ensureOpen();
+    out = new UnsafeByteArray(buffer, size);
+    close();
+    return out;
   }
 }

@@ -16,17 +16,18 @@
  */
 package org.apache.gluten.vectorized;
 
+import org.apache.spark.sql.execution.unsafe.JniUnsafeByteBuffer;
+
 import java.io.Serializable;
 
 public class ColumnarBatchSerializeResult implements Serializable {
   public static final ColumnarBatchSerializeResult EMPTY =
-      new ColumnarBatchSerializeResult(0, new byte[0][0]);
+      new ColumnarBatchSerializeResult(0, new JniUnsafeByteBuffer[0]);
 
-  private long numRows;
+  private final long numRows;
+  private final JniUnsafeByteBuffer[] serialized;
 
-  private byte[][] serialized;
-
-  public ColumnarBatchSerializeResult(long numRows, byte[][] serialized) {
+  public ColumnarBatchSerializeResult(long numRows, JniUnsafeByteBuffer[] serialized) {
     this.numRows = numRows;
     this.serialized = serialized;
   }
@@ -35,7 +36,7 @@ public class ColumnarBatchSerializeResult implements Serializable {
     return numRows;
   }
 
-  public byte[][] getSerialized() {
+  public JniUnsafeByteBuffer[] getSerialized() {
     return serialized;
   }
 }
