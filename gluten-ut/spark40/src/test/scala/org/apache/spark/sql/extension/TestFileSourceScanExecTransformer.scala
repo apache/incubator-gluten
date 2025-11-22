@@ -35,6 +35,7 @@ case class TestFileSourceScanExecTransformer(
     override val optionalBucketSet: Option[BitSet],
     override val optionalNumCoalescedBuckets: Option[Int],
     override val dataFilters: Seq[Expression],
+    override val tableIdentifier: Option[TableIdentifier],
     override val disableBucketedScan: Boolean = false,
     override val pushDownFilters: Option[Seq[Expression]] = None)
   extends FileSourceScanExecTransformerBase(
