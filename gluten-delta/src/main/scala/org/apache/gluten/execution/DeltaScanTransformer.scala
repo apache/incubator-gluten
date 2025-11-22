@@ -75,7 +75,8 @@ case class DeltaScanTransformer(
       optionalNumCoalescedBuckets,
       QueryPlan.normalizePredicates(dataFilters, output),
       None,
-      disableBucketedScan
+      disableBucketedScan,
+      pushDownFilters.map(QueryPlan.normalizePredicates(_, output))
     )
   }
 

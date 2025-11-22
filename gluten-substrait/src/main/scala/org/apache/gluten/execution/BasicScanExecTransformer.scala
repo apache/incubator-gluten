@@ -111,8 +111,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    // Manually invoke filterExprs to check if there are any unsupported filters.
-    filterExprs()
     val validationResult = BackendsApiManager.getSettings
       .validateScanExec(
         fileFormat,
