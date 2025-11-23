@@ -64,7 +64,13 @@ case class MicroBatchScanExecTransformer(
   @transient override lazy val inputPartitionsShim: Seq[InputPartition] =
     stream.planInputPartitions(start, end)
 
-  override def filterExprs(): Seq[Expression] = Seq.empty
+  override def scanFilters: Seq[Expression] = Seq.empty
+
+  def pushDownFilters: Option[Seq[Expression]] = Some(Seq.empty)
+
+  def withNewPushdownFilters(filters: Seq[Expression]): BatchScanExecTransformerBase = {
+    throw new UnsupportedOperationException()
+  }
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 

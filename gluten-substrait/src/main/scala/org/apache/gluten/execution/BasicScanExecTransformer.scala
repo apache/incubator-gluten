@@ -38,7 +38,38 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   import org.apache.spark.sql.catalyst.util._
 
   /** Returns the filters that can be pushed down to native file scan */
-  def filterExprs(): Seq[Expression]
+  final def filterExprs(): Seq[Expression] = {
+    if (pushDownFilters.nonEmpty) {
+      val (_, scanFiltersNotInPushDownFilters) =
+        scanFilters.partition(pushDownFilters.get.contains(_))
+      // For filters that only exists in scan, we need to check if they are supported.
+      val unsupportedFilters = scanFiltersNotInPushDownFilters.filter(
+        !BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
+      if (unsupportedFilters.nonEmpty) {
+        throw new UnsupportedOperationException(
+          "Found unsupported filter in scan " + unsupportedFilters.mkString(", "))
+      }
+      val supportedPushDownFilters = pushDownFilters.get
+        .filter(BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
+      FilterHandler.combineFilters(supportedPushDownFilters, scanFiltersNotInPushDownFilters)
+    } else {
+      // todo: Add validation for scanFilters when not perform filters push down.
+      scanFilters.filter(
+        BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
+    }
+  }
+
+  /** Returns the filters that already exists in scan. */
+  def scanFilters: Seq[Expression]
+
+  /**
+   * Returns the filters that pushed by
+   * [[org.apache.gluten.extension.columnar.PushDownFilterToScan]].
+   */
+  def pushDownFilters: Option[Seq[Expression]]
+
+  /** Copy the scan with filters that pushed by filterNode. */
+  def withNewPushdownFilters(filters: Seq[Expression]): BasicScanExecTransformer
 
   def getMetadataColumns(): Seq[AttributeReference]
 
@@ -127,12 +158,11 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         }
     }.asJava
     // Will put all filter expressions into an AND expression
-    val transformer = filterExprs()
+    val filterTransformer = filterExprs()
       .map(ExpressionConverter.replaceAttributeReference)
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
-    val filterNodes = transformer.map(_.doTransform(context))
-    val exprNode = filterNodes.orNull
+    val filterNode = filterTransformer.map(_.doTransform(context)).orNull
 
     // used by CH backend
     val optimizationContent =
@@ -147,7 +177,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       typeNodes,
       nameList,
       columnTypeNodes,
-      exprNode,
+      filterNode,
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))

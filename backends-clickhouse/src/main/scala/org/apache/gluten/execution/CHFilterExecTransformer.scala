@@ -36,7 +36,7 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
       condition
     } else {
       val remainingFilters =
-        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(condition))
+        FilterHandler.subtractFilters(splitConjunctivePredicates(condition), scanFilters)
       remainingFilters.reduceLeftOption(And).orNull
     }
   }

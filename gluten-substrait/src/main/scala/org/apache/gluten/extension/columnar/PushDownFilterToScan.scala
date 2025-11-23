@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.{BatchScanExecTransformerBase, FileSourceScanExecTransformer, FilterExecTransformerBase}
+import org.apache.gluten.execution.{BasicScanExecTransformer, FilterExecTransformerBase}
 
 import org.apache.spark.sql.catalyst.expressions.PredicateHelper
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -31,32 +31,12 @@ object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case filter: FilterExecTransformerBase =>
       filter.child match {
-        case fileScan: FileSourceScanExecTransformer =>
-          val pushDownFilters =
-            BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-              splitConjunctivePredicates(filter.cond),
-              fileScan)
-          val newScan = fileScan.copy(dataFilters = pushDownFilters)
+        case scan: BasicScanExecTransformer
+            if BackendsApiManager.getSparkPlanExecApiInstance.supportPushDownFilterToScan(
+              scan) && scan.pushDownFilters.isEmpty =>
+          val newScan = scan.withNewPushdownFilters(splitConjunctivePredicates(filter.cond))
           if (newScan.doValidate().ok()) {
             filter.withNewChildren(Seq(newScan))
-          } else {
-            filter
-          }
-        case batchScan: BatchScanExecTransformerBase =>
-          val pushDownFilters =
-            BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-              splitConjunctivePredicates(filter.cond),
-              batchScan)
-          // If BatchScanExecTransformerBase's parent is filter, pushdownFilters can't be None.
-          batchScan.setPushDownFilters(Seq.empty)
-          val newScan = batchScan
-          if (pushDownFilters.nonEmpty) {
-            newScan.setPushDownFilters(pushDownFilters)
-            if (newScan.doValidate().ok()) {
-              filter.withNewChildren(Seq(newScan))
-            } else {
-              filter
-            }
           } else {
             filter
           }
