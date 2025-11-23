@@ -52,13 +52,13 @@ abstract class HudiSuite extends WholeStageTransformerSuite {
       val df = spark.sql(" select _hoodie_commit_time from hudi_tm;")
       val value = df.collectAsList().get(0).getAs[String](0)
       val df1 = runQueryAndCompare("select id, name from hudi_tm timestamp AS OF " + value) {
-        checkGlutenOperatorMatch[HudiScanTransformer]
+        checkGlutenPlan[HudiScanTransformer]
       }
       checkLengthAndPlan(df1, 2)
       checkAnswer(df1, Row(1, "v1") :: Row(2, "v2") :: Nil)
       val df2 =
         runQueryAndCompare("select name from hudi_tm timestamp AS OF " + value + " where id = 2") {
-          checkGlutenOperatorMatch[HudiScanTransformer]
+          checkGlutenPlan[HudiScanTransformer]
         }
       checkLengthAndPlan(df2, 1)
       checkAnswer(df2, Row("v2") :: Nil)
@@ -77,7 +77,7 @@ abstract class HudiSuite extends WholeStageTransformerSuite {
                    |delete from hudi_pf where name = "v2"
                    |""".stripMargin)
       val df1 = runQueryAndCompare("select id, name from hudi_pf") {
-        checkGlutenOperatorMatch[HudiScanTransformer]
+        checkGlutenPlan[HudiScanTransformer]
       }
       checkLengthAndPlan(df1, 2)
       checkAnswer(df1, Row(1, "v1") :: Row(3, "v1") :: Nil)
