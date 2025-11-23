@@ -26,7 +26,7 @@ import org.apache.spark.sql.sources
 
 object PushDownUtil {
 
-  def isSupportPushDownFilters(
+  def isSupportPushDownFilter(
       conf: SQLConf,
       output: Seq[Attribute],
       filter: Expression

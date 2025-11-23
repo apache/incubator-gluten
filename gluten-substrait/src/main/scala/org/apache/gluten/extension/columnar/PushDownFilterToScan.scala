@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.{BasicScanExecTransformer, FilterExecTransformerBase}
 
 import org.apache.spark.sql.catalyst.expressions.PredicateHelper
@@ -30,7 +31,9 @@ object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case filter: FilterExecTransformerBase =>
       filter.child match {
-        case scan: BasicScanExecTransformer if scan.pushDownFilters.isEmpty =>
+        case scan: BasicScanExecTransformer
+            if BackendsApiManager.getSparkPlanExecApiInstance.supportPushDownFilterToScan(
+              scan) && scan.pushDownFilters.isEmpty =>
           val newScan = scan.withNewPushdownFilters(splitConjunctivePredicates(filter.cond))
           if (newScan.doValidate().ok()) {
             filter.withNewChildren(Seq(newScan))

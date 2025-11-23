@@ -651,6 +651,8 @@ trait SparkPlanExecApi {
 
   def rewriteSpillPath(path: String): String = path
 
+  def supportPushDownFilterToScan(sparkExecNode: LeafExecNode): Boolean = true
+
   /** Return whether the filter is supported in scan. */
   def isSupportedScanFilter(filter: Expression, sparkExecNode: LeafExecNode): Boolean = {
     ExpressionConverter.canReplaceWithExpressionTransformer(
