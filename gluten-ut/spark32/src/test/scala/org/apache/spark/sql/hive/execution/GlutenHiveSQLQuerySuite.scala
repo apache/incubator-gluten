@@ -100,5 +100,4 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
       }
     }
   }
-
 }
