@@ -478,8 +478,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     }
   }
 
-  // TODO: fix in Spark-4.0
-  ignoreGluten("SPARK-42635: timestampadd near daylight saving transition") {
+  testGluten("SPARK-42635: timestampadd near daylight saving transition") {
     // In America/Los_Angeles timezone, timestamp value `skippedTime` is 2011-03-13 03:00:00.
     // The next second of 2011-03-13 01:59:59 jumps to 2011-03-13 03:00:00.
     val skippedTime = 1300010400000000L
