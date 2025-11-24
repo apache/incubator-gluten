@@ -1900,7 +1900,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         .toDF("json_field")
         .createOrReplaceTempView("json_tuple_test")
       runQueryAndCompare("SELECT json_tuple(json_field, 'a.b') from json_tuple_test") {
-        checkGlutenOperatorMatch[GenerateExecTransformer]
+        checkGlutenPlan[GenerateExecTransformer]
       }
     }
 
