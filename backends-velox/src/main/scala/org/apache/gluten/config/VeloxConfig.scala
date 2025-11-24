@@ -76,6 +76,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
 
+  def enableLimitBatchResizer: Boolean = getConf(ENABLE_LIMIT_BATCH_RESIZER)
+
   def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
 
   def cudfEnableValidation: Boolean = getConf(CUDF_ENABLE_VALIDATION)
@@ -679,6 +681,15 @@ object VeloxConfig extends ConfigRegistry {
       .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("10MB")
+
+  val ENABLE_LIMIT_BATCH_RESIZER = {
+    buildConf("spark.gluten.sql.columnar.backend.velox.enableLimitBatchResizer")
+      .doc(
+        "If enabled, `VeloxBatchResizer` will respect the upper limit of memory size of a batch" +
+          "set by config `spark.gluten.sql.columnar.backend.velox.preferredBatchBytes`")
+      .booleanConf
+      .createWithDefault(true)
+  }
 
   val VELOX_MAX_COMPILED_REGEXES =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes")
