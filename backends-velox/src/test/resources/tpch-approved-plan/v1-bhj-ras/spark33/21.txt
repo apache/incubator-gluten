@@ -303,7 +303,7 @@ Arguments: false
 
 (52) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, s_name#X, count#X]
-Arguments: X, X
+Arguments: X, X, 10485760
 
 (53) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_name#X, count#X]
