@@ -27,7 +27,6 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.NamedStruct
@@ -104,56 +103,42 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     doNativeValidation(substraitContext, relNode)
   }
 
-  def appendStringFields(
-      schema: StructType,
-      existingFields: Array[StructField]): Array[StructField] = {
-    val stringFields = schema.fields.filter(_.dataType.isInstanceOf[StringType])
-    if (stringFields.nonEmpty) {
-      (existingFields ++ stringFields).distinct
+  private def makeColumnTypeNode(attr: Attribute): ColumnTypeNode = {
+    if (getPartitionSchema.exists(_.name.equals(attr.name))) {
+      new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL)
+    } else if (BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)) {
+      new ColumnTypeNode(NamedStruct.ColumnType.ROWINDEX_COL)
+    } else if (attr.isMetadataCol) {
+      new ColumnTypeNode(NamedStruct.ColumnType.METADATA_COL)
     } else {
-      existingFields
+      new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)
     }
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
-    val columnTypeNodes = output.map {
-      attr =>
-        if (getPartitionSchema.exists(_.name.equals(attr.name))) {
-          new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL)
-        } else if (
-          BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)
-        ) {
-          new ColumnTypeNode(NamedStruct.ColumnType.ROWINDEX_COL)
-        } else if (attr.isMetadataCol) {
-          new ColumnTypeNode(NamedStruct.ColumnType.METADATA_COL)
-        } else {
-          new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)
-        }
-    }.asJava
+    val columnTypeNodes = output.map(makeColumnTypeNode).asJava
     // Will put all filter expressions into an AND expression
-    val transformer = filterExprs()
+    val exprNode = filterExprs()
       .map(ExpressionConverter.replaceAttributeReference)
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
-    val filterNodes = transformer.map(_.doTransform(context))
-    val exprNode = filterNodes.orNull
+      .map(_.doTransform(context))
+      .orNull
 
     // used by CH backend
-    val optimizationContent =
-      s"isMergeTree=${if (this.fileFormat == ReadFileFormat.MergeTreeReadFormat) "1" else "0"}\n"
-
+    val mergeTreeFlag = if (this.fileFormat == ReadFileFormat.MergeTreeReadFormat) "1" else "0"
     val optimization =
       BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder.setValue(optimizationContent).build)
+        StringValue.newBuilder.setValue(s"isMergeTree=$mergeTreeFlag\n").build)
     val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
 
     val readNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
-      columnTypeNodes,
       exprNode,
+      columnTypeNodes,
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))
