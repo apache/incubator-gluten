@@ -100,7 +100,7 @@ Arguments: false
 
 (15) VeloxResizeBatches
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
-Arguments: X, X
+Arguments: X, X, 10485760
 
 (16) ColumnarExchange
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
