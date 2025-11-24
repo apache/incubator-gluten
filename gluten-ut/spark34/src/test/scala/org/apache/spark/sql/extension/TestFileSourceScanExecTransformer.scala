@@ -17,7 +17,7 @@
 package org.apache.spark.sql.extension
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.FileSourceScanExecTransformerBase
+import org.apache.gluten.execution.{BasicScanExecTransformer, FileSourceScanExecTransformerBase}
 
 import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -60,4 +60,7 @@ case class TestFileSourceScanExecTransformer(
         disableBucketedScan)
 
   override val nodeNamePrefix: String = "TestFile"
+
+  override def withNewOutput(newOutput: Seq[Attribute]): BasicScanExecTransformer =
+    copy(output = newOutput)
 }

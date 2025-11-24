@@ -18,45 +18,25 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.expression.CHFlattenedExpression
 
-import org.apache.spark.sql.catalyst.expressions.{And, Expression, ExprId, IsNotNull}
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.SparkPlan
 
 case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
-  override protected def getRemainingCondition: Expression = {
-    val scanFilters = child match {
-      // Get the filters including the manually pushed down ones.
-      case basicScanTransformer: BasicScanExecTransformer =>
-        basicScanTransformer.filterExprs()
-      // In ColumnarGuardRules, the child is still row-based. Need to get the original filters.
-      case _ =>
-        FilterHandler.getScanFilters(child)
-    }
-    if (scanFilters.isEmpty) {
-      condition
-    } else {
-      val remainingFilters =
-        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(condition))
-      remainingFilters.reduceLeftOption(And).orNull
-    }
-  }
-
   override protected def withNewChildInternal(newChild: SparkPlan): CHFilterExecTransformer =
     copy(child = newChild)
 }
 
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
-  override protected def getRemainingCondition: Expression = condition
+
+  override val enablePushDownFilter = false
+
   override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
     copy(child = newChild)
-  override protected val notNullAttributes: Seq[ExprId] = condition match {
-    case s: CHFlattenedExpression =>
-      val (notNullPreds, _) = s.children.partition {
-        case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
-        case _ => false
-      }
-      notNullPreds.flatMap(_.references).distinct.map(_.exprId)
-    case _ => notNullPreds.flatMap(_.references).distinct.map(_.exprId)
+
+  override def flattenedCond: Seq[Expression] = condition match {
+    case s: CHFlattenedExpression => s.children
+    case _ => splitConjunctivePredicates(condition)
   }
 }
