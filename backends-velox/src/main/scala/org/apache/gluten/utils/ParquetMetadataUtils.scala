@@ -139,10 +139,10 @@ object ParquetMetadataUtils {
     val int96RebaseSpec = DataSourceUtils.int96RebaseSpec(
       footerFileMetaData.getKeyValueMetaData.get,
       int96RebaseModeInRead)
-    if (datetimeRebaseSpec.timeZone.nonEmpty) {
+    if (datetimeRebaseSpec.originTimeZone.nonEmpty) {
       return true
     }
-    if (int96RebaseSpec.timeZone.nonEmpty) {
+    if (int96RebaseSpec.originTimeZone.nonEmpty) {
       return true
     }
     false
