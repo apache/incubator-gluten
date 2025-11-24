@@ -813,7 +813,7 @@ trait SparkPlanExecApi {
     SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(columnName)
   }
 
-  def getErrorMessage(raiseError: RaiseError): Expression= {
+  def getErrorMessage(raiseError: RaiseError): Expression = {
     throw new GlutenNotSupportException(s"${ExpressionNames.RAISE_ERROR} is not supported")
   }
 }
