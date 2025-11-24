@@ -33,13 +33,21 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
       .set(SQLConf.ANSI_ENABLED.key, "true")
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("add", "3.5") {
+  test("add") {
     runQueryAndCompare("SELECT int_field1 + 100 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-    intercept[ArithmeticException] {
-      sql("SELECT 2147483647 + 1").collect()
+
+    val df = sql("SELECT 2147483647 + 1")
+
+    if (isSparkVersionGE("4.0")) {
+      intercept[SparkException] {
+        df.collect()
+      }
+    } else {
+      intercept[ArithmeticException] {
+        df.collect()
+      }
     }
   }
 
@@ -49,13 +57,20 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("multiply", "3.5") {
+  test("multiply") {
     runQueryAndCompare("SELECT int_field1 * 2 FROM datatab WHERE int_field1 IS NOT NULL") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-    intercept[ArithmeticException] {
-      sql("SELECT 2147483647 * 2").collect()
+
+    val df = sql("SELECT 2147483647 + 1")
+    if (isSparkVersionGE("4.0")) {
+      intercept[SparkException] {
+        df.collect()
+      }
+    } else {
+      intercept[ArithmeticException] {
+        df.collect()
+      }
     }
   }
 
