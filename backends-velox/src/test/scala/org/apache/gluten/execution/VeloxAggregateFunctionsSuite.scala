@@ -54,7 +54,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
 
   test("count") {
     runQueryAndCompare("select count(*) from lineitem where l_partkey in (1552, 674, 1062)") {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select count(l_quantity), count(distinct l_partkey) from lineitem") {
       df =>
@@ -70,7 +70,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
 
   test("avg") {
     runQueryAndCompare("select avg(l_partkey) from lineitem where l_partkey < 1000") {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select avg(l_quantity), count(distinct l_partkey) from lineitem") {
       df =>
@@ -123,7 +123,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
 
   test("sum") {
     runQueryAndCompare("select sum(l_partkey) from lineitem where l_partkey < 2000") {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select sum(l_quantity), count(distinct l_partkey) from lineitem") {
       df =>
@@ -136,7 +136,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
         }
     }
     runQueryAndCompare("select sum(cast (l_quantity as DECIMAL(22, 2))) from lineitem") {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select sum(cast (l_quantity as DECIMAL(12, 2))), " +
@@ -181,7 +181,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   test("min and max") {
     runQueryAndCompare(
       "select min(l_partkey), max(l_partkey) from lineitem where l_partkey < 2000") {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select min(l_partkey), max(l_partkey), count(distinct l_partkey) from lineitem") {
@@ -201,7 +201,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
       runQueryAndCompare(
         "select min_by(a, b), max_by(a, b) from " +
           "values (5, 6), (null, 11), (null, 5) test(a, b)") {
-        checkGlutenOperatorMatch[HashAggregateExecTransformer]
+        checkGlutenPlan[HashAggregateExecTransformer]
       }
     }
   }
@@ -224,13 +224,13 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select stddev_samp(l_quantity) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("""
                          |select l_orderkey, stddev_samp(l_quantity) from lineitem
                          |group by l_orderkey;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select stddev_samp(l_quantity), count(distinct l_partkey) from lineitem") {
       df =>
@@ -248,13 +248,13 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select stddev_pop(l_quantity) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("""
                          |select l_orderkey, stddev_pop(l_quantity) from lineitem
                          |group by l_orderkey;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select stddev_pop(l_quantity), count(distinct l_partkey) from lineitem") {
       df =>
@@ -272,13 +272,13 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select var_samp(l_quantity) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("""
                          |select l_orderkey, var_samp(l_quantity) from lineitem
                          |group by l_orderkey;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select var_samp(l_quantity), count(distinct l_partkey) from lineitem") {
       df =>
@@ -296,13 +296,13 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select var_pop(l_quantity) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("""
                          |select l_orderkey, var_pop(l_quantity) from lineitem
                          |group by l_orderkey;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select var_pop(l_quantity), count(distinct l_partkey) from lineitem") {
       df =>
@@ -323,7 +323,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
                             |select $func(l_linenumber) from lineitem
                             |group by l_orderkey;
                             |""".stripMargin) {
-        checkGlutenOperatorMatch[HashAggregateExecTransformer]
+        checkGlutenPlan[HashAggregateExecTransformer]
       }
       runQueryAndCompare(s"select $func(l_linenumber), count(distinct l_partkey) from lineitem") {
         df =>
@@ -342,7 +342,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select corr(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select corr(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
@@ -358,7 +358,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select covar_pop(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select covar_pop(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
@@ -374,7 +374,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select covar_samp(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select covar_samp(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
@@ -393,7 +393,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select regr_r2(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select regr_r2(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
@@ -412,7 +412,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select regr_slope(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select regr_slope(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
@@ -431,7 +431,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select regr_intercept(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select regr_intercept(l_partkey, l_suppkey), count(distinct l_orderkey) from lineitem") {
@@ -450,7 +450,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select regr_sxy(l_quantity, l_tax) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select regr_sxy(l_quantity, l_tax), count(distinct l_orderkey) from lineitem") {
@@ -466,7 +466,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select regr_sxx(l_quantity, l_tax) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select regr_sxx(l_quantity, l_tax), count(distinct l_orderkey) from lineitem") {
@@ -482,7 +482,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select regr_syy(l_quantity, l_tax) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select regr_syy(l_quantity, l_tax), count(distinct l_orderkey) from lineitem") {
@@ -501,14 +501,14 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare(s"""
                           |select first(l_linenumber), first(l_linenumber, true) from lineitem;
                           |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       s"""
          |select first_value(l_linenumber), first_value(l_linenumber, true) from lineitem
          |group by l_orderkey;
          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       s"""
@@ -530,14 +530,14 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare(s"""
                           |select last(l_linenumber), last(l_linenumber, true) from lineitem;
                           |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(s"""
                           |select last_value(l_linenumber), last_value(l_linenumber, true)
                           |from lineitem
                           |group by l_orderkey;
                           |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       s"""
@@ -560,11 +560,11 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
       """
         |select approx_count_distinct(l_shipmode), approx_count_distinct(l_discount) from lineitem;
         |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(
       "select approx_count_distinct(l_discount), count(distinct l_orderkey) from lineitem") {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     withTempPath {
       path =>
@@ -575,7 +575,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
         runQueryAndCompare("select approx_count_distinct(t) from view") {
-          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+          checkGlutenPlan[HashAggregateExecTransformer]
         }
     }
   }
@@ -584,7 +584,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare(s"""
                           |select max_by(l_linenumber, l_comment) from lineitem;
                           |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(s"""
                           |select max_by(distinct l_linenumber, l_comment)
@@ -605,7 +605,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare(s"""
                           |select min_by(l_linenumber, l_comment) from lineitem;
                           |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare(s"""
                           |select min_by(distinct l_linenumber, l_comment)
@@ -1096,7 +1096,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select skewness(l_partkey) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select skewness(l_partkey), count(distinct l_orderkey) from lineitem") {
       df =>
@@ -1114,7 +1114,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare("""
                          |select kurtosis(l_partkey) from lineitem;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select kurtosis(l_partkey), count(distinct l_orderkey) from lineitem") {
       df =>
@@ -1142,7 +1142,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
           true)))
     spark.read.schema(jsonSchema).json(Seq(jsonStr).toDS).createOrReplaceTempView("t1")
     runQueryAndCompare("select collect_set(txn), min(txn), max(txn) from t1") {
-      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+      checkGlutenPlan[HashAggregateExecTransformer]
     }
   }
 

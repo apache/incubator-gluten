@@ -67,7 +67,7 @@ class ClickHouseIcebergMOREqualityDeletionSuite extends GlutenClickHouseWholeSta
     runQueryAndCompare(s"""
                           |select * from $testTableName;
                           |""".stripMargin) {
-      checkGlutenOperatorMatch[IcebergScanTransformer]
+      checkGlutenPlan[IcebergScanTransformer]
     }
   }
 }
