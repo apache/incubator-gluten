@@ -651,4 +651,8 @@ class Spark34Shims extends SparkShims {
   override def getRewriteCreateTableAsSelect(session: SparkSession): SparkStrategy = {
     RewriteCreateTableAsSelect(session)
   }
+
+  override def getErrorMessage(raiseError: RaiseError): Option[Expression] = {
+    Some(raiseError.child)
+  }
 }

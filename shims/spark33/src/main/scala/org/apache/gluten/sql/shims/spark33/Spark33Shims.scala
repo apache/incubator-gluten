@@ -409,4 +409,7 @@ class Spark33Shims extends SparkShims {
     DecimalPrecision.widerDecimalType(d1, d2)
   }
 
+  override def getErrorMessage(raiseError: RaiseError): Option[Expression] = {
+    Some(raiseError.child)
+  }
 }
