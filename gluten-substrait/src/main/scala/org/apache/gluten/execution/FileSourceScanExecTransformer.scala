@@ -138,6 +138,9 @@ abstract class FileSourceScanExecTransformerBase(
       )
   }
 
+  override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
+    getPartitions.map((_, fileFormat))
+
   override def getPartitionSchema: StructType = relation.partitionSchema
 
   override def getDataSchema: StructType = relation.dataSchema
