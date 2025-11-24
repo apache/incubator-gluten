@@ -83,6 +83,7 @@ jobs:
           "
 
       - name: "Save ccache"
+        if: always()
         uses: actions/cache/save@v4
         id: ccache
         with:
