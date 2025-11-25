@@ -36,7 +36,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, KeyGroupedShuffleSpec, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, InternalRowComparableWrapper, TimestampFormatter}
@@ -47,7 +47,7 @@ import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Sca
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, BatchScanExecShim, DataSourceV2ScanExecBase}
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
@@ -481,10 +481,9 @@ class Spark40Shims extends SparkShims {
       applyPartialClustering: Boolean,
       replicatePartitions: Boolean,
       joinKeyPositions: Option[Seq[Int]] = None): Seq[Seq[InputPartition]] = {
+    val original = batchScan.asInstanceOf[BatchScanExecShim]
     scan match {
       case _ if keyGroupedPartitioning.isDefined =>
-        var finalPartitions = filteredPartitions
-
         outputPartitioning match {
           case p: KeyGroupedPartitioning =>
             assert(keyGroupedPartitioning.isDefined)
@@ -515,8 +514,20 @@ class Spark40Shims extends SparkShims {
             }
 
             // Also re-group the partitions if we are reducing compatible partition expressions
-            // TODO: Respect Reducer settings?
-            val finalGroupedPartitions = groupedPartitions
+            val finalGroupedPartitions = original.reducers match {
+              case Some(reducers) =>
+                val result = groupedPartitions
+                  .groupBy {
+                    case (row, _) =>
+                      KeyGroupedShuffleSpec.reducePartitionValue(row, partExpressions, reducers)
+                  }
+                  .map { case (wrapper, splits) => (wrapper.row, splits.flatMap(_._2)) }
+                  .toSeq
+                val rowOrdering =
+                  RowOrdering.createNaturalAscendingOrdering(partExpressions.map(_.dataType))
+                result.sorted(rowOrdering.on((t: (InternalRow, _)) => t._1))
+              case _ => groupedPartitions
+            }
 
             // When partially clustered, the input partitions are not grouped by partition
             // values. Here we'll need to check `commonPartitionValues` and decide how to group
@@ -586,9 +597,8 @@ class Spark40Shims extends SparkShims {
               }
             }
 
-          case _ =>
+          case _ => filteredPartitions
         }
-        finalPartitions
       case _ =>
         filteredPartitions
     }

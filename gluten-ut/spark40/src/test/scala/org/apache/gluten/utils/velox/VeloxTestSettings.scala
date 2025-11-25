@@ -62,16 +62,15 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
     // Rewritten
     .exclude("Fallback Parquet V2 to V1")
-  // TODO: fix in Spark-4.0
-  // enableSuite[GlutenKeyGroupedPartitioningSuite]
-  //   // NEW SUITE: disable as they check vanilla spark plan
-  //   .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
-  //   .exclude("partitioned join: only one side reports partitioning")
-  //   .exclude("partitioned join: join with two partition keys and different # of partition keys")
-  //   // disable due to check for SMJ node
-  //   .excludeByPrefix("SPARK-41413: partitioned join:")
-  //   .excludeByPrefix("SPARK-42038: partially clustered:")
-  //   .exclude("SPARK-44641: duplicated records when SPJ is not triggered")
+  enableSuite[GlutenKeyGroupedPartitioningSuite]
+    // NEW SUITE: disable as they check vanilla spark plan
+    .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
+    .exclude("partitioned join: only one side reports partitioning")
+    .exclude("partitioned join: join with two partition keys and different # of partition keys")
+    // disable due to check for SMJ node
+    .excludeByPrefix("SPARK-41413: partitioned join:")
+    .excludeByPrefix("SPARK-42038: partially clustered:")
+    .exclude("SPARK-44641: duplicated records when SPJ is not triggered")
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenMetadataColumnSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]
