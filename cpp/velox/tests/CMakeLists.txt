@@ -32,6 +32,84 @@ function(add_velox_test TEST_EXEC)
   gtest_discover_tests(${TEST_EXEC} DISCOVERY_MODE PRE_TEST)
 endfunction()
 
+if(ENABLE_GPU)
+  function(import_library TARGET_NAME LIB_PATH)
+    if(NOT EXISTS ${LIB_PATH})
+      message(FATAL_ERROR "Library does not exist: ${LIB_PATH}")
+    endif()
+    add_library(${TARGET_NAME} STATIC IMPORTED)
+    set_target_properties(${TARGET_NAME} PROPERTIES IMPORTED_LOCATION
+                                                    ${LIB_PATH})
+  endfunction()
+
+  function(add_velox_gpu_test TEST_EXEC)
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES)
+    cmake_parse_arguments(ARG "${options}" "${one_value_args}"
+                          "${multi_value_args}" ${ARGN})
+
+    if(ARG_SOURCES)
+      set(SOURCES ${ARG_SOURCES})
+    else()
+      message(FATAL_ERROR "No sources specified for test ${TEST_NAME}")
+    endif()
+    add_executable(${TEST_EXEC} ${SOURCES} ${VELOX_TEST_COMMON_SRCS})
+    target_include_directories(${TEST_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox
+                                                    ${CMAKE_SOURCE_DIR}/src)
+    import_library(
+      facebook::velox::velox_cudf_expression
+      ${VELOX_BUILD_PATH}/velox/experimental/cudf/expression/libvelox_cudf_expression.a
+    )
+    import_library(
+      facebook::velox::velox_cudf_exec
+      ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)
+    import_library(
+      facebook::velox::velox_cudf_vector
+      ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_vector.a)
+    import_library(
+      facebook::velox::velox_cudf_hive_connector
+      ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/hive/libvelox_cudf_hive_connector.a
+    )
+    target_include_directories(
+      ${TEST_EXEC}
+      PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-src/cpp/include
+              ${VELOX_BUILD_PATH}/_deps/rmm-src/cpp/include
+              ${VELOX_BUILD_PATH}/_deps/kvikio-src/cpp/include
+              ${VELOX_BUILD_PATH}/_deps/nvtx3-src/c/include
+              ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/include
+              ${VELOX_BUILD_PATH}/_deps/rapids_logger-src/include
+              /usr/local/cuda/include)
+    target_compile_definitions(
+      ${TEST_EXEC} PUBLIC LIBCUDACXX_ENABLE_EXPERIMENTAL_MEMORY_RESOURCE)
+    target_link_libraries(
+      ${TEST_EXEC}
+      PRIVATE
+        ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so
+        ${VELOX_BUILD_PATH}/_deps/rmm-build/librmm.so
+        ${VELOX_BUILD_PATH}/_deps/kvikio-build/libkvikio.so
+        ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp.so
+        ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp_cpu.so
+        ${VELOX_BUILD_PATH}/_deps/rapids_logger-build/librapids_logger.so
+        /usr/local/cuda-12.8/lib64/libcudart.so.12)
+    target_link_libraries(
+      ${TEST_EXEC}
+      PUBLIC facebook::velox::velox_cudf_expression
+             facebook::velox::velox_cudf_exec
+             facebook::velox::velox_cudf_vector
+             facebook::velox::velox_cudf_hive_connector)
+    target_link_libraries(${TEST_EXEC} PRIVATE velox GTest::gtest
+                                               GTest::gtest_main)
+    gtest_discover_tests(
+      ${TEST_EXEC} DISCOVERY_MODE PRE_TEST
+      PROPERTIES LABELS "cuda_driver"
+      TIMEOUT 3000)
+  endfunction()
+
+  add_velox_gpu_test(velox_gpu_shuffle_writer_test SOURCES
+                     VeloxGpuShuffleWriterTest.cc)
+endif()
+
 set(VELOX_TEST_COMMON_SRCS JsonToProtoConverter.cc FilePathGenerator.cc)
 
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)

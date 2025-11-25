@@ -1318,7 +1318,7 @@ jobs:
           dnf config-manager --add-repo "$repo_url"
           dnf install -y libnvjitlink-devel-12-8
           df -a
-          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_gpu=ON
+          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --build_tests=ON --build_benchmarks=ON --enable_gpu=ON
           ccache -s
 
   spark-test-spark40:

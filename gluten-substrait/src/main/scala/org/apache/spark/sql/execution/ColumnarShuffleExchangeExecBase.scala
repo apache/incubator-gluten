@@ -48,8 +48,11 @@ abstract class ColumnarShuffleExchangeExecBase(
   private[sql] lazy val readMetrics =
     SQLColumnarShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
-  val shuffleWriterType: ShuffleWriterType =
-    BackendsApiManager.getSparkPlanExecApiInstance.getShuffleWriterType(outputPartitioning, output)
+  lazy val shuffleWriterType: ShuffleWriterType = getShuffleWriterType
+
+  // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
+  lazy val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
+    .createColumnarBatchSerializer(schema, metrics, shuffleWriterType)
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -81,7 +84,7 @@ abstract class ColumnarShuffleExchangeExecBase(
       child.output,
       projectOutputAttributes,
       outputPartitioning,
-      getSerializer,
+      serializer,
       writeMetrics,
       metrics,
       shuffleWriterType)
@@ -110,7 +113,8 @@ abstract class ColumnarShuffleExchangeExecBase(
     Statistics(dataSize, Some(rowCount))
   }
 
-  def getSerializer: Serializer
+  def getShuffleWriterType: ShuffleWriterType =
+    BackendsApiManager.getSparkPlanExecApiInstance.getShuffleWriterType(outputPartitioning, output)
 
   // Required for Spark 4.0 to implement a trait method.
   // The "override" keyword is omitted to maintain compatibility with earlier Spark versions.

@@ -80,6 +80,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def cudfEnableValidation: Boolean = getConf(CUDF_ENABLE_VALIDATION)
 
+  def cudfBatchSize: Int = getConf(CUDF_BATCH_SIZE)
+
   def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
 
   def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
@@ -633,6 +635,12 @@ object VeloxConfig extends ConfigRegistry {
           "the entire stage can be fully and profitably executed on GPU")
       .booleanConf
       .createWithDefault(true)
+
+  val CUDF_BATCH_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.cudf.batchSize")
+      .doc("Cudf input batch size after shuffle reader")
+      .intConf
+      .createWithDefault(Integer.MAX_VALUE)
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
