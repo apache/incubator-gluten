@@ -61,7 +61,7 @@ import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap}
+import java.util.{Map => JMap}
 
 class Spark33Shims extends SparkShims {
   override def getDistribution(
@@ -227,7 +227,7 @@ class Spark33Shims extends SparkShims {
   override def generateMetadataColumns(
       file: PartitionedFile,
       metadataColumnNames: Seq[String]): JMap[String, String] = {
-    val metadataColumn = new JHashMap[String, String]()
+    val metadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
     val path = new Path(file.filePath)
     for (columnName <- metadataColumnNames) {
       columnName match {
@@ -243,9 +243,6 @@ class Spark33Shims extends SparkShims {
         case _ =>
       }
     }
-    metadataColumn.put(InputFileName().prettyName, file.filePath)
-    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
-    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
     metadataColumn
   }
 
