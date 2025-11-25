@@ -478,8 +478,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     }
   }
 
-  // TODO: fix in Spark-4.0
-  ignoreGluten("SPARK-42635: timestampadd near daylight saving transition") {
+  testGluten("SPARK-42635: timestampadd near daylight saving transition") {
     // In America/Los_Angeles timezone, timestamp value `skippedTime` is 2011-03-13 03:00:00.
     // The next second of 2011-03-13 01:59:59 jumps to 2011-03-13 03:00:00.
     val skippedTime = 1300010400000000L
@@ -492,91 +491,94 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
       // Adding one day is **not** equivalent to adding <unit>_PER_DAY time units, because not every
       // day has 24 hours: 2011-03-13 has 23 hours, 2011-11-06 has 25 hours.
 
-      // timestampadd(DAY, 1, 2011-03-12 03:00:00) = 2011-03-13 03:00:00
+      // timestampadd(DAY, 1L, 2011-03-12 03:00:00) = 2011-03-13 03:00:00
       checkEvaluation(
-        TimestampAdd("DAY", Literal(1), Literal(skippedTime - 23 * MICROS_PER_HOUR, TimestampType)),
+        TimestampAdd(
+          "DAY",
+          Literal(1L),
+          Literal(skippedTime - 23 * MICROS_PER_HOUR, TimestampType)),
         skippedTime)
-      // timestampadd(HOUR, 24, 2011-03-12 03:00:00) = 2011-03-13 04:00:00
+      // timestampadd(HOUR, 24L, 2011-03-12 03:00:00) = 2011-03-13 04:00:00
       checkEvaluation(
         TimestampAdd(
           "HOUR",
-          Literal(24),
+          Literal(24L),
           Literal(skippedTime - 23 * MICROS_PER_HOUR, TimestampType)),
         skippedTime + MICROS_PER_HOUR)
-      // timestampadd(HOUR, 23, 2011-03-12 03:00:00) = 2011-03-13 03:00:00
+      // timestampadd(HOUR, 23L, 2011-03-12 03:00:00) = 2011-03-13 03:00:00
       checkEvaluation(
         TimestampAdd(
           "HOUR",
-          Literal(23),
+          Literal(23L),
           Literal(skippedTime - 23 * MICROS_PER_HOUR, TimestampType)),
         skippedTime)
       // timestampadd(SECOND, SECONDS_PER_DAY, 2011-03-12 03:00:00) = 2011-03-13 04:00:00
       checkEvaluation(
         TimestampAdd(
           "SECOND",
-          Literal(SECONDS_PER_DAY.toInt),
+          Literal(SECONDS_PER_DAY),
           Literal(skippedTime - 23 * MICROS_PER_HOUR, TimestampType)),
         skippedTime + MICROS_PER_HOUR)
       // timestampadd(SECOND, SECONDS_PER_DAY, 2011-03-12 03:00:00) = 2011-03-13 03:59:59
       checkEvaluation(
         TimestampAdd(
           "SECOND",
-          Literal(SECONDS_PER_DAY.toInt - 1),
+          Literal(SECONDS_PER_DAY - 1),
           Literal(skippedTime - 23 * MICROS_PER_HOUR, TimestampType)),
         skippedTime + MICROS_PER_HOUR - MICROS_PER_SECOND
       )
 
-      // timestampadd(DAY, 1, 2011-11-05 02:00:00) = 2011-11-06 02:00:00
+      // timestampadd(DAY, 1L, 2011-11-05 02:00:00) = 2011-11-06 02:00:00
       checkEvaluation(
         TimestampAdd(
           "DAY",
-          Literal(1),
+          Literal(1L),
           Literal(repeatedTime - 24 * MICROS_PER_HOUR, TimestampType)),
         repeatedTime + MICROS_PER_HOUR)
-      // timestampadd(DAY, 1, 2011-11-05 01:00:00) = 2011-11-06 01:00:00 (pre-transition)
+      // timestampadd(DAY, 1L, 2011-11-05 01:00:00) = 2011-11-06 01:00:00 (pre-transition)
       checkEvaluation(
         TimestampAdd(
           "DAY",
-          Literal(1),
+          Literal(1L),
           Literal(repeatedTime - 25 * MICROS_PER_HOUR, TimestampType)),
         repeatedTime - MICROS_PER_HOUR)
-      // timestampadd(DAY, -1, 2011-11-07 01:00:00) = 2011-11-06 01:00:00 (post-transition)
+      // timestampadd(DAY, -1L, 2011-11-07 01:00:00) = 2011-11-06 01:00:00 (post-transition)
       // Vanilla spark result is 1320570000000000L, velox result is 1320566400000000L, they
       // are all 2011-11-06 01:00:00.
       checkEvaluation(
         TimestampAdd(
           "DAY",
-          Literal(-1),
+          Literal(-1L),
           Literal(repeatedTime + 24 * MICROS_PER_HOUR, TimestampType)),
         repeatedTime - MICROS_PER_HOUR)
-      // timestampadd(MONTH, 1, 2011-10-06 01:00:00) = 2011-11-06 01:00:00 (pre-transition)
+      // timestampadd(MONTH, 1L, 2011-10-06 01:00:00) = 2011-11-06 01:00:00 (pre-transition)
       checkEvaluation(
         TimestampAdd(
           "MONTH",
-          Literal(1),
+          Literal(1L),
           Literal(repeatedTime - MICROS_PER_HOUR - 31 * MICROS_PER_DAY, TimestampType)),
         repeatedTime - MICROS_PER_HOUR)
-      // timestampadd(MONTH, -1, 2011-12-06 01:00:00) = 2011-11-06 01:00:00 (post-transition)
+      // timestampadd(MONTH, -1L, 2011-12-06 01:00:00) = 2011-11-06 01:00:00 (post-transition)
       // Vanilla spark result is 1320570000000000L, velox result is 1320566400000000L, they
       // are all 2011-11-06 01:00:00.
       checkEvaluation(
         TimestampAdd(
           "MONTH",
-          Literal(-1),
+          Literal(-1L),
           Literal(repeatedTime + 30 * MICROS_PER_DAY, TimestampType)),
         repeatedTime - MICROS_PER_HOUR)
-      // timestampadd(HOUR, 23, 2011-11-05 02:00:00) = 2011-11-06 01:00:00 (pre-transition)
+      // timestampadd(HOUR, 23L, 2011-11-05 02:00:00) = 2011-11-06 01:00:00 (pre-transition)
       checkEvaluation(
         TimestampAdd(
           "HOUR",
-          Literal(23),
+          Literal(23L),
           Literal(repeatedTime - 24 * MICROS_PER_HOUR, TimestampType)),
         repeatedTime - MICROS_PER_HOUR)
-      // timestampadd(HOUR, 24, 2011-11-05 02:00:00) = 2011-11-06 01:00:00 (post-transition)
+      // timestampadd(HOUR, 24L, 2011-11-05 02:00:00) = 2011-11-06 01:00:00 (post-transition)
       checkEvaluation(
         TimestampAdd(
           "HOUR",
-          Literal(24),
+          Literal(24L),
           Literal(repeatedTime - 24 * MICROS_PER_HOUR, TimestampType)),
         repeatedTime)
     }

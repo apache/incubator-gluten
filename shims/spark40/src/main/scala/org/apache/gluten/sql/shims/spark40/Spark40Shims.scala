@@ -704,6 +704,9 @@ class Spark40Shims extends SparkShims {
 
   override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
     exp match {
+      // Velox does not support quantity larger than Int.MaxValue.
+      case TimestampAdd(_, LongLiteral(quantity), _, _) if quantity > Integer.MAX_VALUE =>
+        Option.empty
       case timestampAdd: TimestampAdd =>
         Option.apply(Seq(timestampAdd.unit, timestampAdd.timeZoneId.getOrElse("")))
       case _ => Option.empty
