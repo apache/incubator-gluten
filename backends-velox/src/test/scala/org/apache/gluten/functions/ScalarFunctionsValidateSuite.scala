@@ -1098,8 +1098,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  // TODO: fix on spark-4.0
-  testWithRangeSparkVersion("try_cast", "3.4", "3.5") {
+  testWithMinSparkVersion("try_cast", "3.4") {
     withTempView("try_cast_table") {
       withTempPath {
         path =>
