@@ -101,12 +101,13 @@ abstract class FileSourceScanExecShim(
     val selected = if (dynamicPartitionFilters.nonEmpty) {
       GlutenTimeMetric.withMillisTime {
         // call the file index for the files matching all filters except dynamic partition filters
-        val partitionColumns = relation.partitionSchema
         val boundedFilters = dynamicPartitionFilters.map {
-          case attr: AttributeReference =>
-            val index = partitionColumns.indexWhere(attr.name == _.name)
-            BoundReference(index, partitionColumns(index).dataType, nullable = true)
-          case other => other
+          dynamicPartitionFilter =>
+            dynamicPartitionFilter.transform {
+              case a: AttributeReference =>
+                val index = relation.partitionSchema.indexWhere(a.name == _.name)
+                BoundReference(index, relation.partitionSchema(index).dataType, nullable = true)
+            }
         }
         val boundPredicate = Predicate.create(boundedFilters.reduce(And), Nil)
         val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
