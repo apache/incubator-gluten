@@ -24,6 +24,7 @@ import io.github.zhztheplayer.velox4j.expression.ConstantTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.Type;
+import io.github.zhztheplayer.velox4j.variant.ArrayValue;
 import io.github.zhztheplayer.velox4j.variant.BigIntValue;
 import io.github.zhztheplayer.velox4j.variant.BooleanValue;
 import io.github.zhztheplayer.velox4j.variant.DoubleValue;
@@ -46,6 +47,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.NlsString;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -133,18 +135,16 @@ public class RexNodeConverter {
     }
   }
 
-  public static List<TypedExpr> toTypedExpr(Set<Range> ranges, RelDataType relDataType) {
-    List<TypedExpr> results = new ArrayList<>(ranges.size());
-    Type resType = toType(relDataType);
+  public static TypedExpr toTypedExpr(Set<Range> ranges, RelDataType relDataType) {
+    List<Variant> values = new ArrayList<>(ranges.size());
     for (Range range : ranges) {
       if (range.lowerEndpoint() != range.upperEndpoint()) {
         throw new RuntimeException("Not support multi ranges " + range);
       }
-      results.add(
-          new ConstantTypedExpr(
-              resType, toVariant(range.lowerEndpoint(), relDataType.getSqlTypeName()), null));
+      values.add(toVariant(range.lowerEndpoint(), relDataType.getSqlTypeName()));
     }
-    return results;
+    Variant arrayValue = new ArrayValue(values);
+    return ConstantTypedExpr.create(arrayValue);
   }
 
   public static List<TypedExpr> toTypedExpr(Range range, RelDataType relDataType) {
@@ -165,6 +165,8 @@ public class RexNodeConverter {
         return new IntegerValue(((BigDecimal) comparable).intValue());
       case VARCHAR:
         return new VarCharValue(comparable.toString());
+      case CHAR:
+        return new VarCharValue(((NlsString) comparable).getValue());
       default:
         throw new RuntimeException("Unsupported range type: " + typeName);
     }
