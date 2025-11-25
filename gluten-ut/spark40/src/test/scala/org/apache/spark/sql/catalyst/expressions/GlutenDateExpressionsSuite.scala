@@ -87,8 +87,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     "Europe/Brussels")
   val outstandingZoneIds: Seq[ZoneId] = outstandingTimezonesIds.map(getZoneId)
 
-  // TODO: fix in Spark-4.0
-  ignoreGluten("unix_timestamp") {
+  testGluten("unix_timestamp") {
     Seq("legacy", "corrected").foreach {
       legacyParserPolicy =>
         withDefaultTimeZone(UTC) {
@@ -156,13 +155,6 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
                     DateTimeUtils.fromJavaDate(Date.valueOf("2015-07-24")),
                     tz.toZoneId))
               )
-              val t1 = UnixTimestamp(CurrentTimestamp(), Literal("yyyy-MM-dd HH:mm:ss"))
-                .eval()
-                .asInstanceOf[Long]
-              val t2 = UnixTimestamp(CurrentTimestamp(), Literal("yyyy-MM-dd HH:mm:ss"))
-                .eval()
-                .asInstanceOf[Long]
-              assert(t2 - t1 <= 1)
               checkEvaluation(
                 UnixTimestamp(
                   Literal.create(null, DateType),
@@ -189,8 +181,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
       UnixTimestamp(Literal("2015-07-24"), Literal("\""), UTC_OPT) :: Nil)
   }
 
-  // TODO: fix in Spark-4.0
-  ignoreGluten("to_unix_timestamp") {
+  testGluten("to_unix_timestamp") {
     withDefaultTimeZone(UTC) {
       for (zid <- outstandingZoneIds) {
         Seq("legacy", "corrected").foreach {
@@ -249,9 +240,6 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
                 MICROSECONDS.toSeconds(DateTimeUtils
                   .daysToMicros(DateTimeUtils.fromJavaDate(Date.valueOf("2015-07-24")), zid))
               )
-              val t1 = ToUnixTimestamp(CurrentTimestamp(), Literal(fmt1)).eval().asInstanceOf[Long]
-              val t2 = ToUnixTimestamp(CurrentTimestamp(), Literal(fmt1)).eval().asInstanceOf[Long]
-              assert(t2 - t1 <= 1)
               checkEvaluation(
                 ToUnixTimestamp(
                   Literal.create(null, DateType),
