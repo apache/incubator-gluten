@@ -53,7 +53,7 @@ case class TestFileSourceScanExecTransformer(
     BackendsApiManager.getTransformerApiInstance.genPartitionSeq(
       relation,
       requiredSchema,
-      getPartitionArray(),
+      getPartitionArray,
       output,
       bucketedScan,
       optionalBucketSet,
