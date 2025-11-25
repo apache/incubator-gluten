@@ -100,14 +100,6 @@ NULL	true
 
 
 -- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding
--- !query schema
-struct<key:string,value:string>
--- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding
-
-
--- !query
 select null in (select e from t_empty)
 -- !query schema
 struct<(NULL IN (listquery())):boolean>
@@ -140,11 +132,29 @@ true
 
 
 -- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
+select * from t left join t2 on (t.c in (select e from t_empty)) is null
+-- !query schema
+struct<c:int,d:int>
+-- !query output
+1	NULL
+NULL	NULL
+
+
+-- !query
+select * from t left join t2 on (t.c not in (select e from t_empty)) is null
+-- !query schema
+struct<c:int,d:int>
+-- !query output
+1	NULL
+NULL	NULL
+
+
+-- !query
+set spark.sql.optimizer.optimizeUncorrelatedInSubqueriesInJoinCondition.enabled=true
 -- !query schema
 struct<key:string,value:string>
 -- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
+spark.sql.optimizer.optimizeUncorrelatedInSubqueriesInJoinCondition.enabled	true
 
 
 -- !query
@@ -174,11 +184,11 @@ spark.sql.legacy.nullInEmptyListBehavior	true
 
 
 -- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding
+set spark.sql.optimizer.optimizeUncorrelatedInSubqueriesInJoinCondition.enabled=false
 -- !query schema
 struct<key:string,value:string>
 -- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding
+spark.sql.optimizer.optimizeUncorrelatedInSubqueriesInJoinCondition.enabled	false
 
 
 -- !query
@@ -214,14 +224,6 @@ NULL
 
 
 -- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
--- !query schema
-struct<key:string,value:string>
--- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
-
-
--- !query
 select * from t left join t2 on (t.c in (select e from t_empty)) is null
 -- !query schema
 struct<c:int,d:int>
@@ -241,6 +243,14 @@ NULL	2
 
 -- !query
 reset spark.sql.legacy.nullInEmptyListBehavior
+-- !query schema
+struct<>
+-- !query output
+
+
+
+-- !query
+reset spark.sql.optimizer.optimizeUncorrelatedInSubqueriesInJoinCondition.enabled
 -- !query schema
 struct<>
 -- !query output
