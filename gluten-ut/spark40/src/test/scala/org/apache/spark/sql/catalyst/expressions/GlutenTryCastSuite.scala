@@ -20,7 +20,7 @@ import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{withDefaultTimeZone, ALL_TIMEZONES, UTC, UTC_OPT}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{fromJavaTimestamp, millisToMicros, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{BinaryType, ByteType, DateType, Decimal, DecimalType, DoubleType, FloatType, IntegerType, LongType, ShortType, StringType, TimestampType}
+import org.apache.spark.sql.types._
 import org.apache.spark.util.DebuggableThreadUtils
 
 import java.sql.{Date, Timestamp}
@@ -212,6 +212,29 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
           // checkCastStringToTimestamp("2015-03-18T12:03:17.123+7:3",
           // new Timestamp(c.getTimeInMillis))
         }
+    }
+  }
+
+  testGluten("Casting to char/varchar") {
+    withSQLConf(SQLConf.PRESERVE_CHAR_VARCHAR_TYPE_INFO.key -> "true") {
+      Seq(CharType(10), VarcharType(10)).foreach {
+        typ =>
+          Seq(
+            IntegerType -> (123, "123"),
+            LongType -> (123L, "123"),
+            BooleanType -> (true, "true"),
+            BooleanType -> (false, "false"),
+            DoubleType -> (1.2, "1.2")
+          ).foreach {
+            case (fromType, (from, to)) =>
+              val paddedTo = if (typ.isInstanceOf[CharType]) {
+                to.padTo(10, ' ')
+              } else {
+                to
+              }
+              checkEvaluation(cast(Literal.create(from, fromType), typ), paddedTo)
+          }
+      }
     }
   }
 }
