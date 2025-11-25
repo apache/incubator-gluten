@@ -702,6 +702,8 @@ class Spark40Shims extends SparkShims {
     plan.offset
   }
 
+  override def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = unBase64.failOnError
+
   override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
     exp match {
       case timestampAdd: TimestampAdd =>
