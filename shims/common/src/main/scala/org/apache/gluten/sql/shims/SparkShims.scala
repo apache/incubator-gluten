@@ -235,7 +235,7 @@ trait SparkShims {
       file: PartitionedFile,
       metadataColumnNames: Seq[String] = Seq.empty): JMap[String, String] = {
     val metadataColumn = new JHashMap[String, String]()
-    metadataColumn.put(InputFileName().prettyName, file.filePath)
+    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
     metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
     metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
     metadataColumn
