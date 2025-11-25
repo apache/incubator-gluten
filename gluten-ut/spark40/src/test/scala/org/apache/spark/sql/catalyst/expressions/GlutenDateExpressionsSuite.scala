@@ -493,7 +493,10 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
 
       // timestampadd(DAY, 1L, 2011-03-12 03:00:00) = 2011-03-13 03:00:00
       checkEvaluation(
-        TimestampAdd("DAY", Literal(1L), Literal(skippedTime - 23 * MICROS_PER_HOUR, TimestampType)),
+        TimestampAdd(
+          "DAY",
+          Literal(1L),
+          Literal(skippedTime - 23 * MICROS_PER_HOUR, TimestampType)),
         skippedTime)
       // timestampadd(HOUR, 24L, 2011-03-12 03:00:00) = 2011-03-13 04:00:00
       checkEvaluation(
