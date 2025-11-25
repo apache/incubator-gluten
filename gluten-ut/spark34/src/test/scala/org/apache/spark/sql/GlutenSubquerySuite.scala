@@ -46,7 +46,7 @@ class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
         case t: WholeStageTransformer => t
       } match {
         case Some(WholeStageTransformer(fs: FileSourceScanExecTransformer, _)) =>
-          fs.dynamicallySelectedPartitions
+          fs.getPartitionArray
             .exists(_.files.exists(_.getPath.toString.contains("p=0")))
         case _ => false
       })
