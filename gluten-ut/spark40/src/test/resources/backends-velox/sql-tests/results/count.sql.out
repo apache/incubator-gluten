@@ -125,14 +125,6 @@ spark.sql.legacy.allowParameterlessCount	true
 
 
 -- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding
--- !query schema
-struct<key:string,value:string>
--- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding
-
-
--- !query
 SELECT count() FROM testData
 -- !query schema
 struct<count():bigint>
@@ -146,14 +138,6 @@ set spark.sql.legacy.allowParameterlessCount=false
 struct<key:string,value:string>
 -- !query output
 spark.sql.legacy.allowParameterlessCount	false
-
-
--- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
--- !query schema
-struct<key:string,value:string>
--- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
 
 
 -- !query

@@ -88,6 +88,9 @@ SELECT val_timestamp, cate, avg(val_timestamp) OVER(PARTITION BY cate ORDER BY t
 RANGE BETWEEN CURRENT ROW AND interval '1 2:3:4.001' day to second FOLLOWING) FROM testData
 ORDER BY cate, to_timestamp_ntz(val_timestamp);
 SELECT val_date, cate, avg(val_timestamp) OVER(PARTITION BY cate ORDER BY val_date
+RANGE BETWEEN CURRENT ROW AND interval '1-1' year to month FOLLOWING) FROM testData
+ORDER BY cate, val_date;
+SELECT val_date, cate, avg(val_timestamp) OVER(PARTITION BY cate ORDER BY val_date
 RANGE BETWEEN CURRENT ROW AND interval '1 2:3:4.001' day to second FOLLOWING) FROM testData
 ORDER BY cate, val_date;
 
@@ -324,6 +327,7 @@ SELECT
     lag(v, 1) IGNORE NULLS OVER w lag_1,
     lag(v, 2) IGNORE NULLS OVER w lag_2,
     lag(v, 3) IGNORE NULLS OVER w lag_3,
+    lag(v, +3) IGNORE NULLS OVER w lag_plus_3,
     nth_value(v, 1) IGNORE NULLS OVER w nth_value_1,
     nth_value(v, 2) IGNORE NULLS OVER w nth_value_2,
     nth_value(v, 3) IGNORE NULLS OVER w nth_value_3,
@@ -475,3 +479,7 @@ SELECT * FROM (SELECT cate, val, dense_rank() OVER(PARTITION BY cate ORDER BY va
 SELECT * FROM (SELECT cate, val, dense_rank() OVER(PARTITION BY cate ORDER BY val) as r FROM testData) where r <= 2;
 SELECT * FROM (SELECT cate, val, row_number() OVER(PARTITION BY cate ORDER BY val) as r FROM testData) where r = 1;
 SELECT * FROM (SELECT cate, val, row_number() OVER(PARTITION BY cate ORDER BY val) as r FROM testData) where r <= 2;
+
+SELECT *, mean(val_double) over (partition BY val ORDER BY val_date RANGE INTERVAL '5' DAY PRECEDING) AS mean FROM testData;
+SELECT *, mean(val_double) over (partition BY val ORDER BY val_date RANGE INTERVAL '1 2:3:4.001' DAY TO SECOND PRECEDING) AS mean FROM testData;
+SELECT *, mean(val_double) over (partition BY val ORDER BY val_date RANGE DATE '2024-01-01' FOLLOWING) AS mean FROM testData;
