@@ -239,23 +239,20 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       throw new NullPointerException(s"WholeStageTransformer can't do Transform on $child")
     }
 
-    val outNames = childCtx.outputAttributes.map(ConverterUtils.genColumnNameWithExprId(_))
+    val outNames = childCtx.outputAttributes.map(ConverterUtils.genColumnNameWithExprId).asJava
 
     val planNode = if (BackendsApiManager.getSettings.needOutputSchemaForPlan()) {
-      val outputSchema = if (outputSchemaForPlan.isDefined) {
-        outputSchemaForPlan.get
-      } else {
-        inferSchemaFromAttributes(childCtx.outputAttributes)
-      }
+      val outputSchema =
+        outputSchemaForPlan.getOrElse(inferSchemaFromAttributes(childCtx.outputAttributes))
 
       PlanBuilder.makePlan(
         substraitContext,
         Lists.newArrayList(childCtx.root),
-        outNames.asJava,
+        outNames,
         outputSchema,
         null)
     } else {
-      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames.asJava)
+      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
 
     WholeStageTransformContext(planNode, substraitContext, isCudf)
