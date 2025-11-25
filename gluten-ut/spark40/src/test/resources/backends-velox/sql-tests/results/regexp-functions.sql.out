@@ -4,8 +4,17 @@ SELECT regexp_extract('1a 2b 14m', '\\d+')
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group 1 in regex '\d+'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract`",
+    "groupCount" : "0",
+    "groupIndex" : "1",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -21,8 +30,17 @@ SELECT regexp_extract('1a 2b 14m', '\\d+', 1)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group 1 in regex '\d+'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract`",
+    "groupCount" : "0",
+    "groupIndex" : "1",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -30,8 +48,17 @@ SELECT regexp_extract('1a 2b 14m', '\\d+', 2)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group 2 in regex '\d+'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract`",
+    "groupCount" : "0",
+    "groupIndex" : "2",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -39,8 +66,17 @@ SELECT regexp_extract('1a 2b 14m', '\\d+', -1)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group -1 in regex '\d+'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract`",
+    "groupCount" : "0",
+    "groupIndex" : "-1",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -96,8 +132,17 @@ SELECT regexp_extract('1a 2b 14m', '(\\d+)([a-z]+)', 3)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group 3 in regex '(\d+)([a-z]+)'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract`",
+    "groupCount" : "2",
+    "groupIndex" : "3",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -105,8 +150,17 @@ SELECT regexp_extract('1a 2b 14m', '(\\d+)([a-z]+)', -1)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group -1 in regex '(\d+)([a-z]+)'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract`",
+    "groupCount" : "2",
+    "groupIndex" : "-1",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -147,8 +201,17 @@ SELECT regexp_extract_all('1a 2b 14m', '\\d+')
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group 1 in regex '\d+'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract_all`",
+    "groupCount" : "0",
+    "groupIndex" : "1",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -164,8 +227,17 @@ SELECT regexp_extract_all('1a 2b 14m', '\\d+', 1)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group 1 in regex '\d+'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract_all`",
+    "groupCount" : "0",
+    "groupIndex" : "1",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -173,8 +245,17 @@ SELECT regexp_extract_all('1a 2b 14m', '\\d+', 2)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group 2 in regex '\d+'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract_all`",
+    "groupCount" : "0",
+    "groupIndex" : "2",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -182,8 +263,33 @@ SELECT regexp_extract_all('1a 2b 14m', '\\d+', -1)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group -1 in regex '\d+'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract_all`",
+    "groupCount" : "0",
+    "groupIndex" : "-1",
+    "parameter" : "`idx`"
+  }
+}
+
+
+-- !query
+SELECT regexp_extract_all('1a 2b 14m', '(\\d+)?', 1)
+-- !query schema
+struct<regexp_extract_all(1a 2b 14m, (\d+)?, 1):array<string>>
+-- !query output
+["1","","","2","","","14","",""]
+
+
+-- !query
+SELECT regexp_extract_all('a 2b 14m', '(\\d+)?', 1)
+-- !query schema
+struct<regexp_extract_all(a 2b 14m, (\d+)?, 1):array<string>>
+-- !query output
+["","","2","","","14","",""]
 
 
 -- !query
@@ -223,8 +329,17 @@ SELECT regexp_extract_all('1a 2b 14m', '(\\d+)([a-z]+)', 3)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group 3 in regex '(\d+)([a-z]+)'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract_all`",
+    "groupCount" : "2",
+    "groupIndex" : "3",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -232,8 +347,17 @@ SELECT regexp_extract_all('1a 2b 14m', '(\\d+)([a-z]+)', -1)
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-No group -1 in regex '(\d+)([a-z]+)'
+org.apache.spark.SparkRuntimeException
+{
+  "errorClass" : "INVALID_PARAMETER_VALUE.REGEX_GROUP_INDEX",
+  "sqlState" : "22023",
+  "messageParameters" : {
+    "functionName" : "`regexp_extract_all`",
+    "groupCount" : "2",
+    "groupIndex" : "-1",
+    "parameter" : "`idx`"
+  }
+}
 
 
 -- !query
@@ -242,6 +366,14 @@ SELECT regexp_extract_all('1a 2b 14m', '(\\d+)?([a-z]+)', 1)
 struct<regexp_extract_all(1a 2b 14m, (\d+)?([a-z]+), 1):array<string>>
 -- !query output
 ["1","2","14"]
+
+
+-- !query
+SELECT regexp_extract_all('a 2b 14m', '(\\d+)?([a-z]+)', 1)
+-- !query schema
+struct<regexp_extract_all(a 2b 14m, (\d+)?([a-z]+), 1):array<string>>
+-- !query output
+["","2","14"]
 
 
 -- !query

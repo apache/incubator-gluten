@@ -596,14 +596,6 @@ struct<sum(unique1) OVER (ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING):bigi
 
 
 -- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation
--- !query schema
-struct<key:string,value:string>
--- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation
-
-
--- !query
 SELECT sum(unique1) over (rows between 2 preceding and 2 following),
 unique1, four
 FROM tenk1 WHERE unique1 < 10
@@ -639,14 +631,6 @@ struct<sum(unique1) OVER (ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING):bigint,uniqu
 7	9	1
 8	7	3
 NULL	4	0
-
-
--- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
--- !query schema
-struct<key:string,value:string>
--- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
 
 
 -- !query
@@ -698,14 +682,6 @@ struct<>
 
 
 -- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation
--- !query schema
-struct<key:string,value:string>
--- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation
-
-
--- !query
 SELECT * FROM v_window
 -- !query schema
 struct<id:bigint,sum_rows:bigint>
@@ -720,14 +696,6 @@ struct<id:bigint,sum_rows:bigint>
 7	21
 8	24
 9	27
-
-
--- !query
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
--- !query schema
-struct<key:string,value:string>
--- !query output
-spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
 
 
 -- !query
