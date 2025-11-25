@@ -634,8 +634,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
       val readNode = RelBuilder.makeReadRel(
         typeNodes,
         nameList,
-        columnTypeNodes,
         transformer.map(_.doTransform(substraitContext)).orNull,
+        columnTypeNodes,
         extensionNode,
         substraitContext,
         substraitContext.nextOperatorId("readRel")
