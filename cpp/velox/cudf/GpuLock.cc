@@ -20,6 +20,7 @@
 #include <condition_variable>
 #include <optional>
 #include <stdexcept>
+#include <glog/logging.h>
 
 namespace gluten {
 
@@ -57,8 +58,13 @@ void lockGpu() {
 void unlockGpu() {
     std::thread::id tid = std::this_thread::get_id();
     std::unique_lock<std::mutex> lock(getGpuLockState().gGpuMutex);
+    if (!getGpuLockState().gGpuOwner.has_value()) {
+        LOG(INFO) <<"unlockGpu() called by non-owner thread!"<< std::endl;
+        return;
+    }
+
     if (!getGpuLockState().gGpuOwner.has_value() || getGpuLockState().gGpuOwner != tid) {
-        throw std::runtime_error("unlockGpu() called by non-owner thread!");
+        throw std::runtime_error("unlockGpu() called by other-owner thread!");
     }
 
     // Release ownership

@@ -18,11 +18,4 @@ package org.apache.gluten.sql;
 
 import org.apache.iceberg.spark.sql.TestPartitionedWritesToBranch;
 
-import java.util.Map;
-
-public class TestGlutenPartitionedWritesToBranch extends TestPartitionedWritesToBranch {
-  public TestGlutenPartitionedWritesToBranch(
-      String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
-  }
-}
+public class TestGlutenPartitionedWritesToBranch extends TestPartitionedWritesToBranch {}

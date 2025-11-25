@@ -49,7 +49,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
   def checkQuery[T <: GlutenPlan: ClassTag](query: String, expectedResults: Seq[Row]): Unit = {
     val df = sql(query)
     checkAnswer(df, expectedResults)
-    checkGlutenOperatorMatch[T](df)
+    checkGlutenPlan[T](df)
   }
 
   test("tpch q22 subquery filter pushdown - v1") {
@@ -144,19 +144,19 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
 
           runQueryAndCompare(
             """select * from t where long_decimal_field = 3.14""".stripMargin
-          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+          )(checkGlutenPlan[FileSourceScanExecTransformer])
 
           runQueryAndCompare(
             """select * from t where short_decimal_field = 3.14""".stripMargin
-          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+          )(checkGlutenPlan[FileSourceScanExecTransformer])
 
           runQueryAndCompare(
             """select * from t where binary_field = '3.14'""".stripMargin
-          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+          )(checkGlutenPlan[FileSourceScanExecTransformer])
 
           runQueryAndCompare(
             """select * from t where timestamp_field = current_timestamp()""".stripMargin
-          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+          )(checkGlutenPlan[FileSourceScanExecTransformer])
       }
     }
   }

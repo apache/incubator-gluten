@@ -23,6 +23,7 @@ import org.apache.gluten.substrait.`type`._
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -59,6 +60,9 @@ case class CHRangeExecTransformer(
     }
   }
 
+  override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
+    getPartitions.map((_, ReadFileFormat.UnknownFormat))
+
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
     Map(
@@ -87,16 +91,15 @@ case class CHRangeExecTransformer(
         output.map(attr => new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)))
       .asJava
 
-    val optimizationContent = s"isRange=1\n"
     val optimization =
       BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder.setValue(optimizationContent).build)
+        StringValue.newBuilder.setValue("isRange=1\n").build)
     val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
     val readNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
-      columnTypeNodes,
       null,
+      columnTypeNodes,
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))

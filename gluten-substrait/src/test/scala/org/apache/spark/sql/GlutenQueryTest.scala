@@ -35,7 +35,6 @@ import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQu
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.util.SparkVersionUtil
 
 import org.junit.Assert
 import org.scalatest.Assertions
@@ -357,14 +356,9 @@ abstract class GlutenQueryTest extends PlanTest with AdaptiveSparkPlanHelper {
   }
 
   private def getExecutedPlan(plan: SparkPlan): Seq[SparkPlan] = {
-    val stripPlan = if (SparkVersionUtil.gteSpark40) {
-      stripAQEPlan(plan)
-    } else {
-      plan
-    }
-    val subTree = stripPlan match {
+    val subTree = plan match {
       case exec: AdaptiveSparkPlanExec =>
-        getExecutedPlan(exec.executedPlan)
+        getExecutedPlan(stripAQEPlan(exec))
       case cmd: CommandResultExec =>
         getExecutedPlan(cmd.commandPhysicalPlan)
       case s: ShuffleQueryStageExec =>
@@ -428,7 +422,7 @@ abstract class GlutenQueryTest extends PlanTest with AdaptiveSparkPlanHelper {
    * @tparam T:
    *   type of the expected plan.
    */
-  def checkGlutenOperatorMatch[T <: GlutenPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+  def checkGlutenPlan[T <: GlutenPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
     assert(
       executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)),
@@ -437,7 +431,7 @@ abstract class GlutenQueryTest extends PlanTest with AdaptiveSparkPlanHelper {
     )
   }
 
-  def checkSparkOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+  def checkSparkPlan[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
     assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
   }
@@ -454,7 +448,7 @@ abstract class GlutenQueryTest extends PlanTest with AdaptiveSparkPlanHelper {
    * @tparam T:
    *   type of the expected plan.
    */
-  def checkGlutenOperatorCount[T <: GlutenPlan](df: DataFrame, count: Int)(implicit
+  def checkGlutenPlanCount[T <: GlutenPlan](df: DataFrame, count: Int)(implicit
       tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
     assert(

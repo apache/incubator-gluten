@@ -16,35 +16,12 @@
  */
 package org.apache.gluten.extensions;
 
-import org.apache.iceberg.PlanningMode;
 import org.apache.iceberg.spark.extensions.TestMergeOnReadDelete;
 import org.junit.Test;
 
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class TestGlutenMergeOnReadDelete extends TestMergeOnReadDelete {
-  public TestGlutenMergeOnReadDelete(
-      String catalogName,
-      String implementation,
-      Map<String, String> config,
-      String fileFormat,
-      Boolean vectorized,
-      String distributionMode,
-      boolean fanoutEnabled,
-      String branch,
-      PlanningMode planningMode) {
-    super(
-        catalogName,
-        implementation,
-        config,
-        fileFormat,
-        vectorized,
-        distributionMode,
-        fanoutEnabled,
-        branch,
-        planningMode);
-  }
 
   @Test
   public synchronized void testDeleteWithConcurrentTableRefresh() {
