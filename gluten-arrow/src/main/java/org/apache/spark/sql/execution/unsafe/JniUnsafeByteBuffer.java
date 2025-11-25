@@ -29,42 +29,41 @@ import org.apache.spark.unsafe.Platform;
 public class JniUnsafeByteBuffer {
   private ArrowBuf buffer;
   private long size;
-  private boolean closed = false;
+  private boolean released = false;
 
   private JniUnsafeByteBuffer(ArrowBuf buffer, long size) {
     this.buffer = buffer;
     this.size = size;
   }
 
+  // Invoked by C++ code via JNI.
   public static JniUnsafeByteBuffer allocate(long size) {
     final ArrowBuf arrowBuf = ArrowBufferAllocators.globalInstance().buffer(size);
     return new JniUnsafeByteBuffer(arrowBuf, size);
   }
 
+  // Invoked by C++ code via JNI.
   public long address() {
     ensureOpen();
     return buffer.memoryAddress();
   }
 
+  // Invoked by C++ code via JNI.
   public long size() {
     ensureOpen();
     return size;
   }
 
   private synchronized void ensureOpen() {
-    if (closed) {
-      throw new IllegalStateException("Already closed");
+    if (released) {
+      throw new IllegalStateException("Already released");
     }
   }
 
   private synchronized void release() {
     ensureOpen();
     buffer.close();
-  }
-
-  private synchronized void close() {
-    ensureOpen();
-    closed = true;
+    released = true;
     buffer = null;
     size = 0;
   }
@@ -75,17 +74,16 @@ public class JniUnsafeByteBuffer {
     Platform.copyMemory(
         null, buffer.memoryAddress(), values, Platform.BYTE_ARRAY_OFFSET, values.length);
     release();
-    close();
     return values;
   }
 
   public synchronized UnsafeByteArray toUnsafeByteArray() {
     final UnsafeByteArray out;
     ensureOpen();
+    // We can safely release the buffer after UnsafeByteArray is constructed because it keeps
+    // its own reference to the buffer.
     out = new UnsafeByteArray(buffer, size);
-    // Do not release the Arrow buffer since we've transferred it to the target unsafe byte array
-    // which will manage its life cycle afterward.
-    close();
+    release();
     return out;
   }
 }

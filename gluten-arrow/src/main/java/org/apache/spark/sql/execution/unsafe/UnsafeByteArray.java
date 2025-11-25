@@ -36,6 +36,7 @@ public class UnsafeByteArray implements Externalizable, KryoSerializable {
 
   UnsafeByteArray(ArrowBuf buffer, long size) {
     this.buffer = buffer;
+    this.buffer.getReferenceManager().retain();
     this.size = size;
   }
 
