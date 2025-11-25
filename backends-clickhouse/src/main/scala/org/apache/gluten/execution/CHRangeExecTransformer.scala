@@ -91,16 +91,15 @@ case class CHRangeExecTransformer(
         output.map(attr => new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)))
       .asJava
 
-    val optimizationContent = s"isRange=1\n"
     val optimization =
       BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder.setValue(optimizationContent).build)
+        StringValue.newBuilder.setValue("isRange=1\n").build)
     val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
     val readNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
-      columnTypeNodes,
       null,
+      columnTypeNodes,
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))
