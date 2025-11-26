@@ -717,15 +717,18 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("InMemoryRelation statistics")
     // Extra ColumnarToRow is needed to transform vanilla columnar data to gluten columnar data.
     .exclude("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
-  // TODO: fix in Spark-4.0
-  // enableSuite[GlutenFileSourceCharVarcharTestSuite]
-  //   .exclude("length check for input string values: nested in array")
-  //   .exclude("length check for input string values: nested in array")
-  //   .exclude("length check for input string values: nested in map key")
-  //   .exclude("length check for input string values: nested in map value")
-  //   .exclude("length check for input string values: nested in both map key and value")
-  //   .exclude("length check for input string values: nested in array of struct")
-  //   .exclude("length check for input string values: nested in array of array")
+   enableSuite[GlutenFileSourceCharVarcharTestSuite]
+     .exclude("length check for input string values: nested in array")
+     .exclude("length check for input string values: nested in array")
+     .exclude("length check for input string values: nested in map key")
+     .exclude("length check for input string values: nested in map value")
+     .exclude("length check for input string values: nested in both map key and value")
+     .exclude("length check for input string values: nested in array of struct")
+     .exclude("length check for input string values: nested in array of array")
+     .exclude("length check for input string values: top-level columns")
+     .exclude("length check for input string values: partitioned columns")
+     .exclude("length check for input string values: nested in struct of array")
+     .exclude("length check for input string values: with implicit casts")
   // enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenColumnExpressionSuite]
     // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.

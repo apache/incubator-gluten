@@ -29,6 +29,9 @@ class GlutenFileSourceCharVarcharTestSuite
   private val ERROR_MESSAGE =
     "Exceeds char/varchar type length limitation: 5"
 
+  private val VELOX_ERROR_MESSAGE =
+    "Exceeds allowed length limitation: 5"
+
   testGluten("length check for input string values: nested in struct") {
     testTableWrite {
       typeName =>
@@ -38,7 +41,7 @@ class GlutenFileSourceCharVarcharTestSuite
         val e = intercept[RuntimeException] {
           sql("INSERT INTO t SELECT struct('123456')")
         }
-        assert(e.getMessage.contains(ERROR_MESSAGE))
+        assert(e.getMessage.contains(VELOX_ERROR_MESSAGE))
     }
   }
 
@@ -93,7 +96,7 @@ class GlutenFileSourceCharVarcharTestSuite
         sql("INSERT INTO t SELECT struct(array(null))")
         checkAnswer(spark.table("t"), Row(Row(Seq(null))))
         val e = intercept[SparkException](sql("INSERT INTO t SELECT struct(array('123456'))"))
-        assert(e.getMessage.contains(ERROR_MESSAGE))
+        assert(e.getMessage.contains(VELOX_ERROR_MESSAGE))
     }
   }
 
@@ -104,7 +107,7 @@ class GlutenFileSourceCharVarcharTestSuite
         sql("INSERT INTO t VALUES (array(struct(null)))")
         checkAnswer(spark.table("t"), Row(Seq(Row(null))))
         val e = intercept[SparkException](sql("INSERT INTO t VALUES (array(struct('123456')))"))
-        assert(e.getMessage.contains(ERROR_MESSAGE))
+        assert(e.getMessage.contains(VELOX_ERROR_MESSAGE))
     }
   }
 
@@ -115,7 +118,7 @@ class GlutenFileSourceCharVarcharTestSuite
         sql("INSERT INTO t VALUES (array(array(null)))")
         checkAnswer(spark.table("t"), Row(Seq(Seq(null))))
         val e = intercept[SparkException](sql("INSERT INTO t VALUES (array(array('123456')))"))
-        assert(e.getMessage.contains(ERROR_MESSAGE))
+        assert(e.getMessage.contains(VELOX_ERROR_MESSAGE))
     }
   }
 }
