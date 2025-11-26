@@ -739,4 +739,11 @@ class Spark40Shims extends SparkShims {
         None
     }
   }
+
+  override def throwExceptionInWrite(
+      t: Throwable,
+      writePath: String,
+      descriptionPath: String): Unit = {
+    throw t
+  }
 }

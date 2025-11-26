@@ -698,10 +698,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-39557 INSERT INTO statements with tables with array defaults")
     .exclude("SPARK-39557 INSERT INTO statements with tables with struct defaults")
     .exclude("SPARK-39557 INSERT INTO statements with tables with map defaults")
-    // TODO: fix in Spark-4.0
-    .exclude("Throw exceptions on inserting out-of-range decimal value with ANSI casting policy")
-    .exclude("Throw exceptions on inserting out-of-range long value with ANSI casting policy")
-    .exclude("Throw exceptions on inserting out-of-range int value with ANSI casting policy")
   enableSuite[GlutenPartitionedWriteSuite]
   enableSuite[GlutenPathOptionSuite]
   enableSuite[GlutenPrunedScanSuite]
