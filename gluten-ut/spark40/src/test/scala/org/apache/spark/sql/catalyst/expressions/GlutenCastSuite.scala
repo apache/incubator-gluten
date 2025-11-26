@@ -289,6 +289,10 @@ class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
   }
 
   testGluten("Casting to char/varchar") {
+    // Need to explicitly set spark.sql.preserveCharVarcharTypeInfo=true for gluten's test
+    // framework. In Gluten, it overrides the checkEvaluation that invokes Spark's RowEncoder,
+    // which requires this configuration to be set.
+    // In Vanilla spark, the checkEvaluation method doesn't invoke RowEncoder.
     withSQLConf(SQLConf.PRESERVE_CHAR_VARCHAR_TYPE_INFO.key -> "true") {
       Seq(CharType(10), VarcharType(10)).foreach {
         typ =>
