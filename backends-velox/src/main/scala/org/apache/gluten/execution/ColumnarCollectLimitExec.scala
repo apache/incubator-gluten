@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.columnarbatch.VeloxColumnarBatches
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -27,6 +28,76 @@ case class ColumnarCollectLimitExec(
     child: SparkPlan,
     offset: Int = 0
 ) extends ColumnarCollectLimitBaseExec(limit, child, offset) {
+
+  /**
+   * Override doExecuteColumnar to handle zero-column schema specially. Velox doesn't support
+   * shuffle on empty schema, so we handle it by counting rows across partitions and creating a
+   * zero-column batch with the correct row count.
+   */
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    val childRDD = child.executeColumnar()
+
+    if (childRDD.getNumPartitions == 0) {
+      return sparkContext.parallelize(Seq.empty[ColumnarBatch], 1)
+    }
+
+    // For zero-column schema (e.g., Spark 4.0's isEmpty uses `select().limit(1).collect()`),
+    // Velox doesn't support shuffle on empty schema. Handle this specially.
+    if (child.output.isEmpty) {
+      return handleZeroColumnSchema(childRDD)
+    }
+
+    // Delegate to base class implementation for normal cases
+    super.doExecuteColumnar()
+  }
+
+  /**
+   * Handle zero-column schema specially since Velox doesn't support shuffle on empty schema. Count
+   * rows across partitions in order, applying offset and limit, and stop early once we've collected
+   * enough rows.
+   */
+  private def handleZeroColumnSchema(childRDD: RDD[ColumnarBatch]): RDD[ColumnarBatch] = {
+    val numPartitions = childRDD.getNumPartitions
+    var rowsToSkip = offset.toLong
+    var rowsToCollect = if (limit >= 0) limit.toLong else Long.MaxValue
+    var resultRows = 0L
+    var partitionIdx = 0
+
+    // Process partitions one by one until we have enough rows
+    while (partitionIdx < numPartitions && rowsToCollect > 0) {
+      // Run job on single partition to get its row count
+      val partitionRowCounts = sparkContext.runJob(
+        childRDD,
+        (iter: Iterator[ColumnarBatch]) => iter.map(_.numRows().toLong).sum,
+        Seq(partitionIdx)
+      )
+      val partitionRowCount = partitionRowCounts.head
+
+      if (rowsToSkip >= partitionRowCount) {
+        // Skip this entire partition
+        rowsToSkip -= partitionRowCount
+      } else {
+        // Take rows from this partition
+        val availableRows = partitionRowCount - rowsToSkip
+        val rowsToTake = math.min(availableRows, rowsToCollect)
+        resultRows += rowsToTake
+        rowsToCollect -= rowsToTake
+        rowsToSkip = 0
+      }
+      partitionIdx += 1
+    }
+
+    // Create a single partition with zero-column batch containing the correct row count.
+    // Note: ColumnarBatch is not serializable, so we must create it on the executor side.
+    val numRows = resultRows.toInt
+    if (numRows > 0) {
+      sparkContext.parallelize(Seq(numRows), 1).mapPartitions {
+        iter => Iterator(new ColumnarBatch(Array.empty, iter.next()))
+      }
+    } else {
+      sparkContext.parallelize(Seq.empty[Int], 1).mapPartitions(_ => Iterator.empty)
+    }
+  }
 
   /**
    * Returns an iterator that gives offset to limit rows in total from the input partitionIter.
@@ -41,13 +112,6 @@ case class ColumnarCollectLimitExec(
     val unlimited = limit < 0
     var rowsToSkip = math.max(offset, 0)
     var rowsToCollect = if (unlimited) Int.MaxValue else limit
-
-    // Check if this is a zero-column (empty schema) batch scenario.
-    // In Spark 4.0, isEmpty uses `commandResultOptimized.select().limit(1)` which creates
-    // a zero-column DataFrame. For zero-column batches, we cannot use VeloxColumnarBatches.slice
-    // because Velox doesn't support operations on empty schema. Instead, we create a new
-    // zero-column batch with the correct row count.
-    val isZeroColumnSchema = child.output.isEmpty
 
     new Iterator[ColumnarBatch] {
       private var nextBatch: Option[ColumnarBatch] = None
@@ -88,10 +152,6 @@ case class ColumnarCollectLimitExec(
               if (startIndex == 0 && needed == batchSize) {
                 ColumnarBatches.retain(batch)
                 batch
-              } else if (isZeroColumnSchema) {
-                // For zero-column batches, create a new empty batch with correct row count
-                // since VeloxColumnarBatches.slice doesn't support empty schema
-                new ColumnarBatch(Array.empty, needed)
               } else {
                 VeloxColumnarBatches.slice(batch, startIndex, needed)
               }
