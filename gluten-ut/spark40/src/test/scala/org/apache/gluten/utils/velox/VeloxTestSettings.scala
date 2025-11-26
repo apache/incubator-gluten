@@ -620,8 +620,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]
-  // TODO: fix in Spark-4.0
-  // enableSuite[GlutenCoalesceShufflePartitionsSuite]
+  enableSuite[GlutenCoalesceShufflePartitionsSuite]
+    .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
