@@ -757,8 +757,7 @@ class DeltaColumnDefaultsInsertSuite extends InsertIntoSQLOnlyTests with DeltaSQ
       |  'delta.columnMapping.mode' = 'name'
       |)""".stripMargin
 
-  // Ignored in Gluten: Results mismatch.
-  ignore("Column DEFAULT value support with Delta Lake, positive tests") {
+  test("Column DEFAULT value support with Delta Lake, positive tests") {
     Seq(
       PartitionOverwriteMode.STATIC.toString,
       PartitionOverwriteMode.DYNAMIC.toString
