@@ -681,8 +681,8 @@ class Spark40Shims extends SparkShims {
       .builder(file.getConfiguration, file.getPath)
       .withMetadataFilter(filter)
       .build
+    val in = file.newStream
     try {
-      val in = file.newStream
       val footer =
         ParquetFileReader.readFooter(file, options, in)
       val fileMetaData = footer.getFileMetaData
@@ -703,6 +703,10 @@ class Spark40Shims extends SparkShims {
       case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
         true
       case e: Exception => false
+    } finally {
+      if (in != null) {
+        in.close()
+      }
     }
   }
 
