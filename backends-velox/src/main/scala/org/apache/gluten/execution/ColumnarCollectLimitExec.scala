@@ -42,6 +42,13 @@ case class ColumnarCollectLimitExec(
     var rowsToSkip = math.max(offset, 0)
     var rowsToCollect = if (unlimited) Int.MaxValue else limit
 
+    // Check if this is a zero-column (empty schema) batch scenario.
+    // In Spark 4.0, isEmpty uses `commandResultOptimized.select().limit(1)` which creates
+    // a zero-column DataFrame. For zero-column batches, we cannot use VeloxColumnarBatches.slice
+    // because Velox doesn't support operations on empty schema. Instead, we create a new
+    // zero-column batch with the correct row count.
+    val isZeroColumnSchema = child.output.isEmpty
+
     new Iterator[ColumnarBatch] {
       private var nextBatch: Option[ColumnarBatch] = None
 
@@ -81,6 +88,10 @@ case class ColumnarCollectLimitExec(
               if (startIndex == 0 && needed == batchSize) {
                 ColumnarBatches.retain(batch)
                 batch
+              } else if (isZeroColumnSchema) {
+                // For zero-column batches, create a new empty batch with correct row count
+                // since VeloxColumnarBatches.slice doesn't support empty schema
+                new ColumnarBatch(Array.empty, needed)
               } else {
                 VeloxColumnarBatches.slice(batch, startIndex, needed)
               }

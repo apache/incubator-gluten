@@ -67,8 +67,14 @@ abstract class ColumnarCollectLimitBaseExec(
       return sparkContext.parallelize(Seq.empty[ColumnarBatch], 1)
     }
 
+    // Check if this is a zero-column (empty schema) scenario.
+    // In Spark 4.0, isEmpty uses `commandResultOptimized.select().limit(1)` which creates
+    // a zero-column DataFrame. Velox doesn't support shuffle operations on empty schema,
+    // so we handle this case specially by collecting locally without shuffle.
+    val isZeroColumnSchema = child.output.isEmpty
+
     val processedRDD =
-      if (childRDD.getNumPartitions == 1) childRDD
+      if (childRDD.getNumPartitions == 1 || isZeroColumnSchema) childRDD
       else shuffleLimitedPartitions(childRDD)
 
     processedRDD.mapPartitions(

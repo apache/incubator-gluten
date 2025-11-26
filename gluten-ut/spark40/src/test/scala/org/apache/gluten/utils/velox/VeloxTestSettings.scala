@@ -840,8 +840,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite the following two tests in GlutenDatasetSuite.
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
-    // TODO: fix in Spark-4.0
-    .exclude("SPARK-23627: provide isEmpty in DataSet")
   enableSuite[GlutenDateFunctionsSuite]
     // The below two are replaced by two modified versions.
     .exclude("unix_timestamp")
