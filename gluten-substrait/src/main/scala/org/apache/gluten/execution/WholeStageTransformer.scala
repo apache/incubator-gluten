@@ -236,7 +236,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       .asInstanceOf[TransformSupport]
       .transform(substraitContext)
     if (childCtx == null) {
-      throw new NullPointerException(s"WholeStageTransformer can't do Transform on $child")
+      throw new IllegalStateException(s"WholeStageTransformer can't do Transform on $child")
     }
 
     val outNames = childCtx.outputAttributes.map(ConverterUtils.genColumnNameWithExprId).asJava
