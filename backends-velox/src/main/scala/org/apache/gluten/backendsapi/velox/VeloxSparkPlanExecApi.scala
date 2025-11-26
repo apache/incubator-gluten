@@ -1073,4 +1073,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original: MonthsBetween): ExpressionTransformer = {
     MonthsBetweenTransformer(substraitExprName, date1, date2, roundOff, original)
   }
+
+  override def getErrorMessage(raiseError: RaiseError): Expression = {
+    SparkShimLoader.getSparkShims.getErrorMessage(raiseError) match {
+      case Some(msg) => msg
+      case None =>
+        GlutenExceptionUtil.throwsNotFullySupported(
+          ExpressionNames.RAISE_ERROR,
+          RaiseErrorRestrictions.ONLY_SUPPORT_ERROR_MESSAGE)
+    }
+  }
 }

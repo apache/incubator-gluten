@@ -727,4 +727,14 @@ class Spark40Shims extends SparkShims {
     DecimalPrecisionTypeCoercion.widerDecimalType(d1, d2)
   }
 
+  override def getErrorMessage(raiseError: RaiseError): Option[Expression] = {
+    raiseError.errorParms match {
+      case CreateMap(children, _)
+          if children.size == 2 && children.head.isInstanceOf[Literal]
+            && children.head.asInstanceOf[Literal].value.toString == "errorMessage" =>
+        Some(children(1))
+      case _ =>
+        None
+    }
+  }
 }
