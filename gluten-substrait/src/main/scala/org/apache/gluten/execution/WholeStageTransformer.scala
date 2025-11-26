@@ -45,7 +45,6 @@ import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 
@@ -417,20 +416,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   }
 
   private def leafInputMetricsUpdater(): InputMetricsWrapper => Unit = {
-    def collectLeaves(plan: SparkPlan, buffer: ArrayBuffer[TransformSupport]): Unit = {
-      plan match {
-        case node: TransformSupport if node.children.forall(!_.isInstanceOf[TransformSupport]) =>
-          buffer.append(node)
-        case node: TransformSupport =>
-          node.children
-            .foreach(collectLeaves(_, buffer))
-        case _ =>
-      }
+    val leaves = child.collect {
+      case plan: TransformSupport if plan.children.forall(!_.isInstanceOf[TransformSupport]) =>
+        plan
     }
-
-    val leafBuffer = new ArrayBuffer[TransformSupport]()
-    collectLeaves(child, leafBuffer)
-    val leafMetricsUpdater = leafBuffer.map(_.metricsUpdater())
+    val leafMetricsUpdater = leaves.map(_.metricsUpdater())
 
     (inputMetrics: InputMetricsWrapper) => {
       leafMetricsUpdater.foreach(_.updateInputMetrics(inputMetrics))
