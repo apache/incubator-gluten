@@ -1409,13 +1409,12 @@ class GlutenKeyGroupedPartitioningSuite
                 allowJoinKeysSubsetOfPartitionKeys.toString,
               SQLConf.V2_BUCKETING_ALLOW_COMPATIBLE_TRANSFORMS.key -> "true"
             ) {
-              val df = sql(
-                s"""
-                   |${selectWithMergeJoinHint("t1", "t2")}
-                   |t1.store_id, t1.dept_id, t1.data, t2.data
-                   |FROM testcat.ns.$table1 t1 JOIN testcat.ns.$table2 t2
-                   |ON t1.store_id = t2.store_id AND t1.dept_id = t2.dept_id
-                   |""".stripMargin)
+              val df = sql(s"""
+                              |${selectWithMergeJoinHint("t1", "t2")}
+                              |t1.store_id, t1.dept_id, t1.data, t2.data
+                              |FROM testcat.ns.$table1 t1 JOIN testcat.ns.$table2 t2
+                              |ON t1.store_id = t2.store_id AND t1.dept_id = t2.dept_id
+                              |""".stripMargin)
 
               val shuffles = collectColumnarShuffleExchangeExec(df.queryExecution.executedPlan)
               assert(shuffles.nonEmpty, "SPJ should not be triggered")
