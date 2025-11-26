@@ -1052,7 +1052,6 @@ class GlutenKeyGroupedPartitioningSuite
       shuffle =>
         withSQLConf(SQLConf.V2_BUCKETING_SHUFFLE_ENABLED.key -> shuffle.toString) {
           val df = createJoinTestDF(Seq("id" -> "item_id", "arrive_time" -> "time"))
-          println(df.queryExecution.executedPlan)
           val shuffles = collectShuffles(df.queryExecution.executedPlan)
           if (shuffle) {
             assert(shuffles.size == 1, "only shuffle one side not report partitioning")
