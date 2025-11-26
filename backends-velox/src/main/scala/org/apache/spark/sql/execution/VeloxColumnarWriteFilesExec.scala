@@ -18,12 +18,11 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.execution.ValidationResult
-import org.apache.gluten.execution.WriteFilesExecTransformer
+import org.apache.gluten.execution.{ValidationResult, WriteFilesExecTransformer}
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
+import org.apache.spark.{Partition, TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, SparkHadoopWriterUtils}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.rdd.RDD
