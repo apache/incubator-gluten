@@ -128,7 +128,7 @@ abstract class FileSourceScanExecTransformerBase(
       .genPartitionSeq(
         relation,
         requiredSchema,
-        getPartitionArray(),
+        getPartitionArray,
         output,
         bucketedScan,
         optionalBucketSet,
