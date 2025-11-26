@@ -68,7 +68,7 @@ case class HiveTableScanExecTransformer(
   override def pushDownFilters: Option[Seq[Expression]] = Some(Seq.empty)
 
   override def withNewPushdownFilters(filters: Seq[Expression]): BasicScanExecTransformer =
-    throw new UnsupportedOperationException()
+    throw new UnsupportedOperationException("Hive table scan does not support push down filters.")
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 

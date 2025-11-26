@@ -69,7 +69,7 @@ case class MicroBatchScanExecTransformer(
   def pushDownFilters: Option[Seq[Expression]] = Some(Seq.empty)
 
   def withNewPushdownFilters(filters: Seq[Expression]): BatchScanExecTransformerBase = {
-    throw new UnsupportedOperationException()
+    throw new UnsupportedOperationException("Mico batch scan does not support push down filters.")
   }
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
