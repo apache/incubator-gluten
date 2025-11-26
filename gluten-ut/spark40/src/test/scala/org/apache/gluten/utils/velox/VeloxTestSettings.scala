@@ -67,10 +67,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
     .exclude("partitioned join: only one side reports partitioning")
     .exclude("partitioned join: join with two partition keys and different # of partition keys")
-    .excludeByPrefix("SPARK-41471")
-    .excludeByPrefix("SPARK-44647")
     .excludeByPrefix("SPARK-47094")
-    .excludeByPrefix("SPARK-48012")
     .excludeByPrefix("SPARK-48655")
     // disable due to check for SMJ node
     .excludeByPrefix("SPARK-41413: partitioned join:")
