@@ -120,8 +120,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Revised by setting timezone through config and commented unsupported cases.
     .exclude("cast string to timestamp")
     // TODO: fix in Spark-4.0
-    .exclude("cast from array III")
-    .exclude("cast from struct III")
     .exclude("Casting to char/varchar")
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
