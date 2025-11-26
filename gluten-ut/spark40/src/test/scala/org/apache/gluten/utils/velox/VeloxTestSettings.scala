@@ -69,6 +69,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("partitioned join: join with two partition keys and different # of partition keys")
     .excludeByPrefix("SPARK-47094")
     .excludeByPrefix("SPARK-48655")
+    .excludeByPrefix("SPARK-48012")
+    .excludeByPrefix("SPARK-44647")
+    .excludeByPrefix("SPARK-41471")
     // disable due to check for SMJ node
     .excludeByPrefix("SPARK-41413: partitioned join:")
     .excludeByPrefix("SPARK-42038: partially clustered:")
