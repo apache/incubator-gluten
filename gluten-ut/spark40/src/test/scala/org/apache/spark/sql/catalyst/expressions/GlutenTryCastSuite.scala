@@ -27,6 +27,14 @@ import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
 
 class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    // Need to explicitly set spark.sql.preserveCharVarcharTypeInfo=true for gluten's test
+    // framework. In Gluten, it overrides the checkEvaluation that invokes Spark's RowEncoder,
+    // which requires this configuration to be set.
+    // In Vanilla spark, the checkEvaluation method doesn't invoke RowEncoder.
+    conf.setConf(SQLConf.PRESERVE_CHAR_VARCHAR_TYPE_INFO, true)
+  }
 
   testGluten("data type casting") {
     val sd = "1970-01-01"
@@ -212,33 +220,6 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
           // checkCastStringToTimestamp("2015-03-18T12:03:17.123+7:3",
           // new Timestamp(c.getTimeInMillis))
         }
-    }
-  }
-
-  testGluten("Casting to char/varchar") {
-    // Need to explicitly set spark.sql.preserveCharVarcharTypeInfo=true for gluten's test
-    // framework. In Gluten, it overrides the checkEvaluation that invokes Spark's RowEncoder,
-    // which requires this configuration to be set.
-    // In Vanilla spark, the checkEvaluation method doesn't invoke RowEncoder.
-    withSQLConf(SQLConf.PRESERVE_CHAR_VARCHAR_TYPE_INFO.key -> "true") {
-      Seq(CharType(10), VarcharType(10)).foreach {
-        typ =>
-          Seq(
-            IntegerType -> (123, "123"),
-            LongType -> (123L, "123"),
-            BooleanType -> (true, "true"),
-            BooleanType -> (false, "false"),
-            DoubleType -> (1.2, "1.2")
-          ).foreach {
-            case (fromType, (from, to)) =>
-              val paddedTo = if (typ.isInstanceOf[CharType]) {
-                to.padTo(10, ' ')
-              } else {
-                to
-              }
-              checkEvaluation(cast(Literal.create(from, fromType), typ), paddedTo)
-          }
-      }
     }
   }
 }

@@ -102,8 +102,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("cast from timestamp II")
     .exclude("SPARK-36286: invalid string cast to timestamp")
     .exclude("SPARK-39749: cast Decimal to string")
-    // Set `spark.sql.preserveCharVarcharTypeInfo=true` through config.
-    .exclude("Casting to char/varchar")
   enableSuite[GlutenTryCastSuite]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
@@ -119,8 +117,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("data type casting")
     // Revised by setting timezone through config and commented unsupported cases.
     .exclude("cast string to timestamp")
-    // Set `spark.sql.preserveCharVarcharTypeInfo=true` through config.
-    .exclude("Casting to char/varchar")
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
@@ -720,14 +716,14 @@ class VeloxTestSettings extends BackendTestSettings {
     // Extra ColumnarToRow is needed to transform vanilla columnar data to gluten columnar data.
     .exclude("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
   // TODO: fix in Spark-4.0
-  // enableSuite[GlutenFileSourceCharVarcharTestSuite]
-  //   .exclude("length check for input string values: nested in array")
-  //   .exclude("length check for input string values: nested in array")
-  //   .exclude("length check for input string values: nested in map key")
-  //   .exclude("length check for input string values: nested in map value")
-  //   .exclude("length check for input string values: nested in both map key and value")
-  //   .exclude("length check for input string values: nested in array of struct")
-  //   .exclude("length check for input string values: nested in array of array")
+  enableSuite[GlutenFileSourceCharVarcharTestSuite]
+    .exclude("length check for input string values: nested in array")
+    .exclude("length check for input string values: nested in array")
+    .exclude("length check for input string values: nested in map key")
+    .exclude("length check for input string values: nested in map value")
+    .exclude("length check for input string values: nested in both map key and value")
+    .exclude("length check for input string values: nested in array of struct")
+    .exclude("length check for input string values: nested in array of array")
   // enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenColumnExpressionSuite]
     // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.
