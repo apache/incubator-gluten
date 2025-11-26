@@ -178,12 +178,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
                   BackendsApiManager.getBackendName,
                   "ColumnarCachedBatchSerializer#serialize"))
               .serialize(ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch))
-            val bytes =
-              try {
-                unsafeBuffer.toByteArray
-              } finally {
-                unsafeBuffer.close()
-              }
+            val bytes = unsafeBuffer.toByteArray
             CachedColumnarBatch(batch.numRows(), bytes.length, bytes)
           }
         }

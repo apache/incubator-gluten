@@ -63,6 +63,8 @@ import javax.ws.rs.core.UriBuilder
 
 import java.util.Locale
 
+import scala.collection.JavaConverters._
+
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   /** Transform GetArrayItem to Substrait. */
@@ -670,26 +672,32 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       dataSize: SQLMetric): BuildSideRelation = {
     val useOffheapBroadcastBuildRelation =
       VeloxConfig.get.enableBroadcastBuildRelationInOffheap
-    val serialized: Array[ColumnarBatchSerializeResult] = child
+    val serialized: Seq[ColumnarBatchSerializeResult] = child
       .executeColumnar()
       .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
-      .filter(_.getNumRows != 0)
+      .filter(_.numRows != 0)
       .collect
-    val rawSize = serialized.flatMap(_.getSerialized.map(_.length.toLong)).sum
+    val rawSize = serialized.map(_.sizeInBytes()).sum
     if (rawSize >= GlutenConfig.get.maxBroadcastTableSize) {
       throw new SparkException(
         "Cannot broadcast the table that is larger than " +
           s"${SparkMemoryUtil.bytesToString(GlutenConfig.get.maxBroadcastTableSize)}: " +
           s"${SparkMemoryUtil.bytesToString(rawSize)}")
     }
-    numOutputRows += serialized.map(_.getNumRows).sum
+    numOutputRows += serialized.map(_.numRows).sum
     dataSize += rawSize
     if (useOffheapBroadcastBuildRelation) {
       TaskResources.runUnsafe {
-        UnsafeColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
+        UnsafeColumnarBuildSideRelation(
+          child.output,
+          serialized.flatMap(_.offHeapData().asScala),
+          mode)
       }
     } else {
-      ColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
+      ColumnarBuildSideRelation(
+        child.output,
+        serialized.flatMap(_.onHeapData().asScala).toArray,
+        mode)
     }
   }
 
