@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.velox.VeloxAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
-import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv2Suite}
+import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
 import org.apache.spark.sql.execution.datasources.exchange.GlutenValidateRequirementsSuite
 import org.apache.spark.sql.execution.datasources.json.{GlutenJsonLegacyTimeParserSuite, GlutenJsonV1Suite, GlutenJsonV2Suite}
 import org.apache.spark.sql.execution.datasources.orc._
@@ -563,10 +563,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenPathFilterStrategySuite]
   enableSuite[GlutenPathFilterSuite]
   enableSuite[GlutenPruneFileSourcePartitionsSuite]
-  // TODO: fix in Spark-4.0
-  // enableSuite[GlutenCSVReadSchemaSuite]
-  // enableSuite[GlutenHeaderCSVReadSchemaSuite]
-  //   .exclude("change column type from int to long")
+   enableSuite[GlutenCSVReadSchemaSuite]
+   enableSuite[GlutenHeaderCSVReadSchemaSuite]
+     .exclude("change column type from int to long")
   enableSuite[GlutenJsonReadSchemaSuite]
   enableSuite[GlutenOrcReadSchemaSuite]
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
