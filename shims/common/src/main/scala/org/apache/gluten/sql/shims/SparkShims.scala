@@ -54,9 +54,10 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
 import org.apache.parquet.schema.MessageType
 
-import java.util.{HashMap => JHashMap, Map => JMap}
+import java.util.{Map => JMap}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) {
@@ -233,11 +234,11 @@ trait SparkShims {
 
   def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String] = Seq.empty): JMap[String, String] = {
-    val metadataColumn = new JHashMap[String, String]()
-    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
-    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
-    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
+      metadataColumnNames: Seq[String] = Seq.empty): mutable.Map[String, String] = {
+    val metadataColumn: mutable.Map[String, String] = mutable.Map.empty
+    metadataColumn += (InputFileName().prettyName -> file.filePath.toString)
+    metadataColumn += (InputFileBlockStart().prettyName -> file.start.toString)
+    metadataColumn += (InputFileBlockLength().prettyName -> file.length.toString)
     metadataColumn
   }
 

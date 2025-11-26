@@ -64,8 +64,8 @@ import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{Map => JMap}
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 class Spark34Shims extends SparkShims {
@@ -244,24 +244,24 @@ class Spark34Shims extends SparkShims {
 
   override def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String]): JMap[String, String] = {
+      metadataColumnNames: Seq[String]): mutable.Map[String, String] = {
     val metadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
     val path = new Path(file.filePath.toString)
     for (columnName <- metadataColumnNames) {
       columnName match {
-        case FileFormat.FILE_PATH => metadataColumn.put(FileFormat.FILE_PATH, path.toString)
-        case FileFormat.FILE_NAME => metadataColumn.put(FileFormat.FILE_NAME, path.getName)
+        case FileFormat.FILE_PATH => metadataColumn += (FileFormat.FILE_PATH -> path.toString)
+        case FileFormat.FILE_NAME => metadataColumn += (FileFormat.FILE_NAME -> path.getName)
         case FileFormat.FILE_SIZE =>
-          metadataColumn.put(FileFormat.FILE_SIZE, file.fileSize.toString)
+          metadataColumn += (FileFormat.FILE_SIZE -> file.fileSize.toString)
         case FileFormat.FILE_MODIFICATION_TIME =>
           val fileModifyTime = TimestampFormatter
             .getFractionFormatter(ZoneOffset.UTC)
             .format(file.modificationTime * 1000L)
-          metadataColumn.put(FileFormat.FILE_MODIFICATION_TIME, fileModifyTime)
+          metadataColumn += (FileFormat.FILE_MODIFICATION_TIME -> fileModifyTime)
         case FileFormat.FILE_BLOCK_START =>
-          metadataColumn.put(FileFormat.FILE_BLOCK_START, file.start.toString)
+          metadataColumn += (FileFormat.FILE_BLOCK_START -> file.start.toString)
         case FileFormat.FILE_BLOCK_LENGTH =>
-          metadataColumn.put(FileFormat.FILE_BLOCK_LENGTH, file.length.toString)
+          metadataColumn += (FileFormat.FILE_BLOCK_LENGTH -> file.length.toString)
         case _ =>
       }
     }

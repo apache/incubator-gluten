@@ -91,7 +91,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
 
     val partitionColumns = getPartitionColumns(partitionSchema, partitionFiles)
     val metadataColumns = partitionFiles
-      .map(f => SparkShimLoader.getSparkShims.generateMetadataColumns(f, metadataColumnNames))
+      .map(
+        f => SparkShimLoader.getSparkShims.generateMetadataColumns(f, metadataColumnNames).asJava)
     val otherMetadataColumns = partitionFiles
       .map(f => SparkShimLoader.getSparkShims.getOtherConstantMetadataColumnValues(f))
 
