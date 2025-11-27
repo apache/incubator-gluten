@@ -935,7 +935,7 @@
     <profile>
       <id>scala-2.13</id>
       <properties>
-        <scala.version>2.13.8</scala.version>
+        <scala.version>2.13.16</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
         <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
       </properties>
@@ -950,7 +950,7 @@
                   <compilerPlugin>
                     <groupId>org.wartremover</groupId>
                     <artifactId>wartremover_${scala.binary.version}</artifactId>
-                    <version>3.0.6</version>
+                    <version>3.2.0</version>
                   </compilerPlugin>
                 </compilerPlugins>
                 <dependencies>
@@ -966,7 +966,7 @@
                   <arg>-deprecation</arg>
                   <arg>-feature</arg>
                   <arg>-explaintypes</arg>
-                  <arg>-target:jvm-1.8</arg>
+                  <arg>-release:8</arg>
                   <arg>-Wconf:cat=deprecation:wv,any:e</arg>
                   <arg>-Wunused:imports</arg>
                   <!--
