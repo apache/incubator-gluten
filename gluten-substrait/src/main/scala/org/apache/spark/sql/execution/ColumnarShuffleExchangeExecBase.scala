@@ -27,7 +27,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
-import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.catalyst.plans.physical.{SinglePartition, _}
 import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.metric.SQLShuffleWriteMetricsReporter
@@ -93,14 +93,21 @@ abstract class ColumnarShuffleExchangeExecBase(
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
   override protected def doValidateInternal(): ValidationResult = {
-    BackendsApiManager.getValidatorApiInstance
+    val validation = BackendsApiManager.getValidatorApiInstance
       .doColumnarShuffleExchangeExecValidate(output, outputPartitioning, child)
-      .map {
-        reason =>
-          ValidationResult.failed(
-            s"Found schema check failure for schema ${child.schema} due to: $reason")
-      }
-      .getOrElse(ValidationResult.succeeded)
+    if (validation.nonEmpty) {
+      return ValidationResult.failed(
+        s"Found schema check failure for schema ${child.schema} due to: ${validation.get}")
+    }
+    outputPartitioning match {
+      case _: HashPartitioning => ValidationResult.succeeded
+      case _: RangePartitioning => ValidationResult.succeeded
+      case SinglePartition => ValidationResult.succeeded
+      case _: RoundRobinPartitioning => ValidationResult.succeeded
+      case _ =>
+        ValidationResult.failed(
+          s"Unsupported partitioning ${outputPartitioning.getClass.getSimpleName}")
+    }
   }
 
   override def numMappers: Int = inputColumnarRDD.getNumPartitions
