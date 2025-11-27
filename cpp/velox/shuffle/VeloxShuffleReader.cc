@@ -38,7 +38,7 @@
 #include <algorithm>
 
 #ifdef GLUTEN_ENABLE_GPU
-#include "GpuShuffleReader.h"
+#include "VeloxGpuShuffleReader.h"
 #endif
 
 using namespace facebook::velox;
@@ -821,16 +821,14 @@ std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::cr
   switch (shuffleWriterType_) {
     case ShuffleWriterType::kGpuHashShuffle:
 #ifdef GLUTEN_ENABLE_GPU
-      return std::make_unique<GpuHashShuffleReaderDeserializer>(
+      VELOX_CHECK(!hasComplexType_);
+      return std::make_unique<VeloxGpuHashShuffleReaderDeserializer>(
           streamReader,
           schema_,
           codec_,
           rowType_,
-          batchSize_,
           readerBufferSize_,
           memoryManager_,
-          &isValidityBuffer_,
-          hasComplexType_,
           deserializeTime_,
           decompressTime_);
 #endif

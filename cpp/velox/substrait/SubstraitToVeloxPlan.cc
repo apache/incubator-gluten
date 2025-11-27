@@ -32,11 +32,11 @@
 #include "config/VeloxConfig.h"
 
 #ifdef GLUTEN_ENABLE_GPU
+#include "operators/plannodes/CudfVectorStream.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveDataSink.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveTableHandle.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
-
 using namespace cudf_velox::connector::hive;
 #endif
 
@@ -848,7 +848,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     // Child should be either ProjectNode or ValueStreamNode in case of project fallback.
     VELOX_CHECK(
         (std::dynamic_pointer_cast<const core::ProjectNode>(childNode) != nullptr ||
-         std::dynamic_pointer_cast<const ValueStreamNode>(childNode) != nullptr) &&
+         std::dynamic_pointer_cast<const ValueStreamNode>(childNode) != nullptr)
+#ifdef GLUTEN_ENABLE_GPU
+        || std::dynamic_pointer_cast<const CudfValueStreamNode>(childNode) != nullptr
+#endif
+          &&
             childNode->outputType()->size() > requiredChildOutput.size(),
         "injectedProject is true, but the ProjectNode or ValueStreamNode (in case of projection fallback)"
         " is missing or does not have the corresponding projection field");
@@ -1224,6 +1228,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       nextPlanNodeId(), sortingKeys, sortingOrders, static_cast<int32_t>(topNRel.n()), false /*isPartial*/, childNode);
 }
 
+template <typename T>
 core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     const ::substrait::ReadRel& readRel,
     int32_t streamIdx) {
@@ -1251,7 +1256,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
     iterator = inputIters_[streamIdx];
   }
-  auto node = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(iterator));
+  auto node = std::make_shared<T>(nextPlanNodeId(), outputType, std::move(iterator));
 
   auto splitInfo = std::make_shared<SplitInfo>();
   splitInfo->isStream = true;
@@ -1288,12 +1293,16 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Check if the ReadRel specifies an input of stream. If yes, build ValueStreamNode as the data source.
   auto streamIdx = getStreamIndex(readRel);
   if (streamIdx >= 0) {
-    // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
-    if (LIKELY(!veloxCfg_->get<bool>(kQueryTraceEnabled, false))) {
-      return constructValueStreamNode(readRel, streamIdx);
-    } else {
-      return constructValuesNode(readRel, streamIdx);
+#ifdef GLUTEN_ENABLE_GPU
+    if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+      return constructValueStreamNode<CudfValueStreamNode>(readRel, streamIdx);
     }
+#endif
+    if (!veloxCfg_->get<bool>(kQueryTraceEnabled, false)) {
+      return constructValueStreamNode<ValueStreamNode>(readRel, streamIdx);
+    }
+    // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
+    return constructValuesNode(readRel, streamIdx);
   }
 
   // Otherwise, will create TableScan node for ReadRel.
@@ -1588,5 +1597,11 @@ bool SubstraitToVeloxPlanConverter::checkTypeExtension(const ::substrait::Plan& 
   }
   return true;
 }
+
+#ifdef GLUTEN_ENABLE_GPU
+template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<CudfValueStreamNode>(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+#endif
+
+template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<ValueStreamNode>(const ::substrait::ReadRel& sRead, int32_t streamIdx);
 
 } // namespace gluten

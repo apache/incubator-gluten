@@ -183,21 +183,23 @@ object VeloxBackendSettings extends BackendSettingsApi {
       }
     }
 
-    def validateEncryption(): Option[String] = {
-
-      val encryptionValidationEnabled = GlutenConfig.get.parquetEncryptionValidationEnabled
-      if (!encryptionValidationEnabled) {
+    def validateMetadata(): Option[String] = {
+      if (format != ParquetReadFormat || rootPaths.isEmpty) {
+        // Only Parquet is needed for metadata validation so far.
         return None
       }
-
-      val fileLimit = GlutenConfig.get.parquetEncryptionValidationFileLimit
-      val encryptionResult =
-        ParquetMetadataUtils.validateEncryption(format, rootPaths, hadoopConf, fileLimit)
-      if (encryptionResult.ok()) {
-        None
-      } else {
-        Some(s"Detected encrypted parquet files: ${encryptionResult.reason()}")
-      }
+      val fileLimit = GlutenConfig.get.parquetMetadataFallbackFileLimit
+        .max(GlutenConfig.get.parquetEncryptionValidationFileLimit)
+      val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
+      val parquetMetadataValidationResult =
+        ParquetMetadataUtils.validateMetadata(
+          format,
+          rootPaths,
+          hadoopConf,
+          parquetOptions,
+          fileLimit)
+      parquetMetadataValidationResult.map(
+        reason => s"Detected unsupported metadata in parquet files: $reason")
     }
 
     def validateDataSchema(): Option[String] = {
@@ -220,7 +222,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     val validationChecks = Seq(
       validateScheme(),
       validateFormat(),
-      validateEncryption(),
+      validateMetadata(),
       validateDataSchema()
     )
 

@@ -148,8 +148,8 @@ public class RelBuilder {
   public static RelNode makeReadRel(
       List<TypeNode> types,
       List<String> names,
-      List<ColumnTypeNode> columnTypeNodes,
       ExpressionNode filter,
+      List<ColumnTypeNode> columnTypeNodes,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {

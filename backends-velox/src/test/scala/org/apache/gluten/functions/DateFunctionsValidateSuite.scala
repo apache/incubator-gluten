@@ -62,7 +62,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
         runQueryAndCompare("SELECT date_add(a, b) from view") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -85,7 +85,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
         runQueryAndCompare("SELECT datediff(a, b) from view") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -100,7 +100,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
         runQueryAndCompare("SELECT date_format(c0, 'yyyy') FROM t") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -118,12 +118,12 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
         runQueryAndCompare("select weekofyear(dt) from t") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
         runQueryAndCompare(
           "SELECT date_part('yearofweek', dt), extract(yearofweek from dt)" +
             " from t") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -158,7 +158,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
                              |  date_trunc('microsecond', dt) as t15
                              |FROM t
                              |""".stripMargin) {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -176,10 +176,10 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
         runQueryAndCompare("SELECT from_utc_timestamp(a, \"America/Los_Angeles\") from view") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
         runQueryAndCompare("SELECT from_utc_timestamp(a, b) from view") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -187,7 +187,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
   test("make_date") {
     runQueryAndCompare(
       "select make_date(2025, 2, 7), make_date(2024, 11, null), make_date(2024, 11, 50)") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
@@ -208,7 +208,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         runQueryAndCompare(
           "select make_timestamp(year, month, day, hour, min, sec) from make_timestamp_tbl1") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
     withTempPath {
@@ -229,22 +229,22 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
                              |select make_timestamp(year, month, day, hour, min, sec, timezone)
                              |from make_timestamp_tbl2
                              |""".stripMargin) {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
 
   test("make_ym_interval") {
     runQueryAndCompare("select make_ym_interval(1, 1)") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
 
     runQueryAndCompare("select make_ym_interval(1)") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
 
     runQueryAndCompare("select make_ym_interval()") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
 
     withTempPath {
@@ -257,29 +257,28 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_ym_interval_tbl")
 
         runQueryAndCompare("select make_ym_interval(year, month) from make_ym_interval_tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
 
         runQueryAndCompare("select make_ym_interval(year) from make_ym_interval_tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
 
   test("timestamp_micros") {
     runQueryAndCompare("select timestamp_micros(l_orderkey) from lineitem") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
   test("timestamp_millis") {
     runQueryAndCompare("select timestamp_millis(l_orderkey) from lineitem") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
-  // TODO: fix on spark-4.0
-  testWithRangeSparkVersion("timestampadd", "3.3", "3.5") {
+  testWithMinSparkVersion("timestampadd", "3.3") {
     withTempPath {
       path =>
         val ts = Timestamp.valueOf("2020-02-29 00:00:00.500")
@@ -288,7 +287,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
         runQueryAndCompare("select timestampadd(day, quantity, ts) from time") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -302,7 +301,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
         runQueryAndCompare("select timestampdiff(SECOND, t1, t2) from time") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -317,7 +316,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
         runQueryAndCompare("select to_date(t, 'yyyy-MM') from time") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -332,7 +331,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
         runQueryAndCompare("select to_timestamp(t, 'yyyy-MM') from time") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -350,10 +349,10 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
         runQueryAndCompare("SELECT to_utc_timestamp(a, \"America/Los_Angeles\") from view") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
         runQueryAndCompare("SELECT to_utc_timestamp(a, b) from view") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -371,7 +370,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
         runQueryAndCompare("select trunc(dt, 'week') from t") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -391,7 +390,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
 
         runQueryAndCompare("SELECT unix_date(a) from view") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -406,7 +405,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
         runQueryAndCompare("select unix_micros(t) from time") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -421,7 +420,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
         runQueryAndCompare("select unix_millis(t) from time") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -436,7 +435,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
         runQueryAndCompare("select unix_seconds(t) from view") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -485,7 +484,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         // Test unix_timestamp(timestamp, format) - should use native execution without fallback
         runQueryAndCompare("SELECT unix_timestamp(ts, fmt) FROM unix_timestamp_test") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -499,10 +498,10 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
         runQueryAndCompare("select months_between(t1, t2) from time") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
         runQueryAndCompare("select months_between(t1, t2, false) from time") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }

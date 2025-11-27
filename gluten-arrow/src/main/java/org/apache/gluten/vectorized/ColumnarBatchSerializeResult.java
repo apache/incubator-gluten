@@ -16,26 +16,63 @@
  */
 package org.apache.gluten.vectorized;
 
+import com.google.common.base.Preconditions;
+import org.apache.spark.sql.execution.unsafe.JniUnsafeByteBuffer;
+import org.apache.spark.sql.execution.unsafe.UnsafeByteArray;
+
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class ColumnarBatchSerializeResult implements Serializable {
   public static final ColumnarBatchSerializeResult EMPTY =
-      new ColumnarBatchSerializeResult(0, new byte[0][0]);
+      new ColumnarBatchSerializeResult(true, 0, Collections.emptyList());
 
-  private long numRows;
+  private final boolean isOffHeap;
+  private final long numRows;
+  private final long sizeInBytes;
+  private final List<byte[]> onHeapData;
+  private final List<UnsafeByteArray> offHeapData;
 
-  private byte[][] serialized;
-
-  public ColumnarBatchSerializeResult(long numRows, byte[][] serialized) {
+  public ColumnarBatchSerializeResult(
+      boolean isOffHeap, long numRows, List<JniUnsafeByteBuffer> serialized) {
     this.numRows = numRows;
-    this.serialized = serialized;
+    this.isOffHeap = isOffHeap;
+    if (isOffHeap) {
+      onHeapData = null;
+      offHeapData =
+          serialized.stream()
+              .map(JniUnsafeByteBuffer::toUnsafeByteArray)
+              .collect(Collectors.toList());
+      sizeInBytes = offHeapData.stream().mapToInt(unsafe -> Math.toIntExact(unsafe.size())).sum();
+    } else {
+      onHeapData =
+          serialized.stream().map(JniUnsafeByteBuffer::toByteArray).collect(Collectors.toList());
+      offHeapData = null;
+      sizeInBytes = onHeapData.stream().mapToInt(bytes -> bytes.length).sum();
+    }
   }
 
-  public long getNumRows() {
+  public boolean isOffHeap() {
+    return isOffHeap;
+  }
+
+  public long numRows() {
     return numRows;
   }
 
-  public byte[][] getSerialized() {
-    return serialized;
+  public long sizeInBytes() {
+    return sizeInBytes;
+  }
+
+  public List<byte[]> onHeapData() {
+    Preconditions.checkState(!isOffHeap);
+    return onHeapData;
+  }
+
+  public List<UnsafeByteArray> offHeapData() {
+    Preconditions.checkState(isOffHeap);
+    return offHeapData;
   }
 }

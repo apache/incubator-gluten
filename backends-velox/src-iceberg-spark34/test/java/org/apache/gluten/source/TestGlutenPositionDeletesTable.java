@@ -16,14 +16,6 @@
  */
 package org.apache.gluten.source;
 
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.spark.source.TestPositionDeletesTable;
 
-import java.util.Map;
-
-public class TestGlutenPositionDeletesTable extends TestPositionDeletesTable {
-  public TestGlutenPositionDeletesTable(
-      String catalogName, String implementation, Map<String, String> config, FileFormat format) {
-    super(catalogName, implementation, config, format);
-  }
-}
+public class TestGlutenPositionDeletesTable extends TestPositionDeletesTable {}

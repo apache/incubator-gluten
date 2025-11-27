@@ -192,15 +192,14 @@ object CHMergeTreeWriterInjects {
       clickhouseTableConfigs.asJava
     )
 
-    val optimizationContent = "isMergeTree=1\n"
-    val optimization = Any.pack(StringValue.newBuilder.setValue(optimizationContent).build)
+    val optimization = Any.pack(StringValue.newBuilder.setValue("isMergeTree=1\n").build)
     val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
 
     val relNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
-      columnTypeNodes,
       null,
+      columnTypeNodes,
       extensionNode,
       substraitContext,
       substraitContext.nextOperatorId("readRel"))

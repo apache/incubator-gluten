@@ -20,13 +20,21 @@ import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{withDefaultTimeZone, ALL_TIMEZONES, UTC, UTC_OPT}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{fromJavaTimestamp, millisToMicros, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{BinaryType, ByteType, DateType, Decimal, DecimalType, DoubleType, FloatType, IntegerType, LongType, ShortType, StringType, TimestampType}
+import org.apache.spark.sql.types._
 import org.apache.spark.util.DebuggableThreadUtils
 
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
 
 class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    // Need to explicitly set spark.sql.preserveCharVarcharTypeInfo=true for gluten's test
+    // framework. In Gluten, it overrides the checkEvaluation that invokes Spark's RowEncoder,
+    // which requires this configuration to be set.
+    // In Vanilla spark, the checkEvaluation method doesn't invoke RowEncoder.
+    conf.setConf(SQLConf.PRESERVE_CHAR_VARCHAR_TYPE_INFO, true)
+  }
 
   testGluten("data type casting") {
     val sd = "1970-01-01"

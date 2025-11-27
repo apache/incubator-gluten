@@ -128,7 +128,7 @@ abstract class FileSourceScanExecTransformerBase(
       .genPartitionSeq(
         relation,
         requiredSchema,
-        getPartitionArray(),
+        getPartitionArray,
         output,
         bucketedScan,
         optionalBucketSet,
@@ -137,6 +137,9 @@ abstract class FileSourceScanExecTransformerBase(
         filterExprs()
       )
   }
+
+  override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
+    getPartitions.map((_, fileFormat))
 
   override def getPartitionSchema: StructType = relation.partitionSchema
 

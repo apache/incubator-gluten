@@ -172,15 +172,14 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
 
           override def next(): CachedBatch = {
             val batch = veloxBatches.next()
-            val results =
-              ColumnarBatchSerializerJniWrapper
-                .create(
-                  Runtimes.contextInstance(
-                    BackendsApiManager.getBackendName,
-                    "ColumnarCachedBatchSerializer#serialize"))
-                .serialize(
-                  ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch))
-            CachedColumnarBatch(batch.numRows(), results.length, results)
+            val unsafeBuffer = ColumnarBatchSerializerJniWrapper
+              .create(
+                Runtimes.contextInstance(
+                  BackendsApiManager.getBackendName,
+                  "ColumnarCachedBatchSerializer#serialize"))
+              .serialize(ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch))
+            val bytes = unsafeBuffer.toByteArray
+            CachedColumnarBatch(batch.numRows(), bytes.length, bytes)
           }
         }
     }

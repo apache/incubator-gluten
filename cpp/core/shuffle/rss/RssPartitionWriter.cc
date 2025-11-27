@@ -61,24 +61,34 @@ arrow::Status
 RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal) {
   ScopedTimer timer(&spillTime_);
   rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
-  ARROW_ASSIGN_OR_RAISE(
-      auto rssOs, arrow::io::BufferOutputStream::Create(options_->pushBufferMaxSize, arrow::default_memory_pool()));
-  if (codec_ != nullptr) {
+  if (shouldInitializeOs_) {
     ARROW_ASSIGN_OR_RAISE(
-        auto compressedOs,
-        ShuffleCompressedOutputStream::Make(
-            codec_.get(), options_->compressionBufferSize, rssOs, arrow::default_memory_pool()));
-    RETURN_NOT_OK(inMemoryPayload->serialize(compressedOs.get()));
-    RETURN_NOT_OK(compressedOs->Flush());
-    RETURN_NOT_OK(compressedOs->Close());
-    compressTime_ += compressedOs->compressTime();
-  } else {
-    RETURN_NOT_OK(inMemoryPayload->serialize(rssOs.get()));
+        rssOs_, arrow::io::BufferOutputStream::Create(options_->pushBufferMaxSize, arrow::default_memory_pool()));
+    if (codec_ != nullptr) {
+      ARROW_ASSIGN_OR_RAISE(
+          compressedOs_,
+          ShuffleCompressedOutputStream::Make(
+              codec_.get(), options_->compressionBufferSize, rssOs_, arrow::default_memory_pool()));
+    }
+    shouldInitializeOs_ = false;
   }
-  ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs->Finish());
-  bytesEvicted_[partitionId] +=
-      rssClient_->pushPartitionData(partitionId, buffer->data_as<char>(), buffer->size());
-  
+  if (compressedOs_ != nullptr) {
+    RETURN_NOT_OK(inMemoryPayload->serialize(compressedOs_.get()));
+  } else {
+    RETURN_NOT_OK(inMemoryPayload->serialize(rssOs_.get()));
+  }
+  if (inMemoryPayload->numRows() > 0) {
+    // Push data to rss only when there are complete rows.
+    if (compressedOs_ != nullptr) {
+      RETURN_NOT_OK(compressedOs_->Flush());
+      RETURN_NOT_OK(compressedOs_->Close());
+      compressTime_ += compressedOs_->compressTime();
+    }
+    ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
+    bytesEvicted_[partitionId] += rssClient_->pushPartitionData(partitionId, buffer->data_as<char>(), buffer->size());
+    shouldInitializeOs_ = true;
+  }
+
   return arrow::Status::OK();
 }
 

@@ -17,5 +17,12 @@
 package org.apache.gluten.sql;
 
 import org.apache.iceberg.spark.sql.TestPartitionedWritesAsSelect;
+import org.junit.Test;
 
-public class TestGlutenPartitionedWritesAsSelect extends TestPartitionedWritesAsSelect {}
+public class TestGlutenPartitionedWritesAsSelect extends TestPartitionedWritesAsSelect {
+  @Test
+  public void testPartitionedWritesAsSelect() {
+    System.out.println(
+        com.fasterxml.jackson.databind.ObjectMapper.class.getProtectionDomain().getCodeSource());
+  }
+}

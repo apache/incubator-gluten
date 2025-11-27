@@ -23,6 +23,7 @@
 
 #include <compute/VeloxBackend.h>
 #include "../utils/VeloxArrowUtils.h"
+#include "config/GlutenConfig.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/PartitionWriter.h"

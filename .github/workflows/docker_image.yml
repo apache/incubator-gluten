@@ -154,6 +154,14 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
 
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-vcpkg-centos-8-${{ matrix.os }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
   build-vcpkg-centos-8-gcc13:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
@@ -508,4 +516,3 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.DOCKERHUB_REPO }}:${{ steps.meta.outputs.version }}
-

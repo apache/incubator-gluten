@@ -30,6 +30,9 @@ import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
  */
 case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
+    if (VeloxConfig.get.enableColumnarCudf) {
+      return plan
+    }
     val resizeBatchesShuffleInputEnabled = VeloxConfig.get.veloxResizeBatchesShuffleInput
     val resizeBatchesShuffleOutputEnabled = VeloxConfig.get.veloxResizeBatchesShuffleOutput
     if (!resizeBatchesShuffleInputEnabled && !resizeBatchesShuffleOutputEnabled) {

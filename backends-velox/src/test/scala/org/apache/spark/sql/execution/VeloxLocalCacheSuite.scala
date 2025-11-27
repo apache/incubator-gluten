@@ -46,7 +46,7 @@ class VeloxLocalCacheSuite extends VeloxWholeStageTransformerSuite {
               val df = spark.read.parquet(file.getAbsolutePath)
               df.createOrReplaceTempView("test_table")
               runQueryAndCompare("select * from test_table") {
-                checkGlutenOperatorMatch[BasicScanExecTransformer]
+                checkGlutenPlan[BasicScanExecTransformer]
               }
             }
         }

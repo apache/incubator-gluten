@@ -209,13 +209,13 @@ function install_gcs {
   # Dependencies of GCS, probably a workaround until the docker image is rebuilt
   dnf -y install npm curl-devel
   install_c-ares
-  install_gcs-sdk-cpp
+  install_gcs_sdk_cpp
 }
 
 function install_abfs {
   # Dependencies of Azure Storage Blob cpp
   dnf -y install perl-IPC-Cmd openssl libxml2-devel
-  install_azure-storage-sdk-cpp
+  install_azure_storage_sdk_cpp
 }
 
 function install_adapters {

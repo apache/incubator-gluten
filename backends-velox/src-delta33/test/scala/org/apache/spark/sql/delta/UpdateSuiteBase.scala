@@ -1035,7 +1035,8 @@ abstract class UpdateSuiteBase
     expectedErrorClassForSQLTempView = "UNRESOLVED_COLUMN.WITH_SUGGESTION",
     expectedErrorClassForDataSetTempView = "UNRESOLVED_COLUMN.WITH_SUGGESTION"
   )
-// Ignore in Gluten.
+
+// Ignore in Gluten: Error message mismatch.
 //  testInvalidTempViews("superset cols")(
 //    text = "SELECT key, value, 1 FROM tab",
 //    // The analyzer can't tell whether the table originally had the extra column or not.
@@ -1059,7 +1060,7 @@ abstract class UpdateSuiteBase
     }
   }
 
-// Ignore in Gluten - result mismatch.
+// Ignore in Gluten - result mismatch, but Gluten's answer is correct.
 //  testComplexTempViews("nontrivial projection")(
 //    text = "SELECT value as key, key as value FROM tab",
 //    expectedResult = Seq(Row(3, 0), Row(3, 3))

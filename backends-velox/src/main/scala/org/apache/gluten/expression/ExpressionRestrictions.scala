@@ -92,6 +92,15 @@ object Base64Restrictions extends ExpressionRestrictions {
   override val restrictionMessages: Array[String] = Array(NOT_SUPPORT_DISABLE_CHUNK_BASE64_STRING)
 }
 
+object RaiseErrorRestrictions extends ExpressionRestrictions {
+  val ONLY_SUPPORT_ERROR_MESSAGE: String =
+    s"Only 'errorMessage' is supported as the second argument in ${ExpressionNames.RAISE_ERROR}"
+
+  override val functionName: String = ExpressionNames.RAISE_ERROR
+
+  override val restrictionMessages: Array[String] = Array(ONLY_SUPPORT_ERROR_MESSAGE)
+}
+
 object ExpressionRestrictions {
   // Called by gen-function-support-docs.py to get all restrictions.
   def listAllRestrictions(): Array[ExpressionRestrictions] = {

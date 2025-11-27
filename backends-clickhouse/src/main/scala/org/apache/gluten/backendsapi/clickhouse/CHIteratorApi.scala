@@ -169,7 +169,9 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             starts.add(JLong.valueOf(file.start))
             lengths.add(JLong.valueOf(file.length))
             val metadataColumn =
-              SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
+              SparkShimLoader.getSparkShims
+                .generateMetadataColumns(file, metadataColumnNames)
+                .asJava
             metadataColumns.add(metadataColumn)
             val partitionColumn = new JHashMap[String, String]()
             for (i <- 0 until file.partitionValues.numFields) {

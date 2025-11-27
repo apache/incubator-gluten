@@ -31,6 +31,7 @@ function install_spark() {
   local scala_suffix=$([ "${scala_version}" == '2.13' ] && echo '-scala-2.13' || echo '')
   local scala_suffix_short=$([ "${scala_version}" == '2.13' ] && echo '-scala2.13' || echo '')
   local mirror_host='https://www.apache.org/dyn/closer.lua/'
+  local mirror_host2='https://mirror.lyrahosting.com/apache/' # Fallback mirror due to closer.lua slowness
   local url_query='?action=download'
   local checksum_suffix='sha512'
   local url_path="spark/spark-${spark_version}/"
@@ -38,9 +39,9 @@ function install_spark() {
   local local_binary_checksum="${local_binary}.${checksum_suffix}"
   local local_source="spark-${spark_version}.tgz"
   local local_source_checksum="${local_source}.${checksum_suffix}"
-  local remote_binary="${mirror_host}${url_path}${local_binary}${url_query}"
+  local remote_binary="${mirror_host2}${url_path}${local_binary}${url_query}"
   local remote_binary_checksum="${mirror_host}${url_path}${local_binary_checksum}${url_query}"
-  local remote_source="${mirror_host}${url_path}${local_source}${url_query}"
+  local remote_source="${mirror_host2}${url_path}${local_source}${url_query}"
   local remote_source_checksum="${mirror_host}${url_path}${local_source_checksum}${url_query}"
   local wget_opts="--no-verbose"
 

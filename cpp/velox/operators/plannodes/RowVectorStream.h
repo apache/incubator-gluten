@@ -23,29 +23,6 @@
 #include "velox/exec/Operator.h"
 #include "velox/exec/Task.h"
 
-namespace {
-
-class SuspendedSection {
- public:
-  explicit SuspendedSection(facebook::velox::exec::Driver* driver) : driver_(driver) {
-    if (driver_->task()->enterSuspended(driver->state()) != facebook::velox::exec::StopReason::kNone) {
-      VELOX_FAIL("Terminate detected when entering suspended section");
-    }
-  }
-
-  virtual ~SuspendedSection() {
-    if (driver_->task()->leaveSuspended(driver_->state()) != facebook::velox::exec::StopReason::kNone) {
-      LOG(WARNING) << "Terminate detected when leaving suspended section for driver " << driver_->driverCtx()->driverId
-                   << " from task " << driver_->task()->taskId();
-    }
-  }
-
- private:
-  facebook::velox::exec::Driver* const driver_;
-};
-
-} // namespace
-
 namespace gluten {
 
 class RowVectorStream {
@@ -57,51 +34,15 @@ class RowVectorStream {
       const facebook::velox::RowTypePtr& outputType)
       : driverCtx_(driverCtx), pool_(pool), outputType_(outputType), iterator_(iterator) {}
 
-  bool hasNext() {
-    if (finished_) {
-      return false;
-    }
-    VELOX_DCHECK_NOT_NULL(iterator_);
+  bool hasNext();
 
-    bool hasNext;
-    {
-      // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
-      // driver to make the current task open to spilling.
-      //
-      // When a task is getting spilled, it should have been suspended so has zero running threads, otherwise there's
-      // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
-      // As of now, non-zero running threads usually happens when:
-      // 1. Task A spills task B;
-      // 2. Task A tries to grow buffers created by task B, during which spill is requested on task A again.
-      SuspendedSection ss(driverCtx_->driver);
-      hasNext = iterator_->hasNext();
-    }
-    if (!hasNext) {
-      finished_ = true;
-    }
-    return hasNext;
-  }
+  // Convert arrow batch to row vector, construct the new Rowvector with new outputType.
+  virtual facebook::velox::RowVectorPtr next();
 
-  // Convert arrow batch to row vector and use new output columns
-  facebook::velox::RowVectorPtr next() {
-    if (finished_) {
-      return nullptr;
-    }
-    std::shared_ptr<ColumnarBatch> cb;
-    {
-      // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
-      // driver to make the current task open to spilling.
-      SuspendedSection ss(driverCtx_->driver);
-      cb = iterator_->next();
-    }
-    const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, cb);
-    auto vp = vb->getRowVector();
-    VELOX_DCHECK(vp != nullptr);
-    return std::make_shared<facebook::velox::RowVector>(
-        vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), vp->children());
-  }
+ protected:
+  // Get the next batch from iterator_.
+  std::shared_ptr<ColumnarBatch> nextInternal();
 
- private:
   facebook::velox::exec::DriverCtx* driverCtx_;
   facebook::velox::memory::MemoryPool* pool_;
   const facebook::velox::RowTypePtr outputType_;

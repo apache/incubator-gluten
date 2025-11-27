@@ -1031,7 +1031,7 @@ class GlutenClickHouseHiveTableSuite
         s"'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
     if (isSparkVersionLE("3.3")) {
       runQueryAndCompare("select MY_ADD(id, id+1) from range(10)")(
-        checkGlutenOperatorMatch[ProjectExecTransformer])
+        checkGlutenPlan[ProjectExecTransformer])
     } else {
       runQueryAndCompare("select MY_ADD(id, id+1) from range(10)", noFallBack = false)(_ => {})
     }
@@ -1126,7 +1126,7 @@ class GlutenClickHouseHiveTableSuite
     Seq("true", "false").foreach {
       enabled =>
         withSQLConf(SQLConf.JSON_EXPRESSION_OPTIMIZATION.key -> enabled) {
-          runQueryAndCompare(selectSql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+          runQueryAndCompare(selectSql)(checkGlutenPlan[ProjectExecTransformer])
         }
     }
   }

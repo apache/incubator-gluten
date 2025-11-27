@@ -18,11 +18,4 @@ package org.apache.gluten.sql;
 
 import org.apache.iceberg.spark.sql.TestDeleteFrom;
 
-import java.util.Map;
-
-public class TestGlutenDeleteFrom extends TestDeleteFrom {
-  public TestGlutenDeleteFrom(
-      String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
-  }
-}
+public class TestGlutenDeleteFrom extends TestDeleteFrom {}

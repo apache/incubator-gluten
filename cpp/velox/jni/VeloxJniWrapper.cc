@@ -41,6 +41,7 @@
 
 #ifdef GLUTEN_ENABLE_GPU
 #include "cudf/CudfPlanValidator.h"
+#include "utils/GpuBufferBatchResizer.h"
 #endif
 
 #ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
@@ -440,6 +441,24 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchResizerJniWrapper
   return ctx->saveObject(appender);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
+
+#ifdef GLUTEN_ENABLE_GPU
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_GpuBufferBatchResizerJniWrapper_create( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jint minOutputBatchSize,
+    jobject jIter) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto arrowPool = dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager())->defaultArrowMemoryPool();
+  auto pool = dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager())->getLeafMemoryPool();
+  auto iter = makeJniColumnarBatchIterator(env, jIter, ctx);
+  auto appender = std::make_shared<ResultIterator>(
+      std::make_unique<GpuBufferBatchResizer>(arrowPool, pool.get(), minOutputBatchSize, std::move(iter)));
+  return ctx->saveObject(appender);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+#endif
 
 JNIEXPORT jboolean JNICALL
 Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_allSupportedByRegisteredFileSystems( // NOLINT

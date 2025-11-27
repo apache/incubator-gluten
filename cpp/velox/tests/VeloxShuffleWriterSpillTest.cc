@@ -17,7 +17,6 @@
 
 #include <duckdb/common/enums/compression_type.hpp>
 
-#include "config/GlutenConfig.h"
 #include "shuffle/VeloxHashShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
 #include "tests/utils/TestUtils.h"

@@ -66,9 +66,10 @@ import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap}
+import java.util.{Map => JMap}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 class Spark40Shims extends SparkShims {
@@ -249,31 +250,29 @@ class Spark40Shims extends SparkShims {
 
   override def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String]): JMap[String, String] = {
-    val metadataColumn = new JHashMap[String, String]()
+      metadataColumnNames: Seq[String]): Map[String, String] = {
+    val originMetadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
+    val metadataColumn: mutable.Map[String, String] = mutable.Map(originMetadataColumn.toSeq: _*)
     val path = new Path(file.filePath.toString)
     for (columnName <- metadataColumnNames) {
       columnName match {
-        case FileFormat.FILE_PATH => metadataColumn.put(FileFormat.FILE_PATH, path.toString)
-        case FileFormat.FILE_NAME => metadataColumn.put(FileFormat.FILE_NAME, path.getName)
+        case FileFormat.FILE_PATH => metadataColumn += (FileFormat.FILE_PATH -> path.toString)
+        case FileFormat.FILE_NAME => metadataColumn += (FileFormat.FILE_NAME -> path.getName)
         case FileFormat.FILE_SIZE =>
-          metadataColumn.put(FileFormat.FILE_SIZE, file.fileSize.toString)
+          metadataColumn += (FileFormat.FILE_SIZE -> file.fileSize.toString)
         case FileFormat.FILE_MODIFICATION_TIME =>
           val fileModifyTime = TimestampFormatter
             .getFractionFormatter(ZoneOffset.UTC)
             .format(file.modificationTime * 1000L)
-          metadataColumn.put(FileFormat.FILE_MODIFICATION_TIME, fileModifyTime)
+          metadataColumn += (FileFormat.FILE_MODIFICATION_TIME -> fileModifyTime)
         case FileFormat.FILE_BLOCK_START =>
-          metadataColumn.put(FileFormat.FILE_BLOCK_START, file.start.toString)
+          metadataColumn += (FileFormat.FILE_BLOCK_START -> file.start.toString)
         case FileFormat.FILE_BLOCK_LENGTH =>
-          metadataColumn.put(FileFormat.FILE_BLOCK_LENGTH, file.length.toString)
+          metadataColumn += (FileFormat.FILE_BLOCK_LENGTH -> file.length.toString)
         case _ =>
       }
     }
-    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
-    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
-    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
-    metadataColumn
+    metadataColumn.toMap
   }
 
   // https://issues.apache.org/jira/browse/SPARK-40400
@@ -600,6 +599,7 @@ class Spark40Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.TRY
       case d: Divide => d.evalMode == EvalMode.TRY
       case m: Multiply => m.evalMode == EvalMode.TRY
+      case c: Cast => c.evalMode == EvalMode.TRY
       case _ => false
     }
   }
@@ -610,6 +610,7 @@ class Spark40Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.ANSI
       case d: Divide => d.evalMode == EvalMode.ANSI
       case m: Multiply => m.evalMode == EvalMode.ANSI
+      case c: Cast => c.evalMode == EvalMode.ANSI
       case _ => false
     }
   }
@@ -702,8 +703,13 @@ class Spark40Shims extends SparkShims {
     plan.offset
   }
 
+  override def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = unBase64.failOnError
+
   override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
     exp match {
+      // Velox does not support quantity larger than Int.MaxValue.
+      case TimestampAdd(_, LongLiteral(quantity), _, _) if quantity > Integer.MAX_VALUE =>
+        Option.empty
       case timestampAdd: TimestampAdd =>
         Option.apply(Seq(timestampAdd.unit, timestampAdd.timeZoneId.getOrElse("")))
       case _ => Option.empty
@@ -722,4 +728,21 @@ class Spark40Shims extends SparkShims {
     DecimalPrecisionTypeCoercion.widerDecimalType(d1, d2)
   }
 
+  override def getErrorMessage(raiseError: RaiseError): Option[Expression] = {
+    raiseError.errorParms match {
+      case CreateMap(children, _)
+          if children.size == 2 && children.head.isInstanceOf[Literal]
+            && children.head.asInstanceOf[Literal].value.toString == "errorMessage" =>
+        Some(children(1))
+      case _ =>
+        None
+    }
+  }
+
+  override def throwExceptionInWrite(
+      t: Throwable,
+      writePath: String,
+      descriptionPath: String): Unit = {
+    throw t
+  }
 }

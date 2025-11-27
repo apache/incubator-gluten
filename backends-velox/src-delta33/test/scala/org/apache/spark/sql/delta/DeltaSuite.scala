@@ -1516,8 +1516,7 @@ class DeltaSuite
     }
   }
 
-  // Ignore in Gluten.
-  ignore("SC-8727 - default snapshot num partitions") {
+  test("SC-8727 - default snapshot num partitions") {
     withTempDir {
       tempDir =>
         spark.range(10).write.format("delta").save(tempDir.toString)
@@ -1560,7 +1559,7 @@ class DeltaSuite
     }
   }
 
-  // Ignore in Gluten.
+  // Ignore in Gluten: Gluten has less partitions.
   ignore("SC-8810: skip deleted file") {
     withSQLConf(("spark.sql.files.ignoreMissingFiles", "true")) {
       withTempDir {
@@ -1595,7 +1594,7 @@ class DeltaSuite
     }
   }
 
-  // Ignore in Gluten.
+  // Ignore in Gluten: Error message mismatch.
   ignore("SC-8810: skipping deleted file still throws on corrupted file") {
     withSQLConf(("spark.sql.files.ignoreMissingFiles", "true")) {
       withTempDir {
@@ -1661,7 +1660,7 @@ class DeltaSuite
     }
   }
 
-  // Ignore in Gluten.
+  // Ignore in Gluten: Error message mismatch.
   ignore("deleted files cause failure by default") {
     withTempDir {
       tempDir =>

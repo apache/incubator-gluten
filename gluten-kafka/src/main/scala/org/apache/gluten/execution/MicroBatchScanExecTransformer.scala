@@ -73,6 +73,9 @@ case class MicroBatchScanExecTransformer(
     case (inputPartition, index) => new SparkDataSourceRDDPartition(index, Seq(inputPartition))
   }
 
+  override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
+    getPartitions.map((_, fileFormat))
+
   /** Returns the actual schema of this data source scan. */
   override def getDataSchema: StructType = scan.readSchema()
 
@@ -84,7 +87,8 @@ case class MicroBatchScanExecTransformer(
     MicroBatchScanExecTransformer.supportsBatchScan(scan)
   }
 
-  override def getSplitInfosFromPartitions(partitions: Seq[Partition]): Seq[SplitInfo] = {
+  override def getSplitInfosFromPartitions(
+      partitions: Seq[(Partition, ReadFileFormat)]): Seq[SplitInfo] = {
     val groupedPartitions = filteredPartitions.flatten
     groupedPartitions.zipWithIndex.map {
       case (p, _) => GlutenStreamKafkaSourceUtil.genSplitInfo(p)
