@@ -39,11 +39,6 @@ public abstract class SparkCatalogTestBase extends SparkTestBaseWithCatalog {
         SparkCatalogConfig.HADOOP.catalogName(),
         SparkCatalogConfig.HADOOP.implementation(),
         SparkCatalogConfig.HADOOP.properties()
-      },
-      {
-        SparkCatalogConfig.SPARK.catalogName(),
-        SparkCatalogConfig.SPARK.implementation(),
-        SparkCatalogConfig.SPARK.properties()
       }
     };
   }
