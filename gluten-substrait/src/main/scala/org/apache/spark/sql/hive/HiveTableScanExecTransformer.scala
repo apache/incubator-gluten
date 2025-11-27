@@ -65,7 +65,7 @@ case class HiveTableScanExecTransformer(
 
   override def scanFilters: Seq[Expression] = Seq.empty
 
-  override def supportPushDownFilters = false
+  override def supportPushDownFilters: Boolean = false
 
   override def pushDownFilters: Option[Seq[Expression]] = None
 

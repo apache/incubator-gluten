@@ -66,7 +66,7 @@ case class MicroBatchScanExecTransformer(
 
   override def scanFilters: Seq[Expression] = Seq.empty
 
-  override def supportPushDownFilters = false
+  override def supportPushDownFilters: Boolean = false
 
   def pushDownFilters: Option[Seq[Expression]] = None
 
