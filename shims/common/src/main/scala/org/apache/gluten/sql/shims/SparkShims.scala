@@ -19,7 +19,7 @@ package org.apache.gluten.sql.shims
 import org.apache.gluten.GlutenBuildInfo.SPARK_COMPILE_VERSION
 import org.apache.gluten.expression.Sig
 
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkContext, SparkException}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.scheduler.TaskInfo
@@ -334,4 +334,11 @@ trait SparkShims {
 
   /** Shim method for get the "errorMessage" value for Spark 4.0 and above */
   def getErrorMessage(raiseError: RaiseError): Option[Expression]
+
+  def throwExceptionInWrite(t: Throwable, writePath: String, descriptionPath: String): Unit = {
+    throw new SparkException(
+      s"Task failed while writing rows to staging path: $writePath, " +
+        s"output path: $descriptionPath",
+      t)
+  }
 }
