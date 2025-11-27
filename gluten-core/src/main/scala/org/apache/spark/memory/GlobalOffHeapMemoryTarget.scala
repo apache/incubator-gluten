@@ -53,9 +53,6 @@ class GlobalOffHeapMemoryTarget private[memory]
     f
   }
 
-  // SPARK-46947: https://github.com/apache/spark/pull/45052.
-  ensureMemoryStoreInitialized()
-
   override def borrow(size: Long): Long = {
     memoryManagerOption()
       .map {
@@ -111,6 +108,8 @@ class GlobalOffHeapMemoryTarget private[memory]
   private[memory] def memoryManagerOption(): Option[MemoryManager] = {
     val env = SparkEnv.get
     if (env != null) {
+      // SPARK-46947: https://github.com/apache/spark/pull/45052.
+      ensureMemoryStoreInitialized(env)
       return Some(env.memoryManager)
     }
     val tc = TaskContext.get()
@@ -123,11 +122,8 @@ class GlobalOffHeapMemoryTarget private[memory]
     None
   }
 
-  private def ensureMemoryStoreInitialized(): Unit = {
-    val env = SparkEnv.get
-    if (env != null) {
-      assert(env.blockManager.memoryStore.currentUnrollMemory >= 0L)
-    }
+  private def ensureMemoryStoreInitialized(env: SparkEnv): Unit = {
+    assert(env.blockManager.memoryStore != null)
   }
 
   override def name(): String = targetName
