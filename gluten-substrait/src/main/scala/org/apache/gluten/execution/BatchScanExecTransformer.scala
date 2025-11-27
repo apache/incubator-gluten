@@ -112,7 +112,8 @@ abstract class BatchScanExecTransformerBase(
   override def scanFilters: Seq[Expression] = scan match {
     case fileScan: FileScan => fileScan.dataFilters
     case _ =>
-      // todo: support DSv2 scan
+      // todo: support other DSv2 scan
+      logInfo(s"${scan.getClass.toString} does not support extracting scan filters.")
       Seq.empty
   }
 
