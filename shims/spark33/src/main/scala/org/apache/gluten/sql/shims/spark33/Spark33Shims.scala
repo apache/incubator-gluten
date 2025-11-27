@@ -227,8 +227,9 @@ class Spark33Shims extends SparkShims {
 
   override def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String]): mutable.Map[String, String] = {
-    val metadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
+      metadataColumnNames: Seq[String]): Map[String, String] = {
+    val originMetadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
+    val metadataColumn: mutable.Map[String, String] = mutable.Map(originMetadataColumn.toSeq: _*)
     val path = new Path(file.filePath)
     for (columnName <- metadataColumnNames) {
       columnName match {
@@ -244,7 +245,7 @@ class Spark33Shims extends SparkShims {
         case _ =>
       }
     }
-    metadataColumn
+    metadataColumn.toMap
   }
 
   private def invalidBucketFile(path: String): Throwable = {

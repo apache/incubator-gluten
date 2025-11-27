@@ -57,7 +57,6 @@ import org.apache.parquet.schema.MessageType
 import java.util.{Map => JMap}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) {
@@ -234,12 +233,12 @@ trait SparkShims {
 
   def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String] = Seq.empty): mutable.Map[String, String] = {
-    val metadataColumn: mutable.Map[String, String] = mutable.Map.empty
-    metadataColumn += (InputFileName().prettyName -> file.filePath.toString)
-    metadataColumn += (InputFileBlockStart().prettyName -> file.start.toString)
-    metadataColumn += (InputFileBlockLength().prettyName -> file.length.toString)
-    metadataColumn
+      metadataColumnNames: Seq[String] = Seq.empty): Map[String, String] = {
+    Map(
+      InputFileName().prettyName -> file.filePath.toString,
+      InputFileBlockStart().prettyName -> file.start.toString,
+      InputFileBlockLength().prettyName -> file.length.toString
+    )
   }
 
   // For compatibility with Spark-3.5.

@@ -244,8 +244,9 @@ class Spark34Shims extends SparkShims {
 
   override def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String]): mutable.Map[String, String] = {
-    val metadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
+      metadataColumnNames: Seq[String]): Map[String, String] = {
+    val originMetadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
+    val metadataColumn: mutable.Map[String, String] = mutable.Map(originMetadataColumn.toSeq: _*)
     val path = new Path(file.filePath.toString)
     for (columnName <- metadataColumnNames) {
       columnName match {
@@ -265,7 +266,7 @@ class Spark34Shims extends SparkShims {
         case _ =>
       }
     }
-    metadataColumn
+    metadataColumn.toMap
   }
 
   // https://issues.apache.org/jira/browse/SPARK-40400
