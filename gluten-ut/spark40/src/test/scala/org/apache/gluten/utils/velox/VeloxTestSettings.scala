@@ -621,6 +621,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
+    // Rewrite for Gluten. Change details are in the inline comments in individual tests.
     .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
