@@ -72,7 +72,7 @@ case class BatchScanExecTransformer(
     )
   }
 
-  def withNewPushdownFilters(filters: Seq[Expression]): BatchScanExecTransformerBase = {
+  override def withNewPushdownFilters(filters: Seq[Expression]): BatchScanExecTransformerBase = {
     this.copy(pushDownFilters = Some(filters))
   }
 }

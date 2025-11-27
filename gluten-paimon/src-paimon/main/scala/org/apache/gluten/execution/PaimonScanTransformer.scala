@@ -85,7 +85,7 @@ case class PaimonScanTransformer(
 
   override def getDataSchema: StructType = new StructType()
 
-  def withNewPushdownFilters(filters: Seq[Expression]): PaimonScanTransformer = {
+  override def withNewPushdownFilters(filters: Seq[Expression]): PaimonScanTransformer = {
     this.copy(pushDownFilters = Some(filters))
   }
 
