@@ -636,7 +636,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("test with low buffer spill threshold")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
-    // TODO: fix in Spark-4.0
+    // The results of rand() differ between vanilla spark and velox.
     .exclude("SPARK-47104: Non-deterministic expressions in projection")
   enableSuite[GlutenSessionExtensionSuite]
   enableSuite[TestFileSourceScanExecTransformer]
