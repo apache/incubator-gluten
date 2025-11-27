@@ -28,7 +28,7 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression, RaiseError, UnBase64}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, RaiseError, UnBase64}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -233,7 +233,13 @@ trait SparkShims {
 
   def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String] = Seq.empty): JMap[String, String]
+      metadataColumnNames: Seq[String] = Seq.empty): Map[String, String] = {
+    Map(
+      InputFileName().prettyName -> file.filePath.toString,
+      InputFileBlockStart().prettyName -> file.start.toString,
+      InputFileBlockLength().prettyName -> file.length.toString
+    )
+  }
 
   // For compatibility with Spark-3.5.
   def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan]

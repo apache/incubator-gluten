@@ -59,8 +59,6 @@ import org.apache.parquet.crypto.ParquetCryptoRuntimeException
 import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.schema.MessageType
 
-import java.util.{HashMap => JHashMap, Map => JMap}
-
 class Spark32Shims extends SparkShims {
 
   override def getDistribution(
@@ -236,16 +234,6 @@ class Spark32Shims extends SparkShims {
   override def getFileSizeAndModificationTime(
       file: PartitionedFile): (Option[Long], Option[Long]) = {
     (None, None)
-  }
-
-  override def generateMetadataColumns(
-      file: PartitionedFile,
-      metadataColumnNames: Seq[String]): JMap[String, String] = {
-    val metadataColumn = new JHashMap[String, String]()
-    metadataColumn.put(InputFileName().prettyName, file.filePath)
-    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
-    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
-    metadataColumn
   }
 
   def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan] = {
