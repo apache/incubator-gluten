@@ -98,10 +98,12 @@ SELECT * FROM same_name, (SELECT 10) AS same_name;
 WITH same_name(x) AS (SELECT 42)
 SELECT same_name.x FROM (SELECT 10) AS same_name(x), same_name;
 
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 -- Test behavior with an unknown-type literal in the WITH
 WITH q AS (SELECT 'foo' AS x)
 SELECT x, typeof(x) FROM q;
 
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 -- The following tests are ported from ZetaSQL
 -- Alias inside the with hides the underlying column name, should fail
 with cte as (select id as id_alias from t)

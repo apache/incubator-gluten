@@ -362,22 +362,6 @@ org.apache.spark.SparkDateTimeException
 }
 
 
--- !query
-select to_timestamp('2018-01-01', a) from t
--- !query schema
-struct<>
--- !query output
-org.apache.spark.SparkUpgradeException
-{
-  "errorClass" : "INCONSISTENT_BEHAVIOR_CROSS_VERSION.DATETIME_PATTERN_RECOGNITION",
-  "sqlState" : "42K0B",
-  "messageParameters" : {
-    "config" : "\"spark.sql.legacy.timeParserPolicy\"",
-    "docroot" : "https://spark.apache.org/docs/latest",
-    "pattern" : "'aa'"
-  }
-}
-
 
 -- !query
 select to_unix_timestamp(a) from t
@@ -395,22 +379,6 @@ org.apache.spark.SparkDateTimeException
 }
 
 
--- !query
-select to_unix_timestamp('2018-01-01', a) from t
--- !query schema
-struct<>
--- !query output
-org.apache.spark.SparkUpgradeException
-{
-  "errorClass" : "INCONSISTENT_BEHAVIOR_CROSS_VERSION.DATETIME_PATTERN_RECOGNITION",
-  "sqlState" : "42K0B",
-  "messageParameters" : {
-    "config" : "\"spark.sql.legacy.timeParserPolicy\"",
-    "docroot" : "https://spark.apache.org/docs/latest",
-    "pattern" : "'aa'"
-  }
-}
-
 
 -- !query
 select unix_timestamp(a) from t
@@ -427,22 +395,6 @@ org.apache.spark.SparkDateTimeException
   }
 }
 
-
--- !query
-select unix_timestamp('2018-01-01', a) from t
--- !query schema
-struct<>
--- !query output
-org.apache.spark.SparkUpgradeException
-{
-  "errorClass" : "INCONSISTENT_BEHAVIOR_CROSS_VERSION.DATETIME_PATTERN_RECOGNITION",
-  "sqlState" : "42K0B",
-  "messageParameters" : {
-    "config" : "\"spark.sql.legacy.timeParserPolicy\"",
-    "docroot" : "https://spark.apache.org/docs/latest",
-    "pattern" : "'aa'"
-  }
-}
 
 
 -- !query

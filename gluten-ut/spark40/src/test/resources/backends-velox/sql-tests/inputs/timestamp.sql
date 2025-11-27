@@ -42,6 +42,7 @@ select TIMESTAMP_SECONDS(0.1234567);
 select TIMESTAMP_SECONDS(0.1234567d), TIMESTAMP_SECONDS(FLOAT(0.1234567));
 
 -- [SPARK-22333]: timeFunctionCall has conflicts with columnReference
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 create temporary view ttf1 as select * from values
   (1, 2),
   (2, 3)

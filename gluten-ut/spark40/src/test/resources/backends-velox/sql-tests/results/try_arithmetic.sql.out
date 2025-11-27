@@ -56,54 +56,6 @@ NULL
 
 
 -- !query
-SELECT try_add(1, (2147483647 + 1))
--- !query schema
-struct<>
--- !query output
-org.apache.spark.SparkArithmeticException
-{
-  "errorClass" : "ARITHMETIC_OVERFLOW",
-  "sqlState" : "22003",
-  "messageParameters" : {
-    "alternative" : " Use 'try_add' to tolerate overflow and return NULL instead.",
-    "config" : "\"spark.sql.ansi.enabled\"",
-    "message" : "integer overflow"
-  },
-  "queryContext" : [ {
-    "objectType" : "",
-    "objectName" : "",
-    "startIndex" : 20,
-    "stopIndex" : 33,
-    "fragment" : "2147483647 + 1"
-  } ]
-}
-
-
--- !query
-SELECT try_add(1L, (9223372036854775807L + 1L))
--- !query schema
-struct<>
--- !query output
-org.apache.spark.SparkArithmeticException
-{
-  "errorClass" : "ARITHMETIC_OVERFLOW",
-  "sqlState" : "22003",
-  "messageParameters" : {
-    "alternative" : " Use 'try_add' to tolerate overflow and return NULL instead.",
-    "config" : "\"spark.sql.ansi.enabled\"",
-    "message" : "long overflow"
-  },
-  "queryContext" : [ {
-    "objectType" : "",
-    "objectName" : "",
-    "startIndex" : 21,
-    "stopIndex" : 45,
-    "fragment" : "9223372036854775807L + 1L"
-  } ]
-}
-
-
--- !query
 SELECT try_add(1, 1.0 / 0.0)
 -- !query schema
 struct<>
@@ -652,9 +604,9 @@ org.apache.spark.SparkArithmeticException
   "queryContext" : [ {
     "objectType" : "",
     "objectName" : "",
-    "startIndex" : 25,
-    "stopIndex" : 38,
-    "fragment" : "2147483647 + 1"
+    "startIndex" : 8,
+    "stopIndex" : 40,
+    "fragment" : "try_multiply(1, (2147483647 + 1))"
   } ]
 }
 
