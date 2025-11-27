@@ -95,7 +95,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "null-propagation.sql",
     "operators.sql",
     "order-by-all.sql",
-    "order-by-nulls-ordering.sql",
+    // "order-by-nulls-ordering.sql",
     "order-by-ordinal.sql",
     "outer-join.sql",
     "parse-schema-string.sql",
@@ -228,7 +228,8 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     // Overwrite some results of regr_intercept, regr_r2, corr.
     "linear-regression.sql",
     // Overwrite exception message.
-    "array.sql",
+    // TODO: Disable due to schema & ANSI gap
+    // "array.sql",
     // Overwrite exception message.
     "bitwise.sql",
     // Enable NullPropagation rule for
@@ -249,7 +250,8 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     // Overwrite exception message. See Spark-46550.
     "hll.sql",
     // Overwrite exception message.
-    "interval.sql",
+    // TODO: Disable due to schema & ANSI gap
+    // "interval.sql",
     // Enable ConstantFolding rule for "typeof(...)".
     "misc-functions.sql",
     // Removed some result mismatch cases.

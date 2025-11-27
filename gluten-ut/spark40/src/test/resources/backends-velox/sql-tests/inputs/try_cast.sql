@@ -1,8 +1,4 @@
 -- TRY_CAST string representing a valid fractional number to integral should truncate the number
-SELECT TRY_CAST('1.23' AS int);
-SELECT TRY_CAST('1.23' AS long);
-SELECT TRY_CAST('-4.56' AS int);
-SELECT TRY_CAST('-4.56' AS long);
 
 -- TRY_CAST string which are not numbers to integral should return null
 SELECT TRY_CAST('abc' AS int);

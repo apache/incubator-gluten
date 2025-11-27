@@ -22,12 +22,14 @@ select c, c not in (select e from t_empty) from t;
 select c, c not in (select e from v_empty) from v;
 
 -- constant null IN (empty subquery) - rewritten by NullPropagation rule
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding;
 
 select null in (select e from t_empty);
 select null in (select e from v_empty);
 select null not in (select e from t_empty);
 select null not in (select e from v_empty);
 
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 -- IN subquery which is not rewritten to join - here we use IN in the ON condition because that is a case that doesn't get rewritten to join in RewritePredicateSubquery, so we can observe the execution behavior of InSubquery directly
 -- Correct results: column t2.d should be NULL because the ON condition is always false
 select * from t left join t2 on (t.c in (select e from t_empty)) is null;
@@ -45,12 +47,14 @@ set spark.sql.legacy.nullInEmptyListBehavior = true;
 set spark.sql.optimizer.optimizeUncorrelatedInSubqueriesInJoinCondition.enabled=false;
 
 -- constant null IN (empty subquery) - rewritten by NullPropagation rule
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding;
 
 select null in (select e from t_empty);
 select null in (select e from v_empty);
 select null not in (select e from t_empty);
 select null not in (select e from v_empty);
 
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 -- IN subquery which is not rewritten to join - here we use IN in the ON condition because that is a case that doesn't get rewritten to join in RewritePredicateSubquery, so we can observe the execution behavior of InSubquery directly
 -- Correct results: column t2.d should be NULL because the ON condition is always false
 select * from t left join t2 on (t.c in (select e from t_empty)) is null;
