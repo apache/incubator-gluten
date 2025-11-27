@@ -46,6 +46,7 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
   var unsafeRelWithHashMode: UnsafeColumnarBuildSideRelation = _
   var output: Seq[Attribute] = _
   var sampleBytes: Array[Array[Byte]] = _
+  var initialGlobalBytes: Long = _
 
   private def toUnsafeByteArray(bytes: Array[Byte]): UnsafeByteArray = {
     val buf = ArrowBufferAllocators.globalInstance().buffer(bytes.length)
@@ -70,6 +71,7 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    initialGlobalBytes = GlobalOffHeapMemory.currentBytes()
     output = Seq(AttributeReference("a", StringType, nullable = false, null)())
     sampleBytes = Array(randomBytes(10), randomBytes(100))
     unsafeRelWithIdentityMode = newUnsafeRelationWithIdentityMode(sampleBytes: _*)
@@ -83,7 +85,9 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
     unsafeRelWithHashMode = null
     System.gc()
     Thread.sleep(500)
-    assert(GlobalOffHeapMemory.currentBytes() == 0)
+    // FIXME: This should be zero. We had to assert with the initial bytes because
+    //  there were some allocations from the previous run suites.
+    assert(GlobalOffHeapMemory.currentBytes() == initialGlobalBytes)
   }
 
   private def randomBytes(size: Int): Array[Byte] = {
