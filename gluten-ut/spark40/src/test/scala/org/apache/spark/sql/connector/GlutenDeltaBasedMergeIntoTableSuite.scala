@@ -20,4 +20,5 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenDeltaBasedMergeIntoTableSuite
   extends DeltaBasedMergeIntoTableSuite
-  with GlutenSQLTestsBaseTrait {}
+  with GlutenSQLTestsBaseTrait
+  with GlutenMergeIntoTableSuiteBase {}
