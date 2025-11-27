@@ -984,10 +984,10 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenRuntimeNullChecksV2Writes]
   enableSuite[GlutenTableOptionsConstantFoldingSuite]
   enableSuite[GlutenDeltaBasedMergeIntoTableSuite]
-    // TODO: fix in Spark-4.0
+    // Replaced by Gluten versions that handle wrapped exceptions
     .excludeByPrefix("merge cardinality check with")
   enableSuite[GlutenDeltaBasedMergeIntoTableUpdateAsDeleteAndInsertSuite]
-    // TODO: fix in Spark-4.0
+    // Replaced by Gluten versions that handle wrapped exceptions
     .excludeByPrefix("merge cardinality check with")
   enableSuite[GlutenDeltaBasedUpdateAsDeleteAndInsertTableSuite]
     // FIXME: complex type result mismatch
@@ -995,7 +995,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("update char/varchar columns")
   enableSuite[GlutenDeltaBasedUpdateTableSuite]
   enableSuite[GlutenGroupBasedMergeIntoTableSuite]
-    // TODO: fix in Spark-4.0
+    // Replaced by Gluten versions that handle wrapped exceptions
     .excludeByPrefix("merge cardinality check with")
   enableSuite[GlutenFileSourceCustomMetadataStructSuite]
   enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]
