@@ -24,7 +24,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.spark.util.sketch.BloomFilter;
 import org.apache.spark.util.sketch.IncompatibleMergeException;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
