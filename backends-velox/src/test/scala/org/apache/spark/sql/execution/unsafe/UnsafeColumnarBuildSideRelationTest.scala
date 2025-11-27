@@ -76,6 +76,16 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
     unsafeRelWithHashMode = newUnsafeRelationWithHashMode(sampleBytes: _*)
   }
 
+  override protected def afterAll(): Unit = {
+    // Makes sure all the underlying UnsafeByteArray instances become GC non-reachable and
+    // be released after a full-GC.
+    unsafeRelWithIdentityMode = null
+    unsafeRelWithHashMode = null
+    System.gc()
+    Thread.sleep(500)
+    assert(GlobalOffHeapMemory.currentBytes() == 0)
+  }
+
   private def randomBytes(size: Int): Array[Byte] = {
     val array = new Array[Byte](size)
     val random = new Random()
@@ -162,10 +172,5 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
       }
     }
     relations.clear()
-    // Makes sure all the underlying UnsafeByteArray instances become GC non-reachable and
-    // be released after a full-GC.
-    System.gc()
-    Thread.sleep(500)
-    assert(GlobalOffHeapMemory.currentBytes() == 0)
   }
 }
