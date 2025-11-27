@@ -16,11 +16,9 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.serializer.Serializer
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.exchange._
@@ -33,16 +31,10 @@ case class ColumnarShuffleExchangeExec(
     advisoryPartitionSize: Option[Long] = None)
   extends ColumnarShuffleExchangeExecBase(outputPartitioning, child, projectOutputAttributes) {
 
-  // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
-  val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema, metrics, shuffleWriterType)
-
   override def nodeName: String = "ColumnarExchange"
 
   protected def withNewChildInternal(newChild: SparkPlan): ColumnarShuffleExchangeExec =
     copy(child = newChild)
-
-  override def getSerializer: Serializer = serializer
 }
 
 object ColumnarShuffleExchangeExec extends Logging {

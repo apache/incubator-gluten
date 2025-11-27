@@ -422,6 +422,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-35675")
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
     .excludeByPrefix("SPARK-24705")
+    // Rewrite for Gluten. Change details are in the inline comments in individual tests.
     .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
     // Following tests are excluded as these are overridden in Gluten test suite..

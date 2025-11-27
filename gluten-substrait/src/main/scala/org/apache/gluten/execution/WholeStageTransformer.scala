@@ -45,7 +45,6 @@ import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 
@@ -236,26 +235,23 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       .asInstanceOf[TransformSupport]
       .transform(substraitContext)
     if (childCtx == null) {
-      throw new NullPointerException(s"WholeStageTransformer can't do Transform on $child")
+      throw new IllegalStateException(s"WholeStageTransformer can't do Transform on $child")
     }
 
-    val outNames = childCtx.outputAttributes.map(ConverterUtils.genColumnNameWithExprId(_))
+    val outNames = childCtx.outputAttributes.map(ConverterUtils.genColumnNameWithExprId).asJava
 
     val planNode = if (BackendsApiManager.getSettings.needOutputSchemaForPlan()) {
-      val outputSchema = if (outputSchemaForPlan.isDefined) {
-        outputSchemaForPlan.get
-      } else {
-        inferSchemaFromAttributes(childCtx.outputAttributes)
-      }
+      val outputSchema =
+        outputSchemaForPlan.getOrElse(inferSchemaFromAttributes(childCtx.outputAttributes))
 
       PlanBuilder.makePlan(
         substraitContext,
         Lists.newArrayList(childCtx.root),
-        outNames.asJava,
+        outNames,
         outputSchema,
         null)
     } else {
-      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames.asJava)
+      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
 
     WholeStageTransformContext(planNode, substraitContext, isCudf)
@@ -271,30 +267,19 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   /** Find all [[LeafTransformSupport]] in one WholeStageTransformer */
   private def findAllLeafTransformers(): Seq[LeafTransformSupport] = {
-    val allLeafTransformers = new mutable.ListBuffer[LeafTransformSupport]()
 
-    def transformChildren(plan: SparkPlan): Unit = {
-      if (plan != null && plan.isInstanceOf[TransformSupport]) {
-        plan match {
-          case transformer: LeafTransformSupport =>
-            allLeafTransformers.append(transformer)
-          case _ =>
-        }
-
-        // according to the substrait plan order
-        // SHJ may include two leaves in a whole stage.
-        plan match {
-          case shj: HashJoinLikeExecTransformer =>
-            transformChildren(shj.streamedPlan)
-            transformChildren(shj.buildPlan)
-          case t: TransformSupport =>
-            t.children.foreach(transformChildren(_))
-        }
-      }
+    def collectLeafTransformers(plan: SparkPlan): Seq[LeafTransformSupport] = plan match {
+      case transformer: LeafTransformSupport =>
+        Seq(transformer)
+      case shj: HashJoinLikeExecTransformer =>
+        collectLeafTransformers(shj.streamedPlan) ++ collectLeafTransformers(shj.buildPlan)
+      case t: TransformSupport =>
+        t.children.flatMap(collectLeafTransformers)
+      case _ =>
+        Seq.empty
     }
 
-    transformChildren(child)
-    allLeafTransformers.toSeq
+    collectLeafTransformers(child)
   }
 
   /**
@@ -431,20 +416,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   }
 
   private def leafInputMetricsUpdater(): InputMetricsWrapper => Unit = {
-    def collectLeaves(plan: SparkPlan, buffer: ArrayBuffer[TransformSupport]): Unit = {
-      plan match {
-        case node: TransformSupport if node.children.forall(!_.isInstanceOf[TransformSupport]) =>
-          buffer.append(node)
-        case node: TransformSupport =>
-          node.children
-            .foreach(collectLeaves(_, buffer))
-        case _ =>
-      }
+    val leaves = child.collect {
+      case plan: TransformSupport if plan.children.forall(!_.isInstanceOf[TransformSupport]) =>
+        plan
     }
-
-    val leafBuffer = new ArrayBuffer[TransformSupport]()
-    collectLeaves(child, leafBuffer)
-    val leafMetricsUpdater = leafBuffer.map(_.metricsUpdater())
+    val leafMetricsUpdater = leaves.map(_.metricsUpdater())
 
     (inputMetrics: InputMetricsWrapper) => {
       leafMetricsUpdater.foreach(_.updateInputMetrics(inputMetrics))

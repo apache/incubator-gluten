@@ -27,6 +27,14 @@ import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
 
 class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    // Need to explicitly set spark.sql.preserveCharVarcharTypeInfo=true for gluten's test
+    // framework. In Gluten, it overrides the checkEvaluation that invokes Spark's RowEncoder,
+    // which requires this configuration to be set.
+    // In Vanilla spark, the checkEvaluation method doesn't invoke RowEncoder.
+    conf.setConf(SQLConf.PRESERVE_CHAR_VARCHAR_TYPE_INFO, true)
+  }
 
   override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): Cast = {
     v match {
@@ -287,5 +295,4 @@ class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
     val d = Decimal(c.getTimeInMillis.toDouble / 1000)
     checkEvaluation(cast(d, TimestampType), new Timestamp(c.getTimeInMillis))
   }
-
 }
