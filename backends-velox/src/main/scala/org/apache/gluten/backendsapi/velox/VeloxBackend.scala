@@ -102,7 +102,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
       dataSchema: StructType,
       rootPaths: Seq[String],
       properties: Map[String, String],
-      hadoopConf: Configuration): ValidationResult = {
+      hadoopConf: Configuration,
+      partitionFileFormats: Set[ReadFileFormat]): ValidationResult = {
 
     def validateScheme(): Option[String] = {
       val filteredRootPaths = distinctRootPaths(rootPaths)
@@ -117,7 +118,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       }
     }
 
-    def validateFormat(): Option[String] = {
+    def validateFormat(format: ReadFileFormat): Option[String] = {
       def validateTypes(
           validatorFunc: PartialFunction[StructField, String],
           fieldsToValidate: Array[StructField]): Option[String] = {
@@ -183,6 +184,14 @@ object VeloxBackendSettings extends BackendSettingsApi {
       }
     }
 
+    def validatePartitionFormat(): Option[String] =
+      partitionFileFormats.iterator
+        .foldLeft(Option.empty[String]) {
+          (acc, format) =>
+            if (acc.isDefined) acc
+            else validateFormat(format)
+        }
+
     def validateMetadata(): Option[String] = {
       if (format != ParquetReadFormat || rootPaths.isEmpty) {
         // Only Parquet is needed for metadata validation so far.
@@ -221,7 +230,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     val validationChecks = Seq(
       validateScheme(),
-      validateFormat(),
+      validateFormat(format),
+      validatePartitionFormat(),
       validateMetadata(),
       validateDataSchema()
     )

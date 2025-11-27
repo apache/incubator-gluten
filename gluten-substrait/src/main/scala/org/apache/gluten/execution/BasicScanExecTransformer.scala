@@ -131,7 +131,9 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         getDataSchema,
         getRootFilePaths,
         getProperties,
-        sparkContext.hadoopConfiguration)
+        sparkContext.hadoopConfiguration,
+        getDistinctPartitionReadFileFormats
+      )
     if (!validationResult.ok()) {
       return validationResult
     }

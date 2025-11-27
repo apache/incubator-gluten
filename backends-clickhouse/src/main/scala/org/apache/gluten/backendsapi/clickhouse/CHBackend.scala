@@ -184,7 +184,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       dataSchema: StructType,
       rootPaths: Seq[String],
       properties: Map[String, String],
-      hadoopConf: Configuration): ValidationResult = {
+      hadoopConf: Configuration,
+      partitionFileFormats: Set[ReadFileFormat]): ValidationResult = {
 
     // Validate if all types are supported.
     def hasComplexType: Boolean = {
