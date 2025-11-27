@@ -26,7 +26,7 @@ class GlutenTakeOrderedAndProjectSuite
 
   private def noOpFilter(plan: SparkPlan): SparkPlan = FilterExec(Literal(true), plan)
 
-  test("SPARK-47104: Non-deterministic expressions in projection") {
+  testGluten("SPARK-47104: Non-deterministic expressions in projection") {
     val expected = (input: SparkPlan) => {
       GlobalLimitExec(limit, LocalLimitExec(limit, SortExec(sortOrder, true, input)))
     }
