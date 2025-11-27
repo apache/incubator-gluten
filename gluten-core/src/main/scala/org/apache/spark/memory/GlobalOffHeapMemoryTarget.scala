@@ -53,6 +53,9 @@ class GlobalOffHeapMemoryTarget private[memory]
     f
   }
 
+  // SPARK-46947: https://github.com/apache/spark/pull/45052.
+  ensureMemoryStoreInitialized()
+
   override def borrow(size: Long): Long = {
     memoryManagerOption()
       .map {
@@ -118,6 +121,13 @@ class GlobalOffHeapMemoryTarget private[memory]
     logWarning(
       "Memory manager not found because the code is unlikely be run in a Spark application")
     None
+  }
+
+  private def ensureMemoryStoreInitialized(): Unit = {
+    val env = SparkEnv.get
+    if (env != null) {
+      assert(env.blockManager.memoryStore.currentUnrollMemory >= 0L)
+    }
   }
 
   override def name(): String = targetName
