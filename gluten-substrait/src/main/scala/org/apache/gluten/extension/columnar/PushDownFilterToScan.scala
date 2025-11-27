@@ -33,7 +33,7 @@ object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
       filter.child match {
         case scan: BasicScanExecTransformer
             if BackendsApiManager.getSparkPlanExecApiInstance.supportPushDownFilterToScan(
-              scan) && scan.pushDownFilters.isEmpty =>
+              scan) && scan.supportPushDownFilters =>
           val newScan = scan.withNewPushdownFilters(splitConjunctivePredicates(filter.cond))
           if (newScan.doValidate().ok()) {
             filter.withNewChildren(Seq(newScan))

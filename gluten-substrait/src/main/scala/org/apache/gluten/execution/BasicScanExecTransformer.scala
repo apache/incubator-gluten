@@ -63,6 +63,9 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   /** Returns the filters that already exists in scan. */
   def scanFilters: Seq[Expression]
 
+  /** Whether the scan supports push down filters. */
+  def supportPushDownFilters: Boolean = true
+
   /**
    * Returns the filters that pushed by
    * [[org.apache.gluten.extension.columnar.PushDownFilterToScan]].
@@ -70,7 +73,10 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def pushDownFilters: Option[Seq[Expression]]
 
   /** Copy the scan with filters that pushed by filterNode. */
-  def withNewPushdownFilters(filters: Seq[Expression]): BasicScanExecTransformer
+  def withNewPushdownFilters(filters: Seq[Expression]): BasicScanExecTransformer = {
+    throw new UnsupportedOperationException(
+      s"${getClass.toString} does not support push down filters.")
+  }
 
   def getMetadataColumns(): Seq[AttributeReference]
 
