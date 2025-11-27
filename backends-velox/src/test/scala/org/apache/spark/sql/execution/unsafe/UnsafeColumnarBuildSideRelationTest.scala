@@ -20,6 +20,7 @@ import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.memtarget.ThrowOnOomMemoryTarget.OutOfMemoryException
 
 import org.apache.spark.{SparkConf, SparkEnv}
+import org.apache.spark.memory.GlobalOffHeapMemory
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.serializer.{JavaSerializer, KryoSerializer}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
@@ -31,6 +32,7 @@ import org.apache.spark.unsafe.Platform
 
 import java.util
 
+import scala.collection.mutable
 import scala.util.Random
 
 class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
@@ -47,8 +49,12 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
 
   private def toUnsafeByteArray(bytes: Array[Byte]): UnsafeByteArray = {
     val buf = ArrowBufferAllocators.globalInstance().buffer(bytes.length)
-    buf.setBytes(0, bytes, 0, bytes.length);
-    new UnsafeByteArray(buf, bytes.length.toLong)
+    buf.setBytes(0, bytes, 0, bytes.length)
+    try {
+      new UnsafeByteArray(buf, bytes.length.toLong)
+    } finally {
+      buf.close()
+    }
   }
 
   private def toByteArray(unsafeByteArray: UnsafeByteArray): Array[Byte] = {
@@ -149,10 +155,17 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
 
   test("Should throw OOM when off-heap memory is running out") {
     // 500 MiB > 200 MiB so OOM should be thrown.
+    val relations = mutable.ListBuffer[UnsafeColumnarBuildSideRelation]()
     assertThrows[OutOfMemoryException] {
       for (i <- 0 until 10) {
-        newUnsafeRelationWithHashMode(randomBytes(ByteUnit.MiB.toBytes(50).toInt))
+        relations += newUnsafeRelationWithHashMode(randomBytes(ByteUnit.MiB.toBytes(50).toInt))
       }
     }
+    relations.clear()
+    // Makes sure all the underlying UnsafeByteArray instances become GC non-reachable and
+    // be released after a full-GC.
+    System.gc()
+    Thread.sleep(500)
+    assert(GlobalOffHeapMemory.currentBytes() == 0)
   }
 }
