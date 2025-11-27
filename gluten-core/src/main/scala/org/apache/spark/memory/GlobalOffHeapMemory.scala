@@ -17,8 +17,7 @@
 package org.apache.spark.memory
 
 import org.apache.gluten.config.GlutenCoreConfig
-import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.memory.memtarget.{MemoryTarget, NoopMemoryTarget}
+import org.apache.gluten.memory.memtarget.{MemoryTarget, MemoryTargets, NoopMemoryTarget}
 
 /**
  * API #acuqire is for reserving some global off-heap memory from Spark memory manager. Once
@@ -33,14 +32,12 @@ object GlobalOffHeapMemory {
   val target: MemoryTarget = if (GlutenCoreConfig.get.memoryUntracked) {
     new NoopMemoryTarget()
   } else {
-    new GlobalOffHeapMemoryTarget()
+    MemoryTargets.throwOnOom(MemoryTargets.global())
   }
 
   def acquire(numBytes: Long): Unit = {
-    if (target.borrow(numBytes) < numBytes) {
-      // Throw OOM.
-      throw new GlutenException(s"Spark global off-heap memory is exhausted.")
-    }
+    // OOM will be handled in MemoryTargets.throwOnOom(...).
+    assert(target.borrow(numBytes) == numBytes)
   }
 
   def release(numBytes: Long): Unit = {

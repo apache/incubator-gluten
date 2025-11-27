@@ -17,10 +17,12 @@
 package org.apache.spark.sql.execution.unsafe
 
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.memory.memtarget.ThrowOnOomMemoryTarget.OutOfMemoryException
 
 import org.apache.spark.{SparkConf, SparkEnv}
+import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.serializer.{JavaSerializer, KryoSerializer}
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.catalyst.plans.physical.IdentityBroadcastMode
 import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.test.SharedSparkSession
@@ -28,6 +30,8 @@ import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.Platform
 
 import java.util
+
+import scala.util.Random
 
 class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
   override protected def sparkConf: SparkConf = {
@@ -38,6 +42,7 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
 
   var unsafeRelWithIdentityMode: UnsafeColumnarBuildSideRelation = _
   var unsafeRelWithHashMode: UnsafeColumnarBuildSideRelation = _
+  var output: Seq[Attribute] = _
   var sampleBytes: Array[Array[Byte]] = _
 
   private def toUnsafeByteArray(bytes: Array[Byte]): UnsafeByteArray = {
@@ -59,17 +64,35 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val a = AttributeReference("a", StringType, nullable = false, null)()
-    val output = Seq(a)
-    sampleBytes = Array("12345".getBytes(), "7890".getBytes)
-    unsafeRelWithIdentityMode = UnsafeColumnarBuildSideRelation(
+    output = Seq(AttributeReference("a", StringType, nullable = false, null)())
+    sampleBytes = Array(randomBytes(10), randomBytes(100))
+    unsafeRelWithIdentityMode = newUnsafeRelationWithIdentityMode(sampleBytes: _*)
+    unsafeRelWithHashMode = newUnsafeRelationWithHashMode(sampleBytes: _*)
+  }
+
+  private def randomBytes(size: Int): Array[Byte] = {
+    val array = new Array[Byte](size)
+    val random = new Random()
+    random.nextBytes(array)
+    array
+  }
+
+  private def newUnsafeRelationWithIdentityMode(
+      bytes: Array[Byte]*): UnsafeColumnarBuildSideRelation = {
+    require(bytes.nonEmpty)
+    UnsafeColumnarBuildSideRelation(
       output,
-      sampleBytes.map(a => toUnsafeByteArray(a)),
+      bytes.map(a => toUnsafeByteArray(a)),
       IdentityBroadcastMode
     )
-    unsafeRelWithHashMode = UnsafeColumnarBuildSideRelation(
+  }
+
+  private def newUnsafeRelationWithHashMode(
+      bytes: Array[Byte]*): UnsafeColumnarBuildSideRelation = {
+    require(bytes.nonEmpty)
+    UnsafeColumnarBuildSideRelation(
       output,
-      sampleBytes.map(a => toUnsafeByteArray(a)),
+      bytes.map(a => toUnsafeByteArray(a)),
       HashedRelationBroadcastMode(output, isNullAware = false)
     )
   }
@@ -124,4 +147,12 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
         sampleBytes.asInstanceOf[Array[AnyRef]]))
   }
 
+  test("Should throw OOM when off-heap memory is running out") {
+    // 500 MiB > 200 MiB so OOM should be thrown.
+    assertThrows[OutOfMemoryException] {
+      for (i <- 0 until 10) {
+        newUnsafeRelationWithHashMode(randomBytes(ByteUnit.MiB.toBytes(50).toInt))
+      }
+    }
+  }
 }
