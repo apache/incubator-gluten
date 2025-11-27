@@ -34,13 +34,14 @@ case class GpuBufferBatchResizeForShuffleInputOutput() extends Rule[SparkPlan] {
       return plan
     }
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
+    val memoryThreshold = VeloxConfig.get.veloxPreferredBatchBytes
     val batchSize = VeloxConfig.get.cudfBatchSize
     plan.transformUp {
       case shuffle: ColumnarShuffleExchangeExec
           if shuffle.shuffleWriterType == HashShuffleWriterType &&
             VeloxConfig.get.veloxResizeBatchesShuffleInput =>
         val appendBatches =
-          VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
+          VeloxResizeBatchesExec(shuffle.child, range.min, range.max, memoryThreshold)
         shuffle.withNewChildren(Seq(appendBatches))
       case a @ AQEShuffleReadExec(
             ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExecBase, _),
