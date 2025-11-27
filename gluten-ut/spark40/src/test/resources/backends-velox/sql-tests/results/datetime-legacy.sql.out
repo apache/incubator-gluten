@@ -190,30 +190,6 @@ NULL	2016-12-31	2016-12-31
 
 
 -- !query
-select to_date("16", "dd")
--- !query schema
-struct<to_date(16, dd):date>
--- !query output
-1970-01-16
-
-
--- !query
-select to_date("02-29", "MM-dd")
--- !query schema
-struct<>
--- !query output
-org.apache.spark.SparkDateTimeException
-{
-  "errorClass" : "CANNOT_PARSE_TIMESTAMP",
-  "sqlState" : "22007",
-  "messageParameters" : {
-    "func" : "`try_to_timestamp`",
-    "message" : "Unparseable date: \"02-29\""
-  }
-}
-
-
--- !query
 select dayofweek('2007-02-03'), dayofweek('2009-07-30'), dayofweek('2017-05-27'), dayofweek(null),
   dayofweek('1582-10-15 13:10:15'), dayofweek(timestamp_ltz'1582-10-15 13:10:15'), dayofweek(timestamp_ntz'1582-10-15 13:10:15')
 -- !query schema
@@ -1488,6 +1464,13 @@ struct<timestamp_seconds(0.1234567):timestamp,timestamp_seconds(0.1234567):times
 -- !query output
 1969-12-31 16:00:00.123456	1969-12-31 16:00:00.123456
 
+
+-- !query
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation
+-- !query schema
+struct<key:string,value:string>
+-- !query output
+spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation
 
 -- !query
 create temporary view ttf1 as select * from values

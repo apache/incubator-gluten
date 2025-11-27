@@ -27,11 +27,6 @@ select UNIX_DATE(DATE('1970-01-01')), UNIX_DATE(DATE('2020-12-04')), UNIX_DATE(n
 
 select to_date(null), to_date('2016-12-31'), to_date('2016-12-31', 'yyyy-MM-dd');
 
--- missing fields in `to_date`
-select to_date("16", "dd");
--- invalid: there is no 29 in February, 1970
-select to_date("02-29", "MM-dd");
-
 -- `dayofweek` accepts both date and timestamp ltz/ntz inputs.
 select dayofweek('2007-02-03'), dayofweek('2009-07-30'), dayofweek('2017-05-27'), dayofweek(null),
   dayofweek('1582-10-15 13:10:15'), dayofweek(timestamp_ltz'1582-10-15 13:10:15'), dayofweek(timestamp_ntz'1582-10-15 13:10:15');

@@ -1161,6 +1161,14 @@ se	e 	rk-	se
 
 
 -- !query
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation
+-- !query schema
+struct<key:string,value:string>
+-- !query output
+spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation
+
+
+-- !query
 select typeof(c7), typeof(c8), typeof(v), typeof(s) from char_tbl4 limit 1
 -- !query schema
 struct<typeof(c7):string,typeof(c8):string,typeof(v):string,typeof(s):string>
@@ -1169,6 +1177,15 @@ string	string	string	string
 
 
 -- !query
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
+-- !query schema
+struct<key:string,value:string>
+-- !query output
+spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
+
+
+-- !query
+
 select cast(c7 as char(1)), cast(c8 as char(10)), cast(v as char(1)), cast(v as varchar(1)), cast(s as char(5)) from char_tbl4
 -- !query schema
 struct<c7:string,c8:string,v:string,v:string,s:string>

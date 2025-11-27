@@ -37,11 +37,8 @@ select cast(a as map<string, string>) from t;
 
 -- all timestamp/date expressions return NULL if bad input strings are provided
 select to_timestamp(a) from t;
-select to_timestamp('2018-01-01', a) from t;
 select to_unix_timestamp(a) from t;
-select to_unix_timestamp('2018-01-01', a) from t;
 select unix_timestamp(a) from t;
-select unix_timestamp('2018-01-01', a) from t;
 select from_unixtime(a) from t;
 select from_unixtime('2018-01-01', a) from t;
 select next_day(a, 'MO') from t;

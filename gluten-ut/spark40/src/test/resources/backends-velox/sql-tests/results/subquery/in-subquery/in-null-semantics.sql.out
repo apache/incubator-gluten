@@ -100,6 +100,14 @@ NULL	true
 
 
 -- !query
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding
+-- !query schema
+struct<key:string,value:string>
+-- !query output
+spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding
+
+
+-- !query
 select null in (select e from t_empty)
 -- !query schema
 struct<(NULL IN (listquery())):boolean>
@@ -224,6 +232,15 @@ NULL
 
 
 -- !query
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
+-- !query schema
+struct<key:string,value:string>
+-- !query output
+spark.sql.optimizer.excludedRules	org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation
+
+
+-- !query
+
 select * from t left join t2 on (t.c in (select e from t_empty)) is null
 -- !query schema
 struct<c:int,d:int>

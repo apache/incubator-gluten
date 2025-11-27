@@ -38,10 +38,12 @@ SELECT count(distinct 0.8), percentile_approx(distinct a, 0.8) FROM testData;
 
 -- legacy behavior: allow calling function count without parameters
 set spark.sql.legacy.allowParameterlessCount=true;
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding;
 SELECT count() FROM testData;
 
 -- count without expressions
 set spark.sql.legacy.allowParameterlessCount=false;
+set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 SELECT count() FROM testData;
 
 -- legacy behavior: allow count(testData.*)
