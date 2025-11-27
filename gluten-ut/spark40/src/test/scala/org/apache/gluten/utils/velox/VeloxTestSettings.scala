@@ -798,7 +798,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not really an issue.
     .exclude("SPARK-10740: handle nondeterministic expressions correctly for set operations")
   enableSuite[GlutenDataFrameStatSuite]
-    // TODO: fix in Spark-4.0
+    // Cannot use native bloom filter for `df.stat.bloomFilter`. See changes in SPARK-45564.
+    // User should set `spark.gluten.sql.native.bloomFilter=false` to use the bloomFilter stat
+    // function.
     .exclude("Bloom filter")
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
