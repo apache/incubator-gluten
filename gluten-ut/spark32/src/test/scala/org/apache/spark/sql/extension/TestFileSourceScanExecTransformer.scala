@@ -17,7 +17,7 @@
 package org.apache.spark.sql.extension
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.FileSourceScanExecTransformerBase
+import org.apache.gluten.execution.{BasicScanExecTransformer, FileSourceScanExecTransformerBase}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
@@ -38,7 +38,8 @@ case class TestFileSourceScanExecTransformer(
     override val optionalNumCoalescedBuckets: Option[Int],
     override val dataFilters: Seq[Expression],
     override val tableIdentifier: Option[TableIdentifier],
-    override val disableBucketedScan: Boolean = false)
+    override val disableBucketedScan: Boolean = false,
+    override val pushDownFilters: Option[Seq[Expression]] = None)
   extends FileSourceScanExecTransformerBase(
     relation,
     output,
@@ -82,4 +83,7 @@ case class TestFileSourceScanExecTransformer(
       disableBucketedScan
     )
   }
+
+  override def withNewPushdownFilters(filters: Seq[Expression]): BasicScanExecTransformer =
+    copy(pushDownFilters = Some(filters))
 }
