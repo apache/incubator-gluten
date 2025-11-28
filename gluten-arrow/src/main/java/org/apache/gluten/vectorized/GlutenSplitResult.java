@@ -21,7 +21,7 @@ public class GlutenSplitResult {
   private final long totalWriteTime;
   private final long totalEvictTime;
   private final long totalCompressTime; // overlaps with totalEvictTime and totalWriteTime
-  private final long totalBytesWritten;
+  private final long bytesWritten;
   private final long totalBytesEvicted;
   private final long[] partitionLengths;
   private final long[] rawPartitionLengths;
@@ -39,7 +39,7 @@ public class GlutenSplitResult {
       long totalCompressTime,
       long totalSortTime,
       long totalC2RTime,
-      long totalBytesWritten,
+      long bytesWritten,
       long totalBytesEvicted,
       long totalBytesToEvict, // In-memory bytes(uncompressed) before spill.
       long peakBytes,
@@ -51,7 +51,7 @@ public class GlutenSplitResult {
     this.totalWriteTime = totalWriteTime;
     this.totalEvictTime = totalEvictTime;
     this.totalCompressTime = totalCompressTime;
-    this.totalBytesWritten = totalBytesWritten;
+    this.bytesWritten = bytesWritten;
     this.totalBytesEvicted = totalBytesEvicted;
     this.partitionLengths = partitionLengths;
     this.rawPartitionLengths = rawPartitionLengths;
@@ -79,8 +79,8 @@ public class GlutenSplitResult {
     return totalCompressTime;
   }
 
-  public long getTotalBytesWritten() {
-    return totalBytesWritten;
+  public long getBytesWritten() {
+    return bytesWritten;
   }
 
   public long getTotalBytesSpilled() {
