@@ -16,13 +16,10 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.spark.sql.{GlutenSQLTestsTrait, SaveMode}
-import org.apache.spark.sql.execution.exchange.{REQUIRED_BY_STATEFUL_OPERATOR, ShuffleExchangeExec}
+import org.apache.spark.sql.GlutenSQLTestsTrait
+import org.apache.spark.sql.execution.exchange.REQUIRED_BY_STATEFUL_OPERATOR
 import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.streaming._
-import org.apache.spark.sql.streaming.util.StreamManualClock
-
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 
 class GlutenStreamingQuerySuite extends StreamingQuerySuite with GlutenSQLTestsTrait {
 
