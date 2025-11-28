@@ -52,6 +52,7 @@ import org.apache.spark.util.SparkShimVersionUtil
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.schema.MessageType
 
 import java.util.{Map => JMap}
@@ -340,5 +341,9 @@ trait SparkShims {
       s"Task failed while writing rows to staging path: $writePath, " +
         s"output path: $descriptionPath",
       t)
+  }
+
+  def unsupportedCodec: Seq[CompressionCodecName] = {
+    Seq(CompressionCodecName.LZO, CompressionCodecName.BROTLI)
   }
 }

@@ -50,11 +50,6 @@ import org.apache.spark.sql.types._
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.parquet.HadoopReadOptions
-import org.apache.parquet.format.converter.ParquetMetadataConverter
-import org.apache.parquet.hadoop.ParquetFileReader
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import org.apache.parquet.hadoop.util.HadoopInputFile
 
 import scala.util.control.Breaks.breakable
 
@@ -189,7 +184,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     def validateMetadata(): Option[String] = {
-      if (format != ParquetReadFormat || rootPaths.isEmpty) {
+      if (format != ParquetReadFormat || rootPaths.isEmpty || dataSchema.isEmpty) {
         // Only Parquet is needed for metadata validation so far.
         return None
       }
@@ -223,52 +218,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
         None
       }
     }
-
-    def validateCodec(): Option[String] = {
-      if (rootPaths.isEmpty || dataSchema.isEmpty) {
-        return None
-      }
-      val fs = new Path(rootPaths.head).getFileSystem(hadoopConf)
-      val filesIterator = fs.listFiles(new Path(rootPaths.head), true)
-      if (!filesIterator.hasNext) {
-        return None
-      }
-      // Only read the first file, assume the codec is same.
-      val fileStatus = filesIterator.next()
-      val file = HadoopInputFile.fromPath(fileStatus.getPath, hadoopConf)
-      val filter = ParquetMetadataConverter.NO_FILTER
-      val options = HadoopReadOptions
-        .builder(file.getConfiguration, file.getPath)
-        .withMetadataFilter(filter)
-        .build
-      val in = file.newStream
-      val unsupportedCodec =
-        Seq(CompressionCodecName.LZO, CompressionCodecName.BROTLI, CompressionCodecName.LZ4_RAW)
-      try {
-        val footer =
-          ParquetFileReader.readFooter(file, options, in)
-        val blocks = footer.getBlocks
-        if (blocks.isEmpty) {
-          return None
-        }
-        val codec = blocks.get(0).getColumns.get(0).getCodec
-        if (unsupportedCodec.contains(codec)) {
-          return Some(s"Unsupported codec ${codec.name()}.")
-        }
-      } finally {
-        if (in != null) {
-          in.close()
-        }
-      }
-      None
-    }
-
     val validationChecks = Seq(
       validateScheme(),
       validateFormat(),
       validateMetadata(),
-      validateDataSchema(),
-      validateCodec()
+      validateDataSchema()
     )
 
     for (check <- validationChecks) {
