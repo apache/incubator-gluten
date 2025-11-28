@@ -27,6 +27,7 @@ object ScanTransformerFactory {
       scanExec: FileSourceScanExec): FileSourceScanExecTransformerBase = {
     FileSourceScanExecTransformer(
       scanExec.relation,
+      scanExec.stream,
       scanExec.output,
       scanExec.requiredSchema,
       scanExec.partitionFilters,

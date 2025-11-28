@@ -26,6 +26,7 @@ case class CustomerColumnarPreRules(session: SparkSession) extends Rule[SparkPla
     case fileSourceScan: FileSourceScanExec =>
       val transformer = new TestFileSourceScanExecTransformer(
         fileSourceScan.relation,
+        fileSourceScan.stream,
         fileSourceScan.output,
         fileSourceScan.requiredSchema,
         fileSourceScan.partitionFilters,
