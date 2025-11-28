@@ -1821,7 +1821,7 @@ struct<to_binary(12345, hex):binary>
 -- !query
 select to_binary('GG')
 -- !query schema
-struct<>
+struct<to_binary(GG):binary>
 -- !query output
 org.apache.spark.SparkIllegalArgumentException
 {
