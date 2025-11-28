@@ -52,12 +52,6 @@ jobs:
           script: |
             const issueNumber = context.payload.number;
             let body;
-            # if (issueNumber % 10 === 0) {
-            #   body = "Run Gluten ClickHouse CI on ARM";
-            # } else {
-            #   body = "Run Gluten Clickhouse CI on x86";
-            # }
-            # https://github.com/apache/incubator-gluten/issues/11052
             body = "Run Gluten Clickhouse CI on x86";
             await github.rest.issues.createComment({
               owner: context.repo.owner,
