@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
@@ -334,6 +335,8 @@ trait SparkShims {
 
   /** Shim method for get the "errorMessage" value for Spark 4.0 and above */
   def getErrorMessage(raiseError: RaiseError): Option[Expression]
+
+  def getScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = None
 
   def throwExceptionInWrite(t: Throwable, writePath: String, descriptionPath: String): Unit = {
     throw new SparkException(
