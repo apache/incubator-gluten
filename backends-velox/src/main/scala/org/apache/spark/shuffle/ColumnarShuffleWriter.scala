@@ -257,7 +257,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("peakBytes").add(splitResult.getPeakBytes)
-    writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
+    writeMetrics.incBytesWritten(splitResult.getBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
     taskContext.taskMetrics().incMemoryBytesSpilled(splitResult.getBytesToEvict)
     taskContext.taskMetrics().incDiskBytesSpilled(splitResult.getTotalBytesSpilled)

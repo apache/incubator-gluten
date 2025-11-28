@@ -61,7 +61,7 @@ int32_t ShuffleWriter::numPartitions() const {
   return numPartitions_;
 }
 
-int64_t ShuffleWriter::totalBytesWritten() const {
+int64_t ShuffleWriter::bytesWritten() const {
   return writtenBytes_;
 }
 
