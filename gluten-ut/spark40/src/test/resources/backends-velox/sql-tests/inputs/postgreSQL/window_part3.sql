@@ -263,14 +263,12 @@ insert into datetimes values
 
 -- Show differences in offset interpretation between ROWS, RANGE, and GROUPS
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
-
 WITH cte (x) AS (
         SELECT * FROM range(1, 36, 2)
 )
 SELECT x, (sum(x) over w)
 FROM cte
 WINDOW w AS (ORDER BY x rows between 1 preceding and 1 following);
-
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 
 WITH cte (x) AS (
@@ -289,7 +287,6 @@ WINDOW w AS (ORDER BY x range between 1 preceding and 1 following);
 -- WINDOW w AS (ORDER BY x groups between 1 preceding and 1 following);
 
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
-
 WITH cte (x) AS (
         select 1 union all select 1 union all select 1 union all
         SELECT * FROM range(5, 50, 2)
@@ -299,7 +296,6 @@ FROM cte
 WINDOW w AS (ORDER BY x rows between 1 preceding and 1 following);
 
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
-
 WITH cte (x) AS (
         select 1 union all select 1 union all select 1 union all
         SELECT * FROM range(5, 50, 2)
