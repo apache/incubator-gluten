@@ -581,14 +581,21 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
                   val blockStripe = iter.next()
                   val headingRow = blockStripe.getHeadingRow
                   beforeWrite(headingRow)
-                  val columnBatch = blockStripe.getColumnarBatch
-                  currentWriter.write(terminalRow.withNewBatch(columnBatch))
-                  columnBatch.close()
+                  val currentColumnBatch = blockStripe.getColumnarBatch
+                  val numRowsOfCurrentColumnarBatch = currentColumnBatch.numRows()
+                  assert(numRowsOfCurrentColumnarBatch > 0)
+                  val currentTerminalRow = terminalRow.withNewBatch(currentColumnBatch)
+                  currentWriter.write(currentTerminalRow)
+                  statsTrackers.foreach {
+                    tracker =>
+                      tracker.newRow(currentWriter.path, currentTerminalRow)
+                      for (_ <- 0 until numRowsOfCurrentColumnarBatch - 1) {
+                        tracker.newRow(currentWriter.path, new PlaceholderRow())
+                      }
+                  }
+                  currentColumnBatch.close()
                 }
                 blockStripes.release()
-                for (_ <- 0 until numRows) {
-                  statsTrackers.foreach(_.newRow(currentWriter.path, record))
-                }
                 recordsInFile += numRows
               }
           }
