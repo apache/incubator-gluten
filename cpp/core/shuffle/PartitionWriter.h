@@ -58,10 +58,14 @@ class PartitionWriter : public Reclaimable {
       bool reuseBuffers,
       int64_t& evictBytes) = 0;
 
-  virtual arrow::Status
-  sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal, int64_t& evictBytes) = 0;
+  virtual arrow::Status sortEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      bool isFinal,
+      int64_t& evictBytes) = 0;
 
-  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes) = 0;
+  virtual arrow::Status
+  evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes) = 0;
 
   uint64_t cachedPayloadSize() {
     return payloadPool_->bytes_allocated();
