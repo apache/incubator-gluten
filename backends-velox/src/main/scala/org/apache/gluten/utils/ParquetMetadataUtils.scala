@@ -70,7 +70,7 @@ object ParquetMetadataUtils {
           case e: Exception =>
         }
     }
-    validateCodec(rootPaths, hadoopConf)
+    None
   }
 
   def validateCodec(footer: ParquetMetadata): Option[String] = {
@@ -79,9 +79,11 @@ object ParquetMetadataUtils {
       return None
     }
     val codec = blocks.get(0).getColumns.get(0).getCodec
+    val unsupportedCodec = SparkShimLoader.getSparkShims.unsupportedCodec
     if (unsupportedCodec.contains(codec)) {
       return Some(s"Unsupported codec ${codec.name()}.")
     }
+    None
   }
 
   /**
@@ -149,7 +151,17 @@ object ParquetMetadataUtils {
           // Ignored as it's could be a "Not a Parquet file" exception.
           return None
       }
-    validateCodec(footer).getOrElse(isTimezoneFoundInMetadata(footer, parquetOptions))
+    val validationChecks = Seq(
+      validateCodec(footer),
+      isTimezoneFoundInMetadata(footer, parquetOptions)
+    )
+
+    for (check <- validationChecks) {
+      if (check.isDefined) {
+        return check
+      }
+    }
+    None
   }
 
   private def isTimezoneFoundInMetadata(
@@ -165,10 +177,10 @@ object ParquetMetadataUtils {
       footerFileMetaData.getKeyValueMetaData.get,
       int96RebaseModeInRead)
     if (datetimeRebaseSpec.originTimeZone.nonEmpty) {
-      return "Legacy timezone found."
+      return Some("Legacy timezone found.")
     }
     if (int96RebaseSpec.originTimeZone.nonEmpty) {
-      return "Legacy timezone found."
+      return Some("Legacy timezone found.")
     }
     None
   }
