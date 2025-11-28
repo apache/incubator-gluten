@@ -146,7 +146,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
 
   private def getPartitionColumns(
       schema: StructType,
-      partitionedFiles: Seq[PartitionedFile]): Seq[mutable.Map[String, String]] = {
+      partitionedFiles: Seq[PartitionedFile]): Seq[Map[String, String]] = {
     partitionedFiles.map {
       partitionedFile =>
         val partitionColumn = mutable.Map[String, String]()
@@ -171,7 +171,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           }
           partitionColumn += (schema.names(i) -> partitionColumnValue)
         }
-        partitionColumn
+        partitionColumn.toMap
     }
   }
 
