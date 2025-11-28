@@ -43,9 +43,10 @@ import org.apache.spark.util.SparkDirectoryUtil
 import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, UUID}
+import java.util.UUID
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class VeloxIteratorApi extends IteratorApi with Logging {
 
@@ -104,7 +105,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         lengths.asJava,
         fileSizes.asJava,
         modificationTimes.asJava,
-        partitionColumns.asJava,
+        partitionColumns.map(_.asJava).asJava,
         metadataColumns.asJava,
         fileFormat,
         locations.toList.asJava,
@@ -145,10 +146,10 @@ class VeloxIteratorApi extends IteratorApi with Logging {
 
   private def getPartitionColumns(
       schema: StructType,
-      partitionedFiles: Seq[PartitionedFile]): Seq[JMap[String, String]] = {
+      partitionedFiles: Seq[PartitionedFile]): Seq[mutable.Map[String, String]] = {
     partitionedFiles.map {
       partitionedFile =>
-        val partitionColumn = new JHashMap[String, String]()
+        val partitionColumn = mutable.Map[String, String]()
         for (i <- 0 until partitionedFile.partitionValues.numFields) {
           val partitionColumnValue = if (partitionedFile.partitionValues.isNullAt(i)) {
             ExternalCatalogUtils.DEFAULT_PARTITION_NAME
@@ -168,7 +169,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
               case _ => pv.toString
             }
           }
-          partitionColumn.put(schema.names(i), partitionColumnValue)
+          partitionColumn += (schema.names(i) -> partitionColumnValue)
         }
         partitionColumn
     }
@@ -192,10 +193,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       inputPartition.isInstanceOf[GlutenPartition],
       "Velox backend only accept GlutenPartition.")
 
-    val columnarNativeIterators =
-      new JArrayList[ColumnarBatchInIterator](inputIterators.map {
-        iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
-      }.asJava)
+    val columnarNativeIterators = inputIterators.map {
+      iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
+    }
 
     val extraConf = Map(GlutenConfig.COLUMNAR_CUDF_ENABLED.key -> enableCudf.toString).asJava
     val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName, extraConf)
@@ -214,7 +214,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       transKernel.createKernelWithBatchIterator(
         inputPartition.plan,
         splitInfoByteArray,
-        columnarNativeIterators,
+        columnarNativeIterators.asJava,
         partitionIndex,
         BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
       )
