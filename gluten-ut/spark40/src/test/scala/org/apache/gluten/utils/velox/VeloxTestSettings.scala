@@ -858,7 +858,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // ORC related
     .exclude("SPARK-37965: Spark support read/write orc file with invalid char in field name")
     .exclude("SPARK-38173: Quoted column cannot be recognized correctly when quotedRegexColumnNames is true")
-    // TODO: fix in Spark-4.0
+    // Rewrite with Gluten's explained result.
     .exclude("SPARK-47939: Explain should work with parameterized queries")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
