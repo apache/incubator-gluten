@@ -214,7 +214,10 @@ class SubstraitToVeloxPlanConverter {
   core::AggregationNode::Step toAggregationFunctionStep(const ::substrait::AggregateFunction& sAggFuc);
 
   /// We use companion functions if the aggregate is not single.
-  std::string toAggregationFunctionName(const std::string& baseName, const core::AggregationNode::Step& step);
+  std::string toAggregationFunctionName(
+      const std::string& baseName,
+      const core::AggregationNode::Step& step,
+      const TypePtr& resultType);
 
   /// Helper Function to convert Substrait sortField to Velox sortingKeys and
   /// sortingOrders.
