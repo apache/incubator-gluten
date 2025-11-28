@@ -53,6 +53,7 @@ import org.apache.spark.util.SparkShimVersionUtil
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.schema.MessageType
 
 import java.util.{Map => JMap}
@@ -345,5 +346,9 @@ trait SparkShims {
 
   def getFileSourceScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = {
     None
+  }
+
+  def unsupportedCodec: Seq[CompressionCodecName] = {
+    Seq(CompressionCodecName.LZO, CompressionCodecName.BROTLI)
   }
 }

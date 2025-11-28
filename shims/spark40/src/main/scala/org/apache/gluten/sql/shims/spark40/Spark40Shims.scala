@@ -64,6 +64,7 @@ import org.apache.parquet.HadoopReadOptions
 import org.apache.parquet.crypto.ParquetCryptoRuntimeException
 import org.apache.parquet.format.converter.ParquetMetadataConverter
 import org.apache.parquet.hadoop.ParquetFileReader
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.schema.MessageType
@@ -772,5 +773,9 @@ class Spark40Shims extends SparkShims {
 
   override def getFileSourceScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = {
     scan.stream
+  }
+
+  override def unsupportedCodec: Seq[CompressionCodecName] = {
+    Seq(CompressionCodecName.LZO, CompressionCodecName.BROTLI, CompressionCodecName.LZ4_RAW)
   }
 }
