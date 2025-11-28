@@ -84,7 +84,11 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => FallbackMultiCodegens.apply(c.session))
     injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
-    injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
+    injector.injectPreTransform(
+      c =>
+        BloomFilterMightContainJointRewriteRule.apply(
+          c.session,
+          c.caller.isBloomFilterStatFunction()))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
@@ -162,7 +166,11 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
     injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
-    injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
+    injector.injectPreTransform(
+      c =>
+        BloomFilterMightContainJointRewriteRule.apply(
+          c.session,
+          c.caller.isBloomFilterStatFunction()))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
