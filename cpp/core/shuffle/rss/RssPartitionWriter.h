@@ -45,10 +45,14 @@ class RssPartitionWriter final : public PartitionWriter {
       bool reuseBuffers,
       int64_t& evictBytes) override;
 
-  arrow::Status sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal, int64_t& evictBytes)
-      override;
+  arrow::Status sortEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      bool isFinal,
+      int64_t& evictBytes) override;
 
-  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes) override;
+  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes)
+      override;
 
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 

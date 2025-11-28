@@ -42,11 +42,15 @@ class LocalPartitionWriter : public PartitionWriter {
       bool reuseBuffers,
       int64_t& evictBytes) override;
 
-  arrow::Status sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal, int64_t& evictBytes)
-      override;
+  arrow::Status sortEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      bool isFinal,
+      int64_t& evictBytes) override;
 
   // This code path is not used by LocalPartitionWriter, Not implement it by default.
-  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes) override {
+  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes)
+      override {
     return arrow::Status::NotImplemented("Invalid code path for local shuffle writer.");
   }
 
