@@ -36,7 +36,7 @@ import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2Strategy
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python._
-import org.apache.spark.sql.extension.{GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
+import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.gluten.GlutenFallbackSuite
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources._
@@ -965,8 +965,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenXPathFunctionsSuite]
   enableSuite[GlutenFallbackSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
-  // TODO: fix in Spark-4.0
-  // enableSuite[GlutenCollapseProjectExecTransformerSuite]
+  enableSuite[GlutenCollapseProjectExecTransformerSuite]
   enableSuite[GlutenSparkSessionExtensionSuite]
   enableSuite[GlutenGroupBasedDeleteFromTableSuite]
   enableSuite[GlutenDeltaBasedDeleteFromTableSuite]

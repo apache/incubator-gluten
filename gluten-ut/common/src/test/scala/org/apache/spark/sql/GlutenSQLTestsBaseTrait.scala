@@ -21,7 +21,7 @@ import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
 
 /** Basic trait for Gluten SQL test cases. */
@@ -44,7 +44,7 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
     }
 
     val inputPlans: Seq[SparkPlan] = plans.map {
-      case stage: ShuffleQueryStageExec => stage.plan
+      case stage: QueryStageExec => stage.plan
       case plan => plan
     }
 
