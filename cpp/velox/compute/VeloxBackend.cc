@@ -147,7 +147,7 @@ void VeloxBackend::init(
   // Set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
-  auto hiveConf = getHiveConfig(backendConf_);
+  auto hiveConf = createHiveConnectorConfig(backendConf_);
 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
