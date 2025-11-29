@@ -306,4 +306,16 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     String query = "select a <> 2.20 as x from tblLess where a > 0";
     runAndCheck(query, Arrays.asList("+I[true]", "+I[false]", "+I[true]"));
   }
+
+  @Test
+  void testIsNull() {
+    List<Row> rows = Arrays.asList(Row.of(1, "100"), Row.of(2, null), Row.of(3, "5"));
+    createSimpleBoundedValuesTable("tblIsNull", "a int, b string NULL", rows);
+    // Test 'is null' function.
+    String query = "select a from tblIsNull where b is null";
+    runAndCheck(query, Arrays.asList("+I[2]"));
+    // Test 'is not null' function.
+    query = "select a from tblIsNull where b is not null";
+    runAndCheck(query, Arrays.asList("+I[1]", "+I[3]"));
+  }
 }
