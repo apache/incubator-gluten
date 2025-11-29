@@ -18,6 +18,7 @@ package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.TypeUtils;
 import org.apache.gluten.rexnode.ValidationResult;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
@@ -40,8 +41,16 @@ import java.util.stream.Collectors;
 
 class DecimalArithmeticOperatorRexCallConverters extends BaseRexCallConverter {
 
+  private boolean needAlignParameterTypes = false;
+
   public DecimalArithmeticOperatorRexCallConverters(String functionName) {
     super(functionName);
+  }
+
+  public DecimalArithmeticOperatorRexCallConverters(
+      String functionName, boolean needAlignParameterTypes) {
+    this(functionName);
+    this.needAlignParameterTypes = needAlignParameterTypes;
   }
 
   @Override
@@ -67,17 +76,20 @@ class DecimalArithmeticOperatorRexCallConverters extends BaseRexCallConverter {
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
     Type resultType = getResultType(callNode);
+
     List<TypedExpr> castedParams =
         params.stream()
             .map(param -> castExprToDecimalType(param, resultType))
             .collect(Collectors.toList());
-    return new CallTypedExpr(resultType, castedParams, functionName);
+    if (needAlignParameterTypes) {
+      return new CallTypedExpr(resultType, TypeUtils.promoteTypes(castedParams), functionName);
+    } else {
+      return new CallTypedExpr(resultType, castedParams, functionName);
+    }
   }
-
   // If the type is not decimal, convert it to decimal type.
   private TypedExpr castExprToDecimalType(TypedExpr expr, Type functionResultType) {
     Type returnType = expr.getReturnType();
-
     if (returnType instanceof IntegerType) {
       // Cast BigInt to DecimalType.
       return CastTypedExpr.create(new DecimalType(10, 0), expr, false);

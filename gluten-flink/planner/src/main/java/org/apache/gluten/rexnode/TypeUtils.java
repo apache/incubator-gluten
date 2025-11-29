@@ -20,6 +20,9 @@ import io.github.zhztheplayer.velox4j.expression.CastTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.*;
 
+import org.apache.flink.util.FlinkRuntimeException;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -54,24 +57,52 @@ public class TypeUtils {
     return type instanceof IntegerType;
   }
 
+  public static List<TypedExpr> promoteTypes(List<TypedExpr> exprs) {
+    Type targetType = null;
+    int targetPriority = -1, targetDecimalPrecision = -1, targetDecimalScale = -1;
+    boolean allDecimalType = true;
+    for (TypedExpr expr : exprs) {
+      Type returnType = expr.getReturnType();
+      if (returnType instanceof DecimalType) {
+        int precision = ((DecimalType) returnType).getPrecision();
+        int scale = ((DecimalType) returnType).getScale();
+        if (precision > targetDecimalPrecision) {
+          targetDecimalPrecision = precision;
+        }
+        if (scale > targetDecimalScale) {
+          targetDecimalScale = scale;
+        }
+      } else {
+        allDecimalType = false;
+        int priority = getNumericTypePriority(returnType);
+        if (priority > targetPriority) {
+          targetPriority = priority;
+          targetType = returnType;
+        }
+      }
+    }
+    if (targetType == null && allDecimalType) {
+      targetType = new DecimalType(targetDecimalPrecision, targetDecimalScale);
+    } else if (targetType == null) {
+      throw new FlinkRuntimeException("Logical error, target type can not be null.");
+    }
+    List<TypedExpr> res = new ArrayList<>();
+    for (TypedExpr expr : exprs) {
+      Type returnType = expr.getReturnType();
+      TypedExpr promotedExpr =
+          returnType.equals(targetType)
+              ? expr
+              : CastTypedExpr.create(
+                  targetType,
+                  expr instanceof CastTypedExpr ? ((CastTypedExpr) expr).getInputs().get(0) : expr,
+                  expr instanceof CastTypedExpr ? ((CastTypedExpr) expr).isNullOnFailure() : false);
+      res.add(promotedExpr);
+    }
+    return res;
+  }
+
   public static List<TypedExpr> promoteTypeForArithmeticExpressions(
       TypedExpr leftExpr, TypedExpr rightExpr) {
-    Type leftType = leftExpr.getReturnType();
-    Type rightType = rightExpr.getReturnType();
-
-    int leftPriority = getNumericTypePriority(leftType);
-    int rightPriority = getNumericTypePriority(rightType);
-
-    Type targetType = leftPriority >= rightPriority ? leftType : rightType;
-
-    TypedExpr promotedLeft =
-        leftType.equals(targetType) ? leftExpr : CastTypedExpr.create(targetType, leftExpr, false);
-
-    TypedExpr promotedRight =
-        rightType.equals(targetType)
-            ? rightExpr
-            : CastTypedExpr.create(targetType, rightExpr, false);
-
-    return Arrays.asList(promotedLeft, promotedRight);
+    return promoteTypes(Arrays.asList(leftExpr, rightExpr));
   }
 }
