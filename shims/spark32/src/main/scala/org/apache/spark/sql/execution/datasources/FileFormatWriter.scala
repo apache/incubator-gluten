@@ -221,13 +221,13 @@ object FileFormatWriter extends Logging {
 
     def nativeWrap(plan: SparkPlan) = {
       var wrapped: SparkPlan = plan
-      if (bucketIdExpression.isDefined) {
-        // We need to add the bucket id expression to the output of the sort plan,
-        // so that we can use backend to calculate the bucket id for each row.
+      if (
+        bucketIdExpression.isDefined && !plan.output.exists(_.name == "__bucket_value__")
+      ) {
+        // Add the bucket id only if it's not already projected to avoid recomputation.
         wrapped = ProjectExec(
           wrapped.output :+ Alias(bucketIdExpression.get, "__bucket_value__")(),
           wrapped)
-        // TODO: to optimize, bucket value is computed twice here
       }
 
       val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
