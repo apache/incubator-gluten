@@ -25,7 +25,7 @@ import org.apache.spark.sql.execution.datasources.parquet.{ParquetFooterReader, 
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, Path, RemoteIterator}
-import org.apache.parquet.format.converter.ParquetMetadataConverter.SKIP_ROW_GROUPS
+import org.apache.parquet.format.converter.ParquetMetadataConverter
 import org.apache.parquet.hadoop.metadata.ParquetMetadata
 
 object ParquetMetadataUtils {
@@ -145,7 +145,7 @@ object ParquetMetadataUtils {
       parquetOptions: ParquetOptions): Option[String] = {
     val footer =
       try {
-        ParquetFooterReader.readFooter(conf, fileStatus, SKIP_ROW_GROUPS)
+        ParquetFooterReader.readFooter(conf, fileStatus, ParquetMetadataConverter.NO_FILTER)
       } catch {
         case _: RuntimeException =>
           // Ignored as it's could be a "Not a Parquet file" exception.
