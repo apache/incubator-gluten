@@ -38,6 +38,7 @@ import org.apache.commons.lang3.StringUtils
 
 case class FileSourceScanExecTransformer(
     @transient override val relation: HadoopFsRelation,
+    @transient stream: Option[SparkDataStream],
     override val output: Seq[Attribute],
     override val requiredSchema: StructType,
     override val partitionFilters: Seq[Expression],
@@ -61,6 +62,7 @@ case class FileSourceScanExecTransformer(
   override def doCanonicalize(): FileSourceScanExecTransformer = {
     FileSourceScanExecTransformer(
       relation,
+      stream,
       output.map(QueryPlan.normalizeExpressions(_, output)),
       requiredSchema,
       QueryPlan.normalizePredicates(
@@ -77,6 +79,8 @@ case class FileSourceScanExecTransformer(
 
   override def withNewPushdownFilters(filters: Seq[Expression]): FileSourceScanExecTransformer =
     copy(pushDownFilters = Some(filters))
+
+  override def getStream: Option[SparkDataStream] = stream
 }
 
 abstract class FileSourceScanExecTransformerBase(

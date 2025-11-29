@@ -44,6 +44,7 @@ import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
@@ -761,6 +762,8 @@ class Spark40Shims extends SparkShims {
         None
     }
   }
+
+  override def getScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = scan.stream
 
   override def throwExceptionInWrite(
       t: Throwable,
