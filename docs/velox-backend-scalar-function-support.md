@@ -211,7 +211,7 @@
 | map_concat        | MapConcat           | PS       |                                                                             |
 | map_contains_key  | MapContainsKey      | S        |                                                                             |
 | map_entries       | MapEntries          | S        |                                                                             |
-| map_from_arrays   | MapFromArrays       |          |                                                                             |
+| map_from_arrays   | MapFromArrays       | S        |                                                                             |
 | map_from_entries  | MapFromEntries      |          |                                                                             |
 | map_keys          | MapKeys             | S        |                                                                             |
 | map_values        | MapValues           | S        |                                                                             |
