@@ -24,6 +24,7 @@ import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
@@ -31,6 +32,7 @@ import org.apache.spark.util.collection.BitSet
 /** Test for customer column rules */
 case class TestFileSourceScanExecTransformer(
     @transient override val relation: HadoopFsRelation,
+    @transient stream: Option[SparkDataStream],
     override val output: Seq[Attribute],
     override val requiredSchema: StructType,
     override val partitionFilters: Seq[Expression],
@@ -42,6 +44,7 @@ case class TestFileSourceScanExecTransformer(
     override val pushDownFilters: Option[Seq[Expression]] = None)
   extends FileSourceScanExecTransformerBase(
     relation,
+    stream,
     output,
     requiredSchema,
     partitionFilters,
@@ -71,6 +74,7 @@ case class TestFileSourceScanExecTransformer(
   override def doCanonicalize(): TestFileSourceScanExecTransformer = {
     TestFileSourceScanExecTransformer(
       relation,
+      None,
       output.map(QueryPlan.normalizeExpressions(_, output)),
       requiredSchema,
       QueryPlan.normalizePredicates(
