@@ -310,6 +310,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
         super.getBufferManager()
             .addPartitionData(partitionId, data, length, System.currentTimeMillis());
     super.processShuffleBlockInfos(shuffleBlockInfos);
+    // fast fail or resend data
+    super.checkDataIfAnyFailure();
     return length;
   }
 }
