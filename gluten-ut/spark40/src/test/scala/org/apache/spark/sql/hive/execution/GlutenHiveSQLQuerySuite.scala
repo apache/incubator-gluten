@@ -74,8 +74,7 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
             hiveClient.runSqlHive("alter table test_parquet partition(pid=2) SET FILEFORMAT orc")
             val df = sql("select pid, id from test_parquet order by pid")
             checkAnswer(df, Seq(Row(1, 2), Row(2, 2)))
-            // TODO: fix in Spark-4.0 #11088
-            // checkOperatorMatch[HiveTableScanExecTransformer](df)
+            checkOperatorMatch[HiveTableScanExecTransformer](df)
           }
       }
     }
