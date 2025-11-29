@@ -184,7 +184,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     def validateMetadata(): Option[String] = {
-      if (format != ParquetReadFormat || rootPaths.isEmpty) {
+      if (format != ParquetReadFormat || rootPaths.isEmpty || dataSchema.isEmpty) {
         // Only Parquet is needed for metadata validation so far.
         return None
       }
@@ -218,7 +218,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
         None
       }
     }
-
     val validationChecks = Seq(
       validateScheme(),
       validateFormat(),
@@ -298,7 +297,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     def validateCompressionCodec(): Option[String] = {
-      // Velox doesn't support brotli and lzo.
       val unSupportedCompressions = Set("brotli", "lzo", "lz4raw", "lz4_raw")
       val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
       if (unSupportedCompressions.contains(compressionCodec)) {

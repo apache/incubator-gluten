@@ -25,7 +25,8 @@ import org.apache.spark.sql.execution.datasources.parquet.{ParquetFooterReader, 
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, Path, RemoteIterator}
-import org.apache.parquet.format.converter.ParquetMetadataConverter.SKIP_ROW_GROUPS
+import org.apache.parquet.format.converter.ParquetMetadataConverter
+import org.apache.parquet.hadoop.metadata.ParquetMetadata
 
 object ParquetMetadataUtils {
 
@@ -72,6 +73,19 @@ object ParquetMetadataUtils {
     None
   }
 
+  def validateCodec(footer: ParquetMetadata): Option[String] = {
+    val blocks = footer.getBlocks
+    if (blocks.isEmpty) {
+      return None
+    }
+    val codec = blocks.get(0).getColumns.get(0).getCodec
+    val unsupportedCodec = SparkShimLoader.getSparkShims.unsupportedCodec
+    if (unsupportedCodec.contains(codec)) {
+      return Some(s"Unsupported codec ${codec.name()}.")
+    }
+    None
+  }
+
   /**
    * Check any Parquet file under the given path is with unexpected metadata using a recursive
    * iterator. Only the first `fileLimit` files are processed for efficiency.
@@ -107,8 +121,9 @@ object ParquetMetadataUtils {
       ) {
         return Some("Encrypted Parquet file detected.")
       }
-      if (isTimezoneFoundInMetadata(fileStatus, conf, parquetOptions)) {
-        return Some("Legacy timezone found.")
+      val metadataUnsupported = isUnsupportedMetadata(fileStatus, conf, parquetOptions)
+      if (metadataUnsupported.isDefined) {
+        return metadataUnsupported
       }
     }
     None
@@ -119,18 +134,35 @@ object ParquetMetadataUtils {
    * Parquet metadata. In this case, the Parquet scan should fall back to vanilla Spark since Velox
    * doesn't yet support Spark legacy datetime.
    */
-  private def isTimezoneFoundInMetadata(
+  private def isUnsupportedMetadata(
       fileStatus: LocatedFileStatus,
       conf: Configuration,
-      parquetOptions: ParquetOptions): Boolean = {
-    val footerFileMetaData =
+      parquetOptions: ParquetOptions): Option[String] = {
+    val footer =
       try {
-        ParquetFooterReader.readFooter(conf, fileStatus, SKIP_ROW_GROUPS).getFileMetaData
+        ParquetFooterReader.readFooter(conf, fileStatus, ParquetMetadataConverter.NO_FILTER)
       } catch {
         case _: RuntimeException =>
           // Ignored as it's could be a "Not a Parquet file" exception.
-          return false
+          return None
       }
+    val validationChecks = Seq(
+      validateCodec(footer),
+      isTimezoneFoundInMetadata(footer, parquetOptions)
+    )
+
+    for (check <- validationChecks) {
+      if (check.isDefined) {
+        return check
+      }
+    }
+    None
+  }
+
+  private def isTimezoneFoundInMetadata(
+      footer: ParquetMetadata,
+      parquetOptions: ParquetOptions): Option[String] = {
+    val footerFileMetaData = footer.getFileMetaData
     val datetimeRebaseModeInRead = parquetOptions.datetimeRebaseModeInRead
     val int96RebaseModeInRead = parquetOptions.int96RebaseModeInRead
     val datetimeRebaseSpec = DataSourceUtils.datetimeRebaseSpec(
@@ -140,11 +172,12 @@ object ParquetMetadataUtils {
       footerFileMetaData.getKeyValueMetaData.get,
       int96RebaseModeInRead)
     if (datetimeRebaseSpec.originTimeZone.nonEmpty) {
-      return true
+      return Some("Legacy timezone found.")
     }
     if (int96RebaseSpec.originTimeZone.nonEmpty) {
-      return true
+      return Some("Legacy timezone found.")
     }
-    false
+    None
   }
+
 }
