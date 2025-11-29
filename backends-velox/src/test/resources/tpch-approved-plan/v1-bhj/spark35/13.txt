@@ -115,7 +115,7 @@ Arguments: false
 
 (15) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
-Arguments: X, X
+Arguments: X, X, 10485760
 
 (16) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
@@ -159,7 +159,7 @@ Arguments: false
 
 (25) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
-Arguments: X, X
+Arguments: X, X, 10485760
 
 (26) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
@@ -188,7 +188,7 @@ Arguments: false
 
 (32) VeloxResizeBatches
 Input [2]: [c_count#X, custdist#X]
-Arguments: X, X
+Arguments: X, X, 10485760
 
 (33) ColumnarExchange
 Input [2]: [c_count#X, custdist#X]
