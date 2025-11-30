@@ -313,7 +313,8 @@ object FilterHandler extends PredicateHelper {
   }
 
   def subtractFilters(left: Seq[Expression], right: Seq[Expression]): Seq[Expression] = {
-    (left.toSet -- right.toSet).toSeq
+    val scanSet = right.map(_.canonicalized).toSet
+    left.filter(f => !scanSet.contains(f.canonicalized))
   }
 
   def combineFilters(left: Seq[Expression], right: Seq[Expression]): Seq[Expression] = {

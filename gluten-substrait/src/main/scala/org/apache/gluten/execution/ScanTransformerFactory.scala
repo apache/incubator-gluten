@@ -27,6 +27,7 @@ object ScanTransformerFactory {
       scanExec: FileSourceScanExec): FileSourceScanExecTransformerBase = {
     FileSourceScanExecTransformer(
       scanExec.relation,
+      SparkShimLoader.getSparkShims.getFileSourceScanStream(scanExec),
       scanExec.output,
       scanExec.requiredSchema,
       scanExec.partitionFilters,

@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.extension
 
+import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
@@ -26,6 +28,7 @@ case class CustomerColumnarPreRules(session: SparkSession) extends Rule[SparkPla
     case fileSourceScan: FileSourceScanExec =>
       val transformer = new TestFileSourceScanExecTransformer(
         fileSourceScan.relation,
+        SparkShimLoader.getSparkShims.getFileSourceScanStream(fileSourceScan),
         fileSourceScan.output,
         fileSourceScan.requiredSchema,
         fileSourceScan.partitionFilters,

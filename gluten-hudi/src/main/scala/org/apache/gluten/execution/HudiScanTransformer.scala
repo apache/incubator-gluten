@@ -16,11 +16,13 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.types.StructType
@@ -28,6 +30,7 @@ import org.apache.spark.util.collection.BitSet
 
 case class HudiScanTransformer(
     @transient override val relation: HadoopFsRelation,
+    @transient stream: Option[SparkDataStream],
     override val output: Seq[Attribute],
     override val requiredSchema: StructType,
     override val partitionFilters: Seq[Expression],
@@ -39,6 +42,7 @@ case class HudiScanTransformer(
     override val pushDownFilters: Option[Seq[Expression]] = None)
   extends FileSourceScanExecTransformerBase(
     relation,
+    stream,
     output,
     requiredSchema,
     partitionFilters,
@@ -58,6 +62,7 @@ case class HudiScanTransformer(
   override def doCanonicalize(): HudiScanTransformer = {
     HudiScanTransformer(
       relation,
+      None,
       output.map(QueryPlan.normalizeExpressions(_, output)),
       requiredSchema,
       QueryPlan.normalizePredicates(
@@ -81,6 +86,7 @@ object HudiScanTransformer {
   def apply(scanExec: FileSourceScanExec): HudiScanTransformer = {
     new HudiScanTransformer(
       scanExec.relation,
+      SparkShimLoader.getSparkShims.getFileSourceScanStream(scanExec),
       scanExec.output,
       scanExec.requiredSchema,
       scanExec.partitionFilters,

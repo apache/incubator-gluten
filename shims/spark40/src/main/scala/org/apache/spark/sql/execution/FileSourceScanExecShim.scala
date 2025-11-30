@@ -19,15 +19,23 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.sql.shims.SparkShimLoader
 
+import org.apache.spark.Partition
+import org.apache.spark.internal.LogKeys.{COUNT, MAX_SPLIT_BYTES, OPEN_COST_IN_BYTES}
+import org.apache.spark.internal.MDC
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.streaming.SparkDataStream
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.errors.QueryExecutionErrors
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.util.ArrayImplicits._
 import org.apache.spark.util.collection.BitSet
+
+import org.apache.hadoop.fs.Path
 
 abstract class FileSourceScanExecShim(
     @transient relation: HadoopFsRelation,
@@ -128,6 +136,126 @@ abstract class FileSourceScanExecShim(
     val partitionDirectories =
       relation.location.listFiles(staticPartitionFilters, staticDataFilters)
     partitionDirectories.toArray
+  }
+
+  /**
+   * Create an RDD for bucketed reads. The non-bucketed variant of this function is
+   * [[createReadRDD]].
+   *
+   * The algorithm is pretty simple: each RDD partition being returned should include all the files
+   * with the same bucket id from all the given Hive partitions.
+   *
+   * @param bucketSpec
+   *   the bucketing spec.
+   * @param selectedPartitions
+   *   Hive-style partition that are part of the read.
+   */
+  private def createBucketedReadPartition(
+      bucketSpec: BucketSpec,
+      selectedPartitions: ScanFileListing): Seq[FilePartition] = {
+    logInfo(log"Planning with ${MDC(COUNT, bucketSpec.numBuckets)} buckets")
+    val partitionArray = selectedPartitions.toPartitionArray
+    val filesGroupedToBuckets = partitionArray.groupBy {
+      f =>
+        BucketingUtils
+          .getBucketId(f.toPath.getName)
+          .getOrElse(throw QueryExecutionErrors.invalidBucketFile(f.urlEncodedPath))
+    }
+
+    val prunedFilesGroupedToBuckets = if (optionalBucketSet.isDefined) {
+      val bucketSet = optionalBucketSet.get
+      filesGroupedToBuckets.filter(f => bucketSet.get(f._1))
+    } else {
+      filesGroupedToBuckets
+    }
+
+    val filePartitions = optionalNumCoalescedBuckets
+      .map {
+        numCoalescedBuckets =>
+          logInfo(log"Coalescing to ${MDC(COUNT, numCoalescedBuckets)} buckets")
+          val coalescedBuckets = prunedFilesGroupedToBuckets.groupBy(_._1 % numCoalescedBuckets)
+          Seq.tabulate(numCoalescedBuckets) {
+            bucketId =>
+              val partitionedFiles = coalescedBuckets
+                .get(bucketId)
+                .map {
+                  _.values.flatten.toArray
+                }
+                .getOrElse(Array.empty)
+              FilePartition(bucketId, partitionedFiles)
+          }
+      }
+      .getOrElse {
+        Seq.tabulate(bucketSpec.numBuckets) {
+          bucketId =>
+            FilePartition(bucketId, prunedFilesGroupedToBuckets.getOrElse(bucketId, Array.empty))
+        }
+      }
+    filePartitions
+  }
+
+  /**
+   * Create an RDD for non-bucketed reads. The bucketed variant of this function is
+   * [[createBucketedReadRDD]].
+   *
+   * @param selectedPartitions
+   *   Hive-style partition that are part of the read.
+   */
+  private def createReadPartitions(selectedPartitions: ScanFileListing): Seq[FilePartition] = {
+    val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
+    val maxSplitBytes =
+      FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
+    logInfo(log"Planning scan with bin packing, max size: ${MDC(MAX_SPLIT_BYTES, maxSplitBytes)} " +
+      log"bytes, open cost is considered as scanning ${MDC(OPEN_COST_IN_BYTES, openCostInBytes)} " +
+      log"bytes.")
+
+    // Filter files with bucket pruning if possible
+    val bucketingEnabled = relation.sparkSession.sessionState.conf.bucketingEnabled
+    val shouldProcess: Path => Boolean = optionalBucketSet match {
+      case Some(bucketSet) if bucketingEnabled =>
+        // Do not prune the file if bucket file name is invalid
+        filePath => BucketingUtils.getBucketId(filePath.getName).forall(bucketSet.get)
+      case _ =>
+        _ => true
+    }
+
+    val splitFiles = selectedPartitions.filePartitionIterator
+      .flatMap {
+        partition =>
+          val ListingPartition(partitionVals, _, fileStatusIterator) = partition
+          fileStatusIterator.flatMap {
+            file =>
+              // getPath() is very expensive so we only want to call it once in this block:
+              val filePath = file.getPath
+              if (shouldProcess(filePath)) {
+                val isSplitable =
+                  relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
+                PartitionedFileUtil.splitFiles(
+                  file = file,
+                  filePath = filePath,
+                  isSplitable = isSplitable,
+                  maxSplitBytes = maxSplitBytes,
+                  partitionValues = partitionVals
+                )
+              } else {
+                Seq.empty
+              }
+          }
+      }
+      .toArray
+      .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
+
+    val partitions = FilePartition
+      .getFilePartitions(relation.sparkSession, splitFiles.toImmutableArraySeq, maxSplitBytes)
+    partitions
+  }
+
+  def getPartitionsSeq(): Seq[Partition] = {
+    if (bucketedScan) {
+      createBucketedReadPartition(relation.bucketSpec.get, dynamicallySelectedPartitions)
+    } else {
+      createReadPartitions(dynamicallySelectedPartitions)
+    }
   }
 }
 
