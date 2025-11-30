@@ -23,20 +23,24 @@
 #include <string>
 #include <unordered_map>
 
-#include "config/GlutenConfig.h"
 #include "velox/common/config/Config.h"
 
 namespace gluten {
 
 enum class FileSystemType : uint8_t { kHdfs, kS3, kAbfs, kGcs, kAll };
 
+/// Create hive connector session config.
+std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorSessionConfig(
+    const std::shared_ptr<facebook::velox::config::ConfigBase>& conf);
+
 std::string getConfigValue(
     const std::unordered_map<std::string, std::string>& confMap,
     const std::string& key,
     const std::optional<std::string>& fallbackValue);
 
-std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
-    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
+/// Create hive connector config.
+std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorConfig(
+    const std::shared_ptr<facebook::velox::config::ConfigBase>& conf,
     FileSystemType fsType = FileSystemType::kAll);
 
 } // namespace gluten
