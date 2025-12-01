@@ -758,7 +758,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("aggregate function - array for non-primitive type")
     // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
     .exclude("map_zip_with function - map of primitive types")
-    // TODO: fix in Spark-4.0
+    // Vanilla spark throw SparkRuntimeException, gluten throw SparkException.
     .exclude("map_concat function")
     .exclude("transform keys function - primitive data types")
   enableSuite[GlutenDataFrameHintSuite]
@@ -787,8 +787,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not really an issue.
     .exclude("SPARK-10740: handle nondeterministic expressions correctly for set operations")
   enableSuite[GlutenDataFrameStatSuite]
-    // TODO: fix in Spark-4.0
-    .exclude("Bloom filter")
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
     .excludeByPrefix("SPARK-22520", "reuse exchange")
@@ -841,8 +839,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite the following two tests in GlutenDatasetSuite.
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
-    // TODO: fix in Spark-4.0
-    .exclude("SPARK-23627: provide isEmpty in DataSet")
   enableSuite[GlutenDateFunctionsSuite]
     // The below two are replaced by two modified versions.
     .exclude("unix_timestamp")

@@ -30,7 +30,10 @@ case class CollectLimitTransformerRule() extends Rule[SparkPlan] {
     }
 
     val transformed = plan.transformUp {
-      case exec: CollectLimitExec if exec.child.supportsColumnar =>
+      case exec: CollectLimitExec
+          if exec.child.supportsColumnar &&
+            (exec.child.output.nonEmpty ||
+              BackendsApiManager.getSettings.supportEmptySchemaColumnarShuffle()) =>
         val offset = SparkShimLoader.getSparkShims.getCollectLimitOffset(exec)
         BackendsApiManager.getSparkPlanExecApiInstance
           .genColumnarCollectLimitExec(exec.limit, exec.child, offset)

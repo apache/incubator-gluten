@@ -162,6 +162,42 @@ RowTypePtr getJoinOutputType(
   VELOX_FAIL("Output should include left or right columns.");
 }
 
+// Get the function name suffix used by merge_extract companion function when having the same intermediate type across
+// signatures. Correponds to Velox 'toSuffixString', and the base name can be referred from
+// 'velox/expression/FunctionSignature.cpp'.
+std::string companionFunctionSuffix(const TypePtr& type) {
+  // For primitive and decimal types, return their names.
+  if (type->isDecimal()) {
+    return "DECIMAL";
+  }
+
+  if (type->isPrimitiveType()) {
+    return type->toString();
+  }
+
+  if (type->kind() == TypeKind::ARRAY) {
+    return "array_" + companionFunctionSuffix(std::dynamic_pointer_cast<const ArrayType>(type)->elementType());
+  }
+  if (type->kind() == TypeKind::MAP) {
+    auto mapType = std::dynamic_pointer_cast<const MapType>(type);
+    return "map_" + companionFunctionSuffix(mapType->keyType()) + "_" + companionFunctionSuffix(mapType->valueType());
+  }
+
+  std::string name;
+  if (type->kind() == TypeKind::ROW) {
+    name = "row";
+  }
+  std::string result = name;
+  const auto rowType = asRowType(type);
+  for (const auto& child : rowType->children()) {
+    result += '_';
+    result += companionFunctionSuffix(child);
+  }
+  result += "_end";
+  result += name;
+  return result;
+}
+
 } // namespace
 
 bool SplitInfo::canUseCudfConnector() {
@@ -231,15 +267,29 @@ core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunction
 
 std::string SubstraitToVeloxPlanConverter::toAggregationFunctionName(
     const std::string& baseName,
-    const core::AggregationNode::Step& step) {
+    const core::AggregationNode::Step& step,
+    const TypePtr& resultType) {
   std::string suffix;
   switch (step) {
     case core::AggregationNode::Step::kPartial:
       suffix = "_partial";
       break;
-    case core::AggregationNode::Step::kFinal:
-      suffix = "_merge_extract";
-      break;
+    case core::AggregationNode::Step::kFinal: {
+      auto functionName = baseName + "_merge_extract";
+      auto signatures = exec::getAggregateFunctionSignatures(functionName);
+      if (signatures.has_value() && signatures.value().size() > 0) {
+        // The merge_extract function is registered without suffix.
+        return functionName;
+      }
+      // The merge_extract function must be registered with suffix based on result type.
+      functionName += ("_" + companionFunctionSuffix(resultType));
+      signatures = exec::getAggregateFunctionSignatures(functionName);
+      VELOX_CHECK(
+          signatures.has_value() && signatures.value().size() > 0,
+          "Cannot find function signature for {} in final aggregation step.",
+          functionName);
+      return functionName;
+    }
     case core::AggregationNode::Step::kIntermediate:
       suffix = "_merge";
       break;
@@ -436,16 +486,17 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       }
     }
     const auto& aggFunction = measure.measure();
-    auto baseFuncName = SubstraitParser::findVeloxFunction(functionMap_, aggFunction.function_reference());
-    auto funcName = toAggregationFunctionName(baseFuncName, toAggregationFunctionStep(aggFunction));
     std::vector<core::TypedExprPtr> aggParams;
     aggParams.reserve(aggFunction.arguments().size());
     for (const auto& arg : aggFunction.arguments()) {
       aggParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
     }
-    auto aggVeloxType = SubstraitParser::parseType(aggFunction.output_type());
-    auto aggExpr = std::make_shared<const core::CallTypedExpr>(aggVeloxType, std::move(aggParams), funcName);
 
+    auto aggVeloxType = SubstraitParser::parseType(aggFunction.output_type());
+    auto baseFuncName = SubstraitParser::findVeloxFunction(functionMap_, aggFunction.function_reference());
+    auto funcName = toAggregationFunctionName(baseFuncName, toAggregationFunctionStep(aggFunction), aggVeloxType);
+
+    auto aggExpr = std::make_shared<const core::CallTypedExpr>(aggVeloxType, std::move(aggParams), funcName);
     std::vector<TypePtr> rawInputTypes =
         SubstraitParser::sigToTypes(SubstraitParser::findFunctionSpec(functionMap_, aggFunction.function_reference()));
     aggregates.emplace_back(core::AggregationNode::Aggregate{aggExpr, rawInputTypes, mask, {}, {}});

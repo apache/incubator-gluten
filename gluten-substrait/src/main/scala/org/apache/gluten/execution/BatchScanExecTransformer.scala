@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -34,6 +33,8 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileSca
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 
+import com.google.common.base.Objects
+
 /** Columnar Based BatchScanExec. */
 case class BatchScanExecTransformer(
     override val output: Seq[AttributeReference],
@@ -44,7 +45,8 @@ case class BatchScanExecTransformer(
     @transient override val table: Table,
     override val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
     override val applyPartialClustering: Boolean = false,
-    override val replicatePartitions: Boolean = false)
+    override val replicatePartitions: Boolean = false,
+    override val pushDownFilters: Option[Seq[Expression]] = None)
   extends BatchScanExecTransformerBase(
     output,
     scan,
@@ -65,8 +67,13 @@ case class BatchScanExecTransformer(
       output = output.map(QueryPlan.normalizeExpressions(_, output)),
       runtimeFilters = QueryPlan.normalizePredicates(
         runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
-        output)
+        output),
+      pushDownFilters = pushDownFilters.map(QueryPlan.normalizePredicates(_, output))
     )
+  }
+
+  override def withNewPushdownFilters(filters: Seq[Expression]): BatchScanExecTransformerBase = {
+    this.copy(pushDownFilters = Some(filters))
   }
 }
 
@@ -102,29 +109,13 @@ abstract class BatchScanExecTransformerBase(
     postDriverMetrics()
   }
 
-  // Similar to the problem encountered in https://github.com/oap-project/gluten/pull/3184,
-  // we cannot add member variables to BatchScanExecTransformerBase, which inherits from case
-  // class. Otherwise, we will encounter an issue where makeCopy cannot find a constructor
-  // with the corresponding number of parameters.
-  // The workaround is to add a mutable list to pass in pushdownFilters.
-  protected var pushdownFilters: Seq[Expression] = scan match {
-    case fileScan: FileScan =>
-      fileScan.dataFilters.filter {
-        expr =>
-          ExpressionConverter.canReplaceWithExpressionTransformer(
-            ExpressionConverter.replaceAttributeReference(expr),
-            output)
-      }
+  override def scanFilters: Seq[Expression] = scan match {
+    case fileScan: FileScan => fileScan.dataFilters
     case _ =>
-      logInfo(s"${scan.getClass.toString} does not support push down filters")
+      // todo: support other DSv2 scan
+      logInfo(s"${scan.getClass.toString} does not support extracting scan filters.")
       Seq.empty
   }
-
-  def setPushDownFilters(filters: Seq[Expression]): Unit = {
-    pushdownFilters = filters
-  }
-
-  override def filterExprs(): Seq[Expression] = pushdownFilters
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
@@ -197,6 +188,15 @@ abstract class BatchScanExecTransformerBase(
 
   @transient override lazy val fileFormat: ReadFileFormat =
     BackendsApiManager.getSettings.getSubstraitReadFileFormatV2(scan)
+
+  override def equals(other: Any): Boolean = other match {
+    case other: BatchScanExecTransformerBase =>
+      this.pushDownFilters == other.pushDownFilters && super.equals(other)
+    case _ =>
+      false
+  }
+
+  override def hashCode(): Int = Objects.hashCode(batch, runtimeFilters, pushDownFilters)
 
   override def simpleString(maxFields: Int): String = {
     val truncatedOutputString = truncatedString(output, "[", ", ", "]", maxFields)

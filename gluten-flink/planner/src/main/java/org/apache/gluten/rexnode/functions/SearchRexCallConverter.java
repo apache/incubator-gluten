@@ -61,7 +61,7 @@ public class SearchRexCallConverter extends BaseRexCallConverter {
           Sarg sarg = (Sarg) rexLiteral.getValue();
           Set<Range> ranges = sarg.rangeSet.asRanges();
           if (ranges.size() > 1) {
-            params.addAll(RexNodeConverter.toTypedExpr(ranges, rexLiteral.getType()));
+            params.add(RexNodeConverter.toTypedExpr(ranges, rexLiteral.getType()));
             TypedExpr ignore =
                 new ConstantTypedExpr(new BooleanType(), new BooleanValue(true), null);
             return new CallTypedExpr(resultType, params, "in");
