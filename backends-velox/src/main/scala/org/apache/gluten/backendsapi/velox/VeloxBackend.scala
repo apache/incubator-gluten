@@ -192,12 +192,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
         .max(GlutenConfig.get.parquetEncryptionValidationFileLimit)
       val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
       val parquetMetadataValidationResult =
-        ParquetMetadataUtils.validateMetadata(
-          format,
-          rootPaths,
-          hadoopConf,
-          parquetOptions,
-          fileLimit)
+        ParquetMetadataUtils.validateMetadata(rootPaths, hadoopConf, parquetOptions, fileLimit)
       parquetMetadataValidationResult.map(
         reason => s"Detected unsupported metadata in parquet files: $reason")
     }

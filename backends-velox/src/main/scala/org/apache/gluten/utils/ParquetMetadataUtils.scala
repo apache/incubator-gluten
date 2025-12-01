@@ -18,7 +18,6 @@ package org.apache.gluten.utils
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.execution.datasources.DataSourceUtils
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFooterReader, ParquetOptions}
@@ -34,11 +33,8 @@ object ParquetMetadataUtils {
   /**
    * Validates whether Parquet metadata is unsupported for the given paths.
    *
-   *   - If the file format is not Parquet, skip this check and return success.
    *   - If there is at least one Parquet file with encryption enabled, fail the validation.
    *
-   * @param format
-   *   File format, e.g., `ParquetReadFormat`
    * @param rootPaths
    *   List of file paths to scan
    * @param hadoopConf
@@ -47,7 +43,6 @@ object ParquetMetadataUtils {
    *   [[Option[String]]] Empty if the Parquet metadata is supported. Fallback reason otherwise.
    */
   def validateMetadata(
-      format: ReadFileFormat,
       rootPaths: Seq[String],
       hadoopConf: Configuration,
       parquetOptions: ParquetOptions,
