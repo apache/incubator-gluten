@@ -109,9 +109,6 @@ object ParquetMetadataUtils {
       parquetOptions: ParquetOptions,
       fileLimit: Int
   ): Option[String] = {
-    if (!GlutenConfig.get.parquetMetadataValidationEnabled) {
-      return None
-    }
     val filesIterator = fs.listFiles(path, true)
     var checkedFileCount = 0
     while (filesIterator.hasNext && checkedFileCount < fileLimit) {
@@ -134,11 +131,19 @@ object ParquetMetadataUtils {
       fileStatus: LocatedFileStatus,
       conf: Configuration,
       parquetOptions: ParquetOptions): Option[String] = {
+    val isEncryptionValidationEnabled = GlutenConfig.get.parquetEncryptionValidationEnabled
+    val isMetadataValidationEnabled = GlutenConfig.get.parquetMetadataValidationEnabled
+    if (!isMetadataValidationEnabled && !isEncryptionValidationEnabled) {
+      return None
+    }
     val footer =
       try {
         ParquetFooterReader.readFooter(conf, fileStatus, ParquetMetadataConverter.NO_FILTER)
       } catch {
         case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
+          if (!isEncryptionValidationEnabled) {
+            return None
+          }
           return Some("Encrypted Parquet footer detected.")
         case _: RuntimeException =>
           // Ignored as it's could be a "Not a Parquet file" exception.
@@ -149,14 +154,19 @@ object ParquetMetadataUtils {
       isTimezoneFoundInMetadata(footer, parquetOptions)
     )
 
-    for (check <- validationChecks) {
-      if (check.isDefined) {
-        return check
+    if (isMetadataValidationEnabled) {
+      for (check <- validationChecks) {
+        if (check.isDefined) {
+          return check
+        }
       }
     }
+
     // Previous Spark3.4 version uses toString to check if the data is encrypted,
     // so place the check to the end
-    if (SparkShimLoader.getSparkShims.isParquetFileEncrypted(footer)) {
+    if (
+      isEncryptionValidationEnabled && SparkShimLoader.getSparkShims.isParquetFileEncrypted(footer)
+    ) {
       return Some("Encrypted Parquet file detected.")
     }
     None
