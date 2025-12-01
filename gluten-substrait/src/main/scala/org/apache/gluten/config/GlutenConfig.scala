@@ -377,7 +377,7 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def parquetEncryptionValidationEnabled: Boolean = {
     getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
-      .getOrElse(PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED)
+      .getOrElse(getConf(PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED))
   }
 
   def parquetEncryptionValidationFileLimit: Int = {
