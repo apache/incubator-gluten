@@ -16,10 +16,13 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.spark.sql.{GlutenQueryTest, SparkSession}
+import org.apache.gluten.config.GlutenConfig
+
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.execution.datasources.parquet.ParquetOptions
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.test.SharedSparkSession
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
@@ -51,7 +54,7 @@ import scala.collection.JavaConverters._
  *   - Ensures the file is still detected as encrypted despite the plaintext footer.
  */
 
-class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
+class ParquetEncryptionDetectionSuite extends SharedSparkSession {
 
   private val masterKey =
     Base64.getEncoder.encodeToString("0123456789012345".getBytes(StandardCharsets.UTF_8))
@@ -68,9 +71,11 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
         .named("name"))
     .named("TestSchema")
 
-  private var _spark: SparkSession = _
-
-  override protected def spark: SparkSession = _spark
+  override def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(GlutenConfig.ENCRYPTED_PARQUET_FALLBACK_ENABLED.key, "true")
+      .set(GlutenConfig.PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED.key, "true")
+  }
 
   private def writeParquet(
       path: String,
