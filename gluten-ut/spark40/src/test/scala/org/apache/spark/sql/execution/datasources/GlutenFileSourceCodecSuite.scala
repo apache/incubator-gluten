@@ -16,8 +16,14 @@
  */
 package org.apache.spark.sql.execution.datasources
 
+import org.apache.gluten.config.GlutenConfig
+
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenParquetCodecSuite extends ParquetCodecSuite with GlutenSQLTestsBaseTrait {}
+class GlutenParquetCodecSuite extends ParquetCodecSuite with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf =
+    super.sparkConf.set(GlutenConfig.PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED.key, "true")
+}
 
 class GlutenOrcCodecSuite extends OrcCodecSuite with GlutenSQLTestsBaseTrait {}
