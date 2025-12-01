@@ -77,27 +77,16 @@ std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
     return nullptr;
   }
 
-  if (cb->numRows() < minOutputBatchSize_) {
+  uint64_t numBytes = cb->numBytes();
+  if (cb->numRows() < minOutputBatchSize_ && numBytes <= preferredBatchBytes_) {
     auto vb = VeloxColumnarBatch::from(pool_, cb);
     auto rv = vb->getRowVector();
-    auto vector = std::static_pointer_cast<facebook::velox::BaseVector>(rv);
-    uint64_t numBytes = cb->numBytes();
-    if (numBytes > preferredBatchBytes_) {
-      // Input batch is too large. Just return it as is.
-      return cb;
-    }
     auto buffer = facebook::velox::RowVector::createEmpty(rv->type(), pool_);
     buffer->append(rv.get());
 
-    // Call reset manully to potentially release memory
-    vector.reset();
-    rv.reset();
-    vb.reset();
-    cb.reset();
     for (cb = in_->next(); cb != nullptr; cb = in_->next()) {
       vb = VeloxColumnarBatch::from(pool_, cb);
       rv = vb->getRowVector();
-      vector = std::static_pointer_cast<facebook::velox::BaseVector>(rv);
       uint64_t addedBytes = cb->numBytes();
       if (buffer->size() + rv->size() > maxOutputBatchSize_ ||
           numBytes + addedBytes > static_cast<uint64_t>(preferredBatchBytes_)) {
@@ -111,7 +100,7 @@ std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
         // Buffer is full.
         break;
       }
-      vector.reset();
+      // Call reset manully to potentially release memory
       rv.reset();
       vb.reset();
       cb.reset();
