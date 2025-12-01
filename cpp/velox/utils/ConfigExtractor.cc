@@ -299,7 +299,20 @@ std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorConfig(
   // read as UTC
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
 
+  overwriteVeloxConf(conf.get(), hiveConfMap, kStaticBackendConfPrefix);
+
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
+}
+
+void overwriteVeloxConf(
+    const facebook::velox::config::ConfigBase* from,
+    std::unordered_map<std::string, std::string>& to,
+    const std::string& prefix) {
+  for (const auto& [k, v] : from->rawConfigs()) {
+    if (k.starts_with(prefix)) {
+      to[k.substr(prefix.size())] = v;
+    }
+  }
 }
 
 } // namespace gluten
