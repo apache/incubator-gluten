@@ -29,7 +29,7 @@ class VeloxBatchResizer : public ColumnarBatchIterator {
       facebook::velox::memory::MemoryPool* pool,
       int32_t minOutputBatchSize,
       int32_t maxOutputBatchSize,
-      int64_t memoryThreshold,
+      int64_t preferredBatchBytes,
       std::unique_ptr<ColumnarBatchIterator> in);
 
   std::shared_ptr<ColumnarBatch> next() override;
@@ -37,12 +37,10 @@ class VeloxBatchResizer : public ColumnarBatchIterator {
   int64_t spillFixedSize(int64_t size) override;
 
  private:
-  static uint64_t estimatedCopySize(facebook::velox::VectorPtr& input, int length);
-
   facebook::velox::memory::MemoryPool* pool_;
   const int32_t minOutputBatchSize_;
   const int32_t maxOutputBatchSize_;
-  const uint64_t memoryThreshold_;
+  const uint64_t preferredBatchBytes_;
   std::unique_ptr<ColumnarBatchIterator> in_;
 
   std::unique_ptr<ColumnarBatchIterator> next_ = nullptr;

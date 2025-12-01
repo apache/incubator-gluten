@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
-import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.ClosableIterator
 import org.apache.gluten.utils.VeloxBatchResizer
@@ -37,16 +36,12 @@ case class VeloxResizeBatchesExec(
     override val child: SparkPlan,
     minOutputBatchSize: Int,
     maxOutputBatchSize: Int,
-    memoryThreshold: Long)
+    preferredBatchBytes: Long)
   extends ColumnarToColumnarExec(child) {
 
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     VeloxBatchResizer
-      .create(
-        minOutputBatchSize,
-        maxOutputBatchSize,
-        if (VeloxConfig.get.enableLimitBatchResizer) memoryThreshold else Long.MaxValue,
-        in.asJava)
+      .create(minOutputBatchSize, maxOutputBatchSize, preferredBatchBytes, in.asJava)
       .asScala
   }
 

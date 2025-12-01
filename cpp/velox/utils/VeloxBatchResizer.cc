@@ -49,12 +49,12 @@ gluten::VeloxBatchResizer::VeloxBatchResizer(
     facebook::velox::memory::MemoryPool* pool,
     int32_t minOutputBatchSize,
     int32_t maxOutputBatchSize,
-    int64_t memoryThreshold,
+    int64_t preferredBatchBytes,
     std::unique_ptr<ColumnarBatchIterator> in)
     : pool_(pool),
       minOutputBatchSize_(minOutputBatchSize),
       maxOutputBatchSize_(maxOutputBatchSize),
-      memoryThreshold_(static_cast<uint64_t>(memoryThreshold)),
+      preferredBatchBytes_(static_cast<uint64_t>(preferredBatchBytes)),
       in_(std::move(in)) {
   GLUTEN_CHECK(
       minOutputBatchSize_ > 0 && maxOutputBatchSize_ > 0,
@@ -81,9 +81,8 @@ std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
     auto vb = VeloxColumnarBatch::from(pool_, cb);
     auto rv = vb->getRowVector();
     auto vector = std::static_pointer_cast<facebook::velox::BaseVector>(rv);
-    facebook::velox::BaseVector::loadedVectorShared(vector);
-    uint64_t estimatedSize = estimatedCopySize(vector, vector->size());
-    if (estimatedSize > static_cast<uint64_t>(memoryThreshold_)) {
+    uint64_t numBytes = cb->numBytes();
+    if (numBytes > preferredBatchBytes_) {
       // Input batch is too large. Just return it as is.
       return cb;
     }
@@ -99,15 +98,14 @@ std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
       vb = VeloxColumnarBatch::from(pool_, cb);
       rv = vb->getRowVector();
       vector = std::static_pointer_cast<facebook::velox::BaseVector>(rv);
-      facebook::velox::BaseVector::loadedVectorShared(vector);
-      uint64_t newEstimatedSize = estimatedCopySize(vector, vector->size());
+      uint64_t addedBytes = cb->numBytes();
       if (buffer->size() + rv->size() > maxOutputBatchSize_ ||
-          estimatedSize + newEstimatedSize > static_cast<uint64_t>(memoryThreshold_)) {
+          numBytes + addedBytes > static_cast<uint64_t>(preferredBatchBytes_)) {
         GLUTEN_CHECK(next_ == nullptr, "Invalid state");
         next_ = std::make_unique<SliceRowVector>(maxOutputBatchSize_, rv);
         return std::make_shared<VeloxColumnarBatch>(buffer);
       }
-      estimatedSize += newEstimatedSize;
+      numBytes += addedBytes;
       buffer->append(rv.get());
       if (buffer->size() >= minOutputBatchSize_) {
         // Buffer is full.
@@ -137,40 +135,6 @@ std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
 
 int64_t VeloxBatchResizer::spillFixedSize(int64_t size) {
   return in_->spillFixedSize(size);
-}
-
-/// For constant-encoded vectors, we need to multiply the estimated size by the length
-/// since the estimated size is only for one value.
-uint64_t VeloxBatchResizer::estimatedCopySize(facebook::velox::VectorPtr& input, int length) {
-  switch (input->encoding()) {
-    case facebook::velox::VectorEncoding::Simple::CONSTANT:
-      return input->estimateFlatSize() * length;
-    case facebook::velox::VectorEncoding::Simple::ROW: {
-        uint64_t result = input->nulls() ? input->nulls()->capacity() : 0;
-        for (auto& child : input->asUnchecked<facebook::velox::RowVector>()->children()) {
-          result += estimatedCopySize(child, length);
-        }
-        return result;
-      }
-    case facebook::velox::VectorEncoding::Simple::ARRAY: {
-        auto vector = input->asUnchecked<facebook::velox::ArrayVector>();
-        uint64_t result = vector->offsets()->capacity() + vector->sizes()->capacity() +
-            (vector->nulls() ? vector->nulls()->capacity() : 0);
-        auto elements = vector->elements();
-        return result + estimatedCopySize(elements, elements->size());
-      }
-    case facebook::velox::VectorEncoding::Simple::MAP: {
-        auto vector = input->asUnchecked<facebook::velox::MapVector>();
-        uint64_t result = vector->offsets()->capacity() + vector->sizes()->capacity() +
-            (vector->nulls() ? vector->nulls()->capacity() : 0);
-        auto keys = vector->mapKeys();
-        auto values = vector->mapValues();
-        return result + estimatedCopySize(keys, keys->size()) +
-            estimatedCopySize(values, values->size());
-      }
-    default:
-      return input->estimateFlatSize();
-  }
 }
 
 } // namespace gluten

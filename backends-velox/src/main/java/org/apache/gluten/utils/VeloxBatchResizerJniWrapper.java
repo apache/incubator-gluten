@@ -39,6 +39,6 @@ public class VeloxBatchResizerJniWrapper implements RuntimeAware {
   public native long create(
       int minOutputBatchSize,
       int maxOutputBatchSize,
-      long memoryThreshold,
+      long preferredBatchBytes,
       ColumnarBatchInIterator itr);
 }

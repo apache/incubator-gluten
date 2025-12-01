@@ -53,12 +53,12 @@ class VeloxBatchResizerTest : public ::testing::Test, public test::VectorTestBas
     return out;
   }
 
-  void checkResize(int32_t min, int32_t max, int64_t memoryThreshold, std::vector<int32_t> inSizes, std::vector<int32_t> outSizes) {
+  void checkResize(int32_t min, int32_t max, int64_t preferredBatchBytes, std::vector<int32_t> inSizes, std::vector<int32_t> outSizes) {
     auto inBatches = std::vector<std::shared_ptr<ColumnarBatch>>();
     for (const auto& size : inSizes) {
       inBatches.push_back(std::make_shared<VeloxColumnarBatch>(newVector(size)));
     }
-    VeloxBatchResizer resizer(pool(), min, max, memoryThreshold, std::make_unique<ColumnarBatchArray>(std::move(inBatches)));
+    VeloxBatchResizer resizer(pool(), min, max, preferredBatchBytes, std::make_unique<ColumnarBatchArray>(std::move(inBatches)));
     auto actualOutSizes = std::vector<int32_t>();
     while (true) {
       auto next = resizer.next();
@@ -83,7 +83,7 @@ TEST_F(VeloxBatchResizerTest, sanity) {
   ASSERT_ANY_THROW(checkResize(0, 0, (10L << 20), {}, {}));
 }
 
-TEST_F(VeloxBatchResizerTest, memoryThresholdTest) {
+TEST_F(VeloxBatchResizerTest, preferredBatchBytesTest) {
   checkResize(100, std::numeric_limits<int32_t>::max(), 0, {30, 50, 30, 40, 30}, {30, 50, 30, 40, 30});
   checkResize(40, 40, 0, {10, 20, 50, 30, 40, 30}, {10, 20, 40, 10, 30, 40, 30});
   checkResize(39, 39, 0, {10, 20, 50, 30, 40, 30}, {10, 20, 39, 11, 30, 39, 1, 30});

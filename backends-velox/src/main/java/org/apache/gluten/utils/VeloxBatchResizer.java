@@ -30,7 +30,7 @@ public final class VeloxBatchResizer {
   public static ColumnarBatchOutIterator create(
       int minOutputBatchSize,
       int maxOutputBatchSize,
-      long memoryThreshold,
+      long preferredBatchBytes,
       Iterator<ColumnarBatch> in) {
     final Runtime runtime =
         Runtimes.contextInstance(BackendsApiManager.getBackendName(), "VeloxBatchResizer");
@@ -39,7 +39,7 @@ public final class VeloxBatchResizer {
             .create(
                 minOutputBatchSize,
                 maxOutputBatchSize,
-                memoryThreshold,
+                preferredBatchBytes,
                 new ColumnarBatchInIterator(BackendsApiManager.getBackendName(), in));
     return new ColumnarBatchOutIterator(runtime, outHandle);
   }

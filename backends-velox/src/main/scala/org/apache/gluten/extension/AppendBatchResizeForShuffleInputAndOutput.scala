@@ -40,20 +40,20 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
     }
 
     val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
-    val memoryThreshold = VeloxConfig.get.veloxPreferredBatchBytes
+    val preferredBatchBytes = VeloxConfig.get.veloxPreferredBatchBytes
     plan.transformUp {
       case shuffle: ColumnarShuffleExchangeExec
           if resizeBatchesShuffleInputEnabled &&
             shuffle.shuffleWriterType.requiresResizingShuffleInput =>
         val appendBatches =
-          VeloxResizeBatchesExec(shuffle.child, range.min, range.max, memoryThreshold)
+          VeloxResizeBatchesExec(shuffle.child, range.min, range.max, preferredBatchBytes)
         shuffle.withNewChildren(Seq(appendBatches))
       case a @ AQEShuffleReadExec(
             ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _),
             _)
           if resizeBatchesShuffleOutputEnabled &&
             shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
-        VeloxResizeBatchesExec(a, range.min, range.max, memoryThreshold)
+        VeloxResizeBatchesExec(a, range.min, range.max, preferredBatchBytes)
       case a @ AQEShuffleReadExec(
             ShuffleQueryStageExec(
               _,
@@ -62,7 +62,7 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
             _)
           if resizeBatchesShuffleOutputEnabled &&
             shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
-        VeloxResizeBatchesExec(a, range.min, range.max, memoryThreshold)
+        VeloxResizeBatchesExec(a, range.min, range.max, preferredBatchBytes)
       // Since it's transformed in a bottom to up order, so we may first encounter
       // ShuffeQueryStageExec, which is transformed to VeloxResizeBatchesExec(ShuffeQueryStageExec),
       // then we see AQEShuffleReadExec
@@ -75,7 +75,7 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
             _)
           if resizeBatchesShuffleOutputEnabled &&
             shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
-        VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max, memoryThreshold)
+        VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max, preferredBatchBytes)
       case a @ AQEShuffleReadExec(
             VeloxResizeBatchesExec(
               s @ ShuffleQueryStageExec(
@@ -88,18 +88,18 @@ case class AppendBatchResizeForShuffleInputAndOutput() extends Rule[SparkPlan] {
             _)
           if resizeBatchesShuffleOutputEnabled &&
             shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
-        VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max, memoryThreshold)
+        VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max, preferredBatchBytes)
       case s @ ShuffleQueryStageExec(_, shuffle: ColumnarShuffleExchangeExec, _)
           if resizeBatchesShuffleOutputEnabled &&
             shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
-        VeloxResizeBatchesExec(s, range.min, range.max, memoryThreshold)
+        VeloxResizeBatchesExec(s, range.min, range.max, preferredBatchBytes)
       case s @ ShuffleQueryStageExec(
             _,
             ReusedExchangeExec(_, shuffle: ColumnarShuffleExchangeExec),
             _)
           if resizeBatchesShuffleOutputEnabled &&
             shuffle.shuffleWriterType.requiresResizingShuffleOutput =>
-        VeloxResizeBatchesExec(s, range.min, range.max, memoryThreshold)
+        VeloxResizeBatchesExec(s, range.min, range.max, preferredBatchBytes)
     }
   }
 }
