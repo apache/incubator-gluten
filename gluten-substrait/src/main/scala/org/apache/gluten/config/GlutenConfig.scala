@@ -1564,14 +1564,14 @@ object GlutenConfig extends ConfigRegistry {
 
   val PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED =
     buildConf("spark.gluten.sql.fallbackUnexpectedMetadataParquet")
-      .doc("If enabled, Gluten will not offload scan when unexpected metadata is detected")
+      .doc("If enabled, Gluten will not offload scan when unexpected metadata is detected.")
       .booleanConf
       .createWithDefault(false)
 
   val PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT =
     buildConf("spark.gluten.sql.fallbackUnexpectedMetadataParquet.limit")
       .doc("If supplied, metadata of `limit` number of Parquet files will be checked to" +
-        " determine whether to fall back java scan")
+        " determine whether to fall back to java scan.")
       .intConf
       .checkValue(_ > 0, s"must be positive.")
       .createWithDefault(10)
@@ -1588,7 +1588,7 @@ object GlutenConfig extends ConfigRegistry {
     buildConf("spark.gluten.sql.fallbackEncryptedParquet.limit")
       .doc(
         "If supplied, `limit` number of files will be checked to determine encryption " +
-          s"and falling back java scan. Defaulted to " +
+          s"and falling back to java scan. Defaulted to " +
           s"${PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT.key}.")
       .intConf
       .checkValue(_ > 0, s"must be positive.")
