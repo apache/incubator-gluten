@@ -64,7 +64,7 @@ import org.apache.parquet.HadoopReadOptions
 import org.apache.parquet.crypto.ParquetCryptoRuntimeException
 import org.apache.parquet.format.converter.ParquetMetadataConverter
 import org.apache.parquet.hadoop.ParquetFileReader
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.metadata.{CompressionCodecName, ParquetMetadata}
 import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.schema.MessageType
@@ -683,41 +683,18 @@ class Spark40Shims extends SparkShims {
     QueryPlan.localIdMap.get().remove(plan)
   }
 
-  override def isParquetFileEncrypted(
-      fileStatus: LocatedFileStatus,
-      conf: Configuration): Boolean = {
-    val file = HadoopInputFile.fromPath(fileStatus.getPath, conf)
-    val filter = ParquetMetadataConverter.NO_FILTER
-    val options = HadoopReadOptions
-      .builder(file.getConfiguration, file.getPath)
-      .withMetadataFilter(filter)
-      .build
-    val in = file.newStream
-    try {
-      val footer =
-        ParquetFileReader.readFooter(file, options, in)
-      val fileMetaData = footer.getFileMetaData
-      fileMetaData.getEncryptionType match {
-        // UNENCRYPTED file has a plaintext footer and no file encryption,
-        // We can leverage file metadata for this check and return unencrypted.
-        case EncryptionType.UNENCRYPTED =>
-          false
-        // PLAINTEXT_FOOTER has a plaintext footer however the file is encrypted.
-        // In such cases, read the footer and use the metadata for encryption check.
-        case EncryptionType.PLAINTEXT_FOOTER =>
-          true
-        case _ =>
-          false
-      }
-    } catch {
-      // Both footer and file are encrypted, return false.
-      case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
+  override def isParquetFileEncrypted(footer: ParquetMetadata): Boolean = {
+    footer.getFileMetaData.getEncryptionType match {
+      // UNENCRYPTED file has a plaintext footer and no file encryption,
+      // We can leverage file metadata for this check and return unencrypted.
+      case EncryptionType.UNENCRYPTED =>
+        false
+      // PLAINTEXT_FOOTER has a plaintext footer however the file is encrypted.
+      // In such cases, read the footer and use the metadata for encryption check.
+      case EncryptionType.PLAINTEXT_FOOTER =>
         true
-      case e: Exception => false
-    } finally {
-      if (in != null) {
-        in.close()
-      }
+      case _ =>
+        false
     }
   }
 

@@ -24,7 +24,8 @@ import org.apache.spark.sql.execution.datasources.DataSourceUtils
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFooterReader, ParquetOptions}
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, Path, RemoteIterator}
+import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, Path}
+import org.apache.parquet.crypto.ParquetCryptoRuntimeException
 import org.apache.parquet.format.converter.ParquetMetadataConverter
 import org.apache.parquet.hadoop.metadata.ParquetMetadata
 
@@ -108,24 +109,14 @@ object ParquetMetadataUtils {
       parquetOptions: ParquetOptions,
       fileLimit: Int
   ): Option[String] = {
-    val isMetadataValidationEnabled =
-      if (!GlutenConfig.get.parquetMetadataValidationEnabled) {
-        return None
-      }
-    val isEncryptionValidationEnabled = GlutenConfig.get.parquetEncryptionValidationEnabled
-    val filesIterator: RemoteIterator[LocatedFileStatus] = fs.listFiles(path, true)
+    if (!GlutenConfig.get.parquetMetadataValidationEnabled) {
+      return None
+    }
+    val filesIterator = fs.listFiles(path, true)
     var checkedFileCount = 0
     while (filesIterator.hasNext && checkedFileCount < fileLimit) {
       val fileStatus = filesIterator.next()
       checkedFileCount += 1
-      if (
-        isEncryptionValidationEnabled && SparkShimLoader.getSparkShims.isParquetFileEncrypted(
-          fileStatus,
-          conf)
-      ) {
-        return Some("Encrypted Parquet file detected.")
-      }
-      // isMetadataValidationEnabled
       val metadataUnsupported = isUnsupportedMetadata(fileStatus, conf, parquetOptions)
       if (metadataUnsupported.isDefined) {
         return metadataUnsupported
@@ -147,6 +138,8 @@ object ParquetMetadataUtils {
       try {
         ParquetFooterReader.readFooter(conf, fileStatus, ParquetMetadataConverter.NO_FILTER)
       } catch {
+        case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
+          return Some("Encrypted Parquet footer detected.")
         case _: RuntimeException =>
           // Ignored as it's could be a "Not a Parquet file" exception.
           return None
@@ -160,6 +153,11 @@ object ParquetMetadataUtils {
       if (check.isDefined) {
         return check
       }
+    }
+    // Previous Spark3.4 version uses toString to check if the data is encrypted,
+    // so place the check to the end
+    if (SparkShimLoader.getSparkShims.isParquetFileEncrypted(footer)) {
+      return Some("Encrypted Parquet file detected.")
     }
     None
   }

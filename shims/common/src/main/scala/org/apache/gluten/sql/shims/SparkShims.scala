@@ -51,9 +51,8 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 import org.apache.spark.util.SparkShimVersionUtil
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.parquet.hadoop.metadata.{CompressionCodecName, ParquetMetadata}
 import org.apache.parquet.schema.MessageType
 
 import java.util.{Map => JMap}
@@ -321,7 +320,7 @@ trait SparkShims {
   /** Shim method for usages from GlutenExplainUtils.scala. */
   def unsetOperatorId(plan: QueryPlan[_]): Unit
 
-  def isParquetFileEncrypted(fileStatus: LocatedFileStatus, conf: Configuration): Boolean
+  def isParquetFileEncrypted(footer: ParquetMetadata): Boolean
 
   def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
     Map.empty[String, Any].asJava.asInstanceOf[JMap[String, Object]]
