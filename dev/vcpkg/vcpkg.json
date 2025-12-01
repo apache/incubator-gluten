@@ -13,8 +13,6 @@
         "double-conversion",
         "bzip2",
         "curl",
-        "libxml2",
-        "libuuid",
         "lzo",
         "re2",
         "gflags",
