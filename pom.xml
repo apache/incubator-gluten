@@ -976,7 +976,6 @@
                     TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed
                   -->
                   <arg>-Wconf:cat=scaladoc:wv</arg>
-                  <arg>-Wconf:cat=lint-multiarg-infix:wv</arg>
                   <arg>-Wconf:cat=other-nullary-override:wv</arg>
                   <!--
                     SPARK-33775 Suppress compilation warnings that contain the following contents.
