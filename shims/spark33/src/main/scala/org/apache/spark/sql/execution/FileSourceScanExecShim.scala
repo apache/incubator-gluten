@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.metrics.GlutenTimeMetric
 
+import org.apache.spark.Partition
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceMetadataAttribute, PlanExpression, Predicate}
@@ -162,6 +163,10 @@ abstract class FileSourceScanExecShim(
 
   def getPartitionArray: Array[PartitionDirectory] = {
     dynamicallySelectedPartitions
+  }
+
+  def getPartitionsSeq(): Seq[Partition] = {
+    Seq()
   }
 }
 

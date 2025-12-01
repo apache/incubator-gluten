@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
@@ -340,5 +341,9 @@ trait SparkShims {
       s"Task failed while writing rows to staging path: $writePath, " +
         s"output path: $descriptionPath",
       t)
+  }
+
+  def getFileSourceScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = {
+    None
   }
 }
