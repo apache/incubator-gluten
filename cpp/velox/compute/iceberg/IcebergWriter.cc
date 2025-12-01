@@ -103,12 +103,8 @@ IcebergWriter::IcebergWriter(
     : rowType_(rowType), field_(convertToIcebergNestedField(field)), pool_(memoryPool), connectorPool_(connectorPool), createTimeNs_(getCurrentTimeNano()) {
   auto veloxCfg =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(sparkConfs));
-  connectorSessionProperties_ = std::make_shared<facebook::velox::config::ConfigBase>(
-      std::unordered_map<std::string, std::string>(), true);
-  connectorSessionProperties_->set(
-      facebook::velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession,
-      std::to_string(veloxCfg->get<int32_t>(kMaxPartitions, 10000)));
-  connectorConfig_ = std::make_shared<facebook::velox::connector::hive::HiveConfig>(getHiveConfig(veloxCfg));
+  connectorSessionProperties_ = createHiveConnectorSessionConfig(veloxCfg);
+  connectorConfig_ = std::make_shared<facebook::velox::connector::hive::HiveConfig>(createHiveConnectorConfig(veloxCfg));
   connectorQueryCtx_ = std::make_unique<connector::ConnectorQueryCtx>(
       pool_.get(),
       connectorPool_.get(),
