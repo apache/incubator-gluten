@@ -74,7 +74,7 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
     unsafeRelWithIdentityMode = null
     unsafeRelWithHashMode = null
     System.gc()
-    Thread.sleep(500)
+    Thread.sleep(1000)
     // FIXME: This should be zero. We had to assert with the initial bytes because
     //  there were some allocations from the previous run suites.
     assert(GlobalOffHeapMemory.currentBytes() == initialGlobalBytes)
