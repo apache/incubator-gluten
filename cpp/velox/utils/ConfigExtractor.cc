@@ -237,6 +237,8 @@ std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorSessionC
       conf->get<bool>(kParquetUseColumnNames, true) ? "true" : "false";
   configs[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] =
       conf->get<bool>(kOrcUseColumnNames, true) ? "true" : "false";
+
+  overwriteVeloxConf(conf.get(), configs, kDynamicBackendConfPrefix);
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(configs));
 }
 
@@ -300,7 +302,6 @@ std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorConfig(
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
 
   overwriteVeloxConf(conf.get(), hiveConfMap, kStaticBackendConfPrefix);
-
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
 }
 
