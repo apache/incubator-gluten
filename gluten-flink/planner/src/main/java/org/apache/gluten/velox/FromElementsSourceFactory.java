@@ -49,7 +49,8 @@ public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
   public boolean match(Transformation<RowData> transformation) {
     if (transformation instanceof LegacySourceTransformation) {
       StreamSource source = ((LegacySourceTransformation) transformation).getOperator();
-      if (source.getClass().getSimpleName().equals("TestValuesScanLookupTableSource")) {
+      String sourceFunctionName = source.getUserFunction().getClass().getSimpleName();
+      if (sourceFunctionName.equals("FromElementsFunction")) {
         return true;
       }
     }
