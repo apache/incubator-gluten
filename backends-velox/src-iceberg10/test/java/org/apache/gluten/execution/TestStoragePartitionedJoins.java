@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution;
 
+import org.apache.gluten.IcebergTestShims;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.iceberg.PlanningMode;
 import org.apache.iceberg.Schema;
@@ -655,7 +657,8 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
     Iterable<InternalRow> rows = RandomData.generateSpark(schema, numRows, 0);
     JavaRDD<InternalRow> rowRDD = sparkContext.parallelize(Lists.newArrayList(rows));
     StructType rowSparkType = SparkSchemaUtil.convert(schema);
-    return spark.internalCreateDataFrame(JavaRDD.toRDD(rowRDD), rowSparkType, false);
+    return IcebergTestShims.internalCreateDataFrame(
+        spark, JavaRDD.toRDD(rowRDD), rowSparkType, false);
   }
 
   private void append(String table, Dataset<Row> df) throws NoSuchTableException {
