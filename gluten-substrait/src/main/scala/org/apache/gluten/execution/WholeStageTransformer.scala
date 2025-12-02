@@ -43,6 +43,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import com.google.common.collect.Lists
 import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
