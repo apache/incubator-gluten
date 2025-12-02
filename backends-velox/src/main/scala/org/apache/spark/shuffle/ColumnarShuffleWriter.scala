@@ -222,8 +222,8 @@ class ColumnarShuffleWriter[K, V](
         dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
-        // This metric is important, AQE use it to decide if EliminateLimit
         writeMetrics.incBytesWritten(bytesWritten)
+        // This metric is important, AQE use it to decide if EliminateLimit
         writeMetrics.incRecordsWritten(rows)
       }
       cb.close()
