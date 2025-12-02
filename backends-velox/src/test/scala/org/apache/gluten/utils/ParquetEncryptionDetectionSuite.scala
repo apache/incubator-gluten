@@ -16,12 +16,16 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.config.GlutenConfig
 
-import org.apache.spark.sql.{GlutenQueryTest, SparkSession}
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
+import org.apache.spark.sql.execution.datasources.parquet.ParquetOptions
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.test.SharedSparkSession
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, Path}
+import org.apache.hadoop.fs.Path
 import org.apache.parquet.crypto.{ColumnEncryptionProperties, FileEncryptionProperties}
 import org.apache.parquet.example.data.simple.SimpleGroup
 import org.apache.parquet.hadoop.example.ExampleParquetWriter
@@ -50,7 +54,7 @@ import scala.collection.JavaConverters._
  *   - Ensures the file is still detected as encrypted despite the plaintext footer.
  */
 
-class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
+class ParquetEncryptionDetectionSuite extends SharedSparkSession {
 
   private val masterKey =
     Base64.getEncoder.encodeToString("0123456789012345".getBytes(StandardCharsets.UTF_8))
@@ -67,9 +71,11 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
         .named("name"))
     .named("TestSchema")
 
-  private var _spark: SparkSession = _
-
-  override protected def spark: SparkSession = _spark
+  override def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(GlutenConfig.ENCRYPTED_PARQUET_FALLBACK_ENABLED.key, "true")
+      .set(GlutenConfig.PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED.key, "true")
+  }
 
   private def writeParquet(
       path: String,
@@ -104,10 +110,11 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
     }
   }
 
-  private def getLocatedFileStatus(path: String): LocatedFileStatus = {
-    val conf = new Configuration()
-    val fs = FileSystem.get(conf)
-    fs.listFiles(new Path(path), false).next()
+  def isFileEncrypted(filePath: String): Boolean = {
+    val parquetOptions = new ParquetOptions(CaseInsensitiveMap(Map()), SQLConf.get)
+    ParquetMetadataUtils
+      .validateMetadata(Seq(filePath), new Configuration(), parquetOptions, 10)
+      .isDefined
   }
 
   test("Detect encrypted Parquet with encrypted footer") {
@@ -125,10 +132,7 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
           .build()
 
         writeParquet(filePath, Some(encryptionProps), Seq(Map("id" -> 1, "name" -> "Alice")))
-        val fileStatus = getLocatedFileStatus(filePath)
-
-        assertTrue(
-          SparkShimLoader.getSparkShims.isParquetFileEncrypted(fileStatus, new Configuration()))
+        assertTrue(isFileEncrypted(filePath))
     }
   }
 
@@ -148,9 +152,7 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
           .build()
 
         writeParquet(filePath, Some(encryptionProps), Seq(Map("id" -> 1, "name" -> "Bob")))
-        val fileStatus = getLocatedFileStatus(filePath)
-        assertTrue(
-          SparkShimLoader.getSparkShims.isParquetFileEncrypted(fileStatus, new Configuration()))
+        assertTrue(isFileEncrypted(filePath))
     }
   }
 
@@ -160,10 +162,7 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
         val filePath = s"${tempDir.getAbsolutePath}/plain.parquet"
 
         writeParquet(filePath, None, Seq(Map("id" -> 1, "name" -> "Charlie")))
-        val fileStatus = getLocatedFileStatus(filePath)
-
-        assertFalse(
-          SparkShimLoader.getSparkShims.isParquetFileEncrypted(fileStatus, new Configuration()))
+        assertFalse(isFileEncrypted(filePath))
     }
   }
 }
