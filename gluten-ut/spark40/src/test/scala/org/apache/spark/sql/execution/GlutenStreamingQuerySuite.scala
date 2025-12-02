@@ -17,6 +17,33 @@
 package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.GlutenSQLTestsTrait
+import org.apache.spark.sql.execution.exchange.REQUIRED_BY_STATEFUL_OPERATOR
+import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.streaming._
 
-class GlutenStreamingQuerySuite extends StreamingQuerySuite with GlutenSQLTestsTrait {}
+class GlutenStreamingQuerySuite extends StreamingQuerySuite with GlutenSQLTestsTrait {
+
+  import testImplicits._
+
+  testGluten("SPARK-49905") {
+    val inputData = MemoryStream[Int]
+
+    // Use the streaming aggregation as an example - all stateful operators are using the same
+    // distribution, named `StatefulOpClusteredDistribution`.
+    val df = inputData.toDF().groupBy("value").count()
+
+    testStream(df, OutputMode.Update())(
+      AddData(inputData, 1, 2, 3, 1, 2, 3),
+      CheckAnswer((1, 2), (2, 2), (3, 2)),
+      Execute {
+        qe =>
+          val shuffleOpt = qe.lastExecution.executedPlan.collect {
+            case s: ColumnarShuffleExchangeExec => s
+          }
+
+          assert(shuffleOpt.nonEmpty, "No shuffle exchange found in the query plan")
+          assert(shuffleOpt.head.shuffleOrigin === REQUIRED_BY_STATEFUL_OPERATOR)
+      }
+    )
+  }
+}
