@@ -431,13 +431,14 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchResizerJniWrapper
     jobject wrapper,
     jint minOutputBatchSize,
     jint maxOutputBatchSize,
+    jlong preferredBatchBytes,
     jobject jIter) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
   auto pool = dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager())->getLeafMemoryPool();
   auto iter = makeJniColumnarBatchIterator(env, jIter, ctx);
   auto appender = std::make_shared<ResultIterator>(
-      std::make_unique<VeloxBatchResizer>(pool.get(), minOutputBatchSize, maxOutputBatchSize, std::move(iter)));
+      std::make_unique<VeloxBatchResizer>(pool.get(), minOutputBatchSize, maxOutputBatchSize, preferredBatchBytes, std::move(iter)));
   return ctx->saveObject(appender);
   JNI_METHOD_END(kInvalidObjectHandle)
 }

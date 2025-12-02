@@ -79,7 +79,7 @@ std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
 }
 
 int64_t VeloxColumnarBatch::numBytes() {
-  ensureFlattened();
+  BaseVector::loadedVectorShared(rowVector_);
   return rowVector_->estimateFlatSize();
 }
 
