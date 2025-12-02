@@ -33,6 +33,6 @@ public class TestConfUtil {
           "false",
           "spark.gluten.ui.enabled",
           "false",
-              "spark.sql.ansi.enabled",
-              "false");
+          "spark.sql.ansi.enabled",
+          "false");
 }
