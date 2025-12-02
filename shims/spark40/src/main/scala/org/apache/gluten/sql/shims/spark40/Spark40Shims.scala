@@ -624,6 +624,7 @@ class Spark40Shims extends SparkShims {
       case d: Divide => d.evalMode == EvalMode.ANSI
       case m: Multiply => m.evalMode == EvalMode.ANSI
       case c: Cast => c.evalMode == EvalMode.ANSI
+      case i: IntegralDivide => i.evalMode == EvalMode.ANSI
       case _ => false
     }
   }

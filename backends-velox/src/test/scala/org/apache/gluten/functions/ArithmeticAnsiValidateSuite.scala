@@ -89,4 +89,15 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("div") {
+    runQueryAndCompare("SELECT int_field1 div 2 FROM datatab WHERE int_field1 IS NOT NULL") {
+      checkGlutenPlan[ProjectExecTransformer]
+    }
+    if (isSparkVersionGE("3.4")) {
+      intercept[SparkException] {
+        sql("SELECT 1 div 0 ").collect()
+      }
+    }
+  }
+
 }
