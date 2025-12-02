@@ -184,13 +184,15 @@ object VeloxBackendSettings extends BackendSettingsApi {
       }
     }
 
-    def validatePartitionFormat(): Option[String] =
-      partitionFileFormats.iterator
+    def validateFormats(): Option[String] = {
+      val distinctFileFormats = partitionFileFormats + format
+      distinctFileFormats.iterator
         .foldLeft(Option.empty[String]) {
           (acc, format) =>
             if (acc.isDefined) acc
             else validateFormat(format)
         }
+    }
 
     def validateMetadata(): Option[String] = {
       if (format != ParquetReadFormat || rootPaths.isEmpty) {
@@ -230,8 +232,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     val validationChecks = Seq(
       validateScheme(),
-      validateFormat(format),
-      validatePartitionFormat(),
+      validateFormats(),
       validateMetadata(),
       validateDataSchema()
     )

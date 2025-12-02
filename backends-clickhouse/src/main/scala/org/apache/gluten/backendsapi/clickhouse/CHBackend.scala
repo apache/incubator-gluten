@@ -204,20 +204,29 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       }
       !unsupportedDataTypes.isEmpty
     }
-    format match {
-      case ParquetReadFormat => ValidationResult.succeeded
-      case OrcReadFormat => ValidationResult.succeeded
-      case MergeTreeReadFormat => ValidationResult.succeeded
-      case TextReadFormat =>
-        if (!hasComplexType) {
-          ValidationResult.succeeded
-        } else {
-          ValidationResult.failed("Has complex type.")
-        }
-      case JsonReadFormat => ValidationResult.succeeded
-      case KafkaReadFormat => ValidationResult.succeeded
-      case _ => ValidationResult.failed(s"Unsupported file format $format")
-    }
+
+    def checkFormat(format: ReadFileFormat): ValidationResult =
+      format match {
+        case ParquetReadFormat => ValidationResult.succeeded
+        case OrcReadFormat => ValidationResult.succeeded
+        case MergeTreeReadFormat => ValidationResult.succeeded
+        case TextReadFormat =>
+          if (!hasComplexType) {
+            ValidationResult.succeeded
+          } else {
+            ValidationResult.failed("Has complex type.")
+          }
+        case JsonReadFormat => ValidationResult.succeeded
+        case KafkaReadFormat => ValidationResult.succeeded
+        case _ => ValidationResult.failed(s"Unsupported file format $format")
+      }
+
+    val distinctFileFormats = partitionFileFormats + format
+    distinctFileFormats
+      .collectFirst {
+        case format if !checkFormat(format).ok() => checkFormat(format)
+      }
+      .getOrElse(ValidationResult.succeeded)
   }
 
   override def getSubstraitReadFileFormatV1(
