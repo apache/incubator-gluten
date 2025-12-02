@@ -133,6 +133,7 @@ class SubstraitToVeloxPlanConverter {
   /// FileProperties: the file sizes and modification times of the files to be scanned.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ReadRel& sRead);
 
+  template <typename T>
   core::PlanNodePtr constructValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
 
   // This is only used in benchmark and enable query trace, which will load all the data to ValuesNode.
@@ -213,7 +214,10 @@ class SubstraitToVeloxPlanConverter {
   core::AggregationNode::Step toAggregationFunctionStep(const ::substrait::AggregateFunction& sAggFuc);
 
   /// We use companion functions if the aggregate is not single.
-  std::string toAggregationFunctionName(const std::string& baseName, const core::AggregationNode::Step& step);
+  std::string toAggregationFunctionName(
+      const std::string& baseName,
+      const core::AggregationNode::Step& step,
+      const TypePtr& resultType);
 
   /// Helper Function to convert Substrait sortField to Velox sortingKeys and
   /// sortingOrders.

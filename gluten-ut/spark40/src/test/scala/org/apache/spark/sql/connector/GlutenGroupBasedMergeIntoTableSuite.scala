@@ -20,4 +20,5 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenGroupBasedMergeIntoTableSuite
   extends GroupBasedMergeIntoTableSuite
-  with GlutenSQLTestsBaseTrait {}
+  with GlutenSQLTestsBaseTrait
+  with GlutenMergeIntoTableSuiteBase {}

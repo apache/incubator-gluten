@@ -19,7 +19,7 @@ package org.apache.gluten.sql.shims
 import org.apache.gluten.GlutenBuildInfo.SPARK_COMPILE_VERSION
 import org.apache.gluten.expression.Sig
 
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkContext, SparkException}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.scheduler.TaskInfo
@@ -28,7 +28,7 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression, UnBase64}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, RaiseError, UnBase64}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
@@ -233,7 +234,13 @@ trait SparkShims {
 
   def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String] = Seq.empty): JMap[String, String]
+      metadataColumnNames: Seq[String] = Seq.empty): Map[String, String] = {
+    Map(
+      InputFileName().prettyName -> file.filePath.toString,
+      InputFileBlockStart().prettyName -> file.start.toString,
+      InputFileBlockLength().prettyName -> file.length.toString
+    )
+  }
 
   // For compatibility with Spark-3.5.
   def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan]
@@ -325,4 +332,18 @@ trait SparkShims {
   def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType
 
   def getRewriteCreateTableAsSelect(session: SparkSession): SparkStrategy = _ => Seq.empty
+
+  /** Shim method for get the "errorMessage" value for Spark 4.0 and above */
+  def getErrorMessage(raiseError: RaiseError): Option[Expression]
+
+  def throwExceptionInWrite(t: Throwable, writePath: String, descriptionPath: String): Unit = {
+    throw new SparkException(
+      s"Task failed while writing rows to staging path: $writePath, " +
+        s"output path: $descriptionPath",
+      t)
+  }
+
+  def getFileSourceScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = {
+    None
+  }
 }

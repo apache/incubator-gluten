@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -40,6 +39,7 @@ import org.apache.commons.lang3.StringUtils
 
 case class FileSourceScanExecTransformer(
     @transient override val relation: HadoopFsRelation,
+    @transient stream: Option[SparkDataStream],
     override val output: Seq[Attribute],
     override val requiredSchema: StructType,
     override val partitionFilters: Seq[Expression],
@@ -47,9 +47,11 @@ case class FileSourceScanExecTransformer(
     override val optionalNumCoalescedBuckets: Option[Int],
     override val dataFilters: Seq[Expression],
     override val tableIdentifier: Option[TableIdentifier],
-    override val disableBucketedScan: Boolean = false)
+    override val disableBucketedScan: Boolean = false,
+    override val pushDownFilters: Option[Seq[Expression]] = None)
   extends FileSourceScanExecTransformerBase(
     relation,
+    stream,
     output,
     requiredSchema,
     partitionFilters,
@@ -62,6 +64,9 @@ case class FileSourceScanExecTransformer(
   override def doCanonicalize(): FileSourceScanExecTransformer = {
     FileSourceScanExecTransformer(
       relation,
+      // remove stream on canonicalization; this is needed for reused shuffle to be effective in
+      // self-join
+      None,
       output.map(QueryPlan.normalizeExpressions(_, output)),
       requiredSchema,
       QueryPlan.normalizePredicates(
@@ -71,13 +76,18 @@ case class FileSourceScanExecTransformer(
       optionalNumCoalescedBuckets,
       QueryPlan.normalizePredicates(dataFilters, output),
       None,
-      disableBucketedScan
+      disableBucketedScan,
+      pushDownFilters.map(QueryPlan.normalizePredicates(_, output))
     )
   }
+
+  override def withNewPushdownFilters(filters: Seq[Expression]): FileSourceScanExecTransformer =
+    copy(pushDownFilters = Some(filters))
 }
 
 abstract class FileSourceScanExecTransformerBase(
     @transient override val relation: HadoopFsRelation,
+    @transient stream: Option[SparkDataStream],
     override val output: Seq[Attribute],
     requiredSchema: StructType,
     partitionFilters: Seq[Expression],
@@ -104,38 +114,27 @@ abstract class FileSourceScanExecTransformerBase(
       .genFileSourceScanTransformerMetrics(sparkContext)
       .filter(m => !driverMetricsAlias.contains(m._1)) ++ driverMetricsAlias
 
-  override def filterExprs(): Seq[Expression] = dataFiltersInScan.filter {
-    expr =>
-      ExpressionConverter.canReplaceWithExpressionTransformer(
-        ExpressionConverter.replaceAttributeReference(expr),
-        output)
-  }
-
-  override def dataFiltersInScan: Seq[Expression] = {
-    if (SparkVersionUtil.gteSpark35) {
-      dataFilters.filterNot(_.references.exists {
-        attr => BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)
-      })
-    } else {
-      super.dataFiltersInScan
-    }
-  }
+  override def scanFilters: Seq[Expression] = dataFilters
 
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
   override def getPartitions: Seq[Partition] = {
-    BackendsApiManager.getTransformerApiInstance
-      .genPartitionSeq(
-        relation,
-        requiredSchema,
-        getPartitionArray(),
-        output,
-        bucketedScan,
-        optionalBucketSet,
-        optionalNumCoalescedBuckets,
-        disableBucketedScan,
-        filterExprs()
-      )
+    if (SparkVersionUtil.gteSpark40) {
+      getPartitionsSeq()
+    } else {
+      BackendsApiManager.getTransformerApiInstance
+        .genPartitionSeq(
+          relation,
+          requiredSchema,
+          getPartitionArray,
+          output,
+          bucketedScan,
+          optionalBucketSet,
+          optionalNumCoalescedBuckets,
+          disableBucketedScan,
+          filterExprs()
+        )
+    }
   }
 
   override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
@@ -217,12 +216,9 @@ abstract class FileSourceScanExecTransformerBase(
         s" $nativeFiltersString")
   }
 
-  // Required for Spark 4.0 to implement a trait method.
   // The "override" keyword is omitted to maintain compatibility with earlier Spark versions.
   def getStream: Option[SparkDataStream] = {
-    throw new UnsupportedOperationException(
-      "not supported on streaming"
-    )
+    stream
   }
 }
 

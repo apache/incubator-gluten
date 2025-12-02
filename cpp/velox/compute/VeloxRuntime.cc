@@ -181,7 +181,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
       scanInfos,
       streamIds,
       spillDir,
-      veloxCfg_.get(),
+      veloxCfg_,
       taskInfo_.has_value() ? taskInfo_.value() : SparkTaskInfo{});
   return std::make_shared<ResultIterator>(std::move(wholeStageIter), this);
 }

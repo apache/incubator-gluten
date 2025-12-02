@@ -36,7 +36,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, KeyGroupedShuffleSpec, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, InternalRowComparableWrapper, TimestampFormatter}
@@ -44,31 +44,35 @@ import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, BatchScanExecShim, DataSourceV2ScanExecBase}
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
-import org.apache.spark.sql.execution.window.{Final, GlutenFinal, GlutenPartial, Partial, WindowGroupLimitExec, WindowGroupLimitExecShim}
+import org.apache.spark.sql.execution.window.{Final, Partial, _}
 import org.apache.spark.sql.internal.{LegacyBehaviorPolicy, SQLConf}
-import org.apache.spark.sql.types.{DecimalType, IntegerType, LongType, StructField, StructType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
+import org.apache.parquet.HadoopReadOptions
 import org.apache.parquet.crypto.ParquetCryptoRuntimeException
 import org.apache.parquet.format.converter.ParquetMetadataConverter
 import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
+import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap}
+import java.util.{Map => JMap}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 class Spark40Shims extends SparkShims {
@@ -249,31 +253,29 @@ class Spark40Shims extends SparkShims {
 
   override def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String]): JMap[String, String] = {
-    val metadataColumn = new JHashMap[String, String]()
+      metadataColumnNames: Seq[String]): Map[String, String] = {
+    val originMetadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
+    val metadataColumn: mutable.Map[String, String] = mutable.Map(originMetadataColumn.toSeq: _*)
     val path = new Path(file.filePath.toString)
     for (columnName <- metadataColumnNames) {
       columnName match {
-        case FileFormat.FILE_PATH => metadataColumn.put(FileFormat.FILE_PATH, path.toString)
-        case FileFormat.FILE_NAME => metadataColumn.put(FileFormat.FILE_NAME, path.getName)
+        case FileFormat.FILE_PATH => metadataColumn += (FileFormat.FILE_PATH -> path.toString)
+        case FileFormat.FILE_NAME => metadataColumn += (FileFormat.FILE_NAME -> path.getName)
         case FileFormat.FILE_SIZE =>
-          metadataColumn.put(FileFormat.FILE_SIZE, file.fileSize.toString)
+          metadataColumn += (FileFormat.FILE_SIZE -> file.fileSize.toString)
         case FileFormat.FILE_MODIFICATION_TIME =>
           val fileModifyTime = TimestampFormatter
             .getFractionFormatter(ZoneOffset.UTC)
             .format(file.modificationTime * 1000L)
-          metadataColumn.put(FileFormat.FILE_MODIFICATION_TIME, fileModifyTime)
+          metadataColumn += (FileFormat.FILE_MODIFICATION_TIME -> fileModifyTime)
         case FileFormat.FILE_BLOCK_START =>
-          metadataColumn.put(FileFormat.FILE_BLOCK_START, file.start.toString)
+          metadataColumn += (FileFormat.FILE_BLOCK_START -> file.start.toString)
         case FileFormat.FILE_BLOCK_LENGTH =>
-          metadataColumn.put(FileFormat.FILE_BLOCK_LENGTH, file.length.toString)
+          metadataColumn += (FileFormat.FILE_BLOCK_LENGTH -> file.length.toString)
         case _ =>
       }
     }
-    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
-    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
-    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
-    metadataColumn
+    metadataColumn.toMap
   }
 
   // https://issues.apache.org/jira/browse/SPARK-40400
@@ -481,10 +483,9 @@ class Spark40Shims extends SparkShims {
       applyPartialClustering: Boolean,
       replicatePartitions: Boolean,
       joinKeyPositions: Option[Seq[Int]] = None): Seq[Seq[InputPartition]] = {
+    val original = batchScan.asInstanceOf[BatchScanExecShim]
     scan match {
       case _ if keyGroupedPartitioning.isDefined =>
-        var finalPartitions = filteredPartitions
-
         outputPartitioning match {
           case p: KeyGroupedPartitioning =>
             assert(keyGroupedPartitioning.isDefined)
@@ -515,8 +516,20 @@ class Spark40Shims extends SparkShims {
             }
 
             // Also re-group the partitions if we are reducing compatible partition expressions
-            // TODO: Respect Reducer settings?
-            val finalGroupedPartitions = groupedPartitions
+            val finalGroupedPartitions = original.reducers match {
+              case Some(reducers) =>
+                val result = groupedPartitions
+                  .groupBy {
+                    case (row, _) =>
+                      KeyGroupedShuffleSpec.reducePartitionValue(row, partExpressions, reducers)
+                  }
+                  .map { case (wrapper, splits) => (wrapper.row, splits.flatMap(_._2)) }
+                  .toSeq
+                val rowOrdering =
+                  RowOrdering.createNaturalAscendingOrdering(partExpressions.map(_.dataType))
+                result.sorted(rowOrdering.on((t: (InternalRow, _)) => t._1))
+              case _ => groupedPartitions
+            }
 
             // When partially clustered, the input partitions are not grouped by partition
             // values. Here we'll need to check `commonPartitionValues` and decide how to group
@@ -586,9 +599,8 @@ class Spark40Shims extends SparkShims {
               }
             }
 
-          case _ =>
+          case _ => filteredPartitions
         }
-        finalPartitions
       case _ =>
         filteredPartitions
     }
@@ -600,6 +612,7 @@ class Spark40Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.TRY
       case d: Divide => d.evalMode == EvalMode.TRY
       case m: Multiply => m.evalMode == EvalMode.TRY
+      case c: Cast => c.evalMode == EvalMode.TRY
       case _ => false
     }
   }
@@ -610,6 +623,7 @@ class Spark40Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.ANSI
       case d: Divide => d.evalMode == EvalMode.ANSI
       case m: Multiply => m.evalMode == EvalMode.ANSI
+      case c: Cast => c.evalMode == EvalMode.ANSI
       case _ => false
     }
   }
@@ -671,9 +685,16 @@ class Spark40Shims extends SparkShims {
   override def isParquetFileEncrypted(
       fileStatus: LocatedFileStatus,
       conf: Configuration): Boolean = {
+    val file = HadoopInputFile.fromPath(fileStatus.getPath, conf)
+    val filter = ParquetMetadataConverter.NO_FILTER
+    val options = HadoopReadOptions
+      .builder(file.getConfiguration, file.getPath)
+      .withMetadataFilter(filter)
+      .build
+    val in = file.newStream
     try {
       val footer =
-        ParquetFileReader.readFooter(conf, fileStatus.getPath, ParquetMetadataConverter.NO_FILTER)
+        ParquetFileReader.readFooter(file, options, in)
       val fileMetaData = footer.getFileMetaData
       fileMetaData.getEncryptionType match {
         // UNENCRYPTED file has a plaintext footer and no file encryption,
@@ -692,6 +713,10 @@ class Spark40Shims extends SparkShims {
       case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
         true
       case e: Exception => false
+    } finally {
+      if (in != null) {
+        in.close()
+      }
     }
   }
 
@@ -702,8 +727,13 @@ class Spark40Shims extends SparkShims {
     plan.offset
   }
 
+  override def unBase64FunctionFailsOnError(unBase64: UnBase64): Boolean = unBase64.failOnError
+
   override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
     exp match {
+      // Velox does not support quantity larger than Int.MaxValue.
+      case TimestampAdd(_, LongLiteral(quantity), _, _) if quantity > Integer.MAX_VALUE =>
+        Option.empty
       case timestampAdd: TimestampAdd =>
         Option.apply(Seq(timestampAdd.unit, timestampAdd.timeZoneId.getOrElse("")))
       case _ => Option.empty
@@ -722,4 +752,25 @@ class Spark40Shims extends SparkShims {
     DecimalPrecisionTypeCoercion.widerDecimalType(d1, d2)
   }
 
+  override def getErrorMessage(raiseError: RaiseError): Option[Expression] = {
+    raiseError.errorParms match {
+      case CreateMap(children, _)
+          if children.size == 2 && children.head.isInstanceOf[Literal]
+            && children.head.asInstanceOf[Literal].value.toString == "errorMessage" =>
+        Some(children(1))
+      case _ =>
+        None
+    }
+  }
+
+  override def throwExceptionInWrite(
+      t: Throwable,
+      writePath: String,
+      descriptionPath: String): Unit = {
+    throw t
+  }
+
+  override def getFileSourceScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = {
+    scan.stream
+  }
 }

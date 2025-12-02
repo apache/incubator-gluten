@@ -64,7 +64,11 @@ case class MicroBatchScanExecTransformer(
   @transient override lazy val inputPartitionsShim: Seq[InputPartition] =
     stream.planInputPartitions(start, end)
 
-  override def filterExprs(): Seq[Expression] = Seq.empty
+  override def scanFilters: Seq[Expression] = Seq.empty
+
+  override def supportPushDownFilters: Boolean = false
+
+  def pushDownFilters: Option[Seq[Expression]] = None
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 

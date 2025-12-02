@@ -842,6 +842,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           ce,
           attributeSeq,
           expressionsMap)
+      case re: RaiseError =>
+        val errorMessage =
+          BackendsApiManager.getSparkPlanExecApiInstance.getErrorMessage(re)
+        GenericExpressionTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(errorMessage, attributeSeq, expressionsMap),
+          re)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

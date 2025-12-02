@@ -13,8 +13,6 @@
         "double-conversion",
         "bzip2",
         "curl",
-        "libxml2",
-        "libuuid",
         "lzo",
         "re2",
         "gflags",
@@ -52,7 +50,8 @@
         "icu",
         "thrift",
         "libstemmer",
-        "geos"
+        "geos",
+        "grpc"
       ]
     },
     "velox-s3": {
@@ -114,6 +113,7 @@
     { "name": "re2", "version": "2023-07-01"},
     { "name": "glog", "version": "0.6.0"},
     { "name": "gflags", "version": "2.2.2"},
-    { "name": "azure-identity-cpp", "version": "1.11.0"}
+    { "name": "azure-identity-cpp", "version": "1.11.0"},
+    { "name": "grpc", "version": "1.51.1"}
   ]
 }

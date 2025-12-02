@@ -44,10 +44,10 @@ namespace {
 
 jclass byteArrayClass;
 
-jclass unsafeByteBufferClass;
-jmethodID unsafeByteBufferAllocate;
-jmethodID unsafeByteBufferAddress;
-jmethodID unsafeByteBufferSize;
+jclass jniUnsafeByteBufferClass;
+jmethodID jniUnsafeByteBufferAllocate;
+jmethodID jniUnsafeByteBufferAddress;
+jmethodID jniUnsafeByteBufferSize;
 
 jclass jniByteInputStreamClass;
 jmethodID jniByteInputStreamRead;
@@ -250,11 +250,12 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   byteArrayClass = createGlobalClassReferenceOrError(env, "[B");
 
-  unsafeByteBufferClass = createGlobalClassReferenceOrError(env, "Lorg/apache/spark/unsafe/memory/UnsafeByteBuffer;");
-  unsafeByteBufferAllocate =
-      env->GetStaticMethodID(unsafeByteBufferClass, "allocate", "(J)Lorg/apache/spark/unsafe/memory/UnsafeByteBuffer;");
-  unsafeByteBufferAddress = env->GetMethodID(unsafeByteBufferClass, "address", "()J");
-  unsafeByteBufferSize = env->GetMethodID(unsafeByteBufferClass, "size", "()J");
+  jniUnsafeByteBufferClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/unsafe/JniUnsafeByteBuffer;");
+  jniUnsafeByteBufferAllocate = env->GetStaticMethodID(
+      jniUnsafeByteBufferClass, "allocate", "(J)Lorg/apache/spark/sql/execution/unsafe/JniUnsafeByteBuffer;");
+  jniUnsafeByteBufferAddress = env->GetMethodID(jniUnsafeByteBufferClass, "address", "()J");
+  jniUnsafeByteBufferSize = env->GetMethodID(jniUnsafeByteBufferClass, "size", "()J");
 
   jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/JniByteInputStream;");
   jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", "(JJ)J");
@@ -298,7 +299,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(splitResultClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
-  env->DeleteGlobalRef(unsafeByteBufferClass);
+  env->DeleteGlobalRef(jniUnsafeByteBufferClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
 
   getJniErrorState()->close();
@@ -916,6 +917,34 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_createGpuHashShuffleWriter(
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring partitioningNameJstr,
+    jint startPartitionId,
+    jint splitBufferSize,
+    jdouble splitBufferReallocThreshold,
+    jlong partitionWriterHandle) {
+  JNI_METHOD_START
+  
+  const auto ctx = getRuntime(env, wrapper);
+
+  auto partitionWriter = ObjectStore::retrieve<PartitionWriter>(partitionWriterHandle);
+  if (partitionWriter == nullptr) {
+    throw GlutenException("Partition writer handle is invalid: " + std::to_string(partitionWriterHandle));
+  }
+  ObjectStore::release(partitionWriterHandle);
+
+  auto shuffleWriterOptions = std::make_shared<GpuHashShuffleWriterOptions>(
+      toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      startPartitionId,
+      splitBufferSize,
+      splitBufferReallocThreshold);
+  return ctx->saveObject(ctx->createShuffleWriter(numPartitions, partitionWriter, shuffleWriterOptions));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_createSortShuffleWriter(
     JNIEnv* env,
     jobject wrapper,
@@ -1164,9 +1193,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSeriali
   auto serializer = ctx->createColumnarBatchSerializer(nullptr);
   serializer->append(batch);
   auto serializedSize = serializer->maxSerializedSize();
-  auto byteBuffer = env->CallStaticObjectMethod(unsafeByteBufferClass, unsafeByteBufferAllocate, serializedSize);
-  auto byteBufferAddress = env->CallLongMethod(byteBuffer, unsafeByteBufferAddress);
-  auto byteBufferSize = env->CallLongMethod(byteBuffer, unsafeByteBufferSize);
+  auto byteBuffer = env->CallStaticObjectMethod(jniUnsafeByteBufferClass, jniUnsafeByteBufferAllocate, serializedSize);
+  auto byteBufferAddress = env->CallLongMethod(byteBuffer, jniUnsafeByteBufferAddress);
+  auto byteBufferSize = env->CallLongMethod(byteBuffer, jniUnsafeByteBufferSize);
   serializer->serializeTo(reinterpret_cast<uint8_t*>(byteBufferAddress), byteBufferSize);
 
   return byteBuffer;

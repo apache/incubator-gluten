@@ -84,7 +84,11 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => FallbackMultiCodegens.apply(c.session))
     injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
-    injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
+    injector.injectPreTransform(
+      c =>
+        BloomFilterMightContainJointRewriteRule.apply(
+          c.session,
+          c.caller.isBloomFilterStatFunction()))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
@@ -109,6 +113,7 @@ object VeloxRuleApi {
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
+    injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => PartialGenerateRule())
@@ -161,7 +166,11 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
     injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
-    injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
+    injector.injectPreTransform(
+      c =>
+        BloomFilterMightContainJointRewriteRule.apply(
+          c.session,
+          c.caller.isBloomFilterStatFunction()))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
@@ -209,6 +218,7 @@ object VeloxRuleApi {
     // Gluten RAS: Post rules.
     injector.injectPostTransform(_ => DistinguishIdenticalScans)
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
+    injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => RemoveTransitions)
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))

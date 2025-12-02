@@ -162,4 +162,7 @@ trait BackendSettingsApi {
   def supportOverwriteByExpression(): Boolean = false
 
   def supportOverwritePartitionsDynamic(): Boolean = false
+
+  /** Whether the backend supports columnar shuffle with empty schema. */
+  def supportEmptySchemaColumnarShuffle(): Boolean = true
 }

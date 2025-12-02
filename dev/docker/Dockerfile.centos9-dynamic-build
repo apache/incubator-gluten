@@ -40,7 +40,7 @@ RUN set -ex; \
     rm -rf ${local_binary}; \
     wget -nv ${mirror_host}/celeborn/celeborn-0.5.4/apache-celeborn-0.5.4-bin.tgz?action=download -O /opt/apache-celeborn-0.5.4-bin.tgz; \
     wget -nv ${mirror_host}/celeborn/celeborn-0.6.1/apache-celeborn-0.6.1-bin.tgz?action=download -O /opt/apache-celeborn-0.6.1-bin.tgz; \
-    wget -nv ${mirror_host}/uniffle/0.9.2/apache-uniffle-0.9.2-incubating-bin.tar.gz?action=download -O /opt/apache-uniffle-0.9.2-incubating-bin.tar.gz; \
+    wget -nv ${mirror_host}/uniffle/0.10.0/apache-uniffle-0.10.0-bin.tar.gz?action=download -O /opt/apache-uniffle-0.10.0-bin.tar.gz; \
     wget -nv ${mirror_host}/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz?action=download -O /opt/hadoop-2.8.5.tar.gz; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
     cd /opt/gluten/.github/workflows/util/; \

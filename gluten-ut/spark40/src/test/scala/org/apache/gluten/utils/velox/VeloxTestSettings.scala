@@ -36,7 +36,7 @@ import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2Strategy
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python._
-import org.apache.spark.sql.extension.{GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
+import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.gluten.GlutenFallbackSuite
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources._
@@ -62,16 +62,20 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
     // Rewritten
     .exclude("Fallback Parquet V2 to V1")
-  // TODO: fix in Spark-4.0
-  // enableSuite[GlutenKeyGroupedPartitioningSuite]
-  //   // NEW SUITE: disable as they check vanilla spark plan
-  //   .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
-  //   .exclude("partitioned join: only one side reports partitioning")
-  //   .exclude("partitioned join: join with two partition keys and different # of partition keys")
-  //   // disable due to check for SMJ node
-  //   .excludeByPrefix("SPARK-41413: partitioned join:")
-  //   .excludeByPrefix("SPARK-42038: partially clustered:")
-  //   .exclude("SPARK-44641: duplicated records when SPJ is not triggered")
+  enableSuite[GlutenKeyGroupedPartitioningSuite]
+    // NEW SUITE: disable as they check vanilla spark plan
+    .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
+    .exclude("partitioned join: only one side reports partitioning")
+    .exclude("partitioned join: join with two partition keys and different # of partition keys")
+    .excludeByPrefix("SPARK-47094")
+    .excludeByPrefix("SPARK-48655")
+    .excludeByPrefix("SPARK-48012")
+    .excludeByPrefix("SPARK-44647")
+    .excludeByPrefix("SPARK-41471")
+    // disable due to check for SMJ node
+    .excludeByPrefix("SPARK-41413: partitioned join:")
+    .excludeByPrefix("SPARK-42038: partially clustered:")
+    .exclude("SPARK-44641: duplicated records when SPJ is not triggered")
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenMetadataColumnSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]
@@ -85,8 +89,6 @@ class VeloxTestSettings extends BackendTestSettings {
       "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
     // Doesn't support unhex with failOnError=true.
     .exclude("CONVERSION_INVALID_INPUT: to_binary conversion function hex")
-    // TODO: fix in Spark-4.0
-    .exclude("CONVERSION_INVALID_INPUT: to_binary conversion function base64")
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
@@ -102,8 +104,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("cast from timestamp II")
     .exclude("SPARK-36286: invalid string cast to timestamp")
     .exclude("SPARK-39749: cast Decimal to string")
-    // TODO: fix in Spark-4.0
-    .exclude("Casting to char/varchar")
   enableSuite[GlutenTryCastSuite]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
@@ -119,10 +119,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("data type casting")
     // Revised by setting timezone through config and commented unsupported cases.
     .exclude("cast string to timestamp")
-    // TODO: fix in Spark-4.0
-    .exclude("cast from array III")
-    .exclude("cast from struct III")
-    .exclude("Casting to char/varchar")
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
@@ -148,10 +144,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Vanilla Spark does not have a unified DST Timestamp fastTime. 1320570000000L and
     // 1320566400000L both represent 2011-11-06 01:00:00.
     .exclude("SPARK-42635: timestampadd near daylight saving transition")
-
-    // TODO: fix in Spark-4.0
-    .exclude("SPARK-50669: timestampadd with long types")
-
     // https://github.com/facebookincubator/velox/pull/10563/files#diff-140dc50e6dac735f72d29014da44b045509df0dd1737f458de1fe8cfd33d8145
     .excludeGlutenTest("from_unixtime")
     // Replaced by a gluten test to pass timezone through config.
@@ -628,8 +620,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]
-  // TODO: fix in Spark-4.0
-  // enableSuite[GlutenCoalesceShufflePartitionsSuite]
+  enableSuite[GlutenCoalesceShufflePartitionsSuite]
+    // Rewrite for Gluten. Change details are in the inline comments in individual tests.
+    .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
@@ -648,7 +641,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("test with low buffer spill threshold")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
-    // TODO: fix in Spark-4.0
+    // The results of rand() differ between vanilla spark and velox.
     .exclude("SPARK-47104: Non-deterministic expressions in projection")
   enableSuite[GlutenSessionExtensionSuite]
   enableSuite[TestFileSourceScanExecTransformer]
@@ -706,10 +699,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-39557 INSERT INTO statements with tables with array defaults")
     .exclude("SPARK-39557 INSERT INTO statements with tables with struct defaults")
     .exclude("SPARK-39557 INSERT INTO statements with tables with map defaults")
-    // TODO: fix in Spark-4.0
-    .exclude("Throw exceptions on inserting out-of-range decimal value with ANSI casting policy")
-    .exclude("Throw exceptions on inserting out-of-range long value with ANSI casting policy")
-    .exclude("Throw exceptions on inserting out-of-range int value with ANSI casting policy")
   enableSuite[GlutenPartitionedWriteSuite]
   enableSuite[GlutenPathOptionSuite]
   enableSuite[GlutenPrunedScanSuite]
@@ -725,16 +714,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("InMemoryRelation statistics")
     // Extra ColumnarToRow is needed to transform vanilla columnar data to gluten columnar data.
     .exclude("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
-  // TODO: fix in Spark-4.0
-  // enableSuite[GlutenFileSourceCharVarcharTestSuite]
-  //   .exclude("length check for input string values: nested in array")
-  //   .exclude("length check for input string values: nested in array")
-  //   .exclude("length check for input string values: nested in map key")
-  //   .exclude("length check for input string values: nested in map value")
-  //   .exclude("length check for input string values: nested in both map key and value")
-  //   .exclude("length check for input string values: nested in array of struct")
-  //   .exclude("length check for input string values: nested in array of array")
-  // enableSuite[GlutenDSV2CharVarcharTestSuite]
+  enableSuite[GlutenFileSourceCharVarcharTestSuite]
+  enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenColumnExpressionSuite]
     // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.
     // The final caught Spark exception's getCause().getMessage() contains 'errMsg' but does not
@@ -777,7 +758,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("aggregate function - array for non-primitive type")
     // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
     .exclude("map_zip_with function - map of primitive types")
-    // TODO: fix in Spark-4.0
+    // Vanilla spark throw SparkRuntimeException, gluten throw SparkException.
     .exclude("map_concat function")
     .exclude("transform keys function - primitive data types")
   enableSuite[GlutenDataFrameHintSuite]
@@ -806,8 +787,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not really an issue.
     .exclude("SPARK-10740: handle nondeterministic expressions correctly for set operations")
   enableSuite[GlutenDataFrameStatSuite]
-    // TODO: fix in Spark-4.0
-    .exclude("Bloom filter")
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
     .excludeByPrefix("SPARK-22520", "reuse exchange")
@@ -860,8 +839,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite the following two tests in GlutenDatasetSuite.
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
-    // TODO: fix in Spark-4.0
-    .exclude("SPARK-23627: provide isEmpty in DataSet")
   enableSuite[GlutenDateFunctionsSuite]
     // The below two are replaced by two modified versions.
     .exclude("unix_timestamp")
@@ -876,8 +853,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
-    // TODO: fix in Spark-4.0
-    .exclude("join key with multiple references on the filtering plan")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
@@ -984,8 +959,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenXPathFunctionsSuite]
   enableSuite[GlutenFallbackSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
-  // TODO: fix in Spark-4.0
-  // enableSuite[GlutenCollapseProjectExecTransformerSuite]
+  enableSuite[GlutenCollapseProjectExecTransformerSuite]
   enableSuite[GlutenSparkSessionExtensionSuite]
   enableSuite[GlutenGroupBasedDeleteFromTableSuite]
   enableSuite[GlutenDeltaBasedDeleteFromTableSuite]
@@ -1004,10 +978,10 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenRuntimeNullChecksV2Writes]
   enableSuite[GlutenTableOptionsConstantFoldingSuite]
   enableSuite[GlutenDeltaBasedMergeIntoTableSuite]
-    // TODO: fix in Spark-4.0
+    // Replaced by Gluten versions that handle wrapped exceptions
     .excludeByPrefix("merge cardinality check with")
   enableSuite[GlutenDeltaBasedMergeIntoTableUpdateAsDeleteAndInsertSuite]
-    // TODO: fix in Spark-4.0
+    // Replaced by Gluten versions that handle wrapped exceptions
     .excludeByPrefix("merge cardinality check with")
   enableSuite[GlutenDeltaBasedUpdateAsDeleteAndInsertTableSuite]
     // FIXME: complex type result mismatch
@@ -1015,7 +989,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("update char/varchar columns")
   enableSuite[GlutenDeltaBasedUpdateTableSuite]
   enableSuite[GlutenGroupBasedMergeIntoTableSuite]
-    // TODO: fix in Spark-4.0
+    // Replaced by Gluten versions that handle wrapped exceptions
     .excludeByPrefix("merge cardinality check with")
   enableSuite[GlutenFileSourceCustomMetadataStructSuite]
   enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]

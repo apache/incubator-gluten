@@ -32,11 +32,11 @@
 #include "config/VeloxConfig.h"
 
 #ifdef GLUTEN_ENABLE_GPU
+#include "operators/plannodes/CudfVectorStream.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveDataSink.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveTableHandle.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
-
 using namespace cudf_velox::connector::hive;
 #endif
 
@@ -162,6 +162,42 @@ RowTypePtr getJoinOutputType(
   VELOX_FAIL("Output should include left or right columns.");
 }
 
+// Get the function name suffix used by merge_extract companion function when having the same intermediate type across
+// signatures. Correponds to Velox 'toSuffixString', and the base name can be referred from
+// 'velox/expression/FunctionSignature.cpp'.
+std::string companionFunctionSuffix(const TypePtr& type) {
+  // For primitive and decimal types, return their names.
+  if (type->isDecimal()) {
+    return "DECIMAL";
+  }
+
+  if (type->isPrimitiveType()) {
+    return type->toString();
+  }
+
+  if (type->kind() == TypeKind::ARRAY) {
+    return "array_" + companionFunctionSuffix(std::dynamic_pointer_cast<const ArrayType>(type)->elementType());
+  }
+  if (type->kind() == TypeKind::MAP) {
+    auto mapType = std::dynamic_pointer_cast<const MapType>(type);
+    return "map_" + companionFunctionSuffix(mapType->keyType()) + "_" + companionFunctionSuffix(mapType->valueType());
+  }
+
+  std::string name;
+  if (type->kind() == TypeKind::ROW) {
+    name = "row";
+  }
+  std::string result = name;
+  const auto rowType = asRowType(type);
+  for (const auto& child : rowType->children()) {
+    result += '_';
+    result += companionFunctionSuffix(child);
+  }
+  result += "_end";
+  result += name;
+  return result;
+}
+
 } // namespace
 
 bool SplitInfo::canUseCudfConnector() {
@@ -231,15 +267,29 @@ core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunction
 
 std::string SubstraitToVeloxPlanConverter::toAggregationFunctionName(
     const std::string& baseName,
-    const core::AggregationNode::Step& step) {
+    const core::AggregationNode::Step& step,
+    const TypePtr& resultType) {
   std::string suffix;
   switch (step) {
     case core::AggregationNode::Step::kPartial:
       suffix = "_partial";
       break;
-    case core::AggregationNode::Step::kFinal:
-      suffix = "_merge_extract";
-      break;
+    case core::AggregationNode::Step::kFinal: {
+      auto functionName = baseName + "_merge_extract";
+      auto signatures = exec::getAggregateFunctionSignatures(functionName);
+      if (signatures.has_value() && signatures.value().size() > 0) {
+        // The merge_extract function is registered without suffix.
+        return functionName;
+      }
+      // The merge_extract function must be registered with suffix based on result type.
+      functionName += ("_" + companionFunctionSuffix(resultType));
+      signatures = exec::getAggregateFunctionSignatures(functionName);
+      VELOX_CHECK(
+          signatures.has_value() && signatures.value().size() > 0,
+          "Cannot find function signature for {} in final aggregation step.",
+          functionName);
+      return functionName;
+    }
     case core::AggregationNode::Step::kIntermediate:
       suffix = "_merge";
       break;
@@ -436,16 +486,17 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       }
     }
     const auto& aggFunction = measure.measure();
-    auto baseFuncName = SubstraitParser::findVeloxFunction(functionMap_, aggFunction.function_reference());
-    auto funcName = toAggregationFunctionName(baseFuncName, toAggregationFunctionStep(aggFunction));
     std::vector<core::TypedExprPtr> aggParams;
     aggParams.reserve(aggFunction.arguments().size());
     for (const auto& arg : aggFunction.arguments()) {
       aggParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
     }
-    auto aggVeloxType = SubstraitParser::parseType(aggFunction.output_type());
-    auto aggExpr = std::make_shared<const core::CallTypedExpr>(aggVeloxType, std::move(aggParams), funcName);
 
+    auto aggVeloxType = SubstraitParser::parseType(aggFunction.output_type());
+    auto baseFuncName = SubstraitParser::findVeloxFunction(functionMap_, aggFunction.function_reference());
+    auto funcName = toAggregationFunctionName(baseFuncName, toAggregationFunctionStep(aggFunction), aggVeloxType);
+
+    auto aggExpr = std::make_shared<const core::CallTypedExpr>(aggVeloxType, std::move(aggParams), funcName);
     std::vector<TypePtr> rawInputTypes =
         SubstraitParser::sigToTypes(SubstraitParser::findFunctionSpec(functionMap_, aggFunction.function_reference()));
     aggregates.emplace_back(core::AggregationNode::Aggregate{aggExpr, rawInputTypes, mask, {}, {}});
@@ -848,7 +899,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     // Child should be either ProjectNode or ValueStreamNode in case of project fallback.
     VELOX_CHECK(
         (std::dynamic_pointer_cast<const core::ProjectNode>(childNode) != nullptr ||
-         std::dynamic_pointer_cast<const ValueStreamNode>(childNode) != nullptr) &&
+         std::dynamic_pointer_cast<const ValueStreamNode>(childNode) != nullptr)
+#ifdef GLUTEN_ENABLE_GPU
+        || std::dynamic_pointer_cast<const CudfValueStreamNode>(childNode) != nullptr
+#endif
+          &&
             childNode->outputType()->size() > requiredChildOutput.size(),
         "injectedProject is true, but the ProjectNode or ValueStreamNode (in case of projection fallback)"
         " is missing or does not have the corresponding projection field");
@@ -1224,6 +1279,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       nextPlanNodeId(), sortingKeys, sortingOrders, static_cast<int32_t>(topNRel.n()), false /*isPartial*/, childNode);
 }
 
+template <typename T>
 core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     const ::substrait::ReadRel& readRel,
     int32_t streamIdx) {
@@ -1251,7 +1307,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
     iterator = inputIters_[streamIdx];
   }
-  auto node = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(iterator));
+  auto node = std::make_shared<T>(nextPlanNodeId(), outputType, std::move(iterator));
 
   auto splitInfo = std::make_shared<SplitInfo>();
   splitInfo->isStream = true;
@@ -1288,12 +1344,16 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Check if the ReadRel specifies an input of stream. If yes, build ValueStreamNode as the data source.
   auto streamIdx = getStreamIndex(readRel);
   if (streamIdx >= 0) {
-    // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
-    if (LIKELY(!veloxCfg_->get<bool>(kQueryTraceEnabled, false))) {
-      return constructValueStreamNode(readRel, streamIdx);
-    } else {
-      return constructValuesNode(readRel, streamIdx);
+#ifdef GLUTEN_ENABLE_GPU
+    if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+      return constructValueStreamNode<CudfValueStreamNode>(readRel, streamIdx);
     }
+#endif
+    if (!veloxCfg_->get<bool>(kQueryTraceEnabled, false)) {
+      return constructValueStreamNode<ValueStreamNode>(readRel, streamIdx);
+    }
+    // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
+    return constructValuesNode(readRel, streamIdx);
   }
 
   // Otherwise, will create TableScan node for ReadRel.
@@ -1588,5 +1648,11 @@ bool SubstraitToVeloxPlanConverter::checkTypeExtension(const ::substrait::Plan& 
   }
   return true;
 }
+
+#ifdef GLUTEN_ENABLE_GPU
+template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<CudfValueStreamNode>(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+#endif
+
+template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<ValueStreamNode>(const ::substrait::ReadRel& sRead, int32_t streamIdx);
 
 } // namespace gluten

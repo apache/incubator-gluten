@@ -153,6 +153,7 @@ object DeltaPostTransformRules {
       // replace tableName in schema with physicalName
       val scanExecTransformer = new DeltaScanTransformer(
         newFsRelation,
+        plan.stream,
         newOutput,
         DeltaColumnMapping.createPhysicalSchema(
           plan.requiredSchema,
