@@ -181,8 +181,8 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
       spark.sql("explain select :first", Map("first" -> 1)),
       """== Physical Plan ==
         |ColumnarToRow
-        |+- ^(2) ProjectExecTransformer [1 AS 1#N]
-        |   +- ^(2) InputIteratorTransformer[]
+        |+- ^(1) ProjectExecTransformer [1 AS 1#N]
+        |   +- ^(1) InputIteratorTransformer[]
         |      +- RowToColumnar
         |         +- *(1) Scan OneRowRelation[]
         |
