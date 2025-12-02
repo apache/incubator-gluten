@@ -63,7 +63,11 @@ case class HiveTableScanExecTransformer(
     hiveQlTable.getOutputFormatClass,
     hiveQlTable.getMetadata)
 
-  override def filterExprs(): Seq[Expression] = Seq.empty
+  override def scanFilters: Seq[Expression] = Seq.empty
+
+  override def supportPushDownFilters: Boolean = false
+
+  override def pushDownFilters: Option[Seq[Expression]] = None
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 

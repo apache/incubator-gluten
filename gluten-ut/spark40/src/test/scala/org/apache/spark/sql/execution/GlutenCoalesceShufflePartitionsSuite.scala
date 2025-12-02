@@ -92,9 +92,7 @@ class GlutenCoalesceShufflePartitionsSuite
 
             // Then, let's look at the number of post-shuffle partitions estimated
             // by the ExchangeCoordinator.
-            val finalPlan = agg.queryExecution.executedPlan
-              .asInstanceOf[AdaptiveSparkPlanExec]
-              .executedPlan
+            val finalPlan = stripAQEPlan(agg.queryExecution.executedPlan)
             val shuffleReads = finalPlan.collect { case r @ CoalescedShuffleRead() => r }
 
             minNumPostShufflePartitions match {
@@ -135,9 +133,7 @@ class GlutenCoalesceShufflePartitionsSuite
 
             // Then, let's look at the number of post-shuffle partitions estimated
             // by the ExchangeCoordinator.
-            val finalPlan = join.queryExecution.executedPlan
-              .asInstanceOf[AdaptiveSparkPlanExec]
-              .executedPlan
+            val finalPlan = stripAQEPlan(join.queryExecution.executedPlan)
             val shuffleReads = finalPlan.collect { case r @ CoalescedShuffleRead() => r }
 
             minNumPostShufflePartitions match {
@@ -184,9 +180,7 @@ class GlutenCoalesceShufflePartitionsSuite
 
             // Then, let's look at the number of post-shuffle partitions estimated
             // by the ExchangeCoordinator.
-            val finalPlan = join.queryExecution.executedPlan
-              .asInstanceOf[AdaptiveSparkPlanExec]
-              .executedPlan
+            val finalPlan = stripAQEPlan(join.queryExecution.executedPlan)
             val shuffleReads = finalPlan.collect { case r @ CoalescedShuffleRead() => r }
 
             minNumPostShufflePartitions match {
@@ -234,9 +228,7 @@ class GlutenCoalesceShufflePartitionsSuite
 
             // Then, let's look at the number of post-shuffle partitions estimated
             // by the ExchangeCoordinator.
-            val finalPlan = join.queryExecution.executedPlan
-              .asInstanceOf[AdaptiveSparkPlanExec]
-              .executedPlan
+            val finalPlan = stripAQEPlan(join.queryExecution.executedPlan)
             val shuffleReads = finalPlan.collect { case r @ CoalescedShuffleRead() => r }
 
             minNumPostShufflePartitions match {

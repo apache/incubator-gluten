@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.metrics.GlutenTimeMetric
 
+import org.apache.spark.Partition
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, PlanExpression, Predicate}
@@ -57,10 +58,6 @@ abstract class FileSourceScanExecShim(
   }
 
   protected lazy val driverMetricsAlias = driverMetrics
-
-  def dataFiltersInScan: Seq[Expression] = {
-    throw new UnsupportedOperationException("Not implemented")
-  }
 
   def hasUnsupportedColumns: Boolean = {
     // TODO, fallback if user define same name column due to we can't right now
@@ -123,6 +120,10 @@ abstract class FileSourceScanExecShim(
 
   def getPartitionArray: Array[PartitionDirectory] = {
     dynamicallySelectedPartitions
+  }
+
+  def getPartitionsSeq(): Seq[Partition] = {
+    Seq()
   }
 }
 

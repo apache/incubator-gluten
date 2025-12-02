@@ -51,6 +51,7 @@ trait DeltaSQLCommandTest extends SharedSparkSession {
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set(VeloxDeltaConfig.ENABLE_NATIVE_WRITE.key, "true")
       .set("spark.databricks.delta.snapshotPartitions", "2")
+      .set("spark.gluten.sql.fallbackUnexpectedMetadataParquet", "true")
   }
 }
 // spotless:on

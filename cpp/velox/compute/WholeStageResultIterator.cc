@@ -18,6 +18,7 @@
 #include "VeloxBackend.h"
 #include "VeloxRuntime.h"
 #include "config/VeloxConfig.h"
+#include "utils/ConfigExtractor.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
@@ -71,7 +72,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
     const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
-    const facebook::velox::config::ConfigBase* veloxCfg,
+    const std::shared_ptr<facebook::velox::config::ConfigBase>& veloxCfg,
     const SparkTaskInfo& taskInfo)
     : memoryManager_(memoryManager),
       veloxCfg_(veloxCfg),
@@ -209,7 +210,7 @@ WholeStageResultIterator::WholeStageResultIterator(
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
-  connectorConfigs[kHiveConnectorId] = createConnectorConfig();
+  connectorConfigs[kHiveConnectorId] = createHiveConnectorSessionConfig(veloxCfg_);
   std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(
       nullptr,
       facebook::velox::core::QueryConfig{getQueryContextConf()},
@@ -667,26 +668,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     throw std::runtime_error("Invalid conf arg: " + errDetails);
   }
   return configs;
-}
-
-std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConnectorConfig() {
-  // The configs below are used at session level.
-  std::unordered_map<std::string, std::string> configs = {};
-  // The semantics of reading as lower case is opposite with case-sensitive.
-  configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
-      !veloxCfg_->get<bool>(kCaseSensitive, false) ? "true" : "false";
-  configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
-  configs[velox::parquet::WriterOptions::kParquetSessionWriteTimestampUnit] = "6";
-  configs[velox::connector::hive::HiveConfig::kReadTimestampUnitSession] = "6";
-  configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
-      std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
-  configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
-      std::to_string(veloxCfg_->get<bool>(kIgnoreMissingFiles, false));
-  configs[velox::connector::hive::HiveConfig::kParquetUseColumnNamesSession] =
-      std::to_string(veloxCfg_->get<bool>(kParquetUseColumnNames, true));
-  configs[velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] =
-      std::to_string(veloxCfg_->get<bool>(kOrcUseColumnNames, true));
-  return std::make_shared<velox::config::ConfigBase>(std::move(configs));
 }
 
 } // namespace gluten

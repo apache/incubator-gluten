@@ -1150,7 +1150,8 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     }
     auto baseFuncName =
         SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
-    auto funcName = planConverter_->toAggregationFunctionName(baseFuncName, funcStep);
+    auto resultType = SubstraitParser::parseType(aggFunction.output_type());
+    auto funcName = planConverter_->toAggregationFunctionName(baseFuncName, funcStep, resultType);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
       LOG_VALIDATION_MSG("can not find function signature for " + funcName + " in AggregateRel.");

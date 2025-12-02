@@ -21,6 +21,6 @@ class GlutenApproximatePercentileQuerySuite
   with GlutenSQLTestsTrait {
 
   override def testFile(fileName: String): String = {
-    Thread.currentThread().getContextClassLoader.getResource(fileName).toString
+    getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + fileName
   }
 }

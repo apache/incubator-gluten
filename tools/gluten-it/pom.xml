@@ -39,7 +39,7 @@
     <delta.package.name>delta-core</delta.package.name>
     <delta.version>2.4.0</delta.version>
     <celeborn.version>0.6.1</celeborn.version>
-    <uniffle.version>0.9.2</uniffle.version>
+    <uniffle.version>0.10.0</uniffle.version>
     <gluten.version>1.6.0-SNAPSHOT</gluten.version>
     <tpch.version>1.1</tpch.version>
     <tpcds.version>1.4</tpcds.version>

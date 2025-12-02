@@ -37,7 +37,46 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   import org.apache.spark.sql.catalyst.util._
 
   /** Returns the filters that can be pushed down to native file scan */
-  def filterExprs(): Seq[Expression]
+  final def filterExprs(): Seq[Expression] = {
+    if (pushDownFilters.nonEmpty) {
+      val (_, scanFiltersNotInPushDownFilters) =
+        scanFilters.partition(pushDownFilters.get.contains(_))
+      // For filters that only exists in scan, we need to check if they are supported.
+      val unsupportedFilters = scanFiltersNotInPushDownFilters.filter(
+        !BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
+      if (unsupportedFilters.nonEmpty) {
+        throw new UnsupportedOperationException(
+          "Found unsupported filter in scan " + unsupportedFilters.mkString(", "))
+      }
+      val supportedPushDownFilters = pushDownFilters.get
+        .filter(BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
+      FilterHandler.combineFilters(supportedPushDownFilters, scanFiltersNotInPushDownFilters)
+    } else {
+      // todo: When PushDownFilterToScan is not performed, find a way to throw an
+      //  exception to trigger scan fallback when encountering unsupported scan filters,
+      //  instead of simply filtering them out.
+      scanFilters.filter(
+        BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
+    }
+  }
+
+  /** Returns the filters that already exists in scan. */
+  def scanFilters: Seq[Expression]
+
+  /** Whether the scan supports push down filters. */
+  def supportPushDownFilters: Boolean = true
+
+  /**
+   * Returns the filters that pushed by
+   * [[org.apache.gluten.extension.columnar.PushDownFilterToScan]].
+   */
+  def pushDownFilters: Option[Seq[Expression]]
+
+  /** Copy the scan with filters that pushed by filterNode. */
+  def withNewPushdownFilters(filters: Seq[Expression]): BasicScanExecTransformer = {
+    throw new UnsupportedOperationException(
+      s"${getClass.toString} does not support push down filters.")
+  }
 
   def getMetadataColumns(): Seq[AttributeReference]
 

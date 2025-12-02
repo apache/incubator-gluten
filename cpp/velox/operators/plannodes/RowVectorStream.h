@@ -27,6 +27,8 @@ namespace gluten {
 
 class RowVectorStream {
  public:
+  virtual ~RowVectorStream() = default;
+
   explicit RowVectorStream(
       facebook::velox::exec::DriverCtx* driverCtx,
       facebook::velox::memory::MemoryPool* pool,

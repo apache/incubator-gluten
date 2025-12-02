@@ -30,7 +30,6 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExc
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.streaming.{MemoryStream, StreamingQueryWrapper}
-import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.internal.SQLConf
 
 abstract class GlutenDynamicPartitionPruningSuiteBase
@@ -48,8 +47,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
   override def testNameBlackList: Seq[String] = Seq(
     // overwritten with different plan
     "SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec",
-    "Make sure dynamic pruning works on uncorrelated queries",
-    "Subquery reuse across the whole plan"
+    "Make sure dynamic pruning works on uncorrelated queries"
   )
 
   // === Following cases override super class's cases ===
@@ -79,8 +77,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
-  // TODO: fix in Spark-4.0
-  ignoreGluten("no partition pruning when the build side is a stream") {
+  testGluten("no partition pruning when the build side is a stream") {
     withTable("fact") {
       val input = MemoryStream[Int]
       val stream = input.toDF.select($"value".as("one"), ($"value" * 3).as("code"))
@@ -339,8 +336,7 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
   import testImplicits._
 
   /** Check the static scan metrics with and without DPP */
-  // TODO: fix in Spark-4.0
-  ignoreGluten("static scan metrics", DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
+  testGluten("static scan metrics", DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
     withSQLConf(
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
@@ -461,8 +457,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
 
   import testImplicits._
 
-  // TODO: fix in Spark-4.0
-  ignoreGluten(
+  testGluten(
     "override static scan metrics",
     DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
     withSQLConf(
@@ -574,64 +569,6 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
         assert(filesSizeVal == partFilesSize)
         assert(numPartitionsVal === 1)
         assert(pruningTimeVal3 > -1)
-      }
-    }
-  }
-
-  // TODO: fix in Spark-4.0
-  ignoreGluten(
-    "Subquery reuse across the whole plan",
-    DisableAdaptiveExecution("DPP in AQE must reuse broadcast")) {
-    withSQLConf(
-      SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
-      SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
-      SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false"
-    ) {
-      withTable("df1", "df2") {
-        spark
-          .range(100)
-          .select(col("id"), col("id").as("k"))
-          .write
-          .partitionBy("k")
-          .format(tableFormat)
-          .mode("overwrite")
-          .saveAsTable("df1")
-
-        spark
-          .range(10)
-          .select(col("id"), col("id").as("k"))
-          .write
-          .partitionBy("k")
-          .format(tableFormat)
-          .mode("overwrite")
-          .saveAsTable("df2")
-
-        val df = sql("""
-                       |SELECT df1.id, df2.k
-                       |FROM df1 JOIN df2 ON df1.k = df2.k
-                       |WHERE df2.id < (SELECT max(id) FROM df2 WHERE id <= 2)
-                       |""".stripMargin)
-
-        checkPartitionPruningPredicate(df, true, false)
-
-        checkAnswer(df, Row(0, 0) :: Row(1, 1) :: Nil)
-
-        val plan = df.queryExecution.executedPlan
-
-        val subqueryIds = plan.collectWithSubqueries { case s: SubqueryExec => s.id }
-        val reusedSubqueryIds = plan.collectWithSubqueries {
-          case rs: ReusedSubqueryExec => rs.child.id
-        }
-
-        // By default Gluten pushes more filters than vanilla Spark.
-        //
-        // See also org.apache.gluten.execution.FilterHandler#applyFilterPushdownToScan
-        // See also DynamicPartitionPruningSuite.scala:1362
-        assert(subqueryIds.size == 3, "Whole plan subquery reusing not working correctly")
-        assert(reusedSubqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
-        assert(
-          reusedSubqueryIds.forall(subqueryIds.contains(_)),
-          "ReusedSubqueryExec should reuse an existing subquery")
       }
     }
   }

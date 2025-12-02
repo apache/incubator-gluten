@@ -30,6 +30,7 @@ trait CallerInfo {
   def isAqe(): Boolean
   def isCache(): Boolean
   def isStreaming(): Boolean
+  def isBloomFilterStatFunction(): Boolean
 }
 
 object CallerInfo {
@@ -41,7 +42,8 @@ object CallerInfo {
   private class Impl(
       override val isAqe: Boolean,
       override val isCache: Boolean,
-      override val isStreaming: Boolean
+      override val isStreaming: Boolean,
+      override val isBloomFilterStatFunction: Boolean
   ) extends CallerInfo
 
   /*
@@ -55,7 +57,8 @@ object CallerInfo {
     new Impl(
       isAqe = inAqeCall(stack),
       isCache = inCacheCall(stack),
-      isStreaming = inStreamingCall(stack))
+      isStreaming = inStreamingCall(stack),
+      isBloomFilterStatFunction = inBloomFilterStatFunctionCall(stack))
   }
 
   private def inAqeCall(stack: Seq[StackTraceElement]): Boolean = {
@@ -70,11 +73,21 @@ object CallerInfo {
     stack.exists(_.getClassName.equals(StreamExecution.getClass.getName.split('$').head))
   }
 
+  private def inBloomFilterStatFunctionCall(stack: Seq[StackTraceElement]): Boolean = {
+    val res = stack.exists(
+      _.getClassName.equals("org.apache.spark.sql.DataFrameStatFunctions")
+        && stack.exists(_.getMethodName.equals("bloomFilter")))
+    res
+  }
+
   /** For testing only. */
-  def withLocalValue[T](isAqe: Boolean, isCache: Boolean, isStreaming: Boolean = false)(
-      body: => T): T = {
+  def withLocalValue[T](
+      isAqe: Boolean,
+      isCache: Boolean,
+      isStreaming: Boolean = false,
+      isBloomFilterStatFunction: Boolean = false)(body: => T): T = {
     val prevValue = localStorage.get()
-    val newValue = new Impl(isAqe, isCache, isStreaming)
+    val newValue = new Impl(isAqe, isCache, isStreaming, isBloomFilterStatFunction)
     localStorage.set(Some(newValue))
     try {
       body

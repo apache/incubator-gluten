@@ -24,7 +24,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.spark.util.sketch.BloomFilter;
 import org.apache.spark.util.sketch.IncompatibleMergeException;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,19 +50,15 @@ public class VeloxBloomFilter extends BloomFilter {
 
   public static VeloxBloomFilter readFrom(InputStream in) {
     try {
-      byte[] all = IOUtils.toByteArray(in);
-      return new VeloxBloomFilter(all);
+      byte[] data = IOUtils.toByteArray(in);
+      return new VeloxBloomFilter(data);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
   public static VeloxBloomFilter readFrom(byte[] data) {
-    try (ByteArrayInputStream in = new ByteArrayInputStream(data)) {
-      return readFrom(in);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    return new VeloxBloomFilter(data);
   }
 
   public byte[] serialize() {

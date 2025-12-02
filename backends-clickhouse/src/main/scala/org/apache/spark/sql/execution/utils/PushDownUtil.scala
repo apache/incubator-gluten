@@ -26,33 +26,23 @@ import org.apache.spark.sql.sources
 
 object PushDownUtil {
 
-  def removeNotSupportPushDownFilters(
+  def isSupportPushDownFilter(
       conf: SQLConf,
       output: Seq[Attribute],
-      dataFilters: Seq[Expression]
-  ): Seq[Expression] = {
+      filter: Expression
+  ): Boolean = {
     val schema = new SparkToParquetSchemaConverter(conf).convert(
       SparkShimLoader.getSparkShims.structFromAttributes(output))
     val parquetFilters = SparkShimLoader.getSparkShims.createParquetFilters(conf, schema)
-
-    dataFilters
-      .flatMap {
-        sparkFilter =>
-          DataSourceStrategy.translateFilter(
-            sparkFilter,
-            supportNestedPredicatePushdown = true) match {
-            case Some(sources.StringStartsWith(_, _)) => None
-            case Some(sources.Not(sources.In(_, _) | sources.StringStartsWith(_, _))) => None
-            case Some(sourceFilter) => Some((sparkFilter, sourceFilter))
-            case _ => None
-          }
-      }
-      .flatMap {
-        case (sparkFilter, sourceFilter) =>
-          parquetFilters.createFilter(sourceFilter) match {
-            case Some(_) => Some(sparkFilter)
-            case None => None
-          }
-      }
+    DataSourceStrategy.translateFilter(filter, supportNestedPredicatePushdown = true) match {
+      case Some(sources.StringStartsWith(_, _)) => false
+      case Some(sources.Not(sources.In(_, _) | sources.StringStartsWith(_, _))) => false
+      case Some(sourceFilter) =>
+        parquetFilters.createFilter(sourceFilter) match {
+          case Some(_) => true
+          case None => false
+        }
+      case _ => false
+    }
   }
 }

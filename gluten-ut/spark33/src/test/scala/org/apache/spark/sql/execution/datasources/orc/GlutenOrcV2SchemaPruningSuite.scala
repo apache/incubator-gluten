@@ -34,8 +34,10 @@ class GlutenOrcV2SchemaPruningSuite extends OrcV2SchemaPruningSuite with GlutenS
   override def checkScanSchemata(df: DataFrame, expectedSchemaCatalogStrings: String*): Unit = {
     val fileSourceScanSchemata =
       collect(df.queryExecution.executedPlan) {
-        case BatchScanExec(_, scan: OrcScan, _, _) => scan.readDataSchema
-        case BatchScanExecTransformer(_, scan: OrcScan, _, _, _, _, _, _, _) => scan.readDataSchema
+        case b: BatchScanExec if b.scan.isInstanceOf[OrcScan] =>
+          b.scan.asInstanceOf[OrcScan].readDataSchema
+        case b: BatchScanExecTransformer if b.scan.isInstanceOf[OrcScan] =>
+          b.scan.asInstanceOf[OrcScan].readDataSchema
       }
     assert(
       fileSourceScanSchemata.size === expectedSchemaCatalogStrings.size,

@@ -23,7 +23,22 @@ import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.task.TaskResources;
 import org.apache.spark.util.Utils;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Function;
+
 public class ThrowOnOomMemoryTarget implements MemoryTarget {
+  private static final List<String> PRINTED_NON_BYTES_CONFIGURATIONS =
+      Arrays.asList(
+          GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY(),
+          GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED().key());
+
+  private static final List<String> PRINTED_BYTES_CONFIGURATIONS =
+      Arrays.asList(
+          GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key(),
+          GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
+          GlutenCoreConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key());
+
   private final MemoryTarget target;
 
   public ThrowOnOomMemoryTarget(MemoryTarget target) {
@@ -46,8 +61,8 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
     if (TaskResources.inSparkTask()) {
       TaskResources.getLocalTaskContext().taskMemoryManager().showMemoryUsage();
     }
-    // Build error message, then throw
-    StringBuilder errorBuilder = new StringBuilder();
+    // Build error message, then throw.
+    final StringBuilder errorBuilder = new StringBuilder();
     errorBuilder
         .append(
             String.format(
@@ -58,50 +73,32 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
                     + "is not enabled). %n",
                 Utils.bytesToString(size), Utils.bytesToString(granted)))
         .append("Current config settings: ")
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key(),
-                reformatBytes(
-                    SQLConf.get()
-                        .getConfString(GlutenCoreConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key()))))
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
-                reformatBytes(
-                    SQLConf.get()
-                        .getConfString(
-                            GlutenCoreConfig.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key()))))
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenCoreConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
-                reformatBytes(
-                    SQLConf.get()
-                        .getConfString(
-                            GlutenCoreConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES()
-                                .key()))))
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY(),
-                SQLConf.get().getConfString(GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY())))
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED().key(),
-                GlutenCoreConfig.get().dynamicOffHeapSizingEnabled()))
         .append(System.lineSeparator());
+    for (String confKey : PRINTED_NON_BYTES_CONFIGURATIONS) {
+      errorBuilder
+          .append(String.format("\t%s=%s", confKey, getSqlConfStringOrNa(confKey, v -> v)))
+          .append(System.lineSeparator());
+    }
+    for (String confKey : PRINTED_BYTES_CONFIGURATIONS) {
+      errorBuilder
+          .append(
+              String.format(
+                  "\t%s=%s",
+                  confKey, getSqlConfStringOrNa(confKey, ThrowOnOomMemoryTarget::reformatBytes)))
+          .append(System.lineSeparator());
+    }
     // Dump all consumer usages to exception body
     errorBuilder.append(SparkMemoryUtil.dumpMemoryTargetStats(target));
     errorBuilder.append(System.lineSeparator());
     throw new OutOfMemoryException(errorBuilder.toString());
+  }
+
+  private static String getSqlConfStringOrNa(String confKey, Function<String, String> ifPresent) {
+    final SQLConf sqlConf = SQLConf.get();
+    if (!sqlConf.contains(confKey)) {
+      return "N/A";
+    }
+    return ifPresent.apply(sqlConf.getConfString(confKey));
   }
 
   private static String reformatBytes(String in) {

@@ -95,6 +95,7 @@ object ParquetMetadataUtils {
       fileLimit: Int
   ): Option[String] = {
     val isEncryptionValidationEnabled = GlutenConfig.get.parquetEncryptionValidationEnabled
+    val isMetadataValidationEnabled = GlutenConfig.get.parquetMetadataValidationEnabled
     val filesIterator: RemoteIterator[LocatedFileStatus] = fs.listFiles(path, true)
     var checkedFileCount = 0
     while (filesIterator.hasNext && checkedFileCount < fileLimit) {
@@ -107,7 +108,9 @@ object ParquetMetadataUtils {
       ) {
         return Some("Encrypted Parquet file detected.")
       }
-      if (isTimezoneFoundInMetadata(fileStatus, conf, parquetOptions)) {
+      if (
+        isMetadataValidationEnabled && isTimezoneFoundInMetadata(fileStatus, conf, parquetOptions)
+      ) {
         return Some("Legacy timezone found.")
       }
     }

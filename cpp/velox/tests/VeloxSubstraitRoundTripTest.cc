@@ -477,7 +477,7 @@ TEST_F(VeloxSubstraitRoundTripTest, sumAndCountCompanion) {
   auto plan = PlanBuilder()
                   .values(vectors)
                   .singleAggregation({}, {"sum_partial(c1)", "count_partial(c4)"})
-                  .singleAggregation({}, {"sum_merge_extract(a0)", "count_merge_extract(a1)"})
+                  .singleAggregation({}, {"sum_merge_extract_bigint(a0)", "count_merge_extract_bigint(a1)"})
                   .planNode();
 
   assertPlanConversion(plan, "SELECT sum(c1), count(c4) FROM tmp");
@@ -492,7 +492,7 @@ TEST_F(VeloxSubstraitRoundTripTest, sumGlobalCompanion) {
                   .values(vectors)
                   .singleAggregation({"c0"}, {"sum_partial(c0)", "sum_partial(c1)"})
                   .singleAggregation({"c0"}, {"sum_merge(a0)", "sum_merge(a1)"})
-                  .singleAggregation({"c0"}, {"sum_merge_extract(a0)", "sum_merge_extract(a1)"})
+                  .singleAggregation({"c0"}, {"sum_merge_extract_bigint(a0)", "sum_merge_extract_bigint(a1)"})
                   .planNode();
   assertPlanConversion(plan, "SELECT c0, sum(c0), sum(c1) FROM tmp GROUP BY c0");
 }
@@ -505,7 +505,7 @@ TEST_F(VeloxSubstraitRoundTripTest, sumMaskCompanion) {
                   .values(vectors)
                   .project({"c0", "c1", "c2 % 2 < 10 AS m0", "c3 % 3 = 0 AS m1"})
                   .singleAggregation({}, {"sum_partial(c0)", "sum_partial(c0)", "sum_partial(c1)"}, {"m0", "m1", "m1"})
-                  .singleAggregation({}, {"sum_merge_extract(a0)", "sum_merge_extract(a1)", "sum_merge_extract(a2)"})
+                  .singleAggregation({}, {"sum_merge_extract_bigint(a0)", "sum_merge_extract_bigint(a1)", "sum_merge_extract_bigint(a2)"})
                   .planNode();
 
   assertPlanConversion(
@@ -538,7 +538,7 @@ TEST_F(VeloxSubstraitRoundTripTest, avgCompanion) {
   auto plan = PlanBuilder()
                   .values(vectors)
                   .singleAggregation({}, {"avg_partial(c4)"})
-                  .singleAggregation({}, {"avg_merge_extract(a0)"})
+                  .singleAggregation({}, {"avg_merge_extract_double(a0)"})
                   .planNode();
 
   assertPlanConversion(plan, "SELECT avg(c4) FROM tmp");
