@@ -624,11 +624,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite for Gluten. Change details are in the inline comments in individual tests.
     .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenExchangeSuite]
-    // ColumnarShuffleExchangeExec does not support doExecute() method
-    .exclude("shuffling UnsafeRows in exchange")
-    // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
-    .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenReplaceHashWithSortAggSuite]
+    // Rewrite to check plan and some adds order by for result sort order
     .exclude("replace partial hash aggregate with sort aggregate")
     .exclude("replace partial and final hash aggregate together with sort aggregate")
     .exclude("do not replace hash aggregate if child does not have sort order")
@@ -670,11 +667,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("disable bucketing when the output doesn't contain all bucketing columns")
     .excludeByPrefix("bucket coalescing is applied when join expressions match")
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
-    .exclude("write bucketed data")
-    .exclude("write bucketed data with sortBy")
-    .exclude("write bucketed data without partitionBy")
-    .exclude("write bucketed data without partitionBy with sortBy")
-    .exclude("write bucketed data with bucketing disabled")
   enableSuite[GlutenCreateTableAsSelectSuite]
     // TODO Gluten can not catch the spark exception in Driver side.
     .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
@@ -707,8 +699,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenTableScanSuite]
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenApproximatePercentileQuerySuite]
-    // requires resource files from Vanilla spark jar
-    .exclude("SPARK-32908: maximum target error in percentile_approx")
   enableSuite[GlutenCachedTableSuite]
     .exclude("A cached table preserves the partitioning and ordering of its cached SparkPlan")
     .exclude("InMemoryRelation statistics")
@@ -724,8 +714,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("assert_true")
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenConfigBehaviorSuite]
-    // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
-    .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
     // Gluten columnar operator will have different number of jobs
     .exclude("SPARK-40211: customize initialNumPartitions for take")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
@@ -737,10 +725,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Test for vanilla spark codegen, not apply for Gluten
     .exclude("SPARK-43876: Enable fast hashmap for distinct queries")
     .exclude(
-      "zero moments", // [velox does not return NaN]
       "SPARK-26021: NaN and -0.0 in grouping expressions", // NaN case
-      // incorrect result, distinct NaN case
-      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       // Replaced with another test.
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
         " before using it",
@@ -753,9 +738,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameAsOfJoinSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
-    // blocked by Velox-5768
-    .exclude("aggregate function - array for primitive type containing null")
-    .exclude("aggregate function - array for non-primitive type")
     // Rewrite this test because Velox sorts rows by key for primitive data types, which disrupts the original row sequence.
     .exclude("map_zip_with function - map of primitive types")
     // Vanilla spark throw SparkRuntimeException, gluten throw SparkException.
@@ -765,23 +747,14 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenDataFrameJoinSuite]
   enableSuite[GlutenDataFrameNaFunctionsSuite]
-    .exclude(
-      // NaN case
-      "replace nan with float",
-      "replace nan with double"
-    )
   enableSuite[GlutenDataFramePivotSuite]
-    // substring issue
-    .exclude("pivot with column definition in groupby")
-    // array comparison not supported for values that contain nulls
-    .exclude(
-      "pivot with null and aggregate type not supported by PivotFirst returns correct result")
   enableSuite[GlutenDataFrameRangeSuite]
     .exclude("SPARK-20430 Initialize Range parameters in a driver side")
     .excludeByPrefix("Cancelling stage in a query with Range")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenDataFrameSessionWindowingSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
+    // Ignore because it checks Spark's physical operators not  ColumnarUnionExec
     .exclude("SPARK-37371: UnionExec should support columnar if all children support columnar")
     // Result depends on the implementation for nondeterministic expression rand.
     // Not really an issue.
@@ -797,12 +770,8 @@ class VeloxTestSettings extends BackendTestSettings {
        */
       "repartitionByRange",
       "distributeBy and localSort",
-      // Mismatch when max NaN and infinite value
-      "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
-      // decimal failed ut.
-      "SPARK-22271: mean overflows and returns null for some decimal variables",
       // Result depends on the implementation for nondeterministic expression rand.
       // Not really an issue.
       "SPARK-9083: sort with non-deterministic expressions"
@@ -824,11 +793,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-38237: require all cluster keys for child required distribution for window query")
   enableSuite[GlutenDataFrameWindowFramesSuite]
-    // Local window fixes are not added.
-    .exclude("range between should accept int/long values as boundary")
-    .exclude("unbounded preceding/following range between with aggregation")
-    .exclude("sliding range between with aggregation")
-    .exclude("store and retrieve column stats in different time zones")
   enableSuite[GlutenDataFrameWriterV2Suite]
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]
@@ -954,8 +918,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-51738: IN subquery with struct type")
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
-    // Rewrite with NaN test cases excluded.
-    .exclude("cases when literal is max")
   enableSuite[GlutenXPathFunctionsSuite]
   enableSuite[GlutenFallbackSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
