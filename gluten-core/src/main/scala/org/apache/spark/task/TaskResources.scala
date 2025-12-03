@@ -289,7 +289,7 @@ class TaskResourceRegistry extends Logging {
 
   /** Release all managed resources according to priority and reversed order */
   private[task] def releaseAll(): Unit = lock {
-    priorityToResourcesMapping.toSeq.sortBy(_._1).foreach {
+    priorityToResourcesMapping.toSeq.sortBy(-_._1).foreach {
       case (_, resources) =>
         resources.toSeq.reverse.foreach(release)
     }
