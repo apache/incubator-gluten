@@ -18,7 +18,7 @@ package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.execution.{GlutenPlan, ValidatablePlan}
 import org.apache.gluten.extension.columnar.FallbackTags
-import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
+import org.apache.gluten.extension.columnar.offload.{OffloadOthers, OffloadSingleNode}
 import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
 import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.ras.path.Pattern
@@ -27,7 +27,8 @@ import org.apache.gluten.ras.rule.{RasRule, Shape}
 import org.apache.gluten.ras.rule.Shapes.pattern
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, BroadcastNestedLoopJoinExec}
 
 import scala.reflect.{classTag, ClassTag}
 
@@ -129,7 +130,21 @@ object RasOffload {
                   case t: ValidatablePlan => t
                 }
                 val outComes = offloadedNodes.map(_.doValidate()).filter(!_.ok())
-                if (outComes.nonEmpty) {
+                // 4.1 Validate pre project of broadcast join
+                val notOffload = from match {
+                  case _: BroadcastHashJoinExec | _: BroadcastNestedLoopJoinExec =>
+                    val projectOffload = RasOffload.from[ProjectExec](OffloadOthers())
+                    from
+                      .collect {
+                        case preProject: ProjectExec => projectOffload.offload(preProject)
+                      }
+                      .exists {
+                        case t: ValidatablePlan => !t.doValidate().ok()
+                        case plan if !plan.isInstanceOf[GlutenPlan] => true
+                      }
+                  case _ => false
+                }
+                if (outComes.nonEmpty || notOffload) {
                   // 5. If native validation fails on at least one of the offloaded nodes, return
                   // the original one.
                   //
