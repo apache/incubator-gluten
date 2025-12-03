@@ -151,6 +151,7 @@ object VeloxRuleApi {
       c => GlutenAutoAdjustStageResourceProfile(new GlutenConfig(c.sqlConf), c.session))
     injector.injectFinal(c => GlutenFallbackReporter(new GlutenConfig(c.sqlConf), c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
+    injector.injectFinal(_ => RegenerateTransformStageId())
   }
 
   /**
