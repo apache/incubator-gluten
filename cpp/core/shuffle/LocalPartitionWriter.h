@@ -39,13 +39,18 @@ class LocalPartitionWriter : public PartitionWriter {
       uint32_t partitionId,
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
-      bool reuseBuffers) override;
+      bool reuseBuffers,
+      int64_t& evictBytes) override;
 
-  arrow::Status sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal)
-      override;
+  arrow::Status sortEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      bool isFinal,
+      int64_t& evictBytes) override;
 
   // This code path is not used by LocalPartitionWriter, Not implement it by default.
-  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) override {
+  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes)
+      override {
     return arrow::Status::NotImplemented("Invalid code path for local shuffle writer.");
   }
 
@@ -68,7 +73,7 @@ class LocalPartitionWriter : public PartitionWriter {
   /// If spill is triggered by 2.c, cached payloads of the remaining unmerged partitions will be spilled.
   /// In both cases, if the cached payload size doesn't free enough memory,
   /// it will shrink partition buffers to free more memory.
-  arrow::Status stop(ShuffleWriterMetrics* metrics) override;
+  arrow::Status stop(ShuffleWriterMetrics* metrics, int64_t& evictBytes) override;
 
   // Spill source:
   // 1. Other op.
