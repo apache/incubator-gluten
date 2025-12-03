@@ -193,4 +193,7 @@ const std::string kCudfEnableTableScan = "spark.gluten.sql.columnar.backend.velo
 const bool kCudfEnableTableScanDefault = false;
 const std::string kCudfHiveConnectorId = "cudf-hive";
 
+const std::string kStaticBackendConfPrefix = "spark.gluten.velox.";
+const std::string kDynamicBackendConfPrefix = "spark.gluten.sql.columnar.backend.velox.";
+
 } // namespace gluten

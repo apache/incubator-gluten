@@ -43,4 +43,9 @@ std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorConfig(
     const std::shared_ptr<facebook::velox::config::ConfigBase>& conf,
     FileSystemType fsType = FileSystemType::kAll);
 
+void overwriteVeloxConf(
+    const facebook::velox::config::ConfigBase* from,
+    std::unordered_map<std::string, std::string>& to,
+    const std::string& prefix);
+
 } // namespace gluten
