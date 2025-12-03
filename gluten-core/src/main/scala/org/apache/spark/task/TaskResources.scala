@@ -25,11 +25,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.{SparkTaskUtil, TaskCompletionListener, TaskFailureListener}
 
-import java.util
-import java.util.{Collections, Properties, UUID}
+import java.util.{Properties, UUID}
 import java.util.concurrent.atomic.AtomicLong
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.compat.Platform.ConcurrentModificationException
 
@@ -251,8 +249,8 @@ object TaskResources extends TaskListener with Logging {
 class TaskResourceRegistry extends Logging {
   private val sharedUsage = new SimpleMemoryUsageRecorder()
   private val resources = mutable.Map.empty[String, TaskResource]
-  private val priorityToResourcesMapping: mutable.Map[Int, util.LinkedHashSet[TaskResource]] =
-    mutable.Map.empty[Int, util.LinkedHashSet[TaskResource]]
+  private val priorityToResourcesMapping: mutable.Map[Int, mutable.LinkedHashSet[TaskResource]] =
+    mutable.Map.empty[Int, mutable.LinkedHashSet[TaskResource]]
 
   private var exclusiveLockAcquired: Boolean = false
   private def lock[T](body: => T): T = {
@@ -280,7 +278,7 @@ class TaskResourceRegistry extends Logging {
   private def addResource0(id: String, resource: TaskResource): Unit = lock {
     resources.put(id, resource)
     priorityToResourcesMapping
-      .getOrElseUpdate(resource.priority(), new util.LinkedHashSet[TaskResource]())
+      .getOrElseUpdate(resource.priority(), mutable.LinkedHashSet.empty[TaskResource])
       .add(resource)
   }
 
@@ -291,26 +289,9 @@ class TaskResourceRegistry extends Logging {
 
   /** Release all managed resources according to priority and reversed order */
   private[task] def releaseAll(): Unit = lock {
-    val table = new util.ArrayList(priorityToResourcesMapping.asJava.entrySet())
-    Collections.sort(
-      table,
-      (
-          o1: util.Map.Entry[Int, util.LinkedHashSet[TaskResource]],
-          o2: util.Map.Entry[Int, util.LinkedHashSet[TaskResource]]) => {
-        val diff = o2.getKey - o1.getKey // descending by priority
-        if (diff > 0) {
-          1
-        } else if (diff < 0) {
-          -1
-        } else {
-          throw new IllegalStateException(
-            "Unreachable code from org.apache.spark.task.TaskResourceRegistry.releaseAll")
-        }
-      }
-    )
-    table.forEach {
-      _.getValue.asScala.toSeq.reverse
-        .foreach(release(_)) // lifo for all resources within the same priority
+    priorityToResourcesMapping.toSeq.sortBy(_._1).foreach {
+      case (_, resources) =>
+        resources.toSeq.reverse.foreach(release)
     }
     priorityToResourcesMapping.clear()
     resources.clear()
