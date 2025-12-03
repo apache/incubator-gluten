@@ -106,7 +106,7 @@ object GlutenShuffleUtils {
     } else if ("zstd" == codec) {
       checkAndGetBufferSize(IO_COMPRESSION_ZSTD_BUFFERSIZE)
     } else {
-      checkAndGetBufferSize(SHUFFLE_DISK_WRITE_BUFFER_SIZE)
+      throw new UnsupportedOperationException(s"Unsupported compression codec $codec.")
     }
   }
 
