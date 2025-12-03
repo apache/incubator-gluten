@@ -213,8 +213,6 @@ case class ColumnarInputAdapter(child: SparkPlan)
 }
 
 object ColumnarCollapseTransformStages {
-  val transformStageCounter = new AtomicInteger(0)
-
   def wrapInputIteratorTransformer(plan: SparkPlan): TransformSupport = {
     InputIteratorTransformer(ColumnarInputAdapter(plan))
   }
