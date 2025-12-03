@@ -116,7 +116,8 @@ object GlutenCoreConfig extends ConfigRegistry {
   val COLUMNAR_MEMORY_ISOLATION =
     buildConf("spark.gluten.memory.isolation")
       .doc("Enable isolated memory mode. If true, Gluten controls the maximum off-heap memory " +
-        "can be used by each task to X, X = executor memory / max task slots. It's recommended " +
+        "can be used by each task to X, " +
+        "X = executor memory / max task slots * (1 - storage memory fraction). It's recommended " +
         "to set true if Gluten serves concurrent queries within a single session, since not all " +
         "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
         "be enabled to avoid OOM.")
