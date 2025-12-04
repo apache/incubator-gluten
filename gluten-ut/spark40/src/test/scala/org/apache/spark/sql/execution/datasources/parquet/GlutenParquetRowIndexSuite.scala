@@ -33,6 +33,7 @@ import org.apache.parquet.column.ParquetProperties._
 import org.apache.parquet.format.converter.ParquetMetadataConverter
 import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE
+import org.apache.parquet.hadoop.util.HadoopInputFile
 
 import java.io.File
 
@@ -42,11 +43,9 @@ class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTest
   import testImplicits._
 
   private def readRowGroupRowCounts(path: String): Seq[Long] = {
+    val inputFile = HadoopInputFile.fromPath(new Path(path), spark.sessionState.newHadoopConf())
     ParquetFooterReader
-      .readFooter(
-        spark.sessionState.newHadoopConf(),
-        new Path(path),
-        ParquetMetadataConverter.NO_FILTER)
+      .readFooter(inputFile, ParquetMetadataConverter.NO_FILTER)
       .getBlocks
       .asScala
       .map(_.getRowCount)
