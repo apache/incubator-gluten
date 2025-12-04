@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.ColumnarToRowTransition
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.unsafe.types.{GeographyVal, GeometryVal}
 
 import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
 
@@ -98,5 +99,11 @@ object ColumnarToCarrierRowExecBase {
     private def readObject(input: ObjectInputStream): Unit = {
       _batch = BackendsApiManager.getSparkPlanExecApiInstance.deserializeColumnarBatch(input)
     }
+
+    override def getGeography(ordinal: Int): GeographyVal =
+      throw new UnsupportedOperationException("GeographyVal")
+
+    override def getGeometry(ordinal: Int): GeometryVal =
+      throw new UnsupportedOperationException("GeographyVal")
   }
 }
