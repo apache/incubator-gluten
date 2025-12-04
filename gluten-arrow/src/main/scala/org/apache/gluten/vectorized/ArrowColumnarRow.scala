@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.{ColumnarArray, ColumnarMap}
-import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
+import org.apache.spark.unsafe.types.{CalendarInterval, GeographyVal, GeometryVal, UTF8String}
 
 import java.math.BigDecimal
 
@@ -240,4 +240,11 @@ final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector], 
       i += 1
     }
   }
+
+  override def getGeography(ordinal: Int): GeographyVal =
+    throw new UnsupportedOperationException("GeographyVal")
+
+  override def getGeometry(ordinal: Int): GeometryVal =
+    throw new UnsupportedOperationException("GeographyVal")
+
 }

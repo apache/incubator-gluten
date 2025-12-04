@@ -20,7 +20,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
+import org.apache.spark.unsafe.types.{CalendarInterval, GeographyVal, GeometryVal, UTF8String}
 
 /**
  * An internal-row abstraction that is designed for columnar-based computations to bypass Spark's
@@ -109,4 +109,10 @@ abstract class TerminalRow extends BatchCarrierRow {
  */
 class PlaceholderRow extends BatchCarrierRow {
   override def copy(): InternalRow = new PlaceholderRow()
+
+  override def getGeography(ordinal: Int): GeographyVal =
+    throw new UnsupportedOperationException("getGeography")
+
+  override def getGeometry(ordinal: Int): GeometryVal =
+    throw new UnsupportedOperationException("getGeography")
 }
