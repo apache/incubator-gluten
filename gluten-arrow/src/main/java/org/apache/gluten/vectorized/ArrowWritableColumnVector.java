@@ -378,7 +378,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   @Override
-  protected ArrowWritableColumnVector reserveNewColumn(int capacity, DataType type) {
+  public ArrowWritableColumnVector reserveNewColumn(int capacity, DataType type) {
     return new ArrowWritableColumnVector(capacity, type);
   }
 
