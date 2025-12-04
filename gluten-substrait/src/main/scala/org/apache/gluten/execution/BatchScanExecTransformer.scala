@@ -206,4 +206,8 @@ abstract class BatchScanExecTransformerBase(
       s" $runtimeFiltersString $nativeFiltersString"
     redact(result)
   }
+
+  override def nodeName: String = {
+    s"${getClass.getSimpleName} ${table.name()}".trim
+  }
 }

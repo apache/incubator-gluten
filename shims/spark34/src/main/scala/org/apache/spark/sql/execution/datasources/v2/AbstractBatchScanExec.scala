@@ -254,8 +254,4 @@ abstract class AbstractBatchScanExec(
     postDriverMetrics()
     rdd
   }
-
-  override def nodeName: String = {
-    s"BatchScanTransformer ${table.name()}".trim
-  }
 }
