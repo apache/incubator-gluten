@@ -136,5 +136,5 @@ class GlutenJsonLegacyTimeParserSuite extends GlutenJsonSuite with GlutenSQLTest
 
   override def sparkConf: SparkConf =
     super.sparkConf
-      .set(SQLConf.LEGACY_TIME_PARSER_POLICY, "legacy")
+      .set(SQLConf.LEGACY_TIME_PARSER_POLICY.key, "legacy")
 }
