@@ -600,7 +600,7 @@ jobs:
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
           if [ ! -e "/opt/apache-${{ matrix.celeborn }}-bin.tgz" ]; then
             echo "WARNING: please pre-install your required package in docker image since the downloading is throttled by this site."
-            wget -nv https://archive.apache.org/dist/celeborn/${{ matrix.celeborn }}/apache-${{ matrix.celeborn }}-bin.tgz -P /opt/
+            wget -nv https://www.apache.org/dyn/closer.lua/celeborn/${{ matrix.celeborn }}/apache-${{ matrix.celeborn }}-bin.tgz?action=download -O /opt/apache-${{ matrix.celeborn }}-bin.tgz
           fi
           cd /opt && rm -rf shims && mkdir -p celeborn && \
           tar xzf apache-${{ matrix.celeborn }}-bin.tgz -C /opt/celeborn --strip-components=1 && cd celeborn && \
