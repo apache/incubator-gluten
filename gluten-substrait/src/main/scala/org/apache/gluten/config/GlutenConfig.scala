@@ -466,6 +466,7 @@ object GlutenConfig extends ConfigRegistry {
   }
 
   def prefixOf(backendName: String): String = s"spark.gluten.sql.columnar.backend.$backendName"
+  def prefixSessionOf(backendName: String): String = s"spark.gluten.$backendName"
 
   private lazy val nativeKeys = Set(
     DEBUG_ENABLED.key,
@@ -569,7 +570,7 @@ object GlutenConfig extends ConfigRegistry {
 
     // put in all gluten velox configs
     conf
-      .filter(_._1.startsWith(s"spark.gluten.$backendName"))
+      .filter(_._1.startsWith(prefixSessionOf(backendName)))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // Backend's dynamic session conf only.
