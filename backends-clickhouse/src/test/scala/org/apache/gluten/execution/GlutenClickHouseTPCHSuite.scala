@@ -60,7 +60,7 @@ class GlutenClickHouseTPCHSuite extends MergeTreeSuite {
         }
         assert(scanExec.size == 1)
 
-        assert(scanExec.head.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(scanExec.head.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val sortExec = df.queryExecution.executedPlan.collect {
           case sortExec: SortExecTransformer => sortExec
