@@ -856,13 +856,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           dateAdd.children,
           dateAdd
         )
-      case timeAdd: TimeAdd =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genDateAddTransformer(
-          attributeSeq,
-          substraitExprName,
-          timeAdd.children,
-          timeAdd
-        )
       case ss: StringSplit =>
         BackendsApiManager.getSparkPlanExecApiInstance.genStringSplitTransformer(
           substraitExprName,
