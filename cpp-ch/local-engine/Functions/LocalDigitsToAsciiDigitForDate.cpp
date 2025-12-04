@@ -165,6 +165,8 @@ public:
 private:
     bool hasLocalDigit(StringRef str) const
     {
+        if (!str.size)
+            return false;
         // In most cases, the first byte is a digit.
         char c = reinterpret_cast<char>(str.data[0]);
         if ('0' <= c && c <= '9')

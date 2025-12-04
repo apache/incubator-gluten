@@ -1403,10 +1403,12 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
             |(2, '2aLZoNmi2aQt2aHZoi3Zo9mh'),
             |(3, '2aLZoNmi2aQt2aHZoi3Zo9mh'),
             |(5, '27LbsNuy27Ut27HbsS3bsduz'),
-            |(6, '4KWo4KWm4KWo4KWrLeClp+Clpy3gpafgpak='),
+            |(6, ''),
+            |(7, '4KWo4KWm4KWo4KWrLeClp+Clpy3gpafgpak='),
             |(8, '4Z+i4Z+g4Z+i4Z+lLeGfoeGfoS3hn6Hhn6M='),
-            |(9, '4Keo4Kem4Keo4KerLeCnp+Cnpy3gp6fgp6k='),
-            |(10, 'MjAyNS0xMS0xMg==')
+            |(9, null),
+            |(10, '4Keo4Kem4Keo4KerLeCnp+Cnpy3gp6fgp6k='),
+            |(11, 'MjAyNS0xMS0xMg==')
             |""".stripMargin)
       var query_sql = """
                         |select
