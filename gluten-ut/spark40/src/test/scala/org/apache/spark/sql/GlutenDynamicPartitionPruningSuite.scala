@@ -29,7 +29,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExchangeExec}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.streaming.{MemoryStream, StreamingQueryWrapper}
+import org.apache.spark.sql.execution.streaming.runtime.{MemoryStream, StreamingQueryWrapper}
 import org.apache.spark.sql.internal.SQLConf
 
 abstract class GlutenDynamicPartitionPruningSuiteBase
