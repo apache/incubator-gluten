@@ -26,8 +26,13 @@ import org.apache.spark.sql.internal.SQLConf
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.collection.mutable
+
 case class RegenerateTransformStageId() extends Rule[SparkPlan] {
-  val transformStageCounter: AtomicInteger = new AtomicInteger(0)
+  private val transformStageCounter: AtomicInteger = new AtomicInteger(0)
+
+  private val wholeStageTransformerCache =
+    new mutable.HashSet[WholeStageTransformer]()
 
   def apply(plan: SparkPlan): SparkPlan = {
     if (conf.getConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED)) {
@@ -55,9 +60,10 @@ case class RegenerateTransformStageId() extends Rule[SparkPlan] {
       case aqe: AdaptiveSparkPlanExec if aqe.isFinalPlan && aqe.isSubquery =>
         // Only handle aqe when it's subquery and has been executed.
         updateStageId(aqe.executedPlan)
-      case wst: WholeStageTransformer =>
+      case wst: WholeStageTransformer if !wholeStageTransformerCache.contains(wst) =>
         updateStageId(wst.child)
         wst.transformStageId = transformStageCounter.incrementAndGet()
+        wholeStageTransformerCache.add(wst)
       case plan =>
         plan.subqueries.foreach(updateStageId)
         plan.children.foreach(updateStageId)
