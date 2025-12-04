@@ -179,7 +179,7 @@ public class WritableColumnVectorShim extends WritableColumnVector {
   }
 
   @Override
-  protected WritableColumnVector reserveNewColumn(int capacity, DataType type) {
+  public WritableColumnVector reserveNewColumn(int capacity, DataType type) {
     return null;
   }
 
