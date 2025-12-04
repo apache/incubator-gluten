@@ -20,18 +20,18 @@ AdaptiveSparkPlan (60)
                                                 :- ^ ProjectExecTransformer (11)
                                                 :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (10)
                                                 :     :- ^ FilterExecTransformer (2)
-                                                :     :  +- ^ ScanTransformer parquet  (1)
+                                                :     :  +- ^ FileSourceScanExecTransformer parquet  (1)
                                                 :     +- ^ InputIteratorTransformer (9)
                                                 :        +- BroadcastQueryStage (7), Statistics(X)
                                                 :           +- ColumnarBroadcastExchange (6)
                                                 :              +- ^ FilterExecTransformer (4)
-                                                :                 +- ^ ScanTransformer parquet  (3)
+                                                :                 +- ^ FileSourceScanExecTransformer parquet  (3)
                                                 +- ^ InputIteratorTransformer (19)
                                                    +- BroadcastQueryStage (17), Statistics(X)
                                                       +- ColumnarBroadcastExchange (16)
                                                          +- ^ ProjectExecTransformer (14)
                                                             +- ^ FilterExecTransformer (13)
-                                                               +- ^ ScanTransformer parquet  (12)
+                                                               +- ^ FileSourceScanExecTransformer parquet  (12)
 +- == Initial Plan ==
    Sort (59)
    +- Exchange (58)
@@ -54,7 +54,7 @@ AdaptiveSparkPlan (60)
                                  +- Scan parquet (48)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -65,7 +65,7 @@ ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int,ps_supply
 Input [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Arguments: isnotnull(ps_suppkey#X)
 
-(3) ScanTransformer parquet 
+(3) FileSourceScanExecTransformer parquet 
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -104,7 +104,7 @@ Join condition: None
 Output [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppkey#X, s_nationkey#X]
 
-(12) ScanTransformer parquet 
+(12) FileSourceScanExecTransformer parquet 
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -341,7 +341,7 @@ AdaptiveSparkPlan (102)
                               :- ^ ProjectExecTransformer (68)
                               :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (67)
                               :     :- ^ FilterExecTransformer (62)
-                              :     :  +- ^ ScanTransformer parquet  (61)
+                              :     :  +- ^ FileSourceScanExecTransformer parquet  (61)
                               :     +- ^ InputIteratorTransformer (66)
                               :        +- BroadcastQueryStage (64), Statistics(X)
                               :           +- ReusedExchange (63)
@@ -367,7 +367,7 @@ AdaptiveSparkPlan (102)
                         +- Scan parquet (93)
 
 
-(61) ScanTransformer parquet 
+(61) FileSourceScanExecTransformer parquet 
 Output [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [*]

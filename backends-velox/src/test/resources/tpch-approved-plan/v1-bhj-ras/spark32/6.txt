@@ -10,7 +10,7 @@ AdaptiveSparkPlan (20)
                   +- ^ FlushableHashAggregateExecTransformer (4)
                      +- ^ ProjectExecTransformer (3)
                         +- ^ FilterExecTransformer (2)
-                           +- ^ ScanTransformer parquet  (1)
+                           +- ^ FileSourceScanExecTransformer parquet  (1)
 +- == Initial Plan ==
    HashAggregate (19)
    +- Exchange (18)
@@ -20,7 +20,7 @@ AdaptiveSparkPlan (20)
                +- Scan parquet (14)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
