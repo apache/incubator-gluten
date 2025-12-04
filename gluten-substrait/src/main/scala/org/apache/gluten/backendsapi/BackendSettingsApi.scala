@@ -43,7 +43,8 @@ trait BackendSettingsApi {
       dataSchema: StructType, // the schema of the table
       rootPaths: Seq[String],
       properties: Map[String, String],
-      hadoopConf: Configuration): ValidationResult =
+      hadoopConf: Configuration,
+      partitionFileFormats: Set[ReadFileFormat]): ValidationResult =
     ValidationResult.succeeded
 
   def getSubstraitReadFileFormatV1(fileFormat: FileFormat): LocalFilesNode.ReadFileFormat
