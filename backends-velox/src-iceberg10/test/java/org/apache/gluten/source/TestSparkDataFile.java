@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.source;
 
+import org.apache.gluten.IcebergTestShims;
 import org.apache.gluten.TestConfUtil;
 
 import org.apache.hadoop.conf.Configuration;
@@ -139,8 +140,8 @@ public class TestSparkDataFile {
     Iterable<InternalRow> rows = RandomData.generateSpark(table.schema(), 200, 0);
     JavaRDD<InternalRow> rdd = sparkContext.parallelize(Lists.newArrayList(rows));
     Dataset<Row> df =
-        spark.internalCreateDataFrame(
-            JavaRDD.toRDD(rdd), SparkSchemaUtil.convert(table.schema()), false);
+        IcebergTestShims.internalCreateDataFrame(
+            spark, JavaRDD.toRDD(rdd), SparkSchemaUtil.convert(table.schema()), false);
 
     df.write().format("iceberg").mode("append").save(tableLocation);
 

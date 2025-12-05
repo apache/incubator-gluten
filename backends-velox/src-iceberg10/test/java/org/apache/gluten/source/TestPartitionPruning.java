@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.source;
 
+import org.apache.gluten.IcebergTestShims;
 import org.apache.gluten.TestConfUtil;
 
 import org.apache.hadoop.conf.Configuration;
@@ -331,8 +332,8 @@ public class TestPartitionPruning {
 
     JavaRDD<InternalRow> rdd = sparkContext.parallelize(rows);
     Dataset<Row> df =
-        spark.internalCreateDataFrame(
-            JavaRDD.toRDD(rdd), SparkSchemaUtil.convert(LOG_SCHEMA), false);
+        IcebergTestShims.internalCreateDataFrame(
+            spark, JavaRDD.toRDD(rdd), SparkSchemaUtil.convert(LOG_SCHEMA), false);
 
     return df.selectExpr("id", "date", "level", "message", "timestamp")
         .selectExpr(
