@@ -375,16 +375,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
     getConf(PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT)
   }
 
-  def parquetEncryptionValidationEnabled: Boolean = {
-    getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
-      .getOrElse(getConf(PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED))
-  }
-
-  def parquetEncryptionValidationFileLimit: Int = {
-    getConf(PARQUET_ENCRYPTED_FALLBACK_FILE_LIMIT).getOrElse(
-      getConf(PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT))
-  }
-
   def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
   def enableColumnarCollectLimit: Boolean = getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
   def enableColumnarCollectTail: Boolean = getConf(COLUMNAR_COLLECT_TAIL_ENABLED)
@@ -1575,24 +1565,6 @@ object GlutenConfig extends ConfigRegistry {
       .intConf
       .checkValue(_ > 0, s"must be positive.")
       .createWithDefault(10)
-
-  val ENCRYPTED_PARQUET_FALLBACK_ENABLED =
-    buildConf("spark.gluten.sql.fallbackEncryptedParquet")
-      .doc(
-        "If enabled, Gluten will not offload scan when encrypted parquet files are" +
-          " detected. Defaulted to " + s"${PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED.key}.")
-      .booleanConf
-      .createOptional
-
-  val PARQUET_ENCRYPTED_FALLBACK_FILE_LIMIT =
-    buildConf("spark.gluten.sql.fallbackEncryptedParquet.limit")
-      .doc(
-        "If supplied, `limit` number of files will be checked to determine encryption " +
-          s"and falling back to java scan. Defaulted to " +
-          s"${PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT.key}.")
-      .intConf
-      .checkValue(_ > 0, s"must be positive.")
-      .createOptional
 
   val COLUMNAR_RANGE_ENABLED =
     buildConf("spark.gluten.sql.columnar.range")
