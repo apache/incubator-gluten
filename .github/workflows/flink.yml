@@ -60,8 +60,8 @@ jobs:
           sudo dnf install -y patchelf
           sudo yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           sudo .github/workflows/util/install-flink-resources.sh
-          git clone -b gluten-0530 https://github.com/bigo-sg/velox4j.git
-          cd velox4j && git reset --hard 14eea127c5088f972cdf1ca0987fd95429485a0e
+          git clone -b support_kafka_connector https://github.com/KevinyhZou/velox4j.git
+          cd velox4j
           git apply $GITHUB_WORKSPACE/gluten-flink/patches/fix-velox4j.patch
           mvn clean install -DskipTests -Dgpg.skip -Dspotless.skip=true
           cd ..

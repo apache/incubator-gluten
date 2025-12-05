@@ -28,6 +28,8 @@ import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
@@ -40,22 +42,27 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-public class VeloxSourceBuilder {
+public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
 
-  public static Transformation<RowData> build(
-      Transformation<RowData> transformation, ScanTableSource scanTableSource) {
+  @SuppressWarnings("rawtypes")
+  @Override
+  public boolean match(Transformation<RowData> transformation) {
     if (transformation instanceof LegacySourceTransformation) {
-      if (scanTableSource.getClass().getSimpleName().equals("TestValuesScanLookupTableSource")) {
-        return buildFromElementsSource(transformation, scanTableSource);
+      StreamSource source = ((LegacySourceTransformation) transformation).getOperator();
+      String sourceFunctionName = source.getUserFunction().getClass().getSimpleName();
+      if (sourceFunctionName.equals("FromElementsFunction")) {
+        return true;
       }
     }
-    return transformation;
+    return false;
   }
 
-  /** `FromElementsSource` is designed for ut tests, and we map it to velox source. */
   @SuppressWarnings({"rawtypes", "unchecked"})
-  private static Transformation<RowData> buildFromElementsSource(
-      Transformation<RowData> transformation, ScanTableSource tableSource) {
+  @Override
+  public Transformation<RowData> buildSource(
+      Transformation<RowData> transformation,
+      ScanTableSource tableSource,
+      boolean checkpointEnabled) {
     LegacySourceTransformation<RowData> sourceTransformation =
         (LegacySourceTransformation<RowData>) transformation;
     try {
@@ -105,5 +112,11 @@ public class VeloxSourceBuilder {
     } catch (Exception e) {
       throw new FlinkRuntimeException(e);
     }
+  }
+
+  @Override
+  public Transformation<RowData> buildSink(
+      ReadableConfig config, Transformation<RowData> transformation) {
+    throw new FlinkRuntimeException("Unimplemented method 'buildSink'");
   }
 }
