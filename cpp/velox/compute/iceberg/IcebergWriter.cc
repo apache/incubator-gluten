@@ -54,6 +54,7 @@ std::shared_ptr<IcebergInsertTableHandle> createIcebergInsertTableHandle(
   std::vector<std::shared_ptr<const iceberg::IcebergColumnHandle>> columnHandles;
 
   std::vector<std::string> columnNames = outputRowType->names();
+  columnHandles.reserve(columnNames.size());
   std::vector<TypePtr> columnTypes = outputRowType->children();
   std::vector<std::string> partitionColumns;
   partitionColumns.reserve(spec->fields.size());
