@@ -21,6 +21,7 @@ import org.apache.gluten.shuffle.SupportsColumnarShuffle
 import org.apache.spark.network.util.{ByteUnit, JavaUtils}
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf}
 
+import com.google.common.collect.ImmutableList
 import org.apache.hadoop.security.UserGroupInformation
 
 import java.util
@@ -576,15 +577,17 @@ object GlutenConfig extends ConfigRegistry {
   /**
    * Get static and dynamic configs. Some of the config is dynamic in spark, but is static in
    * gluten, these will be used to construct HiveConnector which intends reused in velox
+   *
+   * TODO: Improve the get native conf logic.
    */
   def getNativeBackendConf(
       backendName: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
 
-    val nativeConfMap = mutable.HashMap.empty[String, String]
+    val nativeConfMap = new util.HashMap[String, String]()
 
     // some configs having default values
-    Seq(
+    val keyWithDefault = ImmutableList.of(
       (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
       (SPARK_S3_PATH_STYLE_ACCESS, "true"),
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
@@ -611,7 +614,8 @@ object GlutenConfig extends ConfigRegistry {
       ("spark.gluten.velox.s3UseProxyFromEnv", "false"),
       ("spark.gluten.velox.s3PayloadSigningPolicy", "Never"),
       (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
-    ).foreach { case (k, defaultValue) => nativeConfMap.put(k, conf.getOrElse(k, defaultValue)) }
+    )
+    keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
     val keys = Set(
       DEBUG_ENABLED.key,
@@ -628,24 +632,35 @@ object GlutenConfig extends ConfigRegistry {
       SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
       COLUMNAR_CUDF_ENABLED.key
     )
-
-    nativeConfMap ++ conf.filter { case (k, _) => keys.contains(k) }
+    nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
     val confPrefix = prefixOf(backendName)
-    val s3Prefix = HADOOP_PREFIX + S3A_PREFIX
-    val azurePrefix = HADOOP_PREFIX + ABFS_PREFIX
-    val gsPrefix = HADOOP_PREFIX + GCS_PREFIX
-    val backendPrefix = s"spark.gluten.$backendName"
     conf
-      .filter {
-        case (k, _) =>
-          k.startsWith(confPrefix) || k.startsWith(s3Prefix) || k.startsWith(azurePrefix) || k
-            .startsWith(gsPrefix) || k.startsWith(backendPrefix)
-      }
-      .foreach { case (k, v) => nativeConfMap.put(k, v) }
+      .filter(_._1.startsWith(confPrefix))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // put in all S3 configs
+    conf
+      .filter(_._1.startsWith(HADOOP_PREFIX + S3A_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // handle ABFS config
+    conf
+      .filter(_._1.startsWith(HADOOP_PREFIX + ABFS_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // put in all GCS configs
+    conf
+      .filter(_._1.startsWith(HADOOP_PREFIX + GCS_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // put in all gluten velox configs
+    conf
+      .filter(_._1.startsWith(s"spark.gluten.$backendName"))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
-    nativeConfMap.asJava
+    nativeConfMap
   }
 
   val GLUTEN_ENABLED = GlutenCoreConfig.GLUTEN_ENABLED
