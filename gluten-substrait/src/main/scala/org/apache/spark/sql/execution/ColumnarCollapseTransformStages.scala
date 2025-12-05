@@ -141,7 +141,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
  */
 case class ColumnarCollapseTransformStages(
     glutenConf: GlutenConfig,
-    transformStageCounter: AtomicInteger = ColumnarCollapseTransformStages.transformStageCounter)
+    transformStageCounter: AtomicInteger = new AtomicInteger(0))
   extends Rule[SparkPlan] {
 
   def apply(plan: SparkPlan): SparkPlan = {
@@ -217,5 +217,11 @@ object ColumnarCollapseTransformStages {
 
   def wrapInputIteratorTransformer(plan: SparkPlan): TransformSupport = {
     InputIteratorTransformer(ColumnarInputAdapter(plan))
+  }
+
+  def getTransformStageCounter(plan: SparkPlan): AtomicInteger = {
+    plan
+      .collectFirst { case wst: WholeStageTransformer => new AtomicInteger(wst.transformStageId) }
+      .getOrElse(new AtomicInteger(0))
   }
 }
