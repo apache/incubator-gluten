@@ -64,6 +64,54 @@ SELECT
 FROM aggr;
 
 SELECT
+  round(v, 0) WITHIN GROUP (ORDER BY v)
+FROM aggr;
+
+SELECT
+  round(v, 0) WITHIN GROUP (ORDER BY v) OVER (PARTITION BY k)
+FROM aggr;
+
+SELECT
+  percentile(v, 0.5) WITHIN GROUP (ORDER BY v)
+FROM aggr;
+
+SELECT
+  percentile(v, 0.5) WITHIN GROUP (ORDER BY v) OVER (PARTITION BY k)
+FROM aggr;
+
+SELECT
+  percentile_cont(DISTINCT 0.5) WITHIN GROUP (ORDER BY v)
+FROM aggr;
+
+SELECT
+  percentile_cont(DISTINCT 0.5) WITHIN GROUP (ORDER BY v) OVER (PARTITION BY k)
+FROM aggr;
+
+SELECT
+  percentile_cont() WITHIN GROUP (ORDER BY v)
+FROM aggr;
+
+SELECT
+  percentile_cont() WITHIN GROUP (ORDER BY v) OVER (PARTITION BY k)
+FROM aggr;
+
+SELECT
+  percentile_cont(0.5)
+FROM aggr;
+
+SELECT
+  percentile_cont(0.5) OVER (PARTITION BY k)
+FROM aggr;
+
+SELECT
+  percentile_cont(0.5) WITHIN GROUP (ORDER BY k, v)
+FROM aggr;
+
+SELECT
+  percentile_cont(k, 0.5) WITHIN GROUP (ORDER BY v)
+FROM aggr;
+
+SELECT
   k,
   median(v),
   percentile(v, 0.5),
@@ -71,8 +119,6 @@ SELECT
 FROM aggr
 GROUP BY k
 ORDER BY k;
-
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 
 SELECT
     employee_name,
@@ -84,8 +130,6 @@ SELECT
     percentile_disc(0.25) WITHIN GROUP (ORDER BY salary DESC) OVER (PARTITION BY department)
 FROM basic_pays
 ORDER BY salary;
-
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 
 SELECT
     employee_name,
@@ -139,8 +183,6 @@ SELECT
 FROM basic_pays
 ORDER BY salary;
 
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
-
 SELECT
     employee_name,
     department,
@@ -166,8 +208,6 @@ FROM basic_pays
 WHERE salary > 8900
 WINDOW w AS (PARTITION BY department)
 ORDER BY salary;
-
-set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 
 SELECT
     employee_name,
