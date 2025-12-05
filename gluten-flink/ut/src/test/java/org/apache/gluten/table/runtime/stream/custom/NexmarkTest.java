@@ -216,18 +216,16 @@ public class NexmarkTest {
     long startTime = System.currentTimeMillis();
     assertTrue(result.getJobClient().isPresent());
     JobClient jobClient = result.getJobClient().get();
-    if (jobClient.getJobStatus().complete(JobStatus.RUNNING)) {
-      jobClient.cancel();
-      return true;
-    } else {
-      if (System.currentTimeMillis() > startTime + timeoutMs) {
-        LOG.error("Job not running in " + timeoutMs + " millseconds.");
+    while (System.currentTimeMillis() < startTime + timeoutMs) {
+      if (jobClient.getJobStatus().complete(JobStatus.RUNNING)) {
         jobClient.cancel();
-        return false;
+        return true;
       } else {
         Thread.sleep(1000);
       }
     }
+    LOG.warn("Job not running in " + timeoutMs + " millseconds.");
+    jobClient.cancel();
     return false;
   }
 
