@@ -674,6 +674,7 @@ std::shared_ptr<CudfHiveInsertTableHandle> makeCudfHiveInsertTableHandle(
     const std::unordered_map<std::string, std::string>& serdeParameters,
     const std::shared_ptr<dwio::common::WriterOptions>& writerOptions) {
   std::vector<std::shared_ptr<const CudfHiveColumnHandle>> columnHandles;
+  columnHandles.reserve(tableColumnNames.size());
 
   for (int i = 0; i < tableColumnNames.size(); ++i) {
     columnHandles.push_back(std::make_shared<CudfHiveColumnHandle>(

@@ -490,6 +490,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
   // Handle the Java iters
   jsize itersLen = env->GetArrayLength(iterArr);
   std::vector<std::shared_ptr<ResultIterator>> inputIters;
+  inputIters.reserve(itersLen);
   for (int idx = 0; idx < itersLen; idx++) {
     jobject iter = env->GetObjectArrayElement(iterArr, idx);
     auto arrayIter = std::make_unique<JniColumnarBatchIterator>(env, iter, ctx, idx);
@@ -835,6 +836,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   auto safeArray = getIntArrayElementsSafe(env, jcolumnIndices);
   int size = env->GetArrayLength(jcolumnIndices);
   std::vector<int32_t> columnIndices;
+  columnIndices.reserve(size);
   for (int32_t i = 0; i < size; i++) {
     columnIndices.push_back(safeArray.elems()[i]);
   }
