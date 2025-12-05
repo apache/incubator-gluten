@@ -30,6 +30,7 @@ import org.apache.spark.sql.internal.{LegacyBehaviorPolicy, SQLConf}
 import org.apache.spark.sql.internal.SQLConf.{PARTITION_OVERWRITE_MODE, PartitionOverwriteMode}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types._
+import org.apache.spark.tags.ExtendedSQLTest
 
 import org.scalatest.BeforeAndAfter
 
@@ -38,6 +39,7 @@ import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 
+@ExtendedSQLTest
 class DeltaInsertIntoSQLSuite
   extends DeltaInsertIntoTestsWithTempViews(
     supportsDynamicOverwrite = true,
