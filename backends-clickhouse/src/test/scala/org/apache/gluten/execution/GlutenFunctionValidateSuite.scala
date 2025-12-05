@@ -1391,29 +1391,40 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-  test("arabic_indic digit date") {
+  test("local digit date") {
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName),
       ("spark.sql.legacy.timeParserPolicy", "LEGACY")) {
-      sql("create table tb_arabic_date(d string) using parquet")
+      sql("create table tb_local_date(i bigint, d string) using parquet")
       sql("""
-            |insert into tb_arabic_date values
-            |'2aLZoNmi2aQt2aDZpi3ZoNmh',
-            |'2aLZoNmi2aQt2aHZoi3Zo9mh',
-            |'2aLZoNmi2aQt2aHZoi3Zo9mh'
+            |insert into tb_local_date values
+            |(1, '2aLZoNmi2aQt2aDZpi3ZoNmh'),
+            |(2, '2aLZoNmi2aQt2aHZoi3Zo9mh'),
+            |(3, '2aLZoNmi2aQt2aHZoi3Zo9mh'),
+            |(5, '27LbsNuy27Ut27HbsS3bsduz'),
+            |(6, ''),
+            |(7, '4KWo4KWm4KWo4KWrLeClp+Clpy3gpafgpak='),
+            |(8, '4Z+i4Z+g4Z+i4Z+lLeGfoeGfoS3hn6Hhn6M='),
+            |(9, null),
+            |(10, '4Keo4Kem4Keo4KerLeCnp+Cnpy3gp6fgp6k='),
+            |(11, 'MjAyNS0xMS0xMg==')
             |""".stripMargin)
       var query_sql = """
                         |select
-                        |from_unixtime(unix_timestamp(cast(unbase64(d) as string), 'yyyy-MM-dd'))
-                        |from tb_arabic_date
+                        |from_unixtime(unix_timestamp(cast(unbase64(d) as string), 'yyyy-MM-dd')),
+                        |cast(unbase64(d) as string) from (
+                        |select d, i
+                        |from tb_local_date
+                        |order by i)
                         |""".stripMargin
       compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
 
       query_sql = """
                     |select from_unixtime(
                     | unix_timestamp(cast(unbase64('2aLZoNmi2aQt2aDZpi3ZoNmh') as string),
-                    | 'yyyy-MM-dd'))
+                    | 'yyyy-MM-dd')),
+                    | cast(unbase64('2aLZoNmi2aQt2aDZpi3ZoNmh') as string)
                     |""".stripMargin
       compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
 
@@ -1422,7 +1433,8 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                     |""".stripMargin
       compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
 
-      sql("drop table tb_arabic_date")
+      sql("drop table tb_local_date")
     }
   }
+
 }
