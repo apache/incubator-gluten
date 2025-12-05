@@ -956,10 +956,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("detect escaped path and report the migration guide")
     .exclude("ignore the escaped path check when the flag is off")
     .excludeByPrefix("SPARK-51187")
-    // TODO: fix in Spark-4.0
+    // Rewrite for the query plan check
     .excludeByPrefix("SPARK-49905")
-    .excludeByPrefix("SPARK-41199")
-    .excludeByPrefix("SPARK-41198")
   enableSuite[GlutenQueryExecutionSuite]
     // Rewritten to set root logger level to INFO so that logs can be parsed
     .exclude("Logging plan changes for execution")

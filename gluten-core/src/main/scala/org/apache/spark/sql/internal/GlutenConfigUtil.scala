@@ -38,15 +38,10 @@ object GlutenConfigUtil {
   }
 
   def parseConfig(conf: Map[String, String]): Map[String, String] = {
-    val provider = new MapProvider(conf.filter(_._1.startsWith("spark.gluten.")))
-    conf.map {
-      case (k, v) =>
-        if (k.startsWith("spark.gluten.")) {
-          (k, getConfString(provider, k, v))
-        } else {
-          (k, v)
-        }
-    }.toMap
+    val (glutenConf, otherConf) = conf.partition(_._1.startsWith("spark.gluten."))
+    val provider = new MapProvider(glutenConf)
+    val parsedConf = glutenConf.map { case (k, v) => (k, getConfString(provider, k, v)) }
+    parsedConf ++ otherConf
   }
 
   def mapByteConfValue(conf: Map[String, String], key: String, unit: ByteUnit)(
