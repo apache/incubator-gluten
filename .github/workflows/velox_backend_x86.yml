@@ -561,7 +561,7 @@ jobs:
         celeborn: [ "celeborn-0.6.1", "celeborn-0.5.4"]
         writer: ["sort", "hash"]
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
+    container: centos:8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Native Artifacts
@@ -574,6 +574,17 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup java and maven
+        run: |
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          $SETUP install_maven
+      - name: Set environment variables
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
@@ -589,7 +600,7 @@ jobs:
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
           if [ ! -e "/opt/apache-${{ matrix.celeborn }}-bin.tgz" ]; then
             echo "WARNING: please pre-install your required package in docker image since the downloading is throttled by this site."
-            wget -nv https://archive.apache.org/dist/celeborn/${{ matrix.celeborn }}/apache-${{ matrix.celeborn }}-bin.tgz -P /opt/
+            wget -nv https://www.apache.org/dyn/closer.lua/celeborn/${{ matrix.celeborn }}/apache-${{ matrix.celeborn }}-bin.tgz?action=download -O /opt/apache-${{ matrix.celeborn }}-bin.tgz
           fi
           cd /opt && rm -rf shims && mkdir -p celeborn && \
           tar xzf apache-${{ matrix.celeborn }}-bin.tgz -C /opt/celeborn --strip-components=1 && cd celeborn && \
@@ -610,7 +621,7 @@ jobs:
             --extra-conf=spark.celeborn.client.eagerlyCreateInputStream.threads=4 \
             --benchmark-type=ds --error-on-memleak \
             --off-heap-size=16g -s=1.0 --threads=16 --iterations=1
-          if false; then # TODO: fix celeborn rss sort issue
+          if [ "${{ matrix.writer }}" = "sort" ]; then
             GLUTEN_IT_JVM_ARGS=-Xmx16G sbin/gluten-it.sh queries-compare \
               --local --preset=velox-with-celeborn --extra-conf=spark.celeborn.client.spark.shuffle.writer=${{ matrix.writer }} \
               --extra-conf=spark.gluten.sql.columnar.shuffle.celeborn.useRssSort=false \
