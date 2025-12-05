@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.execution.exchange.REQUIRED_BY_STATEFUL_OPERATOR
-import org.apache.spark.sql.execution.streaming.MemoryStream
+import org.apache.spark.sql.execution.streaming.runtime.MemoryStream
 import org.apache.spark.sql.streaming._
 
 class GlutenStreamingQuerySuite extends StreamingQuerySuite with GlutenSQLTestsTrait {

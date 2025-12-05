@@ -18,7 +18,7 @@ package org.apache.gluten.extension.caller
 
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
-import org.apache.spark.sql.execution.streaming.StreamExecution
+import org.apache.spark.sql.execution.streaming.runtime.StreamExecution
 
 /**
  * Helper API that stores information about the call site of the columnar rule. Specific columnar
