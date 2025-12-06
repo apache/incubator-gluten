@@ -95,7 +95,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
         assert(plans.size === 4)
 
         val parquetScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet "))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet "))
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -239,7 +239,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
       assert(scanExec.size === 1)
 
       val parquetScan = scanExec.head
-      assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+      assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -492,7 +492,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
         assert(scanExec.size === 1)
 
         val parquetScan = scanExec.head
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
         assert(parquetScan.metrics("numFiles").value === 201)
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -525,7 +525,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
         assert(scanExec.size === 1)
 
         val parquetScan = scanExec.head
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -576,7 +576,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
         assert(plans.size === 4)
 
         val parquetScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -688,7 +688,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
       assert(scanExec.size === 1)
 
       val parquetScan = scanExec.head
-      assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+      assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -710,7 +710,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
       assert(scanExec.size === 1)
 
       val parquetScan = scanExec.head
-      assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+      assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -880,7 +880,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
         assert(scanExec.size === 1)
 
         val parquetScan = scanExec.head
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
         assert(parquetScan.metrics("numFiles").value === 200)
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]

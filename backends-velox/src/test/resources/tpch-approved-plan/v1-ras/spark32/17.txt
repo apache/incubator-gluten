@@ -14,14 +14,14 @@ AdaptiveSparkPlan (62)
                :     :        +- VeloxResizeBatches (5)
                :     :           +- ^ ProjectExecTransformer (3)
                :     :              +- ^ FilterExecTransformer (2)
-               :     :                 +- ^ ScanTransformer parquet  (1)
+               :     :                 +- ^ FileSourceScanExecTransformer parquet  (1)
                :     +- ^ InputIteratorTransformer (18)
                :        +- ShuffleQueryStage (16)
                :           +- ColumnarExchange (15)
                :              +- VeloxResizeBatches (14)
                :                 +- ^ ProjectExecTransformer (12)
                :                    +- ^ FilterExecTransformer (11)
-               :                       +- ^ ScanTransformer parquet  (10)
+               :                       +- ^ FileSourceScanExecTransformer parquet  (10)
                +- ^ FilterExecTransformer (33)
                   +- ^ ProjectExecTransformer (32)
                      +- ^ RegularHashAggregateExecTransformer (31)
@@ -32,7 +32,7 @@ AdaptiveSparkPlan (62)
                                     +- ^ ProjectExecTransformer (24)
                                        +- ^ FlushableHashAggregateExecTransformer (23)
                                           +- ^ FilterExecTransformer (22)
-                                             +- ^ ScanTransformer parquet  (21)
+                                             +- ^ FileSourceScanExecTransformer parquet  (21)
 +- == Initial Plan ==
    HashAggregate (61)
    +- HashAggregate (60)
@@ -58,7 +58,7 @@ AdaptiveSparkPlan (62)
                               +- Scan parquet (51)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -95,7 +95,7 @@ Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 (9) InputIteratorTransformer
 Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 
-(10) ScanTransformer parquet 
+(10) FileSourceScanExecTransformer parquet 
 Output [3]: [p_partkey#X, p_brand#X, p_container#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -141,7 +141,7 @@ Join condition: None
 Output [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
 Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
 
-(21) ScanTransformer parquet 
+(21) FileSourceScanExecTransformer parquet 
 Output [2]: [l_partkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]

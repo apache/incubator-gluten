@@ -179,7 +179,7 @@ abstract class FileSourceScanExecTransformerBase(
     BackendsApiManager.getMetricsApiInstance.genFileSourceScanTransformerMetricsUpdater(metrics)
 
   override val nodeName: String = {
-    s"ScanTransformer $relation ${tableIdentifier.map(_.unquotedString).getOrElse("")}"
+    s"${getClass.getSimpleName} $relation ${tableIdentifier.map(_.unquotedString).getOrElse("")}"
   }
 
   override def getProperties: Map[String, String] = {

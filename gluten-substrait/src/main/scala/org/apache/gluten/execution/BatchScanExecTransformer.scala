@@ -206,4 +206,13 @@ abstract class BatchScanExecTransformerBase(
       s" $runtimeFiltersString $nativeFiltersString"
     redact(result)
   }
+
+  override def nodeName: String = {
+    // Table is added in BatchScanExec since Spark3.4.
+    if (table == null) {
+      s"${getClass.getSimpleName}"
+    } else {
+      s"${getClass.getSimpleName} ${table.name()}".trim
+    }
+  }
 }

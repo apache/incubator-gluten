@@ -29,21 +29,21 @@ AdaptiveSparkPlan (82)
                                                 :                 :        +- VeloxResizeBatches (5)
                                                 :                 :           +- ^ ProjectExecTransformer (3)
                                                 :                 :              +- ^ FilterExecTransformer (2)
-                                                :                 :                 +- ^ ScanTransformer parquet  (1)
+                                                :                 :                 +- ^ FileSourceScanExecTransformer parquet  (1)
                                                 :                 +- ^ InputIteratorTransformer (18)
                                                 :                    +- ShuffleQueryStage (16), Statistics(X)
                                                 :                       +- ColumnarExchange (15)
                                                 :                          +- VeloxResizeBatches (14)
                                                 :                             +- ^ ProjectExecTransformer (12)
                                                 :                                +- ^ FilterExecTransformer (11)
-                                                :                                   +- ^ ScanTransformer parquet  (10)
+                                                :                                   +- ^ FileSourceScanExecTransformer parquet  (10)
                                                 +- ^ InputIteratorTransformer (35)
                                                    +- ShuffleQueryStage (33), Statistics(X)
                                                       +- ColumnarExchange (32)
                                                          +- VeloxResizeBatches (31)
                                                             +- ^ ProjectExecTransformer (29)
                                                                +- ^ FilterExecTransformer (28)
-                                                                  +- ^ ScanTransformer parquet  (27)
+                                                                  +- ^ FileSourceScanExecTransformer parquet  (27)
 +- == Initial Plan ==
    Sort (81)
    +- Exchange (80)
@@ -72,7 +72,7 @@ AdaptiveSparkPlan (82)
                                     +- Scan parquet (69)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -109,7 +109,7 @@ Input [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 (9) InputIteratorTransformer
 Input [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 
-(10) ScanTransformer parquet 
+(10) FileSourceScanExecTransformer parquet 
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -178,7 +178,7 @@ Input [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 (26) InputIteratorTransformer
 Input [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 
-(27) ScanTransformer parquet 
+(27) FileSourceScanExecTransformer parquet 
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -447,7 +447,7 @@ AdaptiveSparkPlan (135)
                :                 :        +- VeloxResizeBatches (87)
                :                 :           +- ^ ProjectExecTransformer (85)
                :                 :              +- ^ FilterExecTransformer (84)
-               :                 :                 +- ^ ScanTransformer parquet  (83)
+               :                 :                 +- ^ FileSourceScanExecTransformer parquet  (83)
                :                 +- ^ InputIteratorTransformer (95)
                :                    +- ShuffleQueryStage (93), Statistics(X)
                :                       +- ReusedExchange (92)
@@ -478,7 +478,7 @@ AdaptiveSparkPlan (135)
                         +- Scan parquet (126)
 
 
-(83) ScanTransformer parquet 
+(83) FileSourceScanExecTransformer parquet 
 Output [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [*]

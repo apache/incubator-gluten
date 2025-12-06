@@ -24,13 +24,13 @@ AdaptiveSparkPlan (55)
                                                             +- ^ FlushableHashAggregateExecTransformer (12)
                                                                +- ^ ProjectExecTransformer (11)
                                                                   +- ^ BroadcastHashJoinExecTransformer LeftOuter BuildRight (10)
-                                                                     :- ^ ScanTransformer parquet  (1)
+                                                                     :- ^ FileSourceScanExecTransformer parquet  (1)
                                                                      +- ^ InputIteratorTransformer (9)
                                                                         +- BroadcastQueryStage (7)
                                                                            +- ColumnarBroadcastExchange (6)
                                                                               +- ^ ProjectExecTransformer (4)
                                                                                  +- ^ FilterExecTransformer (3)
-                                                                                    +- ^ ScanTransformer parquet  (2)
+                                                                                    +- ^ FileSourceScanExecTransformer parquet  (2)
 +- == Initial Plan ==
    Sort (54)
    +- Exchange (53)
@@ -49,13 +49,13 @@ AdaptiveSparkPlan (55)
                                        +- Scan parquet (41)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [1]: [c_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 ReadSchema: struct<c_custkey:bigint>
 
-(2) ScanTransformer parquet 
+(2) FileSourceScanExecTransformer parquet 
 Output [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 Batched: true
 Location: InMemoryFileIndex [*]

@@ -17,11 +17,11 @@ AdaptiveSparkPlan (40)
                                        +- ^ ProjectExecTransformer (10)
                                           +- ^ BroadcastHashJoinExecTransformer LeftAnti BuildRight (9)
                                              :- ^ FilterExecTransformer (2)
-                                             :  +- ^ ScanTransformer parquet  (1)
+                                             :  +- ^ FileSourceScanExecTransformer parquet  (1)
                                              +- ^ InputIteratorTransformer (8)
                                                 +- BroadcastQueryStage (6), Statistics(X)
                                                    +- ColumnarBroadcastExchange (5)
-                                                      +- ^ ScanTransformer parquet  (3)
+                                                      +- ^ FileSourceScanExecTransformer parquet  (3)
 +- == Initial Plan ==
    Sort (39)
    +- Exchange (38)
@@ -36,7 +36,7 @@ AdaptiveSparkPlan (40)
                         +- Scan parquet (31)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -47,7 +47,7 @@ ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
 Arguments: ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
-(3) ScanTransformer parquet 
+(3) FileSourceScanExecTransformer parquet 
 Output [1]: [o_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -229,7 +229,7 @@ AdaptiveSparkPlan (60)
                   +- ^ FlushableHashAggregateExecTransformer (44)
                      +- ^ ProjectExecTransformer (43)
                         +- ^ FilterExecTransformer (42)
-                           +- ^ ScanTransformer parquet  (41)
+                           +- ^ FileSourceScanExecTransformer parquet  (41)
 +- == Initial Plan ==
    HashAggregate (59)
    +- Exchange (58)
@@ -239,7 +239,7 @@ AdaptiveSparkPlan (60)
                +- Scan parquet (54)
 
 
-(41) ScanTransformer parquet 
+(41) FileSourceScanExecTransformer parquet 
 Output [2]: [c_phone#X, c_acctbal#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -346,7 +346,7 @@ AdaptiveSparkPlan (60)
                   +- ^ FlushableHashAggregateExecTransformer (44)
                      +- ^ ProjectExecTransformer (43)
                         +- ^ FilterExecTransformer (42)
-                           +- ^ ScanTransformer parquet  (41)
+                           +- ^ FileSourceScanExecTransformer parquet  (41)
 +- == Initial Plan ==
    HashAggregate (59)
    +- Exchange (58)

@@ -200,8 +200,6 @@ case class IcebergScanTransformer(
   // Needed for tests
   private[execution] def getKeyGroupPartitioning: Option[Seq[Expression]] = keyGroupedPartitioning
 
-  override def nodeName: String = "Iceberg" + super.nodeName
-
   private def hasRenamedColumn: Boolean = {
     val icebergTable = table match {
       case t: SparkTable =>
