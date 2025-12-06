@@ -53,7 +53,8 @@ object NativeMemoryManager {
       rl,
       ConfigUtil.serialize(
         GlutenConfig
-          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
+          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs))
+          .asJava)
     )
     spillers.append(new Spiller() {
       override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = phase match {
