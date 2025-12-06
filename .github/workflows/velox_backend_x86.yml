@@ -1328,8 +1328,11 @@ jobs:
           repo_url="https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo"
           dnf config-manager --add-repo "$repo_url"
           dnf install -y libnvjitlink-devel-12-8
+          dnf autoremove -y
           df -a
-          bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --build_tests=ON --build_benchmarks=ON --enable_gpu=ON
+          bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON
+          rm -rf ep/build-velox/build/velox_ep
+          mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
           ccache -s
 
   spark-test-spark40:
