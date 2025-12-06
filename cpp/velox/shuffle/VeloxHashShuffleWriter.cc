@@ -277,6 +277,7 @@ arrow::Status VeloxHashShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, i
     }
     END_TIMING();
     std::vector<int32_t> range;
+    range.reserve(numColumns);
     for (int32_t i = 1; i < numColumns; i++) {
       range.push_back(i);
     }
@@ -377,6 +378,7 @@ arrow::Status VeloxHashShuffleWriter::buildPartition2Row(uint32_t rowNum) {
 
   // calc valid partition list
   partitionUsed_.clear();
+  partitionUsed_.reserve(numPartitions_);
   for (auto pid = 0; pid != numPartitions_; ++pid) {
     if (partition2RowCount_[pid] > 0) {
       partitionUsed_.push_back(pid);
@@ -737,6 +739,7 @@ arrow::Status VeloxHashShuffleWriter::splitComplexType(const facebook::velox::Ro
 
 arrow::Status VeloxHashShuffleWriter::initColumnTypes(const facebook::velox::RowVector& rv) {
   schema_ = toArrowSchema(rv.type(), veloxPool_.get());
+  veloxColumnTypes_.reserve(rv.childrenSize());
   for (size_t i = 0; i < rv.childrenSize(); ++i) {
     veloxColumnTypes_.push_back(rv.childAt(i)->type());
   }

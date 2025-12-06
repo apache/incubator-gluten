@@ -402,6 +402,7 @@ auto BM_Generic = [](::benchmark::State& state,
 
   auto plan = getPlanFromFile("Plan", planFile);
   std::vector<std::string> splits{};
+  splits.reserve(splitFiles.size());
   for (const auto& splitFile : splitFiles) {
     splits.push_back(getPlanFromFile("ReadRel.LocalFiles", splitFile));
   }
@@ -428,6 +429,7 @@ auto BM_Generic = [](::benchmark::State& state,
     ScopedTimer timer(&elapsedTime);
     for (auto _ : state) {
       std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
+      inputIters.reserve(dataFiles.size());
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {

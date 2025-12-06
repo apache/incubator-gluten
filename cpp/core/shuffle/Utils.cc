@@ -190,6 +190,7 @@ arrow::Result<std::string> gluten::createTempShuffleFile(const std::string& dir)
 arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleTypeId(
     const std::vector<std::shared_ptr<arrow::Field>>& fields) {
   std::vector<std::shared_ptr<arrow::DataType>> shuffleTypeId;
+  shuffleTypeId.reserve(fields.size());
   for (auto field : fields) {
     switch (field->type()->id()) {
       case arrow::BooleanType::type_id:
