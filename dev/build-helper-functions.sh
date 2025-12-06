@@ -156,6 +156,8 @@ function setup_linux {
   local LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
   CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
   GLUTEN_VELOX_SCRIPT_HOME=$CURRENT_DIR/../ep/build-velox/src
+  # Skip UTF-8 validation in JSON parsing. Required for compatibility with Spark.
+  export SIMDJSON_SKIPUTF8VALIDATION=ON
 
   if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" || "$LINUX_DISTRIBUTION" == "pop" ]]; then
     scripts/setup-ubuntu.sh
