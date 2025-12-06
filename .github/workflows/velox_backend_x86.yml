@@ -19,6 +19,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/velox_backend_x86.yml'
+      - '.github/workflows/util/install-spark-resources.sh' #TODO remove after image update
       - 'pom.xml'
       - 'backends-velox/**'
       - 'gluten-uniffle/**'
