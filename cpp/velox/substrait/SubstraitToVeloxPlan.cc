@@ -463,7 +463,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<core::FieldAccessTypedExprPtr> veloxGroupingExprs;
 
   // Get the grouping expressions.
-  VELOX_FAIL(
+  VELOX_CHECK(
     aggRel.groupings().size() <= 1, "At most one grouping is supported, but got {}.", aggRel.groupings().size());
   if (aggRel.groupings().size() == 1) {
     for (const auto& groupingExpr : aggRel.groupings()[0].grouping_expressions()) {
