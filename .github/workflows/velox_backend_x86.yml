@@ -1325,11 +1325,10 @@ jobs:
             ccache-centos9-release-shared-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
-          repo_url="https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo"
-          dnf config-manager --add-repo "$repo_url"
-          dnf install -y libnvjitlink-devel-12-8
+          rm -rf /opt/rh/gcc-toolset-12 && cp -r /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
           dnf autoremove -y
           df -a
+          source /opt/rh/gcc-toolset-12/enable
           bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON
           rm -rf ep/build-velox/build/velox_ep
           mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
