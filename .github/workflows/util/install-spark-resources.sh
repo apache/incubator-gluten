@@ -43,7 +43,7 @@ function install_spark() {
   local remote_binary_checksum="${mirror_host}${url_path}${local_binary_checksum}${url_query}"
   local remote_source="${mirror_host2}${url_path}${local_source}${url_query}"
   local remote_source_checksum="${mirror_host}${url_path}${local_source_checksum}${url_query}"
-  local wget_opts="--no-verbose"
+  local wget_opts="--no-verbose --no-check-certificate"
 
   wget ${wget_opts} -O "${local_binary}" "${remote_binary}"
   wget ${wget_opts} -O "${local_source}" "${remote_source}"
