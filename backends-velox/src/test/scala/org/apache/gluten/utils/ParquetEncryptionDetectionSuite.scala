@@ -73,7 +73,6 @@ class ParquetEncryptionDetectionSuite extends SharedSparkSession {
 
   override def sparkConf: SparkConf = {
     super.sparkConf
-      .set(GlutenConfig.ENCRYPTED_PARQUET_FALLBACK_ENABLED.key, "true")
       .set(GlutenConfig.PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED.key, "true")
   }
 

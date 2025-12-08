@@ -200,7 +200,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
         return None
       }
       val fileLimit = GlutenConfig.get.parquetMetadataFallbackFileLimit
-        .max(GlutenConfig.get.parquetEncryptionValidationFileLimit)
       val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
       val parquetMetadataValidationResult =
         ParquetMetadataUtils.validateMetadata(rootPaths, hadoopConf, parquetOptions, fileLimit)

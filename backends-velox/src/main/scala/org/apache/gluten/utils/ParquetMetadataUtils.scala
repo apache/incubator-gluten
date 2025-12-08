@@ -48,20 +48,22 @@ object ParquetMetadataUtils {
       parquetOptions: ParquetOptions,
       fileLimit: Int
   ): Option[String] = {
+    var remaining = fileLimit
     rootPaths.foreach {
       rootPath =>
         val fs = new Path(rootPath).getFileSystem(hadoopConf)
         try {
-          val reason =
+          val (maybeReason, filesScanned) =
             checkForUnexpectedMetadataWithLimit(
               fs,
               new Path(rootPath),
               hadoopConf,
               parquetOptions,
               fileLimit = fileLimit)
-          if (reason.nonEmpty) {
-            return reason
+          if (maybeReason.isDefined) {
+            return maybeReason
           }
+          remaining -= filesScanned
         } catch {
           case e: Exception =>
         }
@@ -95,7 +97,8 @@ object ParquetMetadataUtils {
    * @param fileLimit
    *   Maximum number of files to inspect
    * @return
-   *   True if an encrypted file is detected, false otherwise
+   *   (String, Int) if an unsupported metadata is detected,empty otherwise and the number of
+   *   checked files
    */
   private def checkForUnexpectedMetadataWithLimit(
       fs: FileSystem,
@@ -103,7 +106,7 @@ object ParquetMetadataUtils {
       conf: Configuration,
       parquetOptions: ParquetOptions,
       fileLimit: Int
-  ): Option[String] = {
+  ): (Option[String], Int) = {
     val filesIterator = fs.listFiles(path, true)
     var checkedFileCount = 0
     while (filesIterator.hasNext && checkedFileCount < fileLimit) {
@@ -111,10 +114,10 @@ object ParquetMetadataUtils {
       checkedFileCount += 1
       val metadataUnsupported = isUnsupportedMetadata(fileStatus, conf, parquetOptions)
       if (metadataUnsupported.isDefined) {
-        return metadataUnsupported
+        return (metadataUnsupported, checkedFileCount)
       }
     }
-    None
+    (None, checkedFileCount)
   }
 
   /**
@@ -126,9 +129,7 @@ object ParquetMetadataUtils {
       fileStatus: LocatedFileStatus,
       conf: Configuration,
       parquetOptions: ParquetOptions): Option[String] = {
-    val isEncryptionValidationEnabled = GlutenConfig.get.parquetEncryptionValidationEnabled
-    val isMetadataValidationEnabled = GlutenConfig.get.parquetMetadataValidationEnabled
-    if (!isMetadataValidationEnabled && !isEncryptionValidationEnabled) {
+    if (!GlutenConfig.get.parquetMetadataValidationEnabled) {
       return None
     }
     val footer =
@@ -136,9 +137,6 @@ object ParquetMetadataUtils {
         ParquetFooterReader.readFooter(conf, fileStatus, ParquetMetadataConverter.NO_FILTER)
       } catch {
         case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
-          if (!isEncryptionValidationEnabled) {
-            return None
-          }
           return Some("Encrypted Parquet footer detected.")
         case _: RuntimeException =>
           // Ignored as it's could be a "Not a Parquet file" exception.
@@ -149,19 +147,15 @@ object ParquetMetadataUtils {
       isTimezoneFoundInMetadata(footer, parquetOptions)
     )
 
-    if (isMetadataValidationEnabled) {
-      for (check <- validationChecks) {
-        if (check.isDefined) {
-          return check
-        }
+    for (check <- validationChecks) {
+      if (check.isDefined) {
+        return check
       }
     }
 
     // Previous Spark3.4 version uses toString to check if the data is encrypted,
     // so place the check to the end
-    if (
-      isEncryptionValidationEnabled && SparkShimLoader.getSparkShims.isParquetFileEncrypted(footer)
-    ) {
+    if (SparkShimLoader.getSparkShims.isParquetFileEncrypted(footer)) {
       return Some("Encrypted Parquet file detected.")
     }
     None

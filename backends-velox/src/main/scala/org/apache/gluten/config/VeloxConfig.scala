@@ -547,8 +547,9 @@ object VeloxConfig extends ConfigRegistry {
   val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_PCT =
     buildConf("spark.gluten.velox.abandonbuild.noduphashminpct")
       .experimental()
-      .doc("Experimental: abandon hashmap build if duplicated rows are more than this percentile.")
-      .doubleConf
+      .doc("Experimental: abandon hashmap build if duplicated rows are more than this percentile." +
+        "Value is integer based and range is [0, 100].")
+      .intConf
       .createWithDefault(0)
 
   val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
