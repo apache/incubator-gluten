@@ -157,10 +157,10 @@ jobs:
             ccache-centos9-release-shared-${{runner.arch}}
       - name: Build Gluten shared libraries
         run: |
-          df -a
           export CCACHE_MAXSIZE=1G
           dnf autoremove -y
           df -a
+          rm -rf /opt/rh/gcc-toolset-12 && cp -r /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
           source /opt/rh/gcc-toolset-12/enable
           export NUM_THREADS=4
           bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=OFF --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
