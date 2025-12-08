@@ -66,6 +66,7 @@ import javax.ws.rs.core.UriBuilder
 import java.util.Locale
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
 

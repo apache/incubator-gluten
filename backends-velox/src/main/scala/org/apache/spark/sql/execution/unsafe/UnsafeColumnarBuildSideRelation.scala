@@ -109,9 +109,11 @@ class UnsafeColumnarBuildSideRelation(
     case _ => None
   }
 
+  val isOffload: Boolean = offload
+
   /** needed for serialization. */
   def this() = {
-    this(null, null, null)
+    this(null, null.asInstanceOf[Seq[UnsafeByteArray]], null, Seq.empty, false)
   }
 
   private[unsafe] def getBatches(): Seq[UnsafeByteArray] = {
@@ -143,15 +145,15 @@ class UnsafeColumnarBuildSideRelation(
         val batchArray = new ArrayBuffer[Long]
 
         var batchId = 0
-        while (batchId < batches.arraySize) {
-          val (offset, length) = batches.getBytesBufferOffsetAndLength(batchId)
-          batchArray.append(jniWrapper.deserializeDirect(serializeHandle, offset, length))
+        while (batchId < batches.size) {
+          val (offset, length) = (batches(batchId).address(), batches(batchId).size())
+          batchArray.append(jniWrapper.deserializeDirect(serializeHandle, offset, length.toInt))
           batchId += 1
         }
 
         logDebug(
           s"BHJ value size: " +
-            s"${broadcastContext.buildHashTableId} = ${batches.arraySize}")
+            s"${broadcastContext.buildHashTableId} = ${batches.size}")
 
         val (keys, newOutput) = if (newBuildKeys.isEmpty) {
           (
