@@ -56,8 +56,9 @@ object Runtime {
       nmm.getHandle(),
       ConfigUtil.serialize(
         (GlutenConfig
-          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs))
-          .asScala ++ extraConf.asScala).asJava)
+          .getNativeSessionConf(
+            backendName,
+            GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)) ++ extraConf.asScala).asJava)
     )
 
     private val released: AtomicBoolean = new AtomicBoolean(false)
