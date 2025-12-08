@@ -29,14 +29,14 @@ AdaptiveSparkPlan (71)
                                                                   :        +- VeloxResizeBatches (5)
                                                                   :           +- ^ ProjectExecTransformer (3)
                                                                   :              +- ^ FilterExecTransformer (2)
-                                                                  :                 +- ^ ScanTransformer parquet  (1)
+                                                                  :                 +- ^ FileSourceScanExecTransformer parquet  (1)
                                                                   +- ^ InputIteratorTransformer (18)
                                                                      +- ShuffleQueryStage (16), Statistics(X)
                                                                         +- ColumnarExchange (15)
                                                                            +- VeloxResizeBatches (14)
                                                                               +- ^ ProjectExecTransformer (12)
                                                                                  +- ^ FilterExecTransformer (11)
-                                                                                    +- ^ ScanTransformer parquet  (10)
+                                                                                    +- ^ FileSourceScanExecTransformer parquet  (10)
 +- == Initial Plan ==
    Sort (70)
    +- Exchange (69)
@@ -63,7 +63,7 @@ AdaptiveSparkPlan (71)
                                        +- Scan parquet (57)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [2]: [ps_partkey#X, ps_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -100,7 +100,7 @@ Input [2]: [ps_partkey#X, ps_suppkey#X]
 (9) InputIteratorTransformer
 Input [2]: [ps_partkey#X, ps_suppkey#X]
 
-(10) ScanTransformer parquet 
+(10) FileSourceScanExecTransformer parquet 
 Output [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
 Batched: true
 Location: InMemoryFileIndex [*]
