@@ -36,7 +36,7 @@ case class VeloxBroadcastBuildSideRDD(
       case columnar: ColumnarBuildSideRelation =>
         columnar.offload
       case unsafe: UnsafeColumnarBuildSideRelation =>
-        unsafe.offload
+        unsafe.isOffload
     }
     val output = if (isBNL || !offload) {
       val relation = broadcasted.value.asReadOnlyCopy()
