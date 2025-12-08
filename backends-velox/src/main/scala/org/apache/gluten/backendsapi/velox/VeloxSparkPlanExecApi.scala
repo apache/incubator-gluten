@@ -68,7 +68,7 @@ import java.util.Locale
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-class VeloxSparkPlanExecApi extends SparkPlanExecApi {
+class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
   /** Transform GetArrayItem to Substrait. */
   override def genGetArrayItemTransformer(

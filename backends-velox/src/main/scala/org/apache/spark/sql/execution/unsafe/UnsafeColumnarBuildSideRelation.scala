@@ -54,7 +54,9 @@ object UnsafeColumnarBuildSideRelation {
   def apply(
       output: Seq[Attribute],
       batches: Seq[UnsafeByteArray],
-      mode: BroadcastMode): UnsafeColumnarBuildSideRelation = {
+      mode: BroadcastMode,
+      newBuildKeys: Seq[Expression] = Seq.empty,
+      offload: Boolean = false): UnsafeColumnarBuildSideRelation = {
     val boundMode = mode match {
       case HashedRelationBroadcastMode(keys, isNullAware) =>
         // Bind each key to the build-side output so simple cols become BoundReference
@@ -68,8 +70,8 @@ object UnsafeColumnarBuildSideRelation {
       output,
       batches,
       BroadcastModeUtils.toSafe(boundMode),
-      Seq.empty,
-      false)
+      newBuildKeys,
+      offload)
   }
 }
 
@@ -107,6 +109,8 @@ class UnsafeColumnarBuildSideRelation(
     case _ => None
   }
 
+  def isOffload: Boolean = offload
+
   /** needed for serialization. */
   def this() = {
     this(null, null, null, Seq.empty, false)
@@ -141,15 +145,15 @@ class UnsafeColumnarBuildSideRelation(
         val batchArray = new ArrayBuffer[Long]
 
         var batchId = 0
-        while (batchId < batches.arraySize) {
-          val (offset, length) = batches.getBytesBufferOffsetAndLength(batchId)
-          batchArray.append(jniWrapper.deserializeDirect(serializeHandle, offset, length))
+        while (batchId < batches.size) {
+          val (offset, length) = (batches(batchId).address(), batches(batchId).size())
+          batchArray.append(jniWrapper.deserializeDirect(serializeHandle, offset, length.toInt))
           batchId += 1
         }
 
         logDebug(
           s"BHJ value size: " +
-            s"${broadcastContext.buildHashTableId} = ${batches.arraySize}")
+            s"${broadcastContext.buildHashTableId} = ${batches.size}")
 
         val (keys, newOutput) = if (newBuildKeys.isEmpty) {
           (
