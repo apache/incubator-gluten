@@ -105,6 +105,9 @@ object GlutenShuffleUtils {
       checkAndGetBufferSize(IO_COMPRESSION_LZ4_BLOCKSIZE)
     } else if ("zstd" == codec) {
       checkAndGetBufferSize(IO_COMPRESSION_ZSTD_BUFFERSIZE)
+    } else if ("gzip" == codec) { // QAT supports it only.
+      // Temporarily hard-coded to 32k.
+      32 * 1024
     } else {
       throw new UnsupportedOperationException(s"Unsupported compression codec $codec.")
     }
