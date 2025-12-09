@@ -47,6 +47,7 @@ class VeloxSubstraitRoundTripTest : public OperatorTestBase {
   /// @param batchSize The batch Size of the data.
   std::vector<RowVectorPtr> makeVectors(int64_t size, int64_t childSize, int64_t batchSize) {
     std::vector<RowVectorPtr> vectors;
+    vectors.reserve(size);
     std::mt19937 gen(std::mt19937::default_seed);
     for (int i = 0; i < size; i++) {
       std::vector<VectorPtr> children;

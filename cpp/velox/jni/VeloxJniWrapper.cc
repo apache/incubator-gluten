@@ -262,6 +262,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
   auto safeArray = getLongArrayElementsSafe(env, batchHandles);
 
   std::vector<std::shared_ptr<ColumnarBatch>> batches;
+  batches.reserve(handleCount);
   for (int i = 0; i < handleCount; ++i) {
     int64_t handle = safeArray.elems()[i];
     auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);

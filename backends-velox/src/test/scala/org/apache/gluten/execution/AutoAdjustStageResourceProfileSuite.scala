@@ -111,7 +111,7 @@ class AutoAdjustStageResourceProfileSuite
                               +- ApplyResourceProfile Profile: id = 0, executor resources: cores -> name: cores, amount: 1, script: , vendor: ,memory -> name: memory, amount: 1024, script: , vendor: ,offHeap -> name: offHeap, amount: 2048, script: , vendor: , task resources: cpus -> name: cpus, amount: 1.0
                                  +- VeloxColumnarToRow
                                     +- ^(6) FlushableHashAggregateTransformer(keys=[c1#22], functions=[partial_count(1)], isStreamingAgg=false, output=[c1#22, count#37L])
-                                       +- ^(6) FileScanTransformer parquet default.tmp1[c1#22] Batched: true, DataFilters: [],
+                                       +- ^(6) FileFileSourceScanExecTransformer parquet default.tmp1[c1#22] Batched: true, DataFilters: [],
            */
           // format: on
           // scalastyle:on

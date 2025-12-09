@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 240 functions and partially supports 25 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 241 functions and partially supports 25 functions.**
 
 ## Array Functions
 
@@ -246,7 +246,7 @@
 | cot               | Cot                    | S        |                |
 | csc               | Csc                    | S        |                |
 | degrees           | ToDegrees              | S        |                |
-| div               | IntegralDivide         |          |                |
+| div               | IntegralDivide         | S        |                |
 | e                 | EulerNumber            | S        |                |
 | exp               | Exp                    | S        |                |
 | expm1             | Expm1                  | S        |                |

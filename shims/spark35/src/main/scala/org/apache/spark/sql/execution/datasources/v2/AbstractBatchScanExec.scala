@@ -261,8 +261,4 @@ abstract class AbstractBatchScanExec(
     val result = s"$nodeName$truncatedOutputString ${scan.description()} $runtimeFiltersString"
     redact(result)
   }
-
-  override def nodeName: String = {
-    s"BatchScanTransformer ${table.name()}".trim
-  }
 }

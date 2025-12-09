@@ -84,6 +84,7 @@ arrow::Status VeloxRssSortShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb
     RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), batches_.size(), rowVectorIndexMap_));
     END_TIMING();
     std::vector<int32_t> range;
+    range.reserve(numColumns);
     for (int32_t i = 1; i < numColumns; i++) {
       range.push_back(i);
     }

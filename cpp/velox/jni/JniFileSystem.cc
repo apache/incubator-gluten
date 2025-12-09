@@ -347,6 +347,7 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
         static_cast<jobjectArray>(env->CallObjectMethod(obj_, jniFileSystemList, createJString(env, path)));
     checkException(env);
     jsize length = env->GetArrayLength(jarray);
+    out.reserve(length);
     for (jsize i = 0; i < length; ++i) {
       jstring element = static_cast<jstring>(env->GetObjectArrayElement(jarray, i));
       std::string cElement = jStringToCString(env, element);
