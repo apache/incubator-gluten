@@ -551,17 +551,15 @@ object GlutenConfig extends ConfigRegistry {
           nativeConfMap
             .put(SQLConf.LEGACY_TIME_PARSER_POLICY.key, v.toUpperCase(Locale.ROOT)))
 
-    // put in all gluten velox configs
-    conf
-      .filter(_._1.startsWith(prefixSessionOf(backendName)))
-      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
-
-    // Backend's dynamic session conf only.
+    val confPrefixSession = prefixSessionOf(backendName)
     val confPrefix = prefixOf(backendName)
     conf
       .filter {
         case (k, _) =>
-          k.startsWith(confPrefix) && !SQLConf.isStaticConfigKey(k)
+          // Backend's dynamic session conf only.
+          k.startsWith(confPrefix) && !SQLConf.isStaticConfigKey(k) ||
+          // put in all gluten velox configs
+          k.startsWith(confPrefixSession)
       }
       .foreach { case (k, v) => nativeConfMap.put(k, v) }
 
