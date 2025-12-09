@@ -470,8 +470,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         Transformation sinkTransformation =
             createSinkFunctionTransformation(
                 sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkMeta, sinkParallelism);
-        return VeloxSourceSinkFactory.getFactory(sinkTransformation)
-            .buildSink(env.getConfiguration(), sinkTransformation);
+        return VeloxSourceSinkFactory.buildSink(env.getConfiguration(), sinkTransformation);
         // --- End Gluten-specific code changes ---
       } else if (runtimeProvider instanceof OutputFormatProvider) {
         OutputFormat<RowData> outputFormat =

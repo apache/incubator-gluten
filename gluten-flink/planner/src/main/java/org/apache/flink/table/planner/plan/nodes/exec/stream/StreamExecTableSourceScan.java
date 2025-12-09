@@ -106,8 +106,7 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
             .getScanTableSource(
                 planner.getFlinkContext(), ShortcutUtils.unwrapTypeFactory(planner));
     Transformation<RowData> sourceTransformation = super.translateToPlanInternal(planner, config);
-    VeloxSourceSinkFactory factory = VeloxSourceSinkFactory.getFactory(sourceTransformation);
-    return factory.buildSource(
+    return VeloxSourceSinkFactory.buildSource(
         sourceTransformation,
         tableSource,
         planner.getExecEnv().getCheckpointConfig().isCheckpointingEnabled());

@@ -59,7 +59,7 @@ public class KafkaSourceSinkFactory implements VeloxSourceSinkFactory {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
-  public Transformation<RowData> buildSource(
+  public Transformation<RowData> buildVeloxSource(
       Transformation<RowData> transformation,
       ScanTableSource tableSource,
       boolean checkpointEnabled) {
@@ -134,7 +134,7 @@ public class KafkaSourceSinkFactory implements VeloxSourceSinkFactory {
   }
 
   @Override
-  public Transformation<RowData> buildSink(
+  public Transformation<RowData> buildVeloxSink(
       ReadableConfig config, Transformation<RowData> transformation) {
     throw new FlinkRuntimeException("Unimplemented method 'buildSink'");
   }

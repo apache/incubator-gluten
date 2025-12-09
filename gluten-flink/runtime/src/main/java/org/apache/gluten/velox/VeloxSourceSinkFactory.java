@@ -20,39 +20,70 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.util.FlinkRuntimeException;
 
-import java.util.HashSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
 import java.util.ServiceLoader;
-import java.util.Set;
 
 public interface VeloxSourceSinkFactory {
 
-  /** Match the conditions to determine whether the operator can be offloaded to velox. */
+  static final Logger LOG = LoggerFactory.getLogger(VeloxSourceSinkFactory.class);
+
+  /** Match the conditions to determine if the operator can be offloaded to velox. */
   boolean match(Transformation<RowData> transformation);
 
   /** Build source transformation that offload the operator to velox. */
-  Transformation<RowData> buildSource(
+  Transformation<RowData> buildVeloxSource(
       Transformation<RowData> transformation,
       ScanTableSource tableSource,
       boolean checkpointEnabled);
 
   /** Build sink transformation that offload the operator to velox. */
-  Transformation<RowData> buildSink(ReadableConfig config, Transformation<RowData> transformation);
+  Transformation<RowData> buildVeloxSink(
+      ReadableConfig config, Transformation<RowData> transformation);
 
   /** Choose the matched source/sink factory by given transformation. */
-  static VeloxSourceSinkFactory getFactory(Transformation<RowData> transformation) {
+  private static Optional<VeloxSourceSinkFactory> getFactory(
+      Transformation<RowData> transformation) {
     ServiceLoader<VeloxSourceSinkFactory> factories =
         ServiceLoader.load(VeloxSourceSinkFactory.class);
-    Set<String> factoryNames = new HashSet<>();
     for (VeloxSourceSinkFactory factory : factories) {
-      factoryNames.add(factory.getClass().getName());
       if (factory.match(transformation)) {
-        return factory;
+        return Optional.of(factory);
       }
     }
-    throw new FlinkRuntimeException(
-        "Not find implemented factory to build velox transformation, available factories:"
-            + factoryNames);
+    return Optional.empty();
+  }
+
+  /** Build Velox source, or fallback to flink orignal source . */
+  static Transformation<RowData> buildSource(
+      Transformation<RowData> transformation,
+      ScanTableSource tableSource,
+      boolean checkpointEnabled) {
+    Optional<VeloxSourceSinkFactory> factory = getFactory(transformation);
+    if (factory.isEmpty()) {
+      LOG.warn(
+          "Not find matched factory to build velox source transformation, and we will use flink original transformation {} instead.",
+          transformation.getClass().getName());
+      return transformation;
+    } else {
+      return factory.get().buildVeloxSource(transformation, tableSource, checkpointEnabled);
+    }
+  }
+
+  /** Build Velox sink, or fallback to flink original sink. */
+  static Transformation<RowData> buildSink(
+      ReadableConfig config, Transformation<RowData> transformation) {
+    Optional<VeloxSourceSinkFactory> factory = getFactory(transformation);
+    if (factory.isEmpty()) {
+      LOG.warn(
+          "Not find matched factory to build velox sink transformation, and we will use flink original transformation {} instead.",
+          transformation.getClass().getName());
+      return transformation;
+    } else {
+      return factory.get().buildVeloxSink(config, transformation);
+    }
   }
 }

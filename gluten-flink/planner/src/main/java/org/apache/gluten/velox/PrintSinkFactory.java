@@ -67,7 +67,7 @@ public class PrintSinkFactory implements VeloxSourceSinkFactory {
   }
 
   @Override
-  public Transformation<RowData> buildSource(
+  public Transformation<RowData> buildVeloxSource(
       Transformation<RowData> transformation,
       ScanTableSource tableSource,
       boolean checkpointEnabled) {
@@ -76,7 +76,7 @@ public class PrintSinkFactory implements VeloxSourceSinkFactory {
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
-  public Transformation buildSink(ReadableConfig config, Transformation transformation) {
+  public Transformation buildVeloxSink(ReadableConfig config, Transformation transformation) {
     Transformation inputTrans = (Transformation) transformation.getInputs().get(0);
     InternalTypeInfo inputTypeInfo = (InternalTypeInfo) inputTrans.getOutputType();
     String logDir = config.get(CoreOptions.FLINK_LOG_DIR);

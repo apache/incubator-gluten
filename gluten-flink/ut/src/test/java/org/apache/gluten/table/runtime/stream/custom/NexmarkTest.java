@@ -74,7 +74,7 @@ public class NexmarkTest {
   private static String topicName = "nexmark";
 
   @RegisterExtension
-  public static final SharedKafkaTestResource sharedKafkaTestResource =
+  public static final SharedKafkaTestResource kafkaInstance =
       new SharedKafkaTestResource()
           .withBrokers(1)
           .registerListener(new PlainListener().onPorts(KAFKA_PORT));
@@ -122,7 +122,7 @@ public class NexmarkTest {
   @Test
   void testAllKafkaSourceQueries()
       throws ExecutionException, InterruptedException, TimeoutException {
-    sharedKafkaTestResource.getKafkaTestUtils().createTopic(topicName, 1, (short) 1);
+    kafkaInstance.getKafkaTestUtils().createTopic(topicName, 1, (short) 1);
     setupNexmarkEnvironment(tEnv, "ddl_kafka.sql", KAFKA_VARIABLES);
     List<String> queryFiles = getQueries();
     assertThat(queryFiles).isNotEmpty();

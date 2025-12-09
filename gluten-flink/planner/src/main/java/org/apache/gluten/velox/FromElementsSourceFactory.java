@@ -29,6 +29,7 @@ import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -49,17 +50,14 @@ public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
   public boolean match(Transformation<RowData> transformation) {
     if (transformation instanceof LegacySourceTransformation) {
       StreamSource source = ((LegacySourceTransformation) transformation).getOperator();
-      String sourceFunctionName = source.getUserFunction().getClass().getSimpleName();
-      if (sourceFunctionName.equals("FromElementsFunction")) {
-        return true;
-      }
+      return source.getUserFunction() instanceof FromElementsFunction;
     }
     return false;
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
-  public Transformation<RowData> buildSource(
+  public Transformation<RowData> buildVeloxSource(
       Transformation<RowData> transformation,
       ScanTableSource tableSource,
       boolean checkpointEnabled) {
@@ -115,7 +113,7 @@ public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
   }
 
   @Override
-  public Transformation<RowData> buildSink(
+  public Transformation<RowData> buildVeloxSink(
       ReadableConfig config, Transformation<RowData> transformation) {
     throw new FlinkRuntimeException("Unimplemented method 'buildSink'");
   }

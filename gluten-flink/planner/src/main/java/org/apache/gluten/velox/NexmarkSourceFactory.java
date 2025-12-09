@@ -54,7 +54,7 @@ public class NexmarkSourceFactory implements VeloxSourceSinkFactory {
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
-  public Transformation<RowData> buildSource(
+  public Transformation<RowData> buildVeloxSource(
       Transformation<RowData> transformation,
       ScanTableSource tableSource,
       boolean checkpointEnabled) {
@@ -100,7 +100,7 @@ public class NexmarkSourceFactory implements VeloxSourceSinkFactory {
   }
 
   @Override
-  public Transformation<RowData> buildSink(
+  public Transformation<RowData> buildVeloxSink(
       ReadableConfig config, Transformation<RowData> transformation) {
     throw new UnsupportedOperationException("Unimplemented method 'buildSink'");
   }
