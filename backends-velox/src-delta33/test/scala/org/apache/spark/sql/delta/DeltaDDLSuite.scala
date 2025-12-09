@@ -24,12 +24,14 @@ import org.apache.spark.sql.delta.test.{DeltaSQLCommandTest, DeltaSQLTestUtils}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructType}
+import org.apache.spark.tags.ExtendedSQLTest
 
 // scalastyle:off import.ordering.noEmptyLine
 import org.apache.hadoop.fs.UnsupportedFileSystemException
 
 import scala.collection.JavaConverters._
 
+@ExtendedSQLTest
 class DeltaDDLSuite extends DeltaDDLTestBase with SharedSparkSession with DeltaSQLCommandTest {
 
   override protected def verifyNullabilityFailure(exception: AnalysisException): Unit = {
