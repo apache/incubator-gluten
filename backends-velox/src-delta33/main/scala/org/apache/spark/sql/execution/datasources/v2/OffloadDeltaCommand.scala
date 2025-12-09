@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.gluten.config.VeloxDeltaConfig
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
+
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.delta.commands.{DeleteCommand, UpdateCommand}
 import org.apache.spark.sql.delta.sources.DeltaDataSource
