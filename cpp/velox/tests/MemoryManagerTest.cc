@@ -78,6 +78,7 @@ TEST_F(MemoryManagerTest, memoryPoolWithBlockReseravtion) {
   std::vector<Allocation> allocations;
   std::vector<uint64_t> sizes{
       kMemoryReservationBlockSizeDefault - 1 * kMB, kMemoryReservationBlockSizeDefault - 2 * kMB};
+  allocations.reserve(sizes.size());
   for (const auto& size : sizes) {
     auto buf = pool->allocate(size);
     allocations.push_back({buf, size, pool.get()});
@@ -100,6 +101,7 @@ TEST_F(MemoryManagerTest, memoryAllocatorWithBlockReservation) {
   std::vector<Allocation> allocations;
   std::vector<uint64_t> sizes{
       kMemoryReservationBlockSizeDefault - 1 * kMB, kMemoryReservationBlockSizeDefault - 2 * kMB};
+  allocations.reserve(sizes.size());
   for (auto i = 0; i < sizes.size(); i++) {
     auto size = sizes[i];
     auto currentBytes = allocator_->getBytes();
@@ -353,6 +355,7 @@ TEST_F(MultiMemoryManagerTest, spill) {
   std::vector<std::unique_ptr<VeloxMemoryManager>> vmms{};
   std::vector<std::thread> threads{};
   std::vector<std::vector<void*>> buffs{};
+  buffs.reserve(numThreads);
   for (size_t i = 0; i < numThreads; ++i) {
     buffs.push_back({});
     vmms.emplace_back(nullptr);
