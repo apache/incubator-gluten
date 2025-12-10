@@ -216,10 +216,7 @@ public class LocalFilesNode implements SplitInfo {
       switch (fileFormat) {
         case ParquetReadFormat:
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
-              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
-                  .setEnableRowGroupMaxminIndex(
-                      GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
-                  .build();
+              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder().build();
           fileBuilder.setParquet(parquetReadOptions);
           break;
         case OrcReadFormat:
