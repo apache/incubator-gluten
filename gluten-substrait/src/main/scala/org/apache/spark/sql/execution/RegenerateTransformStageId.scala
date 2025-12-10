@@ -21,14 +21,19 @@ import org.apache.gluten.execution.WholeStageTransformer
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, BroadcastQueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExchangeExec, ShuffleExchangeLike}
 import org.apache.spark.sql.internal.SQLConf
 
 import java.util.concurrent.atomic.AtomicInteger
 
-case class RegenerateTransformStageId() extends Rule[SparkPlan] {
-  val transformStageCounter: AtomicInteger = new AtomicInteger(0)
+import scala.collection.mutable
+
+case class RegenerateTransformStageId() extends Rule[SparkPlan] with AdaptiveSparkPlanHelper {
+  private val transformStageCounter: AtomicInteger = new AtomicInteger(0)
+
+  private val wholeStageTransformerCache =
+    new mutable.HashSet[WholeStageTransformer]()
 
   def apply(plan: SparkPlan): SparkPlan = {
     if (conf.getConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED)) {
@@ -53,13 +58,12 @@ case class RegenerateTransformStageId() extends Rule[SparkPlan] {
           case _ =>
             throw new GlutenException(s"wrong plan for shuffle stage:\n ${plan.treeString}")
         }
-      case aqe: AdaptiveSparkPlanExec
-          if SparkShimLoader.getSparkShims.isFinalAdaptivePlan(aqe) && aqe.isSubquery =>
-        // Only handle aqe when it's subquery. The final aqe plan should not go through this rule.
-        updateStageId(aqe.executedPlan)
-      case wst: WholeStageTransformer =>
+      case aqe: AdaptiveSparkPlanExec if SparkShimLoader.getSparkShims.isFinalAdaptivePlan(aqe) =>
+        updateStageId(stripAQEPlan(aqe))
+      case wst: WholeStageTransformer if !wholeStageTransformerCache.contains(wst) =>
         updateStageId(wst.child)
         wst.transformStageId = transformStageCounter.incrementAndGet()
+        wholeStageTransformerCache.add(wst)
       case plan =>
         plan.subqueries.foreach(updateStageId)
         plan.children.foreach(updateStageId)
