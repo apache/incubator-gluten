@@ -417,6 +417,11 @@ if(BUILD_EXAMPLES)
 endif()
 
 if(ENABLE_GPU)
+  # Find cudf to get CCCL and other dependencies from its fetched dependencies
+  # This ensures we use CCCL from cudf's build rather than /usr/local/cuda/include
+  set(cudf_DIR "${VELOX_BUILD_PATH}/_deps/cudf-build")
+  find_package(cudf REQUIRED CONFIG)
+
   import_library(
     facebook::velox::velox_cudf_expression
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/expression/libvelox_cudf_expression.a
@@ -438,9 +443,7 @@ if(ENABLE_GPU)
             ${VELOX_BUILD_PATH}/_deps/kvikio-src/cpp/include
             ${VELOX_BUILD_PATH}/_deps/nvtx3-src/c/include
             ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/include
-            ${VELOX_BUILD_PATH}/_deps/rapids_logger-src/include
-            /usr/local/cuda/include/cccl
-            /usr/local/cuda/include)
+            ${VELOX_BUILD_PATH}/_deps/rapids_logger-src/include)
 
   target_compile_definitions(
     velox PRIVATE LIBCUDACXX_ENABLE_EXPERIMENTAL_MEMORY_RESOURCE)
@@ -450,6 +453,8 @@ if(ENABLE_GPU)
     PUBLIC facebook::velox::velox_cudf_exec facebook::velox::velox_cudf_vector
            facebook::velox::velox_cudf_hive_connector
            facebook::velox::velox_cudf_expression)
+  # Link CCCL from cudf's dependencies (provides thrust, cub, libcudacxx headers)
+  target_link_libraries(velox PRIVATE CCCL::CCCL)
   target_link_libraries(
     velox
     PRIVATE
