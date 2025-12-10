@@ -161,8 +161,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     // Since
     // https://github.com/facebookincubator/velox/pull/9557/files#diff-436e44b7374032f8f5d7eb45869602add6f955162daa2798d01cc82f8725724dL812-L820,
     // We should pass bytes as parameter "reservationBytes" when calling ::grow.
-    auto freeByes = pool->freeBytes();
-    if (freeByes > bytes) {
+    auto freeBytes = pool->freeBytes();
+    if (freeBytes > bytes) {
       if (growPool(pool, 0, bytes)) {
         return;
       }
