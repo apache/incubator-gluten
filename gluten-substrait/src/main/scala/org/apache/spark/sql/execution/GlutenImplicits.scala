@@ -18,8 +18,8 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.{GlutenPlan, WholeStageTransformer}
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PlanUtil
-
 import org.apache.spark.sql.{Column, Dataset, SparkSession}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.{CommandResult, LogicalPlan}
@@ -95,10 +95,7 @@ object GlutenImplicits {
   }
 
   private def isFinalAdaptivePlan(p: AdaptiveSparkPlanExec): Boolean = {
-    val args = p.argString(Int.MaxValue)
-    val index = args.indexOf("isFinalPlan=")
-    assert(index >= 0)
-    args.substring(index + "isFinalPlan=".length).trim.toBoolean
+    SparkShimLoader.getSparkShims.isFinalAdaptivePlan(p)
   }
 
   private def collectFallbackNodes(

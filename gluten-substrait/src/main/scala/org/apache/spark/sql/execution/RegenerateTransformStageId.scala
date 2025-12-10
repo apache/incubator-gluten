@@ -18,10 +18,11 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.WholeStageTransformer
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, ShuffleQueryStageExec}
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, Exchange, ReusedExchangeExec, ShuffleExchangeLike}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExchangeExec, ShuffleExchangeLike}
 import org.apache.spark.sql.internal.SQLConf
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -31,36 +32,37 @@ case class RegenerateTransformStageId() extends Rule[SparkPlan] {
 
   def apply(plan: SparkPlan): SparkPlan = {
     if (conf.getConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED)) {
-      regenerateTransformStageId(plan)
-    } else {
-      plan
+      updateStageId(plan)
     }
+    plan
   }
 
-  private def regenerateTransformStageId(plan: SparkPlan): SparkPlan = {
+  private def updateStageId(plan: SparkPlan): Unit = {
     plan match {
       case b: BroadcastQueryStageExec =>
-        val newPlan = b.plan match {
-          case b: BroadcastExchangeLike => regenerateTransformStageId(b)
-          case r @ ReusedExchangeExec(_, b: BroadcastExchangeLike) =>
-            r.copy(child = regenerateTransformStageId(b).asInstanceOf[Exchange])
+        b.plan match {
+          case b: BroadcastExchangeLike => updateStageId(b)
+          case _: ReusedExchangeExec =>
           case _ =>
             throw new GlutenException(s"wrong plan for broadcast stage:\n ${plan.treeString}")
         }
-        b.copy(plan = newPlan)
       case s: ShuffleQueryStageExec =>
-        val newPlan = s.plan match {
-          case s: ShuffleExchangeLike => regenerateTransformStageId(s)
-          case r @ ReusedExchangeExec(_, s: ShuffleExchangeLike) =>
-            r.copy(child = regenerateTransformStageId(s).asInstanceOf[Exchange])
+        s.plan match {
+          case s: ShuffleExchangeLike => updateStageId(s)
+          case _: ReusedExchangeExec =>
           case _ =>
-            throw new GlutenException(s"wrong plan for broadcast stage:\n ${plan.treeString}")
+            throw new GlutenException(s"wrong plan for shuffle stage:\n ${plan.treeString}")
         }
-        s.copy(plan = newPlan)
+      case aqe: AdaptiveSparkPlanExec
+          if SparkShimLoader.getSparkShims.isFinalAdaptivePlan(aqe) && aqe.isSubquery =>
+        // Only handle aqe when it's subquery. The final aqe plan should not go through this rule.
+        updateStageId(aqe.executedPlan)
       case wst: WholeStageTransformer =>
-        regenerateTransformStageId(wst.child)
-        wst.copy()(transformStageId = transformStageCounter.incrementAndGet())
-      case other => other.mapChildren(regenerateTransformStageId)
+        updateStageId(wst.child)
+        wst.transformStageId = transformStageCounter.incrementAndGet()
+      case plan =>
+        plan.subqueries.foreach(updateStageId)
+        plan.children.foreach(updateStageId)
     }
   }
 }
