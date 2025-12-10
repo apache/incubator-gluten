@@ -21,10 +21,10 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.{GlutenTimeMetric, MetricsUpdater}
-import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.substrait.plan.{PlanBuilder, PlanNode}
-import org.apache.gluten.substrait.rel.{LocalFilesNode, RelNode, SplitInfo}
+import org.apache.gluten.substrait.rel.{LocalFilesNode, RelBuilder, RelNode, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 
@@ -172,24 +172,53 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   @transient
   private var wholeStageTransformerContext: Option[WholeStageTransformContext] = None
 
-  private var outputSchemaForPlan: Option[TypeNode] = None
-
-  private def inferSchemaFromAttributes(attrs: Seq[Attribute]): TypeNode = {
-    val outputTypeNodeList = new java.util.ArrayList[TypeNode]()
-    for (attr <- attrs) {
-      outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-    }
-
-    TypeBuilder.makeStruct(false, outputTypeNodeList)
-  }
+  private var expectedOutputForPlan: Option[Seq[Attribute]] = None
 
   def setOutputSchemaForPlan(expectOutput: Seq[Attribute]): Unit = {
-    if (outputSchemaForPlan.isDefined) {
+    if (expectedOutputForPlan.isDefined) {
       return
     }
 
-    // Fixes issue-1874
-    outputSchemaForPlan = Some(inferSchemaFromAttributes(expectOutput))
+    // Fixes issue-1874: store expected output attributes for generating a ProjectRel with casts.
+    expectedOutputForPlan = Some(expectOutput)
+  }
+
+  /**
+   * Creates a ProjectRel that casts each input column to the expected output type. This is used to
+   * enforce nullability and type constraints when the child plan's output may not match the
+   * expected schema (e.g., in union operations). Returns the input unchanged if no casts are
+   * needed.
+   */
+  private def createOutputCastProjectRel(
+      input: RelNode,
+      inputAttrs: Seq[Attribute],
+      expectedAttrs: Seq[Attribute],
+      substraitContext: SubstraitContext): RelNode = {
+    val castExpressions = new java.util.ArrayList[ExpressionNode]()
+    var needsCast = false
+    for (i <- inputAttrs.indices) {
+      val inputAttr = inputAttrs(i)
+      val expectedAttr = expectedAttrs(i)
+      val fieldRef = ExpressionBuilder.makeSelection(i)
+      // If types differ (including nullability), add a cast; otherwise pass through.
+      if (
+        inputAttr.dataType != expectedAttr.dataType ||
+        inputAttr.nullable != expectedAttr.nullable
+      ) {
+        val targetType = ConverterUtils.getTypeNode(expectedAttr.dataType, expectedAttr.nullable)
+        castExpressions.add(ExpressionBuilder.makeCast(targetType, fieldRef, false))
+        needsCast = true
+      } else {
+        castExpressions.add(fieldRef)
+      }
+    }
+    // Only create a ProjectRel if casts are actually needed.
+    if (needsCast) {
+      // Use emitStartIndex = 0 to emit only the projected expressions (not input + expressions).
+      RelBuilder.makeProjectRel(input, castExpressions, substraitContext, -1L, 0)
+    } else {
+      input
+    }
   }
 
   def substraitPlan: PlanNode = {
@@ -241,21 +270,27 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       throw new IllegalStateException(s"WholeStageTransformer can't do Transform on $child")
     }
 
-    val outNames = childCtx.outputAttributes.map(ConverterUtils.genColumnNameWithExprId).asJava
+    val (finalRoot, finalOutputAttrs) =
+      if (BackendsApiManager.getSettings.needOutputSchemaForPlan()) {
+        // If expected output schema differs from child's output, wrap in a ProjectRel with casts.
+        // This fixes issue-1874 by explicitly converting types (including nullability) in the plan.
+        expectedOutputForPlan match {
+          case Some(expectedAttrs) =>
+            val projectRel = createOutputCastProjectRel(
+              childCtx.root,
+              childCtx.outputAttributes,
+              expectedAttrs,
+              substraitContext)
+            (projectRel, expectedAttrs)
+          case None =>
+            (childCtx.root, childCtx.outputAttributes)
+        }
+      } else {
+        (childCtx.root, childCtx.outputAttributes)
+      }
 
-    val planNode = if (BackendsApiManager.getSettings.needOutputSchemaForPlan()) {
-      val outputSchema =
-        outputSchemaForPlan.getOrElse(inferSchemaFromAttributes(childCtx.outputAttributes))
-
-      PlanBuilder.makePlan(
-        substraitContext,
-        Lists.newArrayList(childCtx.root),
-        outNames,
-        outputSchema,
-        null)
-    } else {
-      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
-    }
+    val outNames = finalOutputAttrs.map(ConverterUtils.genColumnNameWithExprId).asJava
+    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(finalRoot), outNames)
 
     WholeStageTransformContext(planNode, substraitContext, isCudf)
   }

@@ -21,7 +21,6 @@ alternatives like `AdvancedExtension` could be considered.
 * Changed join type `JOIN_TYPE_SEMI` to `JOIN_TYPE_LEFT_SEMI` and `JOIN_TYPE_RIGHT_SEMI`([#408](https://github.com/apache/incubator-gluten/pull/408)).
 * Added `WindowRel`, added `column_name` and `window_type` in `WindowFunction`,
 changed `Unbounded` in `WindowFunction` into `Unbounded_Preceding` and `Unbounded_Following`, and added WindowType([#485](https://github.com/apache/incubator-gluten/pull/485)).
-* Added `output_schema` in RelRoot([#1901](https://github.com/apache/incubator-gluten/pull/1901)).
 * Added `ExpandRel`([#1361](https://github.com/apache/incubator-gluten/pull/1361)).
 * Added `GenerateRel`([#574](https://github.com/apache/incubator-gluten/pull/574)).
 * Added `PartitionColumn` in `LocalFiles`([#2405](https://github.com/apache/incubator-gluten/pull/2405)).
