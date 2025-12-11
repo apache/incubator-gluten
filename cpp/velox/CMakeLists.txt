@@ -417,8 +417,7 @@ if(BUILD_EXAMPLES)
 endif()
 
 if(ENABLE_GPU)
-  # Find cudf to get CCCL and other dependencies from its fetched dependencies
-  # This ensures we use CCCL from cudf's build rather than /usr/local/cuda/include
+  # Find cuDF package which provides cudf::cudf target with all transitive dependencies
   set(cudf_DIR "${VELOX_BUILD_PATH}/_deps/cudf-build")
   find_package(cudf REQUIRED CONFIG)
 
@@ -445,9 +444,9 @@ if(ENABLE_GPU)
     PUBLIC facebook::velox::velox_cudf_exec facebook::velox::velox_cudf_vector
            facebook::velox::velox_cudf_hive_connector
            facebook::velox::velox_cudf_expression)
-  # Link cuDF and its dependencies (provides cudf, rmm, kvikio, nvcomp, rapids_logger)
-  # CCCL provides thrust, cub, libcudacxx headers
-  target_link_libraries(velox PRIVATE cudf::cudf CCCL::CCCL)
+  # Link cuDF which transitively provides all dependencies
+  # (rmm, kvikio, nvcomp, rapids_logger, CCCL for CUDA headers)
+  target_link_libraries(velox PRIVATE cudf::cudf)
 endif()
 
 add_custom_command(
