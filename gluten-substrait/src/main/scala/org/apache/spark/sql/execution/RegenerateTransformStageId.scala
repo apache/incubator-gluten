@@ -29,6 +29,12 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable
 
+/**
+ * Regenerate `transformStageId` for `WholeStageTransformerExec` when AQE is on. QueryStages are
+ * invisible to each other during execution. During runtime, the transformStageId of each QueryStage
+ * starts from 1. This rule updates the whole plan tree with incremental and unique transform stage
+ * id before the final execution.
+ */
 case class RegenerateTransformStageId() extends Rule[SparkPlan] with AdaptiveSparkPlanHelper {
   private val transformStageCounter: AtomicInteger = new AtomicInteger(0)
 
