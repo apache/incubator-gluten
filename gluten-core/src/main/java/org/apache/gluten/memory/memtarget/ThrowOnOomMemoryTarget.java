@@ -66,19 +66,33 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
       }
     }
 
+    // About to OOM.
+    LOG.warn("Off-heap reservation of {} bytes failed.", size);
+
     // Invoke GC, then retry up to 9 times (1s extra delay in total) for this
     // reservation. This is for ensuring we waited for GC to collect all the
     // non-reachable objects, during which the off-heap allocations might also
     // be returned to the memory manager. For example, UnsafeByteArray implements
     // `finalize` to release its off-heap memory allocation so its lifecycle
     // relies on JVM GC.
-    LOG.warn("Off-heap reservation failed.");
     LOG.warn("Invoking GC to try reclaiming some off-heap memory space if applicable...");
     System.gc();
     final long start = System.currentTimeMillis();
     int sleeps = 0;
     long sleepTime = 1;
     while (true) {
+      final long elapsedMs = System.currentTimeMillis() - start;
+      if (elapsedMs >= MAX_WAIT_MS) {
+        LOG.warn("Max wait time (in ms) {} has reached. ", MAX_WAIT_MS);
+        break;
+      }
+      LOG.warn(
+          "Retrying reserving {} bytes (finished {}/{} number of sleeps, elapsed {}/{} ms)... ",
+          size,
+          sleeps,
+          MAX_SLEEPS,
+          elapsedMs,
+          MAX_WAIT_MS);
       granted = target.borrow(size);
       if (granted >= size) {
         return granted;
@@ -90,18 +104,7 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
         LOG.warn("Max number of sleeps {} has reached. ", MAX_SLEEPS);
         break;
       }
-      final long elapsedMs = System.currentTimeMillis() - start;
-      if (elapsedMs >= MAX_WAIT_MS) {
-        LOG.warn("Max wait time (in ms) {} has reached. ", MAX_WAIT_MS);
-        break;
-      }
       try {
-        LOG.warn(
-            "Off-heap reservation failed again. Retrying ({}/{} number of sleeps, {}/{} ms)... ",
-            sleeps,
-            MAX_SLEEPS,
-            elapsedMs,
-            MAX_WAIT_MS);
         Thread.sleep(sleepTime);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
