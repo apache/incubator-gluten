@@ -44,15 +44,15 @@ class SparkWriteFilesCommitProtocol(
   extends Logging {
   assert(committer.isInstanceOf[HadoopMapReduceCommitProtocol])
 
-  val sparkStageId = TaskContext.get().stageId()
-  val sparkPartitionId = TaskContext.get().partitionId()
-  val sparkAttemptNumber = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
+  val sparkStageId: Int = TaskContext.get().stageId()
+  val sparkPartitionId: Int = TaskContext.get().partitionId()
+  val sparkAttemptNumber: Int = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
   private val jobId = createJobID(jobTrackerID, sparkStageId)
 
   private val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
   private val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
 
-  private var fileNames: mutable.Set[String] = null
+  private var fileNames: mutable.Set[String] = _
 
   // Set up the attempt context required to use in the output committer.
   val taskAttemptContext: TaskAttemptContext = {
