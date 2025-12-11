@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.datasources.{FileFormatWriter, WriteJobDescription, WriteTaskResult}
 
 object GlutenFileFormatWriter {
@@ -39,5 +40,9 @@ object GlutenFileFormatWriter {
       iterator,
       None
     )
+  }
+
+  def throwWriteError(writePath: String, cause: Throwable): Nothing = {
+    throw QueryExecutionErrors.taskFailedWhileWritingRowsError(writePath, cause)
   }
 }

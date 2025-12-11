@@ -739,7 +739,7 @@ class Spark40Shims extends SparkShims {
       t: Throwable,
       writePath: String,
       descriptionPath: String): Unit = {
-    throw t
+    GlutenFileFormatWriter.throwWriteError(writePath, t)
   }
 
   override def getFileSourceScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = {
