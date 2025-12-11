@@ -35,7 +35,8 @@ using namespace facebook::velox::common;
 
 namespace {
 const int32_t kGzipWindowBits4k = 12;
-}
+const int32_t kZSTDDefaultCompressionLevel = 3;
+} // namespace
 
 std::unique_ptr<WriterOptions> makeParquetWriteOption(const std::unordered_map<std::string, std::string>& sparkConfs) {
   int64_t maxRowGroupBytes = 134217728; // 128MB
@@ -73,12 +74,11 @@ std::unique_ptr<WriterOptions> makeParquetWriteOption(const std::unordered_map<s
       compressionCodec = CompressionKind::CompressionKind_LZ4;
     } else if (boost::iequals(compressionCodecStr, "zstd")) {
       compressionCodec = CompressionKind::CompressionKind_ZSTD;
-      if (auto it = sparkConfs.find(kParquetZSTDCompressionLevel); it != sparkConfs.end()) {
-        auto compressionLevel = std::stoi(it->second);
-        auto codecOptions = std::make_shared<parquet::arrow::util::CodecOptions>();
-        codecOptions->compression_level = compressionLevel;
-        writeOption->codecOptions = std::move(codecOptions);
-      }
+      auto codecOptions = std::make_shared<parquet::arrow::util::CodecOptions>();
+      auto it = sparkConfs.find(kParquetZSTDCompressionLevel);
+      auto compressionLevel = it != sparkConfs.end() ? std::stoi(it->second) : kZSTDDefaultCompressionLevel;
+      codecOptions->compression_level = compressionLevel;
+      writeOption->codecOptions = std::move(codecOptions);
     } else if (boost::iequals(compressionCodecStr, "uncompressed")) {
       compressionCodec = CompressionKind::CompressionKind_NONE;
     } else if (boost::iequals(compressionCodecStr, "none")) {
