@@ -218,8 +218,15 @@ object ColumnarCollapseTransformStages {
   }
 
   def getTransformStageCounter(plan: SparkPlan): AtomicInteger = {
-    plan
-      .collectFirst { case wst: WholeStageTransformer => new AtomicInteger(wst.transformStageId) }
-      .getOrElse(new AtomicInteger(0))
+    new AtomicInteger(findMaxTransformStageId(plan))
+  }
+
+  private def findMaxTransformStageId(plan: SparkPlan): Int = {
+    plan match {
+      case wst: WholeStageTransformer =>
+        wst.transformStageId
+      case _ =>
+        plan.children.map(findMaxTransformStageId).foldLeft(0)(Math.max)
+    }
   }
 }
