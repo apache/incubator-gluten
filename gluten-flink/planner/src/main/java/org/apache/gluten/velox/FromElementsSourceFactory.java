@@ -28,7 +28,6 @@ import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
@@ -58,12 +57,12 @@ public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public Transformation<RowData> buildVeloxSource(
-      Transformation<RowData> transformation,
-      ScanTableSource tableSource,
-      boolean checkpointEnabled) {
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     LegacySourceTransformation<RowData> sourceTransformation =
         (LegacySourceTransformation<RowData>) transformation;
     try {
+      ScanTableSource tableSource =
+          (ScanTableSource) parameters.get(ScanTableSource.class.getName());
       Class<?> tableSourceClazz =
           Class.forName(
               "org.apache.flink.table.planner.factories.TestValuesTableFactory$TestValuesScanTableSourceWithoutProjectionPushDown");
@@ -114,7 +113,7 @@ public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
 
   @Override
   public Transformation<RowData> buildVeloxSink(
-      ReadableConfig config, Transformation<RowData> transformation) {
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     throw new FlinkRuntimeException("Unimplemented method 'buildSink'");
   }
 }

@@ -30,7 +30,6 @@ import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -60,14 +59,15 @@ public class KafkaSourceSinkFactory implements VeloxSourceSinkFactory {
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
   public Transformation<RowData> buildVeloxSource(
-      Transformation<RowData> transformation,
-      ScanTableSource tableSource,
-      boolean checkpointEnabled) {
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     RowType outputType =
         (RowType)
             LogicalTypeConverter.toVLType(
                 ((InternalTypeInfo<?>) transformation.getOutputType()).toLogicalType());
     try {
+      ScanTableSource tableSource =
+          (ScanTableSource) parameters.get(ScanTableSource.class.getName());
+      boolean checkpointEnabled = (Boolean) parameters.get("checkpoint.enabled");
       Class<?> tableSourceClazz =
           Class.forName("org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource");
       Properties properties =
@@ -135,7 +135,7 @@ public class KafkaSourceSinkFactory implements VeloxSourceSinkFactory {
 
   @Override
   public Transformation<RowData> buildVeloxSink(
-      ReadableConfig config, Transformation<RowData> transformation) {
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     throw new FlinkRuntimeException("Unimplemented method 'buildSink'");
   }
 }

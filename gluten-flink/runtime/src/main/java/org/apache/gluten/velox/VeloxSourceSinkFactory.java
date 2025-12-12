@@ -17,13 +17,12 @@
 package org.apache.gluten.velox;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 
@@ -36,13 +35,11 @@ public interface VeloxSourceSinkFactory {
 
   /** Build source transformation that offload the operator to velox. */
   Transformation<RowData> buildVeloxSource(
-      Transformation<RowData> transformation,
-      ScanTableSource tableSource,
-      boolean checkpointEnabled);
+      Transformation<RowData> transformation, Map<String, Object> parameters);
 
   /** Build sink transformation that offload the operator to velox. */
   Transformation<RowData> buildVeloxSink(
-      ReadableConfig config, Transformation<RowData> transformation);
+      Transformation<RowData> transformation, Map<String, Object> parameters);
 
   /** Choose the matched source/sink factory by given transformation. */
   private static Optional<VeloxSourceSinkFactory> getFactory(
@@ -59,9 +56,7 @@ public interface VeloxSourceSinkFactory {
 
   /** Build Velox source, or fallback to flink orignal source . */
   static Transformation<RowData> buildSource(
-      Transformation<RowData> transformation,
-      ScanTableSource tableSource,
-      boolean checkpointEnabled) {
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     Optional<VeloxSourceSinkFactory> factory = getFactory(transformation);
     if (factory.isEmpty()) {
       LOG.warn(
@@ -69,13 +64,13 @@ public interface VeloxSourceSinkFactory {
           transformation.getClass().getName());
       return transformation;
     } else {
-      return factory.get().buildVeloxSource(transformation, tableSource, checkpointEnabled);
+      return factory.get().buildVeloxSource(transformation, parameters);
     }
   }
 
   /** Build Velox sink, or fallback to flink original sink. */
   static Transformation<RowData> buildSink(
-      ReadableConfig config, Transformation<RowData> transformation) {
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     Optional<VeloxSourceSinkFactory> factory = getFactory(transformation);
     if (factory.isEmpty()) {
       LOG.warn(
@@ -83,7 +78,7 @@ public interface VeloxSourceSinkFactory {
           transformation.getClass().getName());
       return transformation;
     } else {
-      return factory.get().buildVeloxSink(config, transformation);
+      return factory.get().buildVeloxSink(transformation, parameters);
     }
   }
 }

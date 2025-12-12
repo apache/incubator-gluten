@@ -30,10 +30,8 @@ import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
-import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
@@ -55,9 +53,7 @@ public class NexmarkSourceFactory implements VeloxSourceSinkFactory {
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public Transformation<RowData> buildVeloxSource(
-      Transformation<RowData> transformation,
-      ScanTableSource tableSource,
-      boolean checkpointEnabled) {
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     RowType outputType =
         (RowType)
             LogicalTypeConverter.toVLType(
@@ -101,7 +97,7 @@ public class NexmarkSourceFactory implements VeloxSourceSinkFactory {
 
   @Override
   public Transformation<RowData> buildVeloxSink(
-      ReadableConfig config, Transformation<RowData> transformation) {
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     throw new UnsupportedOperationException("Unimplemented method 'buildSink'");
   }
 }

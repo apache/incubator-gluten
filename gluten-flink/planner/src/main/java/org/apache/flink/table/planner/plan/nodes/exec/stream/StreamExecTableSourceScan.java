@@ -40,6 +40,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Collections;
+import java.util.Map;
 
 /**
  * Stream {@link ExecNode} to read data from an external source defined by a {@link
@@ -108,8 +109,11 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
     Transformation<RowData> sourceTransformation = super.translateToPlanInternal(planner, config);
     return VeloxSourceSinkFactory.buildSource(
         sourceTransformation,
-        tableSource,
-        planner.getExecEnv().getCheckpointConfig().isCheckpointingEnabled());
+        Map.of(
+            ScanTableSource.class.getName(),
+            tableSource,
+            "checkpoint.enabled",
+            planner.getExecEnv().getCheckpointConfig().isCheckpointingEnabled()));
     // --- End Gluten-specific code changes ---
   }
 }
