@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.execution.GlutenPlan
+
 class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTrait {
   import testImplicits._
 
@@ -100,5 +102,31 @@ class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTra
     def runTest(json: String, path: String, exp: String): Unit = {
       checkAnswer(Seq(json).toDF().selectExpr(s"get_json_object(value, '$path')"), Row(exp))
     }
+  }
+
+  testGluten("function get_json_object - Codegen Support") {
+    withTempView("GetJsonObjectTable") {
+      val data = Seq(("1", """{"f1": "value1", "f5": 5.23}""")).toDF("key", "jstring")
+      data.createOrReplaceTempView("GetJsonObjectTable")
+      val df = sql("SELECT key, get_json_object(jstring, '$.f1') FROM GetJsonObjectTable")
+      val plan = df.queryExecution.executedPlan
+      assert(plan.isInstanceOf[GlutenPlan])
+      checkAnswer(df, Seq(Row("1", "value1")))
+    }
+  }
+  testGluten("function get_json_object - path is null") {
+    val data = Seq(("""{"name": "alice", "age": 5}""", "")).toDF("a", "b")
+    val df = data.selectExpr("get_json_object(a, null)")
+    val plan = df.queryExecution.executedPlan
+    assert(plan.isInstanceOf[GlutenPlan])
+    checkAnswer(df, Row(null))
+  }
+
+  testGluten("function get_json_object - json is null") {
+    val data = Seq(("""{"name": "alice", "age": 5}""", "")).toDF("a", "b")
+    val df = data.selectExpr("get_json_object(null, '$.name')")
+    val plan = df.queryExecution.executedPlan
+    assert(plan.isInstanceOf[GlutenPlan])
+    checkAnswer(df, Row(null))
   }
 }
