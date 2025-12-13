@@ -49,6 +49,8 @@ desc formatted char_tbl1;
 create table char_part(c1 char(5), c2 char(2), v1 varchar(6), v2 varchar(2)) using parquet partitioned by (v2, c2);
 desc formatted char_part;
 
+alter table char_part change column c1 comment 'char comment';
+alter table char_part change column v1 comment 'varchar comment';
 alter table char_part add partition (v2='ke', c2='nt') location 'loc1';
 desc formatted char_part;
 
@@ -105,13 +107,9 @@ select split(c7, 'e'), split(c8, 'e'), split(v, 'a'), split(s, 'e') from char_tb
 select substring(c7, 2), substring(c8, 2), substring(v, 3), substring(s, 2) from char_tbl4;
 select left(c7, 2), left(c8, 2), left(v, 3), left(s, 2) from char_tbl4;
 select right(c7, 2), right(c8, 2), right(v, 3), right(s, 2) from char_tbl4;
-
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
-
 select typeof(c7), typeof(c8), typeof(v), typeof(s) from char_tbl4 limit 1;
-
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
-
 select cast(c7 as char(1)), cast(c8 as char(10)), cast(v as char(1)), cast(v as varchar(1)), cast(s as char(5)) from char_tbl4;
 
 -- char_tbl has renamed to char_tbl1
