@@ -22,12 +22,20 @@ import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.task.TaskResources;
 import org.apache.spark.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
 public class ThrowOnOomMemoryTarget implements MemoryTarget {
+  private static final Logger LOG = LoggerFactory.getLogger(ThrowOnOomMemoryTarget.class);
+  // Max number of sleeps during retrying the reservation.
+  // Durations are orderly 1, 2, 4, 8, 16, 32, 64, 128, 256 (total 511 ms ~ 0.5 s).
+  private static final int MAX_SLEEPS = 9;
+  private static final int MAX_WAIT_MS = 1000;
+
   private static final List<String> PRINTED_NON_BYTES_CONFIGURATIONS =
       Arrays.asList(
           GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY(),
@@ -47,17 +55,70 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
 
   @Override
   public long borrow(long size) {
-    long granted = target.borrow(size);
-    if (granted >= size) {
-      return granted;
+    long granted;
+    {
+      granted = target.borrow(size);
+      if (granted >= size) {
+        return granted;
+      }
+      if (granted != 0L) {
+        target.repay(granted);
+      }
     }
+
+    // About to OOM.
+    LOG.warn("Off-heap reservation of {} bytes failed.", size);
+
+    // Invoke GC, then retry up to 9 times (1s extra delay in total) for this
+    // reservation. This is for ensuring we waited for GC to collect all the
+    // non-reachable objects, during which the off-heap allocations might also
+    // be returned to the memory manager. For example, UnsafeByteArray implements
+    // `finalize` to release its off-heap memory allocation so its lifecycle
+    // relies on JVM GC.
+    LOG.warn("Invoking GC to try reclaiming some off-heap memory space if applicable...");
+    System.gc();
+    final long start = System.currentTimeMillis();
+    int sleeps = 0;
+    long sleepTime = 1;
+    while (true) {
+      final long elapsedMs = System.currentTimeMillis() - start;
+      if (elapsedMs >= MAX_WAIT_MS) {
+        LOG.warn("Max wait time (in ms) {} has reached. ", MAX_WAIT_MS);
+        break;
+      }
+      LOG.warn(
+          "Retrying reserving {} bytes (finished {}/{} number of sleeps, elapsed {}/{} ms)... ",
+          size,
+          sleeps,
+          MAX_SLEEPS,
+          elapsedMs,
+          MAX_WAIT_MS);
+      granted = target.borrow(size);
+      if (granted >= size) {
+        return granted;
+      }
+      if (granted != 0L) {
+        target.repay(granted);
+      }
+      if (sleeps >= MAX_SLEEPS) {
+        LOG.warn("Max number of sleeps {} has reached. ", MAX_SLEEPS);
+        break;
+      }
+      try {
+        Thread.sleep(sleepTime);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+      sleepTime *= 2;
+      sleeps++;
+    }
+
     // OOM happens.
     // Note if the target is a Spark memory consumer, spilling should already be requested but
     // failed to reclaim enough memory.
-    if (granted != 0L) {
-      target.repay(granted);
-    }
-    // Log memory usage
+    //
+    // Log memory usage.
     if (TaskResources.inSparkTask()) {
       TaskResources.getLocalTaskContext().taskMemoryManager().showMemoryUsage();
     }
