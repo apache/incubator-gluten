@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, Path}
 import org.apache.parquet.crypto.ParquetCryptoRuntimeException
 import org.apache.parquet.format.converter.ParquetMetadataConverter
 import org.apache.parquet.hadoop.metadata.ParquetMetadata
+import org.apache.parquet.hadoop.util.HadoopInputFile
 
 object ParquetMetadataUtils {
 
@@ -134,7 +135,8 @@ object ParquetMetadataUtils {
     }
     val footer =
       try {
-        ParquetFooterReader.readFooter(conf, fileStatus, ParquetMetadataConverter.NO_FILTER)
+        val inputFile = HadoopInputFile.fromStatus(fileStatus, conf)
+        ParquetFooterReader.readFooter(inputFile, ParquetMetadataConverter.NO_FILTER)
       } catch {
         case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
           return Some("Encrypted Parquet footer detected.")

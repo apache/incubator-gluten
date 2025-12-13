@@ -36,7 +36,7 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 
 import java.nio.charset.StandardCharsets
 
-import scala.collection.convert.ImplicitConversions.`map AsScala`
+import scala.jdk.CollectionConverters._
 
 @Experimental
 case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
@@ -67,7 +67,8 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
             _,
             _,
             _,
-            _) if validate(session, t.dataSchema, options.asCaseSensitiveMap().toMap) =>
+            _,
+            _) if validate(session, t.dataSchema, options.asCaseSensitiveMap().asScala.toMap) =>
         d.copy(table = ArrowCSVTable(
           "arrow" + name,
           sparkSession,

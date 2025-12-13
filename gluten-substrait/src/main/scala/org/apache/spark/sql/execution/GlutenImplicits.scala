@@ -131,7 +131,6 @@ object GlutenImplicits {
             withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
               // re-plan manually to skip cached data
               val newSparkPlan = QueryExecution.createSparkPlan(
-                spark,
                 spark.sessionState.planner,
                 p.inputPlan.logicalLink.get)
               val newExecutedPlan = QueryExecution.prepareExecutedPlan(
