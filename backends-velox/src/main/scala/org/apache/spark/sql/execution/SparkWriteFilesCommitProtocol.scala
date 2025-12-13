@@ -44,15 +44,15 @@ class SparkWriteFilesCommitProtocol(
   extends Logging {
   assert(committer.isInstanceOf[HadoopMapReduceCommitProtocol])
 
-  val sparkStageId = TaskContext.get().stageId()
-  val sparkPartitionId = TaskContext.get().partitionId()
-  val sparkAttemptNumber = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
+  val sparkStageId: Int = TaskContext.get().stageId()
+  val sparkPartitionId: Int = TaskContext.get().partitionId()
+  val sparkAttemptNumber: Int = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
   private val jobId = createJobID(jobTrackerID, sparkStageId)
 
   private val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
   private val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
 
-  private var fileNames: mutable.Set[String] = null
+  private var fileNames: mutable.Set[String] = _
 
   // Set up the attempt context required to use in the output committer.
   val taskAttemptContext: TaskAttemptContext = {
@@ -86,7 +86,9 @@ class SparkWriteFilesCommitProtocol(
     // Note that %05d does not truncate the split number, so if we have more than 100000 tasks,
     // the file name is fine and won't overflow.
     val split = taskAttemptContext.getTaskAttemptID.getTaskID.getId
-    val fileName = f"${spec.prefix}part-$split%05d-${UUID.randomUUID().toString()}${spec.suffix}"
+    val basename = taskAttemptContext.getConfiguration.get("mapreduce.output.basename", "part")
+    val fileName = f"${spec.prefix}$basename-$split%05d-${UUID.randomUUID().toString}${spec.suffix}"
+
     fileNames += fileName
     fileName
   }
