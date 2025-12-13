@@ -514,7 +514,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
           val childWithAdapter = ColumnarCollapseTransformStages.wrapInputIteratorTransformer(child)
           WholeStageTransformer(
             ProjectExecTransformer(child.output ++ appendedProjections, childWithAdapter))(
-            ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
+            ColumnarCollapseTransformStages
+              .getTransformStageCounter(childWithAdapter)
+              .incrementAndGet()
           )
         }
 
