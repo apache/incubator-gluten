@@ -40,18 +40,6 @@ public class AggregateRelNode implements RelNode, Serializable {
       RelNode input,
       List<ExpressionNode> groupings,
       List<AggregateFunctionNode> aggregateFunctionNodes,
-      List<ExpressionNode> filters) {
-    this.input = input;
-    this.groupings.addAll(groupings);
-    this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
-    this.filters.addAll(filters);
-    this.extensionNode = null;
-  }
-
-  AggregateRelNode(
-      RelNode input,
-      List<ExpressionNode> groupings,
-      List<AggregateFunctionNode> aggregateFunctionNodes,
       List<ExpressionNode> filters,
       AdvancedExtensionNode extensionNode) {
     this.input = input;
