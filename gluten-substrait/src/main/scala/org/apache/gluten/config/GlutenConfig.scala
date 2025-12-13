@@ -331,9 +331,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def textIputEmptyAsDefault: Boolean = getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
 
-  def enableParquetRowGroupMaxMinIndex: Boolean =
-    getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
-
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
   def enableNativeWriter: Option[Boolean] = getConf(NATIVE_WRITER_ENABLED)
 
@@ -1355,13 +1352,6 @@ object GlutenConfig extends ConfigRegistry {
       .doc("treat empty fields in CSV input as default values.")
       .booleanConf
       .createWithDefault(false);
-
-  val ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX =
-    buildConf("spark.gluten.sql.parquet.maxmin.index")
-      .internal()
-      .doc("Enable row group max min index for parquet file scan")
-      .booleanConf
-      .createWithDefault(false)
 
   val ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON =
     buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")

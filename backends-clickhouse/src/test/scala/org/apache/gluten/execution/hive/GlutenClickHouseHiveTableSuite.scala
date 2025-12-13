@@ -56,7 +56,6 @@ class GlutenClickHouseHiveTableSuite
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
-      .set(GlutenConfig.ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX.key, "true")
       .set(
         "spark.sql.warehouse.dir",
         this.getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
