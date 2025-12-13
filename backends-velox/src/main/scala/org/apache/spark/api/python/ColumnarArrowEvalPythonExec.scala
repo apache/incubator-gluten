@@ -165,6 +165,12 @@ class ColumnarArrowPythonRunner(
       }
 
       def writeToStreamHelper(dataOut: DataOutputStream): Boolean = {
+        if (!inputIterator.hasNext) {
+          // See https://issues.apache.org/jira/browse/SPARK-44705:
+          // Starting from Spark 4.0, we should return false once the iterator is drained out,
+          // otherwise Spark won't stop calling this method repeatedly.
+          return false
+        }
         var numRows: Long = 0
         val arrowSchema = SparkSchemaUtil.toArrowSchema(schema, timeZoneId)
         val allocator = ArrowBufferAllocators.contextInstance()
