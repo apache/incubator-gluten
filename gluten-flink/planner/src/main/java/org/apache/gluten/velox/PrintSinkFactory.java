@@ -31,11 +31,12 @@ import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -43,9 +44,11 @@ import org.apache.flink.util.FlinkRuntimeException;
 import java.util.List;
 import java.util.Map;
 
-public class VeloxSinkBuilder {
+public class PrintSinkFactory implements VeloxSourceSinkFactory {
 
-  public static Transformation build(ReadableConfig config, Transformation transformation) {
+  @SuppressWarnings("rawtypes")
+  @Override
+  public boolean match(Transformation<RowData> transformation) {
     if (transformation instanceof LegacySinkTransformation) {
       SimpleOperatorFactory operatorFactory =
           (SimpleOperatorFactory) ((LegacySinkTransformation) transformation).getOperatorFactory();
@@ -56,16 +59,25 @@ public class VeloxSinkBuilder {
               .getClass()
               .getSimpleName()
               .equals("RowDataPrintFunction")) {
-        return buildPrintSink(config, (LegacySinkTransformation) transformation);
+        return true;
       }
     }
-    return transformation;
+    return false;
   }
 
-  private static LegacySinkTransformation buildPrintSink(
-      ReadableConfig config, LegacySinkTransformation transformation) {
+  @Override
+  public Transformation<RowData> buildVeloxSource(
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
+    throw new FlinkRuntimeException("Unimplemented method 'buildSource'");
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  @Override
+  public Transformation buildVeloxSink(
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     Transformation inputTrans = (Transformation) transformation.getInputs().get(0);
     InternalTypeInfo inputTypeInfo = (InternalTypeInfo) inputTrans.getOutputType();
+    Configuration config = (Configuration) parameters.get(Configuration.class.getName());
     String logDir = config.get(CoreOptions.FLINK_LOG_DIR);
     String printPath;
     if (logDir != null) {

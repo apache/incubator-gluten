@@ -48,7 +48,7 @@ As some features have not been committed to upstream, you have to use the follow
 ## fetch velox4j code
 git clone -b gluten-0530 https://github.com/bigo-sg/velox4j.git
 cd velox4j
-git reset --hard 14eea127c5088f972cdf1ca0987fd95429485a0e
+git reset --hard 1753fa68f71d8a1a0df2d4a0ff346ae00e973e9c
 mvn clean install -DskipTests -Dgpg.skip -Dspotless.skip=true
 ```
 **Get gluten**
