@@ -444,22 +444,16 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
     const std::shared_ptr<arrow::Schema>& schema,
     const std::shared_ptr<arrow::util::Codec>& codec,
     const facebook::velox::RowTypePtr& rowType,
-    int32_t batchSize,
     int64_t readerBufferSize,
     VeloxMemoryManager* memoryManager,
-    std::vector<bool>* isValidityBuffer,
-    bool hasComplexType,
     int64_t& deserializeTime,
     int64_t& decompressTime)
     : streamReader_(streamReader),
       schema_(schema),
       codec_(codec),
       rowType_(rowType),
-      batchSize_(batchSize),
       readerBufferSize_(readerBufferSize),
       memoryManager_(memoryManager),
-      isValidityBuffer_(isValidityBuffer),
-      hasComplexType_(hasComplexType),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {}
 
@@ -838,11 +832,8 @@ std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::cr
           schema_,
           codec_,
           rowType_,
-          batchSize_,
           readerBufferSize_,
           memoryManager_,
-          &isValidityBuffer_,
-          hasComplexType_,
           deserializeTime_,
           decompressTime_);
     case ShuffleWriterType::kSortShuffle:
