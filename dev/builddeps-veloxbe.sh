@@ -38,6 +38,7 @@ ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 ENABLE_VCPKG=OFF
 ENABLE_GPU=OFF
+ENABLE_CLANG=OFF
 ENABLE_ENHANCED_FEATURES=OFF
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
@@ -109,6 +110,10 @@ do
         ;;
         --enable_gpu=*)
         ENABLE_GPU=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_clang=*)
+        ENABLE_CLANG=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_enhanced_features=*)
@@ -248,13 +253,17 @@ function build_gluten_cpp {
     -DENABLE_HDFS=$ENABLE_HDFS \
     -DENABLE_ABFS=$ENABLE_ABFS \
     -DENABLE_GPU=$ENABLE_GPU \
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
     -DENABLE_ENHANCED_FEATURES=$ENABLE_ENHANCED_FEATURES"
 
   if [ $OS == 'Darwin' ]; then
     GLUTEN_CMAKE_OPTIONS+=" -DCMAKE_PREFIX_PATH=$INSTALL_PREFIX"
   fi
-
-  cmake $GLUTEN_CMAKE_OPTIONS ..
+  if [ $ENABLE_CLANG == "ON" ]; then
+    CC="clang15" CXX="clang++15" cmake $GLUTEN_CMAKE_OPTIONS ..
+  else
+    cmake $GLUTEN_CMAKE_OPTIONS ..
+  fi
   make -j $NUM_THREADS
 }
 
