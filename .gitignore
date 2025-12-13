@@ -70,3 +70,9 @@ dist/
 metastore_db/
 
 .ipynb_checkpoints
+cpp/gluten.conan.graph.html
+**/version/version.h
+.bolt-build-info.properties
+cpp/gluten.conan.graph.html
+
+output/**

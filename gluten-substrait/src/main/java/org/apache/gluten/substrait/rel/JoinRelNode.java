@@ -24,6 +24,8 @@ import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 public class JoinRelNode implements RelNode, Serializable {
   private final RelNode left;
@@ -73,5 +75,13 @@ public class JoinRelNode implements RelNode, Serializable {
     }
 
     return Rel.newBuilder().setJoin(joinBuilder.build()).build();
+  }
+
+  @Override
+  public List<RelNode> childNode() {
+    List<RelNode> children = new ArrayList<>();
+    children.add(left);
+    children.add(right);
+    return children;
   }
 }

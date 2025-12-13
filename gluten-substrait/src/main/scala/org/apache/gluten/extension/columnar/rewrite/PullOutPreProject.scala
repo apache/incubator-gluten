@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.SortExecTransformer
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PullOutProjectHelper
 
@@ -136,7 +137,8 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
   override def rewrite(plan: SparkPlan): SparkPlan = plan match {
     case sort: SortExec if needsPreProject(sort) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
-      val newSortOrder = getNewSortOrder(sort.sortOrder, expressionMap)
+      val originalOrder = sort.sortOrder
+      val newSortOrder = getNewSortOrder(originalOrder, expressionMap)
       // The output of the sort operator is the same as the output of the child, therefore it
       // is necessary to retain the output columns of the child in the pre-projection, and
       // then add the expressions that need to be evaluated in the sortOrder. Finally, in the
@@ -148,6 +150,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       sort.child.logicalLink.foreach(preProject.setLogicalLink)
       val newSort = sort.copy(sortOrder = newSortOrder, child = preProject)
       newSort.copyTagsFrom(sort)
+      newSort.setTagValue(SortExecTransformer.originalOrders, originalOrder)
       // The pre-project and post-project of SortExec always appear together, so it's more
       // convenient to handle them together. Therefore, SortExec's post-project will no longer
       // be pulled out separately.

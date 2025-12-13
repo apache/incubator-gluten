@@ -24,6 +24,10 @@
 #include "config/GlutenConfig.h"
 #include "jni/JniCommon.h"
 #include "jni/JniError.h"
+#include "jni/JniWrapper.h"
+
+#include "memory/ColumnarBatch.h"
+#include "memory/BoltGlutenMemoryManager.h"
 
 #include <arrow/c/bridge.h>
 #include <optional>
@@ -36,6 +40,7 @@
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/Utils.h"
 #include "utils/ArrowStatus.h"
+#include "utils/ConfigResolver.h"
 #include "utils/StringUtil.h"
 
 using namespace gluten;
@@ -149,7 +154,7 @@ inline static const std::string kInternalBackendKind{"internal"};
 
 class InternalMemoryManager : public MemoryManager {
  public:
-  InternalMemoryManager(const std::string& kind) : MemoryManager(kind) {}
+  InternalMemoryManager(const std::string& kind, const std::string& name) : MemoryManager(kind, name) {}
 
   arrow::MemoryPool* defaultArrowMemoryPool() override {
     throw GlutenException("Not implemented");
@@ -175,12 +180,12 @@ class InternalRuntime : public Runtime {
   InternalRuntime(
       const std::string& kind,
       MemoryManager* memoryManager,
-      const std::unordered_map<std::string, std::string>& confMap)
-      : Runtime(kind, memoryManager, confMap) {}
+      const std::unordered_map<std::string, std::string>& confMap, int64_t taskId)
+      : Runtime(kind, memoryManager, confMap, taskId) {}
 };
 
-MemoryManager* internalMemoryManagerFactory(const std::string& kind, std::unique_ptr<AllocationListener> listener) {
-  return new InternalMemoryManager(kind);
+MemoryManager* internalMemoryManagerFactory(const std::string& kind, std::unique_ptr<AllocationListener> listener, const std::string& name) {
+  return new InternalMemoryManager(kind, name);
 }
 
 void internalMemoryManagerReleaser(MemoryManager* memoryManager) {
@@ -190,8 +195,8 @@ void internalMemoryManagerReleaser(MemoryManager* memoryManager) {
 Runtime* internalRuntimeFactory(
     const std::string& kind,
     MemoryManager* memoryManager,
-    const std::unordered_map<std::string, std::string>& sessionConf) {
-  return new InternalRuntime(kind, memoryManager, sessionConf);
+    const std::unordered_map<std::string, std::string>& sessionConf, int64_t taskId) {
+  return new InternalRuntime(kind, memoryManager, sessionConf, taskId);
 }
 
 void internalRuntimeReleaser(Runtime* runtime) {
@@ -233,11 +238,19 @@ class ShuffleStreamReader : public StreamReader {
 
 } // namespace
 
+namespace gluten {
+
+std::shared_ptr<StreamReader> makeShuffleStreamReader(JNIEnv* env, jobject jShuffleStreamReader) {
+  return std::make_shared<::ShuffleStreamReader>(env, jShuffleStreamReader);
+}
+
+} // namespace gluten
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+jint JNI_OnLoad_Base(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
     return JNI_ERR;
@@ -292,7 +305,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   return jniVersion;
 }
 
-void JNI_OnUnload(JavaVM* vm, void* reserved) {
+void JNI_OnUnload_Base(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
   env->DeleteGlobalRef(jniByteInputStreamClass);
@@ -311,14 +324,16 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_createR
     jclass,
     jstring jBackendType,
     jlong nmmHandle,
-    jbyteArray sessionConf) {
+    jbyteArray sessionConf,
+    jlong taskId) {
   JNI_METHOD_START
   MemoryManager* memoryManager = jniCastOrThrow<MemoryManager>(nmmHandle);
   auto safeArray = getByteArrayElementsSafe(env, sessionConf);
   auto sparkConf = parseConfMap(env, safeArray.elems(), safeArray.length());
   auto backendType = jStringToCString(env, jBackendType);
 
-  auto runtime = Runtime::create(backendType, memoryManager, sparkConf);
+  // create runtime here
+  auto runtime = Runtime::create(backendType, memoryManager, taskId, sparkConf);
   return reinterpret_cast<jlong>(runtime);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
@@ -343,13 +358,15 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_memory_NativeMemoryManagerJniWrap
     jclass,
     jstring jBackendType,
     jobject jListener,
-    jbyteArray sessionConf) {
+    jbyteArray sessionConf,
+    jstring jName) {
   JNI_METHOD_START
   JavaVM* vm;
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw GlutenException("Unable to get JavaVM instance");
   }
   auto backendType = jStringToCString(env, jBackendType);
+  auto name = jStringToCString(env, jName);
   auto safeArray = getByteArrayElementsSafe(env, sessionConf);
   auto sparkConf = parseConfMap(env, safeArray.elems(), safeArray.length());
   std::unique_ptr<AllocationListener> listener = std::make_unique<SparkAllocationListener>(vm, jListener);
@@ -357,7 +374,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_memory_NativeMemoryManagerJniWrap
   if (backtrace) {
     listener = std::make_unique<BacktraceAllocationListener>(std::move(listener));
   }
-  MemoryManager* mm = MemoryManager::create(backendType, std::move(listener));
+  MemoryManager* mm = MemoryManager::create(backendType, std::move(listener), name);
   return reinterpret_cast<jlong>(mm);
   JNI_METHOD_END(-1L)
 }
@@ -389,26 +406,42 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_memory_NativeMemoryManagerJniWrap
   JNI_METHOD_START
   auto* memoryManager = jniCastOrThrow<MemoryManager>(nmmHandle);
   return memoryManager->shrink(static_cast<int64_t>(size));
+  // used before spill, but bolt trigger spill by self now
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_memory_NativeMemoryManagerJniWrapper_hold( // NOLINT
     JNIEnv* env,
     jclass,
-    jlong nmmHandle) {
+    jlong nmmHandle,
+    jstring name,
+    jlong taskId) {
   JNI_METHOD_START
   auto* memoryManager = jniCastOrThrow<MemoryManager>(nmmHandle);
   memoryManager->hold();
+
+  if (gluten::BoltGlutenMemoryManager::enabled()) {
+    auto memoryManagerName = jStringToCString(env, name);
+    auto holder = gluten::BoltGlutenMemoryManager::getMemoryManagerHolder(memoryManagerName, taskId, reinterpret_cast<int64_t>(memoryManager));
+    holder->hold();
+  }
+
   JNI_METHOD_END()
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_memory_NativeMemoryManagerJniWrapper_release( // NOLINT
     JNIEnv* env,
     jclass,
-    jlong nmmHandle) {
+    jlong nmmHandle,
+    jlong taskId) {
   JNI_METHOD_START
   auto* memoryManager = jniCastOrThrow<MemoryManager>(nmmHandle);
   MemoryManager::release(memoryManager);
+
+  if (gluten::BoltGlutenMemoryManager::enabled()) {
+    gluten::BoltGlutenMemoryManager::destroy(taskId, nmmHandle);
+  }
+
   JNI_METHOD_END()
 }
 
@@ -471,6 +504,10 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     ctx->enableDumping();
   }
 
+  // Check if "multi-thread Spark" is enabled.
+  bool parallelEnabled = isParallelExecEnabled(conf);
+  LOG(INFO) << "nativeCreateKernelWithIterator parallelEnabled=" << parallelEnabled;
+
   auto spillDirStr = jStringToCString(env, spillDir);
 
   auto safePlanArray = getByteArrayElementsSafe(env, planArr);
@@ -493,7 +530,15 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
   inputIters.reserve(itersLen);
   for (int idx = 0; idx < itersLen; idx++) {
     jobject iter = env->GetObjectArrayElement(iterArr, idx);
-    auto arrayIter = std::make_unique<JniColumnarBatchIterator>(env, iter, ctx, idx);
+    std::unique_ptr<JniColumnarBatchIterator> arrayIter;
+    auto shuffleReaderIter = ShuffleReaderWrapperedIterator::tryFrom(env, iter, ctx, parallelEnabled, idx);
+    if (shuffleReaderIter != nullptr) {
+      LOG(INFO) << "Wrap ShuffleReaderWrapperedIterator for input iterator " << idx;
+      arrayIter = std::move(shuffleReaderIter);
+    } else {
+      LOG(INFO) << "Wrap JniColumnarBatchIterator for input iterator " << idx;
+      arrayIter = std::make_unique<JniColumnarBatchIterator>(env, iter, ctx, parallelEnabled, idx);
+    }
     auto resultIter = std::make_shared<ResultIterator>(std::move(arrayIter));
     inputIters.push_back(std::move(resultIter));
   }
@@ -1038,7 +1083,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     throw GlutenException(errorMessage);
   }
 
-  // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeShuffleWriter)
+  // The column batch maybe BoltColumnBatch or ArrowCStructColumnarBatch(FallbackRangeShuffleWriter)
   auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   arrowAssertOkOrThrow(shuffleWriter->write(batch, memLimit), "Native write: shuffle writer failed");
   return shuffleWriter->bytesWritten();

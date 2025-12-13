@@ -1,0 +1,239 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+BUILD_DIR := ${ROOT_DIR}/cpp/build
+CONAN_FILE_DIR := ${ROOT_DIR}/cpp/
+BUILD_TYPE=Debug
+ENABLE_ASAN ?= False
+LDB_BUILD ?= False
+BUILD_BENCHMARKS ?= False
+BUILD_TESTS ?= False
+BUILD_EXAMPLES ?= False
+BUILD_ORC ?= False
+ENABLE_PROTON ?= False
+
+# conan package info
+BUILD_VERSION ?= main # BUILD_VERSION ?= $(shell date '+%Y.%m.%d.00')
+
+BUILD_USER ?=
+BUILD_CHANNEL ?=
+
+ENABLE_HDFS ?= True
+ENABLE_S3 ?= False
+RSS_PROFILE ?= ''
+
+ifeq ($(BUILD_BENCHMARKS),True)
+BUILD_ORC = True
+endif
+
+ARCH := $(shell arch)
+ifeq ($(ARCH), x86_64)
+	ARCH := amd64
+endif
+
+SHARED_LIBRARY ?= True
+
+# Manually specify the number of bolt compilation threads by setting the BOLT_NUM_THREADS environment variable.
+# e.g. export BOLT_NUM_THREADS=50
+ifndef CI_NUM_THREADS
+	ifdef BOLT_NUM_THREADS
+		NUM_THREADS ?= $(BOLT_NUM_THREADS)
+	else
+		NUM_THREADS ?= $$((  $(shell grep -c ^processor /proc/cpuinfo) / 2 ))
+	endif
+else
+    NUM_THREADS ?= $(CI_NUM_THREADS)
+endif
+
+JAVA_HOME_8 := $(firstword $(shell realpath /usr/lib/jvm/java-1.8* 2>/dev/null))
+JAVA_HOME_11 := $(firstword $(shell realpath /usr/lib/jvm/java-11* 2>/dev/null))
+JAVA_HOME_17 := $(firstword $(shell realpath /usr/lib/jvm/java-17* 2>/dev/null))
+
+export JAVA_HOME : = $(JAVA_HOME_8)
+export PATH := $(JAVA_HOME_8)/bin:$(PATH)
+
+define SET_JAVA_HOME
+    if [ -n "$(JAVA_HOME_$(1))" ]; then \
+		JAVA_HOME=$(JAVA_HOME_$(1)) && \
+		PATH=$(JAVA_HOME_$(1))/bin:$(shell echo $${PATH}) && \
+		export JAVA_HOME && export PATH ; \
+    else \
+        echo "JAVA_HOME_$(1) not found" && \
+        exit 1; \
+    fi
+endef
+
+.PHONY: clean debug release java
+
+bolt-recipe:
+	@echo "Install Bolt recipe into local cache"
+	rm -rf ep/bolt
+	git clone https://github.com/bytedance/bolt.git ep/bolt &&\
+    cd ep/bolt && git checkout ${BUILD_VERSION} && \
+    conan export conanfile.py --name=bolt --version=${BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL}
+	@echo "Bolt recipe has been installed"
+
+build:
+	mkdir -p ${BUILD_DIR} && mkdir -p ${BUILD_DIR}/releases &&\
+	cd  ${CONAN_FILE_DIR} &&\
+	ALL_CONAN_OPTIONS=" -o gluten/*:shared=${SHARED_LIBRARY} \
+			-o gluten/*:enable_hdfs=${ENABLE_HDFS} \
+			-o gluten/*:enable_s3=${ENABLE_S3} \
+			-o gluten/*:enable_asan=${ENABLE_ASAN} \
+			-o gluten/*:build_benchmarks=${BUILD_BENCHMARKS} \
+			-o gluten/*:build_tests=${BUILD_TESTS} \
+			-o gluten/*:build_examples=${BUILD_EXAMPLES} " && \
+	conan graph info . --name=gluten --version=${BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL} -c "arrow/*:tools.build:download_source=True" $${ALL_CONAN_OPTIONS} --format=html > gluten.conan.graph.html  && \
+	NUM_THREADS=$(NUM_THREADS) conan install . --name=gluten --version=${BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL}  \
+			-s llvm-core/*:build_type=Release -s build_type=${BUILD_TYPE} --build=missing $${ALL_CONAN_OPTIONS} && \
+	cmake --preset `echo conan-${BUILD_TYPE} | tr A-Z a-z` && \
+	cmake --build build/${BUILD_TYPE} -j $(NUM_THREADS) && \
+	if [ "${SHARED_LIBRARY}" = "True" ]; then  cmake --build ${BUILD_DIR}/${BUILD_TYPE} --target install ; fi && \
+	if [ "${SHARED_LIBRARY}" = "False" ]; then \
+	    conan export-pkg . --name=gluten --version=${BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL} -s build_type=${BUILD_TYPE} \
+		$${ALL_CONAN_OPTIONS} ; \
+	fi && cd -
+
+release :
+	$(MAKE) build BUILD_TYPE=Release TARGET_TYPE=BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL}
+
+debug:
+	$(MAKE) build BUILD_TYPE=Debug BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL}
+
+RelWithDebInfo:
+	$(MAKE) build BUILD_TYPE=RelWithDebInfo BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL}
+
+clean_cpp:
+	rm -rf ${ROOT_DIR}/cpp/build &&\
+	rm -f cpp/conan.lock cpp/conaninfo.txt cpp/graph_info.json CMakeCache.txt
+
+install_debug:
+	$(MAKE) clean_cpp
+	$(MAKE) debug SHARED_LIBRARY=False
+
+install_release:
+	$(MAKE) clean_cpp
+	$(MAKE) release SHARED_LIBRARY=False
+
+release-with-tests :
+	$(MAKE) build BUILD_TYPE=Release BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_TESTS=True
+
+debug-with-tests :
+	$(MAKE) build BUILD_TYPE=Debug BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_TESTS=True
+
+release-with-benchmarks :
+	$(MAKE) build BUILD_TYPE=Release BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True
+
+debug-with-benchmarks :
+	$(MAKE) build BUILD_TYPE=Debug  BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True
+
+release-with-tests-and-benchmarks :
+	$(MAKE) build BUILD_TYPE=Release BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True BUILD_TESTS=True
+
+debug-with-tests-and-benchmarks :
+	$(MAKE) build BUILD_TYPE=Debug BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True BUILD_TESTS=True
+
+arrow:
+	$(call SET_JAVA_HOME,8) && java -version && bash dev/build_bolt_arrow.sh
+
+# build gluten jar
+jar:
+	$(call SET_JAVA_HOME,8) && java -version && \
+	java -version && mvn package -Pbackends-bolt -Pspark-3.3 -Pceleborn -DskipTests -Denforcer.skip=true -Pjava-8 -Ppaimon &&\
+	mkdir -p output && \
+	rm -rf output/gluten-spark*.jar
+	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+jar-skip-check:
+	$(call SET_JAVA_HOME,8) && java -version && \
+	java -version && mvn package -Pbackends-bolt -Pspark-3.2 -Pceleborn -DskipTests -Denforcer.skip=true -Pjava-8 -Ppaimon -Dcheckstyle.skip=true -Dspotless.check.skip=true &&\
+	mkdir -p output && \
+	rm -rf output/gluten-spark*.jar
+	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+spark32-las:
+	$(call SET_JAVA_HOME,8)  && java -version && \
+	java -version && mvn package -Pbackends-bolt -Pspark-3.2-las -Pceleborn -DskipTests -Denforcer.skip=true -Pjava-8 -Ppaimon &&\
+	mkdir -p output && \
+	rm -rf output/gluten-spark*.jar
+	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+jar17:
+	$(call SET_JAVA_HOME,17) && java -version && \
+	mvn package -Pbackends-bolt -Pjava-17 -Pspark-3.2 -Pceleborn -DskipTests -Denforcer.skip=true -Ppaimon && \
+	mkdir -p output && \
+	rm -rf output/gluten-spark*.jar
+	mv  package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+fast-jar:
+	if [ ! -f "output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar" ] ; then \
+		$(MAKE) jar; \
+	else \
+		jar uf output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar -C cpp/build/releases/ libbolt_backend.so; \
+	fi
+
+zip:
+	$(MAKE) jar
+	rm -rf output/gluten-spark*.zip
+	zip -j output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.zip output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+fast-zip:
+	$(MAKE) fast-jar
+	rm -rf output/gluten-spark*.zip
+	zip -j output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.zip output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+jar_spark33:
+	$(call SET_JAVA_HOME,8) && java -version && \
+	java -version && mvn -T32 clean package -Pbackends-bolt -Pspark-3.3 -Pceleborn -Piceberg -DskipTests -Denforcer.skip=true -Ppaimon && \
+	mkdir -p output && \
+	rm -rf output/gluten-spark*.jar
+	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.3_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+jar_spark34:
+	$(call SET_JAVA_HOME,11) && java -version && \
+	java -version && mvn clean package -Pbackends-bolt -Pspark-3.4 -Pceleborn -Piceberg -DskipTests -Denforcer.skip=true -Ppaimon && \
+	mkdir -p output && \
+	rm -rf output/gluten-spark*.jar
+	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.4_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+jar_spark35:
+	$(call SET_JAVA_HOME,11) && java -version && \
+	java -version && mvn -T32 clean package -Pbackends-bolt -Pspark-3.5 -Phadoop-3.2 -Pceleborn -Piceberg -DskipTests -Denforcer.skip=true -Ppaimon && \
+	mkdir -p output && \
+	rm -rf output/gluten-spark*.jar
+	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.5_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
+
+test:
+	$(call SET_JAVA_HOME,8) && java -version && \
+	mvn -Pbackends-bolt -Pspark-3.2 -Pceleborn -Ppaimon package -Denforcer.skip=true
+
+test_spark35:
+	$(call SET_JAVA_HOME,8) && java -version && \
+	mvn -Pbackends-bolt -Pspark-3.5 -Ppaimon -Phadoop-3.2 -Pceleborn -Piceberg package -Denforcer.skip=true
+
+cpp-test-release: release-with-tests
+	$(call SET_JAVA_HOME,8) && java -version && \
+	cd $(BUILD_DIR)/Release && ctest --timeout 7200 -j $(NUM_THREADS) --output-on-failure -V
+
+cpp-test-debug: debug-with-tests
+	$(call SET_JAVA_HOME,8) && java -version && \
+	cd $(BUILD_DIR)/Debug && ctest --timeout 7200 -j $(NUM_THREADS) --output-on-failure -V
+
+clean :
+	$(MAKE) clean_cpp
+	$(call SET_JAVA_HOME,8) && java -version &&\
+	mvn clean -Pbackends-bolt -Pspark-3.2 -Pceleborn -Ppaimon -DskipTests -Denforcer.skip=true && \
+	rm -rf ${ROOT_DIR}/output/gluten-*.jar
