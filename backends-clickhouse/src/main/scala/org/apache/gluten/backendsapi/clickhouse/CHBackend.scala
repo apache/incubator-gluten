@@ -55,7 +55,7 @@ class CHBackend extends SubstraitBackend {
   override def info(): Map[String, String] = {
     Map(
       "ch_branch" -> CH_BRANCH,
-      "ch_revision" -> CH_COMMIT,
+      "ch_revision" -> CH_COMMIT
     )
   }
   override def iteratorApi(): IteratorApi = new CHIteratorApi
