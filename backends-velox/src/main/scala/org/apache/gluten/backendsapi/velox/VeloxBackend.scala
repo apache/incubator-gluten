@@ -18,7 +18,6 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.backendsapi._
-import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.ValidationResult
@@ -57,8 +56,12 @@ class VeloxBackend extends SubstraitBackend {
   import VeloxBackend._
 
   override def name(): String = VeloxBackend.BACKEND_NAME
-  override def buildInfo(): BuildInfo =
-    BuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
+  override def info(): Map[String, String] = {
+    Map(
+      "velox_branch" -> VELOX_BRANCH,
+      "velox_revision" -> VELOX_REVISION,
+      "velox_revisionTime" -> VELOX_REVISION_TIME)
+  }
   override def iteratorApi(): IteratorApi = new VeloxIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
   override def transformerApi(): TransformerApi = new VeloxTransformerApi
