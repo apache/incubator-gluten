@@ -26,8 +26,8 @@ BUILD_ORC ?= False
 ENABLE_PROTON ?= False
 
 # conan package info
-BUILD_VERSION ?= main # BUILD_VERSION ?= $(shell date '+%Y.%m.%d.00')
-
+GLUTEN_BUILD_VERSION ?= main
+BOLT_BUILD_VERSION ?= main
 BUILD_USER ?=
 BUILD_CHANNEL ?=
 
@@ -81,14 +81,14 @@ endef
 bolt-recipe:
 	@echo "Install Bolt recipe into local cache"
 	rm -rf ep/bolt
-	git clone https://github.com/bytedance/bolt.git ep/bolt &&\
-    cd ep/bolt && git checkout ${BUILD_VERSION} && \
-    conan export conanfile.py --name=bolt --version=${BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL}
+	git clone --depth=1 --branch ${BOLT_BUILD_VERSION} https://github.com/bytedance/bolt.git ep/bolt &&\
+    bash ep/bolt/scripts/install-bolt-deps.sh && \
+    conan export ep/bolt/conanfile.py --name=bolt --version=${BOLT_BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL}
 	@echo "Bolt recipe has been installed"
 
 build:
 	mkdir -p ${BUILD_DIR} && mkdir -p ${BUILD_DIR}/releases &&\
-	cd  ${CONAN_FILE_DIR} &&\
+	cd  ${CONAN_FILE_DIR} && export BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} &&\
 	ALL_CONAN_OPTIONS=" -o gluten/*:shared=${SHARED_LIBRARY} \
 			-o gluten/*:enable_hdfs=${ENABLE_HDFS} \
 			-o gluten/*:enable_s3=${ENABLE_S3} \
@@ -96,25 +96,25 @@ build:
 			-o gluten/*:build_benchmarks=${BUILD_BENCHMARKS} \
 			-o gluten/*:build_tests=${BUILD_TESTS} \
 			-o gluten/*:build_examples=${BUILD_EXAMPLES} " && \
-	conan graph info . --name=gluten --version=${BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL} -c "arrow/*:tools.build:download_source=True" $${ALL_CONAN_OPTIONS} --format=html > gluten.conan.graph.html  && \
-	NUM_THREADS=$(NUM_THREADS) conan install . --name=gluten --version=${BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL}  \
+	conan graph info . --name=gluten --version=${GLUTEN_BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL} -c "arrow/*:tools.build:download_source=True" $${ALL_CONAN_OPTIONS} --format=html > gluten.conan.graph.html  && \
+	NUM_THREADS=$(NUM_THREADS) conan install . --name=gluten --version=${GLUTEN_BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL}  \
 			-s llvm-core/*:build_type=Release -s build_type=${BUILD_TYPE} --build=missing $${ALL_CONAN_OPTIONS} && \
 	cmake --preset `echo conan-${BUILD_TYPE} | tr A-Z a-z` && \
 	cmake --build build/${BUILD_TYPE} -j $(NUM_THREADS) && \
 	if [ "${SHARED_LIBRARY}" = "True" ]; then  cmake --build ${BUILD_DIR}/${BUILD_TYPE} --target install ; fi && \
 	if [ "${SHARED_LIBRARY}" = "False" ]; then \
-	    conan export-pkg . --name=gluten --version=${BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL} -s build_type=${BUILD_TYPE} \
+	    conan export-pkg . --name=gluten --version=${GLUTEN_BUILD_VERSION} --user=${BUILD_USER} --channel=${BUILD_CHANNEL} -s build_type=${BUILD_TYPE} \
 		$${ALL_CONAN_OPTIONS} ; \
 	fi && cd -
 
 release :
-	$(MAKE) build BUILD_TYPE=Release TARGET_TYPE=BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL}
+	$(MAKE) build BUILD_TYPE=Release GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL}
 
 debug:
-	$(MAKE) build BUILD_TYPE=Debug BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL}
+	$(MAKE) build BUILD_TYPE=Debug GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL}
 
 RelWithDebInfo:
-	$(MAKE) build BUILD_TYPE=RelWithDebInfo BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL}
+	$(MAKE) build BUILD_TYPE=RelWithDebInfo GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL}
 
 clean_cpp:
 	rm -rf ${ROOT_DIR}/cpp/build &&\
@@ -129,22 +129,22 @@ install_release:
 	$(MAKE) release SHARED_LIBRARY=False
 
 release-with-tests :
-	$(MAKE) build BUILD_TYPE=Release BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_TESTS=True
+	$(MAKE) build BUILD_TYPE=Release GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_TESTS=True
 
 debug-with-tests :
-	$(MAKE) build BUILD_TYPE=Debug BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_TESTS=True
+	$(MAKE) build BUILD_TYPE=Debug GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_TESTS=True
 
 release-with-benchmarks :
-	$(MAKE) build BUILD_TYPE=Release BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True
+	$(MAKE) build BUILD_TYPE=Release GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} B	UILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True
 
 debug-with-benchmarks :
-	$(MAKE) build BUILD_TYPE=Debug  BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True
+	$(MAKE) build BUILD_TYPE=Debug  GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True
 
 release-with-tests-and-benchmarks :
-	$(MAKE) build BUILD_TYPE=Release BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True BUILD_TESTS=True
+	$(MAKE) build BUILD_TYPE=Release GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True BUILD_TESTS=True
 
 debug-with-tests-and-benchmarks :
-	$(MAKE) build BUILD_TYPE=Debug BUILD_VERSION=${BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True BUILD_TESTS=True
+	$(MAKE) build BUILD_TYPE=Debug GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True BUILD_TESTS=True
 
 arrow:
 	$(call SET_JAVA_HOME,8) && java -version && bash dev/build_bolt_arrow.sh

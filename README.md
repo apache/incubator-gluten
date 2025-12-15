@@ -179,11 +179,18 @@ To install bolt recipe for Gluten:
 ```shell
 # Install the recipes of Bolt and its third-party dependencies
 make bolt-recipe
+
+# specific a version of Bolt (release or branch)
+# `main` branch is the default
+make bolt-recipe  BOLT_BUILD_VERSION=main
 ```
 
 To build bolt backend:
 ```shell
 make release
+
+# or specific the version for Bolt, and the version for Gluten
+make release BOLT_BUILD_VERSION=main GLUTEN_BUILD_VERSION=main
 ```
 Note that, the missing third-parties binaries will be built from source for the first time.
 
