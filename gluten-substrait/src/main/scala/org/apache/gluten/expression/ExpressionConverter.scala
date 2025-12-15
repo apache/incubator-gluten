@@ -203,13 +203,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         case fn @ ("encode" | "decode") if objName.endsWith("UrlCodec") =>
           validateAndTransform("url_" + fn, Seq(doTransform(i.arguments.head)))
 
-        case "encode" | "decode" if objName.endsWith("Base64") =>
-          if (
-            !BackendsApiManager.getValidatorApiInstance.doExprValidate(ExpressionNames.BASE64, i)
-          ) {
-            throw new GlutenNotSupportException(
-              s"Not supported to map current ${i.getClass} call on function: $funcName.")
-          }
+        case fn @ ("encode" | "decode")
+            if objName.endsWith("Base64") && BackendsApiManager.getValidatorApiInstance
+              .doExprValidate(ExpressionNames.BASE64, i) =>
           BackendsApiManager.getSparkPlanExecApiInstance.genBase64StaticInvokeTransformer(
             ExpressionNames.BASE64,
             doTransform(i.arguments.head),
