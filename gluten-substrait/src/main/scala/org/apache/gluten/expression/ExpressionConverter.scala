@@ -168,7 +168,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       attributeSeq: Seq[Attribute],
       expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
 
-    val objName = i.staticObject.getName
+    val objName = i.objectName
     val funcName = i.functionName
 
     def doTransform(child: Expression): ExpressionTransformer =
