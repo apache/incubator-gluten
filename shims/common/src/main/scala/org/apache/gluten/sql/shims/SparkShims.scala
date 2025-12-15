@@ -97,7 +97,7 @@ trait SparkShims {
 
   def generateFileScanRDD(
       sparkSession: SparkSession,
-      readFunction: (PartitionedFile) => Iterator[InternalRow],
+      readFunction: PartitionedFile => Iterator[InternalRow],
       filePartitions: Seq[FilePartition],
       fileSourceScanExec: FileSourceScanExec): FileScanRDD
 
@@ -145,7 +145,7 @@ trait SparkShims {
           Expression,
           Expression,
           Int,
-          Int) => TypedImperativeAggregate[T]): Expression;
+          Int) => TypedImperativeAggregate[T]): Expression
 
   def replaceMightContain[T](
       expr: Expression,
