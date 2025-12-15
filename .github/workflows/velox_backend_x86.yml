@@ -1314,7 +1314,7 @@ jobs:
 
   build-cudf-centos-9:
     runs-on: ubuntu-22.04
-    container: inteldpo/gluten-ci-images:centos-9-jdk8-cudf
+    container: apache/gluten:centos-9-jdk8-cudf
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
