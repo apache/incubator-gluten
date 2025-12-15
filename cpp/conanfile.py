@@ -36,8 +36,6 @@ class GlutenConan(ConanFile):
 
     build_policy = "missing"
 
-    FB_VERSION = "2022.10.31.00"
-
     scm_url = "https://github.com/apache/incubator-gluten.git"
 
     def source(self):
@@ -47,6 +45,8 @@ class GlutenConan(ConanFile):
         git.clone(self.scm_url, target='.')
 
         # if use 'stable" channel, we should use a git relase tag.
+        # Note: Conan 2.0 is no longer recommending to use variable users and channels
+        #  refine this in future
         if self.channel and self.channel == 'stable':
             if not self.version:
                 raise "Do specify a tag for a stable release."
@@ -61,11 +61,13 @@ class GlutenConan(ConanFile):
         self.folders.source = os.path.join(self.folders.source, 'cpp')
 
     def requirements(self):
+        # TODO: to be removed user/channel in Conan 2.x
         user_channel = ""
         if hasattr(self, "user") and hasattr(self, "channel"):
             if self.user is not None and self.channel is not None: 
                 user_channel=f"@{self.user}/{self.channel}"
-        self.requires(f"bolt/{self.version}{user_channel}", transitive_headers=True, transitive_libs=True)
+        bolt_version = os.getenv("BOLT_BUILD_VERSION", self.version)
+        self.requires(f"bolt/{bolt_version}{user_channel}", transitive_headers=True, transitive_libs=True)
         
         protobuf_version = os.getenv("PROTOBUF_VERSION", "3.21.4")
         self.requires(f"protobuf/{protobuf_version}")

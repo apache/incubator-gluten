@@ -17,7 +17,7 @@
 
 CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
-set -eu
+set -e
 
 function check_compiler() {
     if command -v gcc &> /dev/null; then

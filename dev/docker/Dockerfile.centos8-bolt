@@ -20,7 +20,7 @@ FROM centos:8 as base0
 
 FROM base0 as base
 RUN /usr/bin/sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-*; sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*;
-RUN yum update -y && yum install -y dnf epel-release wget perl && \
+RUN yum update -y && yum install -y dnf epel-release wget perl patch && \
     dnf --enablerepo=powertools install -y epel-release perl \
     bison flex wget curl perl vim  perl-IPC-Cmd  \
     texinfo gettext gcc make ninja-build autoconf automake zlib-devel libcurl-devel  ; \
