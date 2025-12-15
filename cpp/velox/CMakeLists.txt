@@ -439,9 +439,7 @@ if(ENABLE_GPU)
             ${VELOX_BUILD_PATH}/_deps/nvtx3-src/c/include
             ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/include
             ${VELOX_BUILD_PATH}/_deps/rapids_logger-src/include
-            ${VELOX_DEPS_PATH}/cccl-src/thrust
-            ${VELOX_DEPS_PATH}/cccl-src/cub
-            ${VELOX_DEPS_PATH}/cccl-src/libcudacxx/include
+            /usr/local/cuda/include/cccl
             /usr/local/cuda/include)
 
   target_compile_definitions(
