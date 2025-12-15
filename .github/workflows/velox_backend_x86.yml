@@ -1328,7 +1328,6 @@ jobs:
         run: |
           rm -rf /opt/rh/gcc-toolset-12 && cp -r /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
           df -a
-          dnf remove cuda-toolkit-12* && dnf install -y cuda-toolkit-13-1
           dnf autoremove -y && dnf clean all
           source /opt/rh/gcc-toolset-12/enable
 
