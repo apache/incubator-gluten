@@ -33,6 +33,7 @@ import org.apache.iceberg.spark.SparkSchemaUtil
 import java.lang.{Class, Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
 
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 object GlutenIcebergSourceUtil {
@@ -50,6 +51,7 @@ object GlutenIcebergSourceUtil {
     }
   }
 
+  @nowarn
   def genSplitInfo(
       partition: SparkDataSourceRDDPartition,
       readPartitionSchema: StructType): SplitInfo = {
