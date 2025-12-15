@@ -160,8 +160,9 @@ jobs:
           export CCACHE_MAXSIZE=1G
           dnf autoremove -y
           df -a
-          rm -rf /opt/rh/gcc-toolset-12 && cp -r /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
+          rm -rf /opt/rh/gcc-toolset-12 && ln -s /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
           source /opt/rh/gcc-toolset-12/enable
+          export CMAKE_BUILD_PARALLEL_LEVEL=4
           export NUM_THREADS=4
           bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=OFF --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
           rm -rf ep/build-velox/build/velox_ep
@@ -172,75 +173,3 @@ jobs:
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos9-release-shared-${{runner.arch}}-${{github.sha}}
-
-  # ccache-native-lib-ubuntu-velox-ut:
-  #   runs-on: ubuntu-22.04
-  #   env:
-  #     CCACHE_DIR: "${{ github.workspace }}/.ccache"
-  #   container: ghcr.io/facebookincubator/velox-dev:amd64-ubuntu-22.04-avx
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Get Ccache
-  #       uses: actions/cache/restore@v3
-  #       with:
-  #         path: '${{ env.CCACHE_DIR }}'
-  #         key: ccache-ubuntu-release-default
-  #     - name: Ensure Cache Dirs Exists
-  #       working-directory: ${{ github.workspace }}
-  #       run: |
-  #         mkdir -p '${{ env.CCACHE_DIR }}'
-  #     - name: Build Gluten native libraries
-  #       run: |
-  #         rm -rf /opt/miniconda-for-velox/
-  #         cd ep/build-velox/src && \
-  #         ./get-velox.sh
-  #         cd ../build/velox_ep/
-  #         make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
-
-  #     - name: CCache after
-  #       run: |
-  #         ccache -vs
-
-  #     - uses: actions/cache/save@v3
-  #       with:
-  #         path: '${{ env.CCACHE_DIR }}'
-  #         key: ccache-ubuntu-release-default
-#  ccache-native-lib-centos-velox-ut:
-#    runs-on: ubuntu-22.04
-#    env:
-#      CCACHE_DIR: "${{ github.workspace }}/.ccache"
-#    container: ghcr.io/facebookincubator/velox-dev:centos8
-#    steps:
-#      - uses: actions/checkout@v2
-#      - name: Setup java and maven
-#        run: |
-#          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
-#          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-#          tar -xvf apache-maven-3.8.8-bin.tar.gz
-#          mv apache-maven-3.8.8 /usr/lib/maven
-#      - name: Get Ccache
-#        uses: actions/cache/restore@v3
-#        with:
-#          path: '${{ env.CCACHE_DIR }}'
-#          key: ccache-centos-release-default
-#      - name: Ensure Cache Dirs Exists
-#        working-directory: ${{ github.workspace }}
-#        run: |
-#          mkdir -p '${{ env.CCACHE_DIR }}'
-#      - name: Build Gluten native libraries
-#        run: |
-#          rm -rf /opt/miniconda-for-velox/
-#          cd ep/build-velox/src && \
-#          ./get-velox.sh
-#          cd ../build/velox_ep/
-#          source /opt/rh/gcc-toolset-9/enable
-#          make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON"
-#
-#      - name: CCache after
-#        run: |
-#          ccache -s
-#
-#      - uses: actions/cache/save@v3
-#        with:
-#          path: '${{ env.CCACHE_DIR }}'
-#          key: ccache-centos-release-default
