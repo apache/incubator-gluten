@@ -80,7 +80,7 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
     this.split = split;
   }
 
-  public StatefulPlanNode getPlanNode() {
+  public StatefulPlanNode getStatefulPlanNode() {
     return planNode;
   }
 

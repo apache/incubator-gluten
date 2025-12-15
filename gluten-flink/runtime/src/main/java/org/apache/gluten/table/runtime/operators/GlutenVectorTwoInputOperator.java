@@ -181,7 +181,7 @@ public class GlutenVectorTwoInputOperator extends AbstractStreamOperator<Statefu
   }
 
   @Override
-  public StatefulPlanNode getPlanNode() {
+  public StatefulPlanNode getStatefulPlanNode() {
     return glutenPlan;
   }
 

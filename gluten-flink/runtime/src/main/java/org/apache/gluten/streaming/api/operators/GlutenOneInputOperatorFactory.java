@@ -50,7 +50,7 @@ public class GlutenOneInputOperatorFactory<IN, OUT> extends AbstractStreamOperat
   @Override
   public <T extends StreamOperator<OUT>> T createStreamOperator(
       StreamOperatorParameters<OUT> parameters) {
-    LOG.debug("Build gluten operator {}", Serde.toJson(getOperator().getPlanNode()));
+    LOG.debug("Build gluten operator {}", Serde.toJson(getOperator().getStatefulPlanNode()));
     if (operator instanceof AbstractStreamOperator) {
       ((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
     }

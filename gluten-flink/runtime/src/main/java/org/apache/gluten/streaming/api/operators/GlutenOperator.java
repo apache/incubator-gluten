@@ -23,7 +23,7 @@ import java.util.Map;
 
 /** Interface for all gluten operators. */
 public interface GlutenOperator {
-  public StatefulPlanNode getPlanNode();
+  public StatefulPlanNode getStatefulPlanNode();
 
   public RowType getInputType();
 

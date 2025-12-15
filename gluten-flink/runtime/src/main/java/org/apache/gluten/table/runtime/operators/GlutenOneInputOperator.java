@@ -142,7 +142,7 @@ public class GlutenOneInputOperator extends TableStreamOperator<RowData>
   }
 
   @Override
-  public StatefulPlanNode getPlanNode() {
+  public StatefulPlanNode getStatefulPlanNode() {
     return glutenPlan;
   }
 
