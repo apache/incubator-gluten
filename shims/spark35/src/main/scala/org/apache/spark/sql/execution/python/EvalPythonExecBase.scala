@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.python
 import org.apache.spark.TaskContext
 import org.apache.spark.api.python.ChainedPythonFunctions
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Expression, NamedArgumentExpression}
 import org.apache.spark.sql.types.StructType
 
 abstract class EvalPythonExecBase extends EvalPythonExec {
@@ -30,5 +31,14 @@ abstract class EvalPythonExecBase extends EvalPythonExec {
       schema: StructType,
       context: TaskContext): Iterator[InternalRow] = {
     throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
+  }
+}
+
+object EvalPythonExecBase {
+  object NamedArgumentExpressionShim {
+    def unapply(expr: Expression): Option[(String, Expression)] = expr match {
+      case NamedArgumentExpression(key, value) => Some((key, value))
+      case _ => None
+    }
   }
 }

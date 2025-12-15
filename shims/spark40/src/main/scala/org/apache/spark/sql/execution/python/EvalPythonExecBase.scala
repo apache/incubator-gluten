@@ -16,11 +16,20 @@
  */
 package org.apache.spark.sql.execution.python
 
-import org.apache.spark.sql.execution.python.EvalPythonEvaluatorFactory
+import org.apache.spark.sql.catalyst.expressions.{Expression, NamedArgumentExpression}
 
 abstract class EvalPythonExecBase extends EvalPythonExec {
 
   override protected def evaluatorFactory: EvalPythonEvaluatorFactory = {
     throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
+  }
+}
+
+object EvalPythonExecBase {
+  object NamedArgumentExpressionShim {
+    def unapply(expr: Expression): Option[(String, Expression)] = expr match {
+      case NamedArgumentExpression(key, value) => Some((key, value))
+      case _ => None
+    }
   }
 }
