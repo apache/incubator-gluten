@@ -21,12 +21,11 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 /**
  * Extractors for Invoke expressions to ensure compatibility across different Spark versions.
  *
- * For Spark 3.4, StructsToJson is not replaced with Invoke expressions,
- * so this extractor returns None to maintain API compatibility with other versions.
+ * For Spark 3.4, StructsToJson is not replaced with Invoke expressions, so this extractor returns
+ * None to maintain API compatibility with other versions.
  */
 object StructsToJsonInvoke {
   def unapply(expr: Expression): Option[(Map[String, String], Expression, Option[String])] = {
     None
   }
 }
-
