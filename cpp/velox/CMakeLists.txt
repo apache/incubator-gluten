@@ -459,7 +459,7 @@ if(ENABLE_GPU)
       ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp.so
       ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp_cpu.so
       ${VELOX_BUILD_PATH}/_deps/rapids_logger-build/librapids_logger.so
-      /usr/local/cuda-13.1/lib64/libcudart.so.12)
+      /usr/local/cuda/lib64/libcudart.so)
 endif()
 
 add_custom_command(
