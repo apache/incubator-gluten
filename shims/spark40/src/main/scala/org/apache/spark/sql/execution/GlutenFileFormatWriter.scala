@@ -42,7 +42,8 @@ object GlutenFileFormatWriter {
     )
   }
 
-  def throwWriteError(writePath: String, cause: Throwable): Nothing = {
+  // Wrapper for throwing standardized write error using QueryExecutionErrors
+  def wrapWriteError(cause: Throwable, writePath: String): Nothing = {
     throw QueryExecutionErrors.taskFailedWhileWritingRowsError(writePath, cause)
   }
 }

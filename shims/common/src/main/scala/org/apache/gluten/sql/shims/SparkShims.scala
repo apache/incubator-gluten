@@ -343,6 +343,11 @@ trait SparkShims {
       t)
   }
 
+  // Compatibility method for Spark 4.0: rethrows the exception cause to maintain API compatibility
+  def enrichWriteException(cause: Throwable, path: String): Nothing = {
+    throw cause
+  }
+
   def getFileSourceScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = {
     None
   }

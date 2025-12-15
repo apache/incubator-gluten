@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
@@ -105,7 +107,13 @@ class SparkWriteFilesCommitProtocol(
     stagingDir.toString
   }
 
-  def commitTask(): Unit = {
+  private def enrichWriteError[T](path: => String)(f: => T): T = try {
+    f
+  } catch {
+    case t: Throwable => SparkShimLoader.getSparkShims.enrichWriteException(t, description.path)
+  }
+
+  def commitTask(): Unit = enrichWriteError(description.path) {
     val (_, taskCommitTime) = Utils.timeTakenMs {
       committer.commitTask(taskAttemptContext)
     }
@@ -116,7 +124,7 @@ class SparkWriteFilesCommitProtocol(
     }
   }
 
-  def abortTask(writePath: String): Unit = {
+  def abortTask(writePath: String): Unit = enrichWriteError(description.path) {
     committer.abortTask(taskAttemptContext)
 
     // Deletes the files written by current task.

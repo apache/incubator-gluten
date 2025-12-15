@@ -37,10 +37,7 @@ trait GlutenCharVarcharTestSuite extends CharVarcharTestSuite with GlutenSQLTest
         )
       // Gluten throws exception. but sometimes, Spark exception is wrapped in GlutenException.
       case e: SparkException =>
-        val cause = e.getCause
-        assert(
-          cause.getMessage.contains(VELOX_ERROR_MESSAGE) ||
-            cause.getMessage.contains(ERROR_MESSAGE))
+        assert(e.getMessage.contains(VELOX_ERROR_MESSAGE) || e.getMessage.contains(ERROR_MESSAGE))
       case _ => throw new RuntimeException(s"Unexpected exception: $e")
     }
   }
@@ -63,7 +60,7 @@ class GlutenFileSourceCharVarcharTestSuite
         val e = intercept[SparkException] {
           sql("INSERT INTO t VALUES (array('a', '123456'))")
         }
-        assert(e.getCause.getMessage.contains(VELOX_ERROR_MESSAGE))
+        assert(e.getMessage.contains(VELOX_ERROR_MESSAGE))
     }
   }
 }
