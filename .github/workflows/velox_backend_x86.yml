@@ -1326,7 +1326,7 @@ jobs:
             ccache-centos9-release-shared-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
-          rm -rf /opt/rh/gcc-toolset-12 && cp -r /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
+          rm -rf /opt/rh/gcc-toolset-12 && ln -s /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
           df -a
           dnf autoremove -y && dnf clean all
           source /opt/rh/gcc-toolset-12/enable
