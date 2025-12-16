@@ -65,12 +65,22 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       case Some(tag) => addFallbackNodeWithReason(p, tag.reason(), fallbackNodeToReason)
       case _ =>
         // If the SparkPlan does not have fallback reason, then there are two options:
-        // 1. Gluten ignore that plan and it's a kind of fallback
+        // 1. Gluten ignore that plan, and it's a kind of fallback
         // 2. Gluten does not support it without the fallback reason
-        addFallbackNodeWithReason(
-          p,
-          "Gluten does not touch it or does not support it",
-          fallbackNodeToReason)
+
+        // Some SparkPlan nodes may lack a logicalLink (e.g., SortExec generated
+        // by EnsureRequirements). Additionally, some Gluten rules might omit
+        // `copyTagsFrom` during plan conversion, leading to the same issue.
+        // When such a node falls back, the fallback reason might be stored in
+        // its tags. We attempt to retrieve it here as a fallback mechanism.
+        // However, this is not always reliable and merely increases our chances
+        // of finding the correct reason, as AQE might create new SparkPlan
+        // instances that do not preserve the tags.
+        val reason = FallbackTags
+          .getOption(p)
+          .map(_.reason())
+          .getOrElse("Gluten does not touch it or does not support it")
+        addFallbackNodeWithReason(p, reason, fallbackNodeToReason)
     }
   }
 
