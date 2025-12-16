@@ -55,7 +55,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import scala.Option;
-import scala.collection.JavaConversions;
+import scala.collection.JavaConverters;
 
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 
@@ -290,7 +290,7 @@ public abstract class SparkTestBase extends SparkTestHelperBase {
         () -> {
           Option<String> msg =
               QueryTest.getErrorMessageInCheckAnswer(
-                  df, JavaConversions.asScalaBuffer(rows).toSeq(), true);
+                  df, JavaConverters.asScalaBuffer(rows).toSeq(), true);
           if (msg.isDefined()) {
             throw new RuntimeException(msg.get());
           }
