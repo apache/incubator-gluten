@@ -168,7 +168,6 @@ jobs:
             apt remove openjdk-11* -y
           elif [ "${{ matrix.java }}" = "java-21" ]; then
             apt-get update && apt-get install -y openjdk-21-jdk maven
-          else
           elif [ "${{ matrix.java }}" = "java-11" ]; then
             apt-get update && apt-get install -y openjdk-11-jdk maven
           else

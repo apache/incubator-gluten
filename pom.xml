@@ -1056,6 +1056,16 @@
       </properties>
     </profile>
     <profile>
+      <id>java-21</id>
+      <activation>
+        <jdk>21</jdk>
+      </activation>
+      <properties>
+        <java.version>21</java.version>
+        <caffeine.version>3.1.8</caffeine.version>
+      </properties>
+    </profile>
+    <profile>
       <id>spark-3.2</id>
       <properties>
         <sparkbundle.version>3.2</sparkbundle.version>
@@ -1214,7 +1224,7 @@
             <artifactId>maven-enforcer-plugin</artifactId>
             <executions>
               <execution>
-                <id>enforce-java-17</id>
+                <id>enforce-java-17+</id>
                 <goals>
                   <goal>enforce</goal>
                 </goals>
@@ -1222,8 +1232,9 @@
                   <rules>
                     <requireActiveProfile>
                       <!-- Spark 4.0 requires Java 17+ -->
-                      <profiles>java-17</profiles>
-                      <message>"-P spark-4.0" requires JDK 17</message>
+                      <profiles>java-17,java-21</profiles>
+                      <all>false</all>
+                      <message>"-P spark-4.0" requires JDK 17+</message>
                     </requireActiveProfile>
                   </rules>
                 </configuration>
