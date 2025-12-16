@@ -109,7 +109,7 @@
     <protobuf.version>3.23.4</protobuf.version>
     <guava.version>32.0.1-jre</guava.version>
     <!--spotless-->
-    <spotless.version>2.27.2</spotless.version>
+    <spotless.version>2.44.2</spotless.version>
     <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
     <!-- spotless:off -->
@@ -696,7 +696,7 @@
             <java>
               <toggleOffOn/>
               <googleJavaFormat>
-                <version>1.7</version>
+                <version>1.17.0</version>
               </googleJavaFormat>
 
               <!-- \# refers to the static imports -->
