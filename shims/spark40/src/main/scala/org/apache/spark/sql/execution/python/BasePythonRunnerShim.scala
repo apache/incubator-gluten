@@ -20,6 +20,7 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.TaskContext
 import org.apache.spark.api.python.{BasePythonRunner, ChainedPythonFunctions, PythonWorker}
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.python.EvalPythonExec.ArgumentMetadata
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.io.DataOutputStream
@@ -27,12 +28,12 @@ import java.io.DataOutputStream
 abstract class BasePythonRunnerShim(
     funcs: Seq[(ChainedPythonFunctions, Long)],
     evalType: Int,
-    argOffsets: Array[Array[Int]],
+    argMetas: Array[Array[(Int, Option[String])]],
     pythonMetrics: Map[String, SQLMetric])
   extends BasePythonRunner[ColumnarBatch, ColumnarBatch](
     funcs.map(_._1),
     evalType,
-    argOffsets,
+    argMetas.map(_.map(_._1)),
     None,
     pythonMetrics) {
 
@@ -43,8 +44,14 @@ abstract class BasePythonRunnerShim(
       partitionIndex: Int,
       context: TaskContext): Writer
 
-  protected def writeUdf(dataOut: DataOutputStream, argOffsets: Array[Array[Int]]): Unit = {
-    PythonUDFRunner.writeUDFs(dataOut, funcs, argOffsets, None)
+  protected def writeUdf(
+      dataOut: DataOutputStream,
+      argOffsets: Array[Array[(Int, Option[String])]]): Unit = {
+    PythonUDFRunner.writeUDFs(
+      dataOut,
+      funcs,
+      argOffsets.map(_.map(pair => ArgumentMetadata(pair._1, pair._2))),
+      None)
   }
 
   override protected def newWriter(
