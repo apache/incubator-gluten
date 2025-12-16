@@ -113,6 +113,8 @@ jobs:
         exclude:
           - spark: spark-3.2
             java: java-21
+          - spark: spark-3.3
+            java: java-21
           - spark: spark-3.4
             java: java-21
           - spark: spark-3.5
