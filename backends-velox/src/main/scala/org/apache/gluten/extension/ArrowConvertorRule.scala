@@ -29,8 +29,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.PermissiveMode
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
-import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
-import org.apache.spark.sql.execution.datasources.v2.csv.CSVTable
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2RelationShim.CSVTableExtractor
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 
@@ -56,25 +55,15 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
             l.copy(relation = r.copy(fileFormat = new ArrowCSVFileFormat(csvOptions))(session))
           case _ => l
         }
-      case d @ DataSourceV2Relation(
-            t @ CSVTable(
-              name,
-              sparkSession,
-              options,
-              paths,
-              userSpecifiedSchema,
-              fallbackFileFormat),
-            _,
-            _,
-            _,
-            _) if validate(session, t.dataSchema, options.asCaseSensitiveMap().toMap) =>
+      case CSVTableExtractor(d, t)
+          if validate(session, t.dataSchema, t.options.asCaseSensitiveMap().toMap) =>
         d.copy(table = ArrowCSVTable(
-          "arrow" + name,
-          sparkSession,
-          options,
-          paths,
-          userSpecifiedSchema,
-          fallbackFileFormat))
+          "arrow" + t.name,
+          t.sparkSession,
+          t.options,
+          t.paths,
+          t.userSpecifiedSchema,
+          t.fallbackFileFormat))
       case r =>
         r
     }
