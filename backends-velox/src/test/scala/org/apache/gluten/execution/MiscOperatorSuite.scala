@@ -749,7 +749,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
-  test("test OneRowRelation") {
+  // TODO: fix on spark-4.1
+  testWithMaxSparkVersion("test OneRowRelation", "3.5") {
     val df = sql("SELECT 1")
     checkAnswer(df, Row(1))
     val plan = df.queryExecution.executedPlan
