@@ -938,7 +938,7 @@
     <profile>
       <id>scala-2.13</id>
       <properties>
-        <scala.version>2.13.16</scala.version>
+        <scala.version>2.13.17</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
         <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
       </properties>
