@@ -8,7 +8,7 @@ SELECT
     person.state,
     `dateTime`,
     person.extra
-FROM datagen WHERE event_type = 0;
+FROM ${NEXMARK_TABLE} WHERE event_type = 0;
 
 CREATE VIEW auction AS
 SELECT
@@ -22,7 +22,7 @@ SELECT
     auction.seller,
     auction.category,
     auction.extra
-FROM datagen WHERE event_type = 1;
+FROM ${NEXMARK_TABLE} WHERE event_type = 1;
 
 CREATE VIEW bid AS
 SELECT
@@ -33,4 +33,4 @@ SELECT
     bid.url,
     `dateTime`,
     bid.extra
-FROM datagen WHERE event_type = 2;
+FROM ${NEXMARK_TABLE} WHERE event_type = 2;

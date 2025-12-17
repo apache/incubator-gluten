@@ -28,6 +28,8 @@ import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
@@ -40,25 +42,27 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-public class VeloxSourceBuilder {
+public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
 
-  public static Transformation<RowData> build(
-      Transformation<RowData> transformation, ScanTableSource scanTableSource) {
+  @SuppressWarnings("rawtypes")
+  @Override
+  public boolean match(Transformation<RowData> transformation) {
     if (transformation instanceof LegacySourceTransformation) {
-      if (scanTableSource.getClass().getSimpleName().equals("TestValuesScanLookupTableSource")) {
-        return buildFromElementsSource(transformation, scanTableSource);
-      }
+      StreamSource source = ((LegacySourceTransformation) transformation).getOperator();
+      return source.getUserFunction() instanceof FromElementsFunction;
     }
-    return transformation;
+    return false;
   }
 
-  /** `FromElementsSource` is designed for ut tests, and we map it to velox source. */
   @SuppressWarnings({"rawtypes", "unchecked"})
-  private static Transformation<RowData> buildFromElementsSource(
-      Transformation<RowData> transformation, ScanTableSource tableSource) {
+  @Override
+  public Transformation<RowData> buildVeloxSource(
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
     LegacySourceTransformation<RowData> sourceTransformation =
         (LegacySourceTransformation<RowData>) transformation;
     try {
+      ScanTableSource tableSource =
+          (ScanTableSource) parameters.get(ScanTableSource.class.getName());
       Class<?> tableSourceClazz =
           Class.forName(
               "org.apache.flink.table.planner.factories.TestValuesTableFactory$TestValuesScanTableSourceWithoutProjectionPushDown");
@@ -105,5 +109,11 @@ public class VeloxSourceBuilder {
     } catch (Exception e) {
       throw new FlinkRuntimeException(e);
     }
+  }
+
+  @Override
+  public Transformation<RowData> buildVeloxSink(
+      Transformation<RowData> transformation, Map<String, Object> parameters) {
+    throw new FlinkRuntimeException("Unimplemented method 'buildSink'");
   }
 }

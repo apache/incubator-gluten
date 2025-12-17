@@ -102,7 +102,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
       dataSchema: StructType,
       rootPaths: Seq[String],
       properties: Map[String, String],
-      hadoopConf: Configuration): ValidationResult = {
+      hadoopConf: Configuration,
+      partitionFileFormats: Set[ReadFileFormat]): ValidationResult = {
 
     def validateScheme(): Option[String] = {
       val filteredRootPaths = distinctRootPaths(rootPaths)
@@ -117,7 +118,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       }
     }
 
-    def validateFormat(): Option[String] = {
+    def validateFormat(format: ReadFileFormat): Option[String] = {
       def validateTypes(
           validatorFunc: PartialFunction[StructField, String],
           fieldsToValidate: Array[StructField]): Option[String] = {
@@ -183,21 +184,25 @@ object VeloxBackendSettings extends BackendSettingsApi {
       }
     }
 
+    def validateFormats(): Option[String] = {
+      val distinctFileFormats = partitionFileFormats + format
+      distinctFileFormats.iterator
+        .foldLeft(Option.empty[String]) {
+          (acc, format) =>
+            if (acc.isDefined) acc
+            else validateFormat(format)
+        }
+    }
+
     def validateMetadata(): Option[String] = {
-      if (format != ParquetReadFormat || rootPaths.isEmpty) {
+      if (format != ParquetReadFormat || rootPaths.isEmpty || dataSchema.isEmpty) {
         // Only Parquet is needed for metadata validation so far.
         return None
       }
       val fileLimit = GlutenConfig.get.parquetMetadataFallbackFileLimit
-        .max(GlutenConfig.get.parquetEncryptionValidationFileLimit)
       val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
       val parquetMetadataValidationResult =
-        ParquetMetadataUtils.validateMetadata(
-          format,
-          rootPaths,
-          hadoopConf,
-          parquetOptions,
-          fileLimit)
+        ParquetMetadataUtils.validateMetadata(rootPaths, hadoopConf, parquetOptions, fileLimit)
       parquetMetadataValidationResult.map(
         reason => s"Detected unsupported metadata in parquet files: $reason")
     }
@@ -218,10 +223,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
         None
       }
     }
-
     val validationChecks = Seq(
       validateScheme(),
-      validateFormat(),
+      validateFormats(),
       validateMetadata(),
       validateDataSchema()
     )
@@ -298,7 +302,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     def validateCompressionCodec(): Option[String] = {
-      // Velox doesn't support brotli and lzo.
       val unSupportedCompressions = Set("brotli", "lzo", "lz4raw", "lz4_raw")
       val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
       if (unSupportedCompressions.contains(compressionCodec)) {

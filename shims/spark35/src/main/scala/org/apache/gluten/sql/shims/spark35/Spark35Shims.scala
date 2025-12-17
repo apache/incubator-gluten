@@ -19,7 +19,6 @@ package org.apache.gluten.sql.shims.spark35
 import org.apache.gluten.execution.PartitionedFileUtilShim
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.SparkShims
-import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
@@ -57,12 +56,9 @@ import org.apache.spark.sql.types.{DecimalType, IntegerType, LongType, StructFie
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
-import org.apache.parquet.crypto.ParquetCryptoRuntimeException
-import org.apache.parquet.format.converter.ParquetMetadataConverter
-import org.apache.parquet.hadoop.ParquetFileReader
+import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
+import org.apache.parquet.hadoop.metadata.ParquetMetadata
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
@@ -659,30 +655,18 @@ class Spark35Shims extends SparkShims {
     QueryPlan.localIdMap.get().remove(plan)
   }
 
-  override def isParquetFileEncrypted(
-      fileStatus: LocatedFileStatus,
-      conf: Configuration): Boolean = {
-    try {
-      val footer =
-        ParquetFileReader.readFooter(conf, fileStatus.getPath, ParquetMetadataConverter.NO_FILTER)
-      val fileMetaData = footer.getFileMetaData
-      fileMetaData.getEncryptionType match {
-        // UNENCRYPTED file has a plaintext footer and no file encryption,
-        // We can leverage file metadata for this check and return unencrypted.
-        case EncryptionType.UNENCRYPTED =>
-          false
-        // PLAINTEXT_FOOTER has a plaintext footer however the file is encrypted.
-        // In such cases, read the footer and use the metadata for encryption check.
-        case EncryptionType.PLAINTEXT_FOOTER =>
-          true
-        case _ =>
-          false
-      }
-    } catch {
-      // Both footer and file are encrypted, return false.
-      case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
+  override def isParquetFileEncrypted(footer: ParquetMetadata): Boolean = {
+    footer.getFileMetaData.getEncryptionType match {
+      // UNENCRYPTED file has a plaintext footer and no file encryption,
+      // We can leverage file metadata for this check and return unencrypted.
+      case EncryptionType.UNENCRYPTED =>
+        false
+      // PLAINTEXT_FOOTER has a plaintext footer however the file is encrypted.
+      // In such cases, read the footer and use the metadata for encryption check.
+      case EncryptionType.PLAINTEXT_FOOTER =>
         true
-      case e: Exception => false
+      case _ =>
+        false
     }
   }
 

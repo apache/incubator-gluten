@@ -315,13 +315,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("read partitioned table - partition key included in orc file")
     .exclude("read partitioned table - with nulls and partition keys are included in Orc file")
   enableSuite[GlutenOrcV1QuerySuite]
-    // Rewrite to disable Spark's columnar reader.
-    .exclude("Simple selection form ORC table")
-    .exclude("simple select queries")
-    .exclude("overwriting")
-    .exclude("self-join")
-    .exclude("columns only referenced by pushed down filters should remain")
-    .exclude("SPARK-5309 strings stored using dictionary compression in orc")
     // For exception test.
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
     .exclude("Read/write binary data")
@@ -398,12 +391,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // For exception test.
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
   enableSuite[GlutenOrcSourceSuite]
-    // Rewrite to disable Spark's columnar reader.
+    // https://github.com/apache/incubator-gluten/issues/11218
     .exclude("SPARK-31238: compatibility with Spark 2.4 in reading dates")
     .exclude("SPARK-31238, SPARK-31423: rebasing dates in write")
-    .exclude("SPARK-31284: compatibility with Spark 2.4 in reading timestamps")
-    .exclude("SPARK-31284, SPARK-31423: rebasing timestamps in write")
-    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
     // Ignored to disable vectorized reading check.
     .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
     .exclude("create temporary orc table")
@@ -425,18 +415,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOrcV1SchemaPruningSuite]
   enableSuite[GlutenOrcV2SchemaPruningSuite]
   enableSuite[GlutenParquetColumnIndexSuite]
-    // Rewrite by just removing test timestamp.
-    .exclude("test reading unaligned pages - test all types")
-    // Rewrite by converting smaller integral value to timestamp.
-    .exclude("test reading unaligned pages - test all types (dict encode)")
   enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
   enableSuite[GlutenParquetDeltaByteArrayEncodingSuite]
   enableSuite[GlutenParquetDeltaEncodingInteger]
   enableSuite[GlutenParquetDeltaEncodingLong]
   enableSuite[GlutenParquetDeltaLengthByteArrayEncodingSuite]
   enableSuite[GlutenParquetEncodingSuite]
-    // Velox does not support rle encoding, but it can pass when native writer enabled.
-    .exclude("parquet v2 pages - rle encoding for boolean value columns")
   enableSuite[GlutenParquetFieldIdIOSuite]
   enableSuite[GlutenParquetFileFormatV1Suite]
   enableSuite[GlutenParquetFileFormatV2Suite]
@@ -541,9 +525,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // error message mismatch is accepted
     .exclude("schema mismatch failure error message for parquet reader")
     .exclude("schema mismatch failure error message for parquet vectorized reader")
-    // [PATH_NOT_FOUND] Path does not exist:
-    // file:/opt/spark331/sql/core/src/test/resources/test-data/timestamp-nanos.parquet
-    // May require for newer spark.test.home
+    // https://github.com/apache/incubator-gluten/issues/11220
     .excludeByPrefix("SPARK-40819")
     // TODO: fix in Spark-4.0
     .excludeByPrefix("SPARK-46056")
@@ -572,10 +554,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOrcV2AggregatePushDownSuite]
     .exclude("nested column: Max(top level column) not push down")
     .exclude("nested column: Count(nested sub-field) not push down")
-  enableSuite[GlutenParquetCodecSuite]
-    // codec not supported in native
-    .exclude("write and read - file source parquet - codec: lz4_raw")
-    .exclude("write and read - file source parquet - codec: lz4raw")
   enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
     // Plan comparison.
@@ -601,6 +579,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("read float and double together")
     .exclude("change column type from float to double")
   enableSuite[GlutenMergedParquetReadSchemaSuite]
+  enableSuite[GlutenParquetCodecSuite]
   enableSuite[GlutenV1WriteCommandSuite]
     // Rewrite to match SortExecTransformer.
     .excludeByPrefix("SPARK-41914:")
@@ -977,10 +956,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("detect escaped path and report the migration guide")
     .exclude("ignore the escaped path check when the flag is off")
     .excludeByPrefix("SPARK-51187")
-    // TODO: fix in Spark-4.0
+    // Rewrite for the query plan check
     .excludeByPrefix("SPARK-49905")
-    .excludeByPrefix("SPARK-41199")
-    .excludeByPrefix("SPARK-41198")
   enableSuite[GlutenQueryExecutionSuite]
     // Rewritten to set root logger level to INFO so that logs can be parsed
     .exclude("Logging plan changes for execution")

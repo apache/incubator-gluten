@@ -35,7 +35,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     val transformedPlan = plan.transformUp {
       case shuffle @ ColumnarShuffleExchangeExec(
             _,
-            VeloxResizeBatchesExec(w: WholeStageTransformer, _, _),
+            VeloxResizeBatchesExec(w: WholeStageTransformer, _, _, _),
             _,
             _,
             _) =>

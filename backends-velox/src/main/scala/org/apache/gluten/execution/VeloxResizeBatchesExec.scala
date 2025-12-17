@@ -35,11 +35,14 @@ import scala.collection.JavaConverters._
 case class VeloxResizeBatchesExec(
     override val child: SparkPlan,
     minOutputBatchSize: Int,
-    maxOutputBatchSize: Int)
+    maxOutputBatchSize: Int,
+    preferredBatchBytes: Long)
   extends ColumnarToColumnarExec(child) {
 
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    VeloxBatchResizer.create(minOutputBatchSize, maxOutputBatchSize, in.asJava).asScala
+    VeloxBatchResizer
+      .create(minOutputBatchSize, maxOutputBatchSize, preferredBatchBytes, in.asJava)
+      .asScala
   }
 
   override protected def closeIterator(out: Iterator[ColumnarBatch]): Unit = {

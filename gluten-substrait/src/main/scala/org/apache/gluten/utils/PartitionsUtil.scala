@@ -158,6 +158,24 @@ object PartitionsUtil {
       inputPartitions: Seq[FilePartition],
       smallFileThreshold: Double): Seq[FilePartition] = {
 
+    val partitions = Array.fill(inputPartitions.size)(mutable.ArrayBuffer.empty[PartitionedFile])
+
+    def addToBucket(
+        heap: mutable.PriorityQueue[(Long, Int, Int)],
+        file: PartitionedFile,
+        fileSize: Long): Unit = {
+      val (size, numFiles, idx) = heap.dequeue()
+      partitions(idx) += file
+      heap.enqueue((size + fileSize, numFiles + 1, idx))
+    }
+
+    def initializeHeap(
+        ordering: Ordering[(Long, Int, Int)]): mutable.PriorityQueue[(Long, Int, Int)] = {
+      val heap = mutable.PriorityQueue.empty[(Long, Int, Int)](ordering)
+      inputPartitions.indices.foreach(i => heap.enqueue((0L, 0, i)))
+      heap
+    }
+
     // Flatten and sort descending by file size.
     val filesSorted: Seq[(PartitionedFile, Long)] =
       inputPartitions
@@ -165,53 +183,32 @@ object PartitionsUtil {
         .map(f => (f, f.length))
         .sortBy(_._2)(Ordering.Long.reverse)
 
-    val partitions = Array.fill(inputPartitions.size)(mutable.ArrayBuffer.empty[PartitionedFile])
-
-    def addToBucket(
-        heap: mutable.PriorityQueue[(Long, Int, Int)],
-        file: PartitionedFile,
-        sz: Long): Unit = {
-      val (load, numFiles, idx) = heap.dequeue()
-      partitions(idx) += file
-      heap.enqueue((load + sz, numFiles + 1, idx))
-    }
-
-    // First by load, then by numFiles.
-    val heapByFileSize =
-      mutable.PriorityQueue.empty[(Long, Int, Int)](
-        Ordering
-          .by[(Long, Int, Int), (Long, Int)] {
-            case (load, numFiles, _) =>
-              (load, numFiles)
-          }
-          .reverse
-      )
+    // First by size, then by number of files.
+    val sizeFirstOrdering = Ordering
+      .by[(Long, Int, Int), (Long, Int)] { case (size, numFiles, _) => (size, numFiles) }
+      .reverse
 
     if (smallFileThreshold > 0) {
       val smallFileTotalSize = filesSorted.map(_._2).sum * smallFileThreshold
-      // First by numFiles, then by load.
-      val heapByFileNum =
-        mutable.PriorityQueue.empty[(Long, Int, Int)](
-          Ordering
-            .by[(Long, Int, Int), (Int, Long)] {
-              case (load, numFiles, _) =>
-                (numFiles, load)
-            }
-            .reverse
-        )
-
-      inputPartitions.indices.foreach(i => heapByFileNum.enqueue((0L, 0, i)))
+      // First by number of files, then by size.
+      val numFirstOrdering = Ordering
+        .by[(Long, Int, Int), (Int, Long)] { case (size, numFiles, _) => (numFiles, size) }
+        .reverse
+      val heapByFileNum = initializeHeap(numFirstOrdering)
 
       var numSmallFiles = 0
       var smallFileSize = 0L
-      // Enqueue small files to the least number of files and the least load.
-      filesSorted.reverse.takeWhile(f => f._2 + smallFileSize <= smallFileTotalSize).foreach {
-        case (file, sz) =>
-          addToBucket(heapByFileNum, file, sz)
-          numSmallFiles += 1
-          smallFileSize += sz
-      }
+      // Distribute small files evenly across partitions to achieve load balancing of small files.
+      filesSorted.reverseIterator
+        .takeWhile(f => f._2 + smallFileSize <= smallFileTotalSize)
+        .foreach {
+          case (file, fileSize) =>
+            addToBucket(heapByFileNum, file, fileSize)
+            numSmallFiles += 1
+            smallFileSize += fileSize
+        }
 
+      val heapByFileSize = mutable.PriorityQueue.empty[(Long, Int, Int)](sizeFirstOrdering)
       // Move buckets from heapByFileNum to heapByFileSize.
       while (heapByFileNum.nonEmpty) {
         heapByFileSize.enqueue(heapByFileNum.dequeue())
@@ -219,15 +216,15 @@ object PartitionsUtil {
 
       // Finally, enqueue remaining files.
       filesSorted.take(filesSorted.size - numSmallFiles).foreach {
-        case (file, sz) =>
-          addToBucket(heapByFileSize, file, sz)
+        case (file, fileSize) =>
+          addToBucket(heapByFileSize, file, fileSize)
       }
     } else {
-      inputPartitions.indices.foreach(i => heapByFileSize.enqueue((0L, 0, i)))
+      val heapByFileSize = initializeHeap(sizeFirstOrdering)
 
       filesSorted.foreach {
-        case (file, sz) =>
-          addToBucket(heapByFileSize, file, sz)
+        case (file, fileSize) =>
+          addToBucket(heapByFileSize, file, fileSize)
       }
     }
 

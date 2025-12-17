@@ -255,7 +255,7 @@ void populateWriterMetrics(
   }
   metrics.dataSize +=
       std::accumulate(shuffleWriter->rawPartitionLengths().begin(), shuffleWriter->rawPartitionLengths().end(), 0LL);
-  metrics.bytesWritten += shuffleWriter->totalBytesWritten();
+  metrics.bytesWritten += shuffleWriter->bytesWritten();
   metrics.bytesSpilled += shuffleWriter->totalBytesEvicted();
 }
 

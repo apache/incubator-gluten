@@ -73,6 +73,7 @@ VeloxSortShuffleWriter::VeloxSortShuffleWriter(
       diskWriteBufferSize_(options->diskWriteBufferSize) {}
 
 arrow::Status VeloxSortShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
+  writtenBytes_ = 0;
   ARROW_ASSIGN_OR_RAISE(auto rv, getPeeledRowVector(cb));
   initRowType(rv);
   RETURN_NOT_OK(insert(rv, memLimit));
@@ -81,6 +82,7 @@ arrow::Status VeloxSortShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, i
 
 arrow::Status VeloxSortShuffleWriter::stop() {
   ARROW_RETURN_IF(evictState_ == EvictState::kUnevictable, arrow::Status::Invalid("Unevictable state in stop."));
+  writtenBytes_ = 0;
 
   stopped_ = true;
   if (offset_ > 0) {
@@ -90,7 +92,7 @@ arrow::Status VeloxSortShuffleWriter::stop() {
   sortedBuffer_.reset();
   pages_.clear();
   pageAddresses_.clear();
-  RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
+  RETURN_NOT_OK(partitionWriter_->stop(&metrics_, writtenBytes_));
   return arrow::Status::OK();
 }
 
@@ -339,7 +341,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartitionInternal(
       nullptr,
       std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(buffer, rawLength)});
   updateSpillMetrics(payload);
-  RETURN_NOT_OK(partitionWriter_->sortEvict(partitionId, std::move(payload), stopped_));
+  RETURN_NOT_OK(partitionWriter_->sortEvict(partitionId, std::move(payload), stopped_, writtenBytes_));
   return arrow::Status::OK();
 }
 
