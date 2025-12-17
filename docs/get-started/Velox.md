@@ -473,8 +473,8 @@ All TPC-H and TPC-DS queries are supported in Gluten Velox backend. You may refe
 
 ## Data preparation
 
-The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch-dategen-parquet.sh) and
-[TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds-dategen-parquet.sh).
+The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch-datagen-parquet.sh) and
+[TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds-datagen-parquet.sh).
 
 The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../tools/gluten-it/common/src/main/resources/tpcds-queries)
 and [TPC-H queries](../../tools/gluten-it/common/src/main/resources/tpch-queries).
