@@ -32,7 +32,7 @@
 
 static jint jniVersion = JNI_VERSION_1_8;
 
-static inline std::string jStringToCString(JNIEnv* env, jstring string) {
+static inline std::string jStringToCString(JNIEnv* env, const jstring& string) {
   if (!string) {
     return {};
   }
@@ -354,7 +354,7 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
   return compressionType;
 }
 
-static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecBackendJstr) {
+static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, const jstring& codecBackendJstr) {
   if (codecBackendJstr == nullptr) {
     return gluten::CodecBackend::NONE;
   }

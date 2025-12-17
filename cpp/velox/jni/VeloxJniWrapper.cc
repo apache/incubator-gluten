@@ -482,7 +482,7 @@ Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_allSupportedByR
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_init( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jstring filePath,
+    const jstring& filePath,
     jlong cSchema,
     jbyteArray options) {
   JNI_METHOD_START
@@ -839,8 +839,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
     jobject wrapper,
     jlong cSchema,
     jint format,
-    jstring directory,
-    jstring codecJstr,
+    const jstring& directory,
+    const jstring& codecJstr,
     jbyteArray partition,
     jbyteArray fieldBytes) {
   JNI_METHOD_START

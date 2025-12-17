@@ -309,7 +309,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_createRuntime( // NOLINT
     JNIEnv* env,
     jclass,
-    jstring jBackendType,
+    const jstring& jBackendType,
     jlong nmmHandle,
     jbyteArray sessionConf) {
   JNI_METHOD_START
@@ -341,7 +341,7 @@ const std::string kBacktraceAllocation = "spark.gluten.memory.backtrace.allocati
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_memory_NativeMemoryManagerJniWrapper_create( // NOLINT
     JNIEnv* env,
     jclass,
-    jstring jBackendType,
+    const jstring& jBackendType,
     jobject jListener,
     jbyteArray sessionConf) {
   JNI_METHOD_START
@@ -460,7 +460,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jint partitionId,
     jlong taskId,
     jboolean enableDumping,
-    jstring spillDir) {
+    const jstring& spillDir) {
   JNI_METHOD_START
 
   auto ctx = getRuntime(env, wrapper);
@@ -857,8 +857,8 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
     jdouble mergeThreshold,
     jint numSubDirs,
     jint shuffleFileBufferSize,
-    jstring dataFileJstr,
-    jstring localDirsJstr,
+    const jstring& dataFileJstr,
+    const jstring& localDirsJstr,
     jboolean enableDictionary) {
   JNI_METHOD_START
 
@@ -893,7 +893,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     JNIEnv* env,
     jobject wrapper,
     jint numPartitions,
-    jstring partitioningNameJstr,
+    const jstring& partitioningNameJstr,
     jint startPartitionId,
     jint splitBufferSize,
     jdouble splitBufferReallocThreshold,
@@ -921,7 +921,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     JNIEnv* env,
     jobject wrapper,
     jint numPartitions,
-    jstring partitioningNameJstr,
+    const jstring& partitioningNameJstr,
     jint startPartitionId,
     jint splitBufferSize,
     jdouble splitBufferReallocThreshold,
@@ -949,7 +949,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     JNIEnv* env,
     jobject wrapper,
     jint numPartitions,
-    jstring partitioningNameJstr,
+    const jstring& partitioningNameJstr,
     jint startPartitionId,
     jint diskWriteBufferSize,
     jint initialSortBufferSize,
@@ -979,7 +979,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     JNIEnv* env,
     jobject wrapper,
     jint numPartitions,
-    jstring partitioningNameJstr,
+    const jstring& partitioningNameJstr,
     jint startPartitionId,
     jint splitBufferSize,
     jlong sortBufferMaxSize,
@@ -1118,7 +1118,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
     jint batchSize,
     jlong readerBufferSize,
     jlong deserializerBufferSize,
-    jstring shuffleWriterType) {
+    const jstring& shuffleWriterType) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
 
