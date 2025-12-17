@@ -97,7 +97,7 @@ trait SparkShims {
 
   def generateFileScanRDD(
       sparkSession: SparkSession,
-      readFunction: (PartitionedFile) => Iterator[InternalRow],
+      readFunction: PartitionedFile => Iterator[InternalRow],
       filePartitions: Seq[FilePartition],
       fileSourceScanExec: FileSourceScanExec): FileScanRDD
 
@@ -145,7 +145,7 @@ trait SparkShims {
           Expression,
           Expression,
           Int,
-          Int) => TypedImperativeAggregate[T]): Expression;
+          Int) => TypedImperativeAggregate[T]): Expression
 
   def replaceMightContain[T](
       expr: Expression,
@@ -341,6 +341,11 @@ trait SparkShims {
       s"Task failed while writing rows to staging path: $writePath, " +
         s"output path: $descriptionPath",
       t)
+  }
+
+  // Compatibility method for Spark 4.0: rethrows the exception cause to maintain API compatibility
+  def enrichWriteException(cause: Throwable, path: String): Nothing = {
+    throw cause
   }
 
   def getFileSourceScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = {

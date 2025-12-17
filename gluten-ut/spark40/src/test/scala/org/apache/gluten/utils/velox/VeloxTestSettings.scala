@@ -475,9 +475,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Velox parquet reader not allow offset zero.
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
     // TODO: fix in Spark-4.0
-    .exclude("SPARK-49991: Respect 'mapreduce.output.basename' to generate file names")
-    .exclude("SPARK-6330 regression test")
-    .exclude("SPARK-7837 Do not close output writer twice when commitTask() fails")
     .exclude("explode nested lists crossing a rowgroup boundary")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
