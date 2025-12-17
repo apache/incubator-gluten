@@ -20,6 +20,7 @@
 #include <optional>
 #include <Parser/RelParsers/RelParser.h>
 #include <substrait/algebra.pb.h>
+#include <Processors/QueryPlan/QueryPlan.h>
 
 namespace DB
 {
@@ -32,6 +33,8 @@ namespace local_engine
 class StorageJoinFromReadBuffer;
 
 
+/// Cross rel is for joins without joining keys. For example,
+///   SELECT * FROM t1 LEFT JOIN t2
 class CrossRelParser : public RelParser
 {
 public:
@@ -62,6 +65,9 @@ private:
         DB::QueryPlan & left,
         DB::QueryPlan & right,
         bool allow_mixed_condition);
+
+    void addConstJoinKeys(DB::QueryPlan & left, DB::QueryPlan & right);
+    DB::Names collectOutputColumnsName(const DB::QueryPlan & left, const DB::QueryPlan & right);
 };
 
 }

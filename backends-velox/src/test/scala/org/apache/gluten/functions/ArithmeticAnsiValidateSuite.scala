@@ -35,31 +35,48 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
 
   test("add") {
     runQueryAndCompare("SELECT int_field1 + 100 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
-    intercept[ArithmeticException] {
-      sql("SELECT 2147483647 + 1").collect()
+
+    val df = sql("SELECT 2147483647 + 1")
+
+    if (isSparkVersionGE("4.0")) {
+      intercept[SparkException] {
+        df.collect()
+      }
+    } else {
+      intercept[ArithmeticException] {
+        df.collect()
+      }
     }
   }
 
   test("subtract") {
     runQueryAndCompare("SELECT int_field1 - 50 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
   }
 
   test("multiply") {
     runQueryAndCompare("SELECT int_field1 * 2 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
-    intercept[ArithmeticException] {
-      sql("SELECT 2147483647 * 2").collect()
+
+    val df = sql("SELECT 2147483647 + 1")
+    if (isSparkVersionGE("4.0")) {
+      intercept[SparkException] {
+        df.collect()
+      }
+    } else {
+      intercept[ArithmeticException] {
+        df.collect()
+      }
     }
   }
 
   test("divide") {
     runQueryAndCompare("SELECT int_field1 / 2 FROM datatab WHERE int_field1 IS NOT NULL") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
     if (isSparkVersionGE("3.4")) {
       // Spark 3.4+ throws exception for division by zero in ANSI mode
@@ -69,6 +86,17 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
     } else {
       // Spark 3.2 and 3.3 don't throw exception for division by zero in ANSI mode
       sql("SELECT 1 / 0").collect()
+    }
+  }
+
+  test("div") {
+    runQueryAndCompare("SELECT int_field1 div 2 FROM datatab WHERE int_field1 IS NOT NULL") {
+      checkGlutenPlan[ProjectExecTransformer]
+    }
+    if (isSparkVersionGE("3.4")) {
+      intercept[SparkException] {
+        sql("SELECT 1 div 0 ").collect()
+      }
     }
   }
 

@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.execution.iceberg
-
-import com.google.common.base.Strings
 
 import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+
+import com.google.common.base.Strings
 
 class ClickHouseIcebergHiveTableSupport {
 
@@ -61,7 +60,8 @@ class ClickHouseIcebergHiveTableSupport {
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .setCHConfig("use_local_format", true)
-      .set("spark.sql.extensions",
+      .set(
+        "spark.sql.extensions",
         "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
       .set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
       .set("spark.sql.catalog.spark_catalog.type", "hive")
@@ -70,7 +70,8 @@ class ClickHouseIcebergHiveTableSupport {
       sparkConf.set("spark.hadoop.hive.metastore.uris", url)
     }
     if (!Strings.isNullOrEmpty(catalog)) {
-      sparkConf.set("spark.sql.catalog." + catalog, "org.apache.iceberg.spark.SparkCatalog")
+      sparkConf
+        .set("spark.sql.catalog." + catalog, "org.apache.iceberg.spark.SparkCatalog")
         .set("spark.sql.catalog." + catalog + ".type", "hive")
     }
     if (!Strings.isNullOrEmpty(path)) {
@@ -81,12 +82,11 @@ class ClickHouseIcebergHiveTableSupport {
 
   def initializeSession(): Unit = {
     if (_hiveSpark == null) {
-      _hiveSpark =
-        SparkSession
-          .builder()
-          .config(sparkConf)
-          .enableHiveSupport()
-          .getOrCreate()
+      _hiveSpark = SparkSession
+        .builder()
+        .config(sparkConf)
+        .enableHiveSupport()
+        .getOrCreate()
     }
   }
 

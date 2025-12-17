@@ -160,8 +160,8 @@ object ConverterUtils extends Logging {
         (StringType, isNullable(substraitType.getString.getNullability))
       case Type.KindCase.BINARY =>
         (BinaryType, isNullable(substraitType.getBinary.getNullability))
-      case Type.KindCase.TIMESTAMP =>
-        (TimestampType, isNullable(substraitType.getTimestamp.getNullability))
+      case Type.KindCase.TIMESTAMP_TZ =>
+        (TimestampType, isNullable(substraitType.getTimestampTz.getNullability))
       case Type.KindCase.DATE =>
         (DateType, isNullable(substraitType.getDate.getNullability))
       case Type.KindCase.DECIMAL =>

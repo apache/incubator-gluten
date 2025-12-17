@@ -130,7 +130,11 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
   private final String name = MemoryTargetUtil.toUniqueName("DynamicOffHeapSizing");
   private final SimpleMemoryUsageRecorder recorder = new SimpleMemoryUsageRecorder();
 
-  public DynamicOffHeapSizingMemoryTarget() {}
+  private final MemoryTarget target;
+
+  public DynamicOffHeapSizingMemoryTarget(MemoryTarget target) {
+    this.target = target;
+  }
 
   @Override
   public long borrow(long size) {
@@ -197,6 +201,7 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
 
     USED_OFF_HEAP_BYTES.addAndGet(size);
     recorder.inc(size);
+    target.borrow(size);
     return size;
   }
 
@@ -204,6 +209,7 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
   public long repay(long size) {
     USED_OFF_HEAP_BYTES.addAndGet(-size);
     recorder.inc(-size);
+    target.repay(size);
     return size;
   }
 
@@ -225,6 +231,10 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
   @Override
   public MemoryUsageStats stats() {
     return recorder.toStats();
+  }
+
+  public MemoryTarget target() {
+    return target;
   }
 
   public static boolean isJava9OrLater() {

@@ -25,6 +25,7 @@
 #include "utils/Macros.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/storage_adapters/s3fs/S3Config.h"
+#include "velox/dwio/parquet/writer/Writer.h"
 
 namespace gluten {
 
@@ -218,6 +219,27 @@ void getAbfsHiveConfig(
 
 } // namespace
 
+std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorSessionConfig(
+    const std::shared_ptr<facebook::velox::config::ConfigBase>& conf) {
+  // The configs below are used at session level.
+  std::unordered_map<std::string, std::string> configs = {};
+  // The semantics of reading as lower case is opposite with case-sensitive.
+  configs[facebook::velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
+      !conf->get<bool>(kCaseSensitive, false) ? "true" : "false";
+  configs[facebook::velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
+  configs[facebook::velox::parquet::WriterOptions::kParquetSessionWriteTimestampUnit] = std::string("6");
+  configs[facebook::velox::connector::hive::HiveConfig::kReadTimestampUnitSession] = std::string("6");
+  configs[facebook::velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
+      conf->get<std::string>(kMaxPartitions, "10000");
+  configs[facebook::velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
+      conf->get<bool>(kIgnoreMissingFiles, false) ? "true" : "false";
+  configs[facebook::velox::connector::hive::HiveConfig::kParquetUseColumnNamesSession] =
+      conf->get<bool>(kParquetUseColumnNames, true) ? "true" : "false";
+  configs[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] =
+      conf->get<bool>(kOrcUseColumnNames, true) ? "true" : "false";
+  return std::make_shared<facebook::velox::config::ConfigBase>(std::move(configs));
+}
+
 std::string getConfigValue(
     const std::unordered_map<std::string, std::string>& confMap,
     const std::string& key,
@@ -232,8 +254,8 @@ std::string getConfigValue(
   return got->second;
 }
 
-std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
-    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
+std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorConfig(
+    const std::shared_ptr<facebook::velox::config::ConfigBase>& conf,
     FileSystemType fsType) {
   std::unordered_map<std::string, std::string> hiveConfMap;
 
@@ -276,10 +298,6 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 
   // read as UTC
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
-
-  // Maps table field names to file field names using names, not indices.
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
 
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
 }

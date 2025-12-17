@@ -99,6 +99,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
+      dataSchema: StructType,
       rootPaths: Seq[String],
       properties: Map[String, String],
       hadoopConf: Configuration): ValidationResult = {
@@ -117,9 +118,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     def validateFormat(): Option[String] = {
-      def validateTypes(validatorFunc: PartialFunction[StructField, String]): Option[String] = {
+      def validateTypes(
+          validatorFunc: PartialFunction[StructField, String],
+          fieldsToValidate: Array[StructField]): Option[String] = {
         // Collect unsupported types.
-        val unsupportedDataTypeReason = fields.collect(validatorFunc)
+        val unsupportedDataTypeReason = fieldsToValidate.collect(validatorFunc)
         if (unsupportedDataTypeReason.nonEmpty) {
           Some(
             s"Found unsupported data type in $format: ${unsupportedDataTypeReason.mkString(", ")}.")
@@ -152,7 +155,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
           if (!VeloxConfig.get.veloxOrcScanEnabled) {
             Some(s"Velox ORC scan is turned off, ${VeloxConfig.VELOX_ORC_SCAN_ENABLED.key}")
           } else {
-            val typeValidator: PartialFunction[StructField, String] = {
+            val fieldTypeValidator: PartialFunction[StructField, String] = {
               case StructField(_, arrayType: ArrayType, _, _)
                   if arrayType.elementType.isInstanceOf[StructType] =>
                 "StructType as element in ArrayType"
@@ -165,38 +168,62 @@ object VeloxBackendSettings extends BackendSettingsApi {
               case StructField(_, mapType: MapType, _, _)
                   if mapType.valueType.isInstanceOf[ArrayType] =>
                 "ArrayType as Value in MapType"
+              case StructField(_, TimestampType, _, _) => "TimestampType"
+            }
+
+            val schemaTypeValidator: PartialFunction[StructField, String] = {
               case StructField(_, stringType: StringType, _, metadata)
                   if isCharType(stringType, metadata) =>
                 CharVarcharUtils.getRawTypeString(metadata) + "(force fallback)"
-              case StructField(_, TimestampType, _, _) => "TimestampType"
             }
-            validateTypes(typeValidator)
+            validateTypes(fieldTypeValidator, fields)
+              .orElse(validateTypes(schemaTypeValidator, dataSchema.fields))
           }
         case _ => Some(s"Unsupported file format $format.")
       }
     }
 
-    def validateEncryption(): Option[String] = {
+    def validateMetadata(): Option[String] = {
+      if (format != ParquetReadFormat || rootPaths.isEmpty) {
+        // Only Parquet is needed for metadata validation so far.
+        return None
+      }
+      val fileLimit = GlutenConfig.get.parquetMetadataFallbackFileLimit
+        .max(GlutenConfig.get.parquetEncryptionValidationFileLimit)
+      val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
+      val parquetMetadataValidationResult =
+        ParquetMetadataUtils.validateMetadata(
+          format,
+          rootPaths,
+          hadoopConf,
+          parquetOptions,
+          fileLimit)
+      parquetMetadataValidationResult.map(
+        reason => s"Detected unsupported metadata in parquet files: $reason")
+    }
 
-      val encryptionValidationEnabled = GlutenConfig.get.parquetEncryptionValidationEnabled
-      if (!encryptionValidationEnabled) {
+    def validateDataSchema(): Option[String] = {
+      if (VeloxConfig.get.parquetUseColumnNames && VeloxConfig.get.orcUseColumnNames) {
         return None
       }
 
-      val fileLimit = GlutenConfig.get.parquetEncryptionValidationFileLimit
-      val encryptionResult =
-        ParquetMetadataUtils.validateEncryption(format, rootPaths, hadoopConf, fileLimit)
-      if (encryptionResult.ok()) {
-        None
+      // If we are using column indices for schema evolution, we need to pass the table schema to
+      // Velox. We need to ensure all types in the table schema are supported.
+      val validationResults =
+        dataSchema.fields.flatMap(field => VeloxValidatorApi.validateSchema(field.dataType))
+      if (validationResults.nonEmpty) {
+        Some(s"""Found unsupported data type(s) in file
+                |schema: ${validationResults.mkString(", ")}.""".stripMargin)
       } else {
-        Some(s"Detected encrypted parquet files: ${encryptionResult.reason()}")
+        None
       }
     }
 
     val validationChecks = Seq(
       validateScheme(),
       validateFormat(),
-      validateEncryption()
+      validateMetadata(),
+      validateDataSchema()
     )
 
     for (check <- validationChecks) {
@@ -543,8 +570,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def needPreComputeRangeFrameBoundary(): Boolean = true
 
-  override def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = true
-
   override def supportIcebergEqualityDeleteRead(): Boolean = false
 
   override def reorderColumnsForPartitionWrite(): Boolean = true
@@ -558,4 +583,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def supportOverwriteByExpression(): Boolean = enableEnhancedFeatures()
 
   override def supportOverwritePartitionsDynamic(): Boolean = enableEnhancedFeatures()
+
+  /** Velox does not support columnar shuffle with empty schema. */
+  override def supportEmptySchemaColumnarShuffle(): Boolean = false
 }

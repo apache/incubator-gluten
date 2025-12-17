@@ -38,7 +38,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  SETUP: 'bash .github/workflows/util/setup-helper.sh'
 
 jobs:
 

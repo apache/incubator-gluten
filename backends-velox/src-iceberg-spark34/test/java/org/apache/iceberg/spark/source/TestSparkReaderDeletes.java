@@ -17,15 +17,36 @@
 package org.apache.iceberg.spark.source;
 
 import org.apache.gluten.TestConfUtil;
-import org.apache.gluten.config.GlutenConfig;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.iceberg.*;
+import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.CombinedScanTask;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.Files;
+import org.apache.iceberg.MetadataColumns;
+import org.apache.iceberg.Parameter;
+import org.apache.iceberg.ParameterizedTestExtension;
+import org.apache.iceberg.Parameters;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PlanningMode;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.TableProperties;
+import org.apache.iceberg.TestHelpers;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.*;
+import org.apache.iceberg.data.DeleteReadTests;
+import org.apache.iceberg.data.FileHelpers;
+import org.apache.iceberg.data.GenericRecord;
+import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.hive.HiveCatalog;
@@ -45,7 +66,11 @@ import org.apache.iceberg.spark.data.RandomData;
 import org.apache.iceberg.spark.data.SparkParquetWriters;
 import org.apache.iceberg.spark.source.metrics.NumDeletes;
 import org.apache.iceberg.types.Types;
-import org.apache.iceberg.util.*;
+import org.apache.iceberg.util.ArrayUtil;
+import org.apache.iceberg.util.CharSequenceSet;
+import org.apache.iceberg.util.Pair;
+import org.apache.iceberg.util.StructLikeSet;
+import org.apache.iceberg.util.TableScanUtil;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -70,27 +95,32 @@ import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
+// Change for compile, import org.apache.iceberg.shaded.org.apache.parquet.hadoop.ParquetFileWriter;
+// import org.apache.iceberg.shaded.org.apache.parquet.hadoop.util.HadoopInputFile;
 @ExtendWith(ParameterizedTestExtension.class)
 public class TestSparkReaderDeletes extends DeleteReadTests {
-
   private static TestHiveMetastore metastore = null;
   protected static SparkSession spark = null;
   protected static HiveCatalog catalog = null;
 
-  @Parameter(index = 1)
+  @Parameter(index = 2)
   private boolean vectorized;
 
-  @Parameter(index = 2)
+  @Parameter(index = 3)
   private PlanningMode planningMode;
 
-  @Parameters(name = "format = {0}, vectorized = {1}, planningMode = {2}")
+  @Parameters(name = "fileFormat = {0}, formatVersion = {1}, vectorized = {2}, planningMode = {3}")
   public static Object[][] parameters() {
-    return new Object[][] {
-      new Object[] {FileFormat.PARQUET, false, PlanningMode.DISTRIBUTED},
-      new Object[] {FileFormat.PARQUET, true, PlanningMode.LOCAL},
-      new Object[] {FileFormat.ORC, false, PlanningMode.DISTRIBUTED},
-      new Object[] {FileFormat.AVRO, false, PlanningMode.LOCAL}
-    };
+    List<Object[]> parameters = Lists.newArrayList();
+    for (int version : TestHelpers.V2_AND_ABOVE) {
+      parameters.add(new Object[] {FileFormat.PARQUET, version, false, PlanningMode.DISTRIBUTED});
+      parameters.add(new Object[] {FileFormat.PARQUET, version, true, PlanningMode.LOCAL});
+      if (version == 2) {
+        parameters.add(new Object[] {FileFormat.ORC, version, false, PlanningMode.DISTRIBUTED});
+        parameters.add(new Object[] {FileFormat.AVRO, version, false, PlanningMode.LOCAL});
+      }
+    }
+    return parameters.toArray(new Object[0][]);
   }
 
   @BeforeAll
@@ -149,6 +179,7 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
         .set(TableProperties.DEFAULT_FILE_FORMAT, format.name())
         .set(TableProperties.DATA_PLANNING_MODE, planningMode.modeName())
         .set(TableProperties.DELETE_PLANNING_MODE, planningMode.modeName())
+        .set(TableProperties.FORMAT_VERSION, String.valueOf(formatVersion))
         .commit();
     if (format.equals(FileFormat.PARQUET) || format.equals(FileFormat.ORC)) {
       String vectorizationEnabled =
@@ -173,7 +204,7 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
     catalog.dropTable(TableIdentifier.of("default", name));
   }
 
-  // The native side does not report the numDeletes metric.
+  // Change to not check, the native side does not report the numDeletes metric.
   protected boolean countDeletes() {
     return false;
   }
@@ -205,6 +236,86 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
             });
 
     return set;
+  }
+
+  @TestTemplate
+  public void testPositionDeletes() throws IOException {
+    List<Pair<CharSequence, Long>> deletes =
+        Lists.newArrayList(
+            Pair.of(dataFile.location(), 0L), // id = 29
+            Pair.of(dataFile.location(), 3L), // id = 89
+            Pair.of(dataFile.location(), 6L) // id = 122
+            );
+
+    Pair<DeleteFile, CharSequenceSet> posDeletes =
+        FileHelpers.writeDeleteFile(
+            table,
+            Files.localOutput(temp.resolve("junit" + System.nanoTime()).toFile()),
+            TestHelpers.Row.of(0),
+            deletes,
+            formatVersion);
+
+    table
+        .newRowDelta()
+        .addDeletes(posDeletes.first())
+        .validateDataFilesExist(posDeletes.second())
+        .commit();
+
+    StructLikeSet expected = rowSetWithoutIds(table, records, 29, 89, 122);
+    StructLikeSet actual = rowSet(tableName, table, "*");
+
+    assertThat(actual).as("Table should contain expected rows").isEqualTo(expected);
+    checkDeleteCount(3L);
+  }
+
+  // Change to satisfy formatVersion
+  @TestTemplate
+  public void testMultiplePosDeleteFiles() throws IOException {
+    assumeThat(formatVersion)
+        .as("Can't write multiple delete files with formatVersion >= 3")
+        .isEqualTo(2);
+
+    List<Pair<CharSequence, Long>> deletes =
+        Lists.newArrayList(
+            Pair.of(dataFile.location(), 0L), // id = 29
+            Pair.of(dataFile.location(), 3L) // id = 89
+            );
+
+    Pair<DeleteFile, CharSequenceSet> posDeletes =
+        FileHelpers.writeDeleteFile(
+            table,
+            Files.localOutput(temp.resolve("junit" + System.nanoTime()).toFile()),
+            TestHelpers.Row.of(0),
+            deletes,
+            formatVersion);
+
+    table
+        .newRowDelta()
+        .addDeletes(posDeletes.first())
+        .validateDataFilesExist(posDeletes.second())
+        .commit();
+
+    deletes = Lists.newArrayList(Pair.of(dataFile.location(), 6L)); // id = 122
+
+    posDeletes =
+        FileHelpers.writeDeleteFile(
+            table,
+            Files.localOutput(temp.resolve("junit" + System.nanoTime()).toFile()),
+            TestHelpers.Row.of(0),
+            deletes,
+            formatVersion);
+
+    table
+        .newRowDelta()
+        .addDeletes(posDeletes.first())
+        .validateDataFilesExist(posDeletes.second())
+        .commit();
+
+    StructLikeSet expected = rowSetWithoutIds(table, records, 29, 89, 122);
+    StructLikeSet actual = rowSet(tableName, table, "*");
+
+    assertThat(actual).as("Table should contain expected rows").isEqualTo(expected);
+    checkDeleteCount(3L);
   }
 
   @TestTemplate
@@ -299,7 +410,7 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
 
     for (CombinedScanTask task : tasks) {
       try (EqualityDeleteRowReader reader =
-          new EqualityDeleteRowReader(task, table, null, table.schema(), false)) {
+          new EqualityDeleteRowReader(task, table, null, table.schema(), false, true)) {
         while (reader.next()) {
           actualRowSet.add(
               new InternalRowWrapper(
@@ -319,10 +430,10 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
     // deleted.
     List<Pair<CharSequence, Long>> deletes =
         Lists.newArrayList(
-            Pair.of(dataFile.path(), 0L), // id = 29
-            Pair.of(dataFile.path(), 1L), // id = 43
-            Pair.of(dataFile.path(), 2L), // id = 61
-            Pair.of(dataFile.path(), 3L) // id = 89
+            Pair.of(dataFile.location(), 0L), // id = 29
+            Pair.of(dataFile.location(), 1L), // id = 43
+            Pair.of(dataFile.location(), 2L), // id = 61
+            Pair.of(dataFile.location(), 3L) // id = 89
             );
 
     Pair<DeleteFile, CharSequenceSet> posDeletes =
@@ -330,7 +441,8 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
             table,
             Files.localOutput(File.createTempFile("junit", null, temp.toFile())),
             TestHelpers.Row.of(0),
-            deletes);
+            deletes,
+            formatVersion);
 
     table
         .newRowDelta()
@@ -351,10 +463,10 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
     // deleted.
     List<Pair<CharSequence, Long>> deletes =
         Lists.newArrayList(
-            Pair.of(dataFile.path(), 0L), // id = 29
-            Pair.of(dataFile.path(), 1L), // id = 43
-            Pair.of(dataFile.path(), 2L), // id = 61
-            Pair.of(dataFile.path(), 3L) // id = 89
+            Pair.of(dataFile.location(), 0L), // id = 29
+            Pair.of(dataFile.location(), 1L), // id = 43
+            Pair.of(dataFile.location(), 2L), // id = 61
+            Pair.of(dataFile.location(), 3L) // id = 89
             );
 
     Pair<DeleteFile, CharSequenceSet> posDeletes =
@@ -362,7 +474,8 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
             table,
             Files.localOutput(File.createTempFile("junit", null, temp.toFile())),
             TestHelpers.Row.of(0),
-            deletes);
+            deletes,
+            formatVersion);
 
     table
         .newRowDelta()
@@ -406,30 +519,6 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
 
     assertThat(actual).as("Table should contain expected row").isEqualTo(expected);
     checkDeleteCount(3L);
-    // TODO, the query fallbacks because not supports equality delete.
-    // Error Source: RUNTIME
-    // Error Code: NOT_IMPLEMENTED
-    // Retriable: False
-    // Context: Split [Hive:
-    // /var/folders/63/845y6pk53dx_83hpw8ztdchw0000gn/T/junit-17345315326614809092/junit4173952394189821024.tmp 4 - 647] Task Gluten_Stage_5_TID_5_VTID_1
-    // Additional Context: Operator: TableScan[0] 0
-    // Function: prepareSplit
-    // File:
-    // /Users/chengchengjin/code/gluten/ep/build-velox/build/velox_ep/velox/connectors/hive/iceberg/IcebergSplitReader.cpp
-    // Line: 95
-    // Stack trace:
-    // Check the table query data because above query is fallback by column _deleted.
-    // This query is fallback by equality delete files, remove this check after equality reader is
-    // supported.
-    StructLikeSet actualWithoutMetadata =
-        rowSet(tableName, PROJECTION_SCHEMA_WITHOUT_DELETED.asStruct(), "id", "data");
-    spark.conf().set(GlutenConfig.GLUTEN_ENABLED().key(), "false");
-    StructLikeSet expectWithoutMetadata =
-        rowSet(tableName, PROJECTION_SCHEMA_WITHOUT_DELETED.asStruct(), "id", "data");
-    assertThat(actualWithoutMetadata)
-        .as("Table should contain expected row")
-        .isEqualTo(expectWithoutMetadata);
-    spark.conf().set(GlutenConfig.GLUTEN_ENABLED().key(), "true");
   }
 
   @TestTemplate
@@ -453,8 +542,8 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
 
     List<Pair<CharSequence, Long>> deletes =
         Lists.newArrayList(
-            Pair.of(dataFile.path(), 3L), // id = 89
-            Pair.of(dataFile.path(), 5L) // id = 121
+            Pair.of(dataFile.location(), 3L), // id = 89
+            Pair.of(dataFile.location(), 5L) // id = 121
             );
 
     Pair<DeleteFile, CharSequenceSet> posDeletes =
@@ -462,7 +551,8 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
             table,
             Files.localOutput(File.createTempFile("junit", null, temp.toFile())),
             TestHelpers.Row.of(0),
-            deletes);
+            deletes,
+            formatVersion);
 
     table
         .newRowDelta()
@@ -483,10 +573,10 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
   public void testFilterOnDeletedMetadataColumn() throws IOException {
     List<Pair<CharSequence, Long>> deletes =
         Lists.newArrayList(
-            Pair.of(dataFile.path(), 0L), // id = 29
-            Pair.of(dataFile.path(), 1L), // id = 43
-            Pair.of(dataFile.path(), 2L), // id = 61
-            Pair.of(dataFile.path(), 3L) // id = 89
+            Pair.of(dataFile.location(), 0L), // id = 29
+            Pair.of(dataFile.location(), 1L), // id = 43
+            Pair.of(dataFile.location(), 2L), // id = 61
+            Pair.of(dataFile.location(), 3L) // id = 89
             );
 
     Pair<DeleteFile, CharSequenceSet> posDeletes =
@@ -494,7 +584,8 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
             table,
             Files.localOutput(File.createTempFile("junit", null, temp.toFile())),
             TestHelpers.Row.of(0),
-            deletes);
+            deletes,
+            formatVersion);
 
     table
         .newRowDelta()
@@ -557,7 +648,7 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
 
   @TestTemplate
   public void testPosDeletesOnParquetFileWithMultipleRowGroups() throws IOException {
-    assumeThat(format).isEqualTo("parquet");
+    assumeThat(format).isEqualTo(FileFormat.PARQUET);
 
     String tblName = "test3";
     Table tbl = createTable(tblName, SCHEMA, PartitionSpec.unpartitioned());
@@ -587,6 +678,7 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
         Iterable<InternalRow> records = RandomData.generateSpark(SCHEMA, 100, 34 * i + 37);
         writer.addAll(records);
       }
+      // Change for compile
       parquetFileWriter.appendFile(HadoopInputFile.fromPath(splitPath, conf));
     }
     parquetFileWriter.end(
@@ -606,16 +698,19 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
     // Add positional deletes to the table
     List<Pair<CharSequence, Long>> deletes =
         Lists.newArrayList(
-            Pair.of(dataFile.path(), 97L),
-            Pair.of(dataFile.path(), 98L),
-            Pair.of(dataFile.path(), 99L),
-            Pair.of(dataFile.path(), 101L),
-            Pair.of(dataFile.path(), 103L),
-            Pair.of(dataFile.path(), 107L),
-            Pair.of(dataFile.path(), 109L));
+            Pair.of(dataFile.location(), 97L),
+            Pair.of(dataFile.location(), 98L),
+            Pair.of(dataFile.location(), 99L),
+            Pair.of(dataFile.location(), 101L),
+            Pair.of(dataFile.location(), 103L),
+            Pair.of(dataFile.location(), 107L),
+            Pair.of(dataFile.location(), 109L));
     Pair<DeleteFile, CharSequenceSet> posDeletes =
         FileHelpers.writeDeleteFile(
-            table, Files.localOutput(File.createTempFile("junit", null, temp.toFile())), deletes);
+            table,
+            Files.localOutput(File.createTempFile("junit", null, temp.toFile())),
+            deletes,
+            formatVersion);
     tbl.newRowDelta()
         .addDeletes(posDeletes.first())
         .validateDataFilesExist(posDeletes.second())
@@ -629,10 +724,6 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
           required(1, "id", Types.IntegerType.get()),
           required(2, "data", Types.StringType.get()),
           MetadataColumns.IS_DELETED);
-
-  private static final Schema PROJECTION_SCHEMA_WITHOUT_DELETED =
-      new Schema(
-          required(1, "id", Types.IntegerType.get()), required(2, "data", Types.StringType.get()));
 
   private static StructLikeSet expectedRowSet(int... idsToRemove) {
     return expectedRowSet(false, false, idsToRemove);

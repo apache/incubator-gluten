@@ -37,6 +37,10 @@
 
 #include <algorithm>
 
+#ifdef GLUTEN_ENABLE_GPU
+#include "VeloxGpuShuffleReader.h"
+#endif
+
 using namespace facebook::velox;
 
 namespace gluten {
@@ -501,10 +505,14 @@ void VeloxHashShuffleReaderDeserializer::loadNextStream() {
     return;
   }
 
-  GLUTEN_ASSIGN_OR_THROW(
-      in_,
-      arrow::io::BufferedInputStream::Create(
-          readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+  if (readerBufferSize_ > 0) {
+    GLUTEN_ASSIGN_OR_THROW(
+          in_,
+          arrow::io::BufferedInputStream::Create(
+              readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+  } else {
+    in_ = std::move(in);
+  }
 }
 
 std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
@@ -656,10 +664,14 @@ void VeloxSortShuffleReaderDeserializer::loadNextStream() {
     GLUTEN_ASSIGN_OR_THROW(
         in_, CompressedInputStream::Make(codec_.get(), std::move(in), memoryManager_->defaultArrowMemoryPool()));
   } else {
-    GLUTEN_ASSIGN_OR_THROW(
-        in_,
-        arrow::io::BufferedInputStream::Create(
-            readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+    if (readerBufferSize_ > 0) {
+      GLUTEN_ASSIGN_OR_THROW(
+          in_,
+          arrow::io::BufferedInputStream::Create(
+              readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+    } else {
+      in_ = std::move(in);
+    }
   }
 }
 
@@ -807,6 +819,19 @@ VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(
 std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::createDeserializer(
     const std::shared_ptr<StreamReader>& streamReader) {
   switch (shuffleWriterType_) {
+    case ShuffleWriterType::kGpuHashShuffle:
+#ifdef GLUTEN_ENABLE_GPU
+      VELOX_CHECK(!hasComplexType_);
+      return std::make_unique<VeloxGpuHashShuffleReaderDeserializer>(
+          streamReader,
+          schema_,
+          codec_,
+          rowType_,
+          readerBufferSize_,
+          memoryManager_,
+          deserializeTime_,
+          decompressTime_);
+#endif
     case ShuffleWriterType::kHashShuffle:
       return std::make_unique<VeloxHashShuffleReaderDeserializer>(
           streamReader,

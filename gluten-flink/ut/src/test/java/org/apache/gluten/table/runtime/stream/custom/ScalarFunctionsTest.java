@@ -229,6 +229,24 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
     query = "select b + e as x from tblDecimal where a > 0";
     runAndCheck(query, Arrays.asList("+I[2.0]", "+I[5.0]", "+I[7.0]"));
+
+    query = "select a from tblDecimal where b > 2";
+    runAndCheck(query, Arrays.asList("+I[3]"));
+
+    query = "select a from tblDecimal where b > 2.0";
+    runAndCheck(query, Arrays.asList("+I[3]"));
+
+    query = "select a from tblDecimal where b > cast(2.0 as decimal(5,1))";
+    runAndCheck(query, Arrays.asList("+I[3]"));
+
+    query = "select a from tblDecimal where b < 2";
+    runAndCheck(query, Arrays.asList("+I[1]"));
+
+    query = "select a from tblDecimal where b < 2.0";
+    runAndCheck(query, Arrays.asList("+I[1]"));
+
+    query = "select a from tblDecimal where b < cast(2.0 as decimal(5,1))";
+    runAndCheck(query, Arrays.asList("+I[1]"));
   }
 
   @Test
@@ -293,5 +311,39 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
         Arrays.asList(
             "+I[1, 2024-12-31 12:12:12, 2024-12-31 20:12:12]",
             "+I[2, 2025-02-28 12:12:12, 2024-02-28 20:12:12]"));
+  }
+
+  @Test
+  void testNotEqual() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(new BigDecimal("1.2"), 1L, "2", "1"),
+            Row.of(new BigDecimal("2.2"), 2L, "2", "2"),
+            Row.of(new BigDecimal("3.2"), 3L, "2", "1"));
+    createSimpleBoundedValuesTable("tblLess", "a decimal(4,2), b bigint, c string, d string", rows);
+    String query = "select a <> 2.20 as x from tblLess where a > 0";
+    runAndCheck(query, Arrays.asList("+I[true]", "+I[false]", "+I[true]"));
+  }
+
+  @Test
+  void testIn() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, 1L, "2025-06-24 10:00:01", "1991-01-01 00:00:01"),
+            Row.of(2, 2L, "2025-06-24 10:00:02", "1991-01-01 00:00:02"),
+            Row.of(3, 3L, "2025-06-24 10:00:03", "1991-01-01 00:00:03"));
+    createSimpleBoundedValuesTable("tblIn", "a int, b bigint, c string, d string", rows);
+    String query = "select d from tblIn where a in(1,2)";
+    runAndCheck(query, Arrays.asList("+I[1991-01-01 00:00:01]", "+I[1991-01-01 00:00:02]"));
+    query = "select b from tblIn where c in('2025-06-24 10:00:02', '2025-06-24 10:00:03')";
+    runAndCheck(query, Arrays.asList("+I[2]", "+I[3]"));
+  }
+
+  @Test
+  void testIsNotNull() {
+    List<Row> rows = Arrays.asList(Row.of(1, 1L, "abc"), Row.of(2, 2L, null));
+    createSimpleBoundedValuesTable("tblIsNotNull", "a int, b bigint, c string", rows);
+    String query = "select a from tblIsNotNull where c is not null";
+    runAndCheck(query, Arrays.asList("+I[1]"));
   }
 }

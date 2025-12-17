@@ -31,6 +31,7 @@
 #include "velox/experimental/cudf/CudfConfig.h"
 #include "velox/experimental/cudf/connectors/hive/CudfHiveConnector.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
+#include "operators/plannodes/CudfVectorStream.h"
 #endif
 
 #include "compute/VeloxRuntime.h"
@@ -146,7 +147,7 @@ void VeloxBackend::init(
   // Set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
-  auto hiveConf = getHiveConfig(backendConf_);
+  auto hiveConf = createHiveConnectorConfig(backendConf_);
 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
@@ -177,6 +178,7 @@ void VeloxBackend::init(
     auto& cudfConfig = velox::cudf_velox::CudfConfig::getInstance();
     cudfConfig.initialize(std::move(options));
     velox::cudf_velox::registerCudf();
+    velox::exec::Operator::registerOperator(std::make_unique<CudfVectorStreamOperatorTranslator>());
   }
 #endif
 
@@ -187,8 +189,7 @@ void VeloxBackend::init(
   velox::parquet::registerParquetReaderFactory();
   velox::parquet::registerParquetWriterFactory();
   velox::orc::registerOrcReaderFactory();
-  velox::exec::ExprToSubfieldFilterParser::registerParserFactory(
-      []() { return std::make_shared<SparkExprToSubfieldFilterParser>(); });
+  velox::exec::ExprToSubfieldFilterParser::registerParser(std::make_unique<SparkExprToSubfieldFilterParser>());
 
   // Register Velox functions
   registerAllFunctions();

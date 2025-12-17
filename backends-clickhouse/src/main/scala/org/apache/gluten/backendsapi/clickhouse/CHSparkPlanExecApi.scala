@@ -849,10 +849,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     }
   }
 
-  /** Clickhouse Backend only supports part of filters for parquet. */
-  override def postProcessPushDownFilter(
-      extraFilters: Seq[Expression],
-      sparkExecNode: LeafExecNode): Seq[Expression] = {
+  override def supportPushDownFilterToScan(sparkExecNode: LeafExecNode): Boolean = {
     // FIXME: DeltaMergeTreeFileFormat should not inherit from ParquetFileFormat.
     def isParquetFormat(fileFormat: FileFormat): Boolean = fileFormat match {
       case p: ParquetFileFormat if p.shortName().equals("parquet") => true
@@ -870,12 +867,26 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExecTransformerBase
           if isParquetFormat(fileSourceScan.relation.fileFormat) =>
-        PushDownUtil.removeNotSupportPushDownFilters(
-          fileSourceScan.conf,
-          fileSourceScan.output,
-          fileSourceScan.dataFilters)
-      case _ => super.postProcessPushDownFilter(extraFilters, sparkExecNode)
+        false
+      case _ => true
     }
+  }
+
+  /** Clickhouse Backend only supports part of filters for parquet. */
+  override def isSupportedScanFilter(filter: Expression, sparkExecNode: LeafExecNode): Boolean = {
+    // FIXME: DeltaMergeTreeFileFormat should not inherit from ParquetFileFormat.
+    def isParquetFormat(fileFormat: FileFormat): Boolean = fileFormat match {
+      case p: ParquetFileFormat if p.shortName().equals("parquet") => true
+      case _ => false
+    }
+
+    val isSupported = sparkExecNode match {
+      case fileSourceScan: FileSourceScanExecTransformerBase
+          if isParquetFormat(fileSourceScan.relation.fileFormat) =>
+        PushDownUtil.isSupportPushDownFilter(fileSourceScan.conf, fileSourceScan.output, filter)
+      case _ => true
+    }
+    isSupported && super.isSupportedScanFilter(filter, sparkExecNode)
   }
 
   override def genGenerateTransformer(
@@ -1042,5 +1053,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       right,
       extract.get.last,
       original)
+  }
+
+  override def genMonthsBetweenTransformer(
+      substraitExprName: String,
+      date1: ExpressionTransformer,
+      date2: ExpressionTransformer,
+      roundOff: ExpressionTransformer,
+      original: MonthsBetween): ExpressionTransformer = {
+    CHMonthsBetweenTransformer(substraitExprName, date1, date2, roundOff, original)
   }
 }

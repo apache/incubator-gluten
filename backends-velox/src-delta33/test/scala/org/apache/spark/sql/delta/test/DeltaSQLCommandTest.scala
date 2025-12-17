@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.delta.test
 
+import org.apache.gluten.config.VeloxDeltaConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
@@ -44,9 +46,12 @@ trait DeltaSQLCommandTest extends SharedSparkSession {
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
-      .set("spark.sql.shuffle.partitions", "1")
+      .set("spark.sql.shuffle.partitions", "5")
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
+      .set(VeloxDeltaConfig.ENABLE_NATIVE_WRITE.key, "true")
+      .set("spark.databricks.delta.snapshotPartitions", "2")
+      .set("spark.gluten.sql.fallbackUnexpectedMetadataParquet", "true")
   }
 }
 // spotless:on

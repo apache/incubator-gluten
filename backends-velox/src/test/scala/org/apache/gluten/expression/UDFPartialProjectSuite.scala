@@ -28,6 +28,8 @@ import java.io.File
 
 case class MyStruct(a: Long, b: Array[Long])
 
+case class MyStructWithNullValue(a: Option[Long], b: Array[Long])
+
 class UDFPartialProjectSuiteRasOff extends UDFPartialProjectSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -81,7 +83,7 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
 
   ignore("test plus_one") {
     runQueryAndCompare("SELECT sum(plus_one(cast(l_orderkey as long))) from lineitem") {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
@@ -90,20 +92,20 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
       "select plus_one(" +
         "(select plus_one(count(*)) from (values (1)) t0(inner_c))) as col " +
         "from (values (2),(3)) t1(outer_c)") {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
   ignore("test plus_one with column used twice") {
     runQueryAndCompare(
       "SELECT sum(plus_one(cast(l_orderkey as long)) + hash(l_orderkey)) from lineitem") {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
   ignore("test plus_one without cast") {
     runQueryAndCompare("SELECT sum(plus_one(l_orderkey) + hash(l_orderkey)) from lineitem") {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
@@ -112,20 +114,20 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
       "SELECT sum(plus_one(cast(l_orderkey as long)) + hash(l_partkey))" +
         "from lineitem " +
         "where l_orderkey < 3") {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
   test("test plus_one with many columns in project") {
     runQueryAndCompare("SELECT plus_one(cast(l_orderkey as long)), hash(l_partkey) from lineitem") {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
   ignore("test function no argument") {
     runQueryAndCompare("""SELECT no_argument(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
@@ -142,7 +144,7 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
   test("udf in agg simple") {
     runQueryAndCompare("""select sum(hash(plus_one(l_extendedprice)) + hash(l_orderkey) ) as revenue
                          | from   lineitem""".stripMargin) {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
@@ -150,13 +152,13 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("""select sum(hash(plus_one(l_extendedprice)) * l_discount
                          | + hash(l_orderkey) + hash(l_comment)) as revenue
                          | from   lineitem""".stripMargin) {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
   test("test concat with string") {
     runQueryAndCompare("SELECT concat_concat(l_comment), hash(l_partkey) from lineitem") {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
@@ -172,7 +174,7 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                          | GROUP BY l_partkey
                          |)
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
@@ -193,7 +195,7 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                          | FROM lineitem
                          |)
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 
@@ -212,7 +214,7 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                          | FROM lineitem
                          |)
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
   // only SparkVersion >= 3.4 support columnar native writer
@@ -238,13 +240,36 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                                  |""".stripMargin) {
 
               if (enableNativeScanAndWriter.toBoolean) {
-                checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+                checkGlutenPlan[ColumnarPartialProjectExec]
               } else {
-                checkSparkOperatorMatch[ProjectExec]
+                checkSparkPlan[ProjectExec]
               }
             }
           }
         }
+    }
+  }
+
+  test("test struct data with null fields") {
+    spark.udf.register(
+      "struct_plus_one",
+      udf(
+        (m: MyStructWithNullValue) =>
+          MyStructWithNullValue(if (m.a.isEmpty) None else Some(m.a.get + 1), m.b.map(_ + 1))))
+    runQueryAndCompare("""
+                         |SELECT
+                         |  l_partkey,
+                         |  struct_plus_one(struct_data)
+                         |FROM (
+                         | SELECT l_partkey,
+                         | struct(
+                         |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END as a,
+                         |   array(l_orderkey % 2, l_orderkey % 2 + 1, l_orderkey % 2 + 2) as b
+                         | ) as struct_data
+                         | FROM lineitem
+                         |)
+                         |""".stripMargin) {
+      checkGlutenPlan[ColumnarPartialProjectExec]
     }
   }
 }

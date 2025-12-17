@@ -116,7 +116,10 @@ DB::QueryPlanPtr ProjectRelParser::parseReplicateRows(DB::QueryPlanPtr query_pla
 DB::QueryPlanPtr
 ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & /*rel_stack_*/)
 {
-    const auto & generate_rel = rel.generate();
+    ExpressionsRewriter rewriter(parser_context);
+    substrait::Rel final_rel = rel;
+    rewriter.rewrite(final_rel);
+    const auto & generate_rel = final_rel.generate();
     if (isReplicateRows(generate_rel))
     {
         return parseReplicateRows(std::move(query_plan), generate_rel);

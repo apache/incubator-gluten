@@ -36,7 +36,7 @@ Following softwares are required,
 - cmake 3.20 or higher version
 - ninja-build 1.8.2
 
-You can run `sudo $gluten_root/ep/build-clickhouse/src/install_ubuntu.sh` to setup the requirements. We also provide a [docker file](../../cpp-ch/local-engine/docker/image/Dockerfile), you can build your own image
+You can run `sudo $gluten_root/ep/build-clickhouse/src/install-ubuntu.sh` to setup the requirements. We also provide a [docker file](../../cpp-ch/local-engine/docker/image/Dockerfile), you can build your own image
 ```shell
 cd $gluten_root/cpp-ch/local-engine/docker/image/
 docker build . -t libch_builder
@@ -96,7 +96,7 @@ If you have setup all requirements, you can use following command to build it di
 
 ```bash
 cd $gluten_root
-bash ./ep/build-clickhouse/src/build_clickhouse.sh
+bash ./ep/build-clickhouse/src/build-clickhouse.sh
 ```
 
 

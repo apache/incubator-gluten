@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.MetricsApi
-import org.apache.gluten.config.{HashShuffleWriterType, RssSortShuffleWriterType, ShuffleWriterType, SortShuffleWriterType}
+import org.apache.gluten.config.{GpuHashShuffleWriterType, HashShuffleWriterType, RssSortShuffleWriterType, ShuffleWriterType, SortShuffleWriterType}
 import org.apache.gluten.metrics._
 import org.apache.gluten.substrait.{AggregationParams, JoinParams}
 
@@ -95,9 +95,9 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
       "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of batch scan"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of scan and filter"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan time"),
+      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of scan"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
@@ -108,6 +108,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
+      "pageLoadTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "page load time"),
       "dataSourceAddSplitTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "data source add split time"),
@@ -158,6 +159,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
+      "pageLoadTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "page load time"),
       "dataSourceAddSplitTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "data source add split time"),
@@ -208,6 +210,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
+      "pageLoadTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "page load time"),
       "dataSourceAddSplitTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "data source add split time"),
@@ -367,7 +370,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "peakBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak bytes allocated")
     )
     shuffleWriterType match {
-      case HashShuffleWriterType =>
+      case HashShuffleWriterType | GpuHashShuffleWriterType =>
         baseMetrics ++ Map(
           "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
           "avgDictionaryFields" -> SQLMetrics
@@ -459,6 +462,14 @@ class VeloxMetricsApi extends MetricsApi with Logging {
 
   def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
     new WriteFilesMetricsUpdater(metrics)
+
+  def genBatchWriteMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "numWrittenBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of written bytes"),
+      "writeIOTimeNs" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write IO"),
+      "writeWallNs" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write"),
+      "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")
+    )
 
   override def genSortTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(

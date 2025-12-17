@@ -66,9 +66,10 @@ import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap}
+import java.util.{Map => JMap}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
@@ -248,31 +249,29 @@ class Spark35Shims extends SparkShims {
 
   override def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String]): JMap[String, String] = {
-    val metadataColumn = new JHashMap[String, String]()
+      metadataColumnNames: Seq[String]): Map[String, String] = {
+    val originMetadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
+    val metadataColumn: mutable.Map[String, String] = mutable.Map(originMetadataColumn.toSeq: _*)
     val path = new Path(file.filePath.toString)
     for (columnName <- metadataColumnNames) {
       columnName match {
-        case FileFormat.FILE_PATH => metadataColumn.put(FileFormat.FILE_PATH, path.toString)
-        case FileFormat.FILE_NAME => metadataColumn.put(FileFormat.FILE_NAME, path.getName)
+        case FileFormat.FILE_PATH => metadataColumn += (FileFormat.FILE_PATH -> path.toString)
+        case FileFormat.FILE_NAME => metadataColumn += (FileFormat.FILE_NAME -> path.getName)
         case FileFormat.FILE_SIZE =>
-          metadataColumn.put(FileFormat.FILE_SIZE, file.fileSize.toString)
+          metadataColumn += (FileFormat.FILE_SIZE -> file.fileSize.toString)
         case FileFormat.FILE_MODIFICATION_TIME =>
           val fileModifyTime = TimestampFormatter
             .getFractionFormatter(ZoneOffset.UTC)
             .format(file.modificationTime * 1000L)
-          metadataColumn.put(FileFormat.FILE_MODIFICATION_TIME, fileModifyTime)
+          metadataColumn += (FileFormat.FILE_MODIFICATION_TIME -> fileModifyTime)
         case FileFormat.FILE_BLOCK_START =>
-          metadataColumn.put(FileFormat.FILE_BLOCK_START, file.start.toString)
+          metadataColumn += (FileFormat.FILE_BLOCK_START -> file.start.toString)
         case FileFormat.FILE_BLOCK_LENGTH =>
-          metadataColumn.put(FileFormat.FILE_BLOCK_LENGTH, file.length.toString)
+          metadataColumn += (FileFormat.FILE_BLOCK_LENGTH -> file.length.toString)
         case _ =>
       }
     }
-    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
-    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
-    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
-    metadataColumn
+    metadataColumn.toMap
   }
 
   // https://issues.apache.org/jira/browse/SPARK-40400
@@ -601,6 +600,7 @@ class Spark35Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.ANSI
       case d: Divide => d.evalMode == EvalMode.ANSI
       case m: Multiply => m.evalMode == EvalMode.ANSI
+      case i: IntegralDivide => i.evalMode == EvalMode.ANSI
       case _ => false
     }
   }
@@ -715,4 +715,7 @@ class Spark35Shims extends SparkShims {
     DecimalPrecision.widerDecimalType(d1, d2)
   }
 
+  override def getErrorMessage(raiseError: RaiseError): Option[Expression] = {
+    Some(raiseError.child)
+  }
 }

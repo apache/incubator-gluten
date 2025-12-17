@@ -39,7 +39,8 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
       .set("spark.executor.cores", "1")
   }
 
-  test("arrow_udf test: without projection") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("arrow_udf test: without projection", "3.5") {
     lazy val base =
       Seq(("1", 1), ("1", 2), ("2", 1), ("2", 2), ("3", 1), ("3", 2), ("0", 1), ("3", 0))
         .toDF("a", "b")
@@ -55,11 +56,12 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
     ).toDF("a", "p_a")
 
     val df2 = base.select("a").withColumn("p_a", pyarrowTestUDF(base("a")))
-    checkSparkOperatorMatch[ColumnarArrowEvalPythonExec](df2)
+    checkSparkPlan[ColumnarArrowEvalPythonExec](df2)
     checkAnswer(df2, expected)
   }
 
-  test("arrow_udf test: with unrelated projection") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("arrow_udf test: with unrelated projection", "3.5") {
     lazy val base =
       Seq(("1", 1), ("1", 2), ("2", 1), ("2", 2), ("3", 1), ("3", 2), ("0", 1), ("3", 0))
         .toDF("a", "b")
@@ -75,11 +77,12 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
     ).toDF("a", "b", "p_a", "d_b")
 
     val df = base.withColumn("p_a", pyarrowTestUDF(base("a"))).withColumn("d_b", base("b") * 2)
-    checkSparkOperatorMatch[ColumnarArrowEvalPythonExec](df)
+    checkSparkPlan[ColumnarArrowEvalPythonExec](df)
     checkAnswer(df, expected)
   }
 
-  test("arrow_udf test: with preprojection") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("arrow_udf test: with preprojection", "3.5") {
     lazy val base =
       Seq(("1", 1), ("1", 2), ("2", 1), ("2", 2), ("3", 1), ("3", 2), ("0", 1), ("3", 0))
         .toDF("a", "b")

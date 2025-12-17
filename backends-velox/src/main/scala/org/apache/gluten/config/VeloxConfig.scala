@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
 
 /*
  * Note: Gluten configiguration.md is automatically generated from this code.
- * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
  */
 class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   import VeloxConfig._
@@ -64,9 +64,6 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def veloxOrcScanEnabled: Boolean =
     getConf(VELOX_ORC_SCAN_ENABLED)
 
-  def enablePropagateIgnoreNullKeys: Boolean =
-    getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
-
   def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
 
   def enableRewriteCastArrayToString: Boolean =
@@ -80,6 +77,14 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
 
   def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
+
+  def cudfEnableValidation: Boolean = getConf(CUDF_ENABLE_VALIDATION)
+
+  def cudfBatchSize: Int = getConf(CUDF_BATCH_SIZE)
+
+  def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
+
+  def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
 }
 
 object VeloxConfig extends ConfigRegistry {
@@ -588,15 +593,6 @@ object VeloxConfig extends ConfigRegistry {
       .stringConf
       .createWithDefault("")
 
-  val VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.velox.propagateIgnoreNullKeys")
-      .doc(
-        "If enabled, we will identify aggregation followed by an inner join " +
-          "on the grouping keys, and mark the ignoreNullKeys flag to true to " +
-          "avoid unnecessary aggregation on null keys.")
-      .booleanConf
-      .createWithDefault(true)
-
   val FLOATING_POINT_MODE =
     buildConf("spark.gluten.sql.columnar.backend.velox.floatingPointMode")
       .doc(
@@ -631,6 +627,20 @@ object VeloxConfig extends ConfigRegistry {
       .doc("Enable cudf table scan")
       .booleanConf
       .createWithDefault(false)
+
+  val CUDF_ENABLE_VALIDATION =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableValidation")
+      .doc(
+        "Heuristics you can apply to validate a cuDF/GPU plan and only offload when " +
+          "the entire stage can be fully and profitably executed on GPU")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CUDF_BATCH_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.cudf.batchSize")
+      .doc("Cudf input batch size after shuffle reader")
+      .intConf
+      .createWithDefault(Integer.MAX_VALUE)
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
@@ -677,4 +687,16 @@ object VeloxConfig extends ConfigRegistry {
           "instance per thread of execution.")
       .intConf
       .createWithDefault(100)
+
+  val ORC_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.orcUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for ORC files.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val PARQUET_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.parquetUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for Parquet files.")
+      .booleanConf
+      .createWithDefault(true)
 }

@@ -56,7 +56,8 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "regexp_extract",
     "regexp_extract_all",
     "regexp_replace",
-    "rlike"};
+    "rlike",
+    "split"};
 
 const std::unordered_set<std::string> kBlackList =
     {"split_part", "sequence", "approx_percentile", "map_from_arrays"};
@@ -438,7 +439,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
           default:
             LOG_VALIDATION_MSG(
                 "Validation failed for input type validation in WriteRel, not support partition column type: " +
-                mapTypeKindToName(types[i]->kind()));
+                std::string(TypeKindName::toName(types[i]->kind())));
             return false;
         }
       }
@@ -1101,13 +1102,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT_SEMI:
       break;
-    case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
-      if (crossRel.has_expression()) {
-        LOG_VALIDATION_MSG("Full outer join type with condition is not supported in CrossRel");
-        return false;
-      } else {
-        break;
-      }
     default:
       LOG_VALIDATION_MSG("Unsupported Join type in CrossRel");
       return false;
@@ -1156,7 +1150,8 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     }
     auto baseFuncName =
         SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
-    auto funcName = planConverter_->toAggregationFunctionName(baseFuncName, funcStep);
+    auto resultType = SubstraitParser::parseType(aggFunction.output_type());
+    auto funcName = planConverter_->toAggregationFunctionName(baseFuncName, funcStep, resultType);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
       LOG_VALIDATION_MSG("can not find function signature for " + funcName + " in AggregateRel.");
@@ -1167,8 +1162,23 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     for (const auto& signature : signaturesOpt.value()) {
       exec::SignatureBinder binder(*signature, types);
       if (binder.tryBind()) {
-        auto resolveType = binder.tryResolveType(
-            exec::isPartialOutput(funcStep) ? signature->intermediateType() : signature->returnType());
+        TypePtr resolveType = nullptr;
+        try {
+          resolveType = binder.tryResolveType(
+              exec::isPartialOutput(funcStep) ? signature->intermediateType() : signature->returnType());
+        } catch (const VeloxException& e) {
+          if (!exec::isPartialOutput(funcStep) && funcName.find("merge_extract") != std::string::npos) {
+            // For the merge_extract companion function, result
+            // types may not always be inferable from the intermediate types. As a
+            // result, an exception might be thrown during the type resolution process.  More
+            // details can be found in
+            // https://github.com/facebookincubator/velox/pull/11999#issuecomment-3274577979
+            // and https://github.com/facebookincubator/velox/issues/12830.
+            resolved = true;
+            break;
+          }
+        }
+
         if (resolveType == nullptr) {
           LOG_VALIDATION_MSG("Validation failed for function " + funcName + " resolve type in AggregateRel.");
           return false;
@@ -1438,6 +1448,28 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
     return false;
   } catch (const VeloxException& err) {
     LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
+    return false;
+  }
+}
+
+bool SubstraitToVeloxPlanValidator::validate(
+    const ::substrait::Expression& expression,
+    const RowTypePtr& inputType,
+    std::unordered_map<uint64_t, std::string> functionMappings) {
+  try {
+    // Create plan converter and expression converter to help the validation.
+    planConverter_->constructFunctionMap(std::move(functionMappings));
+    exprConverter_ = planConverter_->getExprConverter();
+
+    if (!validateExpression(expression, inputType)) {
+      return false;
+    }
+    std::vector<core::TypedExprPtr> expressions{exprConverter_->toVeloxExpr(expression, inputType)};
+    // Try to compile the expressions. If there is any unregistered function or
+    // mismatched type, exception will be thrown.
+    exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
+    return true;
+  } catch (const VeloxException& err) {
     return false;
   }
 }

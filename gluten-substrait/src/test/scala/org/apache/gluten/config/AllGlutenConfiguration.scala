@@ -36,12 +36,12 @@ import scala.io.Source
  *
  * To run the entire test suite:
  * {{{
- *   GLUTEN_UPDATE=0 dev/gen_all_config_docs.sh
+ *   GLUTEN_UPDATE=0 dev/gen-all-config-docs.sh
  * }}}
  *
  * To re-generate golden files for entire suite, run:
  * {{{
- *   dev/gen_all_config_docs.sh
+ *   dev/gen-all-config-docs.sh
  * }}}
  */
 class AllGlutenConfiguration extends AnyFunSuite {
@@ -142,7 +142,7 @@ class AllGlutenConfiguration extends AnyFunSuite {
     AllGlutenConfiguration.verifyOrRegenerateGoldenFile(
       markdown,
       builder.toMarkdown,
-      "dev/gen_all_config_docs.sh")
+      "dev/gen-all-config-docs.sh")
   }
 }
 

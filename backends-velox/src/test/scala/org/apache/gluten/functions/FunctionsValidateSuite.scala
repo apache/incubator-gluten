@@ -51,7 +51,7 @@ class FunctionsValidateSuite extends WholeStageTransformerSuite {
     super.beforeAll()
     createTPCHNotNullTables()
 
-    val lfile = Files.createTempFile("", ".parquet").toFile
+    val lfile = Files.createTempDirectory("temp-parquet").toFile
     lfile.deleteOnExit()
     parquetPath = lfile.getAbsolutePath
 

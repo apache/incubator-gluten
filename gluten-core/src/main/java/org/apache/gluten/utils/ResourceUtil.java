@@ -57,7 +57,7 @@ public class ResourceUtil {
     final List<String> buffer = new ArrayList<>();
     final Enumeration<URL> containerUrls;
     try {
-      containerUrls = Thread.currentThread().getContextClassLoader().getResources(container);
+      containerUrls = ResourceUtil.class.getClassLoader().getResources(container);
     } catch (IOException e) {
       throw new GlutenException(e);
     }

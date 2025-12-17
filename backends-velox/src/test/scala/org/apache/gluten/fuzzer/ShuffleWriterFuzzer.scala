@@ -35,7 +35,7 @@ class ShuffleWriterFuzzer extends FuzzerBase {
   private val outputPath = getClass.getResource("/").getPath + "fuzzer_output.parquet"
 
   private def checkOperators(df: DataFrame): Unit = {
-    checkGlutenOperatorMatch[ColumnarShuffleExchangeExec](df)
+    checkGlutenPlan[ColumnarShuffleExchangeExec](df)
   }
 
   def testShuffle(sql: String): () => Unit =

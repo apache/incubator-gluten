@@ -43,7 +43,7 @@ static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
 static constexpr bool kDefaultEnableDictionary = false;
 
-enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
+enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle, kGpuHashShuffle };
 
 enum class PartitionWriterType { kLocal, kRss };
 
@@ -91,6 +91,19 @@ struct HashShuffleWriterOptions : ShuffleWriterOptions {
       : ShuffleWriterOptions(ShuffleWriterType::kHashShuffle, partitioning, startPartitionId),
         splitBufferSize(partitionBufferSize),
         splitBufferReallocThreshold(partitionBufferReallocThreshold) {}
+
+ protected:
+  HashShuffleWriterOptions(ShuffleWriterType shuffleWriterType) : ShuffleWriterOptions(shuffleWriterType) {}
+
+  HashShuffleWriterOptions(
+      ShuffleWriterType shuffleWriterType,
+      Partitioning partitioning,
+      int32_t startPartitionId,
+      int32_t partitionBufferSize,
+      double partitionBufferReallocThreshold)
+      : ShuffleWriterOptions(shuffleWriterType, partitioning, startPartitionId),
+        splitBufferSize(partitionBufferSize),
+        splitBufferReallocThreshold(partitionBufferReallocThreshold) {}
 };
 
 struct SortShuffleWriterOptions : ShuffleWriterOptions {
@@ -129,6 +142,25 @@ struct RssSortShuffleWriterOptions : ShuffleWriterOptions {
         splitBufferSize(splitBufferSize),
         sortBufferMaxSize(sortBufferMaxSize),
         compressionType(compressionType) {}
+};
+
+struct GpuHashShuffleWriterOptions : HashShuffleWriterOptions {
+  int32_t splitBufferSize = kDefaultShuffleWriterBufferSize;
+  double splitBufferReallocThreshold = kDefaultSplitBufferReallocThreshold;
+
+  GpuHashShuffleWriterOptions() : HashShuffleWriterOptions(ShuffleWriterType::kGpuHashShuffle) {}
+
+  GpuHashShuffleWriterOptions(
+      Partitioning partitioning,
+      int32_t startPartitionId,
+      int32_t partitionBufferSize,
+      double partitionBufferReallocThreshold)
+      : HashShuffleWriterOptions(
+            ShuffleWriterType::kGpuHashShuffle,
+            partitioning,
+            startPartitionId,
+            partitionBufferSize,
+            partitionBufferReallocThreshold) {}
 };
 
 struct LocalPartitionWriterOptions {

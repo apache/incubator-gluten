@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.paths.SparkPath
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.PartitionedFileUtil
@@ -57,6 +58,22 @@ object PartitionedFileUtilShim {
     }
   }
 
+  private lazy val getPartitionedFileByPathSizeMethod: Method = {
+    try {
+      val m = clz.getDeclaredMethod(
+        "getPartitionedFile",
+        classOf[FileStatusWithMetadata],
+        classOf[Path],
+        classOf[InternalRow],
+        classOf[Long],
+        classOf[Long])
+      m.setAccessible(true)
+      m
+    } catch {
+      case _: NoSuchMethodException => null
+    }
+  }
+
   def getPartitionedFile(
       file: FileStatusWithMetadata,
       partitionValues: InternalRow): PartitionedFile = {
@@ -67,6 +84,10 @@ object PartitionedFileUtilShim {
     } else if (getPartitionedFileByPathMethod != null) {
       getPartitionedFileByPathMethod
         .invoke(module, file, file.getPath, partitionValues)
+        .asInstanceOf[PartitionedFile]
+    } else if (getPartitionedFileByPathSizeMethod != null) {
+      getPartitionedFileByPathSizeMethod
+        .invoke(module, file, file.getPath, partitionValues, 0, file.getLen)
         .asInstanceOf[PartitionedFile]
     } else {
       val params = clz.getDeclaredMethods
@@ -146,4 +167,8 @@ object PartitionedFileUtilShim {
     }
   }
 
+  // Helper method to create PartitionedFile from path and length.
+  def makePartitionedFileFromPath(path: String, length: Long): PartitionedFile = {
+    PartitionedFile(null, SparkPath.fromPathString(path), 0, length, Array.empty)
+  }
 }

@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
-import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.{StructField, StructType}
 
 import org.apache.hadoop.conf.Configuration
 
@@ -39,7 +39,8 @@ trait BackendSettingsApi {
 
   def validateScanExec(
       format: ReadFileFormat,
-      fields: Array[StructField],
+      fields: Array[StructField], // the fields to be output
+      dataSchema: StructType, // the schema of the table
       rootPaths: Seq[String],
       properties: Map[String, String],
       hadoopConf: Configuration): ValidationResult =
@@ -148,8 +149,6 @@ trait BackendSettingsApi {
 
   def needPreComputeRangeFrameBoundary(): Boolean = false
 
-  def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = false
-
   def supportIcebergEqualityDeleteRead(): Boolean = true
 
   def reorderColumnsForPartitionWrite(): Boolean = false
@@ -163,4 +162,7 @@ trait BackendSettingsApi {
   def supportOverwriteByExpression(): Boolean = false
 
   def supportOverwritePartitionsDynamic(): Boolean = false
+
+  /** Whether the backend supports columnar shuffle with empty schema. */
+  def supportEmptySchemaColumnarShuffle(): Boolean = true
 }

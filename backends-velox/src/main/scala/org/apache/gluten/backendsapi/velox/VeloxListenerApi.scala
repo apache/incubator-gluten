@@ -27,6 +27,7 @@ import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
 import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
 import org.apache.gluten.memory.listener.ReservationListener
+import org.apache.gluten.memory.memtarget.MemoryTarget
 import org.apache.gluten.monitor.VeloxMemoryProfiler
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
@@ -276,15 +277,16 @@ object VeloxListenerApi {
   private def newGlobalOffHeapMemoryListener(): ReservationListener = {
     new ReservationListener {
       private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
+      private val target: MemoryTarget = GlobalOffHeapMemory.target
 
       override def reserve(size: Long): Long = {
-        GlobalOffHeapMemory.acquire(size)
+        assert(target.borrow(size) == size)
         recorder.inc(size)
         size
       }
 
       override def unreserve(size: Long): Long = {
-        GlobalOffHeapMemory.release(size)
+        assert(target.repay(size) == size)
         recorder.inc(-size)
         size
       }

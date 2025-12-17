@@ -22,7 +22,7 @@ import org.apache.gluten.execution.InternalRowGetVariantCompatible
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.{ColumnarArray, ColumnarMap, ColumnarRow}
+import org.apache.spark.sql.vectorized.{ColumnarArray, ColumnarMap}
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
 import java.math.BigDecimal
@@ -30,10 +30,9 @@ import java.math.BigDecimal
 // Copy from Spark MutableColumnarRow mostly but class member columns' type is
 // ArrowWritableColumnVector. And support string and binary type to write,
 // Arrow writer does not need to setNotNull before writing a value.
-final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector])
+final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector], var rowId: Int = 0)
   extends InternalRowGetVariantCompatible {
 
-  var rowId: Int = 0
   private val columns: Array[ArrowWritableColumnVector] = writableColumns
 
   override def numFields(): Int = columns.length
@@ -109,8 +108,8 @@ final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector])
   override def getInterval(ordinal: Int): CalendarInterval =
     columns(ordinal).getInterval(rowId)
 
-  override def getStruct(ordinal: Int, numFields: Int): ColumnarRow =
-    columns(ordinal).getStruct(rowId)
+  override def getStruct(ordinal: Int, numFields: Int): ArrowColumnarRow =
+    columns(ordinal).getStructInternal(rowId)
 
   override def getArray(ordinal: Int): ColumnarArray =
     columns(ordinal).getArray(rowId)
@@ -118,23 +117,28 @@ final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector])
   override def getMap(ordinal: Int): ColumnarMap =
     columns(ordinal).getMap(rowId)
 
-  override def get(ordinal: Int, dataType: DataType): AnyRef = dataType match {
-    case _: BooleanType => java.lang.Boolean.valueOf(getBoolean(ordinal))
-    case _: ByteType => java.lang.Byte.valueOf(getByte(ordinal))
-    case _: ShortType => java.lang.Short.valueOf(getShort(ordinal))
-    case _: IntegerType => java.lang.Integer.valueOf(getInt(ordinal))
-    case _: LongType => java.lang.Long.valueOf(getLong(ordinal))
-    case _: FloatType => java.lang.Float.valueOf(getFloat(ordinal))
-    case _: DoubleType => java.lang.Double.valueOf(getDouble(ordinal))
-    case _: StringType => getUTF8String(ordinal)
-    case _: BinaryType => getBinary(ordinal)
-    case t: DecimalType => getDecimal(ordinal, t.precision, t.scale)
-    case _: DateType => java.lang.Integer.valueOf(getInt(ordinal))
-    case _: TimestampType => java.lang.Long.valueOf(getLong(ordinal))
-    case _: ArrayType => getArray(ordinal)
-    case s: StructType => getStruct(ordinal, s.fields.length)
-    case _: MapType => getMap(ordinal)
-    case _ => throw new UnsupportedOperationException(s"Datatype not supported $dataType")
+  override def get(ordinal: Int, dataType: DataType): AnyRef = {
+    if (isNullAt(ordinal)) {
+      return null
+    }
+    dataType match {
+      case _: BooleanType => java.lang.Boolean.valueOf(getBoolean(ordinal))
+      case _: ByteType => java.lang.Byte.valueOf(getByte(ordinal))
+      case _: ShortType => java.lang.Short.valueOf(getShort(ordinal))
+      case _: IntegerType => java.lang.Integer.valueOf(getInt(ordinal))
+      case _: LongType => java.lang.Long.valueOf(getLong(ordinal))
+      case _: FloatType => java.lang.Float.valueOf(getFloat(ordinal))
+      case _: DoubleType => java.lang.Double.valueOf(getDouble(ordinal))
+      case _: StringType => getUTF8String(ordinal)
+      case _: BinaryType => getBinary(ordinal)
+      case t: DecimalType => getDecimal(ordinal, t.precision, t.scale)
+      case _: DateType => java.lang.Integer.valueOf(getInt(ordinal))
+      case _: TimestampType => java.lang.Long.valueOf(getLong(ordinal))
+      case _: ArrayType => getArray(ordinal)
+      case s: StructType => getStruct(ordinal, s.fields.length)
+      case _: MapType => getMap(ordinal)
+      case _ => throw new UnsupportedOperationException(s"Datatype not supported $dataType")
+    }
   }
 
   override def update(ordinal: Int, value: Any): Unit = {

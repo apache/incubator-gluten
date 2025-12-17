@@ -23,8 +23,6 @@ import org.apache.spark.sql.functions.{lit, struct}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.StructType
 
-import shims.DeltaExcludedBySparkVersionTestMixinShims
-
 // spotless:off
 abstract class DeleteSuiteBase extends QueryTest
   with SharedSparkSession

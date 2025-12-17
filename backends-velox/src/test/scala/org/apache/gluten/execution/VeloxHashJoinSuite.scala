@@ -94,7 +94,10 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
       val wholeStages = plan.collect { case wst: WholeStageTransformer => wst }
       if (SparkShimLoader.getSparkVersion.startsWith("3.2.")) {
         assert(wholeStages.length == 1)
-      } else if (SparkShimLoader.getSparkVersion.startsWith("3.5.")) {
+      } else if (
+        SparkShimLoader.getSparkVersion.startsWith("3.5.") ||
+        SparkShimLoader.getSparkVersion.startsWith("4.0.")
+      ) {
         assert(wholeStages.length == 5)
       } else {
         assert(wholeStages.length == 3)
@@ -159,8 +162,8 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
     Seq("true", "false").foreach(
       enabledOffheapBroadcast =>
         withSQLConf(
-          (GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key -> "16"),
-          (VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key -> enabledOffheapBroadcast)) {
+          GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key -> "16",
+          VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key -> enabledOffheapBroadcast) {
           withTable("t1", "t2") {
             spark.sql("""
                         |CREATE TABLE t1 USING PARQUET

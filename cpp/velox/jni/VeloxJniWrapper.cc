@@ -41,6 +41,7 @@
 
 #ifdef GLUTEN_ENABLE_GPU
 #include "cudf/CudfPlanValidator.h"
+#include "utils/GpuBufferBatchResizer.h"
 #endif
 
 #ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
@@ -56,6 +57,9 @@ jmethodID infoClsInitMethod;
 
 jclass blockStripesClass;
 jmethodID blockStripesConstructor;
+
+jclass batchWriteMetricsClass;
+jmethodID batchWriteMetricsConstructor;
 } // namespace
 
 #ifdef __cplusplus
@@ -79,6 +83,10 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
   blockStripesConstructor = getMethodIdOrError(env, blockStripesClass, "<init>", "(J[J[II[[B)V");
+
+  batchWriteMetricsClass =
+    createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/BatchWriteMetrics;");
+  batchWriteMetricsConstructor = getMethodIdOrError(env, batchWriteMetricsClass, "<init>", "(JIJJ)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
 
@@ -173,6 +181,59 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
     return env->NewObject(infoCls, infoClsInitMethod, false, env->NewStringUTF(""));
   }
   JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateExpression( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jbyteArray exprArray,
+    jbyteArray inputTypeArray,
+    jobjectArray mappings) {
+  JNI_METHOD_START
+  auto safeExprArray = getByteArrayElementsSafe(env, exprArray);
+  auto safeInputTypeArray = getByteArrayElementsSafe(env, inputTypeArray);
+  auto exprData = safeExprArray.elems();
+  auto exprSize = env->GetArrayLength(exprArray);
+  auto inputTypeData = safeInputTypeArray.elems();
+  auto inputTypeSize = env->GetArrayLength(inputTypeArray);
+
+  ::substrait::Expression expression;
+  parseProtobuf(exprData, exprSize, &expression);
+  ::substrait::Type inputSubstraitType;
+  parseProtobuf(inputTypeData, inputTypeSize, &inputSubstraitType);
+
+  // Get the function mappings.
+  auto mappingSize = env->GetArrayLength(mappings);
+  std::unordered_map<uint64_t, std::string> functionMappings;
+  for (jsize i = 0; i < mappingSize; ++i) {
+    jbyteArray mapping = (jbyteArray)env->GetObjectArrayElement(mappings, i);
+    auto safeMappingArray = getByteArrayElementsSafe(env, mapping);
+    auto mappingData = safeMappingArray.elems();
+    auto mappingSize = env->GetArrayLength(mapping);
+
+    ::substrait::extensions::SimpleExtensionDeclaration mappingDecl;
+    parseProtobuf(mappingData, mappingSize, &mappingDecl);
+
+    const auto& sFmap = mappingDecl.extension_function();
+    auto id = sFmap.function_anchor();
+    auto name = sFmap.name();
+    functionMappings.emplace(id, name);
+  }
+
+  auto pool = defaultLeafVeloxMemoryPool().get();
+  SubstraitToVeloxPlanValidator planValidator(pool);
+  auto inputType = SubstraitParser::parseType(inputSubstraitType);
+  if (inputType->kind() != TypeKind::ROW) {
+    throw GlutenException("Input type is not a RowType.");
+  }
+  auto rowType = std::dynamic_pointer_cast<const RowType>(inputType);
+  try {
+    return planValidator.validate(expression, rowType, std::move(functionMappings));
+  } catch (std::invalid_argument& e) {
+    return false;
+  }
+  JNI_METHOD_END(false)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_from( // NOLINT
@@ -381,6 +442,24 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchResizerJniWrapper
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
+#ifdef GLUTEN_ENABLE_GPU
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_GpuBufferBatchResizerJniWrapper_create( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jint minOutputBatchSize,
+    jobject jIter) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto arrowPool = dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager())->defaultArrowMemoryPool();
+  auto pool = dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager())->getLeafMemoryPool();
+  auto iter = makeJniColumnarBatchIterator(env, jIter, ctx);
+  auto appender = std::make_shared<ResultIterator>(
+      std::make_unique<GpuBufferBatchResizer>(arrowPool, pool.get(), minOutputBatchSize, std::move(iter)));
+  return ctx->saveObject(appender);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+#endif
+
 JNIEXPORT jboolean JNICALL
 Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_allSupportedByRegisteredFileSystems( // NOLINT
     JNIEnv* env,
@@ -499,8 +578,13 @@ Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_splitBlockByPartitio
   const auto inputRowVector = veloxBatch->getRowVector();
   const auto numRows = inputRowVector->size();
 
-  connector::hive::PartitionIdGenerator idGen{
-      asRowType(inputRowVector->type()), partitionColIndicesVec, 128, pool.get(), true};
+  connector::hive::PartitionIdGenerator idGen(
+      asRowType(inputRowVector->type()), partitionColIndicesVec, 128, pool.get()
+#ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
+      ,
+      true
+#endif    
+    );
   raw_vector<uint64_t> partitionIds{};
   idGen.run(inputRowVector, partitionIds);
   GLUTEN_CHECK(partitionIds.size() == numRows, "Mismatched number of partition ids");
@@ -608,7 +692,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_start(
   JNI_METHOD_START
 #ifdef ENABLE_JEMALLOC_STATS
   bool active = true;
-  mallctl("prof.active", NULL, NULL, &active, sizeof(bool));
+  mallctl("prof.active", nullptr, nullptr, &active, sizeof(bool));
 #endif
   JNI_METHOD_END()
 }
@@ -618,7 +702,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_dump( 
     jclass) {
   JNI_METHOD_START
 #ifdef ENABLE_JEMALLOC_STATS
-  mallctl("prof.dump", NULL, NULL, NULL, 0);
+  mallctl("prof.dump", nullptr, nullptr, nullptr, 0);
 #endif
   JNI_METHOD_END()
 }
@@ -629,7 +713,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_stop( 
   JNI_METHOD_START
 #ifdef ENABLE_JEMALLOC_STATS
   bool active = false;
-  mallctl("prof.active", NULL, NULL, &active, sizeof(bool));
+  mallctl("prof.active", nullptr, nullptr, &active, sizeof(bool));
 #endif
   JNI_METHOD_END()
 }
@@ -808,6 +892,25 @@ JNIEXPORT jobjectArray JNICALL Java_org_apache_gluten_execution_IcebergWriteJniW
     env->SetObjectArrayElement(ret, i, env->NewStringUTF(commitMessages[i].data()));
   }
   return ret;
+
+  JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jobject JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_metrics( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong writerHandle) {
+  JNI_METHOD_START
+  auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
+  auto writeStats = writer->writeStats();
+  jobject writeMetrics = env->NewObject(
+    batchWriteMetricsClass,
+    batchWriteMetricsConstructor,
+    writeStats.numWrittenBytes,
+    writeStats.numWrittenFiles,
+    writeStats.writeIOTimeNs,
+    writeStats.writeWallNs);
+  return writeMetrics;
 
   JNI_METHOD_END(nullptr)
 }

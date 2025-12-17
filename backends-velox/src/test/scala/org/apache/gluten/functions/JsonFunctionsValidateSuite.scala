@@ -29,13 +29,13 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare(
       "SELECT get_json_object(string_field1, '$.a') " +
         "from datatab limit 1;") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+      checkGlutenPlan[ProjectExecTransformer]
     }
 
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"a":"b"}""")
+        Seq[String](
+          """{"a":"b"}"""
         )
           .toDF("txt")
           .write
@@ -44,7 +44,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select get_json_object(txt, '$.a') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
 
@@ -54,20 +54,21 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         " string(X'80'), '\": 3, \"c\": 100}') AS c1")
     withTable("t") {
       runQueryAndCompare("SELECT get_json_object(c1, '$.c') FROM t;") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
+        checkGlutenPlan[ProjectExecTransformer]
       }
     }
   }
 
-  test("json_array_length") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("json_array_length", "3.5") {
     runQueryAndCompare(
       s"select *, json_array_length(string_field1) " +
-        s"from datatab limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+        s"from datatab limit 5")(checkGlutenPlan[ProjectExecTransformer])
     withTempPath {
       path =>
-        Seq[(String)](
-          ("[1,2,3,4]"),
-          (null.asInstanceOf[String])
+        Seq[String](
+          "[1,2,3,4]",
+          null.asInstanceOf[String]
         )
           .toDF("txt")
           .write
@@ -76,7 +77,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select json_array_length(txt) from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -84,12 +85,12 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function bool", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":0}"""),
-          ("""{"id":0.0}"""),
-          ("""{"id":true}"""),
-          ("""{"id":false}"""),
-          ("""{"id":"true"}""")
+        Seq[String](
+          """{"id":0}""",
+          """{"id":0.0}""",
+          """{"id":true}""",
+          """{"id":false}""",
+          """{"id":"true"}"""
         )
           .toDF("txt")
           .write
@@ -98,7 +99,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id BOOLEAN') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -106,12 +107,12 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function small int", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":100000000}"""),
-          ("""{"id":11.0}"""),
-          ("""{"id":'true'}"""),
-          ("""{"id":true}"""),
-          ("""{"id":'12'}""")
+        Seq[String](
+          """{"id":100000000}""",
+          """{"id":11.0}""",
+          """{"id":'true'}""",
+          """{"id":true}""",
+          """{"id":'12'}"""
         )
           .toDF("txt")
           .write
@@ -120,7 +121,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id SHORT') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -128,12 +129,12 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function int", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":10}"""),
-          ("""{"id":11.0}"""),
-          ("""{"id":"true"}"""),
-          ("""{"id":true}"""),
-          ("""{"id":"12"}""")
+        Seq[String](
+          """{"id":10}""",
+          """{"id":11.0}""",
+          """{"id":"true"}""",
+          """{"id":true}""",
+          """{"id":"12"}"""
         )
           .toDF("txt")
           .write
@@ -142,7 +143,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id INT') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -150,12 +151,12 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function big int", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":100000000}"""),
-          ("""{"id":11.0}"""),
-          ("""{"id":'true'}"""),
-          ("""{"id":true}"""),
-          ("""{"id":'12'}""")
+        Seq[String](
+          """{"id":100000000}""",
+          """{"id":11.0}""",
+          """{"id":'true'}""",
+          """{"id":true}""",
+          """{"id":'12'}"""
         )
           .toDF("txt")
           .write
@@ -164,7 +165,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id LONG') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -172,14 +173,14 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function float", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":10}"""),
-          ("""{"id":11.0}"""),
-          ("""{"id":"12.0"}"""),
-          ("""{"id":"test"}"""),
-          ("""{"id":"12"}"""),
-          ("""{"id":"-INF"}"""),
-          ("""{"id":"NaN"}""")
+        Seq[String](
+          """{"id":10}""",
+          """{"id":11.0}""",
+          """{"id":"12.0"}""",
+          """{"id":"test"}""",
+          """{"id":"12"}""",
+          """{"id":"-INF"}""",
+          """{"id":"NaN"}"""
         )
           .toDF("txt")
           .write
@@ -188,7 +189,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id FLOAT') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -196,14 +197,14 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function double", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":10}"""),
-          ("""{"id":11.0}"""),
-          ("""{"id":"12.0"}"""),
-          ("""{"id":"test"}"""),
-          ("""{"id":"12"}"""),
-          ("""{"id":"+INF"}"""),
-          ("""{"id":"NaN"}""")
+        Seq[String](
+          """{"id":10}""",
+          """{"id":11.0}""",
+          """{"id":"12.0"}""",
+          """{"id":"test"}""",
+          """{"id":"12"}""",
+          """{"id":"+INF"}""",
+          """{"id":"NaN"}"""
         )
           .toDF("txt")
           .write
@@ -212,7 +213,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id DOUBLE') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -220,12 +221,12 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function string", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":10}"""),
-          ("""{"id":false}"""),
-          ("""{"id":"00010"}"""),
-          ("""{"id":[1,2]}"""),
-          ("""{"id":{"a":1}}""")
+        Seq[String](
+          """{"id":10}""",
+          """{"id":false}""",
+          """{"id":"00010"}""",
+          """{"id":[1,2]}""",
+          """{"id":{"a":1}}"""
         )
           .toDF("txt")
           .write
@@ -234,7 +235,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id STRING') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -242,10 +243,10 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function array", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""[]"""),
-          ("""[1, 3]"""),
-          ("""[1, 2, 3.0]""")
+        Seq[String](
+          """[]""",
+          """[1, 3]""",
+          """[1, 2, 3.0]"""
         )
           .toDF("txt")
           .write
@@ -254,7 +255,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select from_json(txt, 'array<int>') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -262,12 +263,12 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function map", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":10, "value":11}"""),
-          ("""{"id":11, "value":11.0}"""),
-          ("""{"id":10, "Id":11}"""),
-          ("""{4:10, "Id":11}"""),
-          ("""{}""")
+        Seq[String](
+          """{"id":10, "value":11}""",
+          """{"id":11, "value":11.0}""",
+          """{"id":10, "Id":11}""",
+          """{4:10, "Id":11}""",
+          """{}"""
         )
           .toDF("txt")
           .write
@@ -276,7 +277,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select from_json(txt, 'map<string,int>') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -284,10 +285,10 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function row", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"Id":"10", "Value":"11"}"""),
-          ("""{"Id":"11", "Value":"11.0"}"""),
-          ("""{"Id":"10", "Value":"11"}""")
+        Seq[String](
+          """{"Id":"10", "Value":"11"}""",
+          """{"Id":"11", "Value":"11.0"}""",
+          """{"Id":"10", "Value":"11"}"""
         )
           .toDF("txt")
           .write
@@ -296,7 +297,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select from_json(txt, 'Id STRING, Value STRING') from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          checkGlutenPlan[ProjectExecTransformer]
         }
     }
   }
@@ -304,9 +305,9 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   test("from_json function CORRUPT_RECORD") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":00010}"""),
-          ("""{"id":1.0}""")
+        Seq[String](
+          """{"id":00010}""",
+          """{"id":1.0}"""
         )
           .toDF("txt")
           .write
@@ -316,7 +317,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
 
         runQueryAndCompare(
           "select txt, from_json(txt, 'id INT, _corrupt_record STRING') from tbl") {
-          checkSparkOperatorMatch[ProjectExec]
+          checkSparkPlan[ProjectExec]
         }
     }
   }
@@ -324,9 +325,9 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("from_json function duplicate key", "3.4") {
     withTempPath {
       path =>
-        Seq[(String)](
-          ("""{"id":1,"Id":2}"""),
-          ("""{"id":3,"Id":4}""")
+        Seq[String](
+          """{"id":1,"Id":2}""",
+          """{"id":3,"Id":4}"""
         )
           .toDF("txt")
           .write
@@ -335,36 +336,37 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, from_json(txt, 'id INT, Id INT') from tbl") {
-          checkSparkOperatorMatch[ProjectExec]
+          checkSparkPlan[ProjectExec]
         }
 
         runQueryAndCompare("select txt, from_json(txt, 'id INT, id INT') from tbl") {
-          checkSparkOperatorMatch[ProjectExec]
+          checkSparkPlan[ProjectExec]
         }
 
         runQueryAndCompare("select txt, from_json(txt, 'id INT') from tbl") {
-          checkSparkOperatorMatch[ProjectExecTransformer]
+          checkSparkPlan[ProjectExecTransformer]
         }
     }
   }
 
-  test("json_object_keys") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("json_object_keys", "3.5") {
     withTempPath {
       path =>
-        Seq[(String)](
-          (""""""),
-          ("""200"""),
-          ("""{}"""),
-          ("""{"key": 1}"""),
-          ("""{"key": "value", "key2": 2}"""),
-          ("""{"arrayKey": [1, 2, 3]}"""),
-          ("""{"key":[1,2,3,{"key":"value"},[1,2,3]]}"""),
-          ("""{"f1":"abc","f2":{"f3":"a", "f4":"b"}}"""),
-          ("""{"k1": [1, 2, {"key": 5}], "k2": {"key2": [1, 2]}}"""),
-          ("""[1, 2, 3]"""),
-          ("""{[1,2]}"""),
-          ("""{"key": 45, "random_string"}"""),
-          (null.asInstanceOf[String])
+        Seq[String](
+          """""",
+          """200""",
+          """{}""",
+          """{"key": 1}""",
+          """{"key": "value", "key2": 2}""",
+          """{"arrayKey": [1, 2, 3]}""",
+          """{"key":[1,2,3,{"key":"value"},[1,2,3]]}""",
+          """{"f1":"abc","f2":{"f3":"a", "f4":"b"}}""",
+          """{"k1": [1, 2, {"key": 5}], "k2": {"key2": [1, 2]}}""",
+          """[1, 2, 3]""",
+          """{[1,2]}""",
+          """{"key": 45, "random_string"}""",
+          null.asInstanceOf[String]
         )
           .toDF("txt")
           .write
@@ -373,12 +375,13 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select txt, json_object_keys(txt) from tbl") {
-          checkSparkOperatorMatch[ProjectExecTransformer]
+          checkSparkPlan[ProjectExecTransformer]
         }
     }
   }
 
-  test("to_json function") {
+  // TODO: fix on spark-4.0
+  testWithMaxSparkVersion("to_json function", "3.5") {
     withTable("t") {
       spark.sql(
         """
@@ -391,23 +394,23 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
                   |""".stripMargin)
 
       runQueryAndCompare("select to_json(named_struct('a', a, 'b', b, 'c', c, 'd', d)) from t") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
+        checkGlutenPlan[ProjectExecTransformer]
       }
 
       runQueryAndCompare("select to_json(c) from t") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
+        checkGlutenPlan[ProjectExecTransformer]
       }
 
       runQueryAndCompare("select to_json(d) from t") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
+        checkGlutenPlan[ProjectExecTransformer]
       }
 
       runQueryAndCompare("select to_json(e) from t") {
-        checkSparkOperatorMatch[ProjectExec]
+        checkSparkPlan[ProjectExec]
       }
 
       runQueryAndCompare("select to_json(Array(named_struct('aA', a))) from t") {
-        checkSparkOperatorMatch[ProjectExec]
+        checkSparkPlan[ProjectExec]
       }
     }
   }

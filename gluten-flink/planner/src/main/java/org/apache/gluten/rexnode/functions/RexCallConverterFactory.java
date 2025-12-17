@@ -44,20 +44,24 @@ public class RexCallConverterFactory {
                   () -> new BasicArithmeticOperatorRexCallConverter("greaterthan"),
                   () -> new StringCompareRexCallConverter("greaterthan"),
                   () -> new StringNumberCompareRexCallConverter("greaterthan"),
-                  () -> new DecimalArithmeticOperatorRexCallConverters("greaterthan"))),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("greaterthan", true))),
           Map.entry(
               "<",
               Arrays.asList(
                   () -> new BasicArithmeticOperatorRexCallConverter("lessthan"),
                   () -> new StringCompareRexCallConverter("lessthan"),
                   () -> new StringNumberCompareRexCallConverter("lessthan"),
-                  () -> new DecimalArithmeticOperatorRexCallConverters("lessthan"))),
+                  () -> new DecimalArithmeticOperatorRexCallConverters("lessthan", true))),
           Map.entry(
               "=",
               Arrays.asList(
                   () -> new BasicArithmeticOperatorRexCallConverter("equalto"),
                   () -> new StringCompareRexCallConverter("equalto"),
                   () -> new StringNumberCompareRexCallConverter("equalto"))),
+          Map.entry(
+              "<>",
+              Arrays.asList(
+                  () -> new DecimalArithmeticOperatorRexCallConverters("decimal_notequalto"))),
           Map.entry(
               "/", Arrays.asList(() -> new DecimalArithmeticOperatorRexCallConverters("divide"))),
           Map.entry(
@@ -81,7 +85,7 @@ public class RexCallConverterFactory {
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
           Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
           Map.entry("SPLIT_INDEX", Arrays.asList(() -> new SplitIndexRexCallConverter())),
-          Map.entry("SEARCH", Arrays.asList(() -> new DefaultRexCallConverter("in"))),
+          Map.entry("SEARCH", Arrays.asList(() -> new SearchRexCallConverter())),
           Map.entry("DATE_FORMAT", Arrays.asList(() -> new DefaultRexCallConverter("date_format"))),
           Map.entry(
               ">=",
@@ -99,12 +103,13 @@ public class RexCallConverterFactory {
                   () -> new TimestampIntervalRexCallConverter("lessthanorequal"))),
           Map.entry("PROCTIME", Arrays.asList(() -> new DefaultRexCallConverter("unix_timestamp"))),
           Map.entry("OR", Arrays.asList(() -> new DefaultRexCallConverter("or"))),
-          Map.entry("IS NOT NULL", Arrays.asList(() -> new DefaultRexCallConverter("is_not_null"))),
+          Map.entry("IS NOT NULL", Arrays.asList(() -> new DefaultRexCallConverter("isnotnull"))),
           Map.entry(
               "REGEXP_EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("regexp_extract"))),
           Map.entry("LOWER", Arrays.asList(() -> new DefaultRexCallConverter("lower"))),
           Map.entry("count_char", Arrays.asList(() -> new DefaultRexCallConverter("count_char"))),
-          Map.entry("EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("extract"))));
+          Map.entry("EXTRACT", Arrays.asList(() -> new DefaultRexCallConverter("extract"))),
+          Map.entry("IS TRUE", Arrays.asList(() -> new IsTrueRexCallConverter())));
 
   public static RexCallConverter getConverter(RexCall callNode, RexConversionContext context) {
     String operatorName = callNode.getOperator().getName();

@@ -137,6 +137,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp exception mode")
     // Replaced by a gluten test to pass timezone through config.
     .exclude("from_unixtime")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("months_between")
     // Vanilla Spark does not have a unified DST Timestamp fastTime. 1320570000000L and
     // 1320566400000L both represent 2011-11-06 01:00:00
     .exclude("SPARK-42635: timestampadd near daylight saving transition")
@@ -151,6 +153,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenJsonExpressionsSuite]
     // https://github.com/apache/incubator-gluten/issues/8102
     .exclude("$.store.book")
+    // https://github.com/apache/incubator-gluten/issues/10948
+    .exclude("$['key with spaces']")
     .exclude("$")
     .exclude("$.store.book[0]")
     .exclude("$.store.book[*]")
@@ -560,6 +564,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
+    // Rewrite for Gluten. Change details are in the inline comments in individual tests.
     .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
@@ -652,7 +657,28 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("length check for input string values: nested in both map key and value")
     .exclude("length check for input string values: nested in array of struct")
     .exclude("length check for input string values: nested in array of array")
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
+    .exclude("length check for input string values: top-level columns")
+    .exclude("length check for input string values: partitioned columns")
+    .exclude("length check for input string values: nested in struct of array")
+    .exclude("length check for input string values: with implicit cast")
+    .exclude("char/varchar type values length check: partitioned columns of other types")
+
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
+    .exclude("SPARK-42611: check char/varchar length in reordered structs within arrays")
+    .exclude("char/varchar type values length check: partitioned columns of other types")
+    .exclude("length check for input string values: top-level columns")
+    .exclude("length check for input string values: nested in array")
+    .exclude("length check for input string values: nested in struct of array")
+    .exclude("length check for input string values: nested in array of struct")
+    .exclude("length check for input string values: nested in array of array")
+    .exclude("length check for input string values: with implicit cast")
+
   enableSuite[GlutenColumnExpressionSuite]
     // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.
     // The final caught Spark exception's getCause().getMessage() contains 'errMsg' but does not

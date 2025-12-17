@@ -84,7 +84,11 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => FallbackMultiCodegens.apply(c.session))
     injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
-    injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
+    injector.injectPreTransform(
+      c =>
+        BloomFilterMightContainJointRewriteRule.apply(
+          c.session,
+          c.caller.isBloomFilterStatFunction()))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
@@ -109,6 +113,7 @@ object VeloxRuleApi {
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
+    injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => PartialGenerateRule())
@@ -120,7 +125,6 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => PullOutDuplicateProject)
     injector.injectPostTransform(_ => CollapseProjectExecTransformer)
     injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
-    injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(_ => CollectTailTransformerRule())
     injector.injectPostTransform(_ => V2WritePostRule())
@@ -162,7 +166,11 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
     injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
-    injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
+    injector.injectPreTransform(
+      c =>
+        BloomFilterMightContainJointRewriteRule.apply(
+          c.session,
+          c.caller.isBloomFilterStatFunction()))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
@@ -210,6 +218,7 @@ object VeloxRuleApi {
     // Gluten RAS: Post rules.
     injector.injectPostTransform(_ => DistinguishIdenticalScans)
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
+    injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => RemoveTransitions)
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
@@ -222,7 +231,6 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => PullOutDuplicateProject)
     injector.injectPostTransform(_ => CollapseProjectExecTransformer)
     injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
-    injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(_ => CollectTailTransformerRule())
     injector.injectPostTransform(_ => V2WritePostRule())

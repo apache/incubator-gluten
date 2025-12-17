@@ -144,6 +144,66 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     DecimalArithmeticExpressionTransformer(substraitName, leftChild, rightChild, resultType, b)
   }
 
+  private def replaceStaticInvokeWithExpressionTransformer(
+      i: StaticInvoke,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
+    def validateAndTransform(
+        exprName: String,
+        childTransformers: => Seq[ExpressionTransformer]): ExpressionTransformer = {
+      if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(exprName, i)) {
+        throw new GlutenNotSupportException(
+          s"Not supported to map current ${i.getClass} call on function: ${i.functionName}.")
+      }
+      GenericExpressionTransformer(exprName, childTransformers, i)
+    }
+
+    i.functionName match {
+      case "encode" | "decode" if i.objectName.endsWith("UrlCodec") =>
+        validateAndTransform(
+          "url_" + i.functionName,
+          Seq(replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap))
+        )
+
+      case "isLuhnNumber" =>
+        validateAndTransform(
+          ExpressionNames.LUHN_CHECK,
+          Seq(replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap))
+        )
+
+      case "encode" | "decode" if i.objectName.endsWith("Base64") =>
+        if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(ExpressionNames.BASE64, i)) {
+          throw new GlutenNotSupportException(
+            s"Not supported to map current ${i.getClass} call on function: ${i.functionName}.")
+        }
+        BackendsApiManager.getSparkPlanExecApiInstance.genBase64StaticInvokeTransformer(
+          ExpressionNames.BASE64,
+          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
+          i
+        )
+
+      case fn
+          if i.objectName.endsWith("CharVarcharCodegenUtils") && Set(
+            "varcharTypeWriteSideCheck",
+            "charTypeWriteSideCheck",
+            "readSidePadding").contains(fn) =>
+        val exprName = fn match {
+          case "varcharTypeWriteSideCheck" => ExpressionNames.VARCHAR_TYPE_WRITE_SIDE_CHECK
+          case "charTypeWriteSideCheck" => ExpressionNames.CHAR_TYPE_WRITE_SIDE_CHECK
+          case "readSidePadding" => ExpressionNames.READ_SIDE_PADDING
+        }
+        validateAndTransform(
+          exprName,
+          i.arguments.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+        )
+
+      case _ =>
+        throw new GlutenNotSupportException(
+          s"Not supported to transform StaticInvoke with object: ${i.staticObject.getName}, " +
+            s"function: ${i.functionName}")
+    }
+  }
+
   private def replaceIcebergStaticInvoke(
       s: StaticInvoke,
       attributeSeq: Seq[Attribute],
@@ -187,32 +247,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           expr,
           attributeSeq)
       case i: StaticInvoke
-          if Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith(
-            "UrlCodec") =>
-        return GenericExpressionTransformer(
-          "url_" + i.functionName,
-          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
-          i)
-      case i: StaticInvoke if i.functionName.equals("isLuhnNumber") =>
-        return GenericExpressionTransformer(
-          ExpressionNames.LUHN_CHECK,
-          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
-          i)
-      case i: StaticInvoke
-          if Seq("encode", "decode").contains(i.functionName) && i.objectName.endsWith("Base64") =>
-        return BackendsApiManager.getSparkPlanExecApiInstance.genBase64StaticInvokeTransformer(
-          ExpressionNames.BASE64,
-          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
-          i
-        )
-      case i: StaticInvoke
           if i.functionName == "invoke" && i.staticObject.getName.startsWith(
             "org.apache.iceberg.spark.functions.") =>
         return replaceIcebergStaticInvoke(i, attributeSeq, expressionsMap)
       case i: StaticInvoke =>
-        throw new GlutenNotSupportException(
-          s"Not supported to transform StaticInvoke with object: ${i.staticObject.getName}, " +
-            s"function: $i.functionName")
+        return replaceStaticInvokeWithExpressionTransformer(i, attributeSeq, expressionsMap)
       case _ =>
     }
 
@@ -328,7 +367,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           t
         )
       case m: MonthsBetween =>
-        MonthsBetweenTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genMonthsBetweenTransformer(
           substraitExprName,
           replaceWithExpressionTransformer0(m.date1, attributeSeq, expressionsMap),
           replaceWithExpressionTransformer0(m.date2, attributeSeq, expressionsMap),
@@ -695,6 +734,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           a,
           ExpressionNames.CHECKED_DIVIDE
         )
+      case i: IntegralDivide =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(i.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(i.right, attributeSeq, expressionsMap),
+          i,
+          ExpressionNames.CHECKED_DIV
+        )
       case tryEval: TryEval =>
         // This is a placeholder to handle try_eval(other expressions).
         BackendsApiManager.getSparkPlanExecApiInstance.genTryEvalTransformer(
@@ -803,6 +850,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           ce,
           attributeSeq,
           expressionsMap)
+      case re: RaiseError =>
+        val errorMessage =
+          BackendsApiManager.getSparkPlanExecApiInstance.getErrorMessage(re)
+        GenericExpressionTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(errorMessage, attributeSeq, expressionsMap),
+          re)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

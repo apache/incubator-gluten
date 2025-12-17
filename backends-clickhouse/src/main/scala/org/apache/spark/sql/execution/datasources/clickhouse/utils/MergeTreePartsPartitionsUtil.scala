@@ -26,12 +26,12 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.RelBuilder
 
+import org.apache.spark.Partition
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.ClickhouseSnapshot
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -69,7 +69,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean,
-      filterExprs: Seq[Expression]): Seq[InputPartition] = {
+      filterExprs: Seq[Expression]): Seq[Partition] = {
     if (
       !relation.location.isInstanceOf[TahoeFileIndex] || !relation.fileFormat
         .isInstanceOf[DeltaMergeTreeFileFormat]
@@ -82,7 +82,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
     val snapshotId =
       ClickhouseSnapshot.genSnapshotId(table.deltaLog.update(stalenessAcceptable = true))
 
-    val partitions = new ArrayBuffer[InputPartition]
+    val partitions = new ArrayBuffer[Partition]
     val (database, tableName) = if (table.catalogTable.isDefined) {
       (table.catalogTable.get.identifier.database.get, table.catalogTable.get.identifier.table)
     } else {
@@ -95,7 +95,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
 
     // bucket table
     if (table.bucketOption.isDefined && bucketedScan) {
-      genBucketedInputPartitionSeq(
+      genBucketedPartitionSeq(
         engine,
         database,
         tableName,
@@ -115,7 +115,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         sparkSession
       )
     } else {
-      genInputPartitionSeq(
+      genPartitionSeq(
         relation,
         engine,
         database,
@@ -137,7 +137,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
     partitions.toSeq
   }
 
-  def genInputPartitionSeq(
+  def genPartitionSeq(
       relation: HadoopFsRelation,
       engine: String,
       database: String,
@@ -148,7 +148,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       optionalBucketSet: Option[BitSet],
       selectedPartitions: Array[PartitionDirectory],
       tableSchema: StructType,
-      partitions: ArrayBuffer[InputPartition],
+      partitions: ArrayBuffer[Partition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
       output: Seq[Attribute],
@@ -316,7 +316,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       relativeTablePath: String,
       absoluteTablePath: String,
       tableSchema: StructType,
-      partitions: ArrayBuffer[InputPartition],
+      partitions: ArrayBuffer[Partition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
       splitFiles: Seq[MergeTreePartSplit],
@@ -372,7 +372,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       relativeTablePath: String,
       absoluteTablePath: String,
       tableSchema: StructType,
-      partitions: ArrayBuffer[InputPartition],
+      partitions: ArrayBuffer[Partition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
       splitFiles: Seq[MergeTreePartSplit],
@@ -441,7 +441,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
   }
 
   /** Generate bucket partition */
-  def genBucketedInputPartitionSeq(
+  def genBucketedPartitionSeq(
       engine: String,
       database: String,
       tableName: String,
@@ -453,7 +453,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       optionalNumCoalescedBuckets: Option[Int],
       selectedPartitions: Array[PartitionDirectory],
       tableSchema: StructType,
-      partitions: ArrayBuffer[InputPartition],
+      partitions: ArrayBuffer[Partition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
       output: Seq[Attribute],
@@ -634,8 +634,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
       val readNode = RelBuilder.makeReadRel(
         typeNodes,
         nameList,
-        columnTypeNodes,
         transformer.map(_.doTransform(substraitContext)).orNull,
+        columnTypeNodes,
         extensionNode,
         substraitContext,
         substraitContext.nextOperatorId("readRel")

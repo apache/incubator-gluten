@@ -22,6 +22,7 @@ import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
 
 import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
+import org.apache.spark.memory.GlobalOffHeapMemoryTarget;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.SparkResourceUtil;
@@ -35,6 +36,10 @@ public final class MemoryTargets {
 
   private MemoryTargets() {
     // enclose factory ctor
+  }
+
+  public static MemoryTarget global() {
+    return new GlobalOffHeapMemoryTarget();
   }
 
   public static MemoryTarget throwOnOom(MemoryTarget target) {
@@ -52,7 +57,7 @@ public final class MemoryTargets {
   @Experimental
   public static MemoryTarget dynamicOffHeapSizingIfEnabled(MemoryTarget memoryTarget) {
     if (GlutenCoreConfig.get().dynamicOffHeapSizingEnabled()) {
-      return new DynamicOffHeapSizingMemoryTarget();
+      return new DynamicOffHeapSizingMemoryTarget(memoryTarget);
     }
 
     return memoryTarget;

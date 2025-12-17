@@ -30,17 +30,7 @@ void RssPartitionWriter::init() {
 }
 
 arrow::Status RssPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
-  if (rssOs_ != nullptr && !rssOs_->closed()) {
-    if (compressedOs_ != nullptr) {
-      RETURN_NOT_OK(compressedOs_->Close());
-      compressTime_ = compressedOs_->compressTime();
-      spillTime_ -= compressTime_;
-    }
-    ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
-    bytesEvicted_[lastEvictedPartitionId_] +=
-        rssClient_->pushPartitionData(lastEvictedPartitionId_, buffer->data_as<char>(), buffer->size());
-  }
-
+  spillTime_ -= compressTime_;
   rssClient_->stop();
 
   auto totalBytesEvicted = std::accumulate(bytesEvicted_.begin(), bytesEvicted_.end(), 0LL);
@@ -70,18 +60,8 @@ arrow::Status RssPartitionWriter::hashEvict(
 arrow::Status
 RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal) {
   ScopedTimer timer(&spillTime_);
-  if (lastEvictedPartitionId_ != partitionId) {
-    if (lastEvictedPartitionId_ != -1) {
-      GLUTEN_DCHECK(rssOs_ != nullptr && !rssOs_->closed(), "rssOs_ should not be null");
-      if (compressedOs_ != nullptr) {
-        RETURN_NOT_OK(compressedOs_->Flush());
-      }
-
-      ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
-      bytesEvicted_[lastEvictedPartitionId_] +=
-          rssClient_->pushPartitionData(lastEvictedPartitionId_, buffer->data_as<char>(), buffer->size());
-    }
-
+  rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
+  if (shouldInitializeOs_) {
     ARROW_ASSIGN_OR_RAISE(
         rssOs_, arrow::io::BufferOutputStream::Create(options_->pushBufferMaxSize, arrow::default_memory_pool()));
     if (codec_ != nullptr) {
@@ -90,16 +70,25 @@ RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayl
           ShuffleCompressedOutputStream::Make(
               codec_.get(), options_->compressionBufferSize, rssOs_, arrow::default_memory_pool()));
     }
-
-    lastEvictedPartitionId_ = partitionId;
+    shouldInitializeOs_ = false;
   }
-
-  rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
   if (compressedOs_ != nullptr) {
     RETURN_NOT_OK(inMemoryPayload->serialize(compressedOs_.get()));
   } else {
     RETURN_NOT_OK(inMemoryPayload->serialize(rssOs_.get()));
   }
+  if (inMemoryPayload->numRows() > 0) {
+    // Push data to rss only when there are complete rows.
+    if (compressedOs_ != nullptr) {
+      RETURN_NOT_OK(compressedOs_->Flush());
+      RETURN_NOT_OK(compressedOs_->Close());
+      compressTime_ += compressedOs_->compressTime();
+    }
+    ARROW_ASSIGN_OR_RAISE(const auto buffer, rssOs_->Finish());
+    bytesEvicted_[partitionId] += rssClient_->pushPartitionData(partitionId, buffer->data_as<char>(), buffer->size());
+    shouldInitializeOs_ = true;
+  }
+
   return arrow::Status::OK();
 }
 

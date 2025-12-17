@@ -188,7 +188,25 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
     VS_PRINT_CONTAINER(input_has_null_);
   }
 
- private:
+ protected:
+  virtual uint64_t valueBufferSizeForBool(uint32_t newSize);
+
+  virtual void splitBoolValueType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
+    splitBoolType(srcAddr, dstAddrs);
+  }
+
+  virtual bool boolIsBit() {
+    return true;
+  }
+
+  virtual uint64_t valueBufferSizeForTimestamp(uint32_t newSize);
+
+  virtual arrow::Status splitTimestamp(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
+    return splitFixedType<facebook::velox::int128_t>(srcAddr, dstAddrs);
+  }
+
+  arrow::Status init();
+
   VeloxHashShuffleWriter(
       uint32_t numPartitions,
       const std::shared_ptr<PartitionWriter>& partitionWriter,
@@ -196,10 +214,11 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
       MemoryManager* memoryManager)
       : VeloxShuffleWriter(numPartitions, partitionWriter, options, memoryManager),
         splitBufferSize_(options->splitBufferSize),
-        splitBufferReallocThreshold_(options->splitBufferReallocThreshold) {}
+        splitBufferReallocThreshold_(options->splitBufferReallocThreshold) {
+    arenas_.resize(numPartitions);
+  }
 
-  arrow::Status init();
-
+ private:
   arrow::Status initPartitions();
 
   arrow::Status initColumnTypes(const facebook::velox::RowVector& rv);
@@ -231,8 +250,6 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status splitFixedWidthValueBuffer(const facebook::velox::RowVector& rv);
 
-  arrow::Status splitBoolType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs);
-
   arrow::Status splitValidityBuffer(const facebook::velox::RowVector& rv);
 
   arrow::Status splitBinaryArray(const facebook::velox::RowVector& rv);
@@ -246,6 +263,9 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
       bool reuseBuffers);
 
   arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> assembleBuffers(uint32_t partitionId, bool reuseBuffers);
+
+  // Split bool value type and validity buffer.
+  void splitBoolType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs);
 
   template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
@@ -303,6 +323,7 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 
+ protected:
   int32_t splitBufferSize_;
   double splitBufferReallocThreshold_;
 
@@ -412,6 +433,8 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
   SplitState splitState_{kInit};
 
   std::optional<uint32_t> partitionBufferInUse_{std::nullopt};
+
+  std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
 }; // class VeloxHashBasedShuffleWriter
 
 } // namespace gluten

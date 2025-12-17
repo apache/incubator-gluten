@@ -17,21 +17,23 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.IcebergScanTransformer.{containsMetadataColumn, containsUuidOrFixedType}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.{LocalFilesNode, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
-import org.apache.spark.sql.connector.read.{InputPartition, Scan}
+import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.{ArrayType, DataType, StructType}
 
-import org.apache.iceberg.{BaseTable, MetadataColumns, Schema, SnapshotSummary}
+import org.apache.iceberg.{BaseTable, MetadataColumns, Schema, SnapshotSummary, TableProperties}
 import org.apache.iceberg.avro.AvroSchemaUtil
 import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
 import org.apache.iceberg.spark.source.metrics.NumSplits
@@ -45,7 +47,8 @@ case class IcebergScanTransformer(
     override val runtimeFilters: Seq[Expression],
     @transient override val table: Table,
     override val keyGroupedPartitioning: Option[Seq[Expression]] = None,
-    override val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None)
+    override val commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
+    override val pushDownFilters: Option[Seq[Expression]] = None)
   extends BatchScanExecTransformerBase(
     output = output,
     scan = scan,
@@ -59,6 +62,10 @@ case class IcebergScanTransformer(
   // but the implementation is different.
   // So use Metric to get NumSplits, NumDeletes is not reported by native metric
   private val numSplits = SQLMetrics.createMetric(sparkContext, new NumSplits().description())
+
+  override def withNewPushdownFilters(filters: Seq[Expression]): BatchScanExecTransformerBase = {
+    this.copy(pushDownFilters = Some(filters))
+  }
 
   protected[this] def supportsBatchScan(scan: Scan): Boolean = {
     IcebergScanTransformer.supportsBatchScan(scan)
@@ -124,6 +131,35 @@ case class IcebergScanTransformer(
       }
     }
 
+    val baseTable = table match {
+      case t: SparkTable =>
+        t.table() match {
+          case t: BaseTable => t
+          case _ => null
+        }
+      case _ => null
+    }
+    if (baseTable == null) {
+      return ValidationResult.succeeded
+    }
+    val metadata = baseTable.operations().current()
+    if (metadata.formatVersion() >= 3) {
+      val hasUnsupportedDelete = finalPartitions.exists {
+        case p: SparkDataSourceRDDPartition =>
+          GlutenIcebergSourceUtil.deleteExists(p)
+        case other =>
+          return ValidationResult.failed(
+            s"Unsupported partition type: ${other.getClass.getSimpleName}")
+      }
+      if (hasUnsupportedDelete) {
+        return ValidationResult.failed("Delete file format puffin is not supported")
+      }
+    }
+    // https://github.com/apache/incubator-gluten/issues/11135
+    if (metadata.propertyAsBoolean(TableProperties.SPARK_WRITE_ACCEPT_ANY_SCHEMA, false)) {
+      return ValidationResult.failed("Not support read the file with accept any schema")
+    }
+
     ValidationResult.succeeded
   }
 
@@ -137,33 +173,19 @@ case class IcebergScanTransformer(
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
-  override def getSplitInfosWithIndex: Seq[SplitInfo] = {
-    val splitInfos = getPartitionsWithIndex.zipWithIndex.map {
-      case (partitions, index) =>
-        GlutenIcebergSourceUtil.genSplitInfo(partitions, index, getPartitionSchema)
-    }
-    numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
-    splitInfos
+  override def getSplitInfosFromPartitions(
+      partitions: Seq[(Partition, ReadFileFormat)]): Seq[SplitInfo] = {
+    partitions.map { case (partition, _) => partitionToSplitInfo(partition) }
   }
 
-  override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
-    val groupedPartitions = SparkShimLoader.getSparkShims
-      .orderPartitions(
-        this,
-        scan,
-        keyGroupedPartitioning,
-        filteredPartitions,
-        outputPartitioning,
-        commonPartitionValues,
-        applyPartialClustering,
-        replicatePartitions)
-      .flatten
-    val splitInfos = groupedPartitions.zipWithIndex.map {
-      case (p, index) =>
-        GlutenIcebergSourceUtil.genSplitInfoForPartition(p, index, getPartitionSchema)
+  private def partitionToSplitInfo(partition: Partition): SplitInfo = {
+    val splitInfo = partition match {
+      case p: SparkDataSourceRDDPartition =>
+        GlutenIcebergSourceUtil.genSplitInfo(p, getPartitionSchema)
+      case _ => throw new GlutenNotSupportException()
     }
-    numSplits.add(splitInfos.map(s => s.asInstanceOf[LocalFilesNode].getPaths.size()).sum)
-    splitInfos
+    numSplits.add(splitInfo.asInstanceOf[LocalFilesNode].getPaths.size())
+    splitInfo
   }
 
   override def doCanonicalize(): IcebergScanTransformer = {
@@ -171,7 +193,8 @@ case class IcebergScanTransformer(
       output = output.map(QueryPlan.normalizeExpressions(_, output)),
       runtimeFilters = QueryPlan.normalizePredicates(
         runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
-        output)
+        output),
+      pushDownFilters = pushDownFilters.map(QueryPlan.normalizePredicates(_, output))
     )
   }
   // Needed for tests
@@ -270,7 +293,7 @@ object IcebergScanTransformer {
   }
 
   def supportsBatchScan(scan: Scan): Boolean = {
-    scan.getClass.getName == "org.apache.iceberg.spark.source.SparkBatchQueryScan"
+    scan.getClass == GlutenIcebergSourceUtil.getClassOfSparkBatchQueryScan
   }
 
   private def containsUuidOrFixedType(dataType: Type): Boolean = {

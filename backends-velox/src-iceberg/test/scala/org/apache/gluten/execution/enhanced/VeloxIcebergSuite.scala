@@ -73,6 +73,34 @@ class VeloxIcebergSuite extends IcebergSuite {
     }
   }
 
+  test("iceberg insert partition table with uppercase partition name") {
+    withTable("iceberg_tb2") {
+      spark.sql("""
+                  |create table if not exists iceberg_tb2(A int, b int)
+                  |using iceberg
+                  |partitioned by (A);
+                  |""".stripMargin)
+      val df = spark.sql("""
+                           |insert into table iceberg_tb2 values(1, 1)
+                           |""".stripMargin)
+      assert(
+        df.queryExecution.executedPlan
+          .asInstanceOf[CommandResultExec]
+          .commandPhysicalPlan
+          .isInstanceOf[VeloxIcebergAppendDataExec])
+      checkAnswer(spark.sql("select * from iceberg_tb2"), Seq(Row(1, 1)))
+
+      val filePath = spark
+        .sql("select * from default.iceberg_tb2.files")
+        .select("file_path")
+        .collect()
+        .apply(0)
+        .getString(0)
+      val partitionPath = filePath.split('/').init.last
+      assert(partitionPath == "A=1")
+    }
+  }
+
   test("iceberg read cow table - delete") {
     withTable("iceberg_cow_tb") {
       spark.sql("""
@@ -281,6 +309,20 @@ class VeloxIcebergSuite extends IcebergSuite {
           Seq(Row(11, 1), Row(2, 2))
         )
       }
+    }
+  }
+
+  test("iceberg write metrics") {
+    withTable("iceberg_tbl") {
+      spark.sql("create table if not exists iceberg_tbl (id int) using iceberg".stripMargin)
+      val df = spark.sql("insert into iceberg_tbl values 1")
+      val metrics =
+        df.queryExecution.executedPlan.asInstanceOf[CommandResultExec].commandPhysicalPlan.metrics
+      val statusStore = spark.sharedState.statusStore
+      val lastExecId = statusStore.executionsList().last.executionId
+      val executionMetrics = statusStore.executionMetrics(lastExecId)
+
+      assert(executionMetrics(metrics("numWrittenFiles").id).toLong == 1)
     }
   }
 }

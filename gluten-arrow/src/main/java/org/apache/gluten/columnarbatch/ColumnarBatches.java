@@ -22,6 +22,7 @@ import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
 import org.apache.gluten.utils.InternalRowUtl;
+import org.apache.gluten.vectorized.ArrowColumnarBatch;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -105,10 +106,7 @@ public final class ColumnarBatches {
     return identifyBatchType(batch) == BatchType.ZERO_COLUMN;
   }
 
-  /**
-   * This method will always return a velox based ColumnarBatch. This method will close the input
-   * column batch.
-   */
+  /** This method will always return a velox based ColumnarBatch. */
   public static ColumnarBatch select(String backendName, ColumnarBatch batch, int[] columnIndices) {
     final Runtime runtime = Runtimes.contextInstance(backendName, "ColumnarBatches#select");
     switch (identifyBatchType(batch)) {
@@ -169,6 +167,15 @@ public final class ColumnarBatches {
       default:
         throw new IllegalArgumentException("Input batch is not offloaded");
     }
+  }
+
+  public static ArrowColumnarBatch convertToArrowColumnarBatch(ColumnarBatch sparkColumnarBatch) {
+    int numCols = sparkColumnarBatch.numCols();
+    ArrowWritableColumnVector[] writableColumns = new ArrowWritableColumnVector[numCols];
+    for (int i = 0; i < numCols; i++) {
+      writableColumns[i] = (ArrowWritableColumnVector) sparkColumnarBatch.column(i);
+    }
+    return new ArrowColumnarBatch(writableColumns, sparkColumnarBatch.numRows());
   }
 
   public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {

@@ -163,6 +163,7 @@ set(VELOX_SRCS
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
     operators/functions/SparkExprToSubfieldFilterParser.cc
+    operators/plannodes/RowVectorStream.cc
     operators/reader/FileReaderIterator.cc
     operators/reader/ParquetReaderIterator.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
@@ -199,7 +200,15 @@ if(ENABLE_S3)
 endif()
 
 if(ENABLE_GPU)
-  list(APPEND VELOX_SRCS cudf/CudfPlanValidator.cc)
+  list(
+    APPEND
+    VELOX_SRCS
+    cudf/CudfPlanValidator.cc
+    cudf/GpuLock.cc
+    shuffle/VeloxGpuShuffleReader.cc
+    shuffle/VeloxGpuShuffleWriter.cc
+    utils/GpuBufferBatchResizer.cc
+    memory/GpuBufferColumnarBatch.cc)
 endif()
 
 if(ENABLE_ENHANCED_FEATURES)
@@ -409,6 +418,10 @@ endif()
 
 if(ENABLE_GPU)
   import_library(
+    facebook::velox::velox_cudf_expression
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/expression/libvelox_cudf_expression.a
+  )
+  import_library(
     facebook::velox::velox_cudf_exec
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)
   import_library(
@@ -434,9 +447,18 @@ if(ENABLE_GPU)
   target_link_libraries(
     velox
     PUBLIC facebook::velox::velox_cudf_exec facebook::velox::velox_cudf_vector
-           facebook::velox::velox_cudf_hive_connector)
-  target_link_libraries(velox
-                        PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so)
+           facebook::velox::velox_cudf_hive_connector
+           facebook::velox::velox_cudf_expression)
+  target_link_libraries(
+    velox
+    PRIVATE
+      ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so
+      ${VELOX_BUILD_PATH}/_deps/rmm-build/librmm.so
+      ${VELOX_BUILD_PATH}/_deps/kvikio-build/libkvikio.so
+      ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp.so
+      ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp_cpu.so
+      ${VELOX_BUILD_PATH}/_deps/rapids_logger-build/librapids_logger.so
+      /usr/local/cuda-12.8/lib64/libcudart.so.12)
 endif()
 
 add_custom_command(

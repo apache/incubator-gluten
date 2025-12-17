@@ -18,11 +18,4 @@ package org.apache.gluten.source;
 
 import org.apache.iceberg.spark.source.TestSparkStagedScan;
 
-import java.util.Map;
-
-public class TestGlutenSparkStagedScan extends TestSparkStagedScan {
-  public TestGlutenSparkStagedScan(
-      String catalogName, String implementation, Map<String, String> config) {
-    super(catalogName, implementation, config);
-  }
-}
+public class TestGlutenSparkStagedScan extends TestSparkStagedScan {}

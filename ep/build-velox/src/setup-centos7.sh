@@ -61,6 +61,7 @@ function install_cmake {
 function install_ninja {
   cd "${DEPENDENCY_DIR}"
   github_checkout ninja-build/ninja v1.11.1 --depth 1
+  cd ninja
   ./configure.py --bootstrap
   cmake -Bbuild-cmake
   cmake --build build-cmake
@@ -70,9 +71,10 @@ function install_ninja {
 function install_folly {
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://github.com/facebook/folly/archive/refs/tags/${FB_OS_VERSION}.tar.gz folly
-  cmake_install folly -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON
+  cmake_install folly -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON -DFOLLY_NO_EXCEPTION_TRACER=ON
 }
 
+# not used
 function install_conda {
   cd "${DEPENDENCY_DIR}"
   mkdir -p conda && pushd conda
@@ -223,7 +225,6 @@ function install_velox_deps {
   run_and_time install_folly
   run_and_time install_protobuf
   run_and_time install_gtest
-  run_and_time install_conda
   run_and_time install_duckdb
   run_and_time install_geos
 }

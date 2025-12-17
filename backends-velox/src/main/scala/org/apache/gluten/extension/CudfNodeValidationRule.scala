@@ -17,10 +17,13 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
-import org.apache.gluten.execution.{CudfTag, LeafTransformSupport, WholeStageTransformer}
+import org.apache.gluten.cudf.VeloxCudfPlanValidatorJniWrapper
+import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.execution._
+import org.apache.gluten.extension.CudfNodeValidationRule.{createGPUColumnarExchange, setTagForWholeStageTransformer}
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, GPUColumnarShuffleExchangeExec, SparkPlan}
 
 // Add the node name prefix 'Cudf' to GlutenPlan when can offload to cudf
 case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPlan] {
@@ -29,19 +32,66 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     if (!glutenConf.enableColumnarCudf) {
       return plan
     }
-    plan.transformUp {
+    val transformedPlan = plan.transformUp {
+      case shuffle @ ColumnarShuffleExchangeExec(
+            _,
+            VeloxResizeBatchesExec(w: WholeStageTransformer, _, _),
+            _,
+            _,
+            _) =>
+        setTagForWholeStageTransformer(w)
+        createGPUColumnarExchange(shuffle)
+      case shuffle @ ColumnarShuffleExchangeExec(_, w: WholeStageTransformer, _, _, _) =>
+        setTagForWholeStageTransformer(w)
+        createGPUColumnarExchange(shuffle)
       case transformer: WholeStageTransformer =>
-        if (!VeloxConfig.get.cudfEnableTableScan) {
-          // Spark3.2 does not have exists
-          val hasLeaf = transformer.find {
-            case _: LeafTransformSupport => true
-            case _ => false
-          }.isDefined
-          transformer.setTagValue(CudfTag.CudfTag, !hasLeaf)
-        } else {
-          transformer.setTagValue(CudfTag.CudfTag, true)
-        }
+        setTagForWholeStageTransformer(transformer)
         transformer
     }
+    transformedPlan
+  }
+}
+
+object CudfNodeValidationRule {
+  def setTagForWholeStageTransformer(transformer: WholeStageTransformer): Unit = {
+    if (!VeloxConfig.get.cudfEnableTableScan) {
+      // Spark3.2 does not have exists
+      val hasLeaf = transformer.find {
+        case _: LeafTransformSupport => true
+        case _ => false
+      }.isDefined
+      if (!hasLeaf && VeloxConfig.get.cudfEnableValidation) {
+        if (
+          VeloxCudfPlanValidatorJniWrapper.validate(
+            transformer.substraitPlan.toProtobuf.toByteArray)
+        ) {
+          transformer.foreach {
+            case _: LeafTransformSupport =>
+            case t: TransformSupport =>
+              t.setTagValue(CudfTag.CudfTag, true)
+            case _ =>
+          }
+          transformer.setTagValue(CudfTag.CudfTag, true)
+        }
+      } else {
+        transformer.setTagValue(CudfTag.CudfTag, !hasLeaf)
+      }
+    } else {
+      transformer.setTagValue(CudfTag.CudfTag, true)
+    }
+  }
+
+  def createGPUColumnarExchange(shuffle: ColumnarShuffleExchangeExec): SparkPlan = {
+    val exec = GPUColumnarShuffleExchangeExec(
+      shuffle.outputPartitioning,
+      shuffle.child,
+      shuffle.shuffleOrigin,
+      shuffle.projectOutputAttributes,
+      shuffle.advisoryPartitionSize)
+    val res = exec.doValidate()
+    if (!res.ok()) {
+      throw new GlutenNotSupportException(res.reason())
+    }
+    exec
   }
 }

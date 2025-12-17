@@ -31,23 +31,37 @@ import scala.collection.JavaConverters._
 
 trait ShuffleWriterType {
   val name: String
+  val requiresResizingShuffleInput: Boolean
+  val requiresResizingShuffleOutput: Boolean
 }
 
 case object HashShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = true
+  override val requiresResizingShuffleOutput: Boolean = true
 }
 
 case object SortShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = false
+  override val requiresResizingShuffleOutput: Boolean = false
 }
 
 case object RssSortShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_RSS_SORT_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = false
+  override val requiresResizingShuffleOutput: Boolean = false
+}
+
+case object GpuHashShuffleWriterType extends ShuffleWriterType {
+  override val name: String = ReservedKeys.GLUTEN_GPU_HASH_SHUFFLE_WRITER
+  override val requiresResizingShuffleInput: Boolean = true
+  override val requiresResizingShuffleOutput: Boolean = true
 }
 
 /*
  * Note: Gluten configiguration.md is automatically generated from this code.
- * Make sure to run dev/gen_all_config_docs.sh after making changes to this file.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
  */
 class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   import GlutenConfig._
@@ -275,6 +289,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def extendedExpressionTransformer: String = getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
+  def smallFileThreshold: Double = getConf(SMALL_FILE_THRESHOLD)
+
   def expressionBlacklist: Set[String] = {
     val blacklistSet = getConf(EXPRESSION_BLACK_LIST)
       .map(_.toLowerCase(Locale.ROOT).split(",").map(_.trim()).filter(_.nonEmpty).toSet)
@@ -339,8 +355,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableHdfsViewfs: Boolean = getConf(HDFS_VIEWFS_ENABLED)
 
-  def parquetEncryptionValidationEnabled: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
-
   def enableAutoAdjustStageResourceProfile: Boolean =
     getConf(AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED)
 
@@ -352,7 +366,25 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def autoAdjustStageFallenNodeThreshold: Double =
     getConf(AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD)
-  def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
+
+  def parquetMetadataValidationEnabled: Boolean = {
+    getConf(PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED)
+  }
+
+  def parquetMetadataFallbackFileLimit: Int = {
+    getConf(PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT)
+  }
+
+  def parquetEncryptionValidationEnabled: Boolean = {
+    getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
+      .getOrElse(getConf(PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED))
+  }
+
+  def parquetEncryptionValidationFileLimit: Int = {
+    getConf(PARQUET_ENCRYPTED_FALLBACK_FILE_LIMIT).getOrElse(
+      getConf(PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT))
+  }
+
   def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
   def enableColumnarCollectLimit: Boolean = getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
   def enableColumnarCollectTail: Boolean = getConf(COLUMNAR_COLLECT_TAIL_ENABLED)
@@ -633,6 +665,11 @@ object GlutenConfig extends ConfigRegistry {
     // put in all GCS configs
     conf
       .filter(_._1.startsWith(HADOOP_PREFIX + GCS_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // put in all gluten velox configs
+    conf
+      .filter(_._1.startsWith(s"spark.gluten.$backendName"))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
@@ -1495,12 +1532,6 @@ object GlutenConfig extends ConfigRegistry {
       .booleanConf
       .createWithDefault(false)
 
-  val ENCRYPTED_PARQUET_FALLBACK_ENABLED =
-    buildConf("spark.gluten.sql.fallbackEncryptedParquet")
-      .doc("If enabled, gluten will not offload scan when encrypted parquet files are detected")
-      .booleanConf
-      .createWithDefault(false)
-
   val AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED =
     buildConf("spark.gluten.auto.adjustStageResource.enabled")
       .experimental()
@@ -1531,13 +1562,37 @@ object GlutenConfig extends ConfigRegistry {
       .doubleConf
       .createWithDefault(0.5d)
 
-  val ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT =
-    buildConf("spark.gluten.sql.fallbackEncryptedParquet.limit")
-      .doc("If supplied, `limit` number of files will be checked to determine encryption " +
-        "and falling back java scan")
+  val PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED =
+    buildConf("spark.gluten.sql.fallbackUnexpectedMetadataParquet")
+      .doc("If enabled, Gluten will not offload scan when unexpected metadata is detected.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT =
+    buildConf("spark.gluten.sql.fallbackUnexpectedMetadataParquet.limit")
+      .doc("If supplied, metadata of `limit` number of Parquet files will be checked to" +
+        " determine whether to fall back to java scan.")
       .intConf
       .checkValue(_ > 0, s"must be positive.")
       .createWithDefault(10)
+
+  val ENCRYPTED_PARQUET_FALLBACK_ENABLED =
+    buildConf("spark.gluten.sql.fallbackEncryptedParquet")
+      .doc(
+        "If enabled, Gluten will not offload scan when encrypted parquet files are" +
+          " detected. Defaulted to " + s"${PARQUET_UNEXPECTED_METADATA_FALLBACK_ENABLED.key}.")
+      .booleanConf
+      .createOptional
+
+  val PARQUET_ENCRYPTED_FALLBACK_FILE_LIMIT =
+    buildConf("spark.gluten.sql.fallbackEncryptedParquet.limit")
+      .doc(
+        "If supplied, `limit` number of files will be checked to determine encryption " +
+          s"and falling back to java scan. Defaulted to " +
+          s"${PARQUET_UNEXPECTED_METADATA_FALLBACK_FILE_LIMIT.key}.")
+      .intConf
+      .checkValue(_ > 0, s"must be positive.")
+      .createOptional
 
   val COLUMNAR_RANGE_ENABLED =
     buildConf("spark.gluten.sql.columnar.range")
@@ -1563,4 +1618,14 @@ object GlutenConfig extends ConfigRegistry {
       .doc("Enable or disable columnar collectTail.")
       .booleanConf
       .createWithDefault(true)
+
+  val SMALL_FILE_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.smallFileThreshold")
+      .doc(
+        "The total size threshold of small files in table scan." +
+          "To avoid small files being placed into the same partition, " +
+          "Gluten will try to distribute small files into different partitions when the " +
+          "total size of small files is below this threshold.")
+      .doubleConf
+      .createWithDefault(0.5)
 }

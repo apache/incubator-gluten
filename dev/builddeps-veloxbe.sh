@@ -206,18 +206,23 @@ fi
 concat_velox_param
 
 function build_arrow {
-  if [ ! -d "$GLUTEN_DIR/ep/build-velox/build/velox_ep" ]; then
-    get_velox && setup_dependencies
+  if [ ! -d "$VELOX_HOME" ]; then
+    get_velox
+    if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
+      setup_dependencies
+    else
+      setup_dependencies_arrow
+    fi
   fi
   cd $GLUTEN_DIR/dev
-  source ./build_arrow.sh
+  source ./build-arrow.sh
 }
 
 function build_velox {
   echo "Start to build Velox"
   cd $GLUTEN_DIR/ep/build-velox/src
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
-  ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
+  ./build-velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
                    --enable_abfs=$ENABLE_ABFS --enable_gpu=$ENABLE_GPU --build_test_utils=$BUILD_TESTS \
                    --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS \
                    --velox_home=$VELOX_HOME
@@ -263,14 +268,14 @@ function build_velox_backend {
 
 function get_velox {
   cd $GLUTEN_DIR/ep/build-velox/src
-  ./get_velox.sh $VELOX_PARAMETER
+  ./get-velox.sh $VELOX_PARAMETER
 }
 
 function setup_dependencies {
   DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
   mkdir -p ${DEPENDENCY_DIR}
 
-  source $GLUTEN_DIR/dev/build_helper_functions.sh
+  source $GLUTEN_DIR/dev/build-helper-functions.sh
   source ${VELOX_HOME}/scripts/setup-common.sh
 
   echo "Start to install dependencies"
@@ -287,28 +292,35 @@ function setup_dependencies {
     install_aws_deps
   fi
   if [ $ENABLE_GCS == "ON" ]; then
-    install_gcs-sdk-cpp
+    install_gcs_sdk_cpp
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
     export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
-    install_azure-storage-sdk-cpp
+    install_azure_storage_sdk_cpp
   fi
   popd
 }
 
+function setup_dependencies_arrow {
+  DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
+  mkdir -p ${DEPENDENCY_DIR}
+
+  source ${VELOX_HOME}/scripts/setup-common.sh
+}
+
 OS=`uname -s`
 ARCH=`uname -m`
-commands_to_run=${OTHER_ARGUMENTS:-}
+commands_to_run=(${OTHER_ARGUMENTS[@]:-})
 (
-  if [[ "x$commands_to_run" == "x" ]]; then
+  if [[ ${#commands_to_run[@]} -eq 0 ]]; then
     get_velox
     if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
       setup_dependencies
     fi
     build_velox_backend
   else
-    echo "Commands to run: $commands_to_run"
-    for cmd in "$commands_to_run"; do
+    echo "Commands to run: ${commands_to_run[@]}"
+    for cmd in "${commands_to_run[@]}"; do
        "${cmd}"
     done
   fi
