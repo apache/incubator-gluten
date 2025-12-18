@@ -50,7 +50,6 @@ class ClickHouseIcebergHiveTableSupport {
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
-      .set(GlutenConfig.ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX.key, "true")
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
       .set(GlutenConfig.GLUTEN_SUPPORTED_HIVE_UDFS.key, "my_add")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
