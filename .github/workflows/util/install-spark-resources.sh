@@ -114,10 +114,10 @@ case "$1" in
     cd ${INSTALL_DIR} && \
     install_spark "3.5.5" "3" "2.13"
     ;;
-4.0)
-    # Spark-4.0, scala 2.12 // using 2.12 as a hack as 4.0 does not have 2.13 suffix
+4.1)
+    # Spark-4.x, scala 2.12 // using 2.12 as a hack as 4.0 does not have 2.13 suffix
     cd ${INSTALL_DIR} && \
-    install_spark "4.0.1" "3" "2.12"
+    install_spark "4.1.0" "3" "2.12"
     ;;
 *)
     echo "Spark version is expected to be specified."
