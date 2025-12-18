@@ -28,7 +28,10 @@ ENV CUDA_ARCHITECTURES=70
 
 
 WORKDIR /opt/gluten
-RUN rm -rf /opt/rh/gcc-toolset-12 && cp -r /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12; \
+RUN rm -rf /opt/rh/gcc-toolset-12 && ln -s /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12; \
+    dnf remove -y cuda-toolkit-12* && dnf install -y cuda-toolkit-13-1; \
+    dnf autoremove -y && dnf clean all; \
+    source /opt/rh/gcc-toolset-12/enable; \
     bash ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --build_tests=ON --build_benchmarks=ON --enable_gpu=ON && rm -rf /opt/gluten
 
 # You can try the data in folder backends-velox/src/test/resources/tpch-data-parquet

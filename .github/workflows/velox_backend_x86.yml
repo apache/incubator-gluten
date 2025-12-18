@@ -1314,9 +1314,15 @@ jobs:
 
   build-cudf-centos-9:
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-9-jdk8-cudf
     steps:
-      - uses: actions/checkout@v2
+      - name: "node-cleanup" # by default the free runner does not have enough disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
+      - run: df -h | sort -k 5 -nr # check disk space for debug
+
+      - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v4
         with:
@@ -1326,15 +1332,25 @@ jobs:
             ccache-centos9-release-shared-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
-          rm -rf /opt/rh/gcc-toolset-12 && cp -r /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
-          dnf autoremove -y
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:centos-9-jdk8-cudf bash -c "
+          rm -rf /opt/rh/gcc-toolset-12 && ln -s /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
           df -a
+          dnf autoremove -y && dnf clean all
+          dnf remove -y cuda-toolkit-12* && dnf install -y cuda-toolkit-13-1
+          ls -l /usr/local/
           source /opt/rh/gcc-toolset-12/enable
+
+          export CMAKE_BUILD_PARALLEL_LEVEL=4
           export NUM_THREADS=4
-          # bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=OFF --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
-          # rm -rf ep/build-velox/build/velox_ep
-          # mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
+          export CCACHE_DIR=/work/.ccache
+          mkdir -p /work/.ccache
+
+          cd /work
+          bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
+          rm -rf ep/build-velox/build/velox_ep
+          mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
           ccache -s
+          "
 
   spark-test-spark40:
     needs: build-native-lib-centos-7
