@@ -377,14 +377,14 @@ void VeloxMemoryManager::hold() {
 bool VeloxMemoryManager::tryDestructSafe() {
   // Velox memory pools considered safe to destruct when no alive allocations.
   for (const auto& pool : heldVeloxPools_) {
-    if (pool && pool->usedBytes() != 0) {
+    if (pool && pool->reservedBytes() != 0) {
       return false;
     }
   }
-  if (veloxLeafPool_ && veloxLeafPool_->usedBytes() != 0) {
+  if (veloxLeafPool_ && veloxLeafPool_->reservedBytes() != 0) {
     return false;
   }
-  if (veloxAggregatePool_ && veloxAggregatePool_->usedBytes() != 0) {
+  if (veloxAggregatePool_ && veloxAggregatePool_->reservedBytes() != 0) {
     return false;
   }
   heldVeloxPools_.clear();
