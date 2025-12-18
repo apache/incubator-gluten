@@ -45,6 +45,7 @@
     <tpcds.version>1.4</tpcds.version>
 
     <spotless.version>2.27.2</spotless.version>
+    <googlejavaformat.version>1.7</googlejavaformat.version>
     <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
     <!-- spotless:off -->
@@ -170,7 +171,7 @@
           <java>
             <toggleOffOn/>
             <googleJavaFormat>
-              <version>1.17.0</version>
+              <version>${googlejavaformat.version}</version>
             </googleJavaFormat>
 
             <!-- \# refers to the static imports -->
@@ -270,6 +271,7 @@
       <properties>
         <java.version>21</java.version>
         <spotless.version>2.44.2</spotless.version>
+        <googlejavaformat.version>1.17.0</googlejavaformat.version>
       </properties>
     </profile>
     <profile>
