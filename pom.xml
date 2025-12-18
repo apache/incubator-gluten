@@ -1085,6 +1085,7 @@
         <hudi.version>0.15.0</hudi.version>
         <slf4j.version>1.7.30</slf4j.version>
         <log4j.version>1.2.17</log4j.version>
+        <commons.collections4.version>4.5.0</commons.collections4.version>
       </properties>
       <dependencies>
         <dependency>
@@ -1092,6 +1093,12 @@
           <artifactId>log4j</artifactId>
           <version>${log4j.version}</version>
           <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-collections4</artifactId>
+          <version>${commons.collections4.version}</version>
+          <scope>compile</scope>
         </dependency>
       </dependencies>
     </profile>
