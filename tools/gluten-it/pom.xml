@@ -44,7 +44,7 @@
     <tpch.version>1.1</tpch.version>
     <tpcds.version>1.4</tpcds.version>
 
-    <spotless.version>2.44.2</spotless.version>
+    <spotless.version>2.27.2</spotless.version>
     <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
     <!-- spotless:off -->
@@ -268,7 +268,8 @@
         <jdk>21</jdk>
       </activation>
       <properties>
-        <java.version>17</java.version>
+        <java.version>21</java.version>
+        <spotless.version>2.44.2</spotless.version>
       </properties>
     </profile>
     <profile>
