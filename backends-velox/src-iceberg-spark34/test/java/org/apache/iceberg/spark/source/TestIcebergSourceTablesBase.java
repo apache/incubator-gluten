@@ -1995,13 +1995,8 @@ public abstract class TestIcebergSourceTablesBase extends SparkTestBase {
         .save(loadLocation(tableIdentifier));
 
     List<Integer> actual =
-        spark
-            .read()
-            .format("iceberg")
-            .load(loadLocation(tableIdentifier, "files"))
-            .sort(DataFile.SPEC_ID.name())
-            .collectAsList()
-            .stream()
+        spark.read().format("iceberg").load(loadLocation(tableIdentifier, "files"))
+            .sort(DataFile.SPEC_ID.name()).collectAsList().stream()
             .map(r -> (Integer) r.getAs(DataFile.SPEC_ID.name()))
             .collect(Collectors.toList());
 
