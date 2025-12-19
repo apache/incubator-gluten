@@ -17,9 +17,8 @@
 
 # If a new profile is introduced for new modules, please add it here to ensure
 # the new modules are covered.
-# TODO: adding spark-4.0 back
 PROFILES="-Pbackends-velox -Pceleborn,uniffle -Piceberg,delta,hudi,paimon \
-          -Pspark-3.2,spark-3.3,spark-3.4,spark-3.5 -Pspark-ut"
+          -Pspark-3.2,spark-3.3,spark-3.4,spark-3.5,spark-4.0 -Pspark-ut"
 
 COMMAND=$1
 
