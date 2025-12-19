@@ -19,6 +19,7 @@ package org.apache.gluten.utils
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.sql.shims.SparkShimLoader
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.datasources.DataSourceUtils
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFooterReader, ParquetOptions}
 
@@ -28,7 +29,7 @@ import org.apache.parquet.crypto.ParquetCryptoRuntimeException
 import org.apache.parquet.format.converter.ParquetMetadataConverter
 import org.apache.parquet.hadoop.metadata.ParquetMetadata
 
-object ParquetMetadataUtils {
+object ParquetMetadataUtils extends Logging {
 
   /**
    * Validates whether Parquet metadata is unsupported for the given paths.
@@ -48,27 +49,30 @@ object ParquetMetadataUtils {
       parquetOptions: ParquetOptions,
       fileLimit: Int
   ): Option[String] = {
-    var remaining = fileLimit
-    rootPaths.foreach {
-      rootPath =>
-        val fs = new Path(rootPath).getFileSystem(hadoopConf)
-        try {
-          val (maybeReason, filesScanned) =
-            checkForUnexpectedMetadataWithLimit(
-              fs,
-              new Path(rootPath),
-              hadoopConf,
-              parquetOptions,
-              fileLimit = fileLimit)
-          if (maybeReason.isDefined) {
-            return maybeReason
+    if (!GlutenConfig.get.parquetMetadataValidationEnabled) {
+      None
+    } else {
+      rootPaths.foreach {
+        rootPath =>
+          val fs = new Path(rootPath).getFileSystem(hadoopConf)
+          try {
+            val maybeReason =
+              checkForUnexpectedMetadataWithLimit(
+                fs,
+                new Path(rootPath),
+                hadoopConf,
+                parquetOptions,
+                fileLimit = fileLimit)
+            if (maybeReason.isDefined) {
+              return maybeReason
+            }
+          } catch {
+            case e: Exception =>
+              logWarning("Catch exception when validating parquet file metadata", e)
           }
-          remaining -= filesScanned
-        } catch {
-          case e: Exception =>
-        }
+      }
+      None
     }
-    None
   }
 
   def validateCodec(footer: ParquetMetadata): Option[String] = {
@@ -106,7 +110,7 @@ object ParquetMetadataUtils {
       conf: Configuration,
       parquetOptions: ParquetOptions,
       fileLimit: Int
-  ): (Option[String], Int) = {
+  ): Option[String] = {
     val filesIterator = fs.listFiles(path, true)
     var checkedFileCount = 0
     while (filesIterator.hasNext && checkedFileCount < fileLimit) {
@@ -114,10 +118,10 @@ object ParquetMetadataUtils {
       checkedFileCount += 1
       val metadataUnsupported = isUnsupportedMetadata(fileStatus, conf, parquetOptions)
       if (metadataUnsupported.isDefined) {
-        return (metadataUnsupported, checkedFileCount)
+        return metadataUnsupported
       }
     }
-    (None, checkedFileCount)
+    None
   }
 
   /**
@@ -129,9 +133,6 @@ object ParquetMetadataUtils {
       fileStatus: LocatedFileStatus,
       conf: Configuration,
       parquetOptions: ParquetOptions): Option[String] = {
-    if (!GlutenConfig.get.parquetMetadataValidationEnabled) {
-      return None
-    }
     val footer =
       try {
         ParquetFooterReader.readFooter(conf, fileStatus, ParquetMetadataConverter.NO_FILTER)

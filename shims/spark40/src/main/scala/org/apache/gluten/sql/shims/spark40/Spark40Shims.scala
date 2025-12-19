@@ -65,8 +65,8 @@ import org.apache.parquet.schema.MessageType
 import java.time.ZoneOffset
 import java.util.{Map => JMap}
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
 class Spark40Shims extends SparkShims {
@@ -151,7 +151,7 @@ class Spark40Shims extends SparkShims {
       options: CaseInsensitiveStringMap,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): TextScan = {
-    new TextScan(
+    TextScan(
       sparkSession,
       fileIndex,
       dataSchema,
@@ -742,6 +742,9 @@ class Spark40Shims extends SparkShims {
     throw t
   }
 
+  override def enrichWriteException(cause: Throwable, path: String): Nothing = {
+    GlutenFileFormatWriter.wrapWriteError(cause, path)
+  }
   override def getFileSourceScanStream(scan: FileSourceScanExec): Option[SparkDataStream] = {
     scan.stream
   }

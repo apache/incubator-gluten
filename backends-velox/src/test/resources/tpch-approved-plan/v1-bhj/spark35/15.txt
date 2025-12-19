@@ -12,7 +12,7 @@ AdaptiveSparkPlan (43)
                      :  +- BroadcastQueryStage (5), Statistics(X)
                      :     +- ColumnarBroadcastExchange (4)
                      :        +- ^ FilterExecTransformer (2)
-                     :           +- ^ ScanTransformer parquet  (1)
+                     :           +- ^ FileSourceScanExecTransformer parquet  (1)
                      +- ^ FilterExecTransformer (20)
                         +- ^ RegularHashAggregateExecTransformer (19)
                            +- ^ InputIteratorTransformer (18)
@@ -23,7 +23,7 @@ AdaptiveSparkPlan (43)
                                           +- ^ FlushableHashAggregateExecTransformer (11)
                                              +- ^ ProjectExecTransformer (10)
                                                 +- ^ FilterExecTransformer (9)
-                                                   +- ^ ScanTransformer parquet  (8)
+                                                   +- ^ FileSourceScanExecTransformer parquet  (8)
 +- == Initial Plan ==
    Sort (42)
    +- Exchange (41)
@@ -41,7 +41,7 @@ AdaptiveSparkPlan (43)
                               +- Scan parquet (32)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -70,7 +70,7 @@ Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 (7) InputIteratorTransformer
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 
-(8) ScanTransformer parquet 
+(8) FileSourceScanExecTransformer parquet 
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -253,7 +253,7 @@ AdaptiveSparkPlan (68)
                            +- ^ FlushableHashAggregateExecTransformer (47)
                               +- ^ ProjectExecTransformer (46)
                                  +- ^ FilterExecTransformer (45)
-                                    +- ^ ScanTransformer parquet  (44)
+                                    +- ^ FileSourceScanExecTransformer parquet  (44)
 +- == Initial Plan ==
    HashAggregate (67)
    +- HashAggregate (66)
@@ -265,7 +265,7 @@ AdaptiveSparkPlan (68)
                      +- Scan parquet (60)
 
 
-(44) ScanTransformer parquet 
+(44) FileSourceScanExecTransformer parquet 
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]

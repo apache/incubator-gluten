@@ -59,56 +59,56 @@ AdaptiveSparkPlan (207)
                                                 :                 :                 :                 :                 :                 :                 :        +- VeloxResizeBatches (5)
                                                 :                 :                 :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (3)
                                                 :                 :                 :                 :                 :                 :                 :              +- ^ FilterExecTransformer (2)
-                                                :                 :                 :                 :                 :                 :                 :                 +- ^ ScanTransformer parquet  (1)
+                                                :                 :                 :                 :                 :                 :                 :                 +- ^ FileSourceScanExecTransformer parquet  (1)
                                                 :                 :                 :                 :                 :                 :                 +- ^ InputIteratorTransformer (18)
                                                 :                 :                 :                 :                 :                 :                    +- ShuffleQueryStage (16), Statistics(X)
                                                 :                 :                 :                 :                 :                 :                       +- ColumnarExchange (15)
                                                 :                 :                 :                 :                 :                 :                          +- VeloxResizeBatches (14)
                                                 :                 :                 :                 :                 :                 :                             +- ^ ProjectExecTransformer (12)
                                                 :                 :                 :                 :                 :                 :                                +- ^ FilterExecTransformer (11)
-                                                :                 :                 :                 :                 :                 :                                   +- ^ ScanTransformer parquet  (10)
+                                                :                 :                 :                 :                 :                 :                                   +- ^ FileSourceScanExecTransformer parquet  (10)
                                                 :                 :                 :                 :                 :                 +- ^ InputIteratorTransformer (35)
                                                 :                 :                 :                 :                 :                    +- ShuffleQueryStage (33), Statistics(X)
                                                 :                 :                 :                 :                 :                       +- ColumnarExchange (32)
                                                 :                 :                 :                 :                 :                          +- VeloxResizeBatches (31)
                                                 :                 :                 :                 :                 :                             +- ^ ProjectExecTransformer (29)
                                                 :                 :                 :                 :                 :                                +- ^ FilterExecTransformer (28)
-                                                :                 :                 :                 :                 :                                   +- ^ ScanTransformer parquet  (27)
+                                                :                 :                 :                 :                 :                                   +- ^ FileSourceScanExecTransformer parquet  (27)
                                                 :                 :                 :                 :                 +- ^ InputIteratorTransformer (52)
                                                 :                 :                 :                 :                    +- ShuffleQueryStage (50), Statistics(X)
                                                 :                 :                 :                 :                       +- ColumnarExchange (49)
                                                 :                 :                 :                 :                          +- VeloxResizeBatches (48)
                                                 :                 :                 :                 :                             +- ^ ProjectExecTransformer (46)
                                                 :                 :                 :                 :                                +- ^ FilterExecTransformer (45)
-                                                :                 :                 :                 :                                   +- ^ ScanTransformer parquet  (44)
+                                                :                 :                 :                 :                                   +- ^ FileSourceScanExecTransformer parquet  (44)
                                                 :                 :                 :                 +- ^ InputIteratorTransformer (69)
                                                 :                 :                 :                    +- ShuffleQueryStage (67), Statistics(X)
                                                 :                 :                 :                       +- ColumnarExchange (66)
                                                 :                 :                 :                          +- VeloxResizeBatches (65)
                                                 :                 :                 :                             +- ^ ProjectExecTransformer (63)
                                                 :                 :                 :                                +- ^ FilterExecTransformer (62)
-                                                :                 :                 :                                   +- ^ ScanTransformer parquet  (61)
+                                                :                 :                 :                                   +- ^ FileSourceScanExecTransformer parquet  (61)
                                                 :                 :                 +- ^ InputIteratorTransformer (86)
                                                 :                 :                    +- ShuffleQueryStage (84), Statistics(X)
                                                 :                 :                       +- ColumnarExchange (83)
                                                 :                 :                          +- VeloxResizeBatches (82)
                                                 :                 :                             +- ^ ProjectExecTransformer (80)
                                                 :                 :                                +- ^ FilterExecTransformer (79)
-                                                :                 :                                   +- ^ ScanTransformer parquet  (78)
+                                                :                 :                                   +- ^ FileSourceScanExecTransformer parquet  (78)
                                                 :                 +- ^ InputIteratorTransformer (103)
                                                 :                    +- ShuffleQueryStage (101), Statistics(X)
                                                 :                       +- ColumnarExchange (100)
                                                 :                          +- VeloxResizeBatches (99)
                                                 :                             +- ^ ProjectExecTransformer (97)
                                                 :                                +- ^ FilterExecTransformer (96)
-                                                :                                   +- ^ ScanTransformer parquet  (95)
+                                                :                                   +- ^ FileSourceScanExecTransformer parquet  (95)
                                                 +- ^ InputIteratorTransformer (120)
                                                    +- ShuffleQueryStage (118), Statistics(X)
                                                       +- ColumnarExchange (117)
                                                          +- VeloxResizeBatches (116)
                                                             +- ^ ProjectExecTransformer (114)
                                                                +- ^ FilterExecTransformer (113)
-                                                                  +- ^ ScanTransformer parquet  (112)
+                                                                  +- ^ FileSourceScanExecTransformer parquet  (112)
 +- == Initial Plan ==
    Sort (206)
    +- Exchange (205)
@@ -177,7 +177,7 @@ AdaptiveSparkPlan (207)
                                  +- Scan parquet (195)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [2]: [p_partkey#X, p_type#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -214,7 +214,7 @@ Input [1]: [p_partkey#X]
 (9) InputIteratorTransformer
 Input [1]: [p_partkey#X]
 
-(10) ScanTransformer parquet 
+(10) FileSourceScanExecTransformer parquet 
 Output [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -283,7 +283,7 @@ Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 (26) InputIteratorTransformer
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(27) ScanTransformer parquet 
+(27) FileSourceScanExecTransformer parquet 
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -352,7 +352,7 @@ Input [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 (43) InputIteratorTransformer
 Input [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
 
-(44) ScanTransformer parquet 
+(44) FileSourceScanExecTransformer parquet 
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -421,7 +421,7 @@ Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_order
 (60) InputIteratorTransformer
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
 
-(61) ScanTransformer parquet 
+(61) FileSourceScanExecTransformer parquet 
 Output [2]: [c_custkey#X, c_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -490,7 +490,7 @@ Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nat
 (77) InputIteratorTransformer
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
 
-(78) ScanTransformer parquet 
+(78) FileSourceScanExecTransformer parquet 
 Output [2]: [n_nationkey#X, n_regionkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -559,7 +559,7 @@ Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_reg
 (94) InputIteratorTransformer
 Input [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
 
-(95) ScanTransformer parquet 
+(95) FileSourceScanExecTransformer parquet 
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -628,7 +628,7 @@ Input [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_nam
 (111) InputIteratorTransformer
 Input [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
 
-(112) ScanTransformer parquet 
+(112) FileSourceScanExecTransformer parquet 
 Output [2]: [r_regionkey#X, r_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]

@@ -35,7 +35,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.sql.utils.{SparkArrowUtil, SparkSchemaUtil, SparkVectorUtil}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import org.apache.spark.util.Utils
+import org.apache.spark.util.{SparkVersionUtil, Utils}
 
 import org.apache.arrow.vector.{VectorLoader, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
@@ -49,12 +49,12 @@ import scala.collection.mutable.ArrayBuffer
 class ColumnarArrowPythonRunner(
     funcs: Seq[(ChainedPythonFunctions, Long)],
     evalType: Int,
-    argOffsets: Array[Array[Int]],
+    argMetas: Array[Array[(Int, Option[String])]],
     schema: StructType,
     timeZoneId: String,
     conf: Map[String, String],
     pythonMetrics: Map[String, SQLMetric])
-  extends BasePythonRunnerShim(funcs, evalType, argOffsets, pythonMetrics) {
+  extends BasePythonRunnerShim(funcs, evalType, argMetas, pythonMetrics) {
 
   override val simplifiedTraceback: Boolean = SQLConf.get.pysparkSimplifiedTraceback
 
@@ -149,7 +149,7 @@ class ColumnarArrowPythonRunner(
           PythonRDD.writeUTF(k, dataOut)
           PythonRDD.writeUTF(v, dataOut)
         }
-        ColumnarArrowPythonRunner.this.writeUdf(dataOut, argOffsets)
+        ColumnarArrowPythonRunner.this.writeUdf(dataOut, argMetas)
       }
 
       // For Spark earlier than 4.0. It overrides the corresponding abstract method
@@ -165,6 +165,12 @@ class ColumnarArrowPythonRunner(
       }
 
       def writeToStreamHelper(dataOut: DataOutputStream): Boolean = {
+        if (!inputIterator.hasNext) {
+          // See https://issues.apache.org/jira/browse/SPARK-44705:
+          // Starting from Spark 4.0, we should return false once the iterator is drained out,
+          // otherwise Spark won't stop calling this method repeatedly.
+          return false
+        }
         var numRows: Long = 0
         val arrowSchema = SparkSchemaUtil.toArrowSchema(schema, timeZoneId)
         val allocator = ArrowBufferAllocators.contextInstance()
@@ -264,7 +270,7 @@ case class ColumnarArrowEvalPythonExec(
 
   protected def evaluateColumnar(
       funcs: Seq[(ChainedPythonFunctions, Long)],
-      argOffsets: Array[Array[Int]],
+      argMetas: Array[Array[(Int, Option[String])]],
       iter: Iterator[ColumnarBatch],
       schema: StructType,
       context: TaskContext): Iterator[ColumnarBatch] = {
@@ -274,7 +280,7 @@ case class ColumnarArrowEvalPythonExec(
     val columnarBatchIter = new ColumnarArrowPythonRunner(
       funcs,
       evalType,
-      argOffsets,
+      argMetas,
       schema,
       sessionLocalTimeZone,
       pythonRunnerConf,
@@ -306,22 +312,51 @@ case class ColumnarArrowEvalPythonExec(
         val allInputs = new ArrayBuffer[Expression]
         val dataTypes = new ArrayBuffer[DataType]
         val originalOffsets = new ArrayBuffer[Int]
-        val argOffsets = inputs.map {
-          input =>
-            input.map {
-              e =>
-                if (allInputs.exists(_.semanticEquals(e))) {
-                  allInputs.indexWhere(_.semanticEquals(e))
-                } else {
-                  val offset = child.output.indexWhere(
-                    _.exprId.equals(e.asInstanceOf[AttributeReference].exprId))
-                  originalOffsets += offset
-                  allInputs += e
-                  dataTypes += e.dataType
-                  allInputs.length - 1
-                }
-            }.toArray
-        }.toArray
+        val argMetas: Array[Array[(Int, Option[String])]] = if (SparkVersionUtil.gteSpark40) {
+          // Spark 4.0 requires ArgumentMetadata rather than trivial integer-based offset.
+          // See https://issues.apache.org/jira/browse/SPARK-44918.
+          inputs.map {
+            input =>
+              input.map {
+                e =>
+                  val (key, value) = e match {
+                    case EvalPythonExecBase.NamedArgumentExpressionShim(key, value) =>
+                      (Some(key), value)
+                    case _ =>
+                      (None, e)
+                  }
+                  val pair: (Int, Option[String]) = if (allInputs.exists(_.semanticEquals(value))) {
+                    allInputs.indexWhere(_.semanticEquals(value)) -> key
+                  } else {
+                    val offset = child.output.indexWhere(
+                      _.exprId.equals(e.asInstanceOf[AttributeReference].exprId))
+                    originalOffsets += offset
+                    allInputs += value
+                    dataTypes += value.dataType
+                    (allInputs.length - 1) -> key
+                  }
+                  pair
+              }.toArray
+          }.toArray
+        } else {
+          inputs.map {
+            input =>
+              input.map {
+                e =>
+                  val pair: (Int, Option[String]) = if (allInputs.exists(_.semanticEquals(e))) {
+                    allInputs.indexWhere(_.semanticEquals(e)) -> None
+                  } else {
+                    val offset = child.output.indexWhere(
+                      _.exprId.equals(e.asInstanceOf[AttributeReference].exprId))
+                    originalOffsets += offset
+                    allInputs += e
+                    dataTypes += e.dataType
+                    (allInputs.length - 1) -> None
+                  }
+                  pair
+              }.toArray
+          }.toArray
+        }
         val schema = StructType(dataTypes.zipWithIndex.map {
           case (dt, i) =>
             StructField(s"_$i", dt)
@@ -339,7 +374,7 @@ case class ColumnarArrowEvalPythonExec(
             inputCbCache += inputCb
             numInputRows += inputCb.numRows
             // We only need to pass the referred cols data to python worker for evaluation.
-            var colsForEval = new ArrayBuffer[ColumnVector]()
+            val colsForEval = new ArrayBuffer[ColumnVector]()
             for (i <- originalOffsets) {
               colsForEval += inputCb.column(i)
             }
@@ -347,7 +382,7 @@ case class ColumnarArrowEvalPythonExec(
         }
 
         val outputColumnarBatchIterator =
-          evaluateColumnar(pyFuncs, argOffsets, inputBatchIter, schema, context)
+          evaluateColumnar(pyFuncs, argMetas, inputBatchIter, schema, context)
         val res =
           outputColumnarBatchIterator.zipWithIndex.map {
             case (outputCb, batchId) =>

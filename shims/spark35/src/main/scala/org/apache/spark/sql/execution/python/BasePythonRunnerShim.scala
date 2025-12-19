@@ -28,12 +28,12 @@ import java.net.Socket
 abstract class BasePythonRunnerShim(
     funcs: Seq[(ChainedPythonFunctions, Long)],
     evalType: Int,
-    argOffsets: Array[Array[Int]],
+    argMetas: Array[Array[(Int, Option[String])]],
     pythonMetrics: Map[String, SQLMetric])
   extends BasePythonRunner[ColumnarBatch, ColumnarBatch](
     funcs.map(_._1),
     evalType,
-    argOffsets,
+    argMetas.map(_.map(_._1)),
     None) {
   // The type aliases below provide consistent type names in child classes,
   // ensuring code compatibility with both Spark 4.0 and earlier versions.
@@ -47,8 +47,10 @@ abstract class BasePythonRunnerShim(
       partitionIndex: Int,
       context: TaskContext): Writer
 
-  protected def writeUdf(dataOut: DataOutputStream, argOffsets: Array[Array[Int]]): Unit = {
-    PythonUDFRunner.writeUDFs(dataOut, funcs.map(_._1), argOffsets)
+  protected def writeUdf(
+      dataOut: DataOutputStream,
+      argMetas: Array[Array[(Int, Option[String])]]): Unit = {
+    PythonUDFRunner.writeUDFs(dataOut, funcs.map(_._1), argMetas.map(_.map(_._1)))
   }
 
   override protected def newWriterThread(

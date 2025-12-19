@@ -55,6 +55,7 @@ class VeloxBatchResizerTest : public ::testing::Test, public test::VectorTestBas
 
   void checkResize(int32_t min, int32_t max, int64_t preferredBatchBytes, std::vector<int32_t> inSizes, std::vector<int32_t> outSizes) {
     auto inBatches = std::vector<std::shared_ptr<ColumnarBatch>>();
+    inBatches.reserve(inSizes.size());
     for (const auto& size : inSizes) {
       inBatches.push_back(std::make_shared<VeloxColumnarBatch>(newVector(size)));
     }

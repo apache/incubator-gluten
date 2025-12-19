@@ -538,17 +538,18 @@ object VeloxConfig extends ConfigRegistry {
       .createWithDefault(false)
 
   val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_ROWS =
-    buildConf("spark.gluten.velox.abandonbuild.noduphashminrows")
+    buildConf("spark.gluten.velox.abandonDedupHashMap.minRows")
       .experimental()
       .doc("Experimental: abandon hashmap build if duplicated rows more than this number.")
       .intConf
       .createWithDefault(100000)
 
   val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_PCT =
-    buildConf("spark.gluten.velox.abandonbuild.noduphashminpct")
+    buildConf("spark.gluten.velox.abandonDedupHashMap.minPct")
       .experimental()
-      .doc("Experimental: abandon hashmap build if duplicated rows are more than this percentile." +
-        "Value is integer based and range is [0, 100].")
+      .doc(
+        "Experimental: abandon hashmap build if duplicated rows are more than this percentile. " +
+          "Value is integer based and range is [0, 100].")
       .intConf
       .createWithDefault(0)
 

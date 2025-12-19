@@ -331,9 +331,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def textIputEmptyAsDefault: Boolean = getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
 
-  def enableParquetRowGroupMaxMinIndex: Boolean =
-    getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
-
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
   def enableNativeWriter: Option[Boolean] = getConf(NATIVE_WRITER_ENABLED)
 
@@ -551,17 +548,15 @@ object GlutenConfig extends ConfigRegistry {
           nativeConfMap
             .put(SQLConf.LEGACY_TIME_PARSER_POLICY.key, v.toUpperCase(Locale.ROOT)))
 
-    // put in all gluten velox configs
-    conf
-      .filter(_._1.startsWith(prefixSessionOf(backendName)))
-      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
-
-    // Backend's dynamic session conf only.
+    val confPrefixSession = prefixSessionOf(backendName)
     val confPrefix = prefixOf(backendName)
     conf
       .filter {
         case (k, _) =>
-          k.startsWith(confPrefix) && !SQLConf.isStaticConfigKey(k)
+          // Backend's dynamic session conf only.
+          k.startsWith(confPrefix) && !SQLConf.isStaticConfigKey(k) ||
+          // put in all gluten velox configs
+          k.startsWith(confPrefixSession)
       }
       .foreach { case (k, v) => nativeConfMap.put(k, v) }
 
@@ -1357,13 +1352,6 @@ object GlutenConfig extends ConfigRegistry {
       .doc("treat empty fields in CSV input as default values.")
       .booleanConf
       .createWithDefault(false);
-
-  val ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX =
-    buildConf("spark.gluten.sql.parquet.maxmin.index")
-      .internal()
-      .doc("Enable row group max min index for parquet file scan")
-      .booleanConf
-      .createWithDefault(false)
 
   val ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON =
     buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")

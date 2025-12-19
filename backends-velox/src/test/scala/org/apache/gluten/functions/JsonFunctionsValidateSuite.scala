@@ -59,8 +59,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("json_array_length", "3.5") {
+  test("json_array_length") {
     runQueryAndCompare(
       s"select *, json_array_length(string_field1) " +
         s"from datatab limit 5")(checkGlutenPlan[ProjectExecTransformer])
@@ -349,8 +348,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("json_object_keys", "3.5") {
+  test("json_object_keys") {
     withTempPath {
       path =>
         Seq[String](
@@ -380,8 +378,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("to_json function", "3.5") {
+  test("to_json function") {
     withTable("t") {
       spark.sql(
         """

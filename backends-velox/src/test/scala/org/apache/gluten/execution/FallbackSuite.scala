@@ -17,12 +17,17 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
+import org.apache.gluten.events.GlutenPlanFallbackEvent
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, SortExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
+import org.apache.spark.utils.GlutenSuiteUtils
+
+import scala.collection.mutable.ArrayBuffer
 
 class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -35,6 +40,9 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
+      // The gluten ui event test suite expects the spark ui to be enabled.
+      .set(GlutenConfig.GLUTEN_UI_ENABLED.key, "true")
+      .set("spark.ui.enabled", "true")
   }
 
   override def beforeAll(): Unit = {
@@ -310,6 +318,45 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       df =>
         val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
         assert(columnarToRow == 1)
+    }
+  }
+
+  test("get correct fallback reason on nodes without logicalLink") {
+    val events = new ArrayBuffer[GlutenPlanFallbackEvent]
+    val listener = new SparkListener {
+      override def onOtherEvent(event: SparkListenerEvent): Unit = {
+        event match {
+          case e: GlutenPlanFallbackEvent => events.append(e)
+          case _ =>
+        }
+      }
+    }
+    spark.sparkContext.addSparkListener(listener)
+    withSQLConf(GlutenConfig.COLUMNAR_SORT_ENABLED.key -> "false") {
+      try {
+        val df = spark.sql("""
+                             |SELECT
+                             |  c1,
+                             |  c2,
+                             |  ROW_NUMBER() OVER (PARTITION BY c1 ORDER BY c2) as row_num,
+                             |  RANK() OVER (PARTITION BY c1 ORDER BY c2) as rank_num
+                             |FROM tmp1
+                             |
+                             |""".stripMargin)
+        df.collect()
+        GlutenSuiteUtils.waitUntilEmpty(spark.sparkContext)
+        val sort = find(df.queryExecution.executedPlan) {
+          _.isInstanceOf[SortExec]
+        }
+        assert(sort.isDefined)
+        val fallbackReasons = events.flatMap(_.fallbackNodeToReason.values)
+        assert(fallbackReasons.nonEmpty)
+        assert(
+          fallbackReasons.forall(
+            _.contains("[FallbackByUserOptions] Validation failed on node Sort")))
+      } finally {
+        spark.sparkContext.removeSparkListener(listener)
+      }
     }
   }
 }

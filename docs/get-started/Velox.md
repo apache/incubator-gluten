@@ -108,6 +108,18 @@ After the above build process, the Jar file will be generated under `package/tar
 
 Alternatively you may refer to [build in docker](../developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
 
+## Build Gluten with Velox Enhanced Features
+
+There are several Velox PRs essential to Gluten that have not yet been merged upstream. Since upstream Velox lacks CI coverage for Gluten, any upstream PR could potentially break Gluten’s compilation or unit tests. As a result, Gluten cannot directly rely on upstream Velox. Instead, Gluten maintains its own fork of Velox at [ibm/velox](https://github.com/IBM/velox), which is rebased against upstream Velox on a per-PR basis. Due to the slow review process in upstream Velox, many features that would benefit Gluten remain unmerged. A typical example is [PR7066](https://github.com/facebookincubator/velox/pull/7066), which improves TPC-DS Q95 performance but has been pending for over two years. To address this, in addition to essential features, we selectively include pending upstream PRs in our fork and tag them with the format `ibm-yyyy_mm_dd`. The diagram below illustrates this relationship. To enable these additional features, we introduced a build option: `enable_enhanced_features`.
+
+<img width="900" height="255" alt="image" src="https://github.com/user-attachments/assets/1b9a723f-2851-4847-b48c-87571fbd2a9c" />
+
+The commands:
+
+```bash
+./dev/buildbundle-veloxbe.sh --enable_enhanced_features=ON 
+```
+
 ## Dependency library deployment
 
 With build option `enable_vcpkg=ON`, all dependency libraries will be statically linked to `libvelox.so` and `libgluten.so` which are packed into the gluten-jar.
@@ -461,8 +473,8 @@ All TPC-H and TPC-DS queries are supported in Gluten Velox backend. You may refe
 
 ## Data preparation
 
-The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch-dategen-parquet.sh) and
-[TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds-dategen-parquet.sh).
+The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch-datagen-parquet.sh) and
+[TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds-datagen-parquet.sh).
 
 The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../tools/gluten-it/common/src/main/resources/tpcds-queries)
 and [TPC-H queries](../../tools/gluten-it/common/src/main/resources/tpch-queries).

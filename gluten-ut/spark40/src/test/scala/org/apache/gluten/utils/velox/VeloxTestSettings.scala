@@ -177,7 +177,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-42782: Hive compatibility check for get_json_object")
     // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")
-    // TODO: fix in Spark-4.0
     .exclude("function get_json_object - path is null")
     .exclude("function get_json_object - json is null")
     .exclude("function get_json_object - Codegen Support")
@@ -476,9 +475,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Velox parquet reader not allow offset zero.
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
     // TODO: fix in Spark-4.0
-    .exclude("SPARK-49991: Respect 'mapreduce.output.basename' to generate file names")
-    .exclude("SPARK-6330 regression test")
-    .exclude("SPARK-7837 Do not close output writer twice when commitTask() fails")
     .exclude("explode nested lists crossing a rowgroup boundary")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
@@ -527,8 +523,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("schema mismatch failure error message for parquet vectorized reader")
     // https://github.com/apache/incubator-gluten/issues/11220
     .excludeByPrefix("SPARK-40819")
-    // TODO: fix in Spark-4.0
-    .excludeByPrefix("SPARK-46056")
+    .excludeByPrefix("SPARK-46056") // TODO: fix in Spark-4.0
     .exclude("CANNOT_MERGE_SCHEMAS: Failed merging schemas")
   enableSuite[GlutenParquetThriftCompatibilitySuite]
     // Rewrite for file locating.

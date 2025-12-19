@@ -39,8 +39,7 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
       .set("spark.executor.cores", "1")
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("arrow_udf test: without projection", "3.5") {
+  test("arrow_udf test: without projection") {
     lazy val base =
       Seq(("1", 1), ("1", 2), ("2", 1), ("2", 2), ("3", 1), ("3", 2), ("0", 1), ("3", 0))
         .toDF("a", "b")
@@ -60,8 +59,7 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
     checkAnswer(df2, expected)
   }
 
-  // TODO: fix on spark-4.0
-  testWithMaxSparkVersion("arrow_udf test: with unrelated projection", "3.5") {
+  test("arrow_udf test: with unrelated projection") {
     lazy val base =
       Seq(("1", 1), ("1", 2), ("2", 1), ("2", 2), ("3", 1), ("3", 2), ("0", 1), ("3", 0))
         .toDF("a", "b")
@@ -81,7 +79,7 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
     checkAnswer(df, expected)
   }
 
-  // TODO: fix on spark-4.0
+  // A fix needed for Spark 4.0 change in https://github.com/apache/spark/pull/42864.
   testWithMaxSparkVersion("arrow_udf test: with preprojection", "3.5") {
     lazy val base =
       Seq(("1", 1), ("1", 2), ("2", 1), ("2", 2), ("3", 1), ("3", 2), ("0", 1), ("3", 0))

@@ -16,7 +16,11 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
+import org.apache.spark.SparkException
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.expressions.Cast.toSQLType
+import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
 
 class GlutenParquetSchemaInferenceSuite
   extends ParquetSchemaInferenceSuite
@@ -26,5 +30,35 @@ class GlutenParquetSchemaSuite extends ParquetSchemaSuite with GlutenSQLTestsBas
 
   override protected def testFile(fileName: String): String = {
     getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + fileName
+  }
+
+  testGluten("CANNOT_MERGE_SCHEMAS: Failed merging schemas") {
+    import testImplicits._
+
+    withTempPath {
+      dir =>
+        val path = dir.getCanonicalPath
+
+        // Note: Velox backend always generates Parquet files with nullable = true,
+        // regardless of whether nullable is set to false or true in the schema.
+        // Before https://github.com/apache/spark/pull/44644, `StructField.sql` would not
+        // return the `NOT NULL` qualifier. This is why this test succeeds in Spark 3.5.
+        val schema1 = StructType(Seq(StructField("id", LongType, nullable = true)))
+        val df1 = spark.createDataFrame(
+          spark.sparkContext.parallelize(Seq(Row(0L), Row(1L), Row(2L))),
+          schema1)
+        df1.write.parquet(s"$path/p=1")
+        val df2 = df1.select($"id".cast(IntegerType).as(Symbol("id")))
+        df2.write.parquet(s"$path/p=2")
+
+        checkError(
+          exception = intercept[SparkException] {
+            spark.read.option("mergeSchema", "true").parquet(path)
+          },
+          condition = "CANNOT_MERGE_SCHEMAS",
+          sqlState = "42KD9",
+          parameters = Map("left" -> toSQLType(df1.schema), "right" -> toSQLType(df2.schema))
+        )
+    }
   }
 }

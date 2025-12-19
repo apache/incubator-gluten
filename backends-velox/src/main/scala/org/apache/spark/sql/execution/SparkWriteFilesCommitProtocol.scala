@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
@@ -44,15 +46,15 @@ class SparkWriteFilesCommitProtocol(
   extends Logging {
   assert(committer.isInstanceOf[HadoopMapReduceCommitProtocol])
 
-  val sparkStageId = TaskContext.get().stageId()
-  val sparkPartitionId = TaskContext.get().partitionId()
-  val sparkAttemptNumber = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
+  val sparkStageId: Int = TaskContext.get().stageId()
+  val sparkPartitionId: Int = TaskContext.get().partitionId()
+  val sparkAttemptNumber: Int = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
   private val jobId = createJobID(jobTrackerID, sparkStageId)
 
   private val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
   private val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
 
-  private var fileNames: mutable.Set[String] = null
+  private var fileNames: mutable.Set[String] = _
 
   // Set up the attempt context required to use in the output committer.
   val taskAttemptContext: TaskAttemptContext = {
@@ -86,7 +88,9 @@ class SparkWriteFilesCommitProtocol(
     // Note that %05d does not truncate the split number, so if we have more than 100000 tasks,
     // the file name is fine and won't overflow.
     val split = taskAttemptContext.getTaskAttemptID.getTaskID.getId
-    val fileName = f"${spec.prefix}part-$split%05d-${UUID.randomUUID().toString()}${spec.suffix}"
+    val basename = taskAttemptContext.getConfiguration.get("mapreduce.output.basename", "part")
+    val fileName = f"${spec.prefix}$basename-$split%05d-${UUID.randomUUID().toString}${spec.suffix}"
+
     fileNames += fileName
     fileName
   }
@@ -103,7 +107,13 @@ class SparkWriteFilesCommitProtocol(
     stagingDir.toString
   }
 
-  def commitTask(): Unit = {
+  private def enrichWriteError[T](path: => String)(f: => T): T = try {
+    f
+  } catch {
+    case t: Throwable => SparkShimLoader.getSparkShims.enrichWriteException(t, description.path)
+  }
+
+  def commitTask(): Unit = enrichWriteError(description.path) {
     val (_, taskCommitTime) = Utils.timeTakenMs {
       committer.commitTask(taskAttemptContext)
     }
@@ -114,7 +124,7 @@ class SparkWriteFilesCommitProtocol(
     }
   }
 
-  def abortTask(writePath: String): Unit = {
+  def abortTask(writePath: String): Unit = enrichWriteError(description.path) {
     committer.abortTask(taskAttemptContext)
 
     // Deletes the files written by current task.

@@ -615,10 +615,10 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<int32_t>(kVeloxSplitPreloadPerDriver, 2));
 
     // hashtable build optimizations
-    configs[velox::core::QueryConfig::kAbandonBuildNoDupHashMinRows] =
-        std::to_string(veloxCfg_->get<int32_t>(kAbandonBuildNoDupHashMinRows, 100000));
-    configs[velox::core::QueryConfig::kAbandonBuildNoDupHashMinPct] =
-        std::to_string(veloxCfg_->get<int32_t>(kAbandonBuildNoDupHashMinPct, 0));
+    configs[velox::core::QueryConfig::kAbandonDedupHashMapMinRows] =
+        std::to_string(veloxCfg_->get<int32_t>(kAbandonDedupHashMapMinRows, 100000));
+    configs[velox::core::QueryConfig::kAbandonDedupHashMapMinPct] =
+        std::to_string(veloxCfg_->get<int32_t>(kAbandonDedupHashMapMinPct, 0));
 
     // Disable driver cpu time slicing.
     configs[velox::core::QueryConfig::kDriverCpuTimeSliceLimitMs] = "0";

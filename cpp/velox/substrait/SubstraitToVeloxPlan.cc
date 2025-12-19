@@ -463,8 +463,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<core::FieldAccessTypedExprPtr> veloxGroupingExprs;
 
   // Get the grouping expressions.
-  for (const auto& grouping : aggRel.groupings()) {
-    for (const auto& groupingExpr : grouping.grouping_expressions()) {
+  VELOX_CHECK(
+    aggRel.groupings().size() <= 1, "At most one grouping is supported, but got {}.", aggRel.groupings().size());
+  if (aggRel.groupings().size() == 1) {
+    for (const auto& groupingExpr : aggRel.groupings()[0].grouping_expressions()) {
       // Velox's groupings are limited to be Field.
       veloxGroupingExprs.emplace_back(exprConverter_->toVeloxExpr(groupingExpr.selection(), inputType));
     }
@@ -674,6 +676,7 @@ std::shared_ptr<CudfHiveInsertTableHandle> makeCudfHiveInsertTableHandle(
     const std::unordered_map<std::string, std::string>& serdeParameters,
     const std::shared_ptr<dwio::common::WriterOptions>& writerOptions) {
   std::vector<std::shared_ptr<const CudfHiveColumnHandle>> columnHandles;
+  columnHandles.reserve(tableColumnNames.size());
 
   for (int i = 0; i < tableColumnNames.size(); ++i) {
     columnHandles.push_back(std::make_shared<CudfHiveColumnHandle>(
