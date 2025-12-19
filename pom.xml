@@ -1064,6 +1064,8 @@
       <properties>
         <java.version>21</java.version>
         <caffeine.version>3.1.8</caffeine.version>
+        <spotless.version>2.44.2</spotless.version>
+        <googlejavaformat.version>1.17.0</googlejavaformat.version>
       </properties>
     </profile>
     <profile>
@@ -1203,8 +1205,6 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <arrow.version>18.1.0</arrow.version>
         <arrow-gluten.version>18.1.0</arrow-gluten.version>
-        <spotless.version>2.44.2</spotless.version>
-        <googlejavaformat.version>1.17.0</googlejavaformat.version>
       </properties>
       <dependencies>
         <dependency>
