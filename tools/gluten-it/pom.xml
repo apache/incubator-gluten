@@ -321,7 +321,7 @@
       <id>spark-4.0</id>
       <properties>
         <spark.version>4.0.1</spark.version>
-        <scala.version>2.13.8</scala.version>
+        <scala.version>2.13.16</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
         <delta.package.name>delta-spark</delta.package.name>
         <delta.version>4.0.0</delta.version>
