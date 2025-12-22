@@ -100,8 +100,14 @@ select url_decode('http%3A%2F%2spark.apache.org')
 -- !query schema
 struct<>
 -- !query output
-org.apache.gluten.exception.GlutenException
-Illegal hex characters in escape (%) pattern: 2s
+org.apache.spark.SparkIllegalArgumentException
+{
+  "errorClass" : "CANNOT_DECODE_URL",
+  "sqlState" : "22546",
+  "messageParameters" : {
+    "url" : "http%3A%2F%2spark.apache.org"
+  }
+}
 
 
 -- !query
@@ -116,5 +122,37 @@ inva lid://user:pass@host/file\;param?query\;p2
 select url_decode(null)
 -- !query schema
 struct<url_decode(NULL):string>
+-- !query output
+NULL
+
+
+-- !query
+select try_url_decode('https%3A%2F%2Fspark.apache.org')
+-- !query schema
+struct<try_url_decode(https%3A%2F%2Fspark.apache.org):string>
+-- !query output
+https://spark.apache.org
+
+
+-- !query
+select try_url_decode('http%3A%2F%2spark.apache.org')
+-- !query schema
+struct<try_url_decode(http%3A%2F%2spark.apache.org):string>
+-- !query output
+NULL
+
+
+-- !query
+select try_url_decode('inva lid://user:pass@host/file\\;param?query\\;p2')
+-- !query schema
+struct<try_url_decode(inva lid://user:pass@host/file\;param?query\;p2):string>
+-- !query output
+inva lid://user:pass@host/file\;param?query\;p2
+
+
+-- !query
+select try_url_decode(null)
+-- !query schema
+struct<try_url_decode(NULL):string>
 -- !query output
 NULL

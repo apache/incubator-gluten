@@ -214,7 +214,6 @@ FROM tenk1 WHERE unique1 < 10;
 SELECT sum(unique1) over (rows between current row and unbounded following),
 unique1, four
 FROM tenk1 WHERE unique1 < 10;
-
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 
 SELECT sum(unique1) over (rows between 2 preceding and 2 following),
@@ -274,7 +273,6 @@ FROM tenk1 WHERE unique1 < 10;
 SELECT sum(unique1) over (rows between 2 preceding and 1 preceding),
 unique1, four
 FROM tenk1 WHERE unique1 < 10;
-
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
 
 SELECT sum(unique1) over (rows between 1 following and 3 following),
@@ -324,11 +322,9 @@ SELECT i.id, sum(i.id) over (order by i.id rows between 1 preceding and 1 follow
 FROM range(1, 11) i;
 
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
-
 SELECT * FROM v_window;
 
 set spark.sql.optimizer.excludedRules=org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation,org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation;
-
 -- [SPARK-28428] Spark `exclude` always expecting `()`
 -- CREATE OR REPLACE TEMP VIEW v_window AS
 -- SELECT i, sum(i) over (order by i rows between 1 preceding and 1 following
