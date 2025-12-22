@@ -110,6 +110,7 @@
     <guava.version>32.0.1-jre</guava.version>
     <!--spotless-->
     <spotless.version>2.27.2</spotless.version>
+    <googlejavaformat.version>1.7</googlejavaformat.version>
     <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
     <!-- spotless:off -->
@@ -136,7 +137,7 @@
     <!-- plugin version-->
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <scala.compiler.version>4.8.0</scala.compiler.version>
-    <maven.compiler.plugin>3.12.1</maven.compiler.plugin>
+    <maven.compiler.plugin>3.14.1</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
@@ -678,7 +679,7 @@
         </plugin>
         <plugin>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.4.1</version>
+          <version>3.6.1</version>
           <configuration>
             <createDependencyReducedPom>false</createDependencyReducedPom>
           </configuration>
@@ -696,7 +697,7 @@
             <java>
               <toggleOffOn/>
               <googleJavaFormat>
-                <version>1.7</version>
+                <version>${googlejavaformat.version}</version>
               </googleJavaFormat>
 
               <!-- \# refers to the static imports -->
@@ -1056,6 +1057,18 @@
       </properties>
     </profile>
     <profile>
+      <id>java-21</id>
+      <activation>
+        <jdk>21</jdk>
+      </activation>
+      <properties>
+        <java.version>21</java.version>
+        <caffeine.version>3.1.8</caffeine.version>
+        <spotless.version>2.44.2</spotless.version>
+        <googlejavaformat.version>1.17.0</googlejavaformat.version>
+      </properties>
+    </profile>
+    <profile>
       <id>spark-3.2</id>
       <properties>
         <sparkbundle.version>3.2</sparkbundle.version>
@@ -1214,7 +1227,7 @@
             <artifactId>maven-enforcer-plugin</artifactId>
             <executions>
               <execution>
-                <id>enforce-java-17</id>
+                <id>enforce-java-17+</id>
                 <goals>
                   <goal>enforce</goal>
                 </goals>
@@ -1222,8 +1235,9 @@
                   <rules>
                     <requireActiveProfile>
                       <!-- Spark 4.0 requires Java 17+ -->
-                      <profiles>java-17</profiles>
-                      <message>"-P spark-4.0" requires JDK 17</message>
+                      <profiles>java-17,java-21</profiles>
+                      <all>false</all>
+                      <message>"-P spark-4.0" requires JDK 17+</message>
                     </requireActiveProfile>
                   </rules>
                 </configuration>
