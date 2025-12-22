@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-BASEDIR=$(dirname $0)
+BASEDIR=$(dirname "$0")
 source "$BASEDIR/builddeps-veloxbe.sh"
 
 # Use Gluten's Maven wrapper

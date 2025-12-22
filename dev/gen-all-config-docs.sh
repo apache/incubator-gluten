@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-BASEDIR=$(dirname $0)
+BASEDIR=$(dirname "$0")
 # Use Gluten's Maven wrapper
 MVN_CMD="${BASEDIR}/../build/mvn"
 

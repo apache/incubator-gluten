@@ -20,7 +20,7 @@
 #
 
 # Determine the current working directory
-GLUTEN_HOME="$(cd "$(dirname "$0")"/.. || exit; pwd)"
+GLUTEN_HOME="$(cd "$(dirname "$0")"/.. && pwd)" || exit 1
 DOWNLOAD_DIR="${GLUTEN_HOME}/build"
 MVN_DOWNLOAD_DIR="${DOWNLOAD_DIR}/.mvn"
 
