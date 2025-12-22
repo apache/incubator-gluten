@@ -20,61 +20,81 @@ namespace gluten {
 
 using namespace bytedance::bolt;
 
-// std::unique_ptr<common::Filter> SparkExprToSubfieldFilterParser::leafCallToSubfieldFilter(
-//     const core::CallTypedExpr& call,
-//     common::Subfield& subfield,
-//     core::ExpressionEvaluator* evaluator,
-//     bool negated) {
-//   if (call.inputs().empty()) {
-//     return nullptr;
-//   }
+namespace {
+std::optional<std::pair<bytedance::bolt::common::Subfield, std::unique_ptr<bytedance::bolt::common::Filter>>> combine(
+    bytedance::bolt::common::Subfield& subfield,
+    std::unique_ptr<bytedance::bolt::common::Filter>& filter) {
+  if (filter != nullptr) {
+    return std::make_pair(std::move(subfield), std::move(filter));
+  }
 
-//   const auto* leftSide = call.inputs()[0].get();
+  return std::nullopt;
+}
+} // namespace
 
-//   if (call.name() == "equalto") {
-//     if (toSubfield(leftSide, subfield)) {
-//       return negated ? makeNotEqualFilter(call.inputs()[1], evaluator) : makeEqualFilter(call.inputs()[1], evaluator);
-//     }
-//   } else if (call.name() == "lessthanorequal") {
-//     if (toSubfield(leftSide, subfield)) {
-//       return negated ? makeGreaterThanFilter(call.inputs()[1], evaluator)
-//                      : makeLessThanOrEqualFilter(call.inputs()[1], evaluator);
-//     }
-//   } else if (call.name() == "lessthan") {
-//     if (toSubfield(leftSide, subfield)) {
-//       return negated ? makeGreaterThanOrEqualFilter(call.inputs()[1], evaluator)
-//                      : makeLessThanFilter(call.inputs()[1], evaluator);
-//     }
-//   } else if (call.name() == "greaterthanorequal") {
-//     if (toSubfield(leftSide, subfield)) {
-//       return negated ? makeLessThanFilter(call.inputs()[1], evaluator)
-//                      : makeGreaterThanOrEqualFilter(call.inputs()[1], evaluator);
-//     }
-//   } else if (call.name() == "greaterthan") {
-//     if (toSubfield(leftSide, subfield)) {
-//       return negated ? makeLessThanOrEqualFilter(call.inputs()[1], evaluator)
-//                      : makeGreaterThanFilter(call.inputs()[1], evaluator);
-//     }
-//   } else if (call.name() == "in") {
-//     if (toSubfield(leftSide, subfield)) {
-//       return makeInFilter(call.inputs()[1], evaluator, negated);
-//     }
-//   } else if (call.name() == "isnull") {
-//     if (toSubfield(leftSide, subfield)) {
-//       if (negated) {
-//         return exec::isNotNull();
-//       }
-//       return exec::isNull();
-//     }
-//   } else if (call.name() == "isnotnull") {
-//     if (toSubfield(leftSide, subfield)) {
-//       if (negated) {
-//         return exec::isNull();
-//       }
-//       return exec::isNotNull();
-//     }
-//   }
-//   return nullptr;
-// }
+std::optional<std::pair<bytedance::bolt::common::Subfield, std::unique_ptr<bytedance::bolt::common::Filter>>>
+SparkExprToSubfieldFilterParser::leafCallToSubfieldFilter(
+    const core::CallTypedExpr& call,
+    core::ExpressionEvaluator* evaluator,
+    bool negated) {
+  if (call.inputs().empty()) {
+    return std::nullopt;
+  }
+
+  const auto* leftSide = call.inputs()[0].get();
+
+  common::Subfield subfield;
+  if (call.name() == "equalto") {
+    if (toSubfield(leftSide, subfield)) {
+      auto filter =
+          negated ? makeNotEqualFilter(call.inputs()[1], evaluator) : makeEqualFilter(call.inputs()[1], evaluator);
+      return combine(subfield, filter);
+    }
+  } else if (call.name() == "lessthanorequal") {
+    if (toSubfield(leftSide, subfield)) {
+      auto filter = negated ? makeGreaterThanFilter(call.inputs()[1], evaluator)
+                            : makeLessThanOrEqualFilter(call.inputs()[1], evaluator);
+      return combine(subfield, filter);
+    }
+  } else if (call.name() == "lessthan") {
+    if (toSubfield(leftSide, subfield)) {
+      auto filter = negated ? makeGreaterThanOrEqualFilter(call.inputs()[1], evaluator)
+                            : makeLessThanFilter(call.inputs()[1], evaluator);
+      return combine(subfield, filter);
+    }
+  } else if (call.name() == "greaterthanorequal") {
+    if (toSubfield(leftSide, subfield)) {
+      auto filter = negated ? makeLessThanFilter(call.inputs()[1], evaluator)
+                            : makeGreaterThanOrEqualFilter(call.inputs()[1], evaluator);
+      return combine(subfield, filter);
+    }
+  } else if (call.name() == "greaterthan") {
+    if (toSubfield(leftSide, subfield)) {
+      auto filter = negated ? makeLessThanOrEqualFilter(call.inputs()[1], evaluator)
+                            : makeGreaterThanFilter(call.inputs()[1], evaluator);
+      return combine(subfield, filter);
+    }
+  } else if (call.name() == "in") {
+    if (toSubfield(leftSide, subfield)) {
+      auto filter = makeInFilter(call.inputs()[1], evaluator, negated);
+      return combine(subfield, filter);
+    }
+  } else if (call.name() == "isnull") {
+    if (toSubfield(leftSide, subfield)) {
+      if (negated) {
+        return std::make_pair(std::move(subfield), bytedance::bolt::exec::isNotNull());
+      }
+      return std::make_pair(std::move(subfield), bytedance::bolt::exec::isNull());
+    }
+  } else if (call.name() == "isnotnull") {
+    if (toSubfield(leftSide, subfield)) {
+      if (negated) {
+        return std::make_pair(std::move(subfield), bytedance::bolt::exec::isNull());
+      }
+      return std::make_pair(std::move(subfield), bytedance::bolt::exec::isNotNull());
+    }
+  }
+  return std::nullopt;
+}
 
 } // namespace gluten

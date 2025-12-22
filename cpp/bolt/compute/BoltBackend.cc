@@ -198,9 +198,7 @@ void BoltBackend::init(
   bolt::parquet::registerParquetReaderFactory();
   bolt::parquet::registerParquetWriterFactory();
   bolt::orc::registerOrcReaderFactory();
-  // TODO sync bolt and uncomment it
-  // bolt::exec::ExprToSubfieldFilterParser::registerParserFactory(
-  //     []() { return std::make_shared<SparkExprToSubfieldFilterParser>(); });
+  bolt::exec::ExprToSubfieldFilterParser::registerParser(std::make_unique<SparkExprToSubfieldFilterParser>());
 
   // Register Bolt functions
   registerAllFunctions();
