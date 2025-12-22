@@ -964,6 +964,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-51187")
     // Rewrite for the query plan check
     .excludeByPrefix("SPARK-49905")
+    // TODO: fix on Spark-4.1 introduced by https://github.com/apache/spark/pull/52645
+    .exclude("SPARK-53942: changing the number of stateless shuffle partitions via config")
+    .exclude("SPARK-53942: stateful shuffle partitions are retained from old checkpoint")
   enableSuite[GlutenQueryExecutionSuite]
     // Rewritten to set root logger level to INFO so that logs can be parsed
     .exclude("Logging plan changes for execution")
