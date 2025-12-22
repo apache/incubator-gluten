@@ -777,6 +777,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // rewrite `WindowExec -> WindowExecTransformer`
     .exclude(
       "SPARK-38237: require all cluster keys for child required distribution for window query")
+    // TODO: fix on Spark-4.1 introduced by https://github.com/apache/spark/pull/47856
+    .exclude(
+      "SPARK-49386: Window spill with more than the inMemoryThreshold and spillSizeThreshold")
   enableSuite[GlutenDataFrameWindowFramesSuite]
   enableSuite[GlutenDataFrameWriterV2Suite]
   enableSuite[GlutenDatasetAggregatorSuite]
@@ -845,6 +848,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite]
     // exclude as it check spark plan
     .exclude("SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
+    // TODO: fix on Spark-4.1 introduced by https://github.com/apache/spark/pull/47856
+    .exclude("SPARK-49386: test SortMergeJoin (with spill by size threshold)")
   enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenMetadataCacheSuite]
     .exclude("SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
