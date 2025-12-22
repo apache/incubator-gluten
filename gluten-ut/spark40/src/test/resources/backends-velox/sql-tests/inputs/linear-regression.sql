@@ -1,6 +1,6 @@
 -- Test data.
 CREATE OR REPLACE TEMPORARY VIEW testRegression AS SELECT * FROM VALUES
-(1, 10, null), (2, 10, 11), (2, 20, 22), (2, 25, null), (2, 30, 35)
+(1, 10, null), (2, 10, 11), (2, 20, 22), (2, 25, null), (2, 30, 35), (2, null, 40)
 AS testRegression(k, y, x);
 
 -- SPARK-37613: Support ANSI Aggregate Function: regr_count
@@ -46,7 +46,7 @@ SELECT k, regr_slope(y, x) FROM testRegression GROUP BY k;
 SELECT k, regr_slope(y, x) FROM testRegression WHERE x IS NOT NULL AND y IS NOT NULL GROUP BY k;
 
 -- SPARK-37623: Support ANSI Aggregate Function: regr_intercept
--- SELECT regr_intercept(y, x) FROM testRegression;
--- SELECT regr_intercept(y, x) FROM testRegression WHERE x IS NOT NULL AND y IS NOT NULL;
--- SELECT k, regr_intercept(y, x) FROM testRegression GROUP BY k;
--- SELECT k, regr_intercept(y, x) FROM testRegression WHERE x IS NOT NULL AND y IS NOT NULL GROUP BY k;
+SELECT regr_intercept(y, x) FROM testRegression;
+SELECT regr_intercept(y, x) FROM testRegression WHERE x IS NOT NULL AND y IS NOT NULL;
+SELECT k, regr_intercept(y, x) FROM testRegression GROUP BY k;
+SELECT k, regr_intercept(y, x) FROM testRegression WHERE x IS NOT NULL AND y IS NOT NULL GROUP BY k;
