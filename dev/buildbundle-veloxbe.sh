@@ -18,21 +18,24 @@
 BASEDIR=$(dirname $0)
 source "$BASEDIR/builddeps-veloxbe.sh"
 
+# Use Gluten's Maven wrapper
+MVN_CMD="${BASEDIR}/../build/mvn"
+
 function build_for_spark {
   spark_version=$1
   if [ $spark_version = "4.0" ]; then
-    mvn clean install -Pbackends-velox -Pspark-$spark_version -Pjava-17 -Pscala-2.13 -DskipTests
+    ${MVN_CMD} clean install -Pbackends-velox -Pspark-$spark_version -Pjava-17 -Pscala-2.13 -DskipTests
   else
-    mvn clean install -Pbackends-velox -Pspark-$spark_version -DskipTests
+    ${MVN_CMD} clean install -Pbackends-velox -Pspark-$spark_version -DskipTests
   fi
 }
 
 function check_supported {
-  PLATFORM=$(mvn help:evaluate -Dexpression=platform -q -DforceStdout)
-  ARCH=$(mvn help:evaluate -Dexpression=arch -q -DforceStdout)
+  PLATFORM=$(${MVN_CMD} help:evaluate -Dexpression=platform -q -DforceStdout)
+  ARCH=$(${MVN_CMD} help:evaluate -Dexpression=arch -q -DforceStdout)
   if [ "$PLATFORM" == "null object or invalid expression" ] || [ "$ARCH" == "null object or invalid expression" ]; then
-    OS_NAME=$(mvn help:evaluate -Dexpression=os.name -q -DforceStdout)
-    OS_ARCH=$(mvn help:evaluate -Dexpression=os.arch -q -DforceStdout)
+    OS_NAME=$(${MVN_CMD} help:evaluate -Dexpression=os.name -q -DforceStdout)
+    OS_ARCH=$(${MVN_CMD} help:evaluate -Dexpression=os.arch -q -DforceStdout)
     echo "$OS_NAME-$OS_ARCH is not supported by current Gluten build."
     exit 1
   fi

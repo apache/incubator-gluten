@@ -99,6 +99,8 @@
     <!-- For unit tests -->
     <fasterxml.version>2.15.0</fasterxml.version>
     <junit.version>4.13.1</junit.version>
+    <!-- Maven version for build/mvn wrapper script -->
+    <maven.version>3.9.6</maven.version>
     <junit5.version>5.11.4</junit5.version>
     <flexmark.version>0.62.2</flexmark.version>
 
