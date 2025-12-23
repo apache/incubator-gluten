@@ -156,12 +156,12 @@ jobs:
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
-            apt-get update && apt-get install -y openjdk-17-jdk maven
+            apt-get update && apt-get install -y openjdk-17-jdk maven git
             apt remove openjdk-11* -y
           elif [ "${{ matrix.java }}" = "java-11" ]; then
-            apt-get update && apt-get install -y openjdk-11-jdk maven
+            apt-get update && apt-get install -y openjdk-11-jdk maven git
           else
-            apt-get update && apt-get install -y openjdk-8-jdk maven
+            apt-get update && apt-get install -y openjdk-8-jdk maven git
             apt remove openjdk-11* -y
           fi
           ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
@@ -232,11 +232,11 @@ jobs:
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
-            yum update -y && yum install -y java-17-openjdk-devel wget
+            yum update -y && yum install -y java-17-openjdk-devel wget git
           elif [ "${{ matrix.java }}" = "java-11" ]; then
-            yum update -y && yum install -y java-11-openjdk-devel wget
+            yum update -y && yum install -y java-11-openjdk-devel wget git
           else
-            yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+            yum update -y && yum install -y java-1.8.0-openjdk-devel wget git
           fi
           $SETUP install_maven
       - name: Set environment variables
@@ -309,7 +309,7 @@ jobs:
             sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
 
             # Setup java and maven
-            yum update -y && yum install -y java-1.8.0-openjdk-devel wget tzdata python3-pip
+            yum update -y && yum install -y java-1.8.0-openjdk-devel wget tzdata python3-pip git
             $SETUP install_maven
             # Set environment variables
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
@@ -581,7 +581,7 @@ jobs:
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup java and maven
         run: |
-          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget git
           $SETUP install_maven
       - name: Set environment variables
         run: |
