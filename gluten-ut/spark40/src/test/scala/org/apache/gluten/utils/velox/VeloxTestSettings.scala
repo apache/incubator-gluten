@@ -563,9 +563,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenPathFilterStrategySuite]
   enableSuite[GlutenPathFilterSuite]
   enableSuite[GlutenPruneFileSourcePartitionsSuite]
-   enableSuite[GlutenCSVReadSchemaSuite]
-   enableSuite[GlutenHeaderCSVReadSchemaSuite]
-     .exclude("change column type from int to long")
+  enableSuite[GlutenCSVReadSchemaSuite]
+  enableSuite[GlutenHeaderCSVReadSchemaSuite]
+    .exclude("change column type from int to long")
   enableSuite[GlutenJsonReadSchemaSuite]
   enableSuite[GlutenOrcReadSchemaSuite]
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
