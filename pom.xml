@@ -969,7 +969,7 @@
                   <arg>-deprecation</arg>
                   <arg>-feature</arg>
                   <arg>-explaintypes</arg>
-                  <arg>-release:8</arg>
+                  <arg>-release:${java.version}</arg>
                   <arg>-Wconf:cat=deprecation:wv,any:e</arg>
                   <arg>-Wunused:imports</arg>
                   <!--
