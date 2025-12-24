@@ -81,9 +81,9 @@ public class FuzzerSourceSinkFactory implements VeloxSourceSinkFactory {
             LogicalTypeConverter.toVLType(
                 ((InternalTypeInfo) sourceTransformation.getOutputType()).toLogicalType());
     String id = PlanNodeIdGenerator.newId();
-    PlanNode tableScan =
-        new TableScanNode(
-            id, outputType, new FuzzerTableHandle("connector-fuzzer", 12367), List.of());
+    /// Create fuzzer table handle by 2 parameters: (1) a string as connector id; (2) a int as seed
+    FuzzerTableHandle tableHandle = new FuzzerTableHandle("connector-fuzzer", 12367);
+    PlanNode tableScan = new TableScanNode(id, outputType, tableHandle, List.of());
     GlutenStreamSource sourceOp =
         new GlutenStreamSource(
             new GlutenVectorSourceFunction(

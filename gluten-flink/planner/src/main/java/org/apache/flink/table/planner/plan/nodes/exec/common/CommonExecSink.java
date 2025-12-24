@@ -207,6 +207,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     if (targetRowKind.isPresent()) {
       sinkTransform = applyRowKindSetter(sinkTransform, targetRowKind.get(), config);
     }
+    // --- Begin Gluten-specific code changes ---
     Transformation<Object> transformation =
         (Transformation<Object>)
             applySinkProvider(
@@ -224,6 +225,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             streamExecEnv.getConfiguration(),
             ResolvedSchema.class.getName(),
             schema));
+    // --- End Gluten-specific code changes ---
   }
 
   /** Apply an operator to filter or report error to process not-null values for not-null fields. */

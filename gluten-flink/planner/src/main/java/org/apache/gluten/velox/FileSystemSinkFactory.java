@@ -39,7 +39,6 @@ import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -88,18 +87,14 @@ public class FileSystemSinkFactory implements VeloxSourceSinkFactory {
     List<String> partitionKeys =
         (List<String>) ReflectUtils.getObjectField(operator.getClass(), operator, "partitionKeys");
     Map<String, String> tableParams = new HashMap<>();
-    try {
-      Class<?> partitionCommitterClazz =
-          Class.forName("org.apache.flink.connector.file.table.stream.PartitionCommitter");
-      OneInputStreamOperator<RowData, RowData> partitionCommiter =
-          partitionCommitTransformation.getOperator();
-      Configuration tableOptions =
-          (Configuration)
-              ReflectUtils.getObjectField(partitionCommitterClazz, partitionCommiter, "conf");
-      tableParams.putAll(tableOptions.toMap());
-    } catch (Exception e) {
-      throw new FlinkRuntimeException(e);
-    }
+    Configuration tableOptions =
+        (Configuration)
+            ReflectUtils.getObjectField(
+                "org.apache.flink.connector.file.table.stream.PartitionCommitter",
+                partitionCommitTransformation.getOperator(),
+                "conf");
+    tableParams.putAll(tableOptions.toMap());
+
     ResolvedSchema schema = (ResolvedSchema) parameters.get(ResolvedSchema.class.getName());
     List<String> columnList = schema.getColumnNames();
     List<Integer> partitionIndexes =
