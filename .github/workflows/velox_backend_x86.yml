@@ -48,6 +48,7 @@ env:
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
   # spark.sql.ansi.enabled defaults to false.
   SPARK_ANSI_SQL_MODE: false
+  DEBIAN_FRONTEND: noninteractive
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -151,7 +152,7 @@ jobs:
           #sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
           if [ "${{ matrix.os }}" = "ubuntu:22.04" ]; then
             apt-get update
-            TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+            TZ="Etc/GMT" apt-get install -y tzdata
           fi
       - name: Setup java and maven
         run: |
