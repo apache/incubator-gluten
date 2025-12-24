@@ -27,6 +27,7 @@ CMakeFiles/
 CMakeCache.txt
 CTestTestfile.cmake
 cmake_install.cmake
+!build/mvn
 build/
 *-build/
 Testing/
