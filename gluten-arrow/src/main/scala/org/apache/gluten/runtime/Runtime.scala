@@ -46,9 +46,8 @@ object Runtime {
     private val handle = RuntimeJniWrapper.createRuntime(
       backendName,
       nmm.getHandle(),
-      ConfigUtil.serialize(
-        GlutenConfig
-          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs))),
+      ConfigUtil.serialize(GlutenConfig
+        .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs))),
       TaskContext.get().taskAttemptId()
     )
 

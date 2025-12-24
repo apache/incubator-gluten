@@ -52,9 +52,8 @@ object NativeMemoryManager {
     private val handle = NativeMemoryManagerJniWrapper.create(
       backendName,
       rl,
-      ConfigUtil.serialize(
-        GlutenConfig
-          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs))),
+      ConfigUtil.serialize(GlutenConfig
+        .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs))),
       name
     )
     spillers.append(new Spiller() {
