@@ -16,11 +16,10 @@
  */
 package org.apache.gluten.table.runtime.typeutils;
 
-import io.github.zhztheplayer.velox4j.Velox4j;
+import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.table.runtime.config.VeloxSessionConfig;
+
 import io.github.zhztheplayer.velox4j.data.RowVector;
-import io.github.zhztheplayer.velox4j.memory.AllocationListener;
-import io.github.zhztheplayer.velox4j.memory.MemoryManager;
-import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
@@ -31,24 +30,23 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.Closeable;
 import java.io.IOException;
 
 /** Serializer for {@link RowVector}. */
 @Internal
-public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> implements Closeable {
+public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> {
   private static final long serialVersionUID = 1L;
   private final RowType rowType;
-  private transient MemoryManager memoryManager;
-  private transient Session session;
+  private final GlutenOperator operator;
 
-  public GlutenRowVectorSerializer(RowType rowType) {
+  public GlutenRowVectorSerializer(RowType rowType, GlutenOperator operator) {
     this.rowType = rowType;
+    this.operator = operator;
   }
 
   @Override
   public TypeSerializer<StatefulRecord> duplicate() {
-    return new GlutenRowVectorSerializer(rowType);
+    return new GlutenRowVectorSerializer(rowType, operator);
   }
 
   @Override
@@ -65,14 +63,15 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   @Override
   public StatefulRecord deserialize(DataInputView source) throws IOException {
-    if (memoryManager == null) {
-      memoryManager = MemoryManager.create(AllocationListener.NOOP);
-      session = Velox4j.newSession(memoryManager);
-    }
     int len = source.readInt();
     byte[] str = new byte[len];
     source.readFully(str);
-    RowVector rowVector = session.baseVectorOps().deserializeOne(new String(str)).asRowVector();
+    RowVector rowVector =
+        VeloxSessionConfig.getSessionConfig()
+            .getSession(operator.getId())
+            .baseVectorOps()
+            .deserializeOne(new String(str))
+            .asRowVector();
     StatefulRecord record = new StatefulRecord(null, 0, 0, false, -1);
     record.setRowVector(rowVector);
     return record;
@@ -131,15 +130,7 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   @Override
   public TypeSerializerSnapshot<StatefulRecord> snapshotConfiguration() {
-    return new RowVectorSerializerSnapshot(rowType);
-  }
-
-  @Override
-  public void close() {
-    if (memoryManager != null) {
-      memoryManager.close();
-      session.close();
-    }
+    return new RowVectorSerializerSnapshot(rowType, operator);
   }
 
   /** {@link TypeSerializerSnapshot} for Gluten RowVector.. */
@@ -148,14 +139,16 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
     private static final int CURRENT_VERSION = 1;
 
     private RowType rowType;
+    private GlutenOperator operator;
 
     @SuppressWarnings("unused")
     public RowVectorSerializerSnapshot() {
       // this constructor is used when restoring from a checkpoint/savepoint.
     }
 
-    RowVectorSerializerSnapshot(RowType rowType) {
+    RowVectorSerializerSnapshot(RowType rowType, GlutenOperator operator) {
       this.rowType = rowType;
+      this.operator = operator;
     }
 
     @Override
@@ -172,7 +165,7 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
     @Override
     public GlutenRowVectorSerializer restoreSerializer() {
-      return new GlutenRowVectorSerializer(rowType);
+      return new GlutenRowVectorSerializer(rowType, operator);
     }
 
     @Override

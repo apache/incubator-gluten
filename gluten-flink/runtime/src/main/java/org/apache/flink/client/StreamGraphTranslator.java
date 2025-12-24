@@ -132,7 +132,7 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
       // TODO: judge whether can set?
       if (isSourceGluten) {
         if (taskConfig.getOperatorName().equals("exchange-hash")) {
-          taskConfig.setTypeSerializerOut(new GlutenRowVectorSerializer(null));
+          taskConfig.setTypeSerializerOut(new GlutenRowVectorSerializer(null, sourceOperator));
         }
         Map<IntermediateDataSetID, String> nodeToNonChainedOuts = new HashMap<>(outEdges.size());
         taskConfig
@@ -216,14 +216,16 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
         taskConfig.setStatePartitioner(0, new GlutenKeySelector());
         taskConfig.setStatePartitioner(1, new GlutenKeySelector());
         taskConfig.setupNetworkInputs(
-            new GlutenRowVectorSerializer(null), new GlutenRowVectorSerializer(null));
+            new GlutenRowVectorSerializer(null, twoInputOperator),
+            new GlutenRowVectorSerializer(null, twoInputOperator));
       } else {
-        taskConfig.setStreamOperator(
+        GlutenVectorOneInputOperator oneInputOperator =
             new GlutenVectorOneInputOperator(
-                sourceNode, sourceOperator.getId(), sourceOperator.getInputType(), nodeToOutTypes));
+                sourceNode, sourceOperator.getId(), sourceOperator.getInputType(), nodeToOutTypes);
+        taskConfig.setStreamOperator(oneInputOperator);
         // TODO: judge whether can set?
         taskConfig.setStatePartitioner(0, new GlutenKeySelector());
-        taskConfig.setupNetworkInputs(new GlutenRowVectorSerializer(null));
+        taskConfig.setupNetworkInputs(new GlutenRowVectorSerializer(null, oneInputOperator));
       }
       Utils.setNodeToChainedOutputs(taskConfig, nodeToChainedOuts);
       Utils.setNodeToNonChainedOutputs(taskConfig, nodeToNonChainedOuts);

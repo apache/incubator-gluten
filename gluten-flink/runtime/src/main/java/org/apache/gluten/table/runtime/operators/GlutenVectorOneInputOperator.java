@@ -18,6 +18,7 @@ package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
+import org.apache.gluten.table.runtime.config.VeloxSessionConfig;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
@@ -82,6 +83,7 @@ public class GlutenVectorOneInputOperator extends TableStreamOperator<StatefulRe
   void initGlutenTask() {
     memoryManager = MemoryManager.create(AllocationListener.NOOP);
     session = Velox4j.newSession(memoryManager);
+    VeloxSessionConfig.getSessionConfig().addSession(id, session);
     // add a mock input as velox not allow the source is empty.
     StatefulPlanNode mockInput =
         new StatefulPlanNode(
