@@ -183,13 +183,12 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
           echo "JAVA_HOME: $JAVA_HOME"
           if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests -pl tools/gluten-it -am
           else
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests -pl tools/gluten-it -am
           fi
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
@@ -1355,7 +1354,7 @@ jobs:
           cd /work
           bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
           rm -rf ep/build-velox/build/velox_ep
-          mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
+          build/mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
           ccache -s
           "
 
