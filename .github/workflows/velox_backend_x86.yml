@@ -166,14 +166,14 @@ jobs:
       - name: Setup java
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
-            apt-get update && apt-get install -y openjdk-17-jdk
+            apt-get update && apt-get install -y openjdk-17-jdk wget
             apt remove openjdk-11* -y
           elif [ "${{ matrix.java }}" = "java-21" ]; then
-            apt-get update && apt-get install -y openjdk-21-jdk
+            apt-get update && apt-get install -y openjdk-21-jdk wget
           elif [ "${{ matrix.java }}" = "java-11" ]; then
-            apt-get update && apt-get install -y openjdk-11-jdk
+            apt-get update && apt-get install -y openjdk-11-jdk wget
           else
-            apt-get update && apt-get install -y openjdk-8-jdk
+            apt-get update && apt-get install -y openjdk-8-jdk wget
             apt remove openjdk-11* -y
           fi
           ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
@@ -378,7 +378,7 @@ jobs:
       - name: Setup java
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk
+          sudo apt-get install -y openjdk-8-jdk wget
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
@@ -493,7 +493,7 @@ jobs:
       - name: Setup java
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk
+          sudo apt-get install -y openjdk-8-jdk wget
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
