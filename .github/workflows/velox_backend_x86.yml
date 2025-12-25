@@ -39,12 +39,12 @@ on:
       - 'ep/build-velox/**'
       - 'cpp/**'
       - 'dev/**'
+      - 'build/mvn'
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-  MVN_CMD: 'mvn -ntp'
+  MVN_CMD: 'build/mvn -ntp'
   WGET_CMD: 'wget -nv'
-  SETUP: 'source .github/workflows/util/setup-helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
   # spark.sql.ansi.enabled defaults to false.
   SPARK_ANSI_SQL_MODE: false
@@ -163,17 +163,17 @@ jobs:
             apt-get update
             TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
           fi
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
-            apt-get update && apt-get install -y openjdk-17-jdk maven
+            apt-get update && apt-get install -y openjdk-17-jdk
             apt remove openjdk-11* -y
           elif [ "${{ matrix.java }}" = "java-21" ]; then
-            apt-get update && apt-get install -y openjdk-21-jdk maven
+            apt-get update && apt-get install -y openjdk-21-jdk
           elif [ "${{ matrix.java }}" = "java-11" ]; then
-            apt-get update && apt-get install -y openjdk-11-jdk maven
+            apt-get update && apt-get install -y openjdk-11-jdk
           else
-            apt-get update && apt-get install -y openjdk-8-jdk maven
+            apt-get update && apt-get install -y openjdk-8-jdk
             apt remove openjdk-11* -y
           fi
           ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
@@ -241,7 +241,7 @@ jobs:
             sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
             sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
           fi
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
             yum update -y && yum install -y java-17-openjdk-devel wget
@@ -250,7 +250,6 @@ jobs:
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
-          $SETUP install_maven
       - name: Set environment variables
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
@@ -320,16 +319,14 @@ jobs:
             sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
             sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
 
-            # Setup java and maven
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget tzdata python3-pip
-            $SETUP install_maven
             # Set environment variables
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
             # Build gluten-it
-            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
             cd /work/tools/gluten-it
-            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
 
             # Run TPC-H / TPC-DS
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -378,10 +375,10 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
+          sudo apt-get install -y openjdk-8-jdk
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
@@ -493,10 +490,10 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
+          sudo apt-get install -y openjdk-8-jdk
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
@@ -591,10 +588,9 @@ jobs:
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          $SETUP install_maven
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
