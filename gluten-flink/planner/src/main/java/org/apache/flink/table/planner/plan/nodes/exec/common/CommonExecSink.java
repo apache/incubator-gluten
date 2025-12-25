@@ -207,16 +207,25 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     if (targetRowKind.isPresent()) {
       sinkTransform = applyRowKindSetter(sinkTransform, targetRowKind.get(), config);
     }
-
-    return (Transformation<Object>)
-        applySinkProvider(
-            sinkTransform,
-            streamExecEnv,
-            runtimeProvider,
-            rowtimeFieldIndex,
-            sinkParallelism,
-            config,
-            classLoader);
+    // --- Begin Gluten-specific code changes ---
+    Transformation<Object> transformation =
+        (Transformation<Object>)
+            applySinkProvider(
+                sinkTransform,
+                streamExecEnv,
+                runtimeProvider,
+                rowtimeFieldIndex,
+                sinkParallelism,
+                config,
+                classLoader);
+    return VeloxSourceSinkFactory.buildSink(
+        (Transformation) transformation,
+        Map.of(
+            Configuration.class.getName(),
+            streamExecEnv.getConfiguration(),
+            ResolvedSchema.class.getName(),
+            schema));
+    // --- End Gluten-specific code changes ---
   }
 
   /** Apply an operator to filter or report error to process not-null values for not-null fields. */
@@ -467,13 +476,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
       } else if (runtimeProvider instanceof SinkFunctionProvider) {
         final SinkFunction<RowData> sinkFunction =
             ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
-        // --- Begin Gluten-specific code changes ---
-        Transformation sinkTransformation =
-            createSinkFunctionTransformation(
-                sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkMeta, sinkParallelism);
-        return VeloxSourceSinkFactory.buildSink(
-            sinkTransformation, Map.of(Configuration.class.getName(), env.getConfiguration()));
-        // --- End Gluten-specific code changes ---
+        return createSinkFunctionTransformation(
+            sinkFunction, env, inputTransform, rowtimeFieldIndex, sinkMeta, sinkParallelism);
       } else if (runtimeProvider instanceof OutputFormatProvider) {
         OutputFormat<RowData> outputFormat =
             ((OutputFormatProvider) runtimeProvider).createOutputFormat();

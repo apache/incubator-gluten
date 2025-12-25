@@ -16,11 +16,11 @@
  */
 package org.apache.gluten.table.runtime.operators;
 
+import org.apache.gluten.table.runtime.config.VeloxConnectorConfig;
 import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
 import org.apache.gluten.table.runtime.metrics.SourceTaskMetrics;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
-import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
 import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
@@ -33,7 +33,6 @@ import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
-import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -53,7 +52,7 @@ import java.util.Map;
  * instead of RowData to avoid data convert.
  */
 public class GlutenVectorSourceFunction extends RichParallelSourceFunction<StatefulElement>
-    implements CheckpointedFunction, CheckpointListener {
+    implements CheckpointedFunction {
   private static final Logger LOG = LoggerFactory.getLogger(GlutenVectorSourceFunction.class);
 
   private final StatefulPlanNode planNode;
@@ -103,7 +102,9 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
       session = Velox4j.newSession(memoryManager);
       query =
           new Query(
-              planNode, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
+              planNode,
+              VeloxQueryConfig.getConfig(getRuntimeContext()),
+              VeloxConnectorConfig.getConfig(getRuntimeContext()));
       allocator = new RootAllocator(Long.MAX_VALUE);
 
       task = session.queryOps().execute(query);
@@ -159,7 +160,9 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
       session = Velox4j.newSession(memoryManager);
       query =
           new Query(
-              planNode, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
+              planNode,
+              VeloxQueryConfig.getConfig(getRuntimeContext()),
+              VeloxConnectorConfig.getConfig(getRuntimeContext()));
       allocator = new RootAllocator(Long.MAX_VALUE);
 
       task = session.queryOps().execute(query);
@@ -170,13 +173,11 @@ public class GlutenVectorSourceFunction extends RichParallelSourceFunction<State
     this.task.initializeState(0);
   }
 
-  @Override
-  public void notifyCheckpointComplete(long checkpointId) throws Exception {
+  public String[] notifyCheckpointComplete(long checkpointId) throws Exception {
     // TODO: notify velox
-    this.task.notifyCheckpointComplete(checkpointId);
+    return this.task.notifyCheckpointComplete(checkpointId);
   }
 
-  @Override
   public void notifyCheckpointAborted(long checkpointId) throws Exception {
     // TODO: notify velox
     this.task.notifyCheckpointAborted(checkpointId);

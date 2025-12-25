@@ -16,11 +16,11 @@
  */
 package org.apache.gluten.table.runtime.operators;
 
+import org.apache.gluten.table.runtime.config.VeloxConnectorConfig;
 import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
-import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
 import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
 import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
@@ -94,7 +94,9 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     session = Velox4j.newSession(memoryManager);
     query =
         new Query(
-            planNode, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
+            planNode,
+            VeloxQueryConfig.getConfig(getRuntimeContext()),
+            VeloxConnectorConfig.getConfig(getRuntimeContext()));
     allocator = new RootAllocator(Long.MAX_VALUE);
 
     SerialTask task = session.queryOps().execute(query);
