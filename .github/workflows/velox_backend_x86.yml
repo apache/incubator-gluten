@@ -324,9 +324,9 @@ jobs:
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
             # Build gluten-it
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+            build/mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
             cd /work/tools/gluten-it
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+            /work/build/mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
 
             # Run TPC-H / TPC-DS
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
