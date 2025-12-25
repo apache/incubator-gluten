@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, UnaryEx
  */
 object EliminateLocalSort extends Rule[SparkPlan] {
   private def canEliminateLocalSort(p: SparkPlan): Boolean = p match {
-    case _: HashAggregateExecBaseTransformer => true
+    case h: HashAggregateExecBaseTransformer => h.isOffloadedSortExec
     case _: ShuffledHashJoinExecTransformerBase => true
     case _: WindowGroupLimitExecTransformer => true
     case s: SortExec if s.global == false => true
