@@ -223,13 +223,13 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
       assertResult(491)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p3")))
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
       if (spark32) {
-        assertResult(306)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p3")))
+        assertResult(302)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p3")))
       } else {
         assertResult(304)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p3")))
       }
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
       if (spark32) {
-        assertResult(276)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p3")))
+        assertResult(275)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p3")))
       } else {
         assertResult(281)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p3")))
       }
@@ -260,13 +260,13 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
       assertResult(491)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p4")))
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
       if (spark32) {
-        assertResult(306)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p4")))
+        assertResult(302)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p4")))
       } else {
         assertResult(304)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p4")))
       }
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
       if (spark32) {
-        assertResult(276)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p4")))
+        assertResult(275)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p4")))
       } else {
         assertResult(281)(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p4")))
       }
@@ -367,7 +367,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
     assertResult(600572)(ret.apply(0).get(0))
 
     assertResult(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p6")))(
-      if (spark32) 499 else 519)
+      if (spark32) 491 else 519)
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
     assertResult(countFiles(new File(s"$dataHome/lineitem_mergetree_optimize_p6")))(

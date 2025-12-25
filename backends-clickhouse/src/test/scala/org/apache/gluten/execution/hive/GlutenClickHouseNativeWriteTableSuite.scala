@@ -45,7 +45,7 @@ class GlutenClickHouseNativeWriteTableSuite
     new SparkConf()
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.memory.offHeap.enabled", "true")
-      .set("spark.memory.offHeap.size", "1073741824")
+      .set("spark.memory.offHeap.size", "2147483648")
       .set("spark.sql.catalogImplementation", "hive")
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
