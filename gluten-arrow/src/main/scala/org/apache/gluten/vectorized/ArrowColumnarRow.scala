@@ -21,8 +21,8 @@ import org.apache.gluten.execution.InternalRowGetVariantCompatible
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.{ColumnarArray, ColumnarMap}
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
 import java.math.BigDecimal
@@ -111,11 +111,11 @@ final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector], 
   override def getStruct(ordinal: Int, numFields: Int): ArrowColumnarRow =
     columns(ordinal).getStructInternal(rowId)
 
-  override def getArray(ordinal: Int): ColumnarArray =
-    columns(ordinal).getArray(rowId)
+  override def getArray(ordinal: Int): ArrayData =
+    columns(ordinal).getArrayInternal(rowId)
 
-  override def getMap(ordinal: Int): ColumnarMap =
-    columns(ordinal).getMap(rowId)
+  override def getMap(ordinal: Int): MapData =
+    columns(ordinal).getMapInternal(rowId)
 
   override def get(ordinal: Int, dataType: DataType): AnyRef = {
     if (isNullAt(ordinal)) {
