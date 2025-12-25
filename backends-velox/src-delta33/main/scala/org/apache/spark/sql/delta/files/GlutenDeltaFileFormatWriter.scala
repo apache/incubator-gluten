@@ -260,9 +260,8 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
             nativeSortPlan
           }
           val newPlan = sortPlan.child match {
-            case WholeStageTransformer(wholeStageChild, materializeInput) =>
-              WholeStageTransformer(addNativeSort(wholeStageChild),
-                materializeInput)(ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
+            case wst @ WholeStageTransformer(wholeStageChild, _) =>
+              wst.withNewChildren(Seq(addNativeSort(wholeStageChild)))
             case other =>
               Transitions.toBatchPlan(sortPlan, VeloxBatchType)
           }
