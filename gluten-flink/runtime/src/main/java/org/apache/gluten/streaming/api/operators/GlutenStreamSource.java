@@ -45,8 +45,8 @@ public class GlutenStreamSource extends StreamSource implements GlutenOperator {
   }
 
   @Override
-  public StatefulPlanNode getPlanNode() {
-    return sourceFunction.getPlanNode();
+  public StatefulPlanNode getStatefulPlanNode() {
+    return sourceFunction.getStatefulPlanNode();
   }
 
   @Override

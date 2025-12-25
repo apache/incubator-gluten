@@ -148,7 +148,7 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
     Map<String, RowType> nodeToOutTypes = new HashMap<>(outEdges.size());
     List<StreamEdge> chainedOutputs = new ArrayList<>(outEdges.size());
     List<NonChainedOutput> nonChainedOutputs = new ArrayList<>(outEdges.size());
-    StatefulPlanNode sourceNode = isSourceGluten ? sourceOperator.getPlanNode() : null;
+    StatefulPlanNode sourceNode = isSourceGluten ? sourceOperator.getStatefulPlanNode() : null;
     boolean allGluten = true;
     LOG.debug("Edge size {}, OP {}", outEdges.size(), sourceOperator);
     for (StreamEdge outEdge : outEdges) {
@@ -161,7 +161,7 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
       buildGlutenChains(outTask, chainedTasks);
       Optional<GlutenOperator> outOperator = getGlutenOperator(outTask);
       if (isSourceGluten && outOperator.isPresent()) {
-        StatefulPlanNode outNode = outOperator.get().getPlanNode();
+        StatefulPlanNode outNode = outOperator.get().getStatefulPlanNode();
         if (sourceNode != null) {
           sourceNode.addTarget(outNode);
           LOG.debug("Add {} target {}", sourceNode, outNode);

@@ -71,7 +71,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     this.split = split;
   }
 
-  public StatefulPlanNode getPlanNode() {
+  public StatefulPlanNode getStatefulPlanNode() {
     return planNode;
   }
 
@@ -117,7 +117,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
       } else if (state == UpIterator.State.BLOCKED) {
         LOG.debug("Get empty row");
       } else {
-        LOG.info("Velox task finished");
+        LOG.info("Velox task finished.");
         break;
       }
     }
