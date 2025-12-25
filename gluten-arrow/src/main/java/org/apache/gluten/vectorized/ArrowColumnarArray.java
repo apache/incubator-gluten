@@ -16,208 +16,21 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.spark.sql.catalyst.expressions.SpecializedGettersReader;
-import org.apache.spark.sql.catalyst.expressions.UnsafeArrayData;
-import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.catalyst.util.GenericArrayData;
-import org.apache.spark.sql.types.*;
+import org.apache.spark.sql.execution.vectorized.ColumnarArrayShim;
 import org.apache.spark.sql.vectorized.ColumnVector;
-import org.apache.spark.sql.vectorized.ColumnarArray;
-import org.apache.spark.sql.vectorized.ColumnarMap;
-import org.apache.spark.sql.vectorized.ColumnarRow;
-import org.apache.spark.unsafe.types.CalendarInterval;
-import org.apache.spark.unsafe.types.UTF8String;
 
 /**
  * Because `get` method in `ColumnarArray` don't check whether the data to get is null and arrow
  * vectors will throw exception when we try to access null value, so we define the following class
- * as a workaround. Its implementation is copied from Spark-3.5, except that the `handleNull`
- * parameter is set to true when we call `SpecializedGettersReader.read` in `get`.
+ * as a workaround. Its implementation is copied from Spark-4.0, except that the `handleNull`
+ * parameter is set to true when we call `SpecializedGettersReader.read` in `get`, which means that
+ * when trying to access a value of the array, we will check whether the value to get is null first.
+ *
+ * <p>The actual implementation is put in [[ColumnarArrayShim]] because Variant data type is
+ * introduced in Spark-4.0.
  */
-public class ArrowColumnarArray extends ArrayData {
-  // The data for this array. This array contains elements from
-  // data[offset] to data[offset + length).
-  private final ColumnVector data;
-  private final int offset;
-  private final int length;
-
+public class ArrowColumnarArray extends ColumnarArrayShim {
   public ArrowColumnarArray(ColumnVector data, int offset, int length) {
-    this.data = data;
-    this.offset = offset;
-    this.length = length;
-  }
-
-  @Override
-  public int numElements() {
-    return length;
-  }
-
-  @Override
-  public ArrayData copy() {
-    DataType dt = data.dataType();
-
-    if (dt instanceof BooleanType) {
-      return UnsafeArrayData.fromPrimitiveArray(toBooleanArray());
-    } else if (dt instanceof ByteType) {
-      return UnsafeArrayData.fromPrimitiveArray(toByteArray());
-    } else if (dt instanceof ShortType) {
-      return UnsafeArrayData.fromPrimitiveArray(toShortArray());
-    } else if (dt instanceof IntegerType
-        || dt instanceof DateType
-        || dt instanceof YearMonthIntervalType) {
-      return UnsafeArrayData.fromPrimitiveArray(toIntArray());
-    } else if (dt instanceof LongType
-        || dt instanceof TimestampType
-        || dt instanceof DayTimeIntervalType) {
-      return UnsafeArrayData.fromPrimitiveArray(toLongArray());
-    } else if (dt instanceof FloatType) {
-      return UnsafeArrayData.fromPrimitiveArray(toFloatArray());
-    } else if (dt instanceof DoubleType) {
-      return UnsafeArrayData.fromPrimitiveArray(toDoubleArray());
-    } else {
-      return new GenericArrayData(toObjectArray(dt)).copy(); // ensure the elements are copied.
-    }
-  }
-
-  @Override
-  public boolean[] toBooleanArray() {
-    return data.getBooleans(offset, length);
-  }
-
-  @Override
-  public byte[] toByteArray() {
-    return data.getBytes(offset, length);
-  }
-
-  @Override
-  public short[] toShortArray() {
-    return data.getShorts(offset, length);
-  }
-
-  @Override
-  public int[] toIntArray() {
-    return data.getInts(offset, length);
-  }
-
-  @Override
-  public long[] toLongArray() {
-    return data.getLongs(offset, length);
-  }
-
-  @Override
-  public float[] toFloatArray() {
-    return data.getFloats(offset, length);
-  }
-
-  @Override
-  public double[] toDoubleArray() {
-    return data.getDoubles(offset, length);
-  }
-
-  // TODO: this is extremely expensive.
-  @Override
-  public Object[] array() {
-    DataType dt = data.dataType();
-    Object[] list = new Object[length];
-    try {
-      for (int i = 0; i < length; i++) {
-        if (!data.isNullAt(offset + i)) {
-          list[i] = get(i, dt);
-        }
-      }
-      return list;
-    } catch (Exception e) {
-      throw new RuntimeException("Could not get the array", e);
-    }
-  }
-
-  @Override
-  public boolean isNullAt(int ordinal) {
-    return data.isNullAt(offset + ordinal);
-  }
-
-  @Override
-  public boolean getBoolean(int ordinal) {
-    return data.getBoolean(offset + ordinal);
-  }
-
-  @Override
-  public byte getByte(int ordinal) {
-    return data.getByte(offset + ordinal);
-  }
-
-  @Override
-  public short getShort(int ordinal) {
-    return data.getShort(offset + ordinal);
-  }
-
-  @Override
-  public int getInt(int ordinal) {
-    return data.getInt(offset + ordinal);
-  }
-
-  @Override
-  public long getLong(int ordinal) {
-    return data.getLong(offset + ordinal);
-  }
-
-  @Override
-  public float getFloat(int ordinal) {
-    return data.getFloat(offset + ordinal);
-  }
-
-  @Override
-  public double getDouble(int ordinal) {
-    return data.getDouble(offset + ordinal);
-  }
-
-  @Override
-  public Decimal getDecimal(int ordinal, int precision, int scale) {
-    return data.getDecimal(offset + ordinal, precision, scale);
-  }
-
-  @Override
-  public UTF8String getUTF8String(int ordinal) {
-    return data.getUTF8String(offset + ordinal);
-  }
-
-  @Override
-  public byte[] getBinary(int ordinal) {
-    return data.getBinary(offset + ordinal);
-  }
-
-  @Override
-  public CalendarInterval getInterval(int ordinal) {
-    return data.getInterval(offset + ordinal);
-  }
-
-  @Override
-  public ColumnarRow getStruct(int ordinal, int numFields) {
-    return data.getStruct(offset + ordinal);
-  }
-
-  @Override
-  public ColumnarArray getArray(int ordinal) {
-    return data.getArray(offset + ordinal);
-  }
-
-  @Override
-  public ColumnarMap getMap(int ordinal) {
-    return data.getMap(offset + ordinal);
-  }
-
-  @Override
-  public Object get(int ordinal, DataType dataType) {
-    return SpecializedGettersReader.read(this, ordinal, dataType, true, false);
-  }
-
-  @Override
-  public void update(int ordinal, Object value) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void setNullAt(int ordinal) {
-    throw new UnsupportedOperationException();
+    super(data, offset, length);
   }
 }
