@@ -783,13 +783,11 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         global_context->setConfig(config);
 
         auto tmp_path = config->getString("tmp_path", PathConfig::DEFAULT_TEMP_FILE_PATH);
-        LOG_ERROR(getLogger("BackendInitializerUtil"), "xxxx tmp path: {}. default tmp path: {}", tmp_path, PathConfig::DEFAULT_TEMP_FILE_PATH);
         if (config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false))
         {
             char buffer[PATH_MAX];
             if (getcwd(buffer, sizeof(buffer)) != nullptr)
                 tmp_path = std::string(buffer) + tmp_path;
-            LOG_ERROR(getLogger("BackendInitializerUtil"), "use current directory as tmp path: {}", tmp_path);
         };
 
         global_context->setTemporaryStoragePath(tmp_path, 0);

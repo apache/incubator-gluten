@@ -89,7 +89,7 @@ class GlutenClickHouseWholeStageTransformerSuite
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")
       .set(RuntimeConfig.PATH.key, UTSystemParameters.diskOutputDataPath)
-      .set(RuntimeConfig.TMP_PATH.key, s"/tmp/libch/")
+      .set(RuntimeConfig.TMP_PATH.key, s"/tmp/libch/$SPARK_DIR_NAME")
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
       minioHelper.setFileSystem(conf)
       minioHelper.setStoreConfig(conf, BUCKET_NAME)
@@ -117,6 +117,8 @@ class GlutenClickHouseWholeStageTransformerSuite
     FileUtils.forceMkdir(basePathDir)
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
+    FileUtils.forceMkdir(new File("/tmp/user_defined"))
+    FileUtils.forceMkdir(new File(s"/tmp/libch/$SPARK_DIR_NAME"))
     super.beforeAll()
     spark.sparkContext.setLogLevel(logLevel)
     prepareTestTables()
