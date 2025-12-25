@@ -58,23 +58,18 @@ else
     NUM_THREADS ?= $(CI_NUM_THREADS)
 endif
 
-JAVA_HOME_8 := $(firstword $(shell realpath /usr/lib/jvm/java-1.8* 2>/dev/null))
-JAVA_HOME_11 := $(firstword $(shell realpath /usr/lib/jvm/java-11* 2>/dev/null))
-JAVA_HOME_17 := $(firstword $(shell realpath /usr/lib/jvm/java-17* 2>/dev/null))
-
-export JAVA_HOME : = $(JAVA_HOME_8)
-export PATH := $(JAVA_HOME_8)/bin:$(PATH)
-
-define SET_JAVA_HOME
-    if [ -n "$(JAVA_HOME_$(1))" ]; then \
-		JAVA_HOME=$(JAVA_HOME_$(1)) && \
-		PATH=$(JAVA_HOME_$(1))/bin:$(shell echo $${PATH}) && \
-		export JAVA_HOME && export PATH ; \
-    else \
-        echo "JAVA_HOME_$(1) not found" && \
-        exit 1; \
-    fi
-endef
+ALLOWED_VERSIONS := 11 17
+ifeq ($(JAVA_HOME),)
+    $(error ERROR: JAVA_HOME is not set)
+endif
+ifneq ($(wildcard $(JAVA_HOME)/bin/java),)
+    ifneq ($(wildcard $(JAVA_HOME)/bin/javac),)
+        JDK_VERSION := $(shell $(JAVA_HOME)/bin/java -version 2>&1 | sed -n 's/.*version "\(1\.\)\{0,1\}\([0-9]\+\).*/\2/p')
+        ifneq ($(filter $(JDK_VERSION),$(ALLOWED_VERSIONS)),$(JDK_VERSION))
+            $(error ERROR: JDK version $(JDK_VERSION) is not supported, only 11 and 17 are allowed now)
+        endif
+    endif
+endif
 
 .PHONY: clean debug release java
 
@@ -147,36 +142,26 @@ debug-with-tests-and-benchmarks :
 	$(MAKE) build BUILD_TYPE=Debug GLUTEN_BUILD_VERSION=${GLUTEN_BUILD_VERSION} BOLT_BUILD_VERSION=${BOLT_BUILD_VERSION} BUILD_USER=${BUILD_USER} BUILD_CHANNEL=${BUILD_CHANNEL} BUILD_BENCHMARKS=True BUILD_TESTS=True
 
 arrow:
-	$(call SET_JAVA_HOME,8) && java -version && bash dev/build_bolt_arrow.sh
+	bash dev/build_bolt_arrow.sh
 
 # build gluten jar
 jar:
-	$(call SET_JAVA_HOME,8) && java -version && \
 	java -version && mvn package -Pbackends-bolt -Pspark-3.3 -Pceleborn -DskipTests -Denforcer.skip=true -Pjava-8 -Ppaimon &&\
 	mkdir -p output && \
 	rm -rf output/gluten-spark*.jar
 	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 
 jar-skip-check:
-	$(call SET_JAVA_HOME,8) && java -version && \
 	java -version && mvn package -Pbackends-bolt -Pspark-3.2 -Pceleborn -DskipTests -Denforcer.skip=true -Pjava-8 -Ppaimon -Dcheckstyle.skip=true -Dspotless.check.skip=true &&\
 	mkdir -p output && \
 	rm -rf output/gluten-spark*.jar
 	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 
 spark32-las:
-	$(call SET_JAVA_HOME,8)  && java -version && \
 	java -version && mvn package -Pbackends-bolt -Pspark-3.2-las -Pceleborn -DskipTests -Denforcer.skip=true -Pjava-8 -Ppaimon &&\
 	mkdir -p output && \
 	rm -rf output/gluten-spark*.jar
 	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
-
-jar17:
-	$(call SET_JAVA_HOME,17) && java -version && \
-	mvn package -Pbackends-bolt -Pjava-17 -Pspark-3.2 -Pceleborn -DskipTests -Denforcer.skip=true -Ppaimon && \
-	mkdir -p output && \
-	rm -rf output/gluten-spark*.jar
-	mv  package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 
 fast-jar:
 	if [ ! -f "output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar" ] ; then \
@@ -196,44 +181,36 @@ fast-zip:
 	zip -j output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.zip output/gluten-spark3.2_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 
 jar_spark33:
-	$(call SET_JAVA_HOME,8) && java -version && \
 	java -version && mvn -T32 clean package -Pbackends-bolt -Pspark-3.3 -Pceleborn -Piceberg -DskipTests -Denforcer.skip=true -Ppaimon && \
 	mkdir -p output && \
 	rm -rf output/gluten-spark*.jar
 	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.3_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 
 jar_spark34:
-	$(call SET_JAVA_HOME,11) && java -version && \
 	java -version && mvn clean package -Pbackends-bolt -Pspark-3.4 -Pceleborn -Piceberg -DskipTests -Denforcer.skip=true -Ppaimon && \
 	mkdir -p output && \
 	rm -rf output/gluten-spark*.jar
 	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.4_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 
 jar_spark35:
-	$(call SET_JAVA_HOME,11) && java -version && \
 	java -version && mvn -T32 clean package -Pbackends-bolt -Pspark-3.5 -Phadoop-3.2 -Pceleborn -Piceberg -DskipTests -Denforcer.skip=true -Ppaimon && \
 	mkdir -p output && \
 	rm -rf output/gluten-spark*.jar
 	mv package/target/gluten-package-1.6.0-SNAPSHOT.jar output/gluten-spark3.5_2.12-1.0.0-SNAPSHOT-jar-with-dependencies.jar
 
 test:
-	$(call SET_JAVA_HOME,8) && java -version && \
 	mvn -Pbackends-bolt -Pspark-3.2 -Pceleborn -Ppaimon package -Denforcer.skip=true
 
 test_spark35:
-	$(call SET_JAVA_HOME,8) && java -version && \
 	mvn -Pbackends-bolt -Pspark-3.5 -Ppaimon -Phadoop-3.2 -Pceleborn -Piceberg package -Denforcer.skip=true
 
 cpp-test-release: release-with-tests
-	$(call SET_JAVA_HOME,8) && java -version && \
 	cd $(BUILD_DIR)/Release && ctest --timeout 7200 -j $(NUM_THREADS) --output-on-failure -V
 
 cpp-test-debug: debug-with-tests
-	$(call SET_JAVA_HOME,8) && java -version && \
 	cd $(BUILD_DIR)/Debug && ctest --timeout 7200 -j $(NUM_THREADS) --output-on-failure -V
 
 clean :
 	$(MAKE) clean_cpp
-	$(call SET_JAVA_HOME,8) && java -version &&\
 	mvn clean -Pbackends-bolt -Pspark-3.2 -Pceleborn -Ppaimon -DskipTests -Denforcer.skip=true && \
 	rm -rf ${ROOT_DIR}/output/gluten-*.jar
