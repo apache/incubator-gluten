@@ -1,0 +1,74 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Clang Tidy Check
+
+on:
+  pull_request:
+    paths:
+      - 'cpp/**'
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  MVN_CMD: 'mvn -ntp'
+  WGET_CMD: 'wget -nv'
+  SETUP: 'source .github/workflows/util/setup-helper.sh'
+  CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  # spark.sql.ansi.enabled defaults to false.
+  SPARK_ANSI_SQL_MODE: false
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  clang-tidy-check:
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for cpp files changes
+        id: filter
+        run: |
+          if git show --name-only --format="" HEAD 2>/dev/null | grep -q -E '^cpp/.*\.(cc|h)$'; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Download artifact from in-progress workflow
+        if: steps.filter.outputs.has_changes == 'true'
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          workflow: .github/workflows/velox_backend_x86.yml
+          name: velox-native-lib-centos-7-${{ github.sha }}
+          commit: ${{ github.sha }}
+          workflow_conclusion: ""
+          check_artifacts: true
+          search_artifacts: true
+          if_no_artifact_found: fail
+      - name: Check Clang Tidy
+        run: |
+          pip3 install regex
+          yum install glibc-devel glibc-headers
+          cd $GITHUB_WORKSPACE/
+          yum install clang llvm llvm-devel -y
+          dnf install clang-tools-extra -y
+          clang-tidy --version
+          sed -i "s|/work|$(pwd)|g" cpp/build/compile_commands.json
+          python3 dev/check.py tidy commit --fix
+
