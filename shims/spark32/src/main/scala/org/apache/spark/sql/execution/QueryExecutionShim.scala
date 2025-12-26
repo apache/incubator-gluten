@@ -14,15 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.spark.sql.execution
 
-import org.apache.gluten.expression.SpecializedGettersGetVariantCompatible
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
-import org.apache.spark.sql.catalyst.InternalRow
+/**
+ * Shim layer for DataSourceV2Relation to maintain compatibility across different Spark versions.
+ */
+object QueryExecutionShim {
 
-/** An internal-row base implementation that is compatible with both Spark 3.x and 4.x. */
-abstract class InternalRowGetVariantCompatible
-  extends InternalRow
-  with SpecializedGettersGetVariantCompatible {
-  override def getVariant(ordinal: Int): Nothing = throw new UnsupportedOperationException()
+  /** @since Spark 4.1 */
+  def createSparkPlan(
+      sparkSession: SparkSession,
+      planner: SparkPlanner,
+      plan: LogicalPlan): SparkPlan = QueryExecution.createSparkPlan(sparkSession, planner, plan)
 }

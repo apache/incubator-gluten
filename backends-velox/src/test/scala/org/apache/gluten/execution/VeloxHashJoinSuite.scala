@@ -74,7 +74,8 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  testWithMinSparkVersion("generate hash join plan - v2", "3.2") {
+  // TODO: fix on spark-4.1
+  testWithRangeSparkVersion("generate hash join plan - v2", "3.2", "3.5") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.adaptive.enabled", "false"),

@@ -12,6 +12,10 @@
   <packaging>jar</packaging>
   <name>Gluten Unit Test Spark40</name>
 
+  <properties>
+    <parquet.version>1.16.0</parquet.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>
@@ -23,14 +27,14 @@
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-column</artifactId>
-      <version>1.15.2</version>
+      <version>${parquet.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-common</artifactId>
-      <version>1.15.2</version>
+      <version>${parquet.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>

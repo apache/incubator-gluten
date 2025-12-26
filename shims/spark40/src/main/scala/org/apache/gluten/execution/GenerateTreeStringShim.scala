@@ -42,6 +42,7 @@ trait WholeStageTransformerGenerateTreeStringShim extends UnaryExecNode {
       addSuffix: Boolean = false,
       maxFields: Int,
       printNodeId: Boolean,
+      printOutputColumns: Boolean,
       indent: Int = 0): Unit = {
     val prefix = if (printNodeId) "^ " else s"^($stageId) "
     child.generateTreeString(
@@ -53,7 +54,8 @@ trait WholeStageTransformerGenerateTreeStringShim extends UnaryExecNode {
       addSuffix = false,
       maxFields,
       printNodeId = printNodeId,
-      indent)
+      printOutputColumns = printOutputColumns,
+      indent = indent)
 
     if (verbose && wholeStageTransformerContextDefined) {
       append(prefix + "Substrait plan:\n")
@@ -74,6 +76,7 @@ trait InputAdapterGenerateTreeStringShim extends UnaryExecNode {
       addSuffix: Boolean = false,
       maxFields: Int,
       printNodeId: Boolean,
+      printOutputColumns: Boolean,
       indent: Int = 0): Unit = {
     child.generateTreeString(
       depth,
@@ -84,6 +87,7 @@ trait InputAdapterGenerateTreeStringShim extends UnaryExecNode {
       addSuffix = false,
       maxFields,
       printNodeId,
+      printOutputColumns,
       indent)
   }
 }

@@ -14,14 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.expression
+package org.apache.spark.sql.execution
+
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
 /**
- * A mix-in trait mainly for internal-row's implementations to extend, to ensure the code is
- * compatible with Spark 3.x and 4.x at the same time.
+ * Shim layer for DataSourceV2Relation to maintain compatibility across different Spark versions.
  */
-trait SpecializedGettersGetVariantCompatible {
-  def getVariant(ordinal: Int): Nothing = {
-    throw new UnsupportedOperationException()
-  }
+object QueryExecutionShim {
+
+  /** @since Spark 4.1 */
+  def createSparkPlan(
+      sparkSession: SparkSession,
+      planner: SparkPlanner,
+      plan: LogicalPlan): SparkPlan = QueryExecution.createSparkPlan(planner, plan)
 }

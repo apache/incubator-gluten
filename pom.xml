@@ -938,7 +938,7 @@
     <profile>
       <id>scala-2.13</id>
       <properties>
-        <scala.version>2.13.16</scala.version>
+        <scala.version>2.13.17</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
         <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
       </properties>
@@ -1085,6 +1085,7 @@
         <hudi.version>0.15.0</hudi.version>
         <slf4j.version>1.7.30</slf4j.version>
         <log4j.version>1.2.17</log4j.version>
+        <commons.collections4.version>4.5.0</commons.collections4.version>
       </properties>
       <dependencies>
         <dependency>
@@ -1092,6 +1093,12 @@
           <artifactId>log4j</artifactId>
           <version>${log4j.version}</version>
           <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-collections4</artifactId>
+          <version>${commons.collections4.version}</version>
+          <scope>compile</scope>
         </dependency>
       </dependencies>
     </profile>
@@ -1189,7 +1196,7 @@
       <properties>
         <sparkbundle.version>4.0</sparkbundle.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark40</sparkshim.artifactId>
-        <spark.version>4.0.1</spark.version>
+        <spark.version>4.1.0</spark.version>
         <iceberg.version>1.10.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
         <delta.version>4.0.0</delta.version>
