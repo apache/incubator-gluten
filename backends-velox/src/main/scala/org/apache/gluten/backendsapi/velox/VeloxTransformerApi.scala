@@ -70,11 +70,19 @@ class VeloxTransformerApi extends TransformerApi with Logging {
   override def postProcessNativeConfig(
       nativeConfMap: JMap[String, String],
       backendPrefix: String): Unit = {
-    // 'spark.hadoop.fs.s3a.connection.timeout' by velox requires time unit, hadoop-aws versions
+    // 'spark.hadoop.fs.s3a.connection.timeout' and 'spark.hadoop.fs.s3a.connection.establish.timeout'
+    //  by velox requires time unit, hadoop-aws versions
     // before 3.4 do not have time unit.
     val s3sConnectionTimeout = nativeConfMap.get("spark.hadoop.fs.s3a.connection.timeout")
     if (NumberUtils.isCreatable(s3sConnectionTimeout)) {
       nativeConfMap.put("spark.hadoop.fs.s3a.connection.timeout", s"${s3sConnectionTimeout}ms")
+    }
+    val s3sConnectionEstablishTimeout =
+      nativeConfMap.get("spark.hadoop.fs.s3a.connection.establish.timeout")
+    if (NumberUtils.isCreatable(s3sConnectionEstablishTimeout)) {
+      nativeConfMap.put(
+        "spark.hadoop.fs.s3a.connection.establish.timeout",
+        s"${s3sConnectionEstablishTimeout}ms")
     }
   }
 
