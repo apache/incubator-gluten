@@ -141,7 +141,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
  */
 case class ColumnarCollapseTransformStages(
     glutenConf: GlutenConfig,
-    transformStageCounter: AtomicInteger = ColumnarCollapseTransformStages.transformStageCounter)
+    transformStageCounter: AtomicInteger = new AtomicInteger(0))
   extends Rule[SparkPlan] {
 
   def apply(plan: SparkPlan): SparkPlan = {
@@ -213,9 +213,20 @@ case class ColumnarInputAdapter(child: SparkPlan)
 }
 
 object ColumnarCollapseTransformStages {
-  val transformStageCounter = new AtomicInteger(0)
-
   def wrapInputIteratorTransformer(plan: SparkPlan): TransformSupport = {
     InputIteratorTransformer(ColumnarInputAdapter(plan))
+  }
+
+  def getTransformStageCounter(plan: SparkPlan): AtomicInteger = {
+    new AtomicInteger(findMaxTransformStageId(plan))
+  }
+
+  private def findMaxTransformStageId(plan: SparkPlan): Int = {
+    plan match {
+      case wst: WholeStageTransformer =>
+        wst.transformStageId
+      case _ =>
+        plan.children.map(findMaxTransformStageId).foldLeft(0)(Math.max)
+    }
   }
 }
