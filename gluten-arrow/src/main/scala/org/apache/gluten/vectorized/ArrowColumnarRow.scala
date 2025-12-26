@@ -17,7 +17,7 @@
 package org.apache.gluten.vectorized
 
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.execution.InternalRowGetVariantCompatible
+import org.apache.gluten.execution.InternalRowSparkCompatible
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
@@ -31,7 +31,7 @@ import java.math.BigDecimal
 // ArrowWritableColumnVector. And support string and binary type to write,
 // Arrow writer does not need to setNotNull before writing a value.
 final class ArrowColumnarRow(writableColumns: Array[ArrowWritableColumnVector], var rowId: Int = 0)
-  extends InternalRowGetVariantCompatible {
+  extends InternalRowSparkCompatible {
 
   private val columns: Array[ArrowWritableColumnVector] = writableColumns
 
