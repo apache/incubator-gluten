@@ -101,8 +101,13 @@ function compile {
   # -Wno-unknown-warning-option is a Clang-originated flag. GCC ignores unrecognized -Wno- flags to
   # maintain compatibility, but it prints a diagnostic note about the unknown flag if a true warning
   # or error occurs.
-  CXX_FLAGS='-Wno-error=stringop-overflow -Wno-error=cpp -Wno-missing-field-initializers \
-    -Wno-error=uninitialized -Wno-unknown-warning-option'
+  if [[ -n "${CC:-}" ]] && [[ "$CC" == *clang* ]]; then
+    CXX_FLAGS='-Wno-error=deprecated-copy-with-user-provided-copy -Wno-error=missing-field-initializers -Wno-error=stringop-overflow -Wno-error=cpp -Wno-missing-field-initializers \
+      -Wno-error=uninitialized -Wno-unknown-warning-option'
+  else
+    CXX_FLAGS='-Wno-error=stringop-overflow -Wno-error=cpp -Wno-missing-field-initializers \
+      -Wno-error=uninitialized -Wno-unknown-warning-option'
+  fi
 
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF \
       -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON \
