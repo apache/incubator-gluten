@@ -269,7 +269,7 @@ jobs:
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           fi
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H / TPC-DS
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
@@ -388,7 +388,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ 
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }}
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
         run: |
@@ -503,7 +503,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ 
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }}
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.2 random kill tasks
         run: |
@@ -559,7 +559,7 @@ jobs:
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          $MVN_CMD clean install -P${{ matrix.spark }} -Puniffle  && \
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }} -Puniffle  && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
