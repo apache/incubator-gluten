@@ -305,7 +305,7 @@ object BoltConfig extends ConfigRegistry {
           s"The default minimum output batch size is equal to 0.25 * " +
           s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val COLUMNAR_BOLT_RESIZE_BATCHES_SHUFFLE_OUTPUT =
     buildConf("spark.gluten.sql.columnar.backend.bolt.resizeBatches.shuffleOutput")
