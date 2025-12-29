@@ -62,47 +62,28 @@ install_mvn() {
         local MVN_TAR="${MVN_DOWNLOAD_DIR}/apache-maven-${VERSION}-bin.tar.gz"
 
         if [ ! -f "${MVN_TAR}" ]; then
-            # Construct download URL using Apache closer.lua for better mirror selection
-            local APACHE_MIRROR="${APACHE_MIRROR:-https://www.apache.org/dyn/closer.lua}"
-            local MVN_DOWNLOAD_PATH="maven/maven-3/${VERSION}/binaries/apache-maven-${VERSION}-bin.tar.gz"
+            # Use Maven Central repository for download
+            local DOWNLOAD_URL="https://repo1.maven.org/maven2/org/apache/maven/apache-maven/${VERSION}/apache-maven-${VERSION}-bin.tar.gz"
 
-            # Try Apache closer.lua first (redirects to nearest mirror)
-            local DOWNLOAD_URL="${APACHE_MIRROR}?action=download&filename=${MVN_DOWNLOAD_PATH}"
-
-            echo "Downloading Maven ${VERSION} from Apache mirror service..." >&2
+            echo "Downloading Maven ${VERSION} from Maven Central..." >&2
             echo "URL: ${DOWNLOAD_URL}" >&2
 
             if command -v curl > /dev/null 2>&1; then
-                # Use -L to follow redirects from closer.lua
-                if ! curl -f -L --retry 3 --retry-delay 3 \
+                curl -f -L --retry 3 --retry-delay 3 \
                      --connect-timeout 30 --max-time 600 \
-                     -o "${MVN_TAR}" "${DOWNLOAD_URL}"; then
-                    echo "Download failed via closer.lua, trying archive.apache.org..." >&2
-                    # Fallback to archive if closer.lua fails
-                    local FALLBACK_URL="https://archive.apache.org/dist/${MVN_DOWNLOAD_PATH}"
-                    curl -f -L --retry 3 --retry-delay 3 \
-                         --connect-timeout 30 --max-time 600 \
-                         -o "${MVN_TAR}" "${FALLBACK_URL}" || {
-                        echo "ERROR: Failed to download Maven from ${FALLBACK_URL}" >&2
-                        rm -f "${MVN_TAR}"
-                        exit 1
-                    }
-                fi
+                     -o "${MVN_TAR}" "${DOWNLOAD_URL}" || {
+                    echo "ERROR: Failed to download Maven from ${DOWNLOAD_URL}" >&2
+                    rm -f "${MVN_TAR}"
+                    exit 1
+                }
             elif command -v wget > /dev/null 2>&1; then
-                # wget follows redirects by default
-                if ! wget --tries=3 --waitretry=3 \
+                wget --tries=3 --waitretry=3 \
                      --connect-timeout=30 --read-timeout=600 \
-                     -O "${MVN_TAR}" "${DOWNLOAD_URL}"; then
-                    echo "Download failed via closer.lua, trying archive.apache.org..." >&2
-                    local FALLBACK_URL="https://archive.apache.org/dist/${MVN_DOWNLOAD_PATH}"
-                    wget --tries=3 --waitretry=3 \
-                         --connect-timeout=30 --read-timeout=600 \
-                         -O "${MVN_TAR}" "${FALLBACK_URL}" || {
-                        echo "ERROR: Failed to download Maven from ${FALLBACK_URL}" >&2
-                        rm -f "${MVN_TAR}"
-                        exit 1
-                    }
-                fi
+                     -O "${MVN_TAR}" "${DOWNLOAD_URL}" || {
+                    echo "ERROR: Failed to download Maven from ${DOWNLOAD_URL}" >&2
+                    rm -f "${MVN_TAR}"
+                    exit 1
+                }
             else
                 echo "ERROR: Neither curl nor wget found. Please install one of them or install Maven manually." >&2
                 exit 1
