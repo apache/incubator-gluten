@@ -27,13 +27,12 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.velox.VeloxAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
-import org.apache.spark.sql.execution.datasources.exchange.GlutenValidateRequirementsSuite
 import org.apache.spark.sql.execution.datasources.json.{GlutenJsonLegacyTimeParserSuite, GlutenJsonV1Suite, GlutenJsonV2Suite}
 import org.apache.spark.sql.execution.datasources.orc._
 import org.apache.spark.sql.execution.datasources.parquet._
 import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
-import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
+import org.apache.spark.sql.execution.exchange.{GlutenEnsureRequirementsSuite, GlutenValidateRequirementsSuite}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}

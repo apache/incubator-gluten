@@ -27,13 +27,12 @@ import org.apache.spark.sql.execution.adaptive.clickhouse.ClickHouseAdaptiveQuer
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
 import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
-import org.apache.spark.sql.execution.datasources.exchange.GlutenValidateRequirementsSuite
 import org.apache.spark.sql.execution.datasources.json.{GlutenJsonLegacyTimeParserSuite, GlutenJsonV1Suite, GlutenJsonV2Suite}
 import org.apache.spark.sql.execution.datasources.orc._
 import org.apache.spark.sql.execution.datasources.parquet._
 import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
-import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
+import org.apache.spark.sql.execution.exchange.{GlutenEnsureRequirementsSuite, GlutenValidateRequirementsSuite}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 import org.apache.spark.sql.gluten.{GlutenFallbackStrategiesSuite, GlutenFallbackSuite}
