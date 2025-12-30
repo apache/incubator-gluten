@@ -51,6 +51,14 @@ trait ConfigRegistry {
     }
   }
 
+  protected def buildOrReplaceConf(key: String): ConfigBuilder = {
+    ConfigBuilder(key).onCreate {
+      entry =>
+        configEntries.put(entry.key, entry)
+        ConfigRegistry.registerOrReplaceToAllEntries(entry)
+    }
+  }
+
   def get: GlutenCoreConfig
 }
 
@@ -61,6 +69,10 @@ object ConfigRegistry {
   private def registerToAllEntries(entry: ConfigEntry[_]): Unit = {
     val existing = allConfigEntries.putIfAbsent(entry.key, entry)
     require(existing.isEmpty, s"Config entry ${entry.key} already registered!")
+  }
+
+  private def registerOrReplaceToAllEntries(entry: ConfigEntry[_]): Unit = {
+    allConfigEntries.put(entry.key, entry)
   }
 
   def containsEntry(entry: ConfigEntry[_]): Boolean = {
