@@ -352,7 +352,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // Extra ColumnarToRow is needed to transform vanilla columnar data to gluten columnar data.
     .includeCH("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
     .excludeCH("Gluten - InMemoryRelation statistics")
-  enableSuite[GlutenCastSuite]
+  enableSuite[GlutenCastWithAnsiOffSuite]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )

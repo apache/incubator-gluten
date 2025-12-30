@@ -93,7 +93,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
   enableSuite[GlutenBitwiseExpressionsSuite]
-  enableSuite[GlutenCastSuite]
+  enableSuite[GlutenCastWithAnsiOffSuite]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
