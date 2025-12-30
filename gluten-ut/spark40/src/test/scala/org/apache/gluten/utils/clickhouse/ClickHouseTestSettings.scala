@@ -36,7 +36,7 @@ import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2Strategy
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
-import org.apache.spark.sql.gluten.GlutenFallbackSuite
+import org.apache.spark.sql.gluten.{GlutenFallbackStrategiesSuite, GlutenFallbackSuite}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQueryCHSuite
 import org.apache.spark.sql.sources._
 
@@ -75,7 +75,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "No deadlock in UI update",
       "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join"
     )
-  enableSuite[FallbackStrategiesSuite]
+  enableSuite[GlutenFallbackStrategiesSuite]
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
     .excludeCH("test ApproxCountDistinctForIntervals with large number of endpoints")
   enableSuite[GlutenApproximatePercentileQuerySuite]
