@@ -18,6 +18,10 @@ package org.apache.spark.sql.connector
 
 import org.apache.spark.sql._
 
+class GlutenDataSourceV2SQLSuiteV1Filter
+  extends DataSourceV2SQLSuiteV1Filter
+  with GlutenSQLTestsBaseTrait {}
+
 class GlutenDataSourceV2SQLSuiteV2Filter
   extends DataSourceV2SQLSuiteV2Filter
   with GlutenSQLTestsBaseTrait {}
