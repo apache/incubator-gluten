@@ -94,7 +94,7 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
       val wholeStages = plan.collect { case wst: WholeStageTransformer => wst }
       if (isSparkVersionLE("3.2")) {
         assert(wholeStages.length == 1)
-      } else if ( isSparkVersionGE("3.5")) {
+      } else if (isSparkVersionGE("3.5")) {
         assert(wholeStages.length == 5)
       } else {
         assert(wholeStages.length == 3)
