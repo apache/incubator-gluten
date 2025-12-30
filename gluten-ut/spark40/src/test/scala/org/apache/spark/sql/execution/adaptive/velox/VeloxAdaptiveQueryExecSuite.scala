@@ -32,6 +32,7 @@ import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.execution.metric.SQLShuffleReadMetricsReporter
 import org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.when
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SQLTestData.TestData
@@ -254,13 +255,13 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
       SQLConf.COALESCE_PARTITIONS_ENABLED.key -> "true",
       SQLConf.ADAPTIVE_OPTIMIZER_EXCLUDED_RULES.key -> AQEPropagateEmptyRelation.ruleName
     ) {
-      val df1 = spark.range(10).withColumn("a", Symbol("id"))
-      val df2 = spark.range(10).withColumn("b", Symbol("id"))
+      val df1 = spark.range(10).withColumn("a", col("id"))
+      val df2 = spark.range(10).withColumn("b", col("id"))
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
         val testDf = df1
-          .where(Symbol("a") > 10)
-          .join(df2.where(Symbol("b") > 10), Seq("id"), "left_outer")
-          .groupBy(Symbol("a"))
+          .where(col("a") > 10)
+          .join(df2.where(col("b") > 10), Seq("id"), "left_outer")
+          .groupBy(col("a"))
           .count()
         checkAnswer(testDf, Seq())
         val plan = testDf.queryExecution.executedPlan
@@ -269,9 +270,9 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
 
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "1") {
         val testDf = df1
-          .where(Symbol("a") > 10)
-          .join(df2.where(Symbol("b") > 10), Seq("id"), "left_outer")
-          .groupBy(Symbol("a"))
+          .where(col("a") > 10)
+          .join(df2.where(col("b") > 10), Seq("id"), "left_outer")
+          .groupBy(col("a"))
           .count()
         checkAnswer(testDf, Seq())
         val plan = testDf.queryExecution.executedPlan
@@ -649,19 +650,19 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
             spark
               .range(0, 1000, 1, 10)
               .select(
-                when(Symbol("id") < 250, 249)
-                  .when(Symbol("id") >= 750, 1000)
-                  .otherwise(Symbol("id"))
+                when(col("id") < 250, 249)
+                  .when(col("id") >= 750, 1000)
+                  .otherwise(col("id"))
                   .as("key1"),
-                Symbol("id").as("value1"))
+                col("id").as("value1"))
               .createOrReplaceTempView("skewData1")
             spark
               .range(0, 1000, 1, 10)
               .select(
-                when(Symbol("id") < 250, 249)
-                  .otherwise(Symbol("id"))
+                when(col("id") < 250, 249)
+                  .otherwise(col("id"))
                   .as("key2"),
-                Symbol("id").as("value2"))
+                col("id").as("value2"))
               .createOrReplaceTempView("skewData2")
 
             def checkSkewJoin(
@@ -777,19 +778,19 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
           spark
             .range(0, 1000, 1, 10)
             .select(
-              when(Symbol("id") < 250, 249)
-                .when(Symbol("id") >= 750, 1000)
-                .otherwise(Symbol("id"))
+              when(col("id") < 250, 249)
+                .when(col("id") >= 750, 1000)
+                .otherwise(col("id"))
                 .as("key1"),
-              Symbol("id").as("value1"))
+              col("id").as("value1"))
             .createOrReplaceTempView("skewData1")
           spark
             .range(0, 1000, 1, 10)
             .select(
-              when(Symbol("id") < 250, 249)
-                .otherwise(Symbol("id"))
+              when(col("id") < 250, 249)
+                .otherwise(col("id"))
                 .as("key2"),
-              Symbol("id").as("value2"))
+              col("id").as("value2"))
             .createOrReplaceTempView("skewData2")
           val (_, adaptivePlan) =
             runAdaptiveAndVerifyResult("SELECT * FROM skewData1 join skewData2 ON key1 = key2")
@@ -922,7 +923,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
       withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "300") {
         // Repartition with no partition num specified.
         checkBHJ(
-          df.repartition(Symbol("b")),
+          df.repartition(col("b")),
           // The top shuffle from repartition is optimized out.
           optimizeOutRepartition = true,
           probeSideLocalRead = false,
@@ -931,7 +932,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
 
         // Repartition with default partition num (5 in test env) specified.
         checkBHJ(
-          df.repartition(5, Symbol("b")),
+          df.repartition(5, col("b")),
           // The top shuffle from repartition is optimized out
           // The final plan must have 5 partitions, no optimization can be made to the probe side.
           optimizeOutRepartition = true,
@@ -941,7 +942,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
 
         // Repartition with non-default partition num specified.
         checkBHJ(
-          df.repartition(4, Symbol("b")),
+          df.repartition(4, col("b")),
           // The top shuffle from repartition is not optimized out
           optimizeOutRepartition = false,
           probeSideLocalRead = true,
@@ -950,7 +951,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
 
         // Repartition by col and project away the partition cols
         checkBHJ(
-          df.repartition(Symbol("b")).select(Symbol("key")),
+          df.repartition(col("b")).select(col("key")),
           // The top shuffle from repartition is not optimized out
           optimizeOutRepartition = false,
           probeSideLocalRead = true,
@@ -968,7 +969,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
       ) {
         // Repartition with no partition num specified.
         checkSMJ(
-          df.repartition(Symbol("b")),
+          df.repartition(col("b")),
           // The top shuffle from repartition is optimized out.
           optimizeOutRepartition = true,
           optimizeSkewJoin = false,
@@ -977,7 +978,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
 
         // Repartition with default partition num (5 in test env) specified.
         checkSMJ(
-          df.repartition(5, Symbol("b")),
+          df.repartition(5, col("b")),
           // The top shuffle from repartition is optimized out.
           // The final plan must have 5 partitions, can't do coalesced read.
           optimizeOutRepartition = true,
@@ -987,7 +988,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
 
         // Repartition with non-default partition num specified.
         checkSMJ(
-          df.repartition(4, Symbol("b")),
+          df.repartition(4, col("b")),
           // The top shuffle from repartition is not optimized out.
           optimizeOutRepartition = false,
           optimizeSkewJoin = true,
@@ -996,7 +997,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
 
         // Repartition by col and project away the partition cols
         checkSMJ(
-          df.repartition(Symbol("b")).select(Symbol("key")),
+          df.repartition(col("b")).select(col("key")),
           // The top shuffle from repartition is not optimized out.
           optimizeOutRepartition = false,
           optimizeSkewJoin = true,
