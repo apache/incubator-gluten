@@ -21,3 +21,7 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 class GlutenGroupBasedDeleteFromTableSuite
   extends GroupBasedDeleteFromTableSuite
   with GlutenSQLTestsBaseTrait {}
+
+class GlutenDeleteFromTableSuite
+  extends GroupBasedDeleteFromTableSuite
+  with GlutenSQLTestsBaseTrait {}

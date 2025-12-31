@@ -26,7 +26,7 @@ import org.apache.spark.util.DebuggableThreadUtils
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
 
-class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
+class GlutenCastWithAnsiOffSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
   override def beforeAll(): Unit = {
     super.beforeAll()
     // Need to explicitly set spark.sql.preserveCharVarcharTypeInfo=true for gluten's test

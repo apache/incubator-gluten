@@ -27,16 +27,15 @@ import org.apache.spark.sql.execution.adaptive.clickhouse.ClickHouseAdaptiveQuer
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
 import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
-import org.apache.spark.sql.execution.datasources.exchange.GlutenValidateRequirementsSuite
 import org.apache.spark.sql.execution.datasources.json.{GlutenJsonLegacyTimeParserSuite, GlutenJsonV1Suite, GlutenJsonV2Suite}
 import org.apache.spark.sql.execution.datasources.orc._
 import org.apache.spark.sql.execution.datasources.parquet._
 import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
-import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
+import org.apache.spark.sql.execution.exchange.{GlutenEnsureRequirementsSuite, GlutenValidateRequirementsSuite}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
-import org.apache.spark.sql.gluten.GlutenFallbackSuite
+import org.apache.spark.sql.gluten.{GlutenFallbackStrategiesSuite, GlutenFallbackSuite}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQueryCHSuite
 import org.apache.spark.sql.sources._
 
@@ -75,7 +74,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "No deadlock in UI update",
       "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join"
     )
-  enableSuite[FallbackStrategiesSuite]
+  enableSuite[GlutenFallbackStrategiesSuite]
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
     .excludeCH("test ApproxCountDistinctForIntervals with large number of endpoints")
   enableSuite[GlutenApproximatePercentileQuerySuite]
@@ -352,7 +351,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // Extra ColumnarToRow is needed to transform vanilla columnar data to gluten columnar data.
     .includeCH("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
     .excludeCH("Gluten - InMemoryRelation statistics")
-  enableSuite[GlutenCastSuite]
+  enableSuite[GlutenCastWithAnsiOffSuite]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
