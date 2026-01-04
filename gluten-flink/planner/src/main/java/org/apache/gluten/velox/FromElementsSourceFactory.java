@@ -99,7 +99,8 @@ public class FromElementsSourceFactory implements VeloxSourceSinkFactory {
                   Map.of(scanNode.getId(), rowType),
                   scanNode.getId(),
                   new FromElementsConnectorSplit("connector-from-elements", 0, false),
-                  RowData.class));
+                  RowData.class),
+              "FromElementsSource");
       return new LegacySourceTransformation<RowData>(
           sourceTransformation.getName(),
           op,

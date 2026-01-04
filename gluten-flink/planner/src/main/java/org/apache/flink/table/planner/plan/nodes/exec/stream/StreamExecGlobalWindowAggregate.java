@@ -260,7 +260,8 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             inputType,
             Map.of(windowAgg.getId(), outputType),
             RowData.class,
-            RowData.class);
+            RowData.class,
+            "StreamExecGlobalWindowAggregate");
     // --- End Gluten-specific code changes ---
 
     final RowDataKeySelector selector =

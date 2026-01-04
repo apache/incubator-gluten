@@ -235,7 +235,8 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
             rightInputType,
             Map.of(join.getId(), outputType),
             RowData.class,
-            RowData.class);
+            RowData.class,
+            "StreamExecWindowJoin");
     // --- End Gluten-specific code changes ---
 
     final RowType returnType = (RowType) getOutputType();

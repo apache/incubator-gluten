@@ -70,7 +70,6 @@ public class GlutenStatefulRecordSerializer extends TypeSerializer<StatefulRecor
 
   @Override
   public StatefulRecord deserialize(DataInputView source) throws IOException {
-    LOG.error("xxx deserialize");
     if (memoryManager == null) {
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
@@ -153,10 +152,6 @@ public class GlutenStatefulRecordSerializer extends TypeSerializer<StatefulRecor
 
   @Override
   public void close() {
-    boolean x = true;
-    if (x) {
-      throw new RuntimeException("Not implemented for gluten");
-    }
     if (memoryManager != null) {
       memoryManager.close();
       session.close();

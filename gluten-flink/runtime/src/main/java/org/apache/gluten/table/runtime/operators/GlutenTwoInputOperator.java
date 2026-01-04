@@ -69,6 +69,7 @@ public class GlutenTwoInputOperator<IN, OUT> extends AbstractStreamOperator<OUT>
   private final Class<OUT> outClass;
   private VectorInputBridge<IN> inputBridge;
   private VectorOutputBridge<OUT> outputBridge;
+  private String description;
 
   public GlutenTwoInputOperator(
       StatefulPlanNode plan,
@@ -78,7 +79,8 @@ public class GlutenTwoInputOperator<IN, OUT> extends AbstractStreamOperator<OUT>
       RowType rightInputType,
       Map<String, RowType> outputTypes,
       Class<IN> inClass,
-      Class<OUT> outClass) {
+      Class<OUT> outClass,
+      String description) {
     this.glutenPlan = plan;
     this.leftId = leftId;
     this.rightId = rightId;
@@ -90,6 +92,24 @@ public class GlutenTwoInputOperator<IN, OUT> extends AbstractStreamOperator<OUT>
     this.inputBridge = new VectorInputBridge<>(inClass);
     this.outputBridge = new VectorOutputBridge<>(outClass);
     this.outputType = outputTypes.values().iterator().next();
+    this.description = description;
+  }
+
+  public GlutenTwoInputOperator(
+      StatefulPlanNode plan,
+      String leftId,
+      String rightId,
+      RowType leftInputType,
+      RowType rightInputType,
+      Map<String, RowType> outputTypes,
+      Class<IN> inClass,
+      Class<OUT> outClass) {
+    this(plan, leftId, rightId, leftInputType, rightInputType, outputTypes, inClass, outClass, "");
+  }
+
+  @Override
+  public String getDescription() {
+    return description;
   }
 
   @Override

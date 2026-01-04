@@ -228,7 +228,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
             inputType,
             Map.of(windowAgg.getId(), outputType),
             RowData.class,
-            RowData.class);
+            RowData.class,
+            "StreamExecLocalWindowAggregate");
     // --- End Gluten-specific code changes ---
 
     return ExecNodeUtil.createOneInputTransformation(

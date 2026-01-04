@@ -274,7 +274,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
             inputType,
             Map.of(streamRankNode.getId(), outputType),
             RowData.class,
-            RowData.class);
+            RowData.class,
+            "StreamExecRank");
     // --- End Gluten-specific code changes ---
 
     OneInputTransformation<RowData, RowData> transform =

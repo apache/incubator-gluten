@@ -168,7 +168,8 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
             inputType,
             Map.of(watermark.getId(), outputType),
             RowData.class,
-            RowData.class);
+            RowData.class,
+            "StreamExecWatermarkAssigner");
 
     return ExecNodeUtil.createOneInputTransformation(
         inputTransform,

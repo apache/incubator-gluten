@@ -218,7 +218,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
               inputType,
               Map.of(streamRankNode.getId(), outputType),
               RowData.class,
-              RowData.class);
+              RowData.class,
+              "StreamExecDeduplicate");
     } else {
       throw new RuntimeException("ProcTime in deduplicate is not supported.");
     }

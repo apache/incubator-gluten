@@ -29,6 +29,7 @@ import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -49,6 +50,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/*
+ * If a operator is offloadable
+ * - update its input/output serializers as needed.
+ * - update its key selectors as needed.
+ * - coalesce it with its siblings as needed. Also need to update the stream edges.
+ */
 public class OffloadedJobGraphGenerator {
   private static final Logger LOG = LoggerFactory.getLogger(OffloadedJobGraphGenerator.class);
   private final JobGraph jobGraph;
@@ -79,10 +86,9 @@ public class OffloadedJobGraphGenerator {
 
     OperatorChainSlice sourceChainSlice = chainSliceGraph.getSourceSlice();
     OperatorChainSliceGraph targetChainSliceGraph = new OperatorChainSliceGraph();
-    visitAndFoldChainSlice(sourceChainSlice, chainSliceGraph, targetChainSliceGraph, 0);
+    visitAndOffloadChainOperators(sourceChainSlice, chainSliceGraph, targetChainSliceGraph, 0);
     visitAndUpdateStreamEdges(sourceChainSlice, chainSliceGraph, targetChainSliceGraph);
     serializeAllOperatorsConfigs(targetChainSliceGraph);
-    targetChainSliceGraph.dumpLog();
 
     StreamConfig sourceConfig = sourceChainSlice.getOperatorConfigs().get(0);
     StreamConfig targetSourceConfig =
@@ -90,14 +96,28 @@ public class OffloadedJobGraphGenerator {
 
     Map<Integer, StreamConfig> chainedConfig = new HashMap<Integer, StreamConfig>();
     if (sourceChainSlice.isOffloadable()) {
+      // Update the first operator config
       sourceConfig.setStreamOperatorFactory(
           targetSourceConfig.getStreamOperatorFactory(userClassloader));
       List<StreamEdge> chainedOutputs = targetSourceConfig.getChainedOutputs(userClassloader);
       sourceConfig.setChainedOutputs(targetSourceConfig.getChainedOutputs(userClassloader));
+
+      // Update the serializers and partitioners
       sourceConfig.setTypeSerializerOut(targetSourceConfig.getTypeSerializerOut(userClassloader));
+      sourceConfig.setInputs(targetSourceConfig.getInputs(userClassloader));
+      KeySelector<?, ?> keySelector0 = targetSourceConfig.getStatePartitioner(0, userClassloader);
+      if (keySelector0 != null) {
+        sourceConfig.setStatePartitioner(0, keySelector0);
+      }
+      KeySelector<?, ?> keySelector1 = targetSourceConfig.getStatePartitioner(1, userClassloader);
+      if (keySelector1 != null) {
+        sourceConfig.setStatePartitioner(1, keySelector1);
+      }
+
+      // The chained operators should be empty.
     } else {
       List<StreamConfig> operatorConfigs = sourceChainSlice.getOperatorConfigs();
-      for (int i = 0; i < operatorConfigs.size(); i++) {
+      for (int i = 1; i < operatorConfigs.size(); i++) {
         StreamConfig opConfig = operatorConfigs.get(i);
         chainedConfig.put(opConfig.getVertexID(), opConfig);
       }
@@ -116,115 +136,146 @@ public class OffloadedJobGraphGenerator {
   }
 
   // Fold offloadable operator chain slice
-  private void visitAndFoldChainSlice(
+  private void visitAndOffloadChainOperators(
       OperatorChainSlice chainSlice,
       OperatorChainSliceGraph originalChainSliceGraph,
       OperatorChainSliceGraph targetChainSliceGraph,
       Integer chainedIndex) {
     List<Integer> outputs = chainSlice.getOutputs();
     List<Integer> outputIndex = new ArrayList<>();
-    OperatorChainSlice resultChainSlice = null;
+    OperatorChainSlice finalChainSlice = null;
     if (chainSlice.isOffloadable()) {
-      resultChainSlice =
-          foldOffloadableOperatorChainSlice(originalChainSliceGraph, chainSlice, chainedIndex);
+      finalChainSlice =
+          OffloadOperatorChainSlice(originalChainSliceGraph, chainSlice, chainedIndex);
       chainedIndex = chainedIndex + 1;
     } else {
-      resultChainSlice = foldUnoffloadableOperatorChainSlice(chainSlice, chainedIndex);
+      finalChainSlice = applyUnoffloadableOperatorChainSlice(chainSlice, chainedIndex);
       chainedIndex = chainedIndex + chainSlice.getOperatorConfigs().size();
     }
 
-    resultChainSlice.getInputs().addAll(chainSlice.getInputs());
-    resultChainSlice.getOutputs().addAll(chainSlice.getOutputs());
-    targetChainSliceGraph.addSlice(chainSlice.id(), resultChainSlice);
+    finalChainSlice.getInputs().addAll(chainSlice.getInputs());
+    finalChainSlice.getOutputs().addAll(chainSlice.getOutputs());
+    targetChainSliceGraph.addSlice(chainSlice.id(), finalChainSlice);
 
     for (Integer outputChainIndex : outputs) {
       OperatorChainSlice outputChainSlice = originalChainSliceGraph.getSlice(outputChainIndex);
       OperatorChainSlice outputResultChainSlice = targetChainSliceGraph.getSlice(outputChainIndex);
       if (outputResultChainSlice == null) {
-        visitAndFoldChainSlice(
+        visitAndOffloadChainOperators(
             outputChainSlice, originalChainSliceGraph, targetChainSliceGraph, chainedIndex);
       }
     }
   }
 
-  private OperatorChainSlice foldUnoffloadableOperatorChainSlice(
+  // Keep the original operator chain slice as is.
+  private OperatorChainSlice applyUnoffloadableOperatorChainSlice(
       OperatorChainSlice originalChainSlice, Integer chainedIndex) {
-    OperatorChainSlice resultChainSlice = new OperatorChainSlice(originalChainSlice.id());
+    OperatorChainSlice finalChainSlice = new OperatorChainSlice(originalChainSlice.id());
     List<StreamConfig> operatorConfigs = originalChainSlice.getOperatorConfigs();
     for (StreamConfig opConfig : operatorConfigs) {
       StreamConfig newOpConfig = new StreamConfig(new Configuration(opConfig.getConfiguration()));
       newOpConfig.setChainIndex(chainedIndex);
-      resultChainSlice.getOperatorConfigs().add(newOpConfig);
+      finalChainSlice.getOperatorConfigs().add(newOpConfig);
     }
-    resultChainSlice.setOffloadable(false);
-    return resultChainSlice;
+    finalChainSlice.setOffloadable(false);
+    return finalChainSlice;
   }
 
   // Fold offloadable operator chain slice, and update the input/output channel serializers
-  private OperatorChainSlice foldOffloadableOperatorChainSlice(
+  private OperatorChainSlice OffloadOperatorChainSlice(
       OperatorChainSliceGraph chainSliceGraph,
       OperatorChainSlice originalChainSlice,
       Integer chainedIndex) {
-    OperatorChainSlice resultChainSlice = new OperatorChainSlice(originalChainSlice.id());
+    OperatorChainSlice finalChainSlice = new OperatorChainSlice(originalChainSlice.id());
     List<StreamConfig> operatorConfigs = originalChainSlice.getOperatorConfigs();
 
+    // May coalesce multiple operators into one in the future.
     if (operatorConfigs.size() != 1) {
       throw new UnsupportedOperationException(
           "Only one operator is supported for offloaded operator chain slice.");
     }
 
-    StreamConfig rootOpConfig = operatorConfigs.get(0);
-    GlutenOperator rootOp = getGlutenOperator(rootOpConfig).get();
-    StatefulPlanNode rootPlanNode = rootOp.getPlanNode();
-    StreamConfig newRootOpConfig =
-        new StreamConfig(new Configuration(rootOpConfig.getConfiguration()));
-    if (rootOp instanceof GlutenStreamSource) {
+    StreamConfig originalOpConfig = operatorConfigs.get(0);
+    GlutenOperator originalOp = getGlutenOperator(originalOpConfig).get();
+    StatefulPlanNode planNode = originalOp.getPlanNode();
+    // Create a new operator config for the offloaded operator.
+    StreamConfig finalOpConfig =
+        new StreamConfig(new Configuration(originalOpConfig.getConfiguration()));
+    if (originalOp instanceof GlutenStreamSource) {
       boolean couldOutputRowVector = couldOutputRowVector(originalChainSlice, chainSliceGraph);
       Class<?> outClass = couldOutputRowVector ? StatefulRecord.class : RowData.class;
       GlutenStreamSource newSourceOp =
           new GlutenStreamSource(
               new GlutenSourceFunction<>(
-                  rootPlanNode,
-                  rootOp.getOutputTypes(),
-                  rootOp.getId(),
-                  ((GlutenStreamSource) rootOp).getConnectorSplit(),
+                  planNode,
+                  originalOp.getOutputTypes(),
+                  originalOp.getId(),
+                  ((GlutenStreamSource) originalOp).getConnectorSplit(),
                   outClass));
-      newRootOpConfig.setStreamOperator(newSourceOp);
+      finalOpConfig.setStreamOperator(newSourceOp);
       if (couldOutputRowVector) {
-        RowType rowType = rootOp.getOutputTypes().entrySet().iterator().next().getValue();
-        newRootOpConfig.setTypeSerializerOut(new GlutenStatefulRecordSerializer(rowType));
+        RowType rowType = originalOp.getOutputTypes().entrySet().iterator().next().getValue();
+        finalOpConfig.setTypeSerializerOut(new GlutenStatefulRecordSerializer(rowType));
       }
-    } else if (rootOp instanceof GlutenOneInputOperator) {
+    } else if (originalOp instanceof GlutenOneInputOperator) {
       boolean couldOutputRowVector = couldOutputRowVector(originalChainSlice, chainSliceGraph);
       boolean couldInputRowVector = couldInputRowVector(originalChainSlice, chainSliceGraph);
       Class<?> inClass = couldInputRowVector ? StatefulRecord.class : RowData.class;
       Class<?> outClass = couldOutputRowVector ? StatefulRecord.class : RowData.class;
       GlutenOneInputOperator<?, ?> newOneInputOp =
           new GlutenOneInputOperator<>(
-              rootPlanNode,
-              rootOp.getId(),
-              rootOp.getInputType(),
-              rootOp.getOutputTypes(),
+              planNode,
+              originalOp.getId(),
+              originalOp.getInputType(),
+              originalOp.getOutputTypes(),
               inClass,
-              outClass);
-      newRootOpConfig.setStreamOperator(newOneInputOp);
+              outClass,
+              originalOp.getDescription());
+      finalOpConfig.setStreamOperator(newOneInputOp);
       if (couldOutputRowVector) {
-        RowType rowType = rootOp.getOutputTypes().entrySet().iterator().next().getValue();
-        newRootOpConfig.setTypeSerializerOut(new GlutenStatefulRecordSerializer(rowType));
+        RowType rowType = originalOp.getOutputTypes().entrySet().iterator().next().getValue();
+        finalOpConfig.setTypeSerializerOut(new GlutenStatefulRecordSerializer(rowType));
       }
       if (couldInputRowVector) {
-        newRootOpConfig.setupNetworkInputs(
-            new GlutenStatefulRecordSerializer(rootOp.getInputType()));
+        finalOpConfig.setupNetworkInputs(
+            new GlutenStatefulRecordSerializer(originalOp.getInputType()));
+
+        // This node is the first node in the chain. If it has a state partitioner, we need to
+        // change it to GlutenKeySelector.
+        KeySelector<?, ?> keySelector = originalOpConfig.getStatePartitioner(0, userClassloader);
+        if (keySelector != null) {
+          LOG.info(
+              "State partitioner ({}) found in the first node {}, change it to GlutenKeySelector.",
+              keySelector.getClass().getName(),
+              originalOp.getDescription());
+          finalOpConfig.setStatePartitioner(0, new GlutenKeySelector());
+        }
       }
-    } else if (rootOp instanceof GlutenTwoInputOperator) {
-      GlutenTwoInputOperator<?, ?> twoInputOp = (GlutenTwoInputOperator<?, ?>) rootOp;
+    } else if (originalOp instanceof GlutenTwoInputOperator) {
+      GlutenTwoInputOperator<?, ?> twoInputOp = (GlutenTwoInputOperator<?, ?>) originalOp;
       boolean couldOutputRowVector = couldOutputRowVector(originalChainSlice, chainSliceGraph);
       boolean couldInputRowVector = couldInputRowVector(originalChainSlice, chainSliceGraph);
+      KeySelector<?, ?> keySelector0 = originalOpConfig.getStatePartitioner(0, userClassloader);
+      if (keySelector0 != null) {
+        LOG.info(
+            "State partitioner ({}) found in the first node {}, change it to GlutenKeySelector.",
+            keySelector0.getClass().getName(),
+            originalOp.getDescription());
+        finalOpConfig.setStatePartitioner(0, new GlutenKeySelector());
+      }
+      KeySelector<?, ?> keySelector1 = originalOpConfig.getStatePartitioner(1, userClassloader);
+      if (keySelector1 != null) {
+        LOG.info(
+            "State partitioner ({}) found in the second node {}, change it to GlutenKeySelector.",
+            keySelector1.getClass().getName(),
+            originalOp.getDescription());
+        finalOpConfig.setStatePartitioner(1, new GlutenKeySelector());
+      }
       Class<?> inClass = couldInputRowVector ? StatefulRecord.class : RowData.class;
       Class<?> outClass = couldOutputRowVector ? StatefulRecord.class : RowData.class;
       GlutenTwoInputOperator<?, ?> newTwoInputOp =
           new GlutenTwoInputOperator<>(
-              rootPlanNode,
+              planNode,
               twoInputOp.getLeftId(),
               twoInputOp.getRightId(),
               twoInputOp.getLeftInputType(),
@@ -232,17 +283,17 @@ public class OffloadedJobGraphGenerator {
               twoInputOp.getOutputTypes(),
               inClass,
               outClass);
-      newRootOpConfig.setStreamOperator(newTwoInputOp);
-      newRootOpConfig.setStatePartitioner(0, new GlutenKeySelector());
-      newRootOpConfig.setStatePartitioner(1, new GlutenKeySelector());
+      finalOpConfig.setStreamOperator(newTwoInputOp);
+      finalOpConfig.setStatePartitioner(0, new GlutenKeySelector());
+      finalOpConfig.setStatePartitioner(1, new GlutenKeySelector());
       // Update the output channel serializer
       if (couldOutputRowVector) {
         RowType rowType = twoInputOp.getOutputTypes().entrySet().iterator().next().getValue();
-        newRootOpConfig.setTypeSerializerOut(new GlutenStatefulRecordSerializer(rowType));
+        finalOpConfig.setTypeSerializerOut(new GlutenStatefulRecordSerializer(rowType));
       }
       // Update the input channel serializers
       if (couldInputRowVector) {
-        newRootOpConfig.setupNetworkInputs(
+        finalOpConfig.setupNetworkInputs(
             new GlutenStatefulRecordSerializer(twoInputOp.getLeftInputType()),
             new GlutenStatefulRecordSerializer(twoInputOp.getRightInputType()));
       }
@@ -251,10 +302,10 @@ public class OffloadedJobGraphGenerator {
           "Only GlutenStreamSource is supported for offloaded operator chain slice.");
     }
 
-    newRootOpConfig.setChainIndex(chainedIndex);
-    resultChainSlice.getOperatorConfigs().add(newRootOpConfig);
-    resultChainSlice.setOffloadable(true);
-    return resultChainSlice;
+    finalOpConfig.setChainIndex(chainedIndex);
+    finalChainSlice.getOperatorConfigs().add(finalOpConfig);
+    finalChainSlice.setOffloadable(true);
+    return finalChainSlice;
   }
 
   private StreamNode mockStreamNode(StreamConfig streamConfig) {

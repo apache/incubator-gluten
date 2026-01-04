@@ -58,6 +58,7 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
   private final RowType inputType;
   private final Map<String, RowType> outputTypes;
   private final RowType outputType;
+  private final String description;
 
   private transient GlutenSessionResource sessionResource;
   private transient Query query;
@@ -74,7 +75,8 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
       RowType inputType,
       Map<String, RowType> outputTypes,
       Class<IN> inClass,
-      Class<OUT> outClass) {
+      Class<OUT> outClass,
+      String description) {
     if (plan == null) {
       throw new IllegalArgumentException("plan is null");
     }
@@ -87,6 +89,22 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
     this.inputBridge = new VectorInputBridge<>(inClass);
     this.outputBridge = new VectorOutputBridge<>(outClass);
     this.outputType = outputTypes.values().iterator().next();
+    this.description = description;
+  }
+
+  public GlutenOneInputOperator(
+      StatefulPlanNode plan,
+      String id,
+      RowType inputType,
+      Map<String, RowType> outputTypes,
+      Class<IN> inClass,
+      Class<OUT> outClass) {
+    this(plan, id, inputType, outputTypes, inClass, outClass, "");
+  }
+
+  @Override
+  public String getDescription() {
+    return description;
   }
 
   void initSession() {

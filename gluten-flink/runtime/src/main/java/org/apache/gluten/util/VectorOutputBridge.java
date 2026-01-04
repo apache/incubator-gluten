@@ -26,6 +26,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.List;
@@ -35,6 +37,7 @@ import java.util.List;
  * and collect the output data to the collector.
  */
 public class VectorOutputBridge<OUT> implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(VectorOutputBridge.class);
   private static final long serialVersionUID = 1L;
   private final Class<OUT> outClass;
   private transient StreamRecord<OUT> outElement;

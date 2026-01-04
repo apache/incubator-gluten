@@ -46,9 +46,7 @@ public class VectorInputBridge<IN> implements Serializable {
       return FlinkRowToVLVectorConvertor.fromRowData(rowData, allocator, session, inputType);
     } else if (inClass.isAssignableFrom(StatefulRecord.class)) {
       // Create a new RowVector Reference. And the original RowVector Object is safe to close.
-      // return ((StatefulRecord) inputData.getValue()).getRowVector().loadedVector().asRowVector();
       return ((StatefulRecord) inputData.getValue()).getRowVector();
-
     } else {
       throw new UnsupportedOperationException("Unsupported input class: " + inClass.getName());
     }

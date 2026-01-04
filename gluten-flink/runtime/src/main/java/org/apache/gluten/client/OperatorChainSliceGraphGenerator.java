@@ -78,8 +78,6 @@ class OperatorChainSliceGraphGenerator {
     chainSliceGraph.addSlice(chainSlice.id(), chainSlice);
 
     advanceOperatorChainSlice(chainSlice, rootOpConfig);
-
-    // alignOffloadableSubchains(subchain, graph);
   }
 
   private void advanceOperatorChainSlice(
@@ -92,8 +90,7 @@ class OperatorChainSliceGraphGenerator {
       Integer targetId = outputEdges.get(0).getTargetId();
       StreamConfig childOpConfig = chainedConfigs.get(targetId);
       // We don't coalesce operators into the same velox plan at present. Each operator is a
-      // separate
-      // velox plan.
+      // separate velox plan.
       startNewOperatorChainSlice(chainSlice, childOpConfig);
     } else {
       for (StreamEdge edge : outputEdges) {

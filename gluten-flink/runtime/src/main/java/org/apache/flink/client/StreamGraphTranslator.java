@@ -48,15 +48,17 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
   @Override
   public JobGraph translateToJobGraph(
       Pipeline pipeline, Configuration optimizerConfiguration, int defaultParallelism) {
+    // --- Begin Gluten-specific code changes ---
+
     checkArgument(
         pipeline instanceof StreamGraph, "Given pipeline is not a DataStream StreamGraph.");
-
-    LOG.error("Translating StreamGraph to JobGraph");
     StreamGraph streamGraph = (StreamGraph) pipeline;
     JobGraph jobGraph = streamGraph.getJobGraph(userClassloader, null);
     OffloadedJobGraphGenerator generator =
         new OffloadedJobGraphGenerator(jobGraph, userClassloader);
     return generator.generate();
+    // --- End Gluten-specific code changes ---
+
   }
 
   @Override

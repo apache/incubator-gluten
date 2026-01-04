@@ -130,7 +130,8 @@ public class FileSystemSinkFactory implements VeloxSourceSinkFactory {
             inputDataColumns,
             Map.of(fileSystemWriteNode.getId(), ignore),
             RowData.class,
-            RowData.class);
+            RowData.class,
+            "FileSystemInsertTable");
     GlutenOneInputOperatorFactory<?, ?> operatorFactory =
         new GlutenOneInputOperatorFactory(onewInputOperator);
     Transformation<RowData> veloxFileWriterTransformation =

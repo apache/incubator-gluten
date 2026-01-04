@@ -246,7 +246,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             inputType,
             Map.of(windowAgg.getId(), outputType),
             RowData.class,
-            RowData.class);
+            RowData.class,
+            "StreamExecGroupWindowAggregate");
     // --- End Gluten-specific code changes ---
 
     final OneInputTransformation<RowData, RowData> transform =
@@ -266,6 +267,9 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             InternalTypeInfo.of(inputRowType));
     transform.setStateKeySelector(selector);
     transform.setStateKeyType(selector.getProducedType());
+
+    // GlutenKeySelector selector = new GlutenKeySelector();
+    // transform.setStateKeySelector(selector);
     return transform;
   }
 }

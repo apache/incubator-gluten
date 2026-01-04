@@ -252,7 +252,8 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             inputType,
             Map.of(windowAgg.getId(), outputType),
             RowData.class,
-            RowData.class);
+            RowData.class,
+            "StreamExecWindowAggregate");
     // --- End Gluten-specific code changes ---
 
     final RowDataKeySelector selector =
@@ -272,6 +273,8 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             false);
 
     // set KeyType and Selector for state
+    // This key selector will be updated in OffloadedJobGraphGenerator to GlutenKeySelector as
+    // needed.
     transform.setStateKeySelector(selector);
     transform.setStateKeyType(selector.getProducedType());
     return transform;

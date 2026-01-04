@@ -35,10 +35,14 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Map;
 
 public class NexmarkSourceFactory implements VeloxSourceSinkFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(NexmarkSourceFactory.class);
 
   @SuppressWarnings("rawtypes")
   @Override
@@ -87,6 +91,7 @@ public class NexmarkSourceFactory implements VeloxSourceSinkFactory {
                     "connector-nexmark",
                     maxEvents > Integer.MAX_VALUE ? Integer.MAX_VALUE : maxEvents.intValue()),
                 RowData.class));
+
     return new LegacySourceTransformation<RowData>(
         transformation.getName(),
         sourceOp,

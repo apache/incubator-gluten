@@ -120,7 +120,8 @@ public class KafkaSourceSinkFactory implements VeloxSourceSinkFactory {
                   Map.of(kafkaScan.getId(), outputType),
                   kafkaScan.getId(),
                   connectorSplit,
-                  RowData.class));
+                  RowData.class),
+              "KafkaSource");
       SourceTransformation sourceTransformation = (SourceTransformation) transformation;
       return new LegacySourceTransformation<RowData>(
           sourceTransformation.getName(),

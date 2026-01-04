@@ -33,10 +33,23 @@ import java.util.Map;
 /** Legacy stream source operator in gluten, which will call Velox to run. */
 public class GlutenStreamSource extends StreamSource implements GlutenOperator {
   private final GlutenSourceFunction sourceFunction;
+  private final String description;
 
   public GlutenStreamSource(GlutenSourceFunction function) {
     super(function);
     sourceFunction = function;
+    this.description = "";
+  }
+
+  public GlutenStreamSource(GlutenSourceFunction function, String description) {
+    super(function);
+    sourceFunction = function;
+    this.description = description;
+  }
+
+  @Override
+  public String getDescription() {
+    return description;
   }
 
   @Override

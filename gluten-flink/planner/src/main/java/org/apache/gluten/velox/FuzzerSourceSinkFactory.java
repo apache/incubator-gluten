@@ -135,7 +135,8 @@ public class FuzzerSourceSinkFactory implements VeloxSourceSinkFactory {
                 outputType,
                 Map.of(plan.getId(), ignore),
                 RowData.class,
-                RowData.class));
+                RowData.class,
+                "FuzzerSink"));
     DataStream<RowData> newInputStream =
         sinkTransformation
             .getInputStream()

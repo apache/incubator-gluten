@@ -316,7 +316,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 rightInputType,
                 Map.of(join.getId(), outputType),
                 RowData.class,
-                RowData.class);
+                RowData.class,
+                "StreamExecJoin");
         // --- End Gluten-specific code changes ---
       }
     }

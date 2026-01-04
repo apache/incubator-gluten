@@ -212,7 +212,8 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
             inputType,
             Map.of(aggregation.getId(), outputType),
             RowData.class,
-            RowData.class);
+            RowData.class,
+            "StreamExecGroupAggregate");
     // --- End Gluten-specific code changes ---
 
     // partitioned aggregation

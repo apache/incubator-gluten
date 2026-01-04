@@ -170,7 +170,8 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
                   glutenInputType,
                   Map.of(id, outputType),
                   RowData.class,
-                  RowData.class);
+                  RowData.class,
+                  "StreamExecExchange");
           inputTransform =
               ExecNodeUtil.createOneInputTransformation(
                   inputTransform,

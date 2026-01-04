@@ -120,7 +120,8 @@ public class PrintSinkFactory implements VeloxSourceSinkFactory {
                 inputColumns,
                 Map.of(tableWriteNode.getId(), ignore),
                 RowData.class,
-                RowData.class)),
+                RowData.class,
+                "PrintSink")),
         transformation.getParallelism());
   }
 }
