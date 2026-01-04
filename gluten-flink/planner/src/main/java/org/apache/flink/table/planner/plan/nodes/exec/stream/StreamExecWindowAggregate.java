@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.gluten.rexnode.AggregateCallConverter;
 import org.apache.gluten.rexnode.Utils;
 import org.apache.gluten.rexnode.WindowUtils;
-import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
@@ -246,11 +246,13 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             outputType,
             rowtimeIndex);
     final OneInputStreamOperator windowOperator =
-        new GlutenVectorOneInputOperator(
+        new GlutenOneInputOperator(
             new StatefulPlanNode(windowAgg.getId(), windowAgg),
             PlanNodeIdGenerator.newId(),
             inputType,
-            Map.of(windowAgg.getId(), outputType));
+            Map.of(windowAgg.getId(), outputType),
+            RowData.class,
+            RowData.class);
     // --- End Gluten-specific code changes ---
 
     final RowDataKeySelector selector =

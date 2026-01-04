@@ -17,7 +17,7 @@
 package org.apache.gluten.velox;
 
 import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
-import org.apache.gluten.table.runtime.operators.GlutenVectorSourceFunction;
+import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 import org.apache.gluten.util.ReflectUtils;
@@ -79,13 +79,14 @@ public class NexmarkSourceFactory implements VeloxSourceSinkFactory {
         new TableScanNode(id, outputType, new NexmarkTableHandle("connector-nexmark"), List.of());
     GlutenStreamSource sourceOp =
         new GlutenStreamSource(
-            new GlutenVectorSourceFunction(
+            new GlutenSourceFunction(
                 new StatefulPlanNode(tableScan.getId(), tableScan),
                 Map.of(id, outputType),
                 id,
                 new NexmarkConnectorSplit(
                     "connector-nexmark",
-                    maxEvents > Integer.MAX_VALUE ? Integer.MAX_VALUE : maxEvents.intValue())));
+                    maxEvents > Integer.MAX_VALUE ? Integer.MAX_VALUE : maxEvents.intValue()),
+                RowData.class));
     return new LegacySourceTransformation<RowData>(
         transformation.getName(),
         sourceOp,

@@ -572,7 +572,12 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             config),
         // TODO: support it, Map.of() will not be used, hardcode it here.
         new GlutenOneInputOperator(
-            null, PlanNodeIdGenerator.newId(), null, Map.of("1", outputType)),
+            null,
+            PlanNodeIdGenerator.newId(),
+            null,
+            Map.of("1", outputType),
+            RowData.class,
+            RowData.class),
         inputTransform.getOutputType(),
         sinkParallelism,
         sinkParallelismConfigured);

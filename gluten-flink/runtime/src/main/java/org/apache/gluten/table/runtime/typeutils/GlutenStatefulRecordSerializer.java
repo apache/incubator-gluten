@@ -31,24 +31,29 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 
 /** Serializer for {@link RowVector}. */
 @Internal
-public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> implements Closeable {
+public class GlutenStatefulRecordSerializer extends TypeSerializer<StatefulRecord>
+    implements Closeable {
+  private static final Logger LOG = LoggerFactory.getLogger(GlutenStatefulRecordSerializer.class);
   private static final long serialVersionUID = 1L;
   private final RowType rowType;
   private transient MemoryManager memoryManager;
   private transient Session session;
 
-  public GlutenRowVectorSerializer(RowType rowType) {
+  public GlutenStatefulRecordSerializer(RowType rowType) {
     this.rowType = rowType;
   }
 
   @Override
   public TypeSerializer<StatefulRecord> duplicate() {
-    return new GlutenRowVectorSerializer(rowType);
+    return new GlutenStatefulRecordSerializer(rowType);
   }
 
   @Override
@@ -65,6 +70,7 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   @Override
   public StatefulRecord deserialize(DataInputView source) throws IOException {
+    LOG.error("xxx deserialize");
     if (memoryManager == null) {
       memoryManager = MemoryManager.create(AllocationListener.NOOP);
       session = Velox4j.newSession(memoryManager);
@@ -85,7 +91,18 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   @Override
   public StatefulRecord copy(StatefulRecord from) {
-    throw new RuntimeException("Not implemented for gluten");
+    RowVector rowVector = from.getRowVector().loadedVector().asRowVector();
+    StatefulRecord record =
+        new StatefulRecord(
+            from.getNodeId(),
+            rowVector.id(),
+            from.getTimestamp(),
+            from.hasTimestamp(),
+            from.getKey());
+
+    record.setRowVector(rowVector);
+
+    return record;
   }
 
   @Override
@@ -100,9 +117,9 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   @Override
   public boolean equals(Object obj) {
-    if (obj instanceof GlutenRowVectorSerializer) {
+    if (obj instanceof GlutenStatefulRecordSerializer) {
       if (rowType != null) {
-        GlutenRowVectorSerializer other = (GlutenRowVectorSerializer) obj;
+        GlutenStatefulRecordSerializer other = (GlutenStatefulRecordSerializer) obj;
         return rowType.equals(other.rowType);
       }
       return true;
@@ -121,7 +138,7 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   @Override
   public boolean isImmutableType() {
-    return false;
+    return true;
   }
 
   @Override
@@ -136,6 +153,10 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
 
   @Override
   public void close() {
+    boolean x = true;
+    if (x) {
+      throw new RuntimeException("Not implemented for gluten");
+    }
     if (memoryManager != null) {
       memoryManager.close();
       session.close();
@@ -171,8 +192,8 @@ public class GlutenRowVectorSerializer extends TypeSerializer<StatefulRecord> im
         throws IOException {}
 
     @Override
-    public GlutenRowVectorSerializer restoreSerializer() {
-      return new GlutenRowVectorSerializer(rowType);
+    public GlutenStatefulRecordSerializer restoreSerializer() {
+      return new GlutenStatefulRecordSerializer(rowType);
     }
 
     @Override

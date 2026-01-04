@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.rexnode.Utils;
-import org.apache.gluten.table.runtime.operators.GlutenVectorOneInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
@@ -142,11 +142,13 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
         (io.github.zhztheplayer.velox4j.type.RowType)
             LogicalTypeConverter.toVLType(getOutputType());
     final OneInputStreamOperator calOperator =
-        new GlutenVectorOneInputOperator(
+        new GlutenOneInputOperator(
             new StatefulPlanNode(project.getId(), project),
             PlanNodeIdGenerator.newId(),
             inputType,
-            Map.of(project.getId(), outputType));
+            Map.of(project.getId(), outputType),
+            RowData.class,
+            RowData.class);
     return ExecNodeUtil.createOneInputTransformation(
         inputTransform,
         new TransformationMetadata("gluten-calc", "Gluten cal operator"),

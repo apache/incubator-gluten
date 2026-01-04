@@ -128,7 +128,9 @@ public class FileSystemSinkFactory implements VeloxSourceSinkFactory {
             new StatefulPlanNode(fileSystemWriteNode.getId(), fileSystemWriteNode),
             PlanNodeIdGenerator.newId(),
             inputDataColumns,
-            Map.of(fileSystemWriteNode.getId(), ignore));
+            Map.of(fileSystemWriteNode.getId(), ignore),
+            RowData.class,
+            RowData.class);
     GlutenOneInputOperatorFactory<?, ?> operatorFactory =
         new GlutenOneInputOperatorFactory(onewInputOperator);
     Transformation<RowData> veloxFileWriterTransformation =
