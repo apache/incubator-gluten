@@ -34,19 +34,36 @@ import java.io.Serializable;
 public class VectorInputBridge<IN> implements Serializable {
   private static final long serialVersionUID = 1L;
   private final Class<IN> inClass;
+  private final String nodeId;
 
-  public VectorInputBridge(Class<IN> inClass) {
+  public class RowVectorWrapper {
+    public RowVector rowVector;
+    public String nodeId;
+
+    public RowVectorWrapper(RowVector rowVector, String nodeId) {
+      this.rowVector = rowVector;
+      this.nodeId = nodeId;
+    }
+  }
+  ;
+
+  public VectorInputBridge(Class<IN> inClass, String nodeId) {
     this.inClass = inClass;
+    this.nodeId = nodeId;
   }
 
-  public RowVector getRowVector(
+  public StatefulRecord getRowVector(
       StreamRecord<IN> inputData, BufferAllocator allocator, Session session, RowType inputType) {
     if (inClass.isAssignableFrom(RowData.class)) {
       RowData rowData = (RowData) inputData.getValue();
-      return FlinkRowToVLVectorConvertor.fromRowData(rowData, allocator, session, inputType);
+      RowVector rowVector =
+          FlinkRowToVLVectorConvertor.fromRowData(rowData, allocator, session, inputType);
+      StatefulRecord statefulRecord = new StatefulRecord(nodeId, rowVector.id(), 0, false, -1);
+      statefulRecord.setRowVector(rowVector);
+      return statefulRecord;
     } else if (inClass.isAssignableFrom(StatefulRecord.class)) {
       // Create a new RowVector Reference. And the original RowVector Object is safe to close.
-      return ((StatefulRecord) inputData.getValue()).getRowVector();
+      return (StatefulRecord) inputData.getValue();
     } else {
       throw new UnsupportedOperationException("Unsupported input class: " + inClass.getName());
     }

@@ -111,6 +111,7 @@ public class NexmarkTest {
     List<String> queryFiles = getQueries();
     assertThat(queryFiles).isNotEmpty();
     LOG.warn("Found {} Nexmark query files: {}", queryFiles.size(), queryFiles);
+
     for (String queryFile : queryFiles) {
       LOG.warn("Executing nextmark query from file: {}", queryFile);
       executeQuery(tEnv, queryFile, false);

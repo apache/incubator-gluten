@@ -142,7 +142,6 @@ public class GlutenSourceFunction<OUT> extends RichParallelSourceFunction<OUT>
   @Override
   public void cancel() {
     isRunning = false;
-    throw new RuntimeException("Not implemented for gluten");
   }
 
   @Override

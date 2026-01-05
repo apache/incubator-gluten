@@ -569,43 +569,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         sinkParallelismConfigured);
   }
 
-  /*
-    private Transformation<RowData> applyRowtimeTransformation(
-        Transformation<RowData> inputTransform,
-        int rowtimeFieldIndex,
-        int sinkParallelism,
-        ExecNodeConfig config) {
-      // Don't apply the transformation/operator if there is no rowtimeFieldIndex
-      if (rowtimeFieldIndex == -1) {
-        return inputTransform;
-      }
-      // --- Begin Gluten-specific code changes ---
-      io.github.zhztheplayer.velox4j.type.RowType outputType =
-          (io.github.zhztheplayer.velox4j.type.RowType)
-              LogicalTypeConverter.toVLType(
-                  ((InternalTypeInfo) inputTransform.getOutputType()).toLogicalType());
-      return ExecNodeUtil.createOneInputTransformation(
-          inputTransform,
-          createTransformationMeta(
-              TIMESTAMP_INSERTER_TRANSFORMATION,
-              String.format("StreamRecordTimestampInserter(rowtime field: %s)", rowtimeFieldIndex),
-              "StreamRecordTimestampInserter",
-              config),
-          // TODO: support it, Map.of() will not be used, hardcode it here.
-          new GlutenOneInputOperator(
-              null,
-              PlanNodeIdGenerator.newId(),
-              null,
-              Map.of("1", outputType),
-              RowData.class,
-              RowData.class),
-          inputTransform.getOutputType(),
-          sinkParallelism,
-          sinkParallelismConfigured);
-      // --- End Gluten-specific code changes ---
-    }
-  */
-
   private InternalTypeInfo<RowData> getInputTypeInfo() {
     return InternalTypeInfo.of(getInputEdges().get(0).getOutputType());
   }

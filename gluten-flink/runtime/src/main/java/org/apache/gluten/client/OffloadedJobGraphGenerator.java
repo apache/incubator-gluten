@@ -215,7 +215,8 @@ public class OffloadedJobGraphGenerator {
       finalOpConfig.setStreamOperator(newSourceOp);
       if (couldOutputRowVector) {
         RowType rowType = originalOp.getOutputTypes().entrySet().iterator().next().getValue();
-        finalOpConfig.setTypeSerializerOut(new GlutenStatefulRecordSerializer(rowType));
+        finalOpConfig.setTypeSerializerOut(
+            new GlutenStatefulRecordSerializer(rowType, originalOp.getId()));
       }
     } else if (originalOp instanceof GlutenOneInputOperator) {
       boolean couldOutputRowVector = couldOutputRowVector(originalChainSlice, chainSliceGraph);
@@ -234,11 +235,12 @@ public class OffloadedJobGraphGenerator {
       finalOpConfig.setStreamOperator(newOneInputOp);
       if (couldOutputRowVector) {
         RowType rowType = originalOp.getOutputTypes().entrySet().iterator().next().getValue();
-        finalOpConfig.setTypeSerializerOut(new GlutenStatefulRecordSerializer(rowType));
+        finalOpConfig.setTypeSerializerOut(
+            new GlutenStatefulRecordSerializer(rowType, originalOp.getId()));
       }
       if (couldInputRowVector) {
         finalOpConfig.setupNetworkInputs(
-            new GlutenStatefulRecordSerializer(originalOp.getInputType()));
+            new GlutenStatefulRecordSerializer(originalOp.getInputType(), originalOp.getId()));
 
         // This node is the first node in the chain. If it has a state partitioner, we need to
         // change it to GlutenKeySelector.
@@ -289,13 +291,14 @@ public class OffloadedJobGraphGenerator {
       // Update the output channel serializer
       if (couldOutputRowVector) {
         RowType rowType = twoInputOp.getOutputTypes().entrySet().iterator().next().getValue();
-        finalOpConfig.setTypeSerializerOut(new GlutenStatefulRecordSerializer(rowType));
+        finalOpConfig.setTypeSerializerOut(
+            new GlutenStatefulRecordSerializer(rowType, twoInputOp.getId()));
       }
       // Update the input channel serializers
       if (couldInputRowVector) {
         finalOpConfig.setupNetworkInputs(
-            new GlutenStatefulRecordSerializer(twoInputOp.getLeftInputType()),
-            new GlutenStatefulRecordSerializer(twoInputOp.getRightInputType()));
+            new GlutenStatefulRecordSerializer(twoInputOp.getLeftInputType(), twoInputOp.getId()),
+            new GlutenStatefulRecordSerializer(twoInputOp.getRightInputType(), twoInputOp.getId()));
       }
     } else {
       throw new UnsupportedOperationException(

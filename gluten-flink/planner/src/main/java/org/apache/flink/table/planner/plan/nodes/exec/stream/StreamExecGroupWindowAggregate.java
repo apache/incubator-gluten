@@ -268,8 +268,6 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     transform.setStateKeySelector(selector);
     transform.setStateKeyType(selector.getProducedType());
 
-    // GlutenKeySelector selector = new GlutenKeySelector();
-    // transform.setStateKeySelector(selector);
     return transform;
   }
 }

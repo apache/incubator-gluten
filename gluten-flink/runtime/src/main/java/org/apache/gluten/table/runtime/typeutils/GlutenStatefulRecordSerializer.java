@@ -46,14 +46,16 @@ public class GlutenStatefulRecordSerializer extends TypeSerializer<StatefulRecor
   private final RowType rowType;
   private transient MemoryManager memoryManager;
   private transient Session session;
+  private final String nodeId;
 
-  public GlutenStatefulRecordSerializer(RowType rowType) {
+  public GlutenStatefulRecordSerializer(RowType rowType, String nodeId) {
+    this.nodeId = nodeId;
     this.rowType = rowType;
   }
 
   @Override
   public TypeSerializer<StatefulRecord> duplicate() {
-    return new GlutenStatefulRecordSerializer(rowType);
+    return new GlutenStatefulRecordSerializer(rowType, nodeId);
   }
 
   @Override
@@ -78,7 +80,7 @@ public class GlutenStatefulRecordSerializer extends TypeSerializer<StatefulRecor
     byte[] str = new byte[len];
     source.readFully(str);
     RowVector rowVector = session.baseVectorOps().deserializeOne(new String(str)).asRowVector();
-    StatefulRecord record = new StatefulRecord(null, 0, 0, false, -1);
+    StatefulRecord record = new StatefulRecord(nodeId, 0, 0, false, -1);
     record.setRowVector(rowVector);
     return record;
   }
@@ -90,18 +92,7 @@ public class GlutenStatefulRecordSerializer extends TypeSerializer<StatefulRecor
 
   @Override
   public StatefulRecord copy(StatefulRecord from) {
-    RowVector rowVector = from.getRowVector().loadedVector().asRowVector();
-    StatefulRecord record =
-        new StatefulRecord(
-            from.getNodeId(),
-            rowVector.id(),
-            from.getTimestamp(),
-            from.hasTimestamp(),
-            from.getKey());
-
-    record.setRowVector(rowVector);
-
-    return record;
+    return from;
   }
 
   @Override
@@ -147,7 +138,7 @@ public class GlutenStatefulRecordSerializer extends TypeSerializer<StatefulRecor
 
   @Override
   public TypeSerializerSnapshot<StatefulRecord> snapshotConfiguration() {
-    return new RowVectorSerializerSnapshot(rowType);
+    return new RowVectorSerializerSnapshot(rowType, nodeId);
   }
 
   @Override
@@ -164,13 +155,15 @@ public class GlutenStatefulRecordSerializer extends TypeSerializer<StatefulRecor
     private static final int CURRENT_VERSION = 1;
 
     private RowType rowType;
+    private String nodeId;
 
     @SuppressWarnings("unused")
     public RowVectorSerializerSnapshot() {
       // this constructor is used when restoring from a checkpoint/savepoint.
     }
 
-    RowVectorSerializerSnapshot(RowType rowType) {
+    RowVectorSerializerSnapshot(RowType rowType, String nodeId) {
+      this.nodeId = nodeId;
       this.rowType = rowType;
     }
 
@@ -188,7 +181,7 @@ public class GlutenStatefulRecordSerializer extends TypeSerializer<StatefulRecor
 
     @Override
     public GlutenStatefulRecordSerializer restoreSerializer() {
-      return new GlutenStatefulRecordSerializer(rowType);
+      return new GlutenStatefulRecordSerializer(rowType, nodeId);
     }
 
     @Override
