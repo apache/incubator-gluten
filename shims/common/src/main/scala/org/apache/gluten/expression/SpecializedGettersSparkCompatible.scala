@@ -14,10 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.connector
+package org.apache.gluten.expression
 
-import org.apache.spark.sql._
+/**
+ * A mix-in trait mainly for internal-row's implementations to extend, to ensure the code is
+ * compatible with Spark 3.x and 4.x at the same time.
+ *
+ * Provides stub implementations for methods that exist in Spark 4.x but not in Spark 3.x, including
+ * getVariant, getGeography, and getGeometry.
+ */
+trait SpecializedGettersSparkCompatible {
+  def getVariant(ordinal: Int): Nothing = {
+    throw new UnsupportedOperationException()
+  }
 
-class GlutenDataSourceV2SQLSuiteV2Filter
-  extends DataSourceV2SQLSuiteV2Filter
-  with GlutenSQLTestsBaseTrait {}
+  def getGeography(ordinal: Int): Nothing =
+    throw new UnsupportedOperationException()
+
+  def getGeometry(ordinal: Int): Nothing =
+    throw new UnsupportedOperationException()
+}

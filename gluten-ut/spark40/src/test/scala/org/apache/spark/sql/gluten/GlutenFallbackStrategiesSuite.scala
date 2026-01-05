@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
+package org.apache.spark.sql.gluten
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.GlutenConfig
@@ -32,9 +32,10 @@ import org.apache.spark.sql.{GlutenSQLTestsTrait, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution._
 
-class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
-  import FallbackStrategiesSuite._
+class GlutenFallbackStrategiesSuite extends GlutenSQLTestsTrait {
+  import GlutenFallbackStrategiesSuite._
 
   testGluten("Fall back the whole query if one unsupported") {
     withSQLConf((GlutenConfig.COLUMNAR_QUERY_FALLBACK_THRESHOLD.key, "1")) {
@@ -178,7 +179,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   }
 }
 
-private object FallbackStrategiesSuite {
+private object GlutenFallbackStrategiesSuite {
   def newRuleApplier(
       spark: SparkSession,
       transformBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]]): HeuristicApplier = {

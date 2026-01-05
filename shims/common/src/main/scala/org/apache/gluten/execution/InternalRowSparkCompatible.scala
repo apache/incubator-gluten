@@ -16,13 +16,19 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.expression.SpecializedGettersGetVariantCompatible
+import org.apache.gluten.expression.SpecializedGettersSparkCompatible
 
 import org.apache.spark.sql.catalyst.InternalRow
 
 /** An internal-row base implementation that is compatible with both Spark 3.x and 4.x. */
-abstract class InternalRowGetVariantCompatible
+abstract class InternalRowSparkCompatible
   extends InternalRow
-  with SpecializedGettersGetVariantCompatible {
+  with SpecializedGettersSparkCompatible {
   override def getVariant(ordinal: Int): Nothing = throw new UnsupportedOperationException()
+
+  override def getGeography(ordinal: Int): Nothing =
+    throw new UnsupportedOperationException()
+
+  override def getGeometry(ordinal: Int): Nothing =
+    throw new UnsupportedOperationException()
 }

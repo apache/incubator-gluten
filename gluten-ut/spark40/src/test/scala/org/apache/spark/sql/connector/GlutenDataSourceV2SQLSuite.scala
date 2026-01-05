@@ -14,11 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.exchange
+package org.apache.spark.sql.connector
 
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.execution.exchange.ValidateRequirementsSuite
+import org.apache.spark.sql._
 
-class GlutenValidateRequirementsSuite
-  extends ValidateRequirementsSuite
+class GlutenDataSourceV2SQLSuiteV1Filter
+  extends DataSourceV2SQLSuiteV1Filter
+  with GlutenSQLTestsBaseTrait {}
+
+class GlutenDataSourceV2SQLSuiteV2Filter
+  extends DataSourceV2SQLSuiteV2Filter
   with GlutenSQLTestsBaseTrait {}

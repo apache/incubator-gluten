@@ -933,6 +933,8 @@ jobs:
   spark-test-spark35:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -989,6 +991,8 @@ jobs:
   spark-test-spark35-scala213:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1039,6 +1043,8 @@ jobs:
   spark-test-spark35-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1081,6 +1087,8 @@ jobs:
   spark-test-spark35-ras:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1130,6 +1138,8 @@ jobs:
   spark-test-spark35-slow-ras:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1171,6 +1181,8 @@ jobs:
   spark-test-spark35-smj:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1220,6 +1232,8 @@ jobs:
   spark-test-spark35-slow-smj:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1365,6 +1379,8 @@ jobs:
   spark-test-spark40:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
@@ -1420,6 +1436,8 @@ jobs:
   spark-test-spark40-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
