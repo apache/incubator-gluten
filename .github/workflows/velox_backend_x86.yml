@@ -39,12 +39,12 @@ on:
       - 'ep/build-velox/**'
       - 'cpp/**'
       - 'dev/**'
+      - 'build/mvn'
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-  MVN_CMD: 'mvn -ntp'
+  MVN_CMD: 'build/mvn -ntp'
   WGET_CMD: 'wget -nv'
-  SETUP: 'source .github/workflows/util/setup-helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
   # spark.sql.ansi.enabled defaults to false.
   SPARK_ANSI_SQL_MODE: false
@@ -163,17 +163,17 @@ jobs:
             apt-get update
             TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
           fi
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
-            apt-get update && apt-get install -y openjdk-17-jdk maven
+            apt-get update && apt-get install -y openjdk-17-jdk wget
             apt remove openjdk-11* -y
           elif [ "${{ matrix.java }}" = "java-21" ]; then
-            apt-get update && apt-get install -y openjdk-21-jdk maven
+            apt-get update && apt-get install -y openjdk-21-jdk wget
           elif [ "${{ matrix.java }}" = "java-11" ]; then
-            apt-get update && apt-get install -y openjdk-11-jdk maven
+            apt-get update && apt-get install -y openjdk-11-jdk wget
           else
-            apt-get update && apt-get install -y openjdk-8-jdk maven
+            apt-get update && apt-get install -y openjdk-8-jdk wget
             apt remove openjdk-11* -y
           fi
           ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
@@ -188,8 +188,8 @@ jobs:
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           fi
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
@@ -241,7 +241,7 @@ jobs:
             sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
             sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
           fi
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
             yum update -y && yum install -y java-17-openjdk-devel wget
@@ -250,7 +250,6 @@ jobs:
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
-          $SETUP install_maven
       - name: Set environment variables
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
@@ -270,7 +269,7 @@ jobs:
             $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           fi
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H / TPC-DS
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
@@ -320,16 +319,15 @@ jobs:
             sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
             sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
 
-            # Setup java and maven
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget tzdata python3-pip
-            $SETUP install_maven
             # Set environment variables
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
+            # Build gluten
+            build/mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
             # Build gluten-it
-            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
             cd /work/tools/gluten-it
-            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+            /work/build/mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
 
             # Run TPC-H / TPC-DS
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -378,10 +376,10 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
+          sudo apt-get install -y openjdk-8-jdk wget
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
@@ -390,7 +388,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ 
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }}
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
         run: |
@@ -493,10 +491,10 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
+          sudo apt-get install -y openjdk-8-jdk wget
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
@@ -505,7 +503,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ 
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }}
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.2 random kill tasks
         run: |
@@ -561,7 +559,7 @@ jobs:
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          $MVN_CMD clean install -P${{ matrix.spark }} -Puniffle  && \
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }} -Puniffle  && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
@@ -591,10 +589,9 @@ jobs:
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          $SETUP install_maven
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
@@ -621,7 +618,8 @@ jobs:
           bash -c "echo -e 'CELEBORN_MASTER_MEMORY=8g\nCELEBORN_WORKER_MEMORY=8g\nCELEBORN_WORKER_OFFHEAP_MEMORY=16g' > ./conf/celeborn-env.sh" && \
           bash -c "echo -e 'celeborn.worker.commitFiles.threads 32\nceleborn.worker.sortPartition.threads 16' > ./conf/celeborn-defaults.conf" && \
           bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
-          cd $GITHUB_WORKSPACE/tools/gluten-it && $MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} && \
+          cd $GITHUB_WORKSPACE && $MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} -Pbackends-velox -DskipTests && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it && $GITHUB_WORKSPACE/$MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} && \
           GLUTEN_IT_JVM_ARGS=-Xmx16G sbin/gluten-it.sh queries-compare \
             --extra-conf=spark.celeborn.client.spark.shuffle.writer=${{ matrix.writer }} \
             --extra-conf=spark.sql.shuffle.partitions=16 \
@@ -1374,7 +1372,7 @@ jobs:
           cd /work
           bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
           rm -rf ep/build-velox/build/velox_ep
-          mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
+          build/mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
           ccache -s
           "
 
