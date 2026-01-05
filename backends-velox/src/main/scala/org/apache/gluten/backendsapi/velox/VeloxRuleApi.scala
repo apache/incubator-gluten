@@ -89,7 +89,6 @@ object VeloxRuleApi {
         BloomFilterMightContainJointRewriteRule.apply(
           c.session,
           c.caller.isBloomFilterStatFunction()))
-    injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
     // Legacy: The legacy transform rule.
@@ -171,7 +170,6 @@ object VeloxRuleApi {
         BloomFilterMightContainJointRewriteRule.apply(
           c.session,
           c.caller.isBloomFilterStatFunction()))
-    injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
     // Gluten RAS: The RAS rule.
