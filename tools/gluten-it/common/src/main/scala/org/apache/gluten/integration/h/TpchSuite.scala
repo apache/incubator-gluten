@@ -76,6 +76,9 @@ class TpchSuite(
 
   override private[integration] def dataWritePath(): String = {
     val featureFlags = dataGenFeatures.map(feature => s"-$feature").mkString("")
+    if (dataDir.startsWith("hdfs://")) {
+      return s"$dataDir/$TPCH_WRITE_RELATIVE_PATH-$dataScale-$dataSource$featureFlags"
+    }
     new File(dataDir).toPath
       .resolve(s"$TPCH_WRITE_RELATIVE_PATH-$dataScale-$dataSource$featureFlags")
       .toFile
