@@ -18,9 +18,13 @@ package org.apache.gluten.integration
 
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 
-import java.io.File
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
+
+import java.net.URI
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 trait TableCreator {
   def create(spark: SparkSession, source: String, dataPath: String): Unit
@@ -33,44 +37,54 @@ object TableCreator {
 
   private object DiscoverSchema extends TableCreator {
     override def create(spark: SparkSession, source: String, dataPath: String): Unit = {
-      val files = new File(dataPath).listFiles()
-      val tableNames = files.map(_.getName)
+      val uri = URI.create(dataPath)
+      val fs = FileSystem.get(uri, new Configuration())
+
+      val basePath = new Path(dataPath)
+      val statuses = fs.listStatus(basePath)
+
+      val tableDirs = statuses.filter(_.isDirectory).map(_.getPath)
+
+      val tableNames = ArrayBuffer[String]()
+
       val existedTableNames = mutable.ArrayBuffer[String]()
       val createdTableNames = mutable.ArrayBuffer[String]()
       val recoveredPartitionTableNames = mutable.ArrayBuffer[String]()
 
-      if (tableNames.isEmpty) {
-        return
+      tableDirs.foreach {
+        tablePath =>
+          val tableName = tablePath.getName
+          tableNames += tableName
       }
 
       println("Creating catalog tables: " + tableNames.mkString(", "))
 
-      files.foreach(
-        file => {
-          val tableName = file.getName
+      tableDirs.foreach {
+        tablePath =>
+          val tableName = tablePath.getName
           if (spark.catalog.tableExists(tableName)) {
             existedTableNames += tableName
           } else {
-            spark.catalog.createTable(tableName, file.getAbsolutePath, source)
+            spark.catalog.createTable(tableName, tablePath.toString, source)
             createdTableNames += tableName
             try {
               spark.catalog.recoverPartitions(tableName)
               recoveredPartitionTableNames += tableName
             } catch {
               case _: AnalysisException =>
-              // Swallows analysis exceptions.
             }
           }
-        })
+      }
 
+      if (tableNames.isEmpty) {
+        return
+      }
       if (existedTableNames.nonEmpty) {
         println("Tables already exists: " + existedTableNames.mkString(", "))
       }
-
       if (createdTableNames.nonEmpty) {
         println("Tables created: " + createdTableNames.mkString(", "))
       }
-
       if (recoveredPartitionTableNames.nonEmpty) {
         println("Recovered partition tables: " + recoveredPartitionTableNames.mkString(", "))
       }
