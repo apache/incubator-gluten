@@ -181,6 +181,11 @@ jobs:
             apt remove openjdk-11* -y
           fi
           ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
+      - name: Install Hadoop & Setup HDFS
+        if: matrix.os == 'ubuntu:22.04' && matrix.spark == 'spark-3.5' && matrix.java == 'java-8'
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
+          bash .github/workflows/util/setup-helper.sh install_hadoop setup_hdfs
       - name: Build and run TPC-H / TPC-DS
         run: |
           cd $GITHUB_WORKSPACE/
@@ -200,6 +205,13 @@ jobs:
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+          if [ "${{ matrix.os }}" = "ubuntu:22.04" ] && \
+            [ "${{ matrix.spark }}" = "spark-3.5" ] && \
+            [ "${{ matrix.java }}" = "java-8" ]; then
+            GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+            --queries=q1 --data-dir="hdfs://localhost:9000/test"
+          fi
 
   tpc-test-centos8:
     needs: build-native-lib-centos-7

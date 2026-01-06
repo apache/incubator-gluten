@@ -34,6 +34,57 @@ function install_maven {
   fi
 }
 
+function install_hadoop {
+  echo "Installing Hadoop..."
+  
+  apt-get update -y
+  apt-get install -y curl tar gzip
+  
+  local HADOOP_VERSION=3.3.6
+  curl -fsSL -o hadoop.tgz "https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz"
+  tar -xzf hadoop.tgz --no-same-owner --no-same-permissions
+
+  export HADOOP_HOME="$PWD/hadoop-${HADOOP_VERSION}"
+  export PATH="$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$PATH"
+
+  export LD_LIBRARY_PATH="$HADOOP_HOME/lib/native:$LD_LIBRARY_PATH"
+
+  if [ -n "$GITHUB_ENV" ]; then
+    echo "HADOOP_HOME=$HADOOP_HOME" >> $GITHUB_ENV
+    echo "LD_LIBRARY_PATH=$HADOOP_HOME/lib/native:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+    echo "$HADOOP_HOME/bin" >> $GITHUB_PATH
+  fi
+}
+
+function setup_hdfs {
+  export CLASSPATH=$("$HADOOP_HOME/bin/hdfs" classpath --glob)
+  export HADOOP_CONF_DIR="$HADOOP_HOME/etc/hadoop"
+
+  if [ -n "$GITHUB_ENV" ]; then
+    echo "CLASSPATH=$CLASSPATH" >> $GITHUB_ENV
+  echo "HADOOP_CONF_DIR=$HADOOP_CONF_DIR" >> "$GITHUB_ENV"
+  echo "HADOOP_HOME=$HADOOP_HOME" >> "$GITHUB_ENV"
+  fi
+
+  cat > "$HADOOP_CONF_DIR/core-site.xml" <<'EOF'
+<configuration>
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://localhost:9000</value>
+  </property>
+</configuration>
+EOF
+  "$HADOOP_HOME/bin/mapred" minicluster \
+    -nomr -format \
+    -nnhttpport 9870 -nnport 9000 \
+    -D dfs.permissions=false &
+
+  for i in {1..60}; do
+    "$HADOOP_HOME/bin/hdfs" dfs -ls / >/dev/null 2>&1 && break
+    sleep 1
+  done
+  "$HADOOP_HOME/bin/hdfs" dfs -ls /
+}
 for cmd in "$@"
 do
     echo "Running: $cmd"
