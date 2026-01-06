@@ -38,6 +38,24 @@ import java.nio.charset.StandardCharsets
 
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
+/**
+ * Extracts a CSVTable from a DataSourceV2Relation.
+ *
+ * Only the table variable of DataSourceV2Relation is accessed to improve compatibility across
+ * different Spark versions.
+ * @since Spark
+ *   4.1
+ */
+private object CSVTableExtractor {
+  def unapply(relation: DataSourceV2Relation): Option[(DataSourceV2Relation, CSVTable)] = {
+    relation.table match {
+      case t: CSVTable =>
+        Some((relation, t))
+      case _ => None
+    }
+  }
+}
+
 @Experimental
 case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = {
@@ -56,25 +74,15 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
             l.copy(relation = r.copy(fileFormat = new ArrowCSVFileFormat(csvOptions))(session))
           case _ => l
         }
-      case d @ DataSourceV2Relation(
-            t @ CSVTable(
-              name,
-              sparkSession,
-              options,
-              paths,
-              userSpecifiedSchema,
-              fallbackFileFormat),
-            _,
-            _,
-            _,
-            _) if validate(session, t.dataSchema, options.asCaseSensitiveMap().toMap) =>
+      case CSVTableExtractor(d, t)
+          if validate(session, t.dataSchema, t.options.asCaseSensitiveMap().toMap) =>
         d.copy(table = ArrowCSVTable(
-          "arrow" + name,
-          sparkSession,
-          options,
-          paths,
-          userSpecifiedSchema,
-          fallbackFileFormat))
+          "arrow" + t.name,
+          t.sparkSession,
+          t.options,
+          t.paths,
+          t.userSpecifiedSchema,
+          t.fallbackFileFormat))
       case r =>
         r
     }

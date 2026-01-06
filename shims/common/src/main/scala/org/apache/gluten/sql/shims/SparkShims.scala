@@ -355,4 +355,14 @@ trait SparkShims {
   def unsupportedCodec: Seq[CompressionCodecName] = {
     Seq(CompressionCodecName.LZO, CompressionCodecName.BROTLI)
   }
+
+  /**
+   * Shim layer for QueryExecution to maintain compatibility across different Spark versions.
+   * @since Spark
+   *   4.1
+   */
+  def createSparkPlan(
+      sparkSession: SparkSession,
+      planner: SparkPlanner,
+      plan: LogicalPlan): SparkPlan
 }

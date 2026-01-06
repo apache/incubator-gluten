@@ -753,7 +753,11 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     val df = sql("SELECT 1")
     checkAnswer(df, Row(1))
     val plan = df.queryExecution.executedPlan
-    assert(plan.find(_.isInstanceOf[RDDScanExec]).isDefined)
+    if (isSparkVersionGE("4.1")) {
+      assert(plan.find(_.getClass.getSimpleName == "OneRowRelationExec").isDefined)
+    } else {
+      assert(plan.find(_.isInstanceOf[RDDScanExec]).isDefined)
+    }
     assert(plan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
     assert(plan.find(_.isInstanceOf[RowToVeloxColumnarExec]).isDefined)
   }

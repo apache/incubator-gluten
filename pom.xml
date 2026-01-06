@@ -938,7 +938,7 @@
     <profile>
       <id>scala-2.13</id>
       <properties>
-        <scala.version>2.13.16</scala.version>
+        <scala.version>2.13.17</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
         <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
       </properties>
@@ -1261,6 +1261,86 @@
                       <!-- Spark 4.0 requires Scala 2.13 -->
                       <profiles>scala-2.13</profiles>
                       <message>"-P spark-4.0" requires Scala 2.13</message>
+                    </requireActiveProfile>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>spark-4.1</id>
+      <properties>
+        <sparkbundle.version>4.1</sparkbundle.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-spark41</sparkshim.artifactId>
+        <spark.version>4.1.0</spark.version>
+        <iceberg.version>1.10.0</iceberg.version>
+        <delta.package.name>delta-spark</delta.package.name>
+        <delta.version>4.0.0</delta.version>
+        <delta.binary.version>40</delta.binary.version>
+        <hudi.version>1.1.0</hudi.version>
+        <paimon.version>1.3.0</paimon.version>
+        <fasterxml.version>2.18.2</fasterxml.version>
+        <fasterxml.jackson.version>2.18.2</fasterxml.jackson.version>
+        <fasterxml.jackson.databind.version>2.18.2</fasterxml.jackson.databind.version>
+        <hadoop.version>3.4.1</hadoop.version>
+        <antlr4.version>4.13.1</antlr4.version>
+        <guava.version>33.4.0-jre</guava.version>
+        <slf4j.version>2.0.16</slf4j.version>
+        <log4j.version>2.24.3</log4j.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
+        <arrow.version>18.1.0</arrow.version>
+        <arrow-gluten.version>18.1.0</arrow-gluten.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>${slf4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j2-impl</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>enforce-java-17+</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireActiveProfile>
+                      <!-- Spark 4.1 requires Java 17+ -->
+                      <profiles>java-17,java-21</profiles>
+                      <all>false</all>
+                      <message>"-P spark-4.1" requires JDK 17+</message>
+                    </requireActiveProfile>
+                  </rules>
+                </configuration>
+              </execution>
+              <execution>
+                <id>enforce-scala-213</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireActiveProfile>
+                      <!-- Spark 4.1 requires Scala 2.13 -->
+                      <profiles>scala-2.13</profiles>
+                      <message>"-P spark-4.1" requires Scala 2.13</message>
                     </requireActiveProfile>
                   </rules>
                 </configuration>
