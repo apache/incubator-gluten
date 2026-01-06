@@ -16,6 +16,7 @@
  */
 package org.apache.iceberg.spark.source
 
+import org.apache.gluten.ContentFileUtil
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.SparkDataSourceRDDPartition
@@ -33,7 +34,6 @@ import org.apache.iceberg.spark.SparkSchemaUtil
 import java.lang.{Class, Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
 
-import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 object GlutenIcebergSourceUtil {
@@ -51,7 +51,6 @@ object GlutenIcebergSourceUtil {
     }
   }
 
-  @nowarn
   def genSplitInfo(
       partition: SparkDataSourceRDDPartition,
       readPartitionSchema: StructType): SplitInfo = {
@@ -69,7 +68,7 @@ object GlutenIcebergSourceUtil {
           task =>
             paths.add(
               BackendsApiManager.getTransformerApiInstance
-                .encodeFilePathIfNeed(task.file().path().toString))
+                .encodeFilePathIfNeed(ContentFileUtil.getFilePath(task.file())))
             starts.add(task.start())
             lengths.add(task.length())
             partitionColumns.add(getPartitionColumns(task, readPartitionSchema))
