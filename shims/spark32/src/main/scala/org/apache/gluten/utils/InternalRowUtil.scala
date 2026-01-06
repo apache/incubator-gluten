@@ -20,7 +20,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.types.StructType
 
-object InternalRowUtl {
+object InternalRowUtil {
   def toString(struct: StructType, rows: Iterator[InternalRow]): String = {
     val encoder = RowEncoder(struct).resolveAndBind()
     val deserializer = encoder.createDeserializer()

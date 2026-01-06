@@ -17,12 +17,12 @@
 package org.apache.gluten.utils
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.encoders.RowEncoder
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
 import org.apache.spark.sql.types.StructType
 
-object InternalRowUtl {
+object InternalRowUtil {
   def toString(struct: StructType, rows: Iterator[InternalRow]): String = {
-    val encoder = RowEncoder(struct).resolveAndBind()
+    val encoder = ExpressionEncoder(struct).resolveAndBind()
     val deserializer = encoder.createDeserializer()
     rows.map(deserializer).mkString(System.lineSeparator())
   }
@@ -30,5 +30,4 @@ object InternalRowUtl {
   def toString(struct: StructType, rows: Iterator[InternalRow], start: Int, length: Int): String = {
     toString(struct, rows.slice(start, start + length))
   }
-
 }
