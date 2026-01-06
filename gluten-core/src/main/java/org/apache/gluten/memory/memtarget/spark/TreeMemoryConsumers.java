@@ -21,6 +21,7 @@ import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
 import com.google.common.base.Preconditions;
+import org.apache.commons.collections4.map.AbstractReferenceMap;
 import org.apache.commons.collections4.map.ReferenceMap;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -31,7 +32,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class TreeMemoryConsumers {
-  private static final ReferenceMap<TaskMemoryManager, Factory> FACTORIES = new ReferenceMap<>();
+  private static final ReferenceMap<TaskMemoryManager, Factory> FACTORIES =
+      new ReferenceMap<>(
+          AbstractReferenceMap.ReferenceStrength.WEAK, AbstractReferenceMap.ReferenceStrength.WEAK);
 
   private TreeMemoryConsumers() {}
 
