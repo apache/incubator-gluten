@@ -251,5 +251,6 @@ object VeloxRuleApi {
     injector.injectPostTransform(
       c => GlutenFallbackReporter(new GlutenConfig(c.sqlConf), c.session))
     injector.injectPostTransform(_ => RemoveFallbackTagRule())
+    injector.injectPostTransform(_ => GenerateTransformStageId())
   }
 }
