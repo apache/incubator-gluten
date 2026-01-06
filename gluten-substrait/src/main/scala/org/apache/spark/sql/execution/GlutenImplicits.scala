@@ -18,8 +18,8 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.{GlutenPlan, WholeStageTransformer}
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PlanUtil
-
 import org.apache.spark.sql.{Column, Dataset, SparkSession}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.{CommandResult, LogicalPlan}
@@ -130,10 +130,8 @@ object GlutenImplicits {
           val (innerNumGlutenNodes, innerFallbackNodeToReason) =
             withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
               // re-plan manually to skip cached data
-              val newSparkPlan = QueryExecution.createSparkPlan(
-                spark,
-                spark.sessionState.planner,
-                p.inputPlan.logicalLink.get)
+              val newSparkPlan = SparkShimLoader.getSparkShims.createSparkPlan(
+                spark, spark.sessionState.planner, p.inputPlan.logicalLink.get)
               val newExecutedPlan = QueryExecution.prepareExecutedPlan(
                 spark,
                 newSparkPlan

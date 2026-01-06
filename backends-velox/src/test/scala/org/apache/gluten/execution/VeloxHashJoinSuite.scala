@@ -92,12 +92,9 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
 
       // The computing is combined into one single whole stage transformer.
       val wholeStages = plan.collect { case wst: WholeStageTransformer => wst }
-      if (SparkShimLoader.getSparkVersion.startsWith("3.2.")) {
+      if (isSparkVersionLE("3.2")) {
         assert(wholeStages.length == 1)
-      } else if (
-        SparkShimLoader.getSparkVersion.startsWith("3.5.") ||
-        SparkShimLoader.getSparkVersion.startsWith("4.0.")
-      ) {
+      } else if (isSparkVersionGE("3.5")) {
         assert(wholeStages.length == 5)
       } else {
         assert(wholeStages.length == 3)

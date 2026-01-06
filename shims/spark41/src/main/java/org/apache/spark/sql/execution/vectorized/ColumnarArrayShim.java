@@ -27,6 +27,8 @@ import org.apache.spark.sql.vectorized.ColumnarArray;
 import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.sql.vectorized.ColumnarRow;
 import org.apache.spark.unsafe.types.CalendarInterval;
+import org.apache.spark.unsafe.types.GeographyVal;
+import org.apache.spark.unsafe.types.GeometryVal;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.apache.spark.unsafe.types.VariantVal;
 
@@ -197,6 +199,16 @@ public class ColumnarArrayShim extends ArrayData {
   @Override
   public byte[] getBinary(int ordinal) {
     return data.getBinary(offset + ordinal);
+  }
+
+  @Override
+  public GeographyVal getGeography(int ordinal) {
+    return data.getGeography(offset + ordinal);
+  }
+
+  @Override
+  public GeometryVal getGeometry(int ordinal) {
+    return data.getGeometry(offset + ordinal);
   }
 
   @Override

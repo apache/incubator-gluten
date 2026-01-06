@@ -40,6 +40,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, InternalRowComparableWrapper, TimestampFormatter}
 import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
@@ -752,4 +753,16 @@ class Spark40Shims extends SparkShims {
   override def unsupportedCodec: Seq[CompressionCodecName] = {
     Seq(CompressionCodecName.LZO, CompressionCodecName.BROTLI, CompressionCodecName.LZ4_RAW)
   }
+
+  /**
+   * Shim layer for QueryExecution to maintain compatibility across different Spark versions.
+   *
+   * @since Spark
+   *   4.1
+   */
+  override def createSparkPlan(
+      sparkSession: SparkSession,
+      planner: SparkPlanner,
+      plan: LogicalPlan): SparkPlan =
+    QueryExecution.createSparkPlan(sparkSession, planner, plan)
 }

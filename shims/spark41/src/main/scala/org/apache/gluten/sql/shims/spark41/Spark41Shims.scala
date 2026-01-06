@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql.shims.spark40
+package org.apache.gluten.sql.shims.spark41
 
 import org.apache.gluten.execution.PartitionedFileUtilShim
 import org.apache.gluten.expression.{ExpressionNames, Sig}
@@ -69,7 +69,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
-class Spark40Shims extends SparkShims {
+class Spark41Shims extends SparkShims {
 
   override def getDistribution(
       leftKeys: Seq[Expression],
@@ -752,4 +752,16 @@ class Spark40Shims extends SparkShims {
   override def unsupportedCodec: Seq[CompressionCodecName] = {
     Seq(CompressionCodecName.LZO, CompressionCodecName.BROTLI, CompressionCodecName.LZ4_RAW)
   }
+
+  /**
+   * Shim layer for QueryExecution to maintain compatibility across different Spark versions.
+   *
+   * @since Spark
+   *   4.1
+   */
+  override def createSparkPlan(
+      sparkSession: SparkSession,
+      planner: SparkPlanner,
+      plan: LogicalPlan): SparkPlan =
+    QueryExecution.createSparkPlan(planner, plan)
 }

@@ -24,6 +24,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{KeyGroupedPartitioning, Key
 import org.apache.spark.sql.catalyst.util.{truncatedString, InternalRowComparableWrapper}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read._
+import org.apache.spark.sql.execution.joins.StoragePartitionJoinParams
 import org.apache.spark.util.ArrayImplicits._
 
 import com.google.common.base.Objects
