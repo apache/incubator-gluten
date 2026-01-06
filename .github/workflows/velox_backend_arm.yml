@@ -196,3 +196,116 @@ jobs:
         with:
           name: ${{ github.job }}-test-log
           path: "**/target/*.log"
+  hdfs-test-centos8:
+    needs: build-native-lib-centos-8
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "quay.io/centos/centos:stream9" ]
+        spark: [ "spark-3.5" ]
+        java: [ "java-8" ]
+    runs-on: ubuntu-24.04-arm
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Native Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup java and maven
+        run: |
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget procps
+          $SETUP install_maven
+      - name: Set environment variables
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
+      - name: Build gluten-it
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+      - name: Install Hadoop
+        run: |
+          yum update -y
+          yum install -y wget tar gzip hostname procps which java-1.8.0-openjdk-devel
+          HADOOP_VERSION=3.3.6
+          cd /opt
+          wget -q https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz
+          tar -xzf hadoop-${HADOOP_VERSION}.tar.gz
+          ln -s hadoop-${HADOOP_VERSION} hadoop
+          echo 'export HADOOP_HOME=/opt/hadoop' >> /etc/profile.d/hadoop.sh
+          echo 'export PATH=$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$PATH' >> /etc/profile.d/hadoop.sh
+          source /etc/profile.d/hadoop.sh
+          hadoop version
+      - name: Configure & start HDFS
+        run: |
+          source /etc/profile.d/hadoop.sh
+
+          cat > $HADOOP_HOME/etc/hadoop/core-site.xml <<'EOF'
+          <configuration>
+            <property>
+              <name>fs.defaultFS</name>
+              <value>hdfs://localhost:9000</value>
+            </property>
+            <property>
+              <name>hadoop.tmp.dir</name>
+              <value>/tmp/hadoop</value>
+            </property>
+          </configuration>
+          EOF
+
+          cat > $HADOOP_HOME/etc/hadoop/hdfs-site.xml <<'EOF'
+          <configuration>
+            <property>
+              <name>dfs.replication</name>
+              <value>1</value>
+            </property>
+            <property>
+              <name>dfs.namenode.name.dir</name>
+              <value>file:/tmp/hdfs/nn</value>
+            </property>
+            <property>
+              <name>dfs.datanode.data.dir</name>
+              <value>file:/tmp/hdfs/dn</value>
+            </property>
+            <property>
+              <name>dfs.permissions</name>
+              <value>false</value>
+            </property>
+          </configuration>
+          EOF
+
+          echo "export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $HADOOP_HOME/etc/hadoop/hadoop-env.sh
+
+          mkdir -p /tmp/hdfs/nn /tmp/hdfs/dn /tmp/hadoop
+
+          $HADOOP_HOME/bin/hdfs namenode -format -force -nonInteractive
+          $HADOOP_HOME/bin/hdfs --daemon start namenode
+          $HADOOP_HOME/bin/hdfs --daemon start datanode
+
+          for i in $(seq 1 30); do
+            (echo >/dev/tcp/127.0.0.1/9000) >/dev/null 2>&1 && break || true
+            sleep 1
+          done
+
+          $HADOOP_HOME/bin/hdfs dfs -mkdir -p /tpch-data
+          $HADOOP_HOME/bin/hdfs dfs -ls /
+      - name: Run HDFS test
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=hdfs --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+            --shuffle-partitions=3 --data-dir=hdfs://localhost:9000/tpch-data
