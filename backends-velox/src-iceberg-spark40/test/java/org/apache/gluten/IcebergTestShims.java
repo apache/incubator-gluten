@@ -16,23 +16,18 @@
  */
 package org.apache.gluten;
 
-import com.google.common.collect.ImmutableMap;
+import org.apache.spark.rdd.RDD;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.StructType;
 
-import java.util.Map;
+public class IcebergTestShims {
 
-public class TestConfUtil {
-  public static Map<String, Object> GLUTEN_CONF =
-      ImmutableMap.of(
-          "spark.plugins",
-          "org.apache.gluten.GlutenPlugin",
-          "spark.memory.offHeap.enabled",
-          "true",
-          "spark.memory.offHeap.size",
-          "1024MB",
-          "spark.ui.enabled",
-          "false",
-          "spark.gluten.ui.enabled",
-          "false",
-          "spark.sql.ansi.enabled",
-          "false");
+  public static Dataset<Row> internalCreateDataFrame(
+      SparkSession spark, RDD<InternalRow> rdd, StructType schema, boolean isStreaming) {
+    return ((org.apache.spark.sql.classic.SparkSession) spark)
+        .internalCreateDataFrame(rdd, schema, isStreaming);
+  }
 }
