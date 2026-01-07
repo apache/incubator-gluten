@@ -555,7 +555,10 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
               : static_cast<int64_t>(veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
       auto maxExtendedPartialAggregationMemory = std::max<int64_t>(
           1 << 26,
-          static_cast<long>(veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
+          veloxCfg_->get<int64_t>(kMaxExtendedPartialAggregationMemory).has_value()
+              ? veloxCfg_->get<int64_t>(kMaxExtendedPartialAggregationMemory).value()
+              : static_cast<int64_t>(
+                    veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
       configs[velox::core::QueryConfig::kMaxExtendedPartialAggregationMemory] =
           std::to_string(maxExtendedPartialAggregationMemory);
