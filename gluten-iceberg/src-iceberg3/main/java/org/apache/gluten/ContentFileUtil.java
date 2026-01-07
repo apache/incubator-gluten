@@ -20,6 +20,6 @@ import org.apache.iceberg.ContentFile;
 
 public class ContentFileUtil {
   public static String getFilePath(ContentFile<?> file) {
-    return file.path().toString;
+    return file.path().toString();
   }
 }
