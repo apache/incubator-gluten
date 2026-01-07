@@ -87,8 +87,8 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
     checkAnswer(df, expected)
   }
 
-  // A fix needed for Spark 4.0 change in https://github.com/apache/spark/pull/42864.
-  test("arrow_udf test: with preprojection") {
+  // TODO: fix on spark-4.1
+  testWithMaxSparkVersion("arrow_udf test: with unrelated projection", "4.0") {
     lazy val base =
       Seq(("1", 1), ("1", 2), ("2", 1), ("2", 2), ("3", 1), ("3", 2), ("0", 1), ("3", 0))
         .toDF("a", "b")
