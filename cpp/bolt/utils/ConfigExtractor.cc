@@ -25,7 +25,7 @@
 #include "utils/Exception.h"
 #include "utils/Macros.h"
 #include "bolt/connectors/hive/HiveConfig.h"
-// #include "bolt/connectors/hive/storage_adapters/s3fs/S3Config.h"
+#include "bolt/connectors/hive/storage_adapters/s3fs/S3Config.h"
 
 namespace gluten {
 
