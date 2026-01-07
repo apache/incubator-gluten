@@ -702,4 +702,16 @@ class Spark35Shims extends SparkShims {
   override def getErrorMessage(raiseError: RaiseError): Option[Expression] = {
     Some(raiseError.child)
   }
+
+  /**
+   * Shim layer for QueryExecution to maintain compatibility across different Spark versions.
+   *
+   * @since Spark
+   *   4.1
+   */
+  override def createSparkPlan(
+      sparkSession: SparkSession,
+      planner: SparkPlanner,
+      plan: LogicalPlan): SparkPlan =
+    QueryExecution.createSparkPlan(sparkSession, planner, plan)
 }

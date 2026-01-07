@@ -380,6 +380,18 @@ object VeloxConfig extends ConfigRegistry {
       .doubleConf
       .createWithDefault(0.1)
 
+  val MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemory")
+      .doc(
+        "Set the max extended memory of partial aggregation in bytes. When this option is set " +
+          "to a value greater than 0, it will override spark.gluten.sql.columnar.backend.velox." +
+          "maxExtendedPartialAggregationMemoryRatio. Note: this option only works when " +
+          "flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false."
+      )
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
   val MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio")
       .doc(

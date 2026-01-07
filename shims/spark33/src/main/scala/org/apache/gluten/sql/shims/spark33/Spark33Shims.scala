@@ -40,7 +40,7 @@ import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, TimestampFormatte
 import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
+import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, QueryExecution, SparkPlan, SparkPlanner}
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
@@ -408,4 +408,16 @@ class Spark33Shims extends SparkShims {
   override def getErrorMessage(raiseError: RaiseError): Option[Expression] = {
     Some(raiseError.child)
   }
+
+  /**
+   * Shim layer for QueryExecution to maintain compatibility across different Spark versions.
+   *
+   * @since Spark
+   *   4.1
+   */
+  override def createSparkPlan(
+      sparkSession: SparkSession,
+      planner: SparkPlanner,
+      plan: LogicalPlan): SparkPlan =
+    QueryExecution.createSparkPlan(sparkSession, planner, plan)
 }
