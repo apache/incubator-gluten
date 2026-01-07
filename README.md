@@ -174,7 +174,12 @@ We provide dedicated scripts to assist developers in setting up and installing B
 bash ./dev/install-conan.sh
 ```
 
+We also provide a Dockerfile to build a Docker image for the **Bolt** backend, it includes all the prerequisites required to build Gluten with Bolt backend.
+```shell
+docker buildx build -t bolt -f dev/docker/Dockerfile.centos8-bolt .
+```
 
+#### Build Bolt Backend
 To install bolt recipe for Gluten:
 ```shell
 # Install the recipes of Bolt and its third-party dependencies
