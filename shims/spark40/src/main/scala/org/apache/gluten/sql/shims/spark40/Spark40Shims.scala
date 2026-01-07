@@ -46,6 +46,7 @@ import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, BatchScanExecShim, DataSourceV2ScanExecBase}
@@ -765,4 +766,8 @@ class Spark40Shims extends SparkShims {
       planner: SparkPlanner,
       plan: LogicalPlan): SparkPlan =
     QueryExecution.createSparkPlan(sparkSession, planner, plan)
+
+  override def isFinalAdaptivePlan(p: AdaptiveSparkPlanExec): Boolean = {
+    p.isFinalPlan
+  }
 }

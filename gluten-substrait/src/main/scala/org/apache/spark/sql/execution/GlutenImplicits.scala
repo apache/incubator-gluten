@@ -95,10 +95,7 @@ object GlutenImplicits {
   }
 
   private def isFinalAdaptivePlan(p: AdaptiveSparkPlanExec): Boolean = {
-    val args = p.argString(Int.MaxValue)
-    val index = args.indexOf("isFinalPlan=")
-    assert(index >= 0)
-    args.substring(index + "isFinalPlan=".length).trim.toBoolean
+    SparkShimLoader.getSparkShims.isFinalAdaptivePlan(p)
   }
 
   private def collectFallbackNodes(
