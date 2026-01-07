@@ -197,6 +197,9 @@ Note that, the missing third-parties binaries will be built from source for the 
 To build gluten:
 
 ```shell
+# install arrow dependency for gluten
+make arrow
+
 make jar_spark35
 ```
 
