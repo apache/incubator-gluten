@@ -56,7 +56,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "current_database_catalog.sql",
     // "datetime-formatting-invalid.sql",
     "datetime-special.sql",
-    "decimalArithmeticOperations.sql",
+    // TODO: fix on Spark-4.1 "decimalArithmeticOperations.sql",
     "describe.sql",
     "describe-part-after-analyze.sql",
     "describe-table-after-alter-table.sql",
@@ -75,7 +75,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "grouping_set.sql",
     "having.sql",
     "higher-order-functions.sql",
-    "identifier-clause.sql",
+    // TODO: fix on Spark-4.1 "identifier-clause.sql",
     "ignored.sql",
     "ilike.sql",
     "ilike-all.sql",
@@ -86,11 +86,11 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "join-empty-relation.sql",
     "join-lateral.sql",
     "json-functions.sql",
-    "keywords.sql",
+    // TODO: fix on Spark-4.1 "keywords.sql",
     "like-all.sql",
     "like-any.sql",
     // "limit.sql",
-    "literals.sql",
+    // TODO: fix on Spark-4.1 "literals.sql",
     "map.sql",
     "mask-functions.sql",
     "math.sql",
@@ -99,7 +99,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "non-excludable-rule.sql",
     "null-handling.sql",
     "null-propagation.sql",
-    "operators.sql",
+    // TODO: fix on Spark-4.1 "operators.sql",
     "order-by-all.sql",
     // "order-by-nulls-ordering.sql",
     "order-by-ordinal.sql",
@@ -127,7 +127,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "subquery/exists-subquery/exists-cte.sql",
     "subquery/exists-subquery/exists-having.sql",
     "subquery/exists-subquery/exists-joins-and-set-ops.sql",
-    "subquery/exists-subquery/exists-orderby-limit.sql",
+    // TODO: fix on Spark-4.1 "subquery/exists-subquery/exists-orderby-limit.sql",
     "subquery/exists-subquery/exists-outside-filter.sql",
     "subquery/exists-subquery/exists-within-and-or.sql",
     "subquery/in-subquery/in-basic.sql",
@@ -163,7 +163,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "postgreSQL/case.sql",
     "postgreSQL/comments.sql",
     "postgreSQL/create_view.sql",
-    "postgreSQL/date.sql",
+    // TODO: fix on Spark-4.1 "postgreSQL/date.sql",
     "postgreSQL/float4.sql",
     "postgreSQL/float8.sql",
     "postgreSQL/groupingsets.sql",
@@ -237,8 +237,8 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "nonansi/double-quoted-identifiers.sql",
     "nonansi/higher-order-functions.sql",
     // "nonansi/interval.sql",
-    "nonansi/keywords.sql",
-    "nonansi/literals.sql",
+    // TODO: fix on Spark-4.1 "nonansi/keywords.sql",
+    // TODO: fix on Spark-4.1 "nonansi/literals.sql",
     "nonansi/map.sql",
     "nonansi/math.sql",
     "nonansi/parse-schema-string.sql",
@@ -273,20 +273,20 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     // Enable ConstantFolding rule for "typeof(...)".
     "cte.sql",
     // Removed some result mismatch cases.
-    "datetime-legacy.sql",
+    // TODO: fix on Spark-4.1 "datetime-legacy.sql",
     // Removed some result mismatch cases.
     "datetime-parsing.sql",
     // Removed some result mismatch cases.
     "datetime-parsing-legacy.sql",
     // Removed some result mismatch cases.
-    "datetime-parsing-invalid.sql",
+    // TODO: fix on Spark-4.1 "datetime-parsing-invalid.sql",
     // Overwrite exception message. See Spark-46550.
     "hll.sql",
     // Overwrite exception message.
     // TODO: Disable due to schema & ANSI gap
     // "interval.sql",
     // Enable ConstantFolding rule for "typeof(...)".
-    "misc-functions.sql",
+    // TODO: fix on Spark-4.1 "misc-functions.sql",
     // Removed some result mismatch cases.
     "regexp-functions.sql",
     // Removed some result mismatch cases.

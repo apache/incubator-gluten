@@ -21,7 +21,7 @@ import org.apache.gluten.exception.GlutenException
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.{LegacyBehaviorPolicy, SQLConf}
 import org.apache.spark.sql.types.{DateType, IntegerType, StructType, TimestampType}
 
 import org.scalatest.exceptions.TestFailedException
@@ -131,5 +131,5 @@ class GlutenCSVv2Suite extends GlutenCSVSuite {
 class GlutenCSVLegacyTimeParserSuite extends GlutenCSVSuite {
   override def sparkConf: SparkConf =
     super.sparkConf
-      .set(SQLConf.LEGACY_TIME_PARSER_POLICY, "legacy")
+      .set(SQLConf.LEGACY_TIME_PARSER_POLICY, LegacyBehaviorPolicy.LEGACY)
 }
