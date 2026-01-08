@@ -39,6 +39,7 @@ import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite
 import org.apache.spark.sql.gluten.{GlutenFallbackStrategiesSuite, GlutenFallbackSuite}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources._
+import org.apache.spark.sql.streaming.GlutenStreamingQuerySuite
 
 // Some settings' line length exceeds 100
 // scalastyle:off line.size.limit
