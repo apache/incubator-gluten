@@ -73,16 +73,11 @@ class VeloxTransformerApi extends TransformerApi with Logging {
     // S3A configurations that require time units for Velox.
     // Hadoop-aws versions before 3.4 do not include time units by default.
     // Reference: https://hadoop.apache.org/docs/stable/hadoop-aws/tools/hadoop-aws/performance.html
-    //
-    // Map of config key to its default time unit:
-    // - Most S3A time configs default to milliseconds
-    // - fs.s3a.threads.keepalivetime defaults to seconds (special case)
     val s3aTimeConfigs = Map(
       "spark.hadoop.fs.s3a.connection.timeout" -> "ms",
       "spark.hadoop.fs.s3a.connection.establish.timeout" -> "ms",
-      "spark.hadoop.fs.s3a.threads.keepalivetime" -> "s", // Note: defaults to seconds
-      "spark.hadoop.fs.s3a.connection.ttl" -> "ms",
-      "spark.hadoop.fs.s3a.multipart.purge.age" -> "ms"
+      "spark.hadoop.fs.s3a.threads.keepalivetime" -> "s",
+      "spark.hadoop.fs.s3a.multipart.purge.age" -> "s"
     )
 
     s3aTimeConfigs.foreach {
