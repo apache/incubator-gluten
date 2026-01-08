@@ -71,7 +71,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       nativeConfMap: JMap[String, String],
       backendPrefix: String): Unit = {
     // S3A configurations that require time units for Velox.
-    // Hadoop-aws versions before 3.3.6 do not include time units by default.
+    // Hadoop-aws versions before 3.4 do not include time units by default.
     // Reference: https://hadoop.apache.org/docs/r3.3.6/hadoop-aws/tools/hadoop-aws/#General_S3A_Client_configuration
     val s3aTimeConfigs = Map(
       "spark.hadoop.fs.s3a.connection.timeout" -> "ms",
