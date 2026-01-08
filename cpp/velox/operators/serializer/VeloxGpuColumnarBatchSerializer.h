@@ -19,34 +19,24 @@
 
 #include <arrow/c/abi.h>
 
+#include "VeloxColumnarBatchSerializer.h"
+
 #include "memory/ColumnarBatch.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 namespace gluten {
 
-class VeloxColumnarBatchSerializer : public ColumnarBatchSerializer {
+class VeloxGpuColumnarBatchSerializer final : public VeloxColumnarBatchSerializer {
  public:
-  VeloxColumnarBatchSerializer(
+  VeloxGpuColumnarBatchSerializer(
       arrow::MemoryPool* arrowPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       struct ArrowSchema* cSchema);
 
-  void append(const std::shared_ptr<ColumnarBatch>& batch) override;
-
-  int64_t maxSerializedSize() override;
-
-  void serializeTo(uint8_t* address, int64_t size) override;
-
+  // Deserialize to cudf table, then the Cudf pipeline accepts CudfVector, we can remove CudfFromveloc operator from the velox pipeline input.
   std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) override;
 
- protected:
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
-  std::unique_ptr<facebook::velox::StreamArena> arena_;
-  std::unique_ptr<facebook::velox::IterativeVectorSerializer> serializer_;
-  facebook::velox::RowTypePtr rowType_;
-  std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_;
-  facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions options_;
 };
 
 } // namespace gluten

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "CudfVectorStream.h"
-#include "velox/experimental/cudf/exec/NvtxHelper.h"
+#include "velox/experimental/cudf/exec/CudfOperator.h"
 #include "velox/experimental/cudf/exec/Utilities.h"
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
 #include "velox/experimental/cudf/vector/CudfVector.h"
@@ -93,8 +93,8 @@ class CudfValueStreamNode final : public facebook::velox::core::PlanNode {
   const std::vector<facebook::velox::core::PlanNodePtr> kEmptySources_;
 };
 
-// Extends NvtxHelper to identify it as GPU node, so not add CudfFormVelox operator.
-class CudfValueStream : public facebook::velox::exec::SourceOperator, public facebook::velox::cudf_velox::NvtxHelper {
+// Extends CudfOperator to identify it as GPU node, so not add CudfFormVelox operator.
+class CudfValueStream : public facebook::velox::exec::SourceOperator, public facebook::velox::cudf_velox::CudfOperator {
  public:
   CudfValueStream(
       int32_t operatorId,
@@ -106,10 +106,9 @@ class CudfValueStream : public facebook::velox::exec::SourceOperator, public fac
             operatorId,
             valueStreamNode->id(),
             valueStreamNode->name().data()),
-        facebook::velox::cudf_velox::NvtxHelper(
-            nvtx3::rgb{160, 82, 45}, // Sienna
+        facebook::velox::cudf_velox::CudfOperator(
             operatorId,
-            fmt::format("[{}]", valueStreamNode->id())) {
+            valueStreamNode->id()) {
     ResultIterator* itr = valueStreamNode->iterator();
     rvStream_ = std::make_unique<CudfVectorStream>(driverCtx, pool(), itr, outputType_);
   }
