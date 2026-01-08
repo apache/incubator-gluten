@@ -8,9 +8,13 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>gluten-ut-spark40</artifactId>
+  <artifactId>gluten-ut-spark41</artifactId>
   <packaging>jar</packaging>
-  <name>Gluten Unit Test Spark40</name>
+  <name>Gluten Unit Test Spark41</name>
+
+  <properties>
+    <parquet.version>1.16.0</parquet.version>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -23,14 +27,14 @@
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-column</artifactId>
-      <version>1.15.2</version>
+      <version>${parquet.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-common</artifactId>
-      <version>1.15.2</version>
+      <version>${parquet.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>

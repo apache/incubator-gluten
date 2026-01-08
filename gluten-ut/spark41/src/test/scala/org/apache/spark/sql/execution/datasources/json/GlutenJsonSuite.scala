@@ -20,7 +20,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{sources, GlutenSQLTestsBaseTrait, Row}
 import org.apache.spark.sql.execution.datasources.{InMemoryFileIndex, NoopCache}
 import org.apache.spark.sql.execution.datasources.v2.json.JsonScanBuilder
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.{LegacyBehaviorPolicy, SQLConf}
 import org.apache.spark.sql.types.{DateType, IntegerType, StructType, TimestampType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -136,5 +136,5 @@ class GlutenJsonLegacyTimeParserSuite extends GlutenJsonSuite with GlutenSQLTest
 
   override def sparkConf: SparkConf =
     super.sparkConf
-      .set(SQLConf.LEGACY_TIME_PARSER_POLICY, "legacy")
+      .set(SQLConf.LEGACY_TIME_PARSER_POLICY, LegacyBehaviorPolicy.LEGACY)
 }
