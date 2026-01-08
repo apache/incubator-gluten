@@ -878,8 +878,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-38173: Quoted column cannot be recognized correctly when quotedRegexColumnNames is true")
     // Rewrite with Gluten's explained result.
     .exclude("SPARK-47939: Explain should work with parameterized queries")
-    // TODO: fix on Spark-4.1 based on https://github.com/apache/incubator-gluten/pull/11252
-    .excludeGlutenTest("SPARK-47939: Explain should work with parameterized queries")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
     // The output byte size of Velox is different
