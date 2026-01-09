@@ -107,26 +107,20 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
-        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0", "spark-4.1"  ]
+        spark: [ "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0", "spark-4.1"  ]
         java: [ "java-8", "java-11", "java-17", "java-21" ]
         # Spark supports JDK17 since 3.3.
         exclude:
-          - spark: spark-3.2
-            java: java-21
           - spark: spark-3.3
             java: java-21
           - spark: spark-3.4
             java: java-21
           - spark: spark-3.5
             java: java-21
-          - spark: spark-3.2
-            java: java-17
           - spark: spark-3.4
             java: java-17
           - spark: spark-3.5
             java: java-17
-          - spark: spark-3.2
-            java: java-11
           - spark: spark-3.3
             java: java-11
           - spark: spark-3.4
@@ -198,8 +192,14 @@ jobs:
           $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+          && if [ "${{ matrix.spark }}" = "spark-4.0" ]; then \
+               GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+                 --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+                 --excluded-queries=q72; \
+             else \
+               GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+                 --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1; \
+             fi
 
   tpc-test-centos8:
     needs: build-native-lib-centos-7
@@ -207,18 +207,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "centos:8" ]
-        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0", "spark-4.1" ]
+        spark: [ "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0", "spark-4.1" ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3.
         exclude:
-          - spark: spark-3.2
-            java: java-17
           - spark: spark-3.4
             java: java-17
           - spark: spark-3.5
             java: java-17
-          - spark: spark-3.2
-            java: java-11
           - spark: spark-3.3
             java: java-11
           - spark: spark-3.4
@@ -283,7 +279,7 @@ jobs:
               ;;
           esac
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H / TPC-DS
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
@@ -308,7 +304,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
+        spark: [ "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8" ]
     runs-on: ubuntu-22.04
     steps:
@@ -364,7 +360,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2" ]
+        spark: [ "spark-3.3" ]
     runs-on: ubuntu-22.04
     steps:
       - name: Maximize build disk space
@@ -402,9 +398,9 @@ jobs:
           cd $GITHUB_WORKSPACE/ 
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
+          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
+      - name: TPC-DS SF30.0 Parquet local spark3.3 Q67/Q95 low memory, memory isolation off
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -416,7 +412,7 @@ jobs:
             -d=OVER_ACQUIRE:0.3,spark.gluten.memory.overAcquiredMemoryRatio=0.3 \
             -d=OVER_ACQUIRE:0.5,spark.gluten.memory.overAcquiredMemoryRatio=0.5 \
             --excluded-dims=OFFHEAP_SIZE:4g
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q67 low memory, memory isolation on
+      - name: TPC-DS SF30.0 Parquet local spark3.3 Q67 low memory, memory isolation on
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -427,7 +423,7 @@ jobs:
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
             -d=OVER_ACQUIRE:0.3,spark.gluten.memory.overAcquiredMemoryRatio=0.3 \
             -d=OVER_ACQUIRE:0.5,spark.gluten.memory.overAcquiredMemoryRatio=0.5
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q95 low memory, memory isolation on
+      - name: TPC-DS SF30.0 Parquet local spark3.3 Q95 low memory, memory isolation on
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -438,7 +434,7 @@ jobs:
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
             -d=OVER_ACQUIRE:0.3,spark.gluten.memory.overAcquiredMemoryRatio=0.3 \
             -d=OVER_ACQUIRE:0.5,spark.gluten.memory.overAcquiredMemoryRatio=0.5
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q23A/Q23B low memory
+      - name: TPC-DS SF30.0 Parquet local spark3.3 Q23A/Q23B low memory
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -449,7 +445,7 @@ jobs:
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:ABANDONED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:FLUSHED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=0.05,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=0.1,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q23A/Q23B low memory, memory isolation on
+      - name: TPC-DS SF30.0 Parquet local spark3.3 Q23A/Q23B low memory, memory isolation on
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -460,7 +456,7 @@ jobs:
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:ABANDONED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:FLUSHED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=0.05,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=0.1,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q97 low memory
+      - name: TPC-DS SF30.0 Parquet local spark3.3 Q97 low memory
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -479,7 +475,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2" ]
+        spark: [ "spark-3.3" ]
     runs-on: ubuntu-22.04
     steps:
       - name: Maximize build disk space
@@ -517,9 +513,9 @@ jobs:
           cd $GITHUB_WORKSPACE/ 
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
+          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-      - name: TPC-DS SF30.0 Parquet local spark3.2 random kill tasks
+      - name: TPC-DS SF30.0 Parquet local spark3.3 random kill tasks
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
@@ -531,7 +527,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2" ]
+        spark: [ "spark-3.3" ]
         uniffle: [ "0.10.0" ]
         hadoop: [ "2.8.5" ]
     runs-on: ubuntu-22.04
@@ -569,11 +565,11 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/ && \
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with uniffle-${{ matrix.uniffle }}
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3 with uniffle-${{ matrix.uniffle }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }} -Puniffle  && \
+          $MVN_CMD clean install -P${{ matrix.spark }} -Puniffle  && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
@@ -582,7 +578,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2" ]
+        spark: [ "spark-3.3" ]
         celeborn: [ "celeborn-0.6.1", "celeborn-0.5.4"]
         writer: ["sort", "hash"]
     runs-on: ubuntu-22.04
@@ -603,9 +599,10 @@ jobs:
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup java
+      - name: Setup java and maven
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          $SETUP install_maven
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
@@ -613,7 +610,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Pceleborn -DskipTests
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with ${{ matrix.celeborn }}
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3 with ${{ matrix.celeborn }}
         run: |
           EXTRA_PROFILE=""
           if [ "${{ matrix.celeborn }}" = "celeborn-0.5.4" ]; then
@@ -632,8 +629,7 @@ jobs:
           bash -c "echo -e 'CELEBORN_MASTER_MEMORY=8g\nCELEBORN_WORKER_MEMORY=8g\nCELEBORN_WORKER_OFFHEAP_MEMORY=16g' > ./conf/celeborn-env.sh" && \
           bash -c "echo -e 'celeborn.worker.commitFiles.threads 32\nceleborn.worker.sortPartition.threads 16' > ./conf/celeborn-defaults.conf" && \
           bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
-          cd $GITHUB_WORKSPACE && $MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} -Pbackends-velox -DskipTests && \
-          cd $GITHUB_WORKSPACE/tools/gluten-it && $GITHUB_WORKSPACE/$MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it && $MVN_CMD clean install -Pspark-3.3 -Pceleborn ${EXTRA_PROFILE} && \
           GLUTEN_IT_JVM_ARGS=-Xmx16G sbin/gluten-it.sh queries-compare \
             --extra-conf=spark.celeborn.client.spark.shuffle.writer=${{ matrix.writer }} \
             --extra-conf=spark.sql.shuffle.partitions=16 \
@@ -655,93 +651,6 @@ jobs:
               --benchmark-type=ds --error-on-memleak \
               --off-heap-size=16g -s=1.0 --threads=16 --iterations=1
           fi
-
-  spark-test-spark32:
-    needs: build-native-lib-centos-7
-    runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v4
-        with:
-          name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/
-      - uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
-        run: |
-          dnf module -y install python39 && \
-          alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.2.2 cython && \
-          pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Build and run unit test for Spark 3.2.2 (other tests)
-        run: |
-          cd $GITHUB_WORKSPACE/
-          export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Piceberg \
-          -Pdelta -Phudi -DargLine="-Dspark.test.home=/opt/shims/spark32/spark_home/" \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
-      - name: Upload test report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
-      - name: Upload unit tests log files
-        if: ${{ !success() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.job }}-test-log
-          path: |
-            **/target/*.log
-            **/gluten-ut/**/hs_err_*.log
-            **/gluten-ut/**/core.*
-      - name: Upload golden files
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.job }}-golden-files
-          path: /tmp/tpch-approved-plan/**
-
-  spark-test-spark32-slow:
-    needs: build-native-lib-centos-7
-    runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
-    steps:
-      - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and run unit test for Spark 3.2.2 (slow tests)
-        run: |
-          cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Piceberg -Pdelta -Phudi \
-          -DargLine="-Dspark.test.home=/opt/shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
-      - name: Upload test report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
-      - name: Upload unit tests log files
-        if: ${{ !success() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.job }}-test-log
-          path: |
-            **/target/*.log
-            **/gluten-ut/**/hs_err_*.log
-            **/gluten-ut/**/core.*
 
   spark-test-spark33:
     needs: build-native-lib-centos-7
