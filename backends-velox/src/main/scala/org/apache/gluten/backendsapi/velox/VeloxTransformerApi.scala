@@ -85,7 +85,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
     s3aTimeConfigs.foreach {
       case (configKey, defaultUnit) =>
         val configValue = nativeConfMap.get(configKey)
-        if (configValue != null && NumberUtils.isCreatable(configValue)) {
+        if (NumberUtils.isCreatable(configValue)) {
           // Config is numeric (no unit), append the default unit for backward compatibility
           nativeConfMap.put(configKey, s"$configValue$defaultUnit")
         }
