@@ -23,7 +23,10 @@ MVN_CMD="${BASEDIR}/../build/mvn"
 
 function build_for_spark {
   spark_version=$1
-  if [ $spark_version = "4.0" ]; then
+  # Extract major version (e.g., "3.2" -> "3", "4.0" -> "4")
+  major_version=$(echo $spark_version | cut -d'.' -f1)
+
+  if [ "$major_version" -ge 4 ]; then
     ${MVN_CMD} clean install -Pbackends-velox -Pspark-$spark_version -Pjava-17 -Pscala-2.13 -DskipTests
   else
     ${MVN_CMD} clean install -Pbackends-velox -Pspark-$spark_version -DskipTests
@@ -46,10 +49,14 @@ cd $GLUTEN_DIR
 check_supported
 
 # SPARK_VERSION is defined in builddeps-veloxbe.sh
+# SUPPORTED_SPARK_VERSIONS array is also defined in builddeps-veloxbe.sh
 if [ "$SPARK_VERSION" = "ALL" ]; then
-  for spark_version in 3.2 3.3 3.4 3.5 4.0
+  # Filter out "ALL" from the supported versions list
+  for spark_version in "${SUPPORTED_SPARK_VERSIONS[@]}"
   do
-    build_for_spark $spark_version
+    if [ "$spark_version" != "ALL" ]; then
+      build_for_spark $spark_version
+    fi
   done
 else
   build_for_spark $SPARK_VERSION
