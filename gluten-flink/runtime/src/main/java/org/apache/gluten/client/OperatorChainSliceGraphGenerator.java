@@ -103,17 +103,17 @@ class OperatorChainSliceGraphGenerator {
 
   private void startNewOperatorChainSlice(
       OperatorChainSlice parentChainSlice, StreamConfig childOpConfig) {
-    Boolean isFistVisit = false;
+    Boolean isFirstVisit = false;
     OperatorChainSlice childChainSlice = chainSliceGraph.getSlice(childOpConfig.getVertexID());
     if (childChainSlice == null) {
-      isFistVisit = true;
+      isFirstVisit = true;
       childChainSlice = new OperatorChainSlice(childOpConfig.getVertexID());
     }
 
     parentChainSlice.getOutputs().add(childChainSlice.id());
     childChainSlice.getInputs().add(parentChainSlice.id());
     // If this path has been visited, do not advance again.
-    if (isFistVisit) {
+    if (isFirstVisit) {
       childChainSlice.setOffloadable(isOffloadableOperator(childOpConfig));
       childChainSlice.getOperatorConfigs().add(childOpConfig);
       chainSliceGraph.addSlice(childOpConfig.getVertexID(), childChainSlice);

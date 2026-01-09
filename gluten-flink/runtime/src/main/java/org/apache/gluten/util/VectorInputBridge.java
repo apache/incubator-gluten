@@ -45,7 +45,6 @@ public class VectorInputBridge<IN> implements Serializable {
       this.nodeId = nodeId;
     }
   }
-  ;
 
   public VectorInputBridge(Class<IN> inClass, String nodeId) {
     this.inClass = inClass;

@@ -321,7 +321,7 @@ public class OffloadedJobGraphGenerator {
         null);
   }
 
-  // Incase the vetexs has been changed, update the stream edges.
+  // In case the vertices has been changed, update the stream edges.
   private void visitAndUpdateStreamEdges(
       OperatorChainSlice originalChainSlice,
       OperatorChainSliceGraph originalChainSliceGraph,
