@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.streaming.api.operators;
 
-import org.apache.gluten.table.runtime.operators.GlutenVectorSourceFunction;
+import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 import org.apache.gluten.util.ReflectUtils;
 import org.apache.gluten.util.Utils;
 
@@ -32,11 +32,24 @@ import java.util.Map;
 
 /** Legacy stream source operator in gluten, which will call Velox to run. */
 public class GlutenStreamSource extends StreamSource implements GlutenOperator {
-  private final GlutenVectorSourceFunction sourceFunction;
+  private final GlutenSourceFunction sourceFunction;
+  private final String description;
 
-  public GlutenStreamSource(GlutenVectorSourceFunction function) {
+  public GlutenStreamSource(GlutenSourceFunction function) {
     super(function);
     sourceFunction = function;
+    this.description = "";
+  }
+
+  public GlutenStreamSource(GlutenSourceFunction function, String description) {
+    super(function);
+    sourceFunction = function;
+    this.description = description;
+  }
+
+  @Override
+  public String getDescription() {
+    return description;
   }
 
   @Override
