@@ -71,34 +71,15 @@ if(ENABLE_GPU)
       facebook::velox::velox_cudf_hive_connector
       ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/hive/libvelox_cudf_hive_connector.a
     )
-    target_include_directories(
-      ${TEST_EXEC}
-      PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-src/cpp/include
-              ${VELOX_BUILD_PATH}/_deps/rmm-src/cpp/include
-              ${VELOX_BUILD_PATH}/_deps/kvikio-src/cpp/include
-              ${VELOX_BUILD_PATH}/_deps/nvtx3-src/c/include
-              ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/include
-              ${VELOX_BUILD_PATH}/_deps/rapids_logger-src/include
-              /usr/local/cuda/include)
     target_compile_definitions(
       ${TEST_EXEC} PUBLIC LIBCUDACXX_ENABLE_EXPERIMENTAL_MEMORY_RESOURCE)
-    target_link_libraries(
-      ${TEST_EXEC}
-      PRIVATE
-        ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so
-        ${VELOX_BUILD_PATH}/_deps/rmm-build/librmm.so
-        ${VELOX_BUILD_PATH}/_deps/kvikio-build/libkvikio.so
-        ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp.so
-        ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp_cpu.so
-        ${VELOX_BUILD_PATH}/_deps/rapids_logger-build/librapids_logger.so
-        /usr/local/cuda-12.8/lib64/libcudart.so.12)
     target_link_libraries(
       ${TEST_EXEC}
       PUBLIC facebook::velox::velox_cudf_expression
              facebook::velox::velox_cudf_exec
              facebook::velox::velox_cudf_vector
              facebook::velox::velox_cudf_hive_connector)
-    target_link_libraries(${TEST_EXEC} PRIVATE velox GTest::gtest
+    target_link_libraries(${TEST_EXEC} PRIVATE velox cudf::cudf GTest::gtest
                                                GTest::gtest_main)
     gtest_discover_tests(
       ${TEST_EXEC} DISCOVERY_MODE PRE_TEST
