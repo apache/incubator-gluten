@@ -244,10 +244,42 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "nonansi/parse-schema-string.sql",
     // "nonansi/string-functions.sql",
     // "nonansi/timestamp.sql",
-    "nonansi/try_aggregates.sql"
+    "nonansi/try_aggregates.sql",
     // "nonansi/try_arithmetic.sql",
     // "nonansi/try_datetime_functions.sql",
     // "nonansi/try_element_at.sql"
+
+    // newly added test files from spark 4.1
+    "alias-resolution-edge-cases.sql",
+    "collations-aliases.sql",
+    "collations-basic.sql",
+    "collations-padding-trim.sql",
+    "collations-string-functions.sql",
+    "cte-recursion.sql",
+    "extract-value-resolution-edge-cases.sql",
+    "generators.sql",
+    "having-and-order-by-recursive-type-name-resolution.sql",
+    "identifier-clause-legacy.sql",
+    "join-resolution-edge-cases.sql",
+    "kllquantiles.sql",
+    "name-precedence-in-order-by-and-having-with-conflicting-attributes.sql",
+    "nonansi/st-functions.sql",
+    "order-by-alias.sql",
+    "order-by-and-having-on-top-of-aggregate-with-join.sql",
+    "replacing-missing-expression-with-alias.sql",
+    "runtime-replaceable-edge-cases.sql",
+    "scripting/randomly_generated_scripts.sql",
+    "session-variable-precedence.sql",
+    "st-functions.sql",
+    "subquery/resolution-edge-cases.sql",
+    "thetasketch.sql",
+    "time.sql",
+    "type-coercion-edge-cases.sql",
+    "union-per-child-output-deduplication.sql",
+    "union-resolution-edge-cases.sql",
+    "variant-field-extractions.sql",
+    "view-conf.sql",
+    "window-with-aggregates.sql"
   )
 
   val OVERWRITE_SQL_QUERY_LIST: Set[String] = Set(
