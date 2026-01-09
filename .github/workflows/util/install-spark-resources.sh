@@ -89,11 +89,6 @@ INSTALL_DIR=${2:-/opt/}
 mkdir -p ${INSTALL_DIR}
 
 case "$1" in
-3.2)
-    # Spark-3.2
-    cd ${INSTALL_DIR} && \
-    install_spark "3.2.2" "3.2" "2.12"
-    ;;
 3.3)
     # Spark-3.3
     cd ${INSTALL_DIR} && \
