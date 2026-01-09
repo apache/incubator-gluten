@@ -92,6 +92,7 @@ DECLARE	false
 DEFAULT	false
 DEFINED	false
 DEFINER	false
+DELAY	false
 DELETE	false
 DELIMITED	false
 DESC	false
@@ -109,6 +110,7 @@ DROP	false
 ELSE	false
 ELSEIF	false
 END	false
+ENFORCED	false
 ESCAPE	false
 ESCAPED	false
 EVOLUTION	false
@@ -131,6 +133,7 @@ FILEFORMAT	false
 FILTER	false
 FIRST	false
 FLOAT	false
+FLOW	false
 FOLLOWING	false
 FOR	false
 FOREIGN	false
@@ -142,6 +145,8 @@ FULL	false
 FUNCTION	false
 FUNCTIONS	false
 GENERATED	false
+GEOGRAPHY	false
+GEOMETRY	false
 GLOBAL	false
 GRANT	false
 GROUP	false
@@ -178,6 +183,7 @@ ITEMS	false
 ITERATE	false
 JOIN	false
 JSON	false
+KEY	false
 KEYS	false
 LANGUAGE	false
 LAST	false
@@ -186,6 +192,7 @@ LAZY	false
 LEADING	false
 LEAVE	false
 LEFT	false
+LEVEL	false
 LIKE	false
 LIMIT	false
 LINES	false
@@ -201,6 +208,8 @@ LOOP	false
 MACRO	false
 MAP	false
 MATCHED	false
+MATERIALIZED	false
+MAX	false
 MERGE	false
 MICROSECOND	false
 MICROSECONDS	false
@@ -221,6 +230,7 @@ NANOSECONDS	false
 NATURAL	false
 NO	false
 NONE	false
+NORELY	false
 NOT	false
 NULL	false
 NULLS	false
@@ -250,6 +260,8 @@ POSITION	false
 PRECEDING	false
 PRIMARY	false
 PRINCIPALS	false
+PROCEDURE	false
+PROCEDURES	false
 PROPERTIES	false
 PURGE	false
 QUARTER	false
@@ -260,10 +272,12 @@ REAL	false
 RECORDREADER	false
 RECORDWRITER	false
 RECOVER	false
+RECURSION	false
 RECURSIVE	false
 REDUCE	false
 REFERENCES	false
 REFRESH	false
+RELY	false
 RENAME	false
 REPAIR	false
 REPEAT	false
@@ -312,6 +326,8 @@ START	false
 STATISTICS	false
 STORED	false
 STRATIFY	false
+STREAM	false
+STREAMING	false
 STRING	false
 STRUCT	false
 SUBSTR	false
@@ -369,6 +385,7 @@ VERSION	false
 VIEW	false
 VIEWS	false
 VOID	false
+WATERMARK	false
 WEEK	false
 WEEKS	false
 WHEN	false
@@ -377,6 +394,7 @@ WHILE	false
 WINDOW	false
 WITH	false
 WITHIN	false
+WITHOUT	false
 X	false
 YEAR	false
 YEARS	false
