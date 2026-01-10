@@ -193,7 +193,7 @@ if [ "$ENABLE_VCPKG" = "ON" ]; then
     source ./dev/vcpkg/env.sh ${BUILD_OPTIONS}
 fi
 
-if [ "$SPARK_VERSION" = "3.2" ] || [ "$SPARK_VERSION" = "3.3" ] \
+if [ "$SPARK_VERSION" = "3.3" ] \
   || [ "$SPARK_VERSION" = "3.4" ] || [ "$SPARK_VERSION" = "3.5" ] \
   || [ "$SPARK_VERSION" = "4.0" ] \
   || [ "$SPARK_VERSION" = "ALL" ]; then

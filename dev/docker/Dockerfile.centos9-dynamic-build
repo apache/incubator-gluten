@@ -44,7 +44,6 @@ RUN set -ex; \
     wget -nv ${mirror_host}/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz?action=download -O /opt/hadoop-2.8.5.tar.gz; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
     cd /opt/gluten/.github/workflows/util/; \
-    ./install-spark-resources.sh 3.2; \
     ./install-spark-resources.sh 3.3; \
     ./install-spark-resources.sh 3.4; \
     ./install-spark-resources.sh 3.5; \

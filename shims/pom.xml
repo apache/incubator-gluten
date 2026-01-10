@@ -69,12 +69,6 @@
 
   <profiles>
     <profile>
-      <id>spark-3.2</id>
-      <modules>
-        <module>spark32</module>
-      </modules>
-    </profile>
-    <profile>
       <id>spark-3.3</id>
       <modules>
         <module>spark33</module>
