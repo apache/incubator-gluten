@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
+package org.apache.spark.sql.streaming
 
 import org.apache.spark.sql.GlutenSQLTestsTrait
+import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 import org.apache.spark.sql.execution.exchange.REQUIRED_BY_STATEFUL_OPERATOR
 import org.apache.spark.sql.execution.streaming.runtime.MemoryStream
-import org.apache.spark.sql.streaming._
 
 class GlutenStreamingQuerySuite extends StreamingQuerySuite with GlutenSQLTestsTrait {
 
