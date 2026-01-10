@@ -195,7 +195,7 @@ Here we will explain how to run TPC-H on Velox backend with the Parquet file for
 
 # How to run TPC-DS
 
-wait to add
+Please refer to `${GLUTEN_HOME}/tools/workload/tpcds/README.md`.
 
 # How to track the memory exhaust problem
 
