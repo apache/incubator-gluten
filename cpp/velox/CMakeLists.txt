@@ -417,6 +417,8 @@ if(BUILD_EXAMPLES)
 endif()
 
 if(ENABLE_GPU)
+  find_package(cudf CONFIG REQUIRED)
+
   import_library(
     facebook::velox::velox_cudf_expression
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/expression/libvelox_cudf_expression.a
@@ -431,16 +433,6 @@ if(ENABLE_GPU)
     facebook::velox::velox_cudf_hive_connector
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/hive/libvelox_cudf_hive_connector.a
   )
-  target_include_directories(
-    velox
-    PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-src/cpp/include
-            ${VELOX_BUILD_PATH}/_deps/rmm-src/cpp/include
-            ${VELOX_BUILD_PATH}/_deps/kvikio-src/cpp/include
-            ${VELOX_BUILD_PATH}/_deps/nvtx3-src/c/include
-            ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/include
-            ${VELOX_BUILD_PATH}/_deps/rapids_logger-src/include
-            /usr/local/cuda/include/cccl
-            /usr/local/cuda/include)
 
   target_compile_definitions(
     velox PRIVATE LIBCUDACXX_ENABLE_EXPERIMENTAL_MEMORY_RESOURCE)
@@ -449,17 +441,7 @@ if(ENABLE_GPU)
     velox
     PUBLIC facebook::velox::velox_cudf_exec facebook::velox::velox_cudf_vector
            facebook::velox::velox_cudf_hive_connector
-           facebook::velox::velox_cudf_expression)
-  target_link_libraries(
-    velox
-    PRIVATE
-      ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so
-      ${VELOX_BUILD_PATH}/_deps/rmm-build/librmm.so
-      ${VELOX_BUILD_PATH}/_deps/kvikio-build/libkvikio.so
-      ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp.so
-      ${VELOX_BUILD_PATH}/_deps/nvcomp_proprietary_binary-src/lib64/libnvcomp_cpu.so
-      ${VELOX_BUILD_PATH}/_deps/rapids_logger-build/librapids_logger.so
-      /usr/local/cuda/lib64/libcudart.so)
+           facebook::velox::velox_cudf_expression cudf::cudf)
 endif()
 
 add_custom_command(

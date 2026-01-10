@@ -25,7 +25,7 @@ RUN cd /opt/gluten/.github/workflows/util/ && ./install-spark-resources.sh 3.4
 ENV SPARK_HOME=/opt/spark-3.4.4-bin-hadoop3
 ENV PATH=$SPARK_HOME/bin:$PATH
 ENV CUDA_ARCHITECTURES=70
-
+ENV LD_LIBRARY_PATH=/opt/gluten/ep/build-velox/build/velox_ep/_build/release/_deps/curl-build/lib:$LD_LIBRARY_PATH
 
 WORKDIR /opt/gluten
 RUN rm -rf /opt/rh/gcc-toolset-12 && ln -s /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12; \
