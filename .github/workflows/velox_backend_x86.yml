@@ -46,6 +46,7 @@ env:
   MVN_CMD: 'build/mvn -ntp'
   WGET_CMD: 'wget -nv'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  SETUP: 'source .github/workflows/util/setup-helper.sh'
   # spark.sql.ansi.enabled defaults to false.
   SPARK_ANSI_SQL_MODE: false
 
@@ -569,7 +570,7 @@ jobs:
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          $MVN_CMD clean install -P${{ matrix.spark }} -Puniffle  && \
+          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -Puniffle  && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
@@ -602,7 +603,8 @@ jobs:
       - name: Setup java and maven
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          $SETUP install_maven
+          source .github/workflows/util/setup-helper.sh
+          install_maven
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
@@ -629,7 +631,7 @@ jobs:
           bash -c "echo -e 'CELEBORN_MASTER_MEMORY=8g\nCELEBORN_WORKER_MEMORY=8g\nCELEBORN_WORKER_OFFHEAP_MEMORY=16g' > ./conf/celeborn-env.sh" && \
           bash -c "echo -e 'celeborn.worker.commitFiles.threads 32\nceleborn.worker.sortPartition.threads 16' > ./conf/celeborn-defaults.conf" && \
           bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
-          cd $GITHUB_WORKSPACE/tools/gluten-it && $MVN_CMD clean install -Pspark-3.3 -Pceleborn ${EXTRA_PROFILE} && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it && $GITHUB_WORKSPACE/$MVN_CMD clean install -Pspark-3.3 -Pceleborn ${EXTRA_PROFILE} && \
           GLUTEN_IT_JVM_ARGS=-Xmx16G sbin/gluten-it.sh queries-compare \
             --extra-conf=spark.celeborn.client.spark.shuffle.writer=${{ matrix.writer }} \
             --extra-conf=spark.sql.shuffle.partitions=16 \
