@@ -22,6 +22,7 @@ import org.apache.gluten.integration.collections.JavaCollectionConverter;
 import org.apache.gluten.integration.command.SparkRunModes;
 import org.apache.gluten.integration.ds.TpcdsSuite;
 import org.apache.gluten.integration.h.TpchSuite;
+import org.apache.gluten.integration.hdfs.HdfsSuite;
 import org.apache.gluten.integration.metrics.MetricMapper;
 
 import org.apache.log4j.Level;
@@ -269,6 +270,33 @@ public class BaseMixin {
                 dataDir,
                 dataScale,
                 genPartitionedData,
+                enableUi,
+                enableHsUi,
+                hsUiPort,
+                disableAqe,
+                disableBhj,
+                disableWscg,
+                shufflePartitions,
+                scanPartitions,
+                decimalAsDouble,
+                baselineMetricMapper,
+                testMetricMapper);
+        break;
+      case "hdfs":
+        suite =
+            new HdfsSuite(
+                runModeEnumeration.getSparkMasterUrl(),
+                actions,
+                testConf,
+                baselineConf,
+                extraSparkConfScala,
+                level,
+                errorOnMemLeak,
+                dataSource,
+                dataDir,
+                dataScale,
+                genPartitionedData,
+                JavaCollectionConverter.asScalaSeq(Arrays.asList(dataGenFeatures)),
                 enableUi,
                 enableHsUi,
                 hsUiPort,
