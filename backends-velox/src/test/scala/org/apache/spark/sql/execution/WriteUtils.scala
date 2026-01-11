@@ -16,18 +16,49 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
+
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest}
 import org.apache.spark.sql.catalyst.expressions.{BitwiseAnd, Expression, HiveHash, Literal, Pmod, UnsafeProjection}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.test.SQLTestUtils
+import org.apache.spark.sql.util.QueryExecutionListener
 
 import java.io.File
 
-trait BucketWriteUtils extends GlutenQueryTest with SQLTestUtils {
+trait WriteUtils extends GlutenQueryTest with SQLTestUtils {
 
   def tableDir(table: String): File = {
     val identifier = spark.sessionState.sqlParser.parseTableIdentifier(table)
     new File(spark.sessionState.catalog.defaultTablePath(identifier))
+  }
+
+  def checkNativeWrite(sqlStr: String, expectNative: Boolean = true): Unit = {
+    var nativeUsed = false
+    val queryListener = new QueryExecutionListener {
+      override def onFailure(f: String, qe: QueryExecution, e: Exception): Unit = {}
+      override def onSuccess(funcName: String, qe: QueryExecution, duration: Long): Unit = {
+        if (!nativeUsed) {
+          nativeUsed = if (isSparkVersionGE("3.4")) {
+            qe.executedPlan.find(_.isInstanceOf[ColumnarWriteFilesExec]).isDefined
+          } else {
+            qe.executedPlan.find(_.isInstanceOf[VeloxColumnarToCarrierRowExec]).isDefined
+          }
+        }
+      }
+    }
+    try {
+      spark.listenerManager.register(queryListener)
+      spark.sql(sqlStr)
+      spark.sparkContext.listenerBus.waitUntilEmpty()
+      if (expectNative) {
+        assert(nativeUsed)
+      } else {
+        assert(!nativeUsed)
+      }
+    } finally {
+      spark.listenerManager.unregister(queryListener)
+    }
   }
 
   protected def testBucketing(
