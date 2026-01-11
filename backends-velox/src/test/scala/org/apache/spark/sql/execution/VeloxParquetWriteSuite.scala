@@ -18,17 +18,16 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.VeloxWholeStageTransformerSuite
-import org.apache.gluten.test.FallbackUtil
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
-import org.junit.Assert
 
-class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
+class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite with WriteUtils {
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
@@ -74,13 +73,9 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
     withTempPath {
       f =>
         val path = f.getCanonicalPath
-        val testAppender = new LogAppender("native write tracker")
-        withLogAppender(testAppender) {
-          spark.sql("select array(struct(1), null) as var1").write.mode("overwrite").save(path)
-        }
-        assert(
-          !testAppender.loggingEvents.exists(
-            _.getMessage.toString.contains("Use Gluten parquet write for hive")))
+        checkNativeWrite(
+          s"INSERT OVERWRITE DIRECTORY '$path' USING PARQUET SELECT array(struct(1), null) as var1",
+          expectNative = false)
     }
   }
 
@@ -128,18 +123,27 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
       }
   }
 
+  test("test insert into") {
+    withTable("t") {
+      spark.sql("CREATE TABLE t (id INT) USING PARQUET")
+      checkNativeWrite("INSERT INTO t VALUES 1")
+      checkAnswer(spark.sql("SELECT * FROM t"), Row(1))
+    }
+  }
+
   test("test ctas") {
     withTable("velox_ctas") {
       spark
         .range(100)
         .toDF("id")
         .createOrReplaceTempView("ctas_temp")
-      val df = spark.sql("CREATE TABLE velox_ctas USING PARQUET AS SELECT * FROM ctas_temp")
-      Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
+      checkNativeWrite(
+        "CREATE TABLE velox_ctas USING PARQUET AS SELECT * FROM ctas_temp",
+        expectNative = isSparkVersionGE("3.4"))
     }
   }
 
-  test("test parquet dynamic partition write") {
+  test("test insert overwrite dir") {
     withTempPath {
       f =>
         val path = f.getCanonicalPath
@@ -147,8 +151,20 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
           .range(100)
           .selectExpr("id as c1", "id % 7 as p")
           .createOrReplaceTempView("temp")
-        val df = spark.sql(s"INSERT OVERWRITE DIRECTORY '$path' USING PARQUET SELECT * FROM temp")
-        Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
+        checkNativeWrite(s"INSERT OVERWRITE DIRECTORY '$path' USING PARQUET SELECT * FROM temp")
+    }
+  }
+
+  test("test dynamic and static partition write table") {
+    withTable("t") {
+      spark.sql(
+        "CREATE TABLE t (c int, d long, e long)" +
+          " USING PARQUET partitioned by (c, d)")
+      checkNativeWrite(
+        "INSERT OVERWRITE TABLE t partition(c=1, d)" +
+          " SELECT 3 as e, 2 as d")
+      checkAnswer(spark.table("t"), Row(3, 1, 2))
+      checkAnswer(spark.sql("SHOW PARTITIONS t"), Seq(Row("c=1/d=2")))
     }
   }
 
@@ -158,10 +174,10 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
         .range(100)
         .selectExpr("id as c1", "id % 7 as p")
         .createOrReplaceTempView("bucket_temp")
-      val df = spark.sql(
+      checkNativeWrite(
         "CREATE TABLE bucket USING PARQUET CLUSTERED BY (p) INTO 7 BUCKETS " +
-          "AS SELECT * FROM bucket_temp")
-      Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
+          "AS SELECT * FROM bucket_temp",
+        expectNative = false)
     }
   }
 
