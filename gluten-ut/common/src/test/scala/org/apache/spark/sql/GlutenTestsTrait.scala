@@ -129,7 +129,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     }
   }
 
-  protected var _spark: SparkSession = null
+  protected var _spark: SparkSession = _
 
   override protected def checkEvaluation(
       expression: => Expression,
@@ -138,7 +138,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
     if (canConvertToDataFrame(inputRow)) {
       val resolver = ResolveTimeZone
-      val expr = resolver.resolveTimeZones(expression)
+      val expr = replace(resolver.resolveTimeZones(expression))
       assert(expr.resolved)
 
       glutenCheckExpression(expr, expected, inputRow)
