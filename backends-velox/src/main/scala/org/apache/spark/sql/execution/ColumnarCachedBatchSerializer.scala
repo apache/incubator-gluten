@@ -26,7 +26,6 @@ import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized.ColumnarBatchSerializerJniWrapper
 
-import org.apache.spark.SparkException
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -63,14 +62,10 @@ class CachedColumnarBatchKryoSerializer extends KryoSerializer[CachedColumnarBat
   override def write(kryo: Kryo, output: Output, batch: CachedColumnarBatch): Unit = {
     output.writeInt(batch.numRows)
     output.writeLong(batch.sizeInBytes)
-    SparkException.require(
+    require(
       batch.bytes != null,
-      "INVALID_KRYO_SERIALIZER_NO_DATA",
-      Map(
-        "obj" -> "CachedColumnarBatch.bytes",
-        "serdeOp" -> "serialize",
-        "serdeClass" -> this.getClass.getName)
-    )
+      "The object 'CachedColumnarBatch.bytes' is invalid or malformed to " +
+        s"serialize using ${this.getClass.getName}")
     output.writeInt(batch.bytes.length + 1) // +1 to distinguish Kryo.NULL
     output.writeBytes(batch.bytes)
   }
@@ -82,14 +77,10 @@ class CachedColumnarBatchKryoSerializer extends KryoSerializer[CachedColumnarBat
     val numRows = input.readInt()
     val sizeInBytes = input.readLong()
     val length = input.readInt()
-    SparkException.require(
+    require(
       length != Kryo.NULL,
-      "INVALID_KRYO_SERIALIZER_NO_DATA",
-      Map(
-        "obj" -> "CachedColumnarBatch.bytes",
-        "serdeOp" -> "deserialize",
-        "serdeClass" -> this.getClass.getName)
-    )
+      "The object 'CachedColumnarBatch.bytes' is invalid or malformed to " +
+        s"deserialize using ${this.getClass.getName}")
     val bytes = new Array[Byte](length - 1) // -1 to restore
     input.readBytes(bytes)
     CachedColumnarBatch(numRows, sizeInBytes, bytes)
