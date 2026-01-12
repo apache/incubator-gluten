@@ -29,6 +29,9 @@ function(add_velox_test TEST_EXEC)
   target_include_directories(${TEST_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox
                                                   ${CMAKE_SOURCE_DIR}/src)
   target_link_libraries(${TEST_EXEC} velox GTest::gtest GTest::gtest_main)
+  if(ENABLE_GPU)
+    target_link_libraries(${TEST_EXEC} velox_curl)
+  endif()
   gtest_discover_tests(${TEST_EXEC} DISCOVERY_MODE PRE_TEST)
 endfunction()
 
@@ -79,7 +82,7 @@ if(ENABLE_GPU)
              facebook::velox::velox_cudf_exec
              facebook::velox::velox_cudf_vector
              facebook::velox::velox_cudf_hive_connector)
-    target_link_libraries(${TEST_EXEC} PRIVATE velox cudf::cudf GTest::gtest
+    target_link_libraries(${TEST_EXEC} PRIVATE velox cudf::cudf velox_curl GTest::gtest
                                                GTest::gtest_main)
     gtest_discover_tests(
       ${TEST_EXEC} DISCOVERY_MODE PRE_TEST

@@ -437,11 +437,16 @@ if(ENABLE_GPU)
   target_compile_definitions(
     velox PRIVATE LIBCUDACXX_ENABLE_EXPERIMENTAL_MEMORY_RESOURCE)
 
+  add_library(velox_curl SHARED IMPORTED GLOBAL)
+  set_target_properties(velox_curl PROPERTIES
+    IMPORTED_LOCATION
+      ${VELOX_BUILD_PATH}/_deps/curl-build/lib/libcurl.so)
+
   target_link_libraries(
     velox
     PUBLIC facebook::velox::velox_cudf_exec facebook::velox::velox_cudf_vector
            facebook::velox::velox_cudf_hive_connector
-           facebook::velox::velox_cudf_expression cudf::cudf)
+           facebook::velox::velox_cudf_expression cudf::cudf velox_curl)
 endif()
 
 add_custom_command(
