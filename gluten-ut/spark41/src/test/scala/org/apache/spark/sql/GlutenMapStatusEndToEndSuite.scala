@@ -16,4 +16,17 @@
  */
 package org.apache.spark.sql
 
-class GlutenMapStatusEndToEndSuite extends MapStatusEndToEndSuite with GlutenTestsTrait {}
+import org.apache.spark.sql.internal.SQLConf
+
+class GlutenMapStatusEndToEndSuite extends MapStatusEndToEndSuite with GlutenTestsTrait {
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    _spark.sparkContext.conf.set(SQLConf.LEAF_NODE_DEFAULT_PARALLELISM.key, "5")
+    _spark.conf.set(SQLConf.LEAF_NODE_DEFAULT_PARALLELISM.key, "5")
+
+    _spark.sparkContext.conf
+      .set(SQLConf.CLASSIC_SHUFFLE_DEPENDENCY_FILE_CLEANUP_ENABLED.key, "false")
+    _spark.conf.set(SQLConf.CLASSIC_SHUFFLE_DEPENDENCY_FILE_CLEANUP_ENABLED.key, "false")
+  }
+}
