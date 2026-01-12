@@ -14,61 +14,124 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.table.runtime.operators;
-
-import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
+package org.apache.gluten.util;
 
 import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.List;
 
-/*
- * This bridge is used to convert the output data to RowData or StatefulRecord.
- * and collect the output data to the collector.
+/**
+ * Interface for converting output data from StatefulRecord to Flink StreamRecord. Different
+ * implementations handle different output types.
  */
-public class VectorOutputBridge<OUT> implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(VectorOutputBridge.class);
-  private static final long serialVersionUID = 1L;
-  private final Class<OUT> outClass;
-  private transient StreamRecord<OUT> outElement;
+public interface VectorOutputBridge<OUT> extends Serializable {
 
-  public VectorOutputBridge(Class<OUT> outClass) {
-    this.outClass = outClass;
-    this.outElement = new StreamRecord<>(null);
-  }
-
-  private StreamRecord<OUT> getOutElement() {
-    if (outElement == null) {
-      outElement = new StreamRecord<>(null);
-    }
-    return outElement;
-  }
-
-  public void collect(
+  /**
+   * Converts a StatefulRecord to the appropriate output type and collects it to the output.
+   *
+   * @param collector the Flink output collector
+   * @param record the StatefulRecord to convert and collect
+   * @param allocator buffer allocator for converting RowVector
+   * @param outputType the RowType schema of the output
+   */
+  void collect(
       Output<StreamRecord<OUT>> collector,
       StatefulRecord record,
       BufferAllocator allocator,
-      RowType outputType) {
-    if (outClass.isAssignableFrom(RowData.class)) {
-      List<RowData> rows =
-          FlinkRowToVLVectorConvertor.toRowData(record.getRowVector(), allocator, outputType);
-      for (RowData row : rows) {
-        collector.collect(getOutElement().replace((OUT) row));
+      RowType outputType);
+
+  /** Factory for creating VectorOutputBridge instances based on output type. */
+  class Factory {
+    /**
+     * Creates a VectorOutputBridge instance for the given output class.
+     *
+     * @param outputClass the output class type
+     * @param <OUT> the output type
+     * @return a VectorOutputBridge instance
+     * @throws UnsupportedOperationException if output class is not supported
+     */
+    public static <OUT> VectorOutputBridge<OUT> create(Class<OUT> outputClass) {
+      if (outputClass.isAssignableFrom(org.apache.flink.table.data.RowData.class)) {
+        @SuppressWarnings("unchecked")
+        VectorOutputBridge<OUT> bridge = (VectorOutputBridge<OUT>) new RowDataOutputBridge();
+        return bridge;
+      } else if (outputClass.isAssignableFrom(StatefulRecord.class)) {
+        @SuppressWarnings("unchecked")
+        VectorOutputBridge<OUT> bridge = (VectorOutputBridge<OUT>) new StatefulRecordOutputBridge();
+        return bridge;
+      } else {
+        throw new UnsupportedOperationException(
+            "Unsupported output class: " + outputClass.getName());
       }
-    } else if (outClass.isAssignableFrom(StatefulRecord.class)) {
-      collector.collect(getOutElement().replace((OUT) record));
-    } else {
-      throw new UnsupportedOperationException("Unsupported output class: " + outClass.getName());
+    }
+  }
+
+  /**
+   * Implementation for RowData output type. Converts RowVector from StatefulRecord to RowData and
+   * collects to output.
+   */
+  class RowDataOutputBridge implements VectorOutputBridge<org.apache.flink.table.data.RowData> {
+    private static final long serialVersionUID = 1L;
+    private transient StreamRecord<org.apache.flink.table.data.RowData> outputElement;
+
+    public RowDataOutputBridge() {
+      this.outputElement = new StreamRecord<>(null);
+    }
+
+    @Override
+    public void collect(
+        Output<StreamRecord<org.apache.flink.table.data.RowData>> collector,
+        StatefulRecord record,
+        BufferAllocator allocator,
+        RowType outputType) {
+      java.util.List<org.apache.flink.table.data.RowData> rows =
+          org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor.toRowData(
+              record.getRowVector(), allocator, outputType);
+      for (org.apache.flink.table.data.RowData row : rows) {
+        collector.collect(getOrCreateOutputElement().replace(row));
+      }
+    }
+
+    private StreamRecord<org.apache.flink.table.data.RowData> getOrCreateOutputElement() {
+      if (outputElement == null) {
+        outputElement = new StreamRecord<>(null);
+      }
+      return outputElement;
+    }
+  }
+
+  /**
+   * Implementation for StatefulRecord output type. Passes through the StatefulRecord directly to
+   * output.
+   */
+  class StatefulRecordOutputBridge implements VectorOutputBridge<StatefulRecord> {
+    private static final long serialVersionUID = 1L;
+    private transient StreamRecord<StatefulRecord> outputElement;
+
+    public StatefulRecordOutputBridge() {
+      this.outputElement = new StreamRecord<>(null);
+    }
+
+    @Override
+    public void collect(
+        Output<StreamRecord<StatefulRecord>> collector,
+        StatefulRecord record,
+        BufferAllocator allocator,
+        RowType outputType) {
+      collector.collect(getOrCreateOutputElement().replace(record));
+    }
+
+    private StreamRecord<StatefulRecord> getOrCreateOutputElement() {
+      if (outputElement == null) {
+        outputElement = new StreamRecord<>(null);
+      }
+      return outputElement;
     }
   }
 }

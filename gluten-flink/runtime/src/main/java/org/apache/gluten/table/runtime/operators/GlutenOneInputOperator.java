@@ -19,6 +19,8 @@ package org.apache.gluten.table.runtime.operators;
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.table.runtime.config.VeloxConnectorConfig;
 import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
+import org.apache.gluten.util.VectorInputBridge;
+import org.apache.gluten.util.VectorOutputBridge;
 
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
@@ -78,7 +80,8 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
       Class<OUT> outClass,
       String description) {
     if (plan == null) {
-      throw new IllegalArgumentException("plan is null");
+      throw new IllegalArgumentException(
+          "StatefulPlanNode 'plan' cannot be null in GlutenOneInputOperator constructor");
     }
     this.glutenPlan = plan;
     this.id = id;
@@ -86,8 +89,8 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
     this.outputTypes = outputTypes;
     this.inClass = inClass;
     this.outClass = outClass;
-    this.inputBridge = new VectorInputBridge<>(inClass, getId());
-    this.outputBridge = new VectorOutputBridge<>(outClass);
+    this.inputBridge = VectorInputBridge.Factory.create(inClass, getId());
+    this.outputBridge = VectorOutputBridge.Factory.create(outClass);
     this.outputType = outputTypes.values().iterator().next();
     this.description = description;
   }
@@ -112,16 +115,17 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
       return;
     }
     if (inputBridge == null) {
-      inputBridge = new VectorInputBridge<>(inClass, getId());
+      inputBridge = VectorInputBridge.Factory.create(inClass, getId());
     }
     if (outputBridge == null) {
-      outputBridge = new VectorOutputBridge<>(outClass);
+      outputBridge = VectorOutputBridge.Factory.create(outClass);
     }
     sessionResource = new GlutenSessionResource();
     inputQueue = sessionResource.getSession().externalStreamOps().newBlockingQueue();
     // add a mock input as velox not allow the source is empty.
     if (inputType == null) {
-      throw new IllegalArgumentException("inputType is null. plan is " + Serde.toJson(glutenPlan));
+      LOG.warn("inputType is null. plan is " + Serde.toJson(glutenPlan));
+      throw new IllegalArgumentException("inputType cannot be null");
     }
     StatefulPlanNode mockInput =
         new StatefulPlanNode(
@@ -157,7 +161,7 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
       return;
     }
     StatefulRecord statefulRecord =
-        inputBridge.getRowVector(
+        inputBridge.convertToStatefulRecord(
             element, sessionResource.getAllocator(), sessionResource.getSession(), inputType);
     inputQueue.put(statefulRecord.getRowVector());
 

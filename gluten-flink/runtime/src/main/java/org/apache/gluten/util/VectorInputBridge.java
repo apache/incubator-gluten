@@ -14,57 +14,102 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.table.runtime.operators;
+package org.apache.gluten.util;
 
-import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
-
-import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.memory.BufferAllocator;
 
 import java.io.Serializable;
 
-// This bridge is used to convert the input data to RowVector.
-public class VectorInputBridge<IN> implements Serializable {
-  private static final long serialVersionUID = 1L;
-  private final Class<IN> inClass;
-  private final String nodeId;
+/**
+ * Interface for converting input data from Flink StreamRecord to StatefulRecord. Different
+ * implementations handle different input types.
+ */
+public interface VectorInputBridge<IN> extends Serializable {
 
-  public class RowVectorWrapper {
-    public RowVector rowVector;
-    public String nodeId;
+  /**
+   * Converts a StreamRecord to StatefulRecord based on the input type.
+   *
+   * @param inputData the input StreamRecord
+   * @param allocator buffer allocator for creating RowVector
+   * @param session Velox session
+   * @param inputType the RowType schema of the input
+   * @return StatefulRecord containing the converted or original data
+   */
+  StatefulRecord convertToStatefulRecord(
+      StreamRecord<IN> inputData, BufferAllocator allocator, Session session, RowType inputType);
 
-    public RowVectorWrapper(RowVector rowVector, String nodeId) {
-      this.rowVector = rowVector;
-      this.nodeId = nodeId;
+  /** Factory for creating VectorInputBridge instances based on input type. */
+  class Factory {
+    /**
+     * Creates a VectorInputBridge instance for the given input class.
+     *
+     * @param inputClass the input class type
+     * @param nodeId the node ID for the bridge
+     * @param <IN> the input type
+     * @return a VectorInputBridge instance
+     * @throws UnsupportedOperationException if input class is not supported
+     */
+    public static <IN> VectorInputBridge<IN> create(Class<IN> inputClass, String nodeId) {
+      if (inputClass.isAssignableFrom(org.apache.flink.table.data.RowData.class)) {
+        @SuppressWarnings("unchecked")
+        VectorInputBridge<IN> bridge = (VectorInputBridge<IN>) new RowDataInputBridge(nodeId);
+        return bridge;
+      } else if (inputClass.isAssignableFrom(StatefulRecord.class)) {
+        @SuppressWarnings("unchecked")
+        VectorInputBridge<IN> bridge = (VectorInputBridge<IN>) new StatefulRecordInputBridge();
+        return bridge;
+      } else {
+        throw new UnsupportedOperationException("Unsupported input class: " + inputClass.getName());
+      }
     }
   }
 
-  public VectorInputBridge(Class<IN> inClass, String nodeId) {
-    this.inClass = inClass;
-    this.nodeId = nodeId;
-  }
+  /**
+   * Implementation for RowData input type. Converts RowData to RowVector and wraps in
+   * StatefulRecord.
+   */
+  class RowDataInputBridge implements VectorInputBridge<org.apache.flink.table.data.RowData> {
+    private static final long serialVersionUID = 1L;
+    private final String nodeId;
 
-  public StatefulRecord getRowVector(
-      StreamRecord<IN> inputData, BufferAllocator allocator, Session session, RowType inputType) {
-    if (inClass.isAssignableFrom(RowData.class)) {
-      RowData rowData = (RowData) inputData.getValue();
-      RowVector rowVector =
-          FlinkRowToVLVectorConvertor.fromRowData(rowData, allocator, session, inputType);
+    public RowDataInputBridge(String nodeId) {
+      this.nodeId = nodeId;
+    }
+
+    @Override
+    public StatefulRecord convertToStatefulRecord(
+        StreamRecord<org.apache.flink.table.data.RowData> inputData,
+        BufferAllocator allocator,
+        Session session,
+        RowType inputType) {
+      org.apache.flink.table.data.RowData rowData = inputData.getValue();
+      var rowVector =
+          org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor.fromRowData(
+              rowData, allocator, session, inputType);
       StatefulRecord statefulRecord = new StatefulRecord(nodeId, rowVector.id(), 0, false, -1);
       statefulRecord.setRowVector(rowVector);
       return statefulRecord;
-    } else if (inClass.isAssignableFrom(StatefulRecord.class)) {
-      // Create a new RowVector Reference. And the original RowVector Object is safe to close.
-      return (StatefulRecord) inputData.getValue();
-    } else {
-      throw new UnsupportedOperationException("Unsupported input class: " + inClass.getName());
+    }
+  }
+
+  /** Implementation for StatefulRecord input type. Passes through the StatefulRecord directly. */
+  class StatefulRecordInputBridge implements VectorInputBridge<StatefulRecord> {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public StatefulRecord convertToStatefulRecord(
+        StreamRecord<StatefulRecord> inputData,
+        BufferAllocator allocator,
+        Session session,
+        RowType inputType) {
+      // Pass through the StatefulRecord directly. This bridge does not take ownership of or close.
+      return inputData.getValue();
     }
   }
 }

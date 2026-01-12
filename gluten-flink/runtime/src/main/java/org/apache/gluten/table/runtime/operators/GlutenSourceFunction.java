@@ -29,6 +29,7 @@ import io.github.zhztheplayer.velox4j.query.SerialTask;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
 import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
+import io.github.zhztheplayer.velox4j.stateful.StatefulWatermark;
 import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.configuration.Configuration;
@@ -64,7 +65,6 @@ public class GlutenSourceFunction<OUT> extends RichParallelSourceFunction<OUT>
   private SerialTask task;
   private SourceTaskMetrics taskMetrics;
   private final Class<OUT> outClass;
-  private boolean isClosed = false;
 
   public GlutenSourceFunction(
       StatefulPlanNode planNode,
@@ -102,41 +102,89 @@ public class GlutenSourceFunction<OUT> extends RichParallelSourceFunction<OUT>
 
   @Override
   public void run(SourceContext<OUT> sourceContext) throws Exception {
-
     while (isRunning) {
       UpIterator.State state = task.advance();
-      if (state == UpIterator.State.AVAILABLE) {
-        StatefulElement element = task.statefulGet();
-        if (element.isRecord()) {
-          StatefulRecord record = element.asRecord();
-          if (outClass.isAssignableFrom(RowData.class)) {
-            List<RowData> rows =
-                FlinkRowToVLVectorConvertor.toRowData(
-                    record.getRowVector(), sessionResource.getAllocator(), outputTypes.get(id));
-            for (RowData row : rows) {
-              sourceContext.collect((OUT) row);
-            }
-          } else if (outClass.isAssignableFrom(StatefulRecord.class)) {
-            StatefulRecord statefulRecord = (StatefulRecord) record;
-            sourceContext.collect((OUT) record);
-          } else {
-            throw new UnsupportedOperationException(
-                "Unsupported output class: " + outClass.getName());
-          }
-        } else if (element.isWatermark()) {
-          sourceContext.emitWatermark(new Watermark(element.asWatermark().getTimestamp()));
-        } else {
-          LOG.debug("ignore not record or watermark element");
-        }
-        element.close();
-      } else if (state == UpIterator.State.BLOCKED) {
-        LOG.debug("Get empty row");
-      } else {
-        LOG.info("Velox task finished");
-        break;
+      switch (state) {
+        case AVAILABLE:
+          processAvailableElement(sourceContext);
+          break;
+        case BLOCKED:
+          LOG.debug("Get empty row");
+          break;
+        default:
+          LOG.info("Velox task finished");
+          return;
       }
       taskMetrics.updateMetrics(task, id);
     }
+  }
+
+  /** Processes an available element from the task, handling records and watermarks. */
+  private void processAvailableElement(SourceContext<OUT> sourceContext) {
+    StatefulElement element = task.statefulGet();
+    try {
+      if (element.isRecord()) {
+        processRecord(sourceContext, element.asRecord());
+      } else if (element.isWatermark()) {
+        processWatermark(sourceContext, element.asWatermark());
+      } else {
+        LOG.debug("Ignoring element that is neither record nor watermark");
+      }
+    } finally {
+      element.close();
+    }
+  }
+
+  /** Strategy for collecting a StatefulRecord into the source context. */
+  private interface OutputHandler<OUT> {
+    void collect(SourceContext<OUT> sourceContext, StatefulRecord record);
+  }
+  /** Returns the appropriate OutputHandler based on the configured output class. */
+  private OutputHandler<OUT> getOutputHandler() {
+    if (isRowDataOutput()) {
+      return this::collectAsRowData;
+    }
+    if (isStatefulRecordOutput()) {
+      return this::collectAsStatefulRecord;
+    }
+    throw unsupportedOutputException();
+  }
+  /** Creates an exception for unsupported output class configurations. */
+  private UnsupportedOperationException unsupportedOutputException() {
+    return new UnsupportedOperationException("Unsupported output class: " + outClass.getName());
+  }
+  /** Processes a StatefulRecord and collects it to the source context. */
+  private void processRecord(SourceContext<OUT> sourceContext, StatefulRecord record) {
+    OutputHandler handler = getOutputHandler();
+    handler.collect(sourceContext, record);
+  }
+
+  /** Processes a watermark and emits it to the source context. */
+  private void processWatermark(SourceContext<OUT> sourceContext, StatefulWatermark watermark) {
+    sourceContext.emitWatermark(new Watermark(watermark.getTimestamp()));
+  }
+
+  /** Collects a StatefulRecord as RowData by converting the RowVector. */
+  private void collectAsRowData(SourceContext<OUT> sourceContext, StatefulRecord record) {
+    List<RowData> rows =
+        FlinkRowToVLVectorConvertor.toRowData(
+            record.getRowVector(), sessionResource.getAllocator(), outputTypes.get(id));
+    for (RowData row : rows) {
+      sourceContext.collect((OUT) row);
+    }
+  }
+
+  /** Collects a StatefulRecord directly without conversion. */
+  private void collectAsStatefulRecord(SourceContext<OUT> sourceContext, StatefulRecord record) {
+    sourceContext.collect((OUT) record);
+  }
+
+  private boolean isRowDataOutput() {
+    return outClass.isAssignableFrom(RowData.class);
+  }
+
+  private boolean isStatefulRecordOutput() {
+    return outClass.isAssignableFrom(StatefulRecord.class);
   }
 
   @Override

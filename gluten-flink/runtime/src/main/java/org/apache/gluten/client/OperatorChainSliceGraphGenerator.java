@@ -16,112 +16,130 @@
  */
 package org.apache.gluten.client;
 
-import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
-import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.util.Utils;
 
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Generates an OperatorChainSliceGraph from a JobVertex by analyzing its operator chain structure.
+ * The graph represents operator slices and their relationships, identifying which slices are
+ * offloadable to Gluten.
+ */
 class OperatorChainSliceGraphGenerator {
-  private OperatorChainSliceGraph chainSliceGraph = null;
-  private JobVertex jobVertex;
+  private OperatorChainSliceGraph chainSliceGraph;
+  private final JobVertex jobVertex;
   private Map<Integer, StreamConfig> chainedConfigs;
-  private final ClassLoader userClassloader;
+  private final ClassLoader userClassLoader;
 
-  public OperatorChainSliceGraphGenerator(JobVertex jobVertex, ClassLoader userClassloader) {
+  public OperatorChainSliceGraphGenerator(JobVertex jobVertex, ClassLoader userClassLoader) {
     this.jobVertex = jobVertex;
-    this.userClassloader = userClassloader;
+    this.userClassLoader = userClassLoader;
   }
 
+  /**
+   * Generates and returns the OperatorChainSliceGraph for the JobVertex. The graph is generated
+   * lazily on first call and cached.
+   *
+   * @return the generated OperatorChainSliceGraph
+   */
   public OperatorChainSliceGraph getGraph() {
-    generateInternal();
+    if (chainSliceGraph == null) {
+      generateGraph();
+    }
     return chainSliceGraph;
   }
 
-  private void generateInternal() {
-    if (chainSliceGraph != null) {
-      return;
-    }
+  /** Generates the OperatorChainSliceGraph by traversing the operator chain. */
+  private void generateGraph() {
     chainSliceGraph = new OperatorChainSliceGraph();
+    StreamConfig rootConfig = new StreamConfig(jobVertex.getConfiguration());
 
-    StreamConfig rootOpConfig = new StreamConfig(jobVertex.getConfiguration());
+    chainedConfigs = collectChainedConfigs(rootConfig);
+    OperatorChainSlice rootSlice = createRootSlice(rootConfig);
+    chainSliceGraph.addSlice(rootSlice.id(), rootSlice);
 
-    chainedConfigs = new HashMap<>();
-    rootOpConfig
-        .getTransitiveChainedTaskConfigs(userClassloader)
-        .forEach(
-            (id, config) -> {
-              chainedConfigs.put(id, new StreamConfig(config.getConfiguration()));
-            });
-    chainedConfigs.put(rootOpConfig.getVertexID(), rootOpConfig);
-
-    OperatorChainSlice chainSlice = new OperatorChainSlice(rootOpConfig.getVertexID());
-    chainSlice.setOffloadable(isOffloadableOperator(rootOpConfig));
-    chainSlice.getOperatorConfigs().add(rootOpConfig);
-    chainSliceGraph.addSlice(chainSlice.id(), chainSlice);
-
-    advanceOperatorChainSlice(chainSlice, rootOpConfig);
+    traverseOperatorChain(rootSlice, rootConfig);
   }
 
-  private void advanceOperatorChainSlice(
-      OperatorChainSlice chainSlice, StreamConfig currentOpConfig) {
-    List<StreamEdge> outputEdges = currentOpConfig.getChainedOutputs(userClassloader);
+  /** Collects all chained operator configurations from the root configuration. */
+  private Map<Integer, StreamConfig> collectChainedConfigs(StreamConfig rootConfig) {
+    Map<Integer, StreamConfig> configs = new HashMap<>();
+    rootConfig
+        .getTransitiveChainedTaskConfigs(userClassLoader)
+        .forEach((id, config) -> configs.put(id, new StreamConfig(config.getConfiguration())));
+    configs.put(rootConfig.getVertexID(), rootConfig);
+    return configs;
+  }
+
+  /** Creates the root operator chain slice. */
+  private OperatorChainSlice createRootSlice(StreamConfig rootConfig) {
+    OperatorChainSlice rootSlice = new OperatorChainSlice(rootConfig.getVertexID());
+    rootSlice.setOffloadable(isOffloadableOperator(rootConfig));
+    rootSlice.getOperatorConfigs().add(rootConfig);
+    return rootSlice;
+  }
+
+  /** Traverses the operator chain recursively, creating slices for each operator. */
+  private void traverseOperatorChain(OperatorChainSlice currentSlice, StreamConfig currentConfig) {
+    List<StreamEdge> outputEdges = currentConfig.getChainedOutputs(userClassLoader);
     if (outputEdges == null || outputEdges.isEmpty()) {
       return;
     }
-    if (outputEdges.size() == 1) {
-      Integer targetId = outputEdges.get(0).getTargetId();
-      StreamConfig childOpConfig = chainedConfigs.get(targetId);
-      // We don't coalesce operators into the same velox plan at present. Each operator is a
-      // separate velox plan.
-      startNewOperatorChainSlice(chainSlice, childOpConfig);
+
+    for (StreamEdge edge : outputEdges) {
+      Integer targetId = edge.getTargetId();
+      StreamConfig childConfig = chainedConfigs.get(targetId);
+      processChildOperator(currentSlice, childConfig);
+    }
+  }
+
+  /**
+   * Processes a child operator, creating a new slice if not already visited. Note: We don't
+   * coalesce operators into the same velox plan at present. Each operator is a separate velox plan.
+   */
+  private void processChildOperator(OperatorChainSlice parentSlice, StreamConfig childConfig) {
+    Integer childId = childConfig.getVertexID();
+    OperatorChainSlice childSlice = chainSliceGraph.getSlice(childId);
+
+    if (childSlice == null) {
+      // First visit: create new slice and continue traversal
+      childSlice = createChildSlice(childConfig);
+      chainSliceGraph.addSlice(childId, childSlice);
+      connectSlices(parentSlice, childSlice);
+      traverseOperatorChain(childSlice, childConfig);
     } else {
-      for (StreamEdge edge : outputEdges) {
-        Integer targetId = edge.getTargetId();
-        StreamConfig childOpConfig = chainedConfigs.get(targetId);
-        startNewOperatorChainSlice(chainSlice, childOpConfig);
-      }
+      // Already visited: just connect the slices
+      connectSlices(parentSlice, childSlice);
     }
   }
 
-  private void startNewOperatorChainSlice(
-      OperatorChainSlice parentChainSlice, StreamConfig childOpConfig) {
-    Boolean isFirstVisit = false;
-    OperatorChainSlice childChainSlice = chainSliceGraph.getSlice(childOpConfig.getVertexID());
-    if (childChainSlice == null) {
-      isFirstVisit = true;
-      childChainSlice = new OperatorChainSlice(childOpConfig.getVertexID());
-    }
-
-    parentChainSlice.getOutputs().add(childChainSlice.id());
-    childChainSlice.getInputs().add(parentChainSlice.id());
-    // If this path has been visited, do not advance again.
-    if (isFirstVisit) {
-      childChainSlice.setOffloadable(isOffloadableOperator(childOpConfig));
-      childChainSlice.getOperatorConfigs().add(childOpConfig);
-      chainSliceGraph.addSlice(childOpConfig.getVertexID(), childChainSlice);
-      advanceOperatorChainSlice(childChainSlice, childOpConfig);
-    }
+  /** Creates a new operator chain slice for a child operator. */
+  private OperatorChainSlice createChildSlice(StreamConfig childConfig) {
+    OperatorChainSlice childSlice = new OperatorChainSlice(childConfig.getVertexID());
+    childSlice.setOffloadable(isOffloadableOperator(childConfig));
+    childSlice.getOperatorConfigs().add(childConfig);
+    return childSlice;
   }
 
+  /** Connects two operator chain slices by adding their relationship. */
+  private void connectSlices(OperatorChainSlice parentSlice, OperatorChainSlice childSlice) {
+    parentSlice.getOutputs().add(childSlice.id());
+    childSlice.getInputs().add(parentSlice.id());
+  }
+
+  /**
+   * Checks if an operator is offloadable to Gluten.
+   *
+   * @param opConfig the operator configuration to check
+   * @return true if the operator is offloadable, false otherwise
+   */
   private boolean isOffloadableOperator(StreamConfig opConfig) {
-    StreamOperatorFactory operatorFactory = opConfig.getStreamOperatorFactory(userClassloader);
-    if (operatorFactory instanceof SimpleOperatorFactory) {
-      StreamOperator streamOperator = opConfig.getStreamOperator(userClassloader);
-      if (streamOperator instanceof GlutenOperator) {
-        return true;
-      }
-    } else if (operatorFactory instanceof GlutenOneInputOperatorFactory) {
-      return true;
-    }
-    return false;
+    return Utils.getGlutenOperator(opConfig, userClassLoader).isPresent();
   }
 }

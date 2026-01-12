@@ -16,16 +16,12 @@
  */
 package org.apache.gluten.client;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class OperatorChainSliceGraph {
-  private static final Logger LOG = LoggerFactory.getLogger(OperatorChainSliceGraph.class);
   private Map<Integer, OperatorChainSlice> slices;
 
   public OperatorChainSliceGraph() {
@@ -51,12 +47,12 @@ public class OperatorChainSliceGraph {
 
     if (sourceCandidates.isEmpty()) {
       throw new IllegalStateException(
-          "No source suboperator chain found (no suboperator chain with empty inputs)");
+          "No source operator chain slice found (no operator chain slice with empty inputs)");
     } else if (sourceCandidates.size() > 1) {
       throw new IllegalStateException(
-          "Multiple source suboperator chains found: "
+          "Multiple source operator chain slices found: "
               + sourceCandidates.size()
-              + " suboperator chains have empty inputs");
+              + " operator chain slices have empty inputs");
     }
 
     return sourceCandidates.get(0);
@@ -66,17 +62,24 @@ public class OperatorChainSliceGraph {
     return slices;
   }
 
-  public void dumpLog() {
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
     for (OperatorChainSlice chainSlice : slices.values()) {
-      LOG.info("Slice ID: {}, offloadable: {}", chainSlice.id(), chainSlice.isOffloadable());
-      LOG.info("  Inputs: {}", chainSlice.getInputs().toString());
-      LOG.info("  Outputs: {}", chainSlice.getOutputs().toString());
-      LOG.info(
-          "  Operator Configs: {}",
+      sb.append("Slice ID: ")
+          .append(chainSlice.id())
+          .append(", offloadable: ")
+          .append(chainSlice.isOffloadable())
+          .append("\n");
+      sb.append("  Inputs: ").append(chainSlice.getInputs()).append("\n");
+      sb.append("  Outputs: ").append(chainSlice.getOutputs()).append("\n");
+      String operatorConfigs =
           chainSlice.getOperatorConfigs().stream()
               .map(config -> config.getOperatorName() + "(" + config.getVertexID() + ")")
               .reduce((a, b) -> a + ", " + b)
-              .orElse(""));
+              .orElse("");
+      sb.append("  Operator Configs: ").append(operatorConfigs).append("\n");
     }
+    return sb.toString();
   }
 }
