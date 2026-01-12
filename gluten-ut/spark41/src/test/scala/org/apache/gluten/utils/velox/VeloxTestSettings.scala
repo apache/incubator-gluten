@@ -993,8 +993,22 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-53942: changing the number of stateless shuffle partitions via config")
     .exclude("SPARK-53942: stateful shuffle partitions are retained from old checkpoint")
   enableSuite[GlutenStreamRealTimeModeAllowlistSuite]
+    // TODO: fix on Spark-4.1 see https://github.com/apache/spark/pull/52891
+    .exclude("rtm operator allowlist")
+    .exclude("repartition not allowed")
+    .exclude("stateful queries not allowed")
   enableSuite[GlutenStreamRealTimeModeE2ESuite]
+    // TODO: fix on Spark-4.1 see https://github.com/apache/spark/pull/52870
+    .exclude("foreach")
+    .exclude("union - foreach")
+    .exclude("mapPartitions")
+    .exclude("union - mapPartitions")
+    .exclude("stream static join")
+    .exclude("to_json and from_json round-trip")
+    .exclude("generateExec passthrough")
   enableSuite[GlutenStreamRealTimeModeSuite]
+    // TODO: fix on Spark-4.1 see https://github.com/apache/spark/pull/52473
+    .exclude("processAllAvailable")
   enableSuite[GlutenQueryExecutionSuite]
     // Rewritten to set root logger level to INFO so that logs can be parsed
     .exclude("Logging plan changes for execution")
