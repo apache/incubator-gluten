@@ -36,6 +36,7 @@ import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.delta.{DeltaOptions, GlutenParquetFileFormat}
 import org.apache.spark.sql.delta.logging.DeltaLogKeys
+import org.apache.spark.sql.delta.stats.GlutenDeltaJobStatsTracker
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
@@ -125,13 +126,14 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
     val dataSchema = dataColumns.toStructType
     DataSourceUtils.verifySchema(fileFormat, dataSchema)
     DataSourceUtils.checkFieldNames(fileFormat, dataSchema)
-    // Note: prepareWrite has side effect. It sets "job".
+    val isNativeWritable = GlutenParquetFileFormat.isNativeWritable(dataSchema)
 
     val outputDataColumns =
       if (caseInsensitiveOptions.get(DeltaOptions.WRITE_PARTITION_COLUMNS).contains("true")) {
         dataColumns ++ partitionColumns
       } else dataColumns
 
+    // Note: prepareWrite has side effect. It sets "job".
     val outputWriterFactory =
       fileFormat.prepareWrite(
         sparkSession,
@@ -139,6 +141,12 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
         caseInsensitiveOptions,
         outputDataColumns.toStructType
       )
+
+    val maybeWrappedStatsTrackers: Seq[WriteJobStatsTracker] = if (isNativeWritable) {
+      statsTrackers.map(GlutenDeltaJobStatsTracker(_))
+    } else {
+      statsTrackers
+    }
 
     val description = new WriteJobDescription(
       uuid = UUID.randomUUID.toString,
@@ -157,7 +165,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
       timeZoneId = caseInsensitiveOptions
         .get(DateTimeUtils.TIMEZONE_OPTION)
         .getOrElse(sparkSession.sessionState.conf.sessionLocalTimeZone),
-      statsTrackers = statsTrackers
+      statsTrackers = maybeWrappedStatsTrackers
     )
 
     // We should first sort by dynamic partition columns, then bucket id, and finally sorting
@@ -222,7 +230,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
         partitionColumns,
         sortColumns,
         orderingMatched,
-        GlutenParquetFileFormat.isNativeWritable(dataSchema)
+        isNativeWritable
       )
     }
   }
@@ -459,6 +467,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
       } else {
         concurrentOutputWriterSpec match {
           case Some(spec) =>
+            // TODO: Concurrent writer is not yet supported.
             new DynamicPartitionDataConcurrentWriter(
               description,
               taskAttemptContext,
@@ -468,7 +477,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
           case _ =>
             // Columnar-based partition writer to divide the input batch by partition values
             // and bucket IDs in advance.
-            new ColumnarDynamicPartitionDataSingleWriter(description, taskAttemptContext, committer)
+            new GlutenDynamicPartitionDataSingleWriter(description, taskAttemptContext, committer)
         }
       }
 
@@ -525,7 +534,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
     }
   }
 
-  private class ColumnarDynamicPartitionDataSingleWriter(
+  private class GlutenDynamicPartitionDataSingleWriter(
                                                           description: WriteJobDescription,
                                                           taskAttemptContext: TaskAttemptContext,
                                                           committer: FileCommitProtocol,
