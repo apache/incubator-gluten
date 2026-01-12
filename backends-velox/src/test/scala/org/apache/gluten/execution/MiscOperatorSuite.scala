@@ -2200,7 +2200,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       spark.sql("create temp view y (y1, y2) as values (2, 0), (3, -1);")
 
       runQueryAndCompare(
-        "select *, (select count(*) from y where x1 = y1 and y2 + 10 = x1 + 1 group by y2) from x") {
+        "select *," +
+          " (select count(*) from y where x1 = y1 and y2 + 10 = x1 + 1 group by y2) from x") {
         df =>
           assert(
             getExecutedPlan(df).collect {
