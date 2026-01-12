@@ -24,6 +24,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -2190,6 +2191,23 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         val executedPlan = getExecutedPlan(df)
         assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
         assert(executedPlan.count(_.isInstanceOf[ColumnarPartialProjectExec]) == 1)
+    }
+  }
+
+  test("Left single join should not result into exception") {
+    withSQLConf(SQLConf.ANSI_ENABLED.key -> "false") {
+      spark.sql("create temp view x (x1, x2) as values (1, 1), (2, 2);")
+      spark.sql("create temp view y (y1, y2) as values (2, 0), (3, -1);")
+
+      runQueryAndCompare(
+        "select *, (select count(*) from y where x1 = y1 and y2 + 10 = x1 + 1 group by y2) from x") {
+        df =>
+          assert(
+            getExecutedPlan(df).collect {
+              case join: BaseJoinExec if join.joinType.toString == "LeftSingle" => join
+            }.size == 1
+          )
+      }
     }
   }
 }
