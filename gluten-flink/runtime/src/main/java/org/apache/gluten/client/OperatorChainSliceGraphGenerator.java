@@ -26,24 +26,17 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 class OperatorChainSliceGraphGenerator {
-  private static final Logger LOG = LoggerFactory.getLogger(OperatorChainSliceGraphGenerator.class);
   private OperatorChainSliceGraph chainSliceGraph = null;
-  private Map<Integer, List<Integer>> operatorParents;
   private JobVertex jobVertex;
   private Map<Integer, StreamConfig> chainedConfigs;
   private final ClassLoader userClassloader;
 
   public OperatorChainSliceGraphGenerator(JobVertex jobVertex, ClassLoader userClassloader) {
-    this.operatorParents = new HashMap<>();
     this.jobVertex = jobVertex;
     this.userClassloader = userClassloader;
   }
@@ -69,8 +62,6 @@ class OperatorChainSliceGraphGenerator {
               chainedConfigs.put(id, new StreamConfig(config.getConfiguration()));
             });
     chainedConfigs.put(rootOpConfig.getVertexID(), rootOpConfig);
-
-    collectOperatorParents(rootOpConfig, null);
 
     OperatorChainSlice chainSlice = new OperatorChainSlice(rootOpConfig.getVertexID());
     chainSlice.setOffloadable(isOffloadableOperator(rootOpConfig));
@@ -121,25 +112,6 @@ class OperatorChainSliceGraphGenerator {
     }
   }
 
-  private void collectOperatorParents(StreamConfig currentOp, StreamConfig parentOp) {
-    List<Integer> parents =
-        operatorParents.computeIfAbsent(currentOp.getVertexID(), k -> new ArrayList<>());
-    if (parentOp != null) {
-      parents.add(parentOp.getVertexID());
-    }
-
-    List<StreamEdge> outputEdges = currentOp.getChainedOutputs(userClassloader);
-    if (outputEdges == null || outputEdges.isEmpty()) {
-      return;
-    }
-    for (StreamEdge edge : outputEdges) {
-      Integer targetId = edge.getTargetId();
-      StreamConfig childOp = chainedConfigs.get(targetId);
-
-      collectOperatorParents(childOp, currentOp);
-    }
-  }
-
   private boolean isOffloadableOperator(StreamConfig opConfig) {
     StreamOperatorFactory operatorFactory = opConfig.getStreamOperatorFactory(userClassloader);
     if (operatorFactory instanceof SimpleOperatorFactory) {
@@ -151,47 +123,5 @@ class OperatorChainSliceGraphGenerator {
       return true;
     }
     return false;
-  }
-
-  private void alignOffloadableOperatorChainSlice(
-      OperatorChainSlice chainSlice, OperatorChainSliceGraph chainSliceGraph) {
-    List<Integer> outputIDs = chainSlice.getOutputs();
-    for (Integer outputID : outputIDs) {
-      OperatorChainSlice outputChainSlice = chainSliceGraph.getSlice(outputID);
-      alignOffloadableOperatorChainSlice(outputChainSlice, chainSliceGraph);
-    }
-    if (!chainSlice.isOffloadable()) {
-      return;
-    }
-
-    if (outputIDs.size() > 1) {
-      boolean allOffloadable = true;
-      boolean hasOffloadable = false;
-      for (Integer outputID : outputIDs) {
-        OperatorChainSlice outputChainSlice = chainSliceGraph.getSlice(outputID);
-        if (!outputChainSlice.isOffloadable()) {
-          allOffloadable = false;
-        } else {
-          hasOffloadable = true;
-        }
-      }
-      if (hasOffloadable && !allOffloadable) {
-        chainSlice.setOffloadable(false);
-      }
-    }
-
-    List<Integer> inputIDs = chainSlice.getInputs();
-    if (inputIDs.size() > 1) {
-      boolean allOffloadable = true;
-      boolean hasOffloadable = false;
-      for (Integer inputID : inputIDs) {
-        OperatorChainSlice inputChainSlice = chainSliceGraph.getSlice(inputID);
-        if (!inputChainSlice.isOffloadable()) {
-          allOffloadable = false;
-        } else {
-          hasOffloadable = true;
-        }
-      }
-    }
   }
 }

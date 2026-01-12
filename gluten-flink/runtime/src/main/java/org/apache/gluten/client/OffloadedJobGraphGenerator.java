@@ -31,6 +31,8 @@ import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -86,7 +88,8 @@ public class OffloadedJobGraphGenerator {
 
     OperatorChainSlice sourceChainSlice = chainSliceGraph.getSourceSlice();
     OperatorChainSliceGraph targetChainSliceGraph = new OperatorChainSliceGraph();
-    visitAndOffloadChainOperators(sourceChainSlice, chainSliceGraph, targetChainSliceGraph, 0);
+    visitAndOffloadChainOperators(
+        sourceChainSlice, chainSliceGraph, targetChainSliceGraph, 0, jobVertex);
     visitAndUpdateStreamEdges(sourceChainSlice, chainSliceGraph, targetChainSliceGraph);
     serializeAllOperatorsConfigs(targetChainSliceGraph);
 
@@ -99,7 +102,6 @@ public class OffloadedJobGraphGenerator {
       // Update the first operator config
       sourceConfig.setStreamOperatorFactory(
           targetSourceConfig.getStreamOperatorFactory(userClassloader));
-      List<StreamEdge> chainedOutputs = targetSourceConfig.getChainedOutputs(userClassloader);
       sourceConfig.setChainedOutputs(targetSourceConfig.getChainedOutputs(userClassloader));
 
       // Update the serializers and partitioners
@@ -140,13 +142,13 @@ public class OffloadedJobGraphGenerator {
       OperatorChainSlice chainSlice,
       OperatorChainSliceGraph originalChainSliceGraph,
       OperatorChainSliceGraph targetChainSliceGraph,
-      Integer chainedIndex) {
+      Integer chainedIndex,
+      JobVertex jobVertex) {
     List<Integer> outputs = chainSlice.getOutputs();
-    List<Integer> outputIndex = new ArrayList<>();
     OperatorChainSlice finalChainSlice = null;
     if (chainSlice.isOffloadable()) {
       finalChainSlice =
-          OffloadOperatorChainSlice(originalChainSliceGraph, chainSlice, chainedIndex);
+          OffloadOperatorChainSlice(originalChainSliceGraph, chainSlice, chainedIndex, jobVertex);
       chainedIndex = chainedIndex + 1;
     } else {
       finalChainSlice = applyUnoffloadableOperatorChainSlice(chainSlice, chainedIndex);
@@ -162,7 +164,11 @@ public class OffloadedJobGraphGenerator {
       OperatorChainSlice outputResultChainSlice = targetChainSliceGraph.getSlice(outputChainIndex);
       if (outputResultChainSlice == null) {
         visitAndOffloadChainOperators(
-            outputChainSlice, originalChainSliceGraph, targetChainSliceGraph, chainedIndex);
+            outputChainSlice,
+            originalChainSliceGraph,
+            targetChainSliceGraph,
+            chainedIndex,
+            jobVertex);
       }
     }
   }
@@ -185,7 +191,8 @@ public class OffloadedJobGraphGenerator {
   private OperatorChainSlice OffloadOperatorChainSlice(
       OperatorChainSliceGraph chainSliceGraph,
       OperatorChainSlice originalChainSlice,
-      Integer chainedIndex) {
+      Integer chainedIndex,
+      JobVertex jobVertex) {
     OperatorChainSlice finalChainSlice = new OperatorChainSlice(originalChainSlice.id());
     List<StreamConfig> operatorConfigs = originalChainSlice.getOperatorConfigs();
 
@@ -202,7 +209,8 @@ public class OffloadedJobGraphGenerator {
     StreamConfig finalOpConfig =
         new StreamConfig(new Configuration(originalOpConfig.getConfiguration()));
     if (originalOp instanceof GlutenStreamSource) {
-      boolean couldOutputRowVector = couldOutputRowVector(originalChainSlice, chainSliceGraph);
+      boolean couldOutputRowVector =
+          couldOutputRowVector(originalChainSlice, chainSliceGraph, jobVertex);
       Class<?> outClass = couldOutputRowVector ? StatefulRecord.class : RowData.class;
       GlutenStreamSource newSourceOp =
           new GlutenStreamSource(
@@ -219,8 +227,10 @@ public class OffloadedJobGraphGenerator {
             new GlutenStatefulRecordSerializer(rowType, originalOp.getId()));
       }
     } else if (originalOp instanceof GlutenOneInputOperator) {
-      boolean couldOutputRowVector = couldOutputRowVector(originalChainSlice, chainSliceGraph);
-      boolean couldInputRowVector = couldInputRowVector(originalChainSlice, chainSliceGraph);
+      boolean couldOutputRowVector =
+          couldOutputRowVector(originalChainSlice, chainSliceGraph, jobVertex);
+      boolean couldInputRowVector =
+          couldInputRowVector(originalChainSlice, chainSliceGraph, jobVertex);
       Class<?> inClass = couldInputRowVector ? StatefulRecord.class : RowData.class;
       Class<?> outClass = couldOutputRowVector ? StatefulRecord.class : RowData.class;
       GlutenOneInputOperator<?, ?> newOneInputOp =
@@ -255,8 +265,10 @@ public class OffloadedJobGraphGenerator {
       }
     } else if (originalOp instanceof GlutenTwoInputOperator) {
       GlutenTwoInputOperator<?, ?> twoInputOp = (GlutenTwoInputOperator<?, ?>) originalOp;
-      boolean couldOutputRowVector = couldOutputRowVector(originalChainSlice, chainSliceGraph);
-      boolean couldInputRowVector = couldInputRowVector(originalChainSlice, chainSliceGraph);
+      boolean couldOutputRowVector =
+          couldOutputRowVector(originalChainSlice, chainSliceGraph, jobVertex);
+      boolean couldInputRowVector =
+          couldInputRowVector(originalChainSlice, chainSliceGraph, jobVertex);
       KeySelector<?, ?> keySelector0 = originalOpConfig.getStatePartitioner(0, userClassloader);
       if (keySelector0 != null) {
         LOG.info(
@@ -407,37 +419,128 @@ public class OffloadedJobGraphGenerator {
   }
 
   boolean couldOutputRowVector(
-      OperatorChainSlice chainSlice, OperatorChainSliceGraph chainSliceGraph) {
+      OperatorChainSlice chainSlice, OperatorChainSliceGraph chainSliceGraph, JobVertex jobVertex) {
     boolean could = true;
-    for (Integer outputID : chainSlice.getOutputs()) {
-      OperatorChainSlice outputChainSlice = chainSliceGraph.getSlice(outputID);
-      if (!outputChainSlice.isOffloadable()) {
-        could = false;
-        break;
+    List<Integer> outputs = chainSlice.getOutputs();
+
+    // If chainSlice has downstream in the operator chain, check these downstream
+    if (!outputs.isEmpty()) {
+      for (Integer outputID : outputs) {
+        OperatorChainSlice outputChainSlice = chainSliceGraph.getSlice(outputID);
+        if (!outputChainSlice.isOffloadable()) {
+          could = false;
+          break;
+        }
+        List<Integer> inputs = outputChainSlice.getInputs();
+        if (!isAllOffloadable(chainSliceGraph, inputs)) {
+          could = false;
+          break;
+        }
       }
-      List<Integer> inputs = outputChainSlice.getInputs();
-      if (!isAllOffloadable(chainSliceGraph, inputs)) {
-        could = false;
-        break;
+    } else {
+      // If chainSlice has no downstream in the operator chain, get downstream JobVertex from
+      // JobGraph level
+      // Use the provided jobVertex directly
+      List<JobVertex> downstreamVertices = getDownstreamJobVertices(jobVertex);
+      if (downstreamVertices.isEmpty()) {
+        // If there is no downstream JobVertex, can output RowVector (no downstream needs
+        // conversion)
+        could = true;
+      } else {
+        // Check if downstream vertex's operator is gluten operator
+        for (JobVertex downstreamVertex : downstreamVertices) {
+          StreamConfig downstreamStreamConfig =
+              new StreamConfig(downstreamVertex.getConfiguration());
+          Optional<GlutenOperator> glutenOperator = getGlutenOperator(downstreamStreamConfig);
+          if (!glutenOperator.isPresent()) {
+            could = false;
+            break;
+          }
+        }
       }
     }
     return could;
   }
 
   boolean couldInputRowVector(
-      OperatorChainSlice chainSlice, OperatorChainSliceGraph chainSliceGraph) {
+      OperatorChainSlice chainSlice, OperatorChainSliceGraph chainSliceGraph, JobVertex jobVertex) {
     boolean could = true;
-    for (Integer inputID : chainSlice.getInputs()) {
-      OperatorChainSlice inputChainSlice = chainSliceGraph.getSlice(inputID);
-      if (!inputChainSlice.isOffloadable()) {
-        could = false;
-        break;
+    List<Integer> inputs = chainSlice.getInputs();
+
+    // If chainSlice has upstream in the operator chain, check these upstream
+    if (!inputs.isEmpty()) {
+      for (Integer inputID : inputs) {
+        OperatorChainSlice inputChainSlice = chainSliceGraph.getSlice(inputID);
+        if (!inputChainSlice.isOffloadable()) {
+          could = false;
+          break;
+        }
+        if (!couldOutputRowVector(inputChainSlice, chainSliceGraph, jobVertex)) {
+          could = false;
+          break;
+        }
       }
-      if (!couldOutputRowVector(inputChainSlice, chainSliceGraph)) {
-        could = false;
-        break;
+    } else {
+      // If chainSlice has no upstream in the operator chain, get upstream JobVertex from JobGraph
+      // level
+      // Use the provided jobVertex directly
+      List<JobVertex> upstreamVertices = getUpstreamJobVertices(jobVertex);
+      if (upstreamVertices.isEmpty()) {
+        // If there is no upstream JobVertex, can input RowVector (no upstream needs conversion)
+        could = true;
+      } else {
+        // Check if the last operator of upstream vertex is gluten operator
+        for (JobVertex upstreamVertex : upstreamVertices) {
+          StreamConfig upstreamStreamConfig = new StreamConfig(upstreamVertex.getConfiguration());
+          Map<Integer, StreamConfig> chainedConfigs =
+              upstreamStreamConfig.getTransitiveChainedTaskConfigs(userClassloader);
+          chainedConfigs.put(upstreamStreamConfig.getVertexID(), upstreamStreamConfig);
+
+          // Find the last operator (the one with no chained outputs)
+          StreamConfig lastOpConfig = null;
+          for (StreamConfig config : chainedConfigs.values()) {
+            List<StreamEdge> chainedOutputs = config.getChainedOutputs(userClassloader);
+            if (chainedOutputs == null || chainedOutputs.isEmpty()) {
+              lastOpConfig = config;
+              break;
+            }
+          }
+
+          // If no last operator found, use the root config
+          if (lastOpConfig == null) {
+            lastOpConfig = upstreamStreamConfig;
+          }
+
+          Optional<GlutenOperator> glutenOperator = getGlutenOperator(lastOpConfig);
+          if (!glutenOperator.isPresent()) {
+            could = false;
+            break;
+          }
+        }
       }
     }
     return could;
+  }
+
+  /** Get all downstream JobVertices of a JobVertex. */
+  private List<JobVertex> getDownstreamJobVertices(JobVertex vertex) {
+    List<JobVertex> downstreamVertices = new ArrayList<>();
+    for (IntermediateDataSet dataSet : vertex.getProducedDataSets()) {
+      for (JobEdge edge : dataSet.getConsumers()) {
+        JobVertex downstreamVertex = edge.getTarget();
+        downstreamVertices.add(downstreamVertex);
+      }
+    }
+    return downstreamVertices;
+  }
+
+  /** Get all upstream JobVertices of a JobVertex. */
+  private List<JobVertex> getUpstreamJobVertices(JobVertex vertex) {
+    List<JobVertex> upstreamVertices = new ArrayList<>();
+    for (JobEdge edge : vertex.getInputs()) {
+      JobVertex upstreamVertex = edge.getSource().getProducer();
+      upstreamVertices.add(upstreamVertex);
+    }
+    return upstreamVertices;
   }
 }

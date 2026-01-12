@@ -40,10 +40,6 @@ public class OperatorChainSliceGraph {
     return slices.get(id);
   }
 
-  public void removeSlice(Integer id) {
-    slices.remove(id);
-  }
-
   public OperatorChainSlice getSourceSlice() {
     List<OperatorChainSlice> sourceCandidates = new ArrayList<>();
 
