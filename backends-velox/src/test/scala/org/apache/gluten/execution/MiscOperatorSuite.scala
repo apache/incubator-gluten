@@ -2194,7 +2194,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
-  test("Left single join should not result into exception") {
+  testWithMinSparkVersion("Left single join should not result into exception", "4.0") {
     withSQLConf(SQLConf.ANSI_ENABLED.key -> "false") {
       spark.sql("create temp view x (x1, x2) as values (1, 1), (2, 2);")
       spark.sql("create temp view y (y1, y2) as values (2, 0), (3, -1);")
