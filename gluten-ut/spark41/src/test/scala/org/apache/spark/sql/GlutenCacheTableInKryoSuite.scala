@@ -16,4 +16,14 @@
  */
 package org.apache.spark.sql
 
-class GlutenCacheTableInKryoSuite extends CacheTableInKryoSuite with GlutenSQLTestsTrait {}
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.config.Kryo.KRYO_CLASSES_TO_REGISTER
+import org.apache.spark.sql.execution.CachedColumnarBatch
+
+class GlutenCacheTableInKryoSuite extends CacheTableInKryoSuite with GlutenSQLTestsTrait {
+
+  override def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(KRYO_CLASSES_TO_REGISTER.key, classOf[CachedColumnarBatch].getCanonicalName)
+  }
+}
