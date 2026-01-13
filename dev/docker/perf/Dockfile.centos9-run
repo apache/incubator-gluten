@@ -1,0 +1,115 @@
+FROM quay.io/centos/centos:stream9
+
+ARG ARG_SPARK_TGZ_URL=https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz
+ARG ARG_SPARK_TGZ_ASC_URL=https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz.asc
+ARG ARG_GPG_KEY=D76E23B9F11B5BF6864613C4F7051850A0AF904D
+ARG ARG_ICEBERG_URL=https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/1.5.0/iceberg-spark-runtime-3.5_2.12-1.5.0.jar
+
+COPY requirements.txt /opt/
+
+
+RUN set -ex; \
+    useradd spark; \
+    dnf install -y bash vim libssh gnupg2 hostname java-17-openjdk less net-tools procps python3 sudo util-linux wget which pip; \
+    dnf install -y epel-release; \
+    dnf install -y jemalloc; \
+    ln -s $(which python3) /usr/bin/python; \
+    pip install -r /opt/requirements.txt; \
+    python3 -m pip install --upgrade jsonschema; \
+    rm -rf /opt/requirements.txt; \
+    dnf clean all; \
+    mkdir -p /opt/spark/work-dir; \
+    mkdir -p /opt/spark/work-dir/ipython/output; \
+    mkdir -p /opt/spark/work-dir/ipython/result; \
+    mkdir -p /opt/spark/work-dir/ipython/analysis; \
+    chmod g+w /opt/spark/work-dir; \
+    mkdir -p /opt/spark/events; \
+    chmod g+w /opt/spark/events; \
+    export SPARK_TMP="$(mktemp -d)"; \
+    cd $SPARK_TMP; \
+    wget -nv -O spark.tgz "$ARG_SPARK_TGZ_URL"; \
+    wget -nv -O spark.tgz.asc "$ARG_SPARK_TGZ_ASC_URL"; \
+    export GNUPGHOME="$(mktemp -d)"; \
+    gpg --batch --keyserver hkps://keys.openpgp.org --recv-key "$GPG_KEY" || gpg --batch --keyserver hkps://keyserver.ubuntu.com --recv-keys "$ARG_GPG_KEY"; \
+    gpg --batch --verify spark.tgz.asc spark.tgz; \
+    gpgconf --kill all; \
+    rm -rf "$GNUPGHOME" spark.tgz.asc; \
+    tar -xf spark.tgz --strip-components=1; \
+    chown -R spark:spark .; \
+    mv RELEASE  /opt/spark/; \
+    mv bin      /opt/spark/; \
+    mv conf     /opt/spark/; \
+    mv data     /opt/spark/; \
+    mv examples /opt/spark/; \
+    mv jars     /opt/spark/; \
+    mv python   /opt/spark/; \
+    mv sbin     /opt/spark/; \
+    cd ..; \
+    rm -rf "$SPARK_TMP"; \
+    cd /opt/spark/jars; \
+    wget -nv https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar; \
+    wget -nv https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar; \
+    wget -nv $ARG_ICEBERG_URL; \
+    cd /opt/spark; \
+    chown -R spark:spark .; \
+    echo 'spark ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers; \
+    echo 'alias ll="ls -alh"' >> /etc/bashrc
+    
+
+COPY entrypoint.sh /opt/
+COPY ipython /opt/spark/work-dir/ipython
+COPY telegraf.conf /etc/telegraf/telegraf.conf
+COPY spark-defaults.conf /opt/spark/conf//spark-defaults.conf 
+
+RUN echo "/usr/lib64/gluten-libs" > /etc/ld.so.conf.d/gluten.conf && ldconfig
+
+ENV SPARK_HOME=/opt/spark \
+    PATH=$SPARK_HOME/bin:$PATH
+
+WORKDIR /opt/spark/work-dir
+
+USER spark
+RUN jupyter notebook --generate-config; \
+    mkdir -p ~/.jupyter/custom/; \
+    echo '.container { width:100% !important; }' >> ~/.jupyter/custom/custom.css; \
+    echo 'div.output_stderr { background: #ffdd; display: none; }'  >> ~/.jupyter/custom/custom.css; \
+    echo '.CodeMirror{font-family: "Courier New";font-size: 12pt;}' >> ~/.jupyter/custom/custom.css; \
+    echo '.rendered_html table, .rendered_html td, .rendered_html th {font-size: 20px;}' >> ~/.jupyter/custom/custom.css; \
+    echo '{ "NotebookApp": { "password": "argon2:$argon2id$v=19$m=10240,t=10,p=8$JL+YUwQ5lsg9rFXeCpBfgQ$Xv2GOkdfxoe41FaedCHVAOvxisbd9i3Xjn+KkDtBD44" } } ' > ~/.jupyter/jupyter_notebook_config.json; \
+    jupyter nbextension install --py jupyter_highlight_selected_word --user; \
+    jupyter nbextension enable highlight_selected_word/main; \
+    jupyter nbextension install --py widgetsnbextension --user; \
+    jupyter contrib nbextension install --user; \
+    jupyter nbextension enable codefolding/main; \
+    jupyter nbextension enable code_prettify/code_prettify; \
+    jupyter nbextension enable codefolding/edit; \
+    jupyter nbextension enable code_font_size/code_font_size; \
+    jupyter nbextension enable collapsible_headings/main; \
+    jupyter nbextension enable highlight_selected_word/main; \
+    jupyter nbextension enable ipyparallel/main; \
+    jupyter nbextension enable move_selected_cells/main; \
+    jupyter nbextension enable nbTranslate/main; \
+    jupyter nbextension enable scratchpad/main; \
+    jupyter nbextension enable tree-filter/index; \
+    jupyter nbextension enable comment-uncomment/main; \
+    jupyter nbextension enable export_embedded/main; \
+    jupyter nbextension enable hide_header/main; \
+    jupyter nbextension enable highlighter/highlighter; \
+    jupyter nbextension enable scroll_down/main; \
+    jupyter nbextension enable snippets/main; \
+    jupyter nbextension enable toc2/main; \
+    jupyter nbextension enable varInspector/main; \
+    jupyter nbextension enable codefolding/edit; \
+    jupyter nbextension enable contrib_nbextensions_help_item/main; \
+    jupyter nbextension enable freeze/main; \
+    jupyter nbextension enable hide_input/main; \
+    jupyter nbextension enable jupyter-js-widgets/extension; \
+    jupyter nbextension enable snippets_menu/main; \
+    jupyter nbextension enable table_beautifier/main; \
+    jupyter nbextension enable hide_input_all/main; \
+    jupyter nbextension enable spellchecker/main; \
+    jupyter nbextension enable toggle_all_line_numbers/main; \
+    jupyter nbextensions_configurator enable --user;
+
+
+ENTRYPOINT ["/opt/entrypoint.sh"]
