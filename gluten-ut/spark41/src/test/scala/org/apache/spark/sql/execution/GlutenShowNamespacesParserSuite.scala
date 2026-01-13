@@ -16,10 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.spark.sql.GlutenTestsTrait
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenShowNamespacesParserSuite extends ShowNamespacesParserSuite with GlutenTestsTrait {
-  override protected def initializeSession(): Unit = {
-    super[GlutenTestsTrait].initializeSession()
-  }
-}
+class GlutenShowNamespacesParserSuite
+  extends ShowNamespacesParserSuite
+  with GlutenSQLTestsBaseTrait {}
