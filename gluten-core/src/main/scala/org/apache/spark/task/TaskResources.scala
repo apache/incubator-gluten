@@ -55,7 +55,7 @@ object TaskResources extends TaskListener with Logging {
   private def setUnsafeTaskContext(): Unit = {
     if (inSparkTask()) {
       throw new UnsupportedOperationException(
-        "TaskResources#runUnsafe should only be used outside Spark task")
+        "TaskResources#setUnsafeTaskContext should only be called outside Spark task")
     }
     val properties = new Properties()
     SQLConf.get.getAllConfs.foreach {
@@ -83,11 +83,14 @@ object TaskResources extends TaskListener with Logging {
   // be created and used. Since unsafe task context is not managed by Spark's task memory manager,
   // Spark may not be aware of the allocations happened inside the user code.
   //
-  // The API should only be used in the following cases:
+  // The API should typically be used in the following cases:
   //
   // 1. Run code on driver
   // 2. Run test code
   def runUnsafe[T](body: => T): T = {
+    if (inSparkTask()) {
+      return body
+    }
     TaskResources.setUnsafeTaskContext()
     onTaskStart()
     val context = getLocalTaskContext()
