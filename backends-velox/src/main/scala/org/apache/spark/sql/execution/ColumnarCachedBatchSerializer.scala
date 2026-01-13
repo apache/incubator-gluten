@@ -38,13 +38,54 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
+import com.esotericsoftware.kryo.{Kryo, Serializer => KryoSerializer}
+import com.esotericsoftware.kryo.DefaultSerializer
+import com.esotericsoftware.kryo.io.{Input, Output}
 import org.apache.arrow.c.ArrowSchema
 
+/**
+ * TODO: fix on Spark-4.1 - Documentation
+ *
+ * If you encounter serialization issues, manually register this class:
+ * {{{
+ *   spark.kryo.classesToRegister=org.apache.spark.sql.execution.CachedColumnarBatch
+ * }}}
+ */
+@DefaultSerializer(classOf[CachedColumnarBatchKryoSerializer])
 case class CachedColumnarBatch(
     override val numRows: Int,
     override val sizeInBytes: Long,
     bytes: Array[Byte])
   extends CachedBatch {}
+
+class CachedColumnarBatchKryoSerializer extends KryoSerializer[CachedColumnarBatch] {
+  override def write(kryo: Kryo, output: Output, batch: CachedColumnarBatch): Unit = {
+    output.writeInt(batch.numRows)
+    output.writeLong(batch.sizeInBytes)
+    require(
+      batch.bytes != null,
+      "The object 'CachedColumnarBatch.bytes' is invalid or malformed to " +
+        s"serialize using ${this.getClass.getName}")
+    output.writeInt(batch.bytes.length + 1) // +1 to distinguish Kryo.NULL
+    output.writeBytes(batch.bytes)
+  }
+
+  override def read(
+      kryo: Kryo,
+      input: Input,
+      cls: Class[CachedColumnarBatch]): CachedColumnarBatch = {
+    val numRows = input.readInt()
+    val sizeInBytes = input.readLong()
+    val length = input.readInt()
+    require(
+      length != Kryo.NULL,
+      "The object 'CachedColumnarBatch.bytes' is invalid or malformed to " +
+        s"deserialize using ${this.getClass.getName}")
+    val bytes = new Array[Byte](length - 1) // -1 to restore
+    input.readBytes(bytes)
+    CachedColumnarBatch(numRows, sizeInBytes, bytes)
+  }
+}
 
 // format: off
 /**
