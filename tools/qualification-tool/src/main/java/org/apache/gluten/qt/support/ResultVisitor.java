@@ -140,6 +140,8 @@ public class ResultVisitor extends GraphVisitor {
       unsupportedOperatorImpactCostMap.put(nodeId, new UnsupportedImpact());
       unsupportedOperatorReasonMap.put(
           nodeId, getNotSupportedOperator(nodeId).getCategoryReason(NODE_NOT_SUPPORTED));
+      // Count only once when the operator is first encountered
+      unsupportedOperatorImpactCostMap.get(nodeId).increment();
     }
 
     // Add all children whose category is NODE_NOT_SUPPORTED
@@ -148,14 +150,15 @@ public class ResultVisitor extends GraphVisitor {
       currentNodeUnsupportedOperators.addAll(childUnsupportedCauseList);
     }
 
-    // Penalize the current node and children nodes if they are NODE_NOT_SUPPORTED.
+    // Add CPU duration penalty for all unsupported operators affecting this node.
     // The penalty is added because the children being NODE_NOT_SUPPORTED are preventing current
     // node to be pushed to native.
     currentNodeUnsupportedOperators.forEach(
         id -> {
           UnsupportedImpact currentCost = unsupportedOperatorImpactCostMap.get(id);
           currentCost.addCpuDuration(durationMetric.getDuration());
-          currentCost.increment();
+          // Note: We do NOT increment count here - count represents the actual number of
+          // operator instances, not the number of nodes affected by them
         });
 
     nodeIdToUnsupportedOperatorsMap.put(nodeId, currentNodeUnsupportedOperators);
