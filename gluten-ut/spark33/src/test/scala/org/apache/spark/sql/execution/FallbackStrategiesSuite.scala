@@ -186,7 +186,7 @@ private object FallbackStrategiesSuite {
       transformBuilders,
       List(c => p => ExpandFallbackPolicy(c.caller.isAqe(), p)),
       List(
-        c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()),
+        c => RemoveTopmostColumnarToRow(c.caller.isAqe()),
         _ => ColumnarCollapseTransformStages(GlutenConfig.get)
       ),
       List(_ => RemoveFallbackTagRule()),

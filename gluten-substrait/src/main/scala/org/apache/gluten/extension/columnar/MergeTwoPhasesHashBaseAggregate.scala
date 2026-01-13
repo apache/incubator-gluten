@@ -19,7 +19,6 @@ package org.apache.gluten.extension.columnar
 import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Complete, Final, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
@@ -34,9 +33,7 @@ import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, HashAggregat
  * Note: this rule must be applied before the `PullOutPreProject` rule, because the
  * `PullOutPreProject` rule will modify the attributes in some cases.
  */
-case class MergeTwoPhasesHashBaseAggregate(session: SparkSession)
-  extends Rule[SparkPlan]
-  with Logging {
+case class MergeTwoPhasesHashBaseAggregate() extends Rule[SparkPlan] with Logging {
 
   val glutenConf: GlutenConfig = GlutenConfig.get
   val scanOnly: Boolean = glutenConf.enableScanOnly

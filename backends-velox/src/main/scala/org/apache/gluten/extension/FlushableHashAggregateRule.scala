@@ -19,7 +19,6 @@ package org.apache.gluten.extension
 import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.execution._
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.physical.ClusteredDistribution
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -32,7 +31,7 @@ import org.apache.spark.sql.types.{DataType, DoubleType, FloatType}
  * To transform regular aggregation to intermediate aggregation that internally enables
  * optimizations such as flushing and abandoning.
  */
-case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
+case class FlushableHashAggregateRule() extends Rule[SparkPlan] {
   import FlushableHashAggregateRule._
   override def apply(plan: SparkPlan): SparkPlan = {
     if (!VeloxConfig.get.enableVeloxFlushablePartialAggregation) {
