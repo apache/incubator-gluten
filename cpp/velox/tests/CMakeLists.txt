@@ -82,8 +82,8 @@ if(ENABLE_GPU)
              facebook::velox::velox_cudf_exec
              facebook::velox::velox_cudf_vector
              facebook::velox::velox_cudf_hive_connector)
-    target_link_libraries(${TEST_EXEC} PRIVATE velox cudf::cudf velox_curl GTest::gtest
-                                               GTest::gtest_main)
+    target_link_libraries(${TEST_EXEC} PRIVATE velox cudf::cudf velox_curl
+                                               GTest::gtest GTest::gtest_main)
     gtest_discover_tests(
       ${TEST_EXEC} DISCOVERY_MODE PRE_TEST
       PROPERTIES LABELS "cuda_driver"

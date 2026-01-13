@@ -438,9 +438,9 @@ if(ENABLE_GPU)
     velox PRIVATE LIBCUDACXX_ENABLE_EXPERIMENTAL_MEMORY_RESOURCE)
 
   add_library(velox_curl SHARED IMPORTED GLOBAL)
-  set_target_properties(velox_curl PROPERTIES
-    IMPORTED_LOCATION
-      ${VELOX_BUILD_PATH}/_deps/curl-build/lib/libcurl.so)
+  set_target_properties(
+    velox_curl PROPERTIES IMPORTED_LOCATION
+                          ${VELOX_BUILD_PATH}/_deps/curl-build/lib/libcurl.so)
 
   target_link_libraries(
     velox
