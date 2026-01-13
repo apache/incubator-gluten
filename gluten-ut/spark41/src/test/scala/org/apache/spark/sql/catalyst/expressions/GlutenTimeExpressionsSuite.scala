@@ -16,6 +16,6 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.GlutenTestsTrait
+import org.apache.spark.sql.shim
 
-class GlutenTimeExpressionsSuite extends TimeExpressionsSuite with GlutenTestsTrait {}
+class GlutenTimeExpressionsSuite extends TimeExpressionsSuite with shim.GlutenTestsTrait {}
