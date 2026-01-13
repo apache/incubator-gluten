@@ -1508,7 +1508,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -1565,7 +1565,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
