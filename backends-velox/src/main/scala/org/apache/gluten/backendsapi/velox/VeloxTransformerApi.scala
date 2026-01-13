@@ -70,11 +70,25 @@ class VeloxTransformerApi extends TransformerApi with Logging {
   override def postProcessNativeConfig(
       nativeConfMap: JMap[String, String],
       backendPrefix: String): Unit = {
-    // 'spark.hadoop.fs.s3a.connection.timeout' by velox requires time unit, hadoop-aws versions
-    // before 3.4 do not have time unit.
-    val s3sConnectionTimeout = nativeConfMap.get("spark.hadoop.fs.s3a.connection.timeout")
-    if (NumberUtils.isCreatable(s3sConnectionTimeout)) {
-      nativeConfMap.put("spark.hadoop.fs.s3a.connection.timeout", s"${s3sConnectionTimeout}ms")
+    // S3A configurations that require time units for Velox.
+    // Hadoop-aws versions before 3.4 do not include time units by default.
+    // scalastyle:off line.size.limit
+    // Reference: https://hadoop.apache.org/docs/r3.3.6/hadoop-aws/tools/hadoop-aws/#General_S3A_Client_configuration
+    // scalastyle:on line.size.limit
+    val s3aTimeConfigs = Map(
+      "spark.hadoop.fs.s3a.connection.timeout" -> "ms",
+      "spark.hadoop.fs.s3a.connection.establish.timeout" -> "ms",
+      "spark.hadoop.fs.s3a.threads.keepalivetime" -> "s",
+      "spark.hadoop.fs.s3a.multipart.purge.age" -> "s"
+    )
+
+    s3aTimeConfigs.foreach {
+      case (configKey, defaultUnit) =>
+        val configValue = nativeConfMap.get(configKey)
+        if (NumberUtils.isCreatable(configValue)) {
+          // Config is numeric (no unit), append the default unit for backward compatibility
+          nativeConfMap.put(configKey, s"$configValue$defaultUnit")
+        }
     }
   }
 

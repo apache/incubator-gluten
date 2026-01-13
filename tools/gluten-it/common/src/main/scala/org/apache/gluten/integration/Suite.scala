@@ -69,6 +69,7 @@ abstract class Suite(
   sessionSwitcher.addDefaultConf("spark.sql.broadcastTimeout", "1800")
   sessionSwitcher.addDefaultConf("spark.network.io.preferDirectBufs", "false")
   sessionSwitcher.addDefaultConf("spark.unsafe.exceptionOnMemoryLeak", s"$errorOnMemLeak")
+  sessionSwitcher.addDefaultConf("spark.sql.unionOutputPartitioning", "false")
 
   if (dataSource() == "delta") {
     sessionSwitcher.addDefaultConf(

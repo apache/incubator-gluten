@@ -27,17 +27,16 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.velox.VeloxAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
-import org.apache.spark.sql.execution.datasources.exchange.GlutenValidateRequirementsSuite
 import org.apache.spark.sql.execution.datasources.json.{GlutenJsonLegacyTimeParserSuite, GlutenJsonV1Suite, GlutenJsonV2Suite}
 import org.apache.spark.sql.execution.datasources.orc._
 import org.apache.spark.sql.execution.datasources.parquet._
 import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
-import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
+import org.apache.spark.sql.execution.exchange.{GlutenEnsureRequirementsSuite, GlutenValidateRequirementsSuite}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
-import org.apache.spark.sql.gluten.GlutenFallbackSuite
+import org.apache.spark.sql.gluten.{GlutenFallbackStrategiesSuite, GlutenFallbackSuite}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources._
 
@@ -93,7 +92,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
   enableSuite[GlutenBitwiseExpressionsSuite]
-  enableSuite[GlutenCastSuite]
+  enableSuite[GlutenCastWithAnsiOffSuite]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
@@ -441,8 +440,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .exclude("SPARK-38825: in and notIn filters")
-    // TODO: fix in Spark-4.0
-    .exclude("SPARK-47120: subquery literal filter pushdown")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
@@ -461,8 +458,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .exclude("SPARK-38825: in and notIn filters")
-    // TODO: fix in Spark-4.0
-    .exclude("SPARK-47120: subquery literal filter pushdown")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
@@ -566,13 +561,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
   enableSuite[GlutenMergedOrcReadSchemaSuite]
   enableSuite[GlutenParquetReadSchemaSuite]
-    // TODO: fix in Spark-4.0
-    .exclude("read float and double together")
-    .exclude("change column type from float to double")
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
-    // TODO: fix in Spark-4.0
-    .exclude("read float and double together")
-    .exclude("change column type from float to double")
   enableSuite[GlutenMergedParquetReadSchemaSuite]
   enableSuite[GlutenParquetCodecSuite]
   enableSuite[GlutenV1WriteCommandSuite]
@@ -591,7 +580,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenInnerJoinSuiteForceShjOff]
   enableSuite[GlutenOuterJoinSuiteForceShjOn]
   enableSuite[GlutenOuterJoinSuiteForceShjOff]
-  enableSuite[FallbackStrategiesSuite]
+  enableSuite[GlutenFallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
@@ -869,7 +858,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // ORC related
     .exclude("SPARK-37965: Spark support read/write orc file with invalid char in field name")
     .exclude("SPARK-38173: Quoted column cannot be recognized correctly when quotedRegexColumnNames is true")
-    // TODO: fix in Spark-4.0
+    // Rewrite with Gluten's explained result.
     .exclude("SPARK-47939: Explain should work with parameterized queries")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
@@ -958,7 +947,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Logging plan changes for execution")
     // Rewrite for transformed plan
     .exclude("dumping query execution info to a file - explainMode=formatted")
-    // TODO: fix in Spark-4.0
+    // The case doesn't need to be run in Gluten since it's verifying against
+    // vanilla Spark's query plan.
     .exclude("SPARK-47289: extended explain info")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings

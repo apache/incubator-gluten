@@ -55,6 +55,8 @@ const std::string kMaxPartialAggregationMemoryRatio =
 const std::string kMaxPartialAggregationMemory = "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemory";
 const std::string kMaxExtendedPartialAggregationMemoryRatio =
     "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio";
+const std::string kMaxExtendedPartialAggregationMemory =
+    "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemory";
 const std::string kAbandonPartialAggregationMinPct =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
 const std::string kAbandonPartialAggregationMinRows =

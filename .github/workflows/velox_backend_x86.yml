@@ -39,12 +39,12 @@ on:
       - 'ep/build-velox/**'
       - 'cpp/**'
       - 'dev/**'
+      - 'build/mvn'
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-  MVN_CMD: 'mvn -ntp'
+  MVN_CMD: 'build/mvn -ntp'
   WGET_CMD: 'wget -nv'
-  SETUP: 'source .github/workflows/util/setup-helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
   # spark.sql.ansi.enabled defaults to false.
   SPARK_ANSI_SQL_MODE: false
@@ -93,7 +93,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
@@ -107,7 +107,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
-        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0"  ]
+        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0", "spark-4.1"  ]
         java: [ "java-8", "java-11", "java-17", "java-21" ]
         # Spark supports JDK17 since 3.3.
         exclude:
@@ -141,6 +141,10 @@ jobs:
             java: java-8
           - spark: spark-4.0
             java: java-11
+          - spark: spark-4.1
+            java: java-8
+          - spark: spark-4.1
+            java: java-11
 
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
@@ -150,7 +154,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -163,17 +167,17 @@ jobs:
             apt-get update
             TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
           fi
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
-            apt-get update && apt-get install -y openjdk-17-jdk maven
+            apt-get update && apt-get install -y openjdk-17-jdk wget
             apt remove openjdk-11* -y
           elif [ "${{ matrix.java }}" = "java-21" ]; then
-            apt-get update && apt-get install -y openjdk-21-jdk maven
+            apt-get update && apt-get install -y openjdk-21-jdk wget
           elif [ "${{ matrix.java }}" = "java-11" ]; then
-            apt-get update && apt-get install -y openjdk-11-jdk maven
+            apt-get update && apt-get install -y openjdk-11-jdk wget
           else
-            apt-get update && apt-get install -y openjdk-8-jdk maven
+            apt-get update && apt-get install -y openjdk-8-jdk wget
             apt remove openjdk-11* -y
           fi
           ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
@@ -182,14 +186,17 @@ jobs:
           cd $GITHUB_WORKSPACE/
           export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
           echo "JAVA_HOME: $JAVA_HOME"
-          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
-          else
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
-          fi
+          case "${{ matrix.spark }}" in
+            spark-4.0|spark-4.1)
+              $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+              ;;
+            *)
+              $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+              ;;
+          esac
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
@@ -200,7 +207,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "centos:8" ]
-        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0" ]
+        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0", "spark-4.1" ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3.
         exclude:
@@ -220,6 +227,10 @@ jobs:
             java: java-8
           - spark: spark-4.0
             java: java-11
+          - spark: spark-4.1
+            java: java-8
+          - spark: spark-4.1
+            java: java-11
 
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
@@ -229,7 +240,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -241,7 +252,7 @@ jobs:
             sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
             sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
           fi
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
             yum update -y && yum install -y java-17-openjdk-devel wget
@@ -250,7 +261,6 @@ jobs:
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
-          $SETUP install_maven
       - name: Set environment variables
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
@@ -264,13 +274,16 @@ jobs:
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
-          if [ "${{ matrix.spark }}" = "spark-4.0" ]; then
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
-          else
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
-          fi
+          case "${{ matrix.spark }}" in
+            spark-4.0|spark-4.1)
+              $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+              ;;
+            *)
+              $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+              ;;
+          esac
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H / TPC-DS
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
@@ -304,7 +317,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -320,16 +333,15 @@ jobs:
             sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
             sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
 
-            # Setup java and maven
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget tzdata python3-pip
-            $SETUP install_maven
             # Set environment variables
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
+            # Build gluten
+            build/mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
             # Build gluten-it
-            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
             cd /work/tools/gluten-it
-            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+            /work/build/mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
 
             # Run TPC-H / TPC-DS
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
@@ -372,16 +384,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
+          sudo apt-get install -y openjdk-8-jdk wget
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
@@ -390,7 +402,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ 
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }}
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
         run: |
@@ -487,16 +499,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
+          sudo apt-get install -y openjdk-8-jdk wget
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
@@ -505,7 +517,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ 
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }}
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.2 random kill tasks
         run: |
@@ -530,7 +542,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -561,7 +573,7 @@ jobs:
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          $MVN_CMD clean install -P${{ matrix.spark }} -Puniffle  && \
+          $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }} -Puniffle  && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
@@ -581,7 +593,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -591,10 +603,9 @@ jobs:
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          $SETUP install_maven
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
@@ -621,7 +632,8 @@ jobs:
           bash -c "echo -e 'CELEBORN_MASTER_MEMORY=8g\nCELEBORN_WORKER_MEMORY=8g\nCELEBORN_WORKER_OFFHEAP_MEMORY=16g' > ./conf/celeborn-env.sh" && \
           bash -c "echo -e 'celeborn.worker.commitFiles.threads 32\nceleborn.worker.sortPartition.threads 16' > ./conf/celeborn-defaults.conf" && \
           bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
-          cd $GITHUB_WORKSPACE/tools/gluten-it && $MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} && \
+          cd $GITHUB_WORKSPACE && $MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} -Pbackends-velox -DskipTests && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it && $GITHUB_WORKSPACE/$MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} && \
           GLUTEN_IT_JVM_ARGS=-Xmx16G sbin/gluten-it.sh queries-compare \
             --extra-conf=spark.celeborn.client.spark.shuffle.writer=${{ matrix.writer }} \
             --extra-conf=spark.sql.shuffle.partitions=16 \
@@ -653,7 +665,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - uses: actions/download-artifact@v4
         with:
           name: arrow-jars-centos-7-${{github.sha}}
@@ -704,7 +716,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -741,7 +753,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -797,7 +809,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -840,7 +852,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -898,7 +910,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -935,6 +947,8 @@ jobs:
   spark-test-spark35:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -942,7 +956,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -991,6 +1005,8 @@ jobs:
   spark-test-spark35-scala213:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -998,7 +1014,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -1041,6 +1057,8 @@ jobs:
   spark-test-spark35-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1048,7 +1066,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -1083,6 +1101,8 @@ jobs:
   spark-test-spark35-ras:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1090,7 +1110,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -1132,6 +1152,8 @@ jobs:
   spark-test-spark35-slow-ras:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1139,7 +1161,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -1173,6 +1195,8 @@ jobs:
   spark-test-spark35-smj:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1180,7 +1204,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -1222,6 +1246,8 @@ jobs:
   spark-test-spark35-slow-smj:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1229,7 +1255,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -1360,13 +1386,15 @@ jobs:
           cd /work
           bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
           rm -rf ep/build-velox/build/velox_ep
-          mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
+          build/mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
           ccache -s
           "
 
   spark-test-spark40:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
@@ -1374,7 +1402,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -1422,6 +1450,8 @@ jobs:
   spark-test-spark40-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
@@ -1429,7 +1459,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases
+          path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
@@ -1449,6 +1479,112 @@ jobs:
           java -version
           $MVN_CMD clean test -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark40/spark_home/" \
+          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-report
+          path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-test-log
+          path: |
+            **/target/*.log
+            **/gluten-ut/**/hs_err_*.log
+            **/gluten-ut/**/core.*
+
+  spark-test-spark41:
+    needs: build-native-lib-centos-7
+    runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
+    container: apache/gluten:centos-8-jdk17
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v4
+        with:
+          name: arrow-jars-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Prepare
+        run: |
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools==77.0.3 && \
+          pip3 install pyspark==3.5.5 cython && \
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
+      - name: Prepare Spark Resources for Spark 4.1.0 #TODO remove after image update
+        run: |
+          rm -rf /opt/shims/spark41
+          bash .github/workflows/util/install-spark-resources.sh 4.1
+          mv /opt/shims/spark41/spark_home/assembly/target/scala-2.12 /opt/shims/spark41/spark_home/assembly/target/scala-2.13
+      - name: Build and Run unit test for Spark 4.1.0 with scala-2.13 (other tests)
+        run: |
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.13
+          yum install -y java-17-openjdk-devel
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
+          $MVN_CMD clean test -Pspark-4.1 -Pscala-2.13 -Pjava-17 -Pbackends-velox \
+          -Pspark-ut -DargLine="-Dspark.test.home=/opt/shims/spark41/spark_home/ -Dspark.sql.unionOutputPartitioning=false" \
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-report
+          path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-test-log
+          path: |
+            **/target/*.log
+            **/gluten-ut/**/hs_err_*.log
+            **/gluten-ut/**/core.*
+
+  spark-test-spark41-slow:
+    needs: build-native-lib-centos-7
+    runs-on: ubuntu-22.04
+    env:
+      SPARK_TESTING: true
+    container: apache/gluten:centos-8-jdk17
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v4
+        with:
+          name: arrow-jars-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Prepare Spark Resources for Spark 4.1.0 #TODO remove after image update
+        run: |
+          rm -rf /opt/shims/spark41
+          bash .github/workflows/util/install-spark-resources.sh 4.1
+          mv /opt/shims/spark41/spark_home/assembly/target/scala-2.12 /opt/shims/spark41/spark_home/assembly/target/scala-2.13
+      - name: Build and Run unit test for Spark 4.0 (slow tests)
+        run: |
+          cd $GITHUB_WORKSPACE/
+          yum install -y java-17-openjdk-devel
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
+          $MVN_CMD clean test -Pspark-4.1 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pspark-ut \
+          -DargLine="-Dspark.test.home=/opt/shims/spark41/spark_home/ -Dspark.sql.unionOutputPartitioning=false" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
         if: always()

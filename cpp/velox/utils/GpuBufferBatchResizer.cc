@@ -159,7 +159,7 @@ std::shared_ptr<VeloxColumnarBatch> makeCudfTable(
   auto cudfTable = std::make_unique<cudf::table>(std::move(cudfColumns));
   stream.synchronize();
   return std::make_shared<VeloxColumnarBatch>(
-      std::make_shared<cudf_velox::CudfVector>(pool, type, numRows, std::move(cudfTable), stream));
+      std::make_shared<cudf_velox::CudfVector>(pool, type, numRows, std::move(cudfTable), stream), type->size());
 }
 
 } // namespace

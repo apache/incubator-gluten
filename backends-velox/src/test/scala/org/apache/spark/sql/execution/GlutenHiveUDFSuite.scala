@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{ColumnarPartialGenerateExec, ColumnarPartialProjectExec, GlutenQueryComparisonTest}
 import org.apache.gluten.expression.UDFMappings
-import org.apache.gluten.udf.CustomerUDF
+import org.apache.gluten.udf.{CustomerUDF, DuplicateArray}
 import org.apache.gluten.udtf.{ConditionalOutputUDTF, CustomerUDTF, NoInputUDTF, SimpleUDTF}
 
 import org.apache.spark.SparkConf
@@ -323,6 +323,59 @@ class GlutenHiveUDFSuite extends GlutenQueryComparisonTest with SQLTestUtils {
               }
           }
         }
+      }
+    }
+  }
+
+  test("udf with map with null values") {
+    withTempFunction("udf_map_values") {
+      sql("""
+            |CREATE TEMPORARY FUNCTION udf_map_values AS
+            |'org.apache.hadoop.hive.ql.udf.generic.GenericUDFMapValues';
+            |""".stripMargin)
+
+      runQueryAndCompare("""
+                           |SELECT
+                           |  l_partkey,
+                           |  udf_map_values(map_data)
+                           |FROM (
+                           | SELECT l_partkey,
+                           | map(
+                           |   concat('hello', l_orderkey % 2),
+                           |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END,
+                           |   concat('world', l_orderkey % 2),
+                           |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END
+                           | ) as map_data
+                           | FROM lineitem
+                           |)
+                           |""".stripMargin) {
+        checkOperatorMatch[ColumnarPartialProjectExec]
+      }
+    }
+  }
+
+  test("udf with array with null values") {
+    withTempFunction("udf_array_distinct") {
+      sql(s"""
+             |CREATE TEMPORARY FUNCTION udf_array_distinct AS '${classOf[DuplicateArray].getName}'
+             |""".stripMargin)
+
+      runQueryAndCompare("""
+                           |SELECT
+                           |  l_partkey,
+                           |  udf_array_distinct(map_data)
+                           |FROM (
+                           | SELECT l_partkey,
+                           | array(
+                           |   l_orderkey % 2,
+                           |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END,
+                           |   l_orderkey % 2,
+                           |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END
+                           | ) as map_data
+                           | FROM lineitem
+                           |)
+                           |""".stripMargin) {
+        checkOperatorMatch[ColumnarPartialProjectExec]
       }
     }
   }

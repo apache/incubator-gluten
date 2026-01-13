@@ -17,11 +17,11 @@
 package org.apache.gluten.table.runtime.operators;
 
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.table.runtime.config.VeloxConnectorConfig;
 import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
-import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreams;
@@ -101,7 +101,9 @@ public class GlutenOneInputOperator extends TableStreamOperator<RowData>
     LOG.debug("OutTypes: {}", outputTypes.keySet());
     query =
         new Query(
-            mockInput, VeloxQueryConfig.getConfig(getRuntimeContext()), ConnectorConfig.empty());
+            mockInput,
+            VeloxQueryConfig.getConfig(getRuntimeContext()),
+            VeloxConnectorConfig.getConfig(getRuntimeContext()));
     allocator = new RootAllocator(Long.MAX_VALUE);
     task = session.queryOps().execute(query);
     ExternalStreamConnectorSplit split =

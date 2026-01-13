@@ -16,12 +16,14 @@
  */
 package org.apache.gluten.util;
 
+import org.apache.flink.connector.file.table.stream.PartitionCommitInfo;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Map;
 
 /** Utils to add and get some infos to StreamConfig. */
@@ -65,5 +67,12 @@ public class Utils {
       throw new StreamTaskException(
           String.format("Could not serialize object for key %s.", key), e);
     }
+  }
+
+  public static Serializable constructCommitInfo(
+      long id, int subtaskIndex, int numberOfSubtasks, String[] committed) {
+    PartitionCommitInfo commitInfo =
+        new PartitionCommitInfo(id, subtaskIndex, numberOfSubtasks, committed);
+    return commitInfo;
   }
 }
