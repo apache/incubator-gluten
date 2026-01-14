@@ -51,7 +51,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 import java.util.UUID
-import java.util.concurrent.{SynchronousQueue, TimeUnit}
+import java.util.concurrent.{Executors, SynchronousQueue, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -114,7 +114,7 @@ private object GlutenDeltaJobStatisticsTracker {
     }
 
     override def closeFile(filePath: String): Unit = {
-      accumulators(filePath).setFinished
+      accumulators(filePath).setFinished()
     }
 
     override def newRow(filePath: String, row: InternalRow): Unit = {
@@ -259,20 +259,26 @@ private object GlutenDeltaJobStatisticsTracker {
       resItr
     }
 
-    private val resultThread = new Thread(
+    private val resultThreadRunner = Executors.newSingleThreadExecutor()
+    resultThreadRunner.submit(
       new Runnable {
         override def run(): Unit = {
-          TaskContext.setTaskContext(taskContext)
-          if (outIterator.hasNext) {
-            val next = outIterator.next()
-            assert(next != null)
-            outputBatchQueue.offer(next)
+          try {
+            TaskContext.setTaskContext(taskContext)
+            if (outIterator.hasNext) {
+              val next = outIterator.next()
+              assert(next != null)
+              outputBatchQueue.offer(next)
+            }
+          } catch {
+            case t: Throwable =>
+              t.printStackTrace()
+              throw t
           }
         }
       },
       s"Gluten Delta Statistics Writer - ${taskContext.taskAttemptId()}"
     )
-    resultThread.start()
 
     def appendColumnarBatch(inputBatch: ColumnarBatch): Unit = {
       // Retains the input batch so it will be shared by the data writer thread
@@ -281,7 +287,7 @@ private object GlutenDeltaJobStatisticsTracker {
       inputBatchQueue.offer(inputBatch)
     }
 
-    def setFinished: Unit = {
+    def setFinished(): Unit = {
       resultRequested = true
     }
 
