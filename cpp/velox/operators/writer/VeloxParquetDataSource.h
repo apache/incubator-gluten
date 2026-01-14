@@ -86,7 +86,7 @@ class VeloxParquetDataSource : public VeloxDataSource {
       std::shared_ptr<arrow::Schema> schema)
       : VeloxDataSource(filePath, schema),
         filePath_(filePath),
-        sinkPool_(sinkPool),
+        sinkPool_(std::move(sinkPool)),
         schema_(schema),
         pool_(std::move(veloxPool)) {}
 
