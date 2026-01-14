@@ -48,7 +48,7 @@ import java.util.Map;
 
 /**
  * Gluten legacy source function, call velox plan to execute. It sends RowVector to downstream
- * instead of RowData to avoid data convert.
+ * instead of RowData to avoid data conversion.
  */
 public class GlutenSourceFunction<OUT> extends RichParallelSourceFunction<OUT>
     implements CheckpointedFunction {

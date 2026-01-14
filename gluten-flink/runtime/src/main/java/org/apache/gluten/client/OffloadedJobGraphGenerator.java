@@ -75,10 +75,11 @@ public class OffloadedJobGraphGenerator {
     if (hasGenerated) {
       throw new IllegalStateException("JobGraph has been generated.");
     }
-    hasGenerated = true;
+
     for (JobVertex jobVertex : jobGraph.getVertices()) {
       offloadJobVertex(jobVertex);
     }
+    hasGenerated = true;
     return jobGraph;
   }
 
@@ -181,8 +182,9 @@ public class OffloadedJobGraphGenerator {
     StreamConfig offloadedOpConfig =
         new StreamConfig(new Configuration(sourceOpConfig.getConfiguration()));
     if (sourceOperator instanceof GlutenStreamSource) {
-      boolean canOutputRowVector = canOutputRowVector(sourceChainSlice, chainSliceGraph, jobVertex);
-      Class<?> outClass = canOutputRowVector ? StatefulRecord.class : RowData.class;
+      boolean supportsVectorOutput =
+          supportsVectorOutput(sourceChainSlice, chainSliceGraph, jobVertex);
+      Class<?> outClass = supportsVectorOutput ? StatefulRecord.class : RowData.class;
       GlutenStreamSource newSourceOp =
           new GlutenStreamSource(
               new GlutenSourceFunction<>(
@@ -192,7 +194,7 @@ public class OffloadedJobGraphGenerator {
                   ((GlutenStreamSource) sourceOperator).getConnectorSplit(),
                   outClass));
       offloadedOpConfig.setStreamOperator(newSourceOp);
-      if (canOutputRowVector) {
+      if (supportsVectorOutput) {
         setOffloadedOutputSerializer(offloadedOpConfig, sourceOperator);
       }
     } else if (sourceOperator instanceof GlutenOneInputOperator) {
@@ -232,10 +234,11 @@ public class OffloadedJobGraphGenerator {
       GlutenOneInputOperator<?, ?> sourceOperator,
       StreamConfig sourceOpConfig,
       StreamConfig offloadedOpConfig) {
-    boolean canOutputRowVector = canOutputRowVector(sourceChainSlice, chainSliceGraph, jobVertex);
-    boolean canInputRowVector = canInputRowVector(sourceChainSlice, chainSliceGraph, jobVertex);
-    Class<?> inClass = canInputRowVector ? StatefulRecord.class : RowData.class;
-    Class<?> outClass = canOutputRowVector ? StatefulRecord.class : RowData.class;
+    boolean supportsVectorOutput =
+        supportsVectorOutput(sourceChainSlice, chainSliceGraph, jobVertex);
+    boolean supportsVectorInput = supportsVectorInput(sourceChainSlice, chainSliceGraph, jobVertex);
+    Class<?> inClass = supportsVectorInput ? StatefulRecord.class : RowData.class;
+    Class<?> outClass = supportsVectorOutput ? StatefulRecord.class : RowData.class;
     GlutenOneInputOperator<?, ?> newOneInputOp =
         new GlutenOneInputOperator<>(
             planNode,
@@ -246,10 +249,10 @@ public class OffloadedJobGraphGenerator {
             outClass,
             sourceOperator.getDescription());
     offloadedOpConfig.setStreamOperator(newOneInputOp);
-    if (canOutputRowVector) {
+    if (supportsVectorOutput) {
       setOffloadedOutputSerializer(offloadedOpConfig, sourceOperator);
     }
-    if (canInputRowVector) {
+    if (supportsVectorInput) {
       setOffloadedInputSerializer(offloadedOpConfig, sourceOperator);
       setOffloadedStatePartitioner(
           sourceOpConfig, offloadedOpConfig, 0, sourceOperator.getDescription());
@@ -264,14 +267,15 @@ public class OffloadedJobGraphGenerator {
       GlutenTwoInputOperator<?, ?> sourceOperator,
       StreamConfig sourceOpConfig,
       StreamConfig offloadedOpConfig) {
-    boolean canOutputRowVector = canOutputRowVector(sourceChainSlice, chainSliceGraph, jobVertex);
-    boolean canInputRowVector = canInputRowVector(sourceChainSlice, chainSliceGraph, jobVertex);
+    boolean supportsVectorOutput =
+        supportsVectorOutput(sourceChainSlice, chainSliceGraph, jobVertex);
+    boolean supportsVectorInput = supportsVectorInput(sourceChainSlice, chainSliceGraph, jobVertex);
     setOffloadedStatePartitioner(
         sourceOpConfig, offloadedOpConfig, 0, sourceOperator.getDescription());
     setOffloadedStatePartitioner(
         sourceOpConfig, offloadedOpConfig, 1, sourceOperator.getDescription());
-    Class<?> inClass = canInputRowVector ? StatefulRecord.class : RowData.class;
-    Class<?> outClass = canOutputRowVector ? StatefulRecord.class : RowData.class;
+    Class<?> inClass = supportsVectorInput ? StatefulRecord.class : RowData.class;
+    Class<?> outClass = supportsVectorOutput ? StatefulRecord.class : RowData.class;
     GlutenTwoInputOperator<?, ?> newTwoInputOp =
         new GlutenTwoInputOperator<>(
             planNode,
@@ -285,10 +289,10 @@ public class OffloadedJobGraphGenerator {
     offloadedOpConfig.setStreamOperator(newTwoInputOp);
     offloadedOpConfig.setStatePartitioner(0, new GlutenKeySelector());
     offloadedOpConfig.setStatePartitioner(1, new GlutenKeySelector());
-    if (canOutputRowVector) {
+    if (supportsVectorOutput) {
       setOffloadedOutputSerializer(offloadedOpConfig, sourceOperator);
     }
-    if (canInputRowVector) {
+    if (supportsVectorInput) {
       setOffloadedInputSerializersForTwoInputOperator(offloadedOpConfig, sourceOperator);
     }
   }
@@ -480,18 +484,7 @@ public class OffloadedJobGraphGenerator {
     }
   }
 
-  private boolean areAllOffloadable(
-      OperatorChainSliceGraph chainSliceGraph, List<Integer> chainIds) {
-    for (Integer chainId : chainIds) {
-      OperatorChainSlice chainSlice = chainSliceGraph.getSlice(chainId);
-      if (!chainSlice.isOffloadable()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private boolean canOutputRowVector(
+  private boolean supportsVectorOutput(
       OperatorChainSlice chainSlice, OperatorChainSliceGraph chainSliceGraph, JobVertex jobVertex) {
     List<Integer> downstreamSliceIds = chainSlice.getOutputs();
 
@@ -512,8 +505,9 @@ public class OffloadedJobGraphGenerator {
       if (!downstreamSlice.isOffloadable()) {
         return false;
       }
-      List<Integer> inputSliceIds = downstreamSlice.getInputs();
-      if (!areAllOffloadable(chainSliceGraph, inputSliceIds)) {
+      if (!downstreamSlice.getInputs().stream()
+          .map(chainSliceGraph::getSlice)
+          .allMatch(OperatorChainSlice::isOffloadable)) {
         return false;
       }
     }
@@ -539,7 +533,7 @@ public class OffloadedJobGraphGenerator {
     return true;
   }
 
-  private boolean canInputRowVector(
+  private boolean supportsVectorInput(
       OperatorChainSlice chainSlice, OperatorChainSliceGraph chainSliceGraph, JobVertex jobVertex) {
     List<Integer> upstreamSliceIds = chainSlice.getInputs();
 
@@ -562,7 +556,7 @@ public class OffloadedJobGraphGenerator {
       if (!upstreamSlice.isOffloadable()) {
         return false;
       }
-      if (!canOutputRowVector(upstreamSlice, chainSliceGraph, jobVertex)) {
+      if (!supportsVectorOutput(upstreamSlice, chainSliceGraph, jobVertex)) {
         return false;
       }
     }

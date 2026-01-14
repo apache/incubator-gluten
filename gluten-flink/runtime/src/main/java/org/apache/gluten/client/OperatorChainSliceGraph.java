@@ -16,10 +16,13 @@
  */
 package org.apache.gluten.client;
 
+import org.apache.flink.util.Preconditions;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class OperatorChainSliceGraph {
   private Map<Integer, OperatorChainSlice> slices;
@@ -45,15 +48,10 @@ public class OperatorChainSliceGraph {
       }
     }
 
-    if (sourceCandidates.isEmpty()) {
-      throw new IllegalStateException(
-          "No source operator chain slice found (no operator chain slice with empty inputs)");
-    } else if (sourceCandidates.size() > 1) {
-      throw new IllegalStateException(
-          "Multiple source operator chain slices found: "
-              + sourceCandidates.size()
-              + " operator chain slices have empty inputs");
-    }
+    Preconditions.checkState(
+        sourceCandidates.size() == 1,
+        "Expected exactly one source operator chain slice with empty inputs, but found %s",
+        sourceCandidates.size());
 
     return sourceCandidates.get(0);
   }
@@ -76,8 +74,7 @@ public class OperatorChainSliceGraph {
       String operatorConfigs =
           chainSlice.getOperatorConfigs().stream()
               .map(config -> config.getOperatorName() + "(" + config.getVertexID() + ")")
-              .reduce((a, b) -> a + ", " + b)
-              .orElse("");
+              .collect(Collectors.joining(", "));
       sb.append("  Operator Configs: ").append(operatorConfigs).append("\n");
     }
     return sb.toString();
