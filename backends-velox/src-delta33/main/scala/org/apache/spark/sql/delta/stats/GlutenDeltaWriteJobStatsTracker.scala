@@ -215,7 +215,7 @@ private object GlutenDeltaJobStatisticsTracker {
         Seq.empty,
         inputNode
       )
-      // Legacy: The legacy transform rule.
+      // Invoke the legacy transform rule to get a local Velox aggregation query plan.
       val offloads = Seq(OffloadOthers()).map(_.toStrcitRule())
       val validatorBuilder: GlutenConfig => Validator = conf =>
         Validators.newValidator(conf, offloads)
