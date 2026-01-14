@@ -1029,7 +1029,6 @@ def parse_logs(log_file):
             else:
                 function_not_found(r)
 
-
         elif "was not supported in AggregateRel" in r:
             pattern = r"([\w0-9]+) was not supported in AggregateRel"
 
@@ -1048,7 +1047,6 @@ def parse_logs(log_file):
                     )
             else:
                 function_not_found(r)
-
 
         elif "Unsupported aggregate mode" in r:
             pattern = r"Unsupported aggregate mode: [\w]+ for ([\w0-9]+)"
