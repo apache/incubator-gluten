@@ -51,7 +51,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 import java.util.UUID
-import java.util.concurrent.{Executors, SynchronousQueue, TimeUnit}
+import java.util.concurrent.{Callable, Executors, SynchronousQueue, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -138,7 +138,6 @@ private object GlutenDeltaJobStatisticsTracker {
     private val c2r = new VeloxColumnarToRowExec.Converter(new SQLMetric("convertTime"))
     private var resultRequested: Boolean = false
     private val inputBatchQueue = new SynchronousQueue[ColumnarBatch]()
-    private val outputBatchQueue = new SynchronousQueue[ColumnarBatch]()
     private val aggregates: Seq[AggregateExpression] = statsColExpr.collect {
       case ae: AggregateExpression if ae.aggregateFunction.isInstanceOf[DeclarativeAggregate] =>
         assert(ae.mode == Complete)
@@ -259,32 +258,25 @@ private object GlutenDeltaJobStatisticsTracker {
       resItr
     }
 
+    private val resultThreadName =
+      s"Gluten Delta Statistics Writer - ${System.identityHashCode(this)}"
     private val resultThreadRunner = Executors.newSingleThreadExecutor()
-    resultThreadRunner.submit(
-      new Runnable {
-        override def run(): Unit = {
-          try {
-            TaskContext.setTaskContext(taskContext)
-            if (outIterator.hasNext) {
-              val next = outIterator.next()
-              assert(next != null)
-              outputBatchQueue.offer(next)
-            }
-          } catch {
-            case t: Throwable =>
-              t.printStackTrace()
-              throw t
-          }
-        }
-      },
-      s"Gluten Delta Statistics Writer - ${taskContext.taskAttemptId()}"
-    )
+    private val resBatchFuture = resultThreadRunner.submit(new Callable[ColumnarBatch] {
+      override def call(): ColumnarBatch = {
+        Thread.currentThread().setName(resultThreadName)
+        TaskContext.setTaskContext(taskContext)
+        assert(outIterator.hasNext)
+        val next = outIterator.next()
+        assert(next != null)
+        next
+      }
+    })
 
     def appendColumnarBatch(inputBatch: ColumnarBatch): Unit = {
       // Retains the input batch so it will be shared by the data writer thread
       // and the statistic writer thread.
       ColumnarBatches.retain(inputBatch)
-      inputBatchQueue.offer(inputBatch)
+      inputBatchQueue.put(inputBatch)
     }
 
     def setFinished(): Unit = {
@@ -292,8 +284,10 @@ private object GlutenDeltaJobStatisticsTracker {
     }
 
     def toJson: String = {
-      val resBatch = outputBatchQueue.take()
+      val resBatch = resBatchFuture.get()
       assert(resBatch.numRows() == 1)
+      resultThreadRunner.shutdown()
+      resultThreadRunner.awaitTermination(Long.MaxValue, TimeUnit.MILLISECONDS)
       val row = c2r.toRowIterator(resBatch).next()
       val jsonStats = getStats(row).getString(0)
       jsonStats
