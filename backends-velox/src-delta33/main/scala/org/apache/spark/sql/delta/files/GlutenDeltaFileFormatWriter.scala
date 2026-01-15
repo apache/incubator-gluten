@@ -462,7 +462,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
           case _ =>
             // Columnar-based partition writer to divide the input batch by partition values
             // and bucket IDs in advance.
-            new ColumnarDynamicPartitionDataSingleWriter(description, taskAttemptContext, committer)
+            new GlutenDynamicPartitionDataSingleWriter(description, taskAttemptContext, committer)
         }
       }
 
@@ -519,7 +519,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
     }
   }
 
-  private class ColumnarDynamicPartitionDataSingleWriter(
+  private class GlutenDynamicPartitionDataSingleWriter(
                                                           description: WriteJobDescription,
                                                           taskAttemptContext: TaskAttemptContext,
                                                           committer: FileCommitProtocol,
