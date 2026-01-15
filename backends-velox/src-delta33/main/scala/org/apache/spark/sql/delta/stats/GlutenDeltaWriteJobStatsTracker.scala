@@ -31,7 +31,6 @@ import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.vectorized.{ColumnarBatchInIterator, NativePlanEvaluator}
-
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -39,20 +38,18 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, DeclarativeAggregate}
 import org.apache.spark.sql.delta.DeltaIdentityColumnStatsTracker
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, LeafExecNode}
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.execution.datasources.{WriteJobStatsTracker, WriteTaskStats, WriteTaskStatsTracker}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SerializableConfiguration, SparkDirectoryUtil}
-
 import com.google.common.collect.Lists
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 import java.util.UUID
 import java.util.concurrent.{Callable, Executors, SynchronousQueue, TimeUnit}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -203,7 +200,7 @@ private object GlutenDeltaJobStatisticsTracker {
 
       val inputNode = StatisticsInputNode(dataCols)
 
-      val aggOp = HashAggregateExec(
+      val aggOp = SortAggregateExec(
         None,
         false,
         None,
