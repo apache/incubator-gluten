@@ -18,7 +18,7 @@ set -e
 
 function install_maven {
   (
-    local maven_version="3.9.2"
+    local maven_version="3.9.12"
     local local_binary="apache-maven-${maven_version}-bin.tar.gz"
     local mirror_host="https://www.apache.org/dyn/closer.lua"
     local url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download"
