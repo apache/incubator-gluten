@@ -99,14 +99,14 @@ private object GlutenDeltaJobStatisticsTracker {
       rootPath: Path,
       hadoopConf: Configuration)
     extends WriteTaskStatsTracker {
-    private val accumulators = mutable.Map[String, VeloxStatisticsAccumulator]()
+    private val accumulators = mutable.Map[String, VeloxTaskStatisticsAccumulator]()
 
     override def newPartition(partitionValues: InternalRow): Unit = {}
 
     override def newFile(filePath: String): Unit = {
       accumulators.getOrElseUpdate(
         filePath,
-        new VeloxStatisticsAccumulator(dataCols, statsColExpr)
+        new VeloxTaskStatisticsAccumulator(dataCols, statsColExpr)
       )
     }
 
@@ -131,7 +131,7 @@ private object GlutenDeltaJobStatisticsTracker {
     }
   }
 
-  private class VeloxStatisticsAccumulator(dataCols: Seq[Attribute], statsColExpr: Expression) {
+  private class VeloxTaskStatisticsAccumulator(dataCols: Seq[Attribute], statsColExpr: Expression) {
     private val c2r = new VeloxColumnarToRowExec.Converter(new SQLMetric("convertTime"))
     private var resultRequested: Boolean = false
     private val inputBatchQueue = new SynchronousQueue[ColumnarBatch]()
