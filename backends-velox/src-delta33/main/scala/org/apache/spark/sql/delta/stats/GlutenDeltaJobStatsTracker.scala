@@ -31,12 +31,12 @@ import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.vectorized.{ColumnarBatchInIterator, NativePlanEvaluator}
+
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, Projection, UnsafeProjection}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, DeclarativeAggregate}
-import org.apache.spark.sql.delta.DeltaIdentityColumnStatsTracker
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, LeafExecNode}
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.execution.datasources.{WriteJobStatsTracker, WriteTaskStats, WriteTaskStatsTracker}
@@ -44,18 +44,21 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SerializableConfiguration, SparkDirectoryUtil}
+
 import com.google.common.collect.Lists
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 import java.util.UUID
 import java.util.concurrent.{Callable, Executors, SynchronousQueue, TimeUnit}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class GlutenDeltaJobStatisticsTracker(val delegate: DeltaJobStatisticsTracker)
+/** Gluten's stats tracker with vectorized aggregation inside to produce statistics efficiently. */
+private[stats] class GlutenDeltaJobStatsTracker(val delegate: DeltaJobStatisticsTracker)
   extends WriteJobStatsTracker {
-  import GlutenDeltaJobStatisticsTracker._
+  import GlutenDeltaJobStatsTracker._
 
   @transient private val hadoopConf: Configuration = {
     val clazz = classOf[DeltaJobStatisticsTracker]
@@ -73,7 +76,7 @@ class GlutenDeltaJobStatisticsTracker(val delegate: DeltaJobStatisticsTracker)
   override def newTaskInstance(): WriteTaskStatsTracker = {
     val rootPath = new Path(rootUri)
     val hadoopConf = srlHadoopConf.value
-    new GlutenDeltaTaskStatisticsTracker(dataCols, statsColExpr, rootPath, hadoopConf)
+    new GlutenDeltaTaskStatsTracker(dataCols, statsColExpr, rootPath, hadoopConf)
   }
 
   override def processStats(stats: Seq[WriteTaskStats], jobCommitTime: Long): Unit = {
@@ -81,10 +84,13 @@ class GlutenDeltaJobStatisticsTracker(val delegate: DeltaJobStatisticsTracker)
   }
 }
 
-class GlutenDeltaIdentityColumnStatsTracker(override val delegate: DeltaIdentityColumnStatsTracker)
-  extends GlutenDeltaJobStatisticsTracker(delegate)
-
-private object GlutenDeltaJobStatisticsTracker {
+object GlutenDeltaJobStatsTracker {
+  def apply(tracker: WriteJobStatsTracker): WriteJobStatsTracker = tracker match {
+    case tracker: DeltaJobStatisticsTracker =>
+      new GlutenDeltaJobStatsTracker(tracker)
+    case tracker =>
+      new GlutenDeltaJobStatsFallbackTracker(tracker)
+  }
 
   /**
    * This is a temporary implementation of statistics tracker for Delta Lake. It's sub-optimal in
@@ -93,20 +99,20 @@ private object GlutenDeltaJobStatisticsTracker {
    *
    * TODO: Columnar-based statistics collection.
    */
-  private class GlutenDeltaTaskStatisticsTracker(
+  private class GlutenDeltaTaskStatsTracker(
       dataCols: Seq[Attribute],
       statsColExpr: Expression,
       rootPath: Path,
       hadoopConf: Configuration)
     extends WriteTaskStatsTracker {
-    private val accumulators = mutable.Map[String, VeloxTaskStatisticsAccumulator]()
+    private val accumulators = mutable.Map[String, VeloxTaskStatsAccumulator]()
 
     override def newPartition(partitionValues: InternalRow): Unit = {}
 
     override def newFile(filePath: String): Unit = {
       accumulators.getOrElseUpdate(
         filePath,
-        new VeloxTaskStatisticsAccumulator(dataCols, statsColExpr)
+        new VeloxTaskStatsAccumulator(dataCols, statsColExpr)
       )
     }
 
@@ -131,7 +137,7 @@ private object GlutenDeltaJobStatisticsTracker {
     }
   }
 
-  private class VeloxTaskStatisticsAccumulator(dataCols: Seq[Attribute], statsColExpr: Expression) {
+  private class VeloxTaskStatsAccumulator(dataCols: Seq[Attribute], statsColExpr: Expression) {
     private val c2r = new VeloxColumnarToRowExec.Converter(new SQLMetric("convertTime"))
     private var resultRequested: Boolean = false
     private val inputBatchQueue = new SynchronousQueue[ColumnarBatch]()
