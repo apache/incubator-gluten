@@ -193,14 +193,8 @@ jobs:
           $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && if [ "${{ matrix.spark }}" = "spark-4.0" ]; then \
-               GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
-                 --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-                 --excluded-queries=q72; \
-             else \
-               GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
-                 --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1; \
-             fi
+          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
   tpc-test-centos8:
     needs: build-native-lib-centos-7
@@ -381,7 +375,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/
+          path: ./cpp/build/releases/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -496,7 +490,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/
+          path: ./cpp/build/releases/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -603,8 +597,6 @@ jobs:
       - name: Setup java and maven
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          source .github/workflows/util/setup-helper.sh
-          install_maven
       - name: Set environment variables
         run: |
           echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV

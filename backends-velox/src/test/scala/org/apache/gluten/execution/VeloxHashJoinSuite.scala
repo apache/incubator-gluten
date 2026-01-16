@@ -74,7 +74,7 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  testWithMinSparkVersion("generate hash join plan - v2", "3.3") {
+  test("generate hash join plan - v2") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.adaptive.enabled", "false"),
@@ -94,13 +94,12 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
       val wholeStages = plan.collect { case wst: WholeStageTransformer => wst }
 
       if (
-        SparkShimLoader.getSparkVersion.startsWith("3.5.") ||
-        SparkShimLoader.getSparkVersion.startsWith("4.0.") ||
-        SparkShimLoader.getSparkVersion.startsWith("4.1.")
+        SparkShimLoader.getSparkVersion.startsWith("3.3.") ||
+        SparkShimLoader.getSparkVersion.startsWith("3.4.")
       ) {
-        assert(wholeStages.length == 5)
-      } else {
         assert(wholeStages.length == 3)
+      } else {
+        assert(wholeStages.length == 5)
       }
 
       // Join should be in `TransformContext`
