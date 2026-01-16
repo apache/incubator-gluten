@@ -167,14 +167,15 @@ jobs:
           dnf autoremove -y && dnf clean all
           dnf remove -y cuda-toolkit-12* && dnf install -y cuda-toolkit-13-1
           ls -l /usr/local/
-          source /opt/rh/gcc-toolset-12/enable
+
+          source /opt/rh/gcc-toolset-14/enable
 
           export CMAKE_BUILD_PARALLEL_LEVEL=4
           export NUM_THREADS=4
           export CCACHE_MAXSIZE=1G
           export CCACHE_DIR=/work/.ccache
           mkdir -p /work/.ccache
-          
+
           cd /work
           bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
           rm -rf ep/build-velox/build/velox_ep

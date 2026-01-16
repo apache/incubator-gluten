@@ -104,7 +104,16 @@ function compile {
   CXX_FLAGS='-Wno-error=stringop-overflow -Wno-error=cpp -Wno-missing-field-initializers \
     -Wno-error=uninitialized -Wno-unknown-warning-option'
 
-  COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF \
+  # Explicitly set compilers for CMake if CC and CXX are set
+  COMPILER_OPTS=""
+  if [ -n "${CC:-}" ]; then
+    COMPILER_OPTS="$COMPILER_OPTS -DCMAKE_C_COMPILER=$CC"
+  fi
+  if [ -n "${CXX:-}" ]; then
+    COMPILER_OPTS="$COMPILER_OPTS -DCMAKE_CXX_COMPILER=$CXX"
+  fi
+
+  COMPILE_OPTION="$COMPILER_OPTS -DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF \
       -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON \
       -DVELOX_ENABLE_GEO=ON"
   if [ $BUILD_TEST_UTILS == "ON" ]; then

@@ -301,7 +301,7 @@ jobs:
             --extra-conf=spark.gluten.ras.enabled=true \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.ras.enabled=true 
+            --extra-conf=spark.gluten.ras.enabled=true
 
   tpc-test-centos7:
     needs: build-native-lib-centos-7
@@ -356,7 +356,7 @@ jobs:
               --extra-conf=spark.gluten.ras.enabled=true \
             && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
               --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-              --extra-conf=spark.gluten.ras.enabled=true 
+              --extra-conf=spark.gluten.ras.enabled=true
           "
 
   tpc-test-ubuntu-oom:
@@ -399,7 +399,7 @@ jobs:
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
-          cd $GITHUB_WORKSPACE/ 
+          cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
@@ -514,7 +514,7 @@ jobs:
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
-          cd $GITHUB_WORKSPACE/ 
+          cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $GITHUB_WORKSPACE/build/mvn clean install -P${{ matrix.spark }}
@@ -1376,7 +1376,7 @@ jobs:
           dnf autoremove -y && dnf clean all
           dnf remove -y cuda-toolkit-12* && dnf install -y cuda-toolkit-13-1
           ls -l /usr/local/
-          source /opt/rh/gcc-toolset-12/enable
+          source /opt/rh/gcc-toolset-14/enable
 
           export CMAKE_BUILD_PARALLEL_LEVEL=4
           export NUM_THREADS=4
