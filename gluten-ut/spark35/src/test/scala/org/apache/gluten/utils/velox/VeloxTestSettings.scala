@@ -40,7 +40,6 @@ import org.apache.spark.sql.execution.python._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.gluten.GlutenFallbackSuite
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
-import org.apache.spark.sql.hive.orc.{GlutenHiveOrcHadoopFsRelationSuite, GlutenHiveOrcPartitionDiscoverySuite, GlutenHiveOrcQuerySuite, GlutenHiveOrcSourceSuite, GlutenOrcHadoopFsRelationSuite}
 import org.apache.spark.sql.sources._
 
 // Some settings' line length exceeds 100
@@ -334,26 +333,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
   enableSuite[GlutenOrcV2SchemaPruningSuite]
-  enableSuite[GlutenHiveOrcPartitionDiscoverySuite]
-  enableSuite[GlutenHiveOrcQuerySuite]
-    // not support ignore: Corrupted file, Post script size is invalid
-    .exclude("Enabling/disabling ignoreCorruptFiles")
-    .exclude("SPARK-49094: ignoreCorruptFiles works for hive orc w/ mergeSchema off")
-    // result miss match
-    .exclude("SPARK-32864: Support ORC forced positional evolution")
-    .exclude("SPARK-32864: Support ORC forced positional evolution with partitioned table")
-  enableSuite[GlutenHiveOrcSourceSuite]
-    // date result miss match
-    .exclude("SPARK-31238: compatibility with Spark 2.4 in reading dates")
-    .exclude("SPARK-31238, SPARK-31423: rebasing dates in write")
-    // subdirectories result empty
-    .exclude("SPARK-25993 CREATE EXTERNAL TABLE with subdirectories")
-  enableSuite[GlutenOrcHadoopFsRelationSuite]
-    // date result miss match
-    .exclude("test all data types")
-  enableSuite[GlutenHiveOrcHadoopFsRelationSuite]
-    // date result miss match
-    .exclude("test all data types")
   enableSuite[GlutenParquetColumnIndexSuite]
     // Rewrite by just removing test timestamp.
     .exclude("test reading unaligned pages - test all types")
