@@ -20,12 +20,11 @@ import org.apache.gluten.datasource.ArrowCSVFileFormat
 import org.apache.gluten.datasource.v2.ArrowCSVScan
 import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ArrowFileSourceScanExec, FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
-case class ArrowScanReplaceRule(spark: SparkSession) extends Rule[SparkPlan] {
+case class ArrowScanReplaceRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     plan.transformUp {
       case plan: FileSourceScanExec if plan.relation.fileFormat.isInstanceOf[ArrowCSVFileFormat] =>

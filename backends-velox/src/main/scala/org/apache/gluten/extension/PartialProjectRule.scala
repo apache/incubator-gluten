@@ -20,11 +20,10 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ColumnarPartialProjectExec
 import org.apache.gluten.utils.PlanUtil
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 
-case class PartialProjectRule(spark: SparkSession) extends Rule[SparkPlan] {
+case class PartialProjectRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     if (!GlutenConfig.get.enableColumnarPartialProject) {
       return plan

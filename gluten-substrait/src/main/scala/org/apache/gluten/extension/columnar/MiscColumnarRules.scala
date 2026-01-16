@@ -23,7 +23,6 @@ import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
@@ -139,8 +138,7 @@ object MiscColumnarRules {
   //
   // The rule is basically a workaround because of the limited compatibility between Spark's AQE
   // and columnar API.
-  case class RemoveTopmostColumnarToRow(session: SparkSession, isAdaptiveContext: Boolean)
-    extends Rule[SparkPlan] {
+  case class RemoveTopmostColumnarToRow(isAdaptiveContext: Boolean) extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = {
       if (!isAdaptiveContext) {
         // The rule only applies in AQE. If AQE is off the topmost C2R will be strictly required
@@ -164,7 +162,7 @@ object MiscColumnarRules {
   }
 
   // `InMemoryTableScanExec` internally supports ColumnarToRow.
-  case class RemoveGlutenTableCacheColumnarToRow(session: SparkSession) extends Rule[SparkPlan] {
+  case class RemoveGlutenTableCacheColumnarToRow() extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
       case ColumnarToRowLike(child) if PlanUtil.isGlutenTableCache(child) =>
         child

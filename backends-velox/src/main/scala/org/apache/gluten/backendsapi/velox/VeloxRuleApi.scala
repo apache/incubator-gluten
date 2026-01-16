@@ -80,16 +80,13 @@ object VeloxRuleApi {
     // Legacy: Pre-transform rules.
     injector.injectPreTransform(_ => RemoveTransitions)
     injector.injectPreTransform(_ => PushDownInputFileExpression.PreOffload)
-    injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
-    injector.injectPreTransform(c => FallbackMultiCodegens.apply(c.session))
-    injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
+    injector.injectPreTransform(c => FallbackOnANSIMode())
+    injector.injectPreTransform(c => FallbackMultiCodegens())
+    injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate())
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
     injector.injectPreTransform(
-      c =>
-        BloomFilterMightContainJointRewriteRule.apply(
-          c.session,
-          c.caller.isBloomFilterStatFunction()))
-    injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
+      c => BloomFilterMightContainJointRewriteRule(c.caller.isBloomFilterStatFunction()))
+    injector.injectPreTransform(c => ArrowScanReplaceRule())
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
     // Legacy: The legacy transform rule.
@@ -115,7 +112,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
     injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => UnionTransformerRule())
-    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
+    injector.injectPostTransform(c => PartialProjectRule())
     injector.injectPostTransform(_ => PartialGenerateRule())
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(_ => PushDownFilterToScan)
@@ -124,7 +121,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => EliminateLocalSort)
     injector.injectPostTransform(_ => PullOutDuplicateProject)
     injector.injectPostTransform(_ => CollapseProjectExecTransformer)
-    injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
+    injector.injectPostTransform(c => FlushableHashAggregateRule())
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(_ => CollectTailTransformerRule())
     injector.injectPostTransform(_ => V2WritePostRule())
@@ -134,7 +131,7 @@ object VeloxRuleApi {
     injector.injectFallbackPolicy(c => p => ExpandFallbackPolicy(c.caller.isAqe(), p))
 
     // Gluten columnar: Post rules.
-    injector.injectPost(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
+    injector.injectPost(c => RemoveTopmostColumnarToRow(c.caller.isAqe()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => each(c.session)))
@@ -142,10 +139,10 @@ object VeloxRuleApi {
     injector.injectPost(_ => GenerateTransformStageId())
     injector.injectPost(c => CudfNodeValidationRule(new GlutenConfig(c.sqlConf)))
 
-    injector.injectPost(c => GlutenNoopWriterRule(c.session))
+    injector.injectPost(c => GlutenNoopWriterRule())
 
     // Gluten columnar: Final rules.
-    injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
+    injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow())
     injector.injectFinal(
       c => PreventBatchTypeMismatchInTableCache(c.caller.isCache(), Set(VeloxBatchType)))
     injector.injectFinal(
@@ -164,15 +161,12 @@ object VeloxRuleApi {
     // Gluten RAS: Pre rules.
     injector.injectPreTransform(_ => RemoveTransitions)
     injector.injectPreTransform(_ => PushDownInputFileExpression.PreOffload)
-    injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
-    injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
+    injector.injectPreTransform(c => FallbackOnANSIMode())
+    injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate())
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
     injector.injectPreTransform(
-      c =>
-        BloomFilterMightContainJointRewriteRule.apply(
-          c.session,
-          c.caller.isBloomFilterStatFunction()))
-    injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
+      c => BloomFilterMightContainJointRewriteRule.apply(c.caller.isBloomFilterStatFunction()))
+    injector.injectPreTransform(c => ArrowScanReplaceRule())
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
     // Gluten RAS: The RAS rule.
@@ -222,7 +216,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => RemoveTransitions)
     injector.injectPostTransform(_ => UnionTransformerRule())
-    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
+    injector.injectPostTransform(c => PartialProjectRule())
     injector.injectPostTransform(_ => PartialGenerateRule())
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(_ => PushDownFilterToScan)
@@ -231,20 +225,20 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => EliminateLocalSort)
     injector.injectPostTransform(_ => PullOutDuplicateProject)
     injector.injectPostTransform(_ => CollapseProjectExecTransformer)
-    injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
+    injector.injectPostTransform(c => FlushableHashAggregateRule())
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(_ => CollectTailTransformerRule())
     injector.injectPostTransform(_ => V2WritePostRule())
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatchType))
-    injector.injectPostTransform(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
+    injector.injectPostTransform(c => RemoveTopmostColumnarToRow(c.caller.isAqe()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPostTransform(c => each(c.session)))
     injector.injectPostTransform(c => ColumnarCollapseTransformStages(new GlutenConfig(c.sqlConf)))
     injector.injectPostTransform(_ => GenerateTransformStageId())
     injector.injectPostTransform(c => CudfNodeValidationRule(new GlutenConfig(c.sqlConf)))
-    injector.injectPostTransform(c => GlutenNoopWriterRule(c.session))
-    injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow(c.session))
+    injector.injectPostTransform(c => GlutenNoopWriterRule())
+    injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow())
     injector.injectPostTransform(
       c => PreventBatchTypeMismatchInTableCache(c.caller.isCache(), Set(VeloxBatchType)))
     injector.injectPostTransform(
