@@ -30,7 +30,7 @@ RUN set -ex; \
     dnf install -y --setopt=install_weak_deps=False gcc-toolset-12 gcc-toolset-13; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     yum install -y java-${JAVA_VERSION}-openjdk-devel patch wget git perl; \
-    maven_version=3.9.2; \
+    maven_version=3.9.12; \
     local_binary="apache-maven-${maven_version}-bin.tar.gz"; \
     mirror_host="https://www.apache.org/dyn/closer.lua"; \
     url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download"; \
