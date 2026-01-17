@@ -17,6 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ListNode
@@ -45,10 +46,44 @@ case class CastTransformer(substraitExprName: String, child: ExpressionTransform
   extends UnaryExpressionTransformer {
   override def doTransform(context: SubstraitContext): ExpressionNode = {
     val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
-    ExpressionBuilder.makeCast(
-      typeNode,
-      child.doTransform(context),
-      SparkShimLoader.getSparkShims.withTryEvalMode(original))
+    if (
+      GlutenConfig.get.enableAnsiMode &&
+      !SparkShimLoader.getSparkShims.withTryEvalMode(original) &&
+      original.child.isInstanceOf[Literal]
+    ) {
+      val ansiEvalCast =
+        try {
+          val ctor = original.getClass.getConstructors.find(_.getParameterTypes.length == 4)
+          ctor
+            .map(
+              _.newInstance(
+                original.child,
+                original.dataType,
+                original.timeZoneId,
+                EvalMode.ANSI
+              ).asInstanceOf[Cast])
+            .getOrElse(original)
+        } catch {
+          case _: Throwable => original
+        }
+      ansiEvalCast.eval()
+    }
+    val tryEval = SparkShimLoader.getSparkShims.withTryEvalMode(original)
+    val ansiEval =
+      SparkShimLoader.getSparkShims.withAnsiEvalMode(original) || GlutenConfig.get.enableAnsiMode
+    if (
+      !tryEval && ansiEval &&
+      original.child.dataType == StringType &&
+      original.dataType == BooleanType
+    ) {
+      val functionId = context.registerFunction(
+        ConverterUtils
+          .makeFuncName("spark_cast_string_to_boolean_ansi", Seq(original.child.dataType)))
+      val expressionNodes = Lists.newArrayList(child.doTransform(context))
+      return ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    }
+    val isTryCast = tryEval || !ansiEval
+    ExpressionBuilder.makeCast(typeNode, child.doTransform(context), isTryCast)
   }
 }
 
