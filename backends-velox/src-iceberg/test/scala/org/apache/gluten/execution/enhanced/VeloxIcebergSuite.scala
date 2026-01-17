@@ -325,4 +325,25 @@ class VeloxIcebergSuite extends IcebergSuite {
       assert(executionMetrics(metrics("numWrittenFiles").id).toLong == 1)
     }
   }
+
+  test("iceberg write file name") {
+    withTable("iceberg_tbl") {
+      spark.sql("create table if not exists iceberg_tbl (id int) using iceberg")
+      spark.sql("insert into iceberg_tbl values 1")
+
+      val filePath = spark
+        .sql("select * from default.iceberg_tbl.files")
+        .select("file_path")
+        .collect()
+        .apply(0)
+        .getString(0)
+
+      val fileName = filePath.split('/').last
+      // Expected format: {partitionId:05d}-{taskId}-{operationId}-{fileCount:05d}.parquet
+      // Example: 00000-0-query_id-0-00001.parquet
+      assert(
+        fileName.matches("\\d{5}-\\d+-.*-\\d{5}\\.parquet"),
+        s"File name does not match expected format: $fileName")
+    }
+  }
 }

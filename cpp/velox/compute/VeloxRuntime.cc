@@ -222,13 +222,16 @@ std::shared_ptr<IcebergWriter> VeloxRuntime::createIcebergWriter(
     int32_t format,
     const std::string& outputDirectory,
     facebook::velox::common::CompressionKind compressionKind,
+    int32_t partitionId,
+    int64_t taskId,
+    const std::string& operationId,
     std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
     const gluten::IcebergNestedField& protoField,
     const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto veloxPool = memoryManager()->getLeafMemoryPool();
   auto connectorPool = memoryManager()->getAggregateMemoryPool();
   return std::make_shared<IcebergWriter>(
-      rowType, format, outputDirectory, compressionKind, spec, protoField, sparkConfs, veloxPool, connectorPool);
+      rowType, format, outputDirectory, compressionKind, partitionId, taskId, operationId, spec, protoField, sparkConfs, veloxPool, connectorPool);
 }
 #endif
 
