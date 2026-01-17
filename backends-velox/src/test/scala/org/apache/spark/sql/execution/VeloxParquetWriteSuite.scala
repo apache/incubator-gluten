@@ -33,25 +33,14 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
   override protected val fileFormat: String = "parquet"
 
   // The parquet compression codec extensions
-  private val parquetCompressionCodecExtensions = if (isSparkVersionGE("3.5")) {
+  private val parquetCompressionCodecExtensions = {
     Map(
       "none" -> "",
       "uncompressed" -> "",
       "snappy" -> ".snappy",
       "gzip" -> ".gz",
       "lzo" -> ".lzo",
-      "lz4" -> ".lz4hadoop", // Specific extension for version 3.5
-      "brotli" -> ".br",
-      "zstd" -> ".zstd"
-    )
-  } else {
-    Map(
-      "none" -> "",
-      "uncompressed" -> "",
-      "snappy" -> ".snappy",
-      "gzip" -> ".gz",
-      "lzo" -> ".lzo",
-      "lz4" -> ".lz4",
+      "lz4" -> (if (isSparkVersionGE("3.5")) ".lz4hadoop" else ".lz4"),
       "brotli" -> ".br",
       "zstd" -> ".zstd"
     )
