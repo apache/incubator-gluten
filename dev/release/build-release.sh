@@ -37,8 +37,8 @@ else
   exit 1
 fi
 
-# Build Gluten for Spark 3.2 and 3.3 with Java 8. All feature modules are enabled.
-for spark_version in 3.2 3.3
+# Build Gluten for Spark 3.3 with Java 8. All feature modules are enabled.
+for spark_version in 3.3
 do
   mvn clean install -Pbackends-velox -Pspark-${spark_version} -Pceleborn,uniffle \
                     -Piceberg,delta,hudi,paimon -DskipTests

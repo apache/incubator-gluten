@@ -43,7 +43,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
   }
 
   // IdMapping is supported in Delta 2.2 (related to Spark3.3.1)
-  testWithMinSparkVersion("column mapping mode = id", "3.3") {
+  test("column mapping mode = id") {
     withTable("delta_cm1") {
       spark.sql(s"""
                    |create table delta_cm1 (id int, name string) using delta
@@ -82,7 +82,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithMinSparkVersion("delta: time travel", "3.3") {
+  test("delta: time travel") {
     withTable("delta_tm") {
       spark.sql(s"""
                    |create table delta_tm (id int, name string) using delta
