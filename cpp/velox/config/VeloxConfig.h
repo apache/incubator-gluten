@@ -72,6 +72,12 @@ const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox
 const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 
+const std::string kHashProbeDynamicFilterPushdownEnabled =
+    "spark.gluten.sql.columnar.backend.velox.hashProbe.dynamicFilterPushdown.enabled";
+
+const std::string kHashProbeBloomFilterPushdownMaxSize =
+    "spark.gluten.sql.columnar.backend.velox.hashProbe.bloomFilterPushdown.maxSize";
+
 const std::string kShowTaskMetricsWhenFinished = "spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished";
 const bool kShowTaskMetricsWhenFinishedDefault = false;
 
