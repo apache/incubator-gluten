@@ -65,7 +65,6 @@ object VeloxRuleApi {
     injector.injectOptimizerRule(HLLRewriteRule.apply)
     injector.injectOptimizerRule(CollapseGetJsonObjectExpressionRule.apply)
     injector.injectOptimizerRule(RewriteCastFromArray.apply)
-    injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
     injector.injectOptimizerRule(RewriteUnboundedWindow.apply)
     if (BackendsApiManager.getSettings.supportAppendDataExec()) {
       injector.injectPlannerStrategy(SparkShimLoader.getSparkShims.getRewriteCreateTableAsSelect(_))
@@ -89,7 +88,6 @@ object VeloxRuleApi {
         BloomFilterMightContainJointRewriteRule.apply(
           c.session,
           c.caller.isBloomFilterStatFunction()))
-    injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
     // Legacy: The legacy transform rule.
@@ -172,7 +170,6 @@ object VeloxRuleApi {
         BloomFilterMightContainJointRewriteRule.apply(
           c.session,
           c.caller.isBloomFilterStatFunction()))
-    injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
     // Gluten RAS: The RAS rule.
