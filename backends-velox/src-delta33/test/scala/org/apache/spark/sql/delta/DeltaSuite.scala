@@ -99,7 +99,7 @@ class DeltaSuite
         // Generate two files in two partitions
         spark
           .range(2)
-          .withColumn("part", $"id" % 2)
+          .withColumn("part", Symbol("id") % 2)
           .write
           .format("delta")
           .partitionBy("part")
@@ -227,7 +227,7 @@ class DeltaSuite
         val basePath = dir.getAbsolutePath
         spark
           .range(10)
-          .withColumn("part", 'id % 3)
+          .withColumn("part", Symbol("id") % 3)
           .write
           .format("delta")
           .partitionBy("part")
@@ -1287,7 +1287,7 @@ class DeltaSuite
 
         spark
           .range(100)
-          .select('id, ('id % 4).as("by4"), ('id % 8).as("by8"))
+          .select(Symbol("id"), (Symbol("id") % 4).as("by4"), (Symbol("id") % 8).as("by8"))
           .write
           .format("delta")
           .partitionBy("by4", "by8")
@@ -1310,7 +1310,7 @@ class DeltaSuite
 
         spark
           .range(100)
-          .select('id, ('id % 4).as("by4"))
+          .select(Symbol("id"), (Symbol("id") % 4).as("by4"))
           .write
           .format("delta")
           .partitionBy("by4")
@@ -1341,7 +1341,7 @@ class DeltaSuite
 
         val dfw = spark
           .range(100)
-          .select('id, ('id % 4).as("by,4"))
+          .select(Symbol("id"), (Symbol("id") % 4).as("by,4"))
           .write
           .format("delta")
           .partitionBy("by,4")
@@ -1372,7 +1372,7 @@ class DeltaSuite
 
         spark
           .range(100)
-          .select('id, ('id % 4).as("by4"), ('id % 8).as("by8"))
+          .select(Symbol("id"), (Symbol("id") % 4).as("by4"), (Symbol("id") % 8).as("by8"))
           .write
           .format("delta")
           .partitionBy("by4", "by8")
@@ -1381,7 +1381,7 @@ class DeltaSuite
         val e = intercept[AnalysisException] {
           spark
             .range(100)
-            .select('id, ('id % 4).as("by4"))
+            .select(Symbol("id"), (Symbol("id") % 4).as("by4"))
             .write
             .format("delta")
             .partitionBy("by4")
@@ -1401,7 +1401,7 @@ class DeltaSuite
 
         spark
           .range(100)
-          .select('id, ('id * 3).cast("string").as("value"))
+          .select(Symbol("id"), (Symbol("id") * 3).cast("string").as("value"))
           .write
           .format("delta")
           .save(tempDir.toString)
@@ -1409,7 +1409,7 @@ class DeltaSuite
         val e = intercept[AnalysisException] {
           spark
             .range(100)
-            .select('id, ('id * 3).as("value"))
+            .select(Symbol("id"), (Symbol("id") * 3).as("value"))
             .write
             .format("delta")
             .mode("append")
@@ -1431,7 +1431,7 @@ class DeltaSuite
 
         spark
           .range(100)
-          .select('id, ('id % 4).as("by4"))
+          .select(Symbol("id"), (Symbol("id") % 4).as("by4"))
           .write
           .format("delta")
           .partitionBy("by4")
@@ -1444,7 +1444,7 @@ class DeltaSuite
 
         spark
           .range(101, 200)
-          .select('id, ('id % 4).as("by4"), ('id % 8).as("by8"))
+          .select(Symbol("id"), (Symbol("id") % 4).as("by4"), (Symbol("id") % 8).as("by8"))
           .write
           .format("delta")
           .option(DeltaOptions.MERGE_SCHEMA_OPTION, "true")
@@ -1453,7 +1453,9 @@ class DeltaSuite
 
         checkAnswer(
           spark.read.format("delta").load(tempDir.toString),
-          spark.range(101, 200).select('id, ('id % 4).as("by4"), ('id % 8).as("by8")))
+          spark
+            .range(101, 200)
+            .select(Symbol("id"), (Symbol("id") % 4).as("by4"), (Symbol("id") % 8).as("by8")))
     }
   }
 
@@ -1466,7 +1468,7 @@ class DeltaSuite
 
         spark
           .range(100)
-          .select('id, ('id % 4).as("by4"))
+          .select(Symbol("id"), (Symbol("id") % 4).as("by4"))
           .write
           .format("delta")
           .partitionBy("by4")
@@ -1480,7 +1482,7 @@ class DeltaSuite
         val e = intercept[AnalysisException] {
           spark
             .range(101, 200)
-            .select('id, ('id % 4).as("by4"), ('id % 8).as("by8"))
+            .select(Symbol("id"), (Symbol("id") % 4).as("by4"), (Symbol("id") % 8).as("by8"))
             .write
             .format("delta")
             .partitionBy("by4", "by8")
@@ -1504,7 +1506,7 @@ class DeltaSuite
             val e = intercept[AnalysisException] {
               spark
                 .range(100)
-                .select('id, ('id % 4).as("by4"))
+                .select(Symbol("id"), (Symbol("id") % 4).as("by4"))
                 .write
                 .format("delta")
                 .partitionBy("by4", "id")
@@ -1702,14 +1704,14 @@ class DeltaSuite
           }
 
           withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
-            testDf('aBc)
+            testDf(Symbol("aBc"))
 
             intercept[AnalysisException] {
-              testDf('abc)
+              testDf(Symbol("aBc"))
             }
           }
-          testDf('aBc)
-          testDf('abc)
+          testDf(Symbol("aBc"))
+          testDf(Symbol("aBc"))
       }
     }
   }
@@ -3303,7 +3305,7 @@ class DeltaNameColumnMappingSuite extends DeltaSuite with DeltaColumnMappingEnab
         // create partitioned table
         spark
           .range(100)
-          .withColumn("part", 'id % 10)
+          .withColumn("part", Symbol("id") % 10)
           .write
           .format("delta")
           .partitionBy("part")

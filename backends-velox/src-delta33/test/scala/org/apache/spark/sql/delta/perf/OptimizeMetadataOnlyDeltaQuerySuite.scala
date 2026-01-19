@@ -1025,16 +1025,16 @@ class OptimizeMetadataOnlyDeltaQuerySuite
     import testImplicits._
 
     source.select(
-      'id,
-      'id.cast("tinyint").as('TinyIntColumn),
-      'id.cast("smallint").as('SmallIntColumn),
-      'id.cast("int").as('IntColumn),
-      'id.cast("bigint").as('BigIntColumn),
-      ('id / 3.3).cast("float").as('FloatColumn),
-      ('id / 3.3).cast("double").as('DoubleColumn),
-      date_add(lit("2022-08-31").cast("date"), col("id").cast("int")).as('DateColumn),
-      ('id % 2).cast("integer").as('group),
-      'id.cast("string").as('data)
+      Symbol("id"),
+      Symbol("id").cast("tinyint").as(Symbol("TinyIntColumn")),
+      Symbol("id").cast("smallint").as(Symbol("SmallIntColumn")),
+      Symbol("id").cast("int").as(Symbol("IntColumn")),
+      Symbol("id").cast("bigint").as(Symbol("BigIntColumn")),
+      (Symbol("id") / 3.3).cast("float").as(Symbol("FloatColumn")),
+      (Symbol("id") / 3.3).cast("double").as(Symbol("DoubleColumn")),
+      date_add(lit("2022-08-31").cast("date"), col("id").cast("int")).as(Symbol("DateColumn")),
+      (Symbol("id") % 2).cast("integer").as(Symbol("group")),
+      Symbol("id").cast("string").as(Symbol("data"))
     )
   }
 
@@ -1078,7 +1078,7 @@ class OptimizeMetadataOnlyDeltaQuerySuite
    * potentially improve.
    * @param query
    */
-  private def checkOptimizationIsNotTriggered(query: String) {
+  private def checkOptimizationIsNotTriggered(query: String): Unit = {
     var expectedOptimizedPlan: String = null
     var expectedAnswer: scala.Seq[Row] = null
 

@@ -144,7 +144,7 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
     dir =>
       val df = spark
         .range(0, 100, 1, 4)
-        .withColumn("part", 'id % 5)
+        .withColumn("part", Symbol("id") % 5)
 
       df.write.partitionBy("part").format("delta").save(dir)
       checkResult(df, numFileCheck = _ <= 5, dir)
@@ -155,7 +155,7 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
       dir =>
         val df = spark
           .range(0, 100, 1, 4)
-          .withColumn("part", 'id % 5)
+          .withColumn("part", Symbol("id") % 5)
 
         df.write
           .partitionBy("part")
@@ -171,7 +171,7 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
     dir =>
       val df = spark
         .range(0, 100, 1, 4)
-        .withColumn("part", 'id % 5)
+        .withColumn("part", Symbol("id") % 5)
 
       df.write
         .partitionBy("part")
@@ -186,8 +186,8 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
     dir =>
       val df = spark
         .range(0, 100, 1, 4)
-        .withColumn("part", 'id % 5)
-        .withColumn("part2", ('id / 20).cast("int"))
+        .withColumn("part", Symbol("id") % 5)
+        .withColumn("part2", (Symbol("id") / 20).cast("int"))
 
       df.write.partitionBy("part", "part2").format("delta").save(dir)
 
@@ -199,8 +199,8 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
       dir =>
         val df = spark
           .range(0, 100, 1, 4)
-          .withColumn("part", 'id % 5)
-          .withColumn("part2", ('id / 20).cast("int"))
+          .withColumn("part", Symbol("id") % 5)
+          .withColumn("part2", (Symbol("id") / 20).cast("int"))
 
         df.write
           .partitionBy("part", "part2")
@@ -245,8 +245,8 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
     dir =>
       val df = spark
         .range(0, 100, 1, 4)
-        .withColumn("part", 'id % 5)
-        .withColumn("part2", ('id / 20).cast("int"))
+        .withColumn("part", Symbol("id") % 5)
+        .withColumn("part2", (Symbol("id") / 20).cast("int"))
 
       df.write
         .partitionBy("part", "part2")
@@ -292,7 +292,7 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
 
   writeTest("map task with more partitions than target shuffle blocks - partitioned") {
     dir =>
-      val df = spark.range(0, 20, 1, 4).withColumn("part", 'id % 5)
+      val df = spark.range(0, 20, 1, 4).withColumn("part", Symbol("id") % 5)
 
       withSQLConf(DeltaSQLConf.DELTA_OPTIMIZE_WRITE_SHUFFLE_BLOCKS.key -> "2") {
         df.write.format("delta").partitionBy("part").mode("append").save(dir)
@@ -303,7 +303,7 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
 
   writeTest("zero partition dataframe write") {
     dir =>
-      val df = spark.range(0, 20, 1, 4).withColumn("part", 'id % 5)
+      val df = spark.range(0, 20, 1, 4).withColumn("part", Symbol("id") % 5)
       df.write.format("delta").partitionBy("part").mode("append").save(dir)
       val schema = new StructType().add("id", LongType).add("part", LongType)
 
@@ -327,7 +327,7 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
 
   writeTest("single partition dataframe write") {
     dir =>
-      val df = spark.range(0, 20).repartition(1).withColumn("part", 'id % 5)
+      val df = spark.range(0, 20).repartition(1).withColumn("part", Symbol("id") % 5)
       val logs1 = Log4jUsageLogger
         .track {
           df.write.format("delta").partitionBy("part").mode("append").save(dir)
@@ -344,7 +344,7 @@ abstract class OptimizedWritesSuiteBase extends QueryTest with SharedSparkSessio
     dir =>
       // 50M shuffle blocks would've led to 25M shuffle partitions
       withSQLConf(DeltaSQLConf.DELTA_OPTIMIZE_WRITE_SHUFFLE_BLOCKS.key -> "50000000") {
-        val df = spark.range(0, 20).repartition(2).withColumn("part", 'id % 5)
+        val df = spark.range(0, 20).repartition(2).withColumn("part", Symbol("id") % 5)
         val logs1 = Log4jUsageLogger
           .track {
             df.write.format("delta").partitionBy("part").mode("append").save(dir)
