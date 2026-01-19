@@ -464,7 +464,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Get the grouping expressions.
   VELOX_CHECK(
-    aggRel.groupings().size() <= 1, "At most one grouping is supported, but got {}.", aggRel.groupings().size());
+      aggRel.groupings().size() <= 1, "At most one grouping is supported, but got {}.", aggRel.groupings().size());
   if (aggRel.groupings().size() == 1) {
     for (const auto& groupingExpr : aggRel.groupings()[0].grouping_expressions()) {
       // Velox's groupings are limited to be Field.
@@ -504,7 +504,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     aggregates.emplace_back(core::AggregationNode::Aggregate{aggExpr, rawInputTypes, mask, {}, {}});
   }
 
-  bool ignoreNullKeys = false;
   std::vector<core::FieldAccessTypedExprPtr> preGroupingExprs;
   if (aggRel.has_advanced_extension() &&
       SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "isStreaming=")) {
@@ -526,7 +525,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       preGroupingExprs,
       aggOutNames,
       aggregates,
-      ignoreNullKeys,
+      /*ignoreNullKeys=*/false,
+      /*noGroupsSpanBatches=*/false,
       childNode);
 
   if (aggRel.has_common()) {
@@ -641,17 +641,19 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
     }
     if (std::find(partitionedBy.cbegin(), partitionedBy.cend(), tableColumnNames.at(i)) != partitionedBy.cend()) {
       ++numPartitionColumns;
-      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
-          tableColumnNames.at(i),
-          connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
-          tableColumnTypes.at(i),
-          tableColumnTypes.at(i)));
+      columnHandles.emplace_back(
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              tableColumnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
+              tableColumnTypes.at(i),
+              tableColumnTypes.at(i)));
     } else {
-      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
-          tableColumnNames.at(i),
-          connector::hive::HiveColumnHandle::ColumnType::kRegular,
-          tableColumnTypes.at(i),
-          tableColumnTypes.at(i)));
+      columnHandles.emplace_back(
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              tableColumnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kRegular,
+              tableColumnTypes.at(i),
+              tableColumnTypes.at(i)));
     }
   }
   VELOX_CHECK_EQ(numPartitionColumns, partitionedBy.size());
@@ -679,10 +681,11 @@ std::shared_ptr<CudfHiveInsertTableHandle> makeCudfHiveInsertTableHandle(
   columnHandles.reserve(tableColumnNames.size());
 
   for (int i = 0; i < tableColumnNames.size(); ++i) {
-    columnHandles.push_back(std::make_shared<CudfHiveColumnHandle>(
-        tableColumnNames.at(i),
-        tableColumnTypes.at(i),
-        cudf::data_type{cudf_velox::veloxToCudfTypeId(tableColumnTypes.at(i))}));
+    columnHandles.push_back(
+        std::make_shared<CudfHiveColumnHandle>(
+            tableColumnNames.at(i),
+            tableColumnTypes.at(i),
+            cudf::data_type{cudf_velox::veloxToCudfTypeId(tableColumnTypes.at(i))}));
   }
 
   return std::make_shared<CudfHiveInsertTableHandle>(
@@ -904,10 +907,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         (std::dynamic_pointer_cast<const core::ProjectNode>(childNode) != nullptr ||
          std::dynamic_pointer_cast<const ValueStreamNode>(childNode) != nullptr)
 #ifdef GLUTEN_ENABLE_GPU
-        || std::dynamic_pointer_cast<const CudfValueStreamNode>(childNode) != nullptr
+            || std::dynamic_pointer_cast<const CudfValueStreamNode>(childNode) != nullptr
 #endif
-          &&
-            childNode->outputType()->size() > requiredChildOutput.size(),
+                && childNode->outputType()->size() > requiredChildOutput.size(),
         "injectedProject is true, but the ProjectNode or ValueStreamNode (in case of projection fallback)"
         " is missing or does not have the corresponding projection field");
 
@@ -1653,9 +1655,13 @@ bool SubstraitToVeloxPlanConverter::checkTypeExtension(const ::substrait::Plan& 
 }
 
 #ifdef GLUTEN_ENABLE_GPU
-template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<CudfValueStreamNode>(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<CudfValueStreamNode>(
+    const ::substrait::ReadRel& sRead,
+    int32_t streamIdx);
 #endif
 
-template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<ValueStreamNode>(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+template core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode<ValueStreamNode>(
+    const ::substrait::ReadRel& sRead,
+    int32_t streamIdx);
 
 } // namespace gluten
