@@ -1707,11 +1707,11 @@ class DeltaSuite
             testDf(Symbol("aBc"))
 
             intercept[AnalysisException] {
-              testDf(Symbol("aBc"))
+              testDf(Symbol("abc"))
             }
           }
           testDf(Symbol("aBc"))
-          testDf(Symbol("aBc"))
+          testDf(Symbol("abc"))
       }
     }
   }
