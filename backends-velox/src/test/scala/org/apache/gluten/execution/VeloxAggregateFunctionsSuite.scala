@@ -122,7 +122,12 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   }
 
   test("sum") {
-    runQueryAndCompare("select sum(l_partkey) from lineitem where l_partkey < 2000") {
+    runQueryAndCompare(
+      """
+        |select l_orderkey, sum(l_partkey), sum(l_partkey1) from
+        | (select l_orderkey, l_partkey, l_partkey as l_partkey1 from lineitem)
+        | group by l_orderkey
+        |""".stripMargin) {
       checkGlutenPlan[HashAggregateExecTransformer]
     }
     runQueryAndCompare("select sum(l_quantity), count(distinct l_partkey) from lineitem") {
