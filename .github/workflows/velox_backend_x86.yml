@@ -67,8 +67,8 @@ jobs:
             ccache-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          docker pull apache/gluten:vcpkg-centos-7
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker pull apache/gluten:vcpkg-centos-9
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-9 bash -c "
             set -e
             yum install tzdata -y
             df -a
@@ -77,7 +77,7 @@ jobs:
             export CCACHE_MAXSIZE=1G
             mkdir -p /work/.ccache
             ccache -sz
-            bash dev/ci-velox-buildstatic-centos-7.sh
+            bash dev/ci-velox-buildstatic-centos-9.sh
             ccache -s
             mkdir -p /work/.m2/repository/org/apache/arrow/
             cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
