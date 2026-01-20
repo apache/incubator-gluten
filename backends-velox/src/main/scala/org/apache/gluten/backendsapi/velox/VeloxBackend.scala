@@ -91,7 +91,7 @@ object VeloxBackend {
 }
 
 object VeloxBackendSettings extends BackendSettingsApi {
-  val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
+  val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd", "snappy")
   val GLUTEN_VELOX_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".udfLibraryPaths"
   val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".driver.udfLibraryPaths"
   val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".internal.udfLibraryPaths"
