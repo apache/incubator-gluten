@@ -724,7 +724,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
             if (validationResult.ok()) {
               WholeStageTransformer(
                 ProjectExecTransformer(child.output ++ appendedProjections, childWithAdapter))(
-                ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
+                ColumnarCollapseTransformStages.getTransformStageCounter(childWithAdapter).incrementAndGet()
               )
             } else {
               offload = false
