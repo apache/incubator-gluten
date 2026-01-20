@@ -43,6 +43,10 @@ class HashTableBuilder {
     return table_;
   }
 
+  bool joinHasNullKeys() {
+    return joinHasNullKeys_;
+  }
+
  private:
   // Invoked to set up hash table to build.
   void setupTable();
