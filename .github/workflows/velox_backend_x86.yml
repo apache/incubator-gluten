@@ -79,6 +79,8 @@ jobs:
             ccache -sz
             bash dev/ci-velox-buildstatic-centos-9.sh
             ccache -s
+            cp /work/dev/vcpkg/vcpkg_installed/x64-linux-avx/lib/libcrypto.so.3 cpp/build/releases/
+            cp /work/dev/vcpkg/vcpkg_installed/x64-linux-avx/lib/libssl.so.3 cpp/build/releases/
             mkdir -p /work/.m2/repository/org/apache/arrow/
             cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
           "
@@ -246,6 +248,11 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Install libcrypto/libssl
+        run: |
+          cp cpp/build/releases/libcrypto.so.3 /usr/local/lib/ibcrypto.so
+          cp cpp/build/releases/libssl.so.3 /usr/local/lib/libssl.so 
+          ldconfig
       - name: Update mirror list
         run: |
           if [ "${{ matrix.os }}" = "centos:7" ] || [ "${{ matrix.os }}" = "centos:8" ]; then
