@@ -35,7 +35,7 @@ import java.util.UUID
  *
  * Deprecated: [[GlobalOffHeapMemory]] now allocates Spark off-heap memory instead.
  */
-@Deprecated
+@deprecated
 class GlobalOffHeapStorageMemoryTarget private[memory]
   extends MemoryTarget
   with KnownNameAndStats
