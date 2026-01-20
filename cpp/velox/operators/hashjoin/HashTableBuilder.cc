@@ -180,7 +180,6 @@ void HashTableBuilder::addInput(facebook::velox::RowVectorPtr input) {
     deselectRowsWithNulls(hashers, activeRows_);
     if (nullAware_ && !joinHasNullKeys_ && activeRows_.countSelected() < input->size()) {
       joinHasNullKeys_ = true;
-      table_->setJoinHasNullKeys();
     }
   } else if (nullAware_ && !joinHasNullKeys_) {
     for (auto& hasher : hashers) {
@@ -189,7 +188,6 @@ void HashTableBuilder::addInput(facebook::velox::RowVectorPtr input) {
         auto* nulls = decoded.nulls(&activeRows_);
         if (nulls && facebook::velox::bits::countNulls(nulls, 0, activeRows_.end()) > 0) {
           joinHasNullKeys_ = true;
-          table_->setJoinHasNullKeys();
           break;
         }
       }
