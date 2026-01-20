@@ -46,7 +46,6 @@ env:
   MVN_CMD: 'build/mvn -ntp'
   WGET_CMD: 'wget -nv'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
-  SETUP: 'source .github/workflows/util/setup-helper.sh'
   # spark.sql.ansi.enabled defaults to false.
   SPARK_ANSI_SQL_MODE: false
 
@@ -375,7 +374,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -490,7 +489,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
+          path: ./cpp/build/
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v4
         with:
