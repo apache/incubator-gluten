@@ -1071,39 +1071,6 @@
       </properties>
     </profile>
     <profile>
-      <id>spark-3.2</id>
-      <properties>
-        <sparkbundle.version>3.2</sparkbundle.version>
-        <spark.plain.version>32</spark.plain.version>
-        <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
-        <spark.version>3.2.2</spark.version>
-        <iceberg.version>1.3.1</iceberg.version>
-        <iceberg.binary.version>3</iceberg.binary.version>
-        <delta.package.name>delta-core</delta.package.name>
-        <delta.version>2.0.1</delta.version>
-        <delta.binary.version>20</delta.binary.version>
-        <antlr4.version>4.8</antlr4.version>
-        <hudi.version>0.15.0</hudi.version>
-        <slf4j.version>1.7.30</slf4j.version>
-        <log4j.version>1.2.17</log4j.version>
-        <commons.collections4.version>4.5.0</commons.collections4.version>
-      </properties>
-      <dependencies>
-        <dependency>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-          <version>${log4j.version}</version>
-          <scope>provided</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.commons</groupId>
-          <artifactId>commons-collections4</artifactId>
-          <version>${commons.collections4.version}</version>
-          <scope>compile</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
       <id>spark-3.3</id>
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
