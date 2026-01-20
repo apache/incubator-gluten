@@ -20,8 +20,6 @@ import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.memory.MemoryUsageStatsBuilder
 import org.apache.gluten.memory.memtarget.{MemoryTarget, MemoryTargets, NoopMemoryTarget, Spillers}
 
-import com.google.common.annotations.VisibleForTesting
-
 import scala.collection.JavaConverters._
 
 /**
@@ -44,18 +42,15 @@ object GlobalOffHeapMemory {
         Map[String, MemoryUsageStatsBuilder]().asJava))
   }
 
-  @VisibleForTesting
   def acquire(numBytes: Long): Unit = {
     // OOM will be handled in MemoryTargets.throwOnOom(...).
     assert(target.borrow(numBytes) == numBytes)
   }
 
-  @VisibleForTesting
   def release(numBytes: Long): Unit = {
     assert(target.repay(numBytes) == numBytes)
   }
 
-  @VisibleForTesting
   def currentBytes(): Long = {
     target.usedBytes()
   }
