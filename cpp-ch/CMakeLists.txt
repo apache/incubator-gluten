@@ -33,7 +33,7 @@ if("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
   if(NOT clickhouse_files)
     execute_process(
       COMMAND
-        git clone -b ${CH_BRANCH} --depth 3
+        git clone -b ${CH_BRANCH} --depth 10
         https://github.com/${CH_ORG}/ClickHouse.git ${CH_SOURCE_DIR}
         COMMAND_ERROR_IS_FATAL ANY)
     execute_process(
@@ -45,7 +45,7 @@ if("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
                                                    COMMAND_ERROR_IS_FATAL ANY)
   else()
     execute_process(
-      COMMAND git fetch origin ${CH_BRANCH} --depth 3
+      COMMAND git fetch origin ${CH_BRANCH} --depth 10
       WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
     execute_process(
       COMMAND git checkout ${CH_BRANCH}
