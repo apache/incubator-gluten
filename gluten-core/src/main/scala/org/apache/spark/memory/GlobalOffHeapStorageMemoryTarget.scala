@@ -29,7 +29,14 @@ import org.apache.spark.storage.BlockId
 import java.lang.reflect.Field
 import java.util.UUID
 
-class GlobalOffHeapMemoryTarget private[memory]
+/**
+ * A global off-heap memory target that acquires memory from Spark storage memory pool of the
+ * current Spark executor.
+ *
+ * Deprecated: [[GlobalOffHeapMemory]] now allocates Spark off-heap memory instead.
+ */
+@Deprecated
+class GlobalOffHeapStorageMemoryTarget private[memory]
   extends MemoryTarget
   with KnownNameAndStats
   with Logging {

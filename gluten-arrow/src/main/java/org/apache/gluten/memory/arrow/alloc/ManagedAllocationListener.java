@@ -59,6 +59,7 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
     }
     long toBeAcquired = requiredBlocks * BLOCK_SIZE;
     long granted = target.borrow(toBeAcquired);
+    assert (granted == toBeAcquired);
     sharedUsage.inc(granted);
   }
 
@@ -77,6 +78,7 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
     }
     long toBeReleased = -requiredBlocks * BLOCK_SIZE;
     long freed = target.repay(toBeReleased);
+    assert (freed == toBeReleased);
     sharedUsage.inc(-freed);
   }
 

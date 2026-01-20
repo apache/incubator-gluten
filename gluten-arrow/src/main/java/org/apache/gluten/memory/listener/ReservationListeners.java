@@ -21,7 +21,6 @@ import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.memory.memtarget.*;
 
-import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.task.TaskResources;
 
 import java.util.Collections;
@@ -46,22 +45,23 @@ public final class ReservationListeners {
     // Memory target.
     final double overAcquiredRatio = GlutenConfig.get().memoryOverAcquiredRatio();
     final long reservationBlockSize = GlutenConfig.get().memoryReservationBlockSize();
-    final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
     final TreeMemoryTarget consumer =
-        MemoryTargets.newConsumer(
-            tmm, name, Spillers.withMinSpillSize(spiller, reservationBlockSize), mutableStats);
+        MemoryTargets.newContextConsumer(
+            name, Spillers.withMinSpillSize(spiller, reservationBlockSize), mutableStats);
     final MemoryTarget overConsumer =
-        MemoryTargets.newConsumer(
-            tmm, consumer.name() + ".OverAcquire", Spillers.NOOP, Collections.emptyMap());
+        MemoryTargets.newContextConsumer(
+            consumer.name() + ".OverAcquire", Spillers.NOOP, Collections.emptyMap());
     final MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
                 MemoryTargets.dynamicOffHeapSizingIfEnabled(consumer),
                 MemoryTargets.dynamicOffHeapSizingIfEnabled(overConsumer),
                 overAcquiredRatio));
-
     // Listener.
-    return new ManagedReservationListener(target, TaskResources.getSharedUsage(), tmm);
+    return new ManagedReservationListener(
+        target,
+        TaskResources.getSharedUsage(),
+        TaskResources.getLocalTaskContext().taskMemoryManager());
   }
 
   private static ManagedReservationListener noop() {

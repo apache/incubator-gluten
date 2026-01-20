@@ -22,9 +22,9 @@ import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
 
 import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
-import org.apache.spark.memory.GlobalOffHeapMemoryTarget;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.task.TaskResources;
 import org.apache.spark.util.SparkResourceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,13 +33,13 @@ import java.util.Map;
 
 public final class MemoryTargets {
   private static final Logger LOGGER = LoggerFactory.getLogger(MemoryTargets.class);
+  private static final TaskMemoryManager GLOBAL_TMM =
+      new TaskMemoryManager(
+          SparkEnv.get().memoryManager(),
+          -439277); // Magic number to avoid possible collision with other Spark plugins.
 
   private MemoryTargets() {
     // enclose factory ctor
-  }
-
-  public static MemoryTarget global() {
-    return new GlobalOffHeapMemoryTarget();
   }
 
   public static MemoryTarget throwOnOom(MemoryTarget target) {
@@ -63,7 +63,18 @@ public final class MemoryTargets {
     return memoryTarget;
   }
 
-  public static TreeMemoryTarget newConsumer(
+  public static TreeMemoryTarget newGlobalConsumer(
+      String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> virtualChildren) {
+    return newConsumer(GLOBAL_TMM, name, spiller, virtualChildren);
+  }
+
+  public static TreeMemoryTarget newContextConsumer(
+      String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> virtualChildren) {
+    final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
+    return newConsumer(tmm, name, spiller, virtualChildren);
+  }
+
+  private static TreeMemoryTarget newConsumer(
       TaskMemoryManager tmm,
       String name,
       Spiller spiller,
