@@ -975,7 +975,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
       isNullAwareAntiJoin,
       cb,
       defaultLeafVeloxMemoryPool());
-  return gluten::hashTableObjStore->save(hashTableHandler->hashTable());
+  return gluten::hashTableObjStore->save(hashTableHandler);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
@@ -984,7 +984,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_cloneH
     jclass,
     jlong tableHandler) {
   JNI_METHOD_START
-  auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::BaseHashTable>(tableHandler);
+  auto hashTableHandler = ObjectStore::retrieve<gluten::HashTableBuilder>(tableHandler);
   return gluten::hashTableObjStore->save(hashTableHandler);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
@@ -994,8 +994,8 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_clearHa
     jclass,
     jlong tableHandler) {
   JNI_METHOD_START
-  auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::BaseHashTable>(tableHandler);
-  hashTableHandler->clear(true);
+  auto hashTableHandler = ObjectStore::retrieve<gluten::HashTableBuilder>(tableHandler);
+  hashTableHandler->hashTable()->clear(true);
   ObjectStore::release(tableHandler);
   JNI_METHOD_END()
 }
