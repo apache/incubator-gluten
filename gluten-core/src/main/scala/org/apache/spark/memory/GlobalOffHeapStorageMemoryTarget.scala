@@ -17,16 +17,14 @@
 package org.apache.spark.memory
 
 import org.apache.gluten.config.GlutenCoreConfig
-import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
 import org.apache.gluten.memory.memtarget.{KnownNameAndStats, MemoryTarget, MemoryTargetUtil, MemoryTargetVisitor}
 import org.apache.gluten.proto.MemoryUsageStats
 
-import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.storage.BlockId
+import org.apache.spark.util.SparkResourceUtil
 
-import java.lang.reflect.Field
 import java.util.UUID
 
 /**
@@ -46,22 +44,9 @@ class GlobalOffHeapStorageMemoryTarget private[memory]
     if (GlutenCoreConfig.get.dynamicOffHeapSizingEnabled) MemoryMode.ON_HEAP
     else MemoryMode.OFF_HEAP
 
-  private val FIELD_MEMORY_MANAGER: Field = {
-    val f =
-      try {
-        classOf[TaskMemoryManager].getDeclaredField("memoryManager")
-      } catch {
-        case e: Exception =>
-          throw new GlutenException(
-            "Unable to find field TaskMemoryManager#memoryManager via reflection",
-            e)
-      }
-    f.setAccessible(true)
-    f
-  }
-
   override def borrow(size: Long): Long = {
-    memoryManagerOption()
+    SparkResourceUtil
+      .getMemoryManagerOption()
       .map {
         mm =>
           val succeeded =
@@ -98,7 +83,8 @@ class GlobalOffHeapStorageMemoryTarget private[memory]
   }
 
   override def repay(size: Long): Long = {
-    memoryManagerOption()
+    SparkResourceUtil
+      .getMemoryManagerOption()
       .map {
         mm =>
           mm.releaseStorageMemory(size, mode)
@@ -111,27 +97,6 @@ class GlobalOffHeapStorageMemoryTarget private[memory]
   override def usedBytes(): Long = recorder.current()
 
   override def accept[T](visitor: MemoryTargetVisitor[T]): T = visitor.visit(this)
-
-  private[memory] def memoryManagerOption(): Option[MemoryManager] = {
-    val env = SparkEnv.get
-    if (env != null) {
-      // SPARK-46947: https://github.com/apache/spark/pull/45052.
-      ensureMemoryStoreInitialized(env)
-      return Some(env.memoryManager)
-    }
-    val tc = TaskContext.get()
-    if (tc != null) {
-      // This may happen in test code that mocks the task context without booting up SparkEnv.
-      return Some(FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager])
-    }
-    logWarning(
-      "Memory manager not found because the code is unlikely be run in a Spark application")
-    None
-  }
-
-  private def ensureMemoryStoreInitialized(env: SparkEnv): Unit = {
-    assert(env.blockManager.memoryStore != null)
-  }
 
   override def name(): String = targetName
 

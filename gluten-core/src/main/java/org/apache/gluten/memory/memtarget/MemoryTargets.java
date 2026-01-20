@@ -20,10 +20,13 @@ import org.apache.gluten.config.GlutenCoreConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
 
+import org.apache.spark.SparkConf;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
+import org.apache.spark.memory.MemoryManager;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.memory.UnifiedMemoryManager;
 import org.apache.spark.task.TaskResources;
 import org.apache.spark.util.SparkResourceUtil;
 import org.slf4j.Logger;
@@ -31,12 +34,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import scala.Option;
+
 public final class MemoryTargets {
   private static final Logger LOGGER = LoggerFactory.getLogger(MemoryTargets.class);
-  private static final TaskMemoryManager GLOBAL_TMM =
-      new TaskMemoryManager(
-          SparkEnv.get().memoryManager(),
-          -439277); // Magic number to avoid possible collision with other Spark plugins.
+  private static TaskMemoryManager GLOBAL_TMM = null;
 
   private MemoryTargets() {
     // enclose factory ctor
@@ -63,9 +65,30 @@ public final class MemoryTargets {
     return memoryTarget;
   }
 
+  private static synchronized TaskMemoryManager getGlobalTaskMemoryManager() {
+    if (GLOBAL_TMM != null) {
+      return GLOBAL_TMM;
+    }
+    Option<MemoryManager> mm = SparkResourceUtil.getMemoryManagerOption();
+    if (mm.isEmpty()) {
+      return new TaskMemoryManager(
+          new UnifiedMemoryManager(
+              new SparkConf().set(GlutenCoreConfig.SPARK_OFFHEAP_ENABLED_KEY(), "false"),
+              Runtime.getRuntime().maxMemory(),
+              Runtime.getRuntime().maxMemory() / 2,
+              1),
+          0);
+    }
+    GLOBAL_TMM =
+        new TaskMemoryManager(
+            mm.get(),
+            -439277); // Magic task ID to avoid possible collision with other Spark plugins.
+    return GLOBAL_TMM;
+  }
+
   public static TreeMemoryTarget newGlobalConsumer(
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-    return newConsumer(GLOBAL_TMM, name, spiller, virtualChildren);
+    return newConsumer(getGlobalTaskMemoryManager(), name, spiller, virtualChildren);
   }
 
   public static TreeMemoryTarget newContextConsumer(
