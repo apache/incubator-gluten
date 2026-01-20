@@ -106,9 +106,7 @@ class CudfValueStream : public facebook::velox::exec::SourceOperator, public fac
             operatorId,
             valueStreamNode->id(),
             valueStreamNode->name().data()),
-        facebook::velox::cudf_velox::CudfOperator(
-            operatorId,
-            valueStreamNode->id()) {
+        facebook::velox::cudf_velox::CudfOperator(operatorId, valueStreamNode->id()) {
     ResultIterator* itr = valueStreamNode->iterator();
     rvStream_ = std::make_unique<CudfVectorStream>(driverCtx, pool(), itr, outputType_);
   }

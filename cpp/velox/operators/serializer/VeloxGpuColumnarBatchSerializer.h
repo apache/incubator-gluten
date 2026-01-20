@@ -34,9 +34,9 @@ class VeloxGpuColumnarBatchSerializer final : public VeloxColumnarBatchSerialize
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       struct ArrowSchema* cSchema);
 
-  // Deserialize to cudf table, then the Cudf pipeline accepts CudfVector, we can remove CudfFromveloc operator from the velox pipeline input.
+  // Deserialize to cudf table, then the Cudf pipeline accepts CudfVector, we can remove CudfFromveloc operator from the
+  // velox pipeline input.
   std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) override;
-
 };
 
 } // namespace gluten
