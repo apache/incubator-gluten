@@ -749,6 +749,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Result depends on the implementation for nondeterministic expression rand.
     // Not really an issue.
     .exclude("SPARK-10740: handle nondeterministic expressions correctly for set operations")
+    .excludeByPrefix("SPARK-52921") // Add Gluten test
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
