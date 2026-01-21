@@ -225,9 +225,8 @@ object OffloadOthers {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan)
         case plan: UnionExec =>
-          val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          ColumnarUnionExec(children)
+          ColumnarUnionExec.from(plan)
         case plan: ExpandExec =>
           val child = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
