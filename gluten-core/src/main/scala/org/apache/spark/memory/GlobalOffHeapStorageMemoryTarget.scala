@@ -45,8 +45,7 @@ class GlobalOffHeapStorageMemoryTarget private[memory]
     else MemoryMode.OFF_HEAP
 
   override def borrow(size: Long): Long = {
-    SparkResourceUtil
-      .getMemoryManagerOption
+    SparkResourceUtil.getMemoryManagerOption
       .map {
         mm =>
           val succeeded =
@@ -83,8 +82,7 @@ class GlobalOffHeapStorageMemoryTarget private[memory]
   }
 
   override def repay(size: Long): Long = {
-    SparkResourceUtil
-      .getMemoryManagerOption
+    SparkResourceUtil.getMemoryManagerOption
       .map {
         mm =>
           mm.releaseStorageMemory(size, mode)
