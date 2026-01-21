@@ -1016,8 +1016,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("dumping query execution info to a file - explainMode=formatted")
     // TODO: fix in Spark-4.0
     .exclude("SPARK-47289: extended explain info")
-    // TODO: fix on Spark-4.1 introduced by https://github.com/apache/spark/pull/52157
-    .exclude("SPARK-53413: Cleanup shuffle dependencies for commands")
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
 // scalastyle:on line.size.limit
