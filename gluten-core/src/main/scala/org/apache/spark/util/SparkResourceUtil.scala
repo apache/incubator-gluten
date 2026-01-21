@@ -16,15 +16,33 @@
  */
 package org.apache.spark.util
 
-import org.apache.spark.{SparkConf, SparkMasterRegex}
+import org.apache.gluten.exception.GlutenException
+
+import org.apache.spark.{SparkConf, SparkEnv, SparkMasterRegex, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.{EXECUTOR_MEMORY, EXECUTOR_MEMORY_OVERHEAD}
+import org.apache.spark.memory.{MemoryManager, TaskMemoryManager}
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
+
+import java.lang.reflect.Field
 
 object SparkResourceUtil extends Logging {
   private val MEMORY_OVERHEAD_FACTOR = "spark.executor.memoryOverheadFactor"
   private val MIN_MEMORY_OVERHEAD = "spark.executor.minMemoryOverhead"
+  private val FIELD_MEMORY_MANAGER: Field = {
+    val f =
+      try {
+        classOf[TaskMemoryManager].getDeclaredField("memoryManager")
+      } catch {
+        case e: Exception =>
+          throw new GlutenException(
+            "Unable to find field TaskMemoryManager#memoryManager via reflection",
+            e)
+      }
+    f.setAccessible(true)
+    f
+  }
 
   /** Get the total cores of the Spark application */
   def getTotalCores(sqlConf: SQLConf): Int = {
@@ -100,5 +118,26 @@ object SparkResourceUtil extends Logging {
       (executorMemMib * factor).toLong.max(minMib)
     }
     ByteUnit.MiB.toBytes(overheadMib)
+  }
+
+  def getMemoryManagerOption: Option[MemoryManager] = {
+    val env = SparkEnv.get
+    if (env != null) {
+      // SPARK-46947: https://github.com/apache/spark/pull/45052.
+      ensureMemoryStoreInitialized(env)
+      return Some(env.memoryManager)
+    }
+    val tc = TaskContext.get()
+    if (tc != null) {
+      // This may happen in test code that mocks the task context without booting up SparkEnv.
+      return Some(FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager])
+    }
+    logWarning(
+      "Memory manager not found because the code is unlikely be run in a Spark application")
+    None
+  }
+
+  private def ensureMemoryStoreInitialized(env: SparkEnv): Unit = {
+    assert(env.blockManager.memoryStore != null)
   }
 }

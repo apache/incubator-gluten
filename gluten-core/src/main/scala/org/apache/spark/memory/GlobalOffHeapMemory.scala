@@ -17,7 +17,10 @@
 package org.apache.spark.memory
 
 import org.apache.gluten.config.GlutenCoreConfig
-import org.apache.gluten.memory.memtarget.{MemoryTarget, MemoryTargets, NoopMemoryTarget}
+import org.apache.gluten.memory.MemoryUsageStatsBuilder
+import org.apache.gluten.memory.memtarget.{MemoryTarget, MemoryTargets, NoopMemoryTarget, Spillers}
+
+import scala.collection.JavaConverters._
 
 /**
  * API #acuqire is for reserving some global off-heap memory from Spark memory manager. Once
@@ -29,10 +32,14 @@ import org.apache.gluten.memory.memtarget.{MemoryTarget, MemoryTargets, NoopMemo
  * BlockId to be extended by user, TestBlockId is chosen for the storage memory reservations.
  */
 object GlobalOffHeapMemory {
-  val target: MemoryTarget = if (GlutenCoreConfig.get.memoryUntracked) {
+  private val target: MemoryTarget = if (GlutenCoreConfig.get.memoryUntracked) {
     new NoopMemoryTarget()
   } else {
-    MemoryTargets.throwOnOom(MemoryTargets.global())
+    MemoryTargets.throwOnOom(
+      MemoryTargets.newGlobalConsumer(
+        GlobalOffHeapMemory.getClass.getSimpleName,
+        Spillers.NOOP,
+        Map[String, MemoryUsageStatsBuilder]().asJava))
   }
 
   def acquire(numBytes: Long): Unit = {

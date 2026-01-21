@@ -25,9 +25,9 @@ import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
-import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
+import org.apache.gluten.memory.{MemoryUsageRecorder, MemoryUsageStatsBuilder, SimpleMemoryUsageRecorder}
 import org.apache.gluten.memory.listener.ReservationListener
-import org.apache.gluten.memory.memtarget.MemoryTarget
+import org.apache.gluten.memory.memtarget.{MemoryTarget, MemoryTargets, Spillers}
 import org.apache.gluten.monitor.VeloxMemoryProfiler
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
@@ -35,7 +35,6 @@ import org.apache.gluten.utils._
 import org.apache.spark.{HdfsConfGenerator, ShuffleDependency, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.GlobalOffHeapMemory
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.shuffle.{ColumnarShuffleDependency, LookupKey, ShuffleManagerRegistry}
 import org.apache.spark.shuffle.sort.ColumnarShuffleManager
@@ -51,6 +50,8 @@ import org.apache.commons.lang3.StringUtils
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.collection.JavaConverters._
 
 class VeloxListenerApi extends ListenerApi with Logging {
   import VeloxListenerApi._
@@ -277,7 +278,11 @@ object VeloxListenerApi {
   private def newGlobalOffHeapMemoryListener(): ReservationListener = {
     new ReservationListener {
       private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
-      private val target: MemoryTarget = GlobalOffHeapMemory.target
+      private val target: MemoryTarget = MemoryTargets.throwOnOom(
+        MemoryTargets.newGlobalConsumer(
+          classOf[VeloxListenerApi].getSimpleName,
+          Spillers.NOOP,
+          Map.empty[String, MemoryUsageStatsBuilder].asJava))
 
       override def reserve(size: Long): Long = {
         assert(target.borrow(size) == size)

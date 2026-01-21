@@ -19,7 +19,7 @@ package org.apache.gluten.memory.memtarget;
 import org.apache.gluten.memory.memtarget.spark.RegularMemoryConsumer;
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumer;
 
-import org.apache.spark.memory.GlobalOffHeapMemoryTarget;
+import org.apache.spark.memory.GlobalOffHeapStorageMemoryTarget;
 
 public interface MemoryTargetVisitor<T> {
   T visit(OverAcquire overAcquire);
@@ -40,5 +40,5 @@ public interface MemoryTargetVisitor<T> {
 
   T visit(RetryOnOomMemoryTarget retryOnOomMemoryTarget);
 
-  T visit(GlobalOffHeapMemoryTarget globalOffHeapMemoryTarget);
+  T visit(GlobalOffHeapStorageMemoryTarget globalOffHeapStorageMemoryTarget);
 }

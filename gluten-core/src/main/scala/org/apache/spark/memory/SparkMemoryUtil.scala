@@ -139,7 +139,7 @@ object SparkMemoryUtil {
         retryOnOomMemoryTarget.target().accept(this)
       }
 
-      override def visit(globalOffHeapMemoryTarget: GlobalOffHeapMemoryTarget): String = {
+      override def visit(globalOffHeapMemoryTarget: GlobalOffHeapStorageMemoryTarget): String = {
         prettyPrintStats("Global off-heap target stats: ", globalOffHeapMemoryTarget)
       }
     })
