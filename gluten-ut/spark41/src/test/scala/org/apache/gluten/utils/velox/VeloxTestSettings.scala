@@ -604,6 +604,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOuterJoinSuiteForceShjOff]
   enableSuite[GlutenFallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
+    .exclude("SPARK-52962: broadcast exchange should not reset metrics") // Add Gluten test
   enableSuite[GlutenLocalBroadcastExchangeSuite]
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
     // Rewrite for Gluten. Change details are in the inline comments in individual tests.
