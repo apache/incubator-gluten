@@ -18,10 +18,10 @@ package org.apache.spark.sql.delta.files
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
-import org.apache.gluten.extension.columnar.transition.Transitions
-
+import org.apache.gluten.extension.columnar.transition.{Convention, Transitions}
 import org.apache.spark._
 import org.apache.spark.internal.{LoggingShims, MDC}
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
@@ -44,7 +44,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.{SerializableConfiguration, Utils}
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileAlreadyExistsException, Path}
 import org.apache.hadoop.mapreduce._
@@ -262,6 +261,11 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
           val newPlan = sortPlan.child match {
             case wst @ WholeStageTransformer(wholeStageChild, _) =>
               wst.withNewChildren(Seq(addNativeSort(wholeStageChild)))
+            case other if Convention.get(other).batchType == VeloxBatchType =>
+              val nativeSortPlan = addNativeSort(other)
+              val nativeSortPlanWithWst =
+                GenerateTransformStageId()(ColumnarCollapseTransformStages(new GlutenConfig(sparkSession.sessionState.conf))(nativeSortPlan))
+              nativeSortPlanWithWst
             case other =>
               Transitions.toBatchPlan(sortPlan, VeloxBatchType)
           }

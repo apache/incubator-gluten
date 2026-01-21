@@ -16,23 +16,21 @@
  */
 package org.apache.gluten.backendsapi.velox
 
+import io.substrait.proto.SimpleExtensionDeclaration
 import org.apache.gluten.backendsapi.{BackendsApiManager, ValidatorApi}
 import org.apache.gluten.execution.ValidationResult
-import org.apache.gluten.substrait.`type`.TypeNode
 import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.`type`.TypeNode
 import org.apache.gluten.substrait.expression.ExpressionNode
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.NativePlanEvaluator
-
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 import org.apache.spark.task.TaskResources
-
-import io.substrait.proto.SimpleExtensionDeclaration
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
