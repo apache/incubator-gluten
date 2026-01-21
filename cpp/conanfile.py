@@ -64,11 +64,11 @@ class GlutenConan(ConanFile):
         # TODO: to be removed user/channel in Conan 2.x
         user_channel = ""
         if hasattr(self, "user") and hasattr(self, "channel"):
-            if self.user is not None and self.channel is not None: 
+            if self.user is not None and self.channel is not None:
                 user_channel=f"@{self.user}/{self.channel}"
         bolt_version = os.getenv("BOLT_BUILD_VERSION", self.version)
         self.requires(f"bolt/{bolt_version}{user_channel}", transitive_headers=True, transitive_libs=True)
-        
+
         protobuf_version = os.getenv("PROTOBUF_VERSION", "3.21.4")
         self.requires(f"protobuf/{protobuf_version}")
         if self.options.build_benchmarks or self.options.build_tests:
@@ -79,7 +79,7 @@ class GlutenConan(ConanFile):
 
     def build_requirements(self):
         self.tool_requires("protobuf/<host_version>")
-        self.test_requires("gtest/1.10.0")
+        self.test_requires("gtest/1.17.0")
         self.test_requires("jemalloc/5.3.0")
         self.test_requires("duckdb/0.8.1")
 
@@ -103,7 +103,7 @@ class GlutenConan(ConanFile):
             or self.options.build_benchmarks:
             self.options[bolt].enable_test = True
             self.options[bolt].enable_testutil = True
-        
+
 
     def generate(self):
         build_env = VirtualBuildEnv(self)
@@ -136,7 +136,7 @@ class GlutenConan(ConanFile):
             tc.cache_variables["CMAKE_C_FLAGS"] = cxx_flags
 
         tc.cache_variables["BOLT_ENABLE_PARQUET"] = self.options.with_parquet
-       
+
         tc.cache_variables["ENABLE_HDFS"] = "ON" if self.options.enable_hdfs else "OFF"
         tc.cache_variables["ENABLE_S3"] = "ON" if self.options.enable_s3 else "OFF"
 
@@ -153,7 +153,7 @@ class GlutenConan(ConanFile):
         tc.generate()
 
         deps = CMakeDeps(self)
-        deps.set_property("flex", "cmake_find_mode", "config") 
+        deps.set_property("flex", "cmake_find_mode", "config")
         deps.generate()
 
     def build(self):
@@ -177,7 +177,7 @@ class GlutenConan(ConanFile):
 
         self.cpp_info.includedirs = ['include']
         self.cpp_info.libs = ["bolt_backend"]
-        
+
         self.cpp_info.components["libgluten"].libs = ["gluten"]
         self.cpp_info.components["libgluten"].requires.append("bolt::bolt")
 
