@@ -50,7 +50,7 @@ class GlutenSQLMetricsSuite extends GlutenSQLTestsBaseTrait {
         assert(fileScans.size == 1)
         val numFilesAfterPartitionSkipping = fileScans.head.metrics.get("numFiles")
         assert(numFilesAfterPartitionSkipping.nonEmpty)
-        assert(numFilesAferPartitionSkipping.get.value == 1)
+        assert(numFilesAfterPartitionSkipping.get.value == 1)
         assert(query.collect().toSeq == Seq(Row(1, 1)))
     }
   }
