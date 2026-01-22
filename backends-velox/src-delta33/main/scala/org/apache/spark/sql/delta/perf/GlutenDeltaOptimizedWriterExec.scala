@@ -82,7 +82,7 @@ case class GlutenDeltaOptimizedWriterExec(
 
   @transient private lazy val mapTracker = SparkEnv.get.mapOutputTracker
 
-  private val columnarShufflePlan = {
+  private lazy val columnarShufflePlan = {
     val resolver = org.apache.spark.sql.catalyst.analysis.caseInsensitiveResolution
     val saltedPartitioning = HashPartitioning(
       partitionColumns.map(
@@ -187,15 +187,20 @@ case class GlutenDeltaOptimizedWriterExec(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
+    // Single partitioned tasks can simply be written.
+    if (childNumPartitions <= 1) {
+      return ValidationResult.succeeded
+    }
     columnarShufflePlan.doValidate()
   }
 
   override def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    // Single partitioned tasks can simply be written
-    if (childNumPartitions <= 1) return child.executeColumnar()
-
+    // Single partitioned tasks can simply be written.
+    if (childNumPartitions <= 1) {
+      return child.executeColumnar()
+    }
     val shuffledRDD = getShuffleRDD
 
     val partitions = computeBins()
