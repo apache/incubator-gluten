@@ -123,7 +123,7 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
             }
           } catch {
             case e: AnalysisException =>
-              logInfo(s"GlutenDeltaOptimizedWriterExec: Failed to create internal shuffle," +
+              logWarning(s"GlutenDeltaOptimizedWriterExec: Failed to create internal shuffle," +
                 s" reason: ${e.getMessage()}. Falling back to row-based shuffle.")
               DeltaOptimizedWriterExec(maybeCheckInvariants, metadata.partitionColumns, deltaLog)
           }
