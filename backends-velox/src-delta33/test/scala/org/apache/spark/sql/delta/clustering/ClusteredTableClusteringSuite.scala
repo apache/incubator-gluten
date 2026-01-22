@@ -79,24 +79,6 @@ class ClusteredTableClusteringSuite
     }
   }
 
-  test("auto-optimize clustered table") {
-    sql("""
-          |CREATE TABLE tab USING DELTA
-          |TBLPROPERTIES (
-          |                      delta.autoOptimize.autoCompact = true,
-          |                      delta.autoOptimize.optimizeWrite = true,
-          |                      delta.dataSkippingNumIndexedCols = 128
-          |                    )
-          |CLUSTER BY (part)
-          |AS
-          |SELECT id, floor(id / 10) AS part
-          |FROM RANGE(0, 1000, 1, 20)""".stripMargin)
-
-    sql("SELECT * FROM tab").show()
-
-    Thread.sleep(3600000)
-  }
-
   test("cluster by 1 column") {
     withSQLConf(SQLConf.MAX_RECORDS_PER_FILE.key -> "2") {
       withClusteredTable(table = table, schema = "col1 int, col2 int", clusterBy = "col1") {
