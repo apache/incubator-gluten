@@ -18,6 +18,7 @@ package org.apache.spark.sql.delta
 
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
 import org.apache.gluten.extension.columnar.transition.Transitions
+
 import org.apache.spark.sql.{AnalysisException, Dataset}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints, DeltaInvariantCheckerExec}
@@ -112,19 +113,24 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
           //  here further.
           val planWithVeloxOutput = Transitions.toBatchPlan(maybeCheckInvariants, VeloxBatchType)
           try {
-            val glutenWriterExec = GlutenDeltaOptimizedWriterExec(planWithVeloxOutput, metadata.partitionColumns, deltaLog)
+            val glutenWriterExec = GlutenDeltaOptimizedWriterExec(
+              planWithVeloxOutput,
+              metadata.partitionColumns,
+              deltaLog)
             val validationResult = glutenWriterExec.doValidate()
             if (validationResult.ok()) {
               glutenWriterExec
             } else {
-              logInfo(s"GlutenDeltaOptimizedWriterExec: Internal shuffle validated negative," +
-                s" reason: ${validationResult.reason()}. Falling back to row-based shuffle.")
+              logInfo(
+                s"GlutenDeltaOptimizedWriterExec: Internal shuffle validated negative," +
+                  s" reason: ${validationResult.reason()}. Falling back to row-based shuffle.")
               DeltaOptimizedWriterExec(maybeCheckInvariants, metadata.partitionColumns, deltaLog)
             }
           } catch {
             case e: AnalysisException =>
-              logWarning(s"GlutenDeltaOptimizedWriterExec: Failed to create internal shuffle," +
-                s" reason: ${e.getMessage()}. Falling back to row-based shuffle.")
+              logWarning(
+                s"GlutenDeltaOptimizedWriterExec: Failed to create internal shuffle," +
+                  s" reason: ${e.getMessage()}. Falling back to row-based shuffle.")
               DeltaOptimizedWriterExec(maybeCheckInvariants, metadata.partitionColumns, deltaLog)
           }
         } else {

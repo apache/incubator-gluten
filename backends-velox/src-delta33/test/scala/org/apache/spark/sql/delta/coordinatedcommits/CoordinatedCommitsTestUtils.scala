@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,8 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.delta.coordinatedcommits
+
+import org.apache.spark.{SparkConf, SparkFunSuite}
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.delta.{DeltaConfigs, DeltaLog, DeltaTestUtilsBase}
+import org.apache.spark.sql.delta.actions.{CommitInfo, Metadata, Protocol}
+import org.apache.spark.sql.delta.util.JsonUtils
+import org.apache.spark.sql.test.SharedSparkSession
+
+import io.delta.storage.LogStore
+import io.delta.storage.commit.{CommitCoordinatorClient => JCommitCoordinatorClient, CommitResponse, GetCommitsResponse => JGetCommitsResponse, TableDescriptor, TableIdentifier, UpdatedActions}
+import io.delta.storage.commit.actions.{AbstractMetadata, AbstractProtocol}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 
 import java.util.Optional
 import java.util.concurrent.atomic.AtomicInteger
@@ -22,21 +35,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
-import org.apache.spark.sql.delta.{DeltaConfigs, DeltaLog, DeltaTestUtilsBase}
-import org.apache.spark.sql.delta.actions.{CommitInfo, Metadata, Protocol}
-import org.apache.spark.sql.delta.util.JsonUtils
-import io.delta.storage.LogStore
-import io.delta.storage.commit.{CommitCoordinatorClient => JCommitCoordinatorClient, CommitResponse, GetCommitsResponse => JGetCommitsResponse, TableDescriptor, TableIdentifier, UpdatedActions}
-import io.delta.storage.commit.actions.{AbstractMetadata, AbstractProtocol}
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
-
-import org.apache.spark.{SparkConf, SparkFunSuite}
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.test.SharedSparkSession
-
-trait CoordinatedCommitsTestUtils
-  extends DeltaTestUtilsBase { self: SparkFunSuite with SharedSparkSession =>
+trait CoordinatedCommitsTestUtils extends DeltaTestUtilsBase {
+  self: SparkFunSuite with SharedSparkSession =>
 
   protected val defaultCommitsCoordinatorName = "tracking-in-memory"
   protected val defaultCommitsCoordinatorConf = Map("randomConf" -> "randomConfValue")
@@ -46,7 +46,8 @@ trait CoordinatedCommitsTestUtils
     val properties = Map(
       DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_NAME.key -> defaultCommitsCoordinatorName,
       DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_CONF.key -> coordinatedCommitsConfJson,
-      DeltaConfigs.COORDINATED_COMMITS_TABLE_CONF.key -> "{}")
+      DeltaConfigs.COORDINATED_COMMITS_TABLE_CONF.key -> "{}"
+    )
     if (withICT) {
       properties + (DeltaConfigs.IN_COMMIT_TIMESTAMPS_ENABLED.key -> "true")
     } else {
@@ -55,8 +56,8 @@ trait CoordinatedCommitsTestUtils
   }
 
   /**
-   * Runs a specific test with coordinated commits default properties unset.
-   * Any table created in this test won't have coordinated commits enabled by default.
+   * Runs a specific test with coordinated commits default properties unset. Any table created in
+   * this test won't have coordinated commits enabled by default.
    */
   def testWithDefaultCommitCoordinatorUnset(testName: String)(f: => Unit): Unit = {
     test(testName) {
@@ -67,26 +68,29 @@ trait CoordinatedCommitsTestUtils
   }
 
   /**
-   * Runs the function `f` with coordinated commits default properties unset.
-   * Any table created in function `f` won't have coordinated commits enabled by default.
+   * Runs the function `f` with coordinated commits default properties unset. Any table created in
+   * function `f` won't have coordinated commits enabled by default.
    */
   def withoutCoordinatedCommitsDefaultTableProperties[T](f: => T): T = {
     val defaultCoordinatedCommitsConfs = CoordinatedCommitsUtils
       .getDefaultCCConfigurations(spark, withDefaultKey = true)
-    defaultCoordinatedCommitsConfs.foreach { case (defaultKey, _) =>
-      spark.conf.unset(defaultKey)
+    defaultCoordinatedCommitsConfs.foreach {
+      case (defaultKey, _) =>
+        spark.conf.unset(defaultKey)
     }
-    try { f } finally {
-      defaultCoordinatedCommitsConfs.foreach { case (defaultKey, oldValue) =>
-        spark.conf.set(defaultKey, oldValue)
+    try { f }
+    finally {
+      defaultCoordinatedCommitsConfs.foreach {
+        case (defaultKey, oldValue) =>
+          spark.conf.set(defaultKey, oldValue)
       }
     }
   }
 
   /**
-   * Runs the function `f` with coordinated commits default properties set to what is specified.
-   * Any table created in function `f` will have the `commitCoordinator` property set to the
-   * specified `commitCoordinatorName`.
+   * Runs the function `f` with coordinated commits default properties set to what is specified. Any
+   * table created in function `f` will have the `commitCoordinator` property set to the specified
+   * `commitCoordinatorName`.
    */
   def withCustomCoordinatedCommitsTableProperties(
       commitCoordinatorName: String,
@@ -95,22 +99,24 @@ trait CoordinatedCommitsTestUtils
       DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_NAME.defaultTablePropertyKey ->
         commitCoordinatorName,
       DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_CONF.defaultTablePropertyKey ->
-        JsonUtils.toJson(conf)) {
+        JsonUtils.toJson(conf)
+    ) {
       f
     }
   }
 
   /** Run the test with different backfill batch sizes: 1, 2, 10 */
   def testWithDifferentBackfillInterval(testName: String)(f: Int => Unit): Unit = {
-    Seq(1, 2, 10).foreach { backfillBatchSize =>
-      test(s"$testName [Backfill batch size: $backfillBatchSize]") {
-        CommitCoordinatorProvider.clearNonDefaultBuilders()
-        CommitCoordinatorProvider.registerBuilder(
-          TrackingInMemoryCommitCoordinatorBuilder(backfillBatchSize))
-        CommitCoordinatorProvider.registerBuilder(
-          InMemoryCommitCoordinatorBuilder(backfillBatchSize))
-        f(backfillBatchSize)
-      }
+    Seq(1, 2, 10).foreach {
+      backfillBatchSize =>
+        test(s"$testName [Backfill batch size: $backfillBatchSize]") {
+          CommitCoordinatorProvider.clearNonDefaultBuilders()
+          CommitCoordinatorProvider.registerBuilder(
+            TrackingInMemoryCommitCoordinatorBuilder(backfillBatchSize))
+          CommitCoordinatorProvider.registerBuilder(
+            InMemoryCommitCoordinatorBuilder(backfillBatchSize))
+          f(backfillBatchSize)
+        }
     }
   }
 
@@ -125,32 +131,36 @@ trait CoordinatedCommitsTestUtils
         TrackingInMemoryCommitCoordinatorBuilder(backfillBatchSize))
       val coordinatedCommitsCoordinatorJson = JsonUtils.toJson(defaultCommitsCoordinatorConf)
       withSQLConf(
-          DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_NAME.defaultTablePropertyKey ->
-            defaultCommitsCoordinatorName,
-          DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_CONF.defaultTablePropertyKey ->
-            coordinatedCommitsCoordinatorJson) {
+        DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_NAME.defaultTablePropertyKey ->
+          defaultCommitsCoordinatorName,
+        DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_CONF.defaultTablePropertyKey ->
+          coordinatedCommitsCoordinatorJson
+      ) {
         f
       }
     }
   }
 
-  /** Run the test with:
-   * 1. Without coordinated-commits
-   * 2. With coordinated-commits with different backfill batch sizes
+  /**
+   * Run the test with:
+   *   1. Without coordinated-commits 2. With coordinated-commits with different backfill batch
+   *      sizes
    */
   def testWithDifferentBackfillIntervalOptional(testName: String)(f: Option[Int] => Unit): Unit = {
     test(s"$testName [Backfill batch size: None]") {
       f(None)
     }
-    testWithDifferentBackfillInterval(testName) { backfillBatchSize =>
-      val coordinatedCommitsCoordinatorJson = JsonUtils.toJson(defaultCommitsCoordinatorConf)
-      withSQLConf(
+    testWithDifferentBackfillInterval(testName) {
+      backfillBatchSize =>
+        val coordinatedCommitsCoordinatorJson = JsonUtils.toJson(defaultCommitsCoordinatorConf)
+        withSQLConf(
           DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_NAME.defaultTablePropertyKey ->
             defaultCommitsCoordinatorName,
           DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_CONF.defaultTablePropertyKey ->
-            coordinatedCommitsCoordinatorJson) {
-        f(Some(backfillBatchSize))
-      }
+            coordinatedCommitsCoordinatorJson
+        ) {
+          f(Some(backfillBatchSize))
+        }
     }
   }
 
@@ -194,7 +204,8 @@ case class TrackingInMemoryCommitCoordinatorBuilder(
 }
 
 case class TrackingGenericInMemoryCommitCoordinatorBuilder(
-    builderName: String, realBuilder: CommitCoordinatorBuilder)
+    builderName: String,
+    realBuilder: CommitCoordinatorBuilder)
   extends CommitCoordinatorBuilder {
   override def getName: String = builderName
 
@@ -308,7 +319,11 @@ class TrackingCommitCoordinatorClient(
       currentProtocol: AbstractProtocol): java.util.Map[String, String] =
     recordOperation("registerTable") {
       delegatingCommitCoordinatorClient.registerTable(
-        logPath, tableIdentifier, currentVersion, currentMetadata, currentProtocol)
+        logPath,
+        tableIdentifier,
+        currentVersion,
+        currentMetadata,
+        currentProtocol)
     }
 }
 
@@ -334,20 +349,24 @@ trait CoordinatedCommitsBaseSuite
   // the table actually gets DROP.
   def deleteTableFromCommitCoordinator(tableName: String): Unit = {
     val cc = CommitCoordinatorProvider.getCommitCoordinatorClient(
-      defaultCommitsCoordinatorName, defaultCommitsCoordinatorConf, spark)
+      defaultCommitsCoordinatorName,
+      defaultCommitsCoordinatorConf,
+      spark)
     assert(
       cc.isInstanceOf[TrackingCommitCoordinatorClient],
       s"Please implement delete/drop method for coordinator: ${cc.getClass.getName}")
-    val location = try {
-      spark.sql(s"describe detail $tableName")
-        .select("location")
-        .first()
-        .getAs[String](0)
-    } catch {
-      case NonFatal(_) =>
-        // Ignore if the table does not exist/broken.
-        return
-    }
+    val location =
+      try {
+        spark
+          .sql(s"describe detail $tableName")
+          .select("location")
+          .first()
+          .getAs[String](0)
+      } catch {
+        case NonFatal(_) =>
+          // Ignore if the table does not exist/broken.
+          return
+      }
     val locKey = location.stripPrefix("file:")
     if (locRefCount.contains(locKey)) {
       locRefCount(locKey) -= 1
@@ -383,16 +402,20 @@ trait CoordinatedCommitsBaseSuite
   override def beforeEach(): Unit = {
     super.beforeEach()
     CommitCoordinatorProvider.clearNonDefaultBuilders()
-    coordinatedCommitsBackfillBatchSize.foreach { batchSize =>
-      CommitCoordinatorProvider.registerBuilder(TrackingInMemoryCommitCoordinatorBuilder(batchSize))
+    coordinatedCommitsBackfillBatchSize.foreach {
+      batchSize =>
+        CommitCoordinatorProvider.registerBuilder(
+          TrackingInMemoryCommitCoordinatorBuilder(batchSize))
     }
     DeltaLog.clearCache()
   }
 
   protected def isICTEnabledForNewTables: Boolean = {
-    spark.conf.getOption(
-      DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_NAME.defaultTablePropertyKey).nonEmpty ||
-      spark.conf.getOption(
-        DeltaConfigs.IN_COMMIT_TIMESTAMPS_ENABLED.defaultTablePropertyKey).contains("true")
+    spark.conf
+      .getOption(DeltaConfigs.COORDINATED_COMMITS_COORDINATOR_NAME.defaultTablePropertyKey)
+      .nonEmpty ||
+    spark.conf
+      .getOption(DeltaConfigs.IN_COMMIT_TIMESTAMPS_ENABLED.defaultTablePropertyKey)
+      .contains("true")
   }
 }

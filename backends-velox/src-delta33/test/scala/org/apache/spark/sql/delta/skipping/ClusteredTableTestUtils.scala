@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,36 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.delta.skipping
 
-import org.apache.spark.sql.delta.skipping.clustering.{ClusteredTableUtils, ClusteringColumn, ClusteringColumnInfo}
-import org.apache.spark.sql.delta.skipping.clustering.temp.ClusterBySpec
+import org.apache.spark.SparkFunSuite
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 import org.apache.spark.sql.delta.DeltaOperations
 import org.apache.spark.sql.delta.DeltaOperations.{CLUSTERING_PARAMETER_KEY, ZORDER_PARAMETER_KEY}
 import org.apache.spark.sql.delta.commands.optimize.OptimizeMetrics
 import org.apache.spark.sql.delta.coordinatedcommits.CoordinatedCommitsBaseSuite
 import org.apache.spark.sql.delta.hooks.UpdateCatalog
+import org.apache.spark.sql.delta.skipping.clustering.{ClusteredTableUtils, ClusteringColumn, ClusteringColumnInfo}
+import org.apache.spark.sql.delta.skipping.clustering.temp.ClusterBySpec
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.util.JsonUtils
-import org.junit.Assert.assertEquals
-
-import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.util.Utils
 
+import org.junit.Assert.assertEquals
+
 trait ClusteredTableTestUtilsBase
-    extends SparkFunSuite
-    with SharedSparkSession
-    with CoordinatedCommitsBaseSuite {
+  extends SparkFunSuite
+  with SharedSparkSession
+  with CoordinatedCommitsBaseSuite {
   import testImplicits._
 
   /**
    * Helper for running optimize on the table with different APIs.
-   * @param table the name of table
+   * @param table
+   *   the name of table
    */
   def optimizeTable(table: String): DataFrame = {
     sql(s"OPTIMIZE $table")
@@ -50,8 +51,10 @@ trait ClusteredTableTestUtilsBase
 
   /**
    * Runs optimize on the table and calls postHook on the metrics.
-   * @param table the name of table
-   * @param postHook callback triggered with OptimizeMetrics returned by the OPTIMIZE command
+   * @param table
+   *   the name of table
+   * @param postHook
+   *   callback triggered with OptimizeMetrics returned by the OPTIMIZE command
    */
   def runOptimize(table: String)(postHook: OptimizeMetrics => Unit): Unit = {
     // Verify Delta history operation parameters' clusterBy
@@ -69,9 +72,11 @@ trait ClusteredTableTestUtilsBase
     snapshot = deltaLog.update()
     val afterVersion = snapshot.version
 
-    val shouldCheckFullStatus = deltaLog.history.getHistory(Some(1)).headOption.exists { h =>
-      Seq(DeltaOperations.OPTIMIZE_OPERATION_NAME
-      ).contains(h.operation)
+    val shouldCheckFullStatus = deltaLog.history.getHistory(Some(1)).headOption.exists {
+      h =>
+        Seq(
+          DeltaOperations.OPTIMIZE_OPERATION_NAME
+        ).contains(h.operation)
     }
 
     // Note: Only expect isFull status when the table has non-empty clustering columns and
@@ -79,8 +84,9 @@ trait ClusteredTableTestUtilsBase
     // isFull status will not be relevant anymore.
     val expectedOperationParameters = ClusteredTableUtils
       .getClusteringColumnsOptional(snapshot)
-      .filter { cols =>
-        cols.nonEmpty &&
+      .filter {
+        cols =>
+          cols.nonEmpty &&
           shouldCheckFullStatus &&
           ClusteredTableUtils.isSupported(snapshot.protocol) &&
           afterVersion > beforeVersion
@@ -88,21 +94,25 @@ trait ClusteredTableTestUtilsBase
       .map(_ => Map(DeltaOperations.CLUSTERING_IS_FULL_KEY -> false))
       .getOrElse(Map.empty)
     verifyDescribeHistoryOperationParameters(
-      table, expectedOperationParameters = expectedOperationParameters)
+      table,
+      expectedOperationParameters = expectedOperationParameters)
   }
 
   /**
    * Runs optimize full on the table and calls postHook on the metrics.
    *
-   * @param table    the name of table
-   * @param postHook callback triggered with OptimizeMetrics returned by the OPTIMIZE command
+   * @param table
+   *   the name of table
+   * @param postHook
+   *   callback triggered with OptimizeMetrics returned by the OPTIMIZE command
    */
   def runOptimizeFull(table: String)(postHook: OptimizeMetrics => Unit): Unit = {
     postHook(sql(s"OPTIMIZE $table FULL").select($"metrics.*").as[OptimizeMetrics].head())
 
     // Verify Delta history operation parameters' clusterBy
-    verifyDescribeHistoryOperationParameters(table, expectedOperationParameters = Map(
-      DeltaOperations.CLUSTERING_IS_FULL_KEY -> true))
+    verifyDescribeHistoryOperationParameters(
+      table,
+      expectedOperationParameters = Map(DeltaOperations.CLUSTERING_IS_FULL_KEY -> true))
   }
 
   def verifyClusteringColumnsInDomainMetadata(
@@ -165,8 +175,9 @@ trait ClusteredTableTestUtilsBase
 
     // Check clusterBy does not exist or is empty.
     def assertClusterByEmptyOrNotExists(): Unit = {
-      doAssert(!lastOperationParameters.contains(CLUSTERING_PARAMETER_KEY) ||
-        lastOperationParameters(CLUSTERING_PARAMETER_KEY) === "[]")
+      doAssert(
+        !lastOperationParameters.contains(CLUSTERING_PARAMETER_KEY) ||
+          lastOperationParameters(CLUSTERING_PARAMETER_KEY) === "[]")
     }
 
     // Check clusterBy does not exist.
@@ -228,9 +239,10 @@ trait ClusteredTableTestUtilsBase
 
   override def withTable(tableNames: String*)(f: => Unit): Unit = {
     Utils.tryWithSafeFinally(f) {
-      tableNames.foreach { name =>
-        deleteTableFromCommitCoordinatorIfNeeded(name)
-        spark.sql(s"DROP TABLE IF EXISTS $name")
+      tableNames.foreach {
+        name =>
+          deleteTableFromCommitCoordinatorIfNeeded(name)
+          spark.sql(s"DROP TABLE IF EXISTS $name")
       }
     }
   }
@@ -251,10 +263,14 @@ trait ClusteredTableTestUtilsBase
 
   /**
    * Helper for creating or replacing table with different APIs.
-   * @param clause clause for SQL API ('CREATE', 'REPLACE', 'CREATE OR REPLACE')
-   * @param table the name of table
-   * @param schema comma separated list of "colName dataType"
-   * @param clusterBy comma separated list of clustering columns
+   * @param clause
+   *   clause for SQL API ('CREATE', 'REPLACE', 'CREATE OR REPLACE')
+   * @param table
+   *   the name of table
+   * @param schema
+   *   comma separated list of "colName dataType"
+   * @param clusterBy
+   *   comma separated list of clustering columns
    */
   def createOrReplaceClusteredTable(
       clause: String,
@@ -265,16 +281,16 @@ trait ClusteredTableTestUtilsBase
       location: Option[String] = None): Unit = {
     val locationClause = if (location.isEmpty) "" else s"LOCATION '${location.get}'"
     val tablePropertiesClause = if (!tableProperties.isEmpty) {
-      val tablePropertiesString = tableProperties.map {
-        case (key, value) => s"'$key' = '$value'"
-      }.mkString(",")
+      val tablePropertiesString =
+        tableProperties.map { case (key, value) => s"'$key' = '$value'" }.mkString(",")
       s"TBLPROPERTIES($tablePropertiesString)"
     } else {
       ""
     }
-    spark.sql(s"$clause TABLE $table ($schema) USING delta CLUSTER BY ($clusterBy) " +
-      s"$tablePropertiesClause $locationClause")
-    location.foreach { loc => locRefCount(loc) = locRefCount.getOrElse(loc, 0) + 1 }
+    spark.sql(
+      s"$clause TABLE $table ($schema) USING delta CLUSTER BY ($clusterBy) " +
+        s"$tablePropertiesClause $locationClause")
+    location.foreach(loc => locRefCount(loc) = locRefCount.getOrElse(loc, 0) + 1)
   }
 
   protected def createOrReplaceAsSelectClusteredTable(
@@ -284,15 +300,16 @@ trait ClusteredTableTestUtilsBase
       clusterBy: String,
       location: Option[String] = None): Unit = {
     val locationClause = if (location.isEmpty) "" else s"LOCATION '${location.get}'"
-    spark.sql(s"$clause TABLE $table USING delta CLUSTER BY ($clusterBy) " +
-      s"$locationClause AS SELECT * FROM $srcTable")
+    spark.sql(
+      s"$clause TABLE $table USING delta CLUSTER BY ($clusterBy) " +
+        s"$locationClause AS SELECT * FROM $srcTable")
   }
 
   def verifyClusteringColumns(
       tableIdentifier: TableIdentifier,
       expectedLogicalClusteringColumns: Seq[String],
       skipCatalogCheck: Boolean = false
-    ): Unit = {
+  ): Unit = {
     val (_, snapshot) = DeltaLog.forTableWithSnapshot(spark, tableIdentifier)
     verifyClusteringColumnsInternal(
       snapshot,
@@ -305,7 +322,8 @@ trait ClusteredTableTestUtilsBase
     }
 
     val updateCatalogEnabled = spark.conf.get(DeltaSQLConf.DELTA_UPDATE_CATALOG_ENABLED)
-    assert(updateCatalogEnabled,
+    assert(
+      updateCatalogEnabled,
       "need to enable [[DeltaSQLConf.DELTA_UPDATE_CATALOG_ENABLED]] to verify catalog updates.")
     UpdateCatalog.awaitCompletion(10000)
     val catalog = spark.sessionState.catalog
@@ -314,7 +332,8 @@ trait ClusteredTableTestUtilsBase
 
     // Verify CatalogTable's clusterBySpec.
     assert(ClusteredTableUtils.getClusterBySpecOptional(table).isDefined)
-    assertEquals(ClusterBySpec.fromColumnNames(expectedLogicalClusteringColumns),
+    assertEquals(
+      ClusterBySpec.fromColumnNames(expectedLogicalClusteringColumns),
       ClusteredTableUtils.getClusterBySpecOptional(table).get)
   }
 
@@ -333,7 +352,7 @@ trait ClusteredTableTestUtilsBase
       snapshot: Snapshot,
       tableNameOrPath: String,
       expectedLogicalClusteringColumns: Seq[String]
-    ): Unit = {
+  ): Unit = {
     assert(ClusteredTableUtils.isSupported(snapshot.protocol) === true)
     verifyClusteringColumnsInDomainMetadata(snapshot, expectedLogicalClusteringColumns)
 
@@ -356,8 +375,9 @@ trait ClusteredTableTestUtilsBase
         .select("value")
         .first
         .getString(0)
-    val clusterBySpec = ClusterBySpec.fromProperties(
-      Map(ClusteredTableUtils.PROP_CLUSTERING_COLUMNS -> clusteringColumnsVal)).get
+    val clusterBySpec = ClusterBySpec
+      .fromProperties(Map(ClusteredTableUtils.PROP_CLUSTERING_COLUMNS -> clusteringColumnsVal))
+      .get
     assert(expectedLogicalClusteringColumns === clusterBySpec.columnNames.map(_.toString))
   }
 }
