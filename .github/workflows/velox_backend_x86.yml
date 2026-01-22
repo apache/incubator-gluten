@@ -286,12 +286,16 @@ jobs:
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/tools/gluten-it
+          SPARK41_CONF=""
+          if [ "${{ matrix.spark }}" = "spark-4.1" ]; then
+            SPARK41_CONF="--extra-conf=spark.sql.unionOutputPartitioning=false"
+          fi
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.ras.enabled=true \
+            --extra-conf=spark.gluten.ras.enabled=true $SPARK41_CONF \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.ras.enabled=true 
+            --extra-conf=spark.gluten.ras.enabled=true $SPARK41_CONF 
 
   tpc-test-centos7:
     needs: build-native-lib-centos-7
