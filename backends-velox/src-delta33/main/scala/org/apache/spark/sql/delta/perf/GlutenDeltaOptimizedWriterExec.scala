@@ -22,6 +22,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{ValidatablePlan, ValidationResult}
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.vectorized.ColumnarBatchSerializerInstance
+import org.apache.spark.shuffle.sort.ColumnarShuffleManager
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarShuffleExchangeExec, GenerateTransformStageId}
 
 // scalastyle:off import.ordering.noEmptyLine
@@ -243,6 +244,8 @@ private class GlutenDeltaOptimizedWriterRDD(
   extends RDD[ColumnarBatch](sparkContext, Seq(dep))
   with DeltaLogging {
 
+  println(blocks.bins)
+
   override def getPartitions: Array[Partition] = Array.tabulate(blocks.bins.length) {
     i => ShuffleBlockRDDPartition(i, blocks.bins(i))
   }
@@ -304,13 +307,19 @@ private class GlutenOptimizedWriterShuffleReader(
 
   /** Read the combined key-values for this reduce task */
   override def read(): Iterator[Product2[Int, ColumnarBatch]] = {
+    val serializerManager = dep match {
+      case _: ColumnarShuffleDependency[Int, ColumnarBatch, ColumnarBatch] =>
+        ColumnarShuffleManager.bypassDecompressionSerializerManger
+      case _ =>
+        SparkEnv.get.serializerManager
+    }
     val wrappedStreams = new ShuffleBlockFetcherIterator(
       context,
       SparkEnv.get.blockManager.blockStoreClient,
       SparkEnv.get.blockManager,
       SparkEnv.get.mapOutputTracker,
       blocks,
-      SparkEnv.get.serializerManager.wrapStream,
+      serializerManager.wrapStream,
       // Note: we use getSizeAsMb when no suffix is provided for backwards compatibility
       SparkEnv.get.conf.get(config.REDUCER_MAX_SIZE_IN_FLIGHT) * 1024 * 1024,
       SparkEnv.get.conf.get(config.REDUCER_MAX_REQS_IN_FLIGHT),
