@@ -109,7 +109,7 @@ jobs:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
         spark: [ "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0", "spark-4.1"  ]
         java: [ "java-8", "java-11", "java-17", "java-21" ]
-        # Spark supports JDK17 since 3.3.
+        # Spark supports JDK17 since 3.3, jdk21 since 4.0
         exclude:
           - spark: spark-3.3
             java: java-21
@@ -154,6 +154,11 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Download m2 cache
+        uses: actions/cache/restore@v4
+        with:
+          key: gluten-java-m2-${{github.sha}}-${{ matrix.os }}-${{ matrix.spark }}-${{ matrix.java }}
+          path: /root/.m2/repository/
       - name: Setup tzdata
         run: |
           #sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
@@ -194,6 +199,10 @@ jobs:
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+      - uses: actions/cache/save@v4
+        with:
+          key: gluten-java-m2-${{github.sha}}-${{ matrix.os }}-${{ matrix.spark }}-${{ matrix.java }}
+          path: /root/.m2/repository/
 
   tpc-test-centos8:
     needs: build-native-lib-centos-7
