@@ -244,8 +244,6 @@ private class GlutenDeltaOptimizedWriterRDD(
   extends RDD[ColumnarBatch](sparkContext, Seq(dep))
   with DeltaLogging {
 
-  println(blocks.bins)
-
   override def getPartitions: Array[Partition] = Array.tabulate(blocks.bins.length) {
     i => ShuffleBlockRDDPartition(i, blocks.bins(i))
   }
