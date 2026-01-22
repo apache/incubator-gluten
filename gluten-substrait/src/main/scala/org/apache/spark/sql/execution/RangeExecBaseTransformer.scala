@@ -14,20 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.ValidatablePlan
 import org.apache.gluten.extension.columnar.transition.Convention
 
-import org.apache.spark.sql.execution.{LeafExecNode, RangeExec}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.plans.logical.{Range => LogicalRange}
 
 /** Base class for [[RangeExec]] transformation that can be implemented by supported backends. */
 abstract class ColumnarRangeBaseExec extends LeafExecNode with ValidatablePlan {
 
+  def range: LogicalRange
+
+  val start: Long = range.start
+  val end: Long = range.end
+  val step: Long = range.step
+  val numElements: BigInt = range.numElements
+  def numSlices: Int = range.numSlices.getOrElse(session.leafNodeDefaultParallelism)
+  val isEmptyRange: Boolean = start == end || (start < end ^ 0 < step)
+
+  override def output: Seq[Attribute] = range.output
+
+  override def simpleString(maxFields: Int): String = {
+    s"ColumnarRange $start, $end, $step, $numSlices, $numElements, " +
+      s"${output.mkString("[", ", ", "]")}"
+  }
+
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
-  override protected def doExecute()
-      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 }

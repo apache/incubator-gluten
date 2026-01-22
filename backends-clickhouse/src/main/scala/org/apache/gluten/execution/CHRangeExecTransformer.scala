@@ -26,7 +26,7 @@ import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.plans.logical.{Range => LogicalRange}
 import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
@@ -35,15 +35,13 @@ import io.substrait.proto.NamedStruct
 
 import scala.collection.JavaConverters;
 
-case class CHRangeExecTransformer(
-    start: Long,
-    end: Long,
-    step: Long,
-    numSlices: Int,
-    numElements: BigInt,
-    override val output: Seq[Attribute])
+case class CHRangeExecTransformer(range: LogicalRange)
   extends ColumnarRangeBaseExec
   with LeafTransformSupport {
+
+  override def doCanonicalize(): SparkPlan = {
+    CHRangeExecTransformer(range.canonicalized.asInstanceOf[LogicalRange])
+  }
 
   override def getSplitInfos: Seq[SplitInfo] = {
     (0 until numSlices).map {
