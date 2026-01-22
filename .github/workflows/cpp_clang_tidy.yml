@@ -60,7 +60,7 @@ jobs:
           fi
       - name: Download artifact from in-progress workflow
         if: steps.filter.outputs.cpp_changed == 'true'
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
           workflow: .github/workflows/velox_backend_x86.yml

@@ -16,9 +16,6 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
-import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
-import org.apache.gluten.util.LogicalTypeConverter;
-import org.apache.gluten.util.PlanNodeIdGenerator;
 import org.apache.gluten.velox.VeloxSourceSinkFactory;
 
 import org.apache.flink.api.common.io.OutputFormat;
@@ -73,6 +70,7 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer;
 import org.apache.flink.table.runtime.operators.sink.RowKindSetter;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
+import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInserter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
@@ -558,11 +556,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     if (rowtimeFieldIndex == -1) {
       return inputTransform;
     }
-    // --- Begin Gluten-specific code changes ---
-    io.github.zhztheplayer.velox4j.type.RowType outputType =
-        (io.github.zhztheplayer.velox4j.type.RowType)
-            LogicalTypeConverter.toVLType(
-                ((InternalTypeInfo) inputTransform.getOutputType()).toLogicalType());
     return ExecNodeUtil.createOneInputTransformation(
         inputTransform,
         createTransformationMeta(
@@ -570,13 +563,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             String.format("StreamRecordTimestampInserter(rowtime field: %s)", rowtimeFieldIndex),
             "StreamRecordTimestampInserter",
             config),
-        // TODO: support it, Map.of() will not be used, hardcode it here.
-        new GlutenOneInputOperator(
-            null, PlanNodeIdGenerator.newId(), null, Map.of("1", outputType)),
+        new StreamRecordTimestampInserter(rowtimeFieldIndex),
         inputTransform.getOutputType(),
         sinkParallelism,
         sinkParallelismConfigured);
-    // --- End Gluten-specific code changes ---
   }
 
   private InternalTypeInfo<RowData> getInputTypeInfo() {

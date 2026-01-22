@@ -32,7 +32,7 @@ RUN set -ex; \
     dnf install -y --setopt=install_weak_deps=False gcc-toolset-11; \
     echo "check_certificate = off" >> ~/.wgetrc; \
     yum install -y java-${JAVA_VERSION}-openjdk-devel patch wget git perl; \
-    maven_version=3.9.2; \
+    maven_version=3.9.12; \
     local_binary="apache-maven-${maven_version}-bin.tar.gz"; \
     mirror_host="https://www.apache.org/dyn/closer.lua"; \
     url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download"; \
@@ -46,7 +46,6 @@ RUN set -ex; \
     wget -nv ${mirror_host}/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz?action=download -O /opt/hadoop-2.8.5.tar.gz; \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
     cd /opt/gluten/.github/workflows/util/; \
-    ./install-spark-resources.sh 3.2; \
     ./install-spark-resources.sh 3.3; \
     ./install-spark-resources.sh 3.4; \
     ./install-spark-resources.sh 3.5; \
