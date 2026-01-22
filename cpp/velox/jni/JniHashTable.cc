@@ -116,7 +116,7 @@ std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
   }
 
   hashTableBuilder->hashTable()->prepareJoinTable(
-          {}, facebook::velox::exec::BaseHashTable::kNoSpillInputStartPartitionBit, 1'000'000);
+      {}, facebook::velox::exec::BaseHashTable::kNoSpillInputStartPartitionBit, 1'000'000);
 
   return hashTableBuilder;
 }
