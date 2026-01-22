@@ -22,8 +22,8 @@ import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 /**
@@ -41,10 +41,12 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
  *   Number of slices for partitioning the range.
  * @param numElements
  *   Total number of elements in the range.
- * @param outputAttributes
+ * @param output
  *   Attributes defining the output schema of the operator.
- * @param child
- *   Child SparkPlan nodes for this operator, if any.
+ * @param outputOrdering
+ *   Output ordering from the original RangeExec.
+ * @param outputPartitioning
+ *   Output partitioning from the original RangeExec.
  */
 case class ColumnarRangeExec(
     start: Long,
@@ -52,9 +54,10 @@ case class ColumnarRangeExec(
     step: Long,
     numSlices: Int,
     numElements: BigInt,
-    outputAttributes: Seq[Attribute],
-    child: Seq[SparkPlan]
-) extends ColumnarRangeBaseExec(start, end, step, numSlices, numElements, outputAttributes, child) {
+    override val output: Seq[Attribute],
+    override val outputOrdering: Seq[SortOrder],
+    override val outputPartitioning: Partitioning
+) extends ColumnarRangeBaseExec {
 
   override def batchType(): Convention.BatchType = {
     ArrowJavaBatchType

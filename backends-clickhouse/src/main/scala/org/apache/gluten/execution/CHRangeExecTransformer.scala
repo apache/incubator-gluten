@@ -27,7 +27,6 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
@@ -42,9 +41,8 @@ case class CHRangeExecTransformer(
     step: Long,
     numSlices: Int,
     numElements: BigInt,
-    outputAttributes: Seq[Attribute],
-    child: Seq[SparkPlan])
-  extends ColumnarRangeBaseExec(start, end, step, numSlices, numElements, outputAttributes, child)
+    override val output: Seq[Attribute])
+  extends ColumnarRangeBaseExec
   with LeafTransformSupport {
 
   override def getSplitInfos: Seq[SplitInfo] = {
@@ -83,7 +81,6 @@ case class CHRangeExecTransformer(
   override protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val output = outputAttributes
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = JavaConverters

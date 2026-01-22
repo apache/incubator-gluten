@@ -978,15 +978,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   override def genColumnarTailExec(limit: Int, child: SparkPlan): ColumnarCollectTailBaseExec =
     CHColumnarCollectTailExec(limit, child)
 
-  override def genColumnarRangeExec(
-      start: Long,
-      end: Long,
-      step: Long,
-      numSlices: Int,
-      numElements: BigInt,
-      outputAttributes: Seq[Attribute],
-      child: Seq[SparkPlan]): ColumnarRangeBaseExec =
-    CHRangeExecTransformer(start, end, step, numSlices, numElements, outputAttributes, child)
+  override def genColumnarRangeExec(rangeExec: RangeExec): ColumnarRangeBaseExec =
+    CHRangeExecTransformer(
+      rangeExec.start,
+      rangeExec.end,
+      rangeExec.step,
+      rangeExec.numSlices,
+      rangeExec.numElements,
+      rangeExec.output
+    )
 
   override def expressionFlattenSupported(expr: Expression): Boolean = expr match {
     case ca: FlattenedAnd => CHFlattenedExpression.supported(ca.name)

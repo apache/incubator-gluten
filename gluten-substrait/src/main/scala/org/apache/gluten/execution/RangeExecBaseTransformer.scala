@@ -19,27 +19,10 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar.transition.Convention
 
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{LeafExecNode, RangeExec, SparkPlan}
+import org.apache.spark.sql.execution.{LeafExecNode, RangeExec}
 
-/**
- * Base class for RangeExec transformation, can be implemented by the by supported backends.
- * Currently velox is supported.
- */
-abstract class ColumnarRangeBaseExec(
-    start: Long,
-    end: Long,
-    step: Long,
-    numSlices: Int,
-    numElements: BigInt,
-    outputAttributes: Seq[Attribute],
-    child: Seq[SparkPlan])
-  extends LeafExecNode
-  with ValidatablePlan {
-
-  override def output: Seq[Attribute] = {
-    outputAttributes
-  }
+/** Base class for [[RangeExec]] transformation that can be implemented by supported backends. */
+abstract class ColumnarRangeBaseExec extends LeafExecNode with ValidatablePlan {
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
@@ -56,14 +39,6 @@ abstract class ColumnarRangeBaseExec(
 object ColumnarRangeBaseExec {
   def from(rangeExec: RangeExec): ColumnarRangeBaseExec = {
     BackendsApiManager.getSparkPlanExecApiInstance
-      .genColumnarRangeExec(
-        rangeExec.start,
-        rangeExec.end,
-        rangeExec.step,
-        rangeExec.numSlices,
-        rangeExec.numElements,
-        rangeExec.output,
-        rangeExec.children
-      )
+      .genColumnarRangeExec(rangeExec)
   }
 }
