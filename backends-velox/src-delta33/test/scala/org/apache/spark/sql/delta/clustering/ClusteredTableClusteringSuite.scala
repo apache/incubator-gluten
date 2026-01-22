@@ -1,11 +1,12 @@
 /*
- * Copyright (2021) The Delta Lake Project Authors.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.delta.clustering
 
 import org.apache.spark.SparkFunSuite
@@ -27,7 +27,8 @@ import org.apache.spark.sql.delta.test.DeltaSQLCommandTest
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
-class ClusteredTableClusteringSuite extends SparkFunSuite
+class ClusteredTableClusteringSuite
+  extends SparkFunSuite
   with SharedSparkSession
   with ClusteredTableTestUtils
   with DeltaSQLCommandTest {
@@ -58,19 +59,17 @@ class ClusteredTableClusteringSuite extends SparkFunSuite
 
   test("optimize clustered table") {
     withSQLConf(SQLConf.MAX_RECORDS_PER_FILE.key -> "2") {
-      withClusteredTable(
-        table = table,
-        schema = "col1 int, col2 int",
-        clusterBy = "col1, col2") {
+      withClusteredTable(table = table, schema = "col1 int, col2 int", clusterBy = "col1, col2") {
         addFiles(table, numFiles = 4)
         val files0 = getFiles(table)
         assert(files0.size === 4)
         assertNotClustered(files0)
 
         // Optimize should cluster the data into two 2 files since MAX_RECORDS_PER_FILE is 2.
-        runOptimize(table) { metrics =>
-          assert(metrics.numFilesRemoved == 4)
-          assert(metrics.numFilesAdded == 2)
+        runOptimize(table) {
+          metrics =>
+            assert(metrics.numFilesRemoved == 4)
+            assert(metrics.numFilesAdded == 2)
         }
 
         val files1 = getFiles(table)
@@ -82,19 +81,17 @@ class ClusteredTableClusteringSuite extends SparkFunSuite
 
   test("cluster by 1 column") {
     withSQLConf(SQLConf.MAX_RECORDS_PER_FILE.key -> "2") {
-      withClusteredTable(
-        table = table,
-        schema = "col1 int, col2 int",
-        clusterBy = "col1") {
+      withClusteredTable(table = table, schema = "col1 int, col2 int", clusterBy = "col1") {
         addFiles(table, numFiles = 4)
         val files0 = getFiles(table)
         assert(files0.size === 4)
         assertNotClustered(files0)
 
         // Optimize should cluster the data into two 2 files since MAX_RECORDS_PER_FILE is 2.
-        runOptimize(table) { metrics =>
-          assert(metrics.numFilesRemoved == 4)
-          assert(metrics.numFilesAdded == 2)
+        runOptimize(table) {
+          metrics =>
+            assert(metrics.numFilesRemoved == 4)
+            assert(metrics.numFilesAdded == 2)
         }
 
         val files1 = getFiles(table)
@@ -105,52 +102,50 @@ class ClusteredTableClusteringSuite extends SparkFunSuite
   }
 
   test("optimize clustered table with batching") {
-    Seq(("1", 2), ("1g", 1)).foreach { case (batchSize, optimizeCommits) =>
-      withClusteredTable(
-        table = table,
-        schema = "col1 int, col2 int",
-        clusterBy = "col1, col2") {
-        addFiles(table, numFiles = 4)
-        val files0 = getFiles(table)
-        assert(files0.size === 4)
-        assertNotClustered(files0)
+    Seq(("1", 2), ("1g", 1)).foreach {
+      case (batchSize, optimizeCommits) =>
+        withClusteredTable(table = table, schema = "col1 int, col2 int", clusterBy = "col1, col2") {
+          addFiles(table, numFiles = 4)
+          val files0 = getFiles(table)
+          assert(files0.size === 4)
+          assertNotClustered(files0)
 
-        val totalSize = files0.toSeq.map(_.size).sum
-        val halfSize = totalSize / 2
+          val totalSize = files0.toSeq.map(_.size).sum
+          val halfSize = totalSize / 2
 
-        withSQLConf(
-          DeltaSQLConf.DELTA_OPTIMIZE_BATCH_SIZE.key -> batchSize,
-          DeltaSQLConf.DELTA_OPTIMIZE_CLUSTERING_MIN_CUBE_SIZE.key -> halfSize.toString,
-          DeltaSQLConf.DELTA_OPTIMIZE_CLUSTERING_TARGET_CUBE_SIZE.key -> halfSize.toString) {
-          // Optimize should create 2 cubes, which will be in separate batches if the batch size
-          // is small enough
-          runOptimize(table) { metrics =>
-            assert(metrics.numFilesRemoved == 4)
-            assert(metrics.numFilesAdded == 2)
+          withSQLConf(
+            DeltaSQLConf.DELTA_OPTIMIZE_BATCH_SIZE.key -> batchSize,
+            DeltaSQLConf.DELTA_OPTIMIZE_CLUSTERING_MIN_CUBE_SIZE.key -> halfSize.toString,
+            DeltaSQLConf.DELTA_OPTIMIZE_CLUSTERING_TARGET_CUBE_SIZE.key -> halfSize.toString
+          ) {
+            // Optimize should create 2 cubes, which will be in separate batches if the batch size
+            // is small enough
+            runOptimize(table) {
+              metrics =>
+                assert(metrics.numFilesRemoved == 4)
+                assert(metrics.numFilesAdded == 2)
+            }
+
+            val files1 = getFiles(table)
+            assert(files1.size == 2)
+            assertClustered(files1)
+
+            val deltaLog = DeltaLog.forTable(spark, TableIdentifier(table))
+
+            val commits = deltaLog.history.getHistory(None)
+            assert(commits.filter(_.operation == "OPTIMIZE").length == optimizeCommits)
           }
-
-          val files1 = getFiles(table)
-          assert(files1.size == 2)
-          assertClustered(files1)
-
-          val deltaLog = DeltaLog.forTable(spark, TableIdentifier(table))
-
-          val commits = deltaLog.history.getHistory(None)
-          assert(commits.filter(_.operation == "OPTIMIZE").length == optimizeCommits)
         }
-      }
     }
   }
 
   test("optimize clustered table with batching on an empty table") {
-    withClusteredTable(
-      table = table,
-      schema = "col1 int, col2 int",
-      clusterBy = "col1, col2") {
+    withClusteredTable(table = table, schema = "col1 int, col2 int", clusterBy = "col1, col2") {
       withSQLConf(DeltaSQLConf.DELTA_OPTIMIZE_BATCH_SIZE.key -> "1g") {
-        runOptimize(table) { metrics =>
-          assert(metrics.numFilesRemoved == 0)
-          assert(metrics.numFilesAdded == 0)
+        runOptimize(table) {
+          metrics =>
+            assert(metrics.numFilesRemoved == 0)
+            assert(metrics.numFilesAdded == 0)
         }
       }
     }
