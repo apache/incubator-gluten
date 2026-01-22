@@ -111,6 +111,10 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
   }
 
   override def validateJoinTypeAndBuildSide(): ValidationResult = {
+    val baseResult = super.validateJoinTypeAndBuildSide()
+    if (!baseResult.ok()) {
+      return baseResult
+    }
     joinType match {
       case _: InnerLike =>
       case ExistenceJoin(_) =>
