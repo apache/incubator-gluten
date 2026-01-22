@@ -803,8 +803,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenInjectRuntimeFilterSuite]
     // FIXME: yan
     .exclude("Merge runtime bloom filters")
-    // TODO: https://github.com/apache/spark/pull/52039
-    .exclude("Runtime bloom filter join: two joins")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenJoinSuite]
     // exclude as it check spark plan
