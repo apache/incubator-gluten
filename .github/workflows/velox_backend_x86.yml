@@ -1419,8 +1419,8 @@ jobs:
           path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
-          dnf module -y install python39 && \
-          alternatives --set python3 /usr/bin/python3.9 && \
+          dnf module -y install python310 && \
+          alternatives --set python3 /usr/bin/python3.10 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
