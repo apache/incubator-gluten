@@ -21,7 +21,7 @@ import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.network.util.LimitedInputStream
 import org.apache.spark.network.util.TransportConf
 
-import java.io.{BufferedInputStream, EOFException, File, FileInputStream, InputStream, IOException, SequenceInputStream}
+import java.io.{BufferedInputStream, EOFException, File, FileInputStream, InputStream, IOException, RandomAccessFile, SequenceInputStream}
 import java.nio.ByteBuffer
 import java.util.Vector
 
@@ -39,8 +39,30 @@ class FileSegmentsManagedBuffer(
   override def release(): ManagedBuffer = this
 
   override def nioByteBuffer(): ByteBuffer = {
-    // Implement logic to return a ByteBuffer representing the file segments
-    throw new UnsupportedOperationException("Not implemented yet")
+    val buffer = ByteBuffer.allocate(size().toInt)
+    val channel = new RandomAccessFile(file, "r").getChannel
+    try {
+      var destPos = 0
+      segments.foreach {
+        case (offset, length) =>
+          buffer.position(destPos)
+          buffer.limit(destPos + length.toInt)
+          channel.position(offset)
+          var remaining = length
+          while (remaining > 0) {
+            val n = channel.read(buffer)
+            if (n == -1) {
+              throw new EOFException(s"EOF reached while reading segment at offset $offset")
+            }
+            remaining -= n
+          }
+          destPos += length.toInt
+      }
+      buffer.flip()
+      buffer
+    } finally {
+      channel.close()
+    }
   }
 
   @throws[IOException]

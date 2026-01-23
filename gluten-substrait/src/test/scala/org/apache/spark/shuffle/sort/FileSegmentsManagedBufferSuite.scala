@@ -47,6 +47,40 @@ class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll 
     assert(buf.size() == 10L + 5L + 15L)
   }
 
+  test("nioByteBuffer reads single segment correctly") {
+    val conf = null.asInstanceOf[TransportConf]
+    val segments = Seq((10L, 5L))
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val bb = buf.nioByteBuffer()
+    val arr = new Array[Byte](5)
+    bb.get(arr)
+    assert(arr.sameElements(fileData.slice(10, 15)))
+    assert(!bb.hasRemaining)
+  }
+
+  test("nioByteBuffer reads multiple segments in sequence") {
+    val conf = null.asInstanceOf[TransportConf]
+    val segments = Seq((5L, 3L), (20L, 2L), (40L, 4L))
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val bb = buf.nioByteBuffer()
+    val arr = new Array[Byte](9)
+    bb.get(arr)
+    assert(arr.slice(0, 3).sameElements(fileData.slice(5, 8)))
+    assert(arr.slice(3, 5).sameElements(fileData.slice(20, 22)))
+    assert(arr.slice(5, 9).sameElements(fileData.slice(40, 44)))
+    assert(!bb.hasRemaining)
+  }
+
+  test("nioByteBuffer throws EOFException if segment exceeds file length") {
+    val conf = null.asInstanceOf[TransportConf]
+    val segments = Seq((95L, 10L)) // goes past EOF
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val thrown = intercept[EOFException] {
+      buf.nioByteBuffer()
+    }
+    assert(thrown.getMessage.contains("EOF reached while reading segment"))
+  }
+
   test("createInputStream reads single segment correctly") {
     val conf = null.asInstanceOf[TransportConf] // Not used in this test
     val segments = Seq((10L, 5L))
