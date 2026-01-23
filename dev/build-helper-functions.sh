@@ -75,8 +75,8 @@ function get_cxx_flags {
 
     "aarch64")
       # Follow Velox's ARM CPU detection logic to ensure consistent compiler flags
-      # between Gluten and Velox, preventing xsimd initialization issues.
-      # See: ep/build-velox/build/velox_ep/scripts/setup-helper-functions.sh:142-180
+      # between Gluten and Velox, preventing xsimd initialization issues, see GLUTEN-11390.
+      # Reference: function get_cxx_flags in Velox's setup-helper-functions.sh.
 
       # Read Arm MIDR_EL1 register to detect Arm cpu.
       # https://developer.arm.com/documentation/100616/0301/register-descriptions/aarch64-system-registers/midr-el1--main-id-register--el1
