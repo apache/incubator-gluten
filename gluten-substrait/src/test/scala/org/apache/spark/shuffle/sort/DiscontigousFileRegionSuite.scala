@@ -16,12 +16,12 @@
  */
 package org.apache.spark.shuffle.sort
 
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.io.{ByteArrayOutputStream, File, FileOutputStream, RandomAccessFile}
+import java.io.{ByteArrayOutputStream, File, FileOutputStream}
 import java.nio.ByteBuffer
-import java.nio.channels.{FileChannel, WritableByteChannel}
+import java.nio.channels.WritableByteChannel
 import java.nio.charset.StandardCharsets
 
 // The Helper Class (Mock Socket)
@@ -43,14 +43,19 @@ class ByteArrayWritableChannel extends WritableByteChannel {
   override def close(): Unit = { open = false }
 }
 
-class DiscontiguousFileRegionSuite
-  extends AnyFunSuite
-  with BeforeAndAfterEach
-  with BeforeAndAfterAll {
+class DiscontiguousFileRegionSuite extends AnyFunSuite with BeforeAndAfterAll {
+
+  test("transferTo throws after release is called") {
+    val region = new DiscontiguousFileRegion(tempFile, Seq((0L, 3L)), lazyOpen = true)
+    region.release()
+    val target = new ByteArrayWritableChannel()
+    val thrown = intercept[Exception] {
+      region.transferTo(target, 0)
+    }
+    assert(thrown.getMessage.toLowerCase.contains("closed") || thrown.isInstanceOf[IllegalStateException])
+  }
 
   var tempFile: File = _
-  var raf: RandomAccessFile = _
-  var fileChannel: FileChannel = _
 
   val fileContent = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -61,16 +66,6 @@ class DiscontiguousFileRegionSuite
     fos.close()
   }
 
-  override def beforeEach(): Unit = {
-    raf = new RandomAccessFile(tempFile, "r")
-    fileChannel = raf.getChannel
-  }
-
-  override def afterEach(): Unit = {
-    if (fileChannel != null && fileChannel.isOpen) fileChannel.close()
-    if (raf != null) raf.close()
-  }
-
   override def afterAll(): Unit = {
     if (tempFile != null) tempFile.delete()
   }
@@ -78,7 +73,7 @@ class DiscontiguousFileRegionSuite
   // --- TESTS ---
   test("transfer a single segment correctly") {
     // Segment: "BCD" (Offset 1, Length 3)
-    val region = new DiscontiguousFileRegion(fileChannel, Seq((1L, 3L)))
+    val region = new DiscontiguousFileRegion(tempFile, Seq((1L, 3L)))
     val target = new ByteArrayWritableChannel()
 
     val written = region.transferTo(target, 0)
@@ -87,10 +82,18 @@ class DiscontiguousFileRegionSuite
     assert(new String(target.toByteArray) == "BCD", "Content should match the first 3 letters")
   }
 
+  test("transferTo works with lazyOpen=true") {
+    val region = new DiscontiguousFileRegion(tempFile, Seq((2L, 4L)), lazyOpen = true)
+    val target = new ByteArrayWritableChannel()
+    val written = region.transferTo(target, 0)
+    assert(written == 4)
+    assert(new String(target.toByteArray) == "CDEF")
+  }
+
   test("concatenate multiple discontiguous segments") {
     // Segment 1: "AB" (0, 2)
     // Segment 2: "YZ" (24, 2)
-    val region = new DiscontiguousFileRegion(fileChannel, Seq((0L, 2L), (24L, 2L)))
+    val region = new DiscontiguousFileRegion(tempFile, Seq((0L, 2L), (24L, 2L)))
     val target = new ByteArrayWritableChannel()
 
     val written = region.transferTo(target, 0)
@@ -102,7 +105,7 @@ class DiscontiguousFileRegionSuite
   test("handle the 'position' parameter correctly (Mid-segment start)") {
     // Combined View: "ABC" + "XYZ" = "ABCXYZ"
     // Indices:       012     345
-    val region = new DiscontiguousFileRegion(fileChannel, Seq((0L, 3L), (23L, 3L)))
+    val region = new DiscontiguousFileRegion(tempFile, Seq((0L, 3L), (23L, 3L)))
     val target = new ByteArrayWritableChannel()
 
     // Act: Start from logical position 2 (Letter 'C')
@@ -115,7 +118,7 @@ class DiscontiguousFileRegionSuite
 
   test("handle starting exactly at the boundary of the second segment") {
     // Combined View: "AB" (size 2) + "YZ" (size 2)
-    val region = new DiscontiguousFileRegion(fileChannel, Seq((0L, 2L), (24L, 2L)))
+    val region = new DiscontiguousFileRegion(tempFile, Seq((0L, 2L), (24L, 2L)))
     val target = new ByteArrayWritableChannel()
 
     // Act: Start from logical position 2 (Start of second segment)
@@ -128,7 +131,7 @@ class DiscontiguousFileRegionSuite
   test("handle a position that skips multiple initial segments") {
     // Segments: "A", "B", "C", "D"
     val region = new DiscontiguousFileRegion(
-      fileChannel,
+      tempFile,
       Seq(
         (0L, 1L),
         (1L, 1L),
@@ -145,18 +148,12 @@ class DiscontiguousFileRegionSuite
   }
 
   test("return 0 if position is beyond total size") {
-    val region = new DiscontiguousFileRegion(fileChannel, Seq((0L, 5L)))
+    val region = new DiscontiguousFileRegion(tempFile, Seq((0L, 5L)))
     val target = new ByteArrayWritableChannel()
 
     val written = region.transferTo(target, 100)
 
     assert(written == 0)
     assert(target.toByteArray.length == 0)
-  }
-
-  test("file channel should closed after release") {
-    val region = new DiscontiguousFileRegion(fileChannel, Seq((0L, 5L)))
-    region.release()
-    assert(!fileChannel.isOpen)
   }
 }

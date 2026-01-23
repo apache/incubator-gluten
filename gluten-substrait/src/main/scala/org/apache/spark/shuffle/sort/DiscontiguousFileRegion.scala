@@ -20,16 +20,19 @@ package org.apache.spark.shuffle.sort;
 import _root_.io.netty.channel.FileRegion
 import _root_.io.netty.util.AbstractReferenceCounted
 
+import java.io.File
 import java.io.IOException
 import java.nio.channels.{FileChannel, WritableByteChannel}
+import java.nio.file.StandardOpenOption
 
 /**
  * A FileRegion that maps a continuous logical stream (0 to N) onto multiple discontiguous physical
  * file segments.
  */
 class DiscontiguousFileRegion(
-    private val fileChannel: FileChannel,
-    private val segments: Seq[(Long, Long)] // (Physical File Offset, Length)
+    private val file: File,
+    private val segments: Seq[(Long, Long)], // (Physical File Offset, Length)
+    private val lazyOpen: Boolean = false // If true, delay opening the file until first use
 ) extends AbstractReferenceCounted
   with FileRegion {
 
@@ -37,6 +40,21 @@ class DiscontiguousFileRegion(
 
   private val totalCount: Long = segments.map(_._2).sum
   private var bytesTransferred: Long = 0L
+  private var fileChannel: FileChannel = null
+  private var closed: Boolean = false
+
+  if (!lazyOpen) {
+    ensureOpen()
+  }
+
+  private def ensureOpen(): Unit = {
+    if (closed) {
+      throw new IOException("File is already closed")
+    }
+    if (fileChannel == null) {
+      fileChannel = FileChannel.open(file.toPath, StandardOpenOption.READ)
+    }
+  }
 
   /**
    * Transfers data starting from the LOGICAL 'position'.
@@ -49,6 +67,8 @@ class DiscontiguousFileRegion(
   override def transferTo(target: WritableByteChannel, position: Long): Long = {
     var logicalPos = position
     var totalWritten = 0L
+
+    ensureOpen()
 
     if (logicalPos >= totalCount) {
       return 0L
@@ -122,7 +142,10 @@ class DiscontiguousFileRegion(
   override def retain(increment: Int): FileRegion = { super.retain(increment); this }
 
   override protected def deallocate(): Unit = {
-    // Own the file descriptor, close it here.
-    fileChannel.close()
+    if (fileChannel != null && !closed) {
+      fileChannel.close()
+      fileChannel = null
+      closed = true
+    }
   }
 }
