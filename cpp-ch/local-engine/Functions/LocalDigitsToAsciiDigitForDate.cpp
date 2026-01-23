@@ -163,19 +163,6 @@ public:
     }
 
 private:
-    bool hasLocalDigit(StringRef str) const
-    {
-        if (!str.size)
-            return false;
-        // In most cases, the first byte is a digit.
-        char c = reinterpret_cast<char>(str.data[0]);
-        if ('0' <= c && c <= '9')
-        {
-            return false;
-        }
-        return true;
-    }
-
     char toAsciiDigit(char32_t c) const {
         // In Thai and Persian, dates typically do not use the Gregorian calendar.
         // This may cause failures in unix_timestamp parsing.
@@ -193,6 +180,40 @@ private:
             return static_cast<char>(c - 0x09E6 + '0');
         else
             return 0;
+    }
+
+    bool hasLocalDigit(StringRef str) const
+    {
+        if (!str.size)
+            return false;
+        for (size_t i = 0; i < str.size;)
+        {
+            unsigned char c = str.data[i];
+            char32_t cp = 0;
+            if ((c & 0x80) == 0) // 1-byte
+            {
+                cp = c;
+                i += 1;
+            }
+            else if ((c & 0xE0) == 0xC0) // 2-byte
+            {
+                cp = ((c & 0x1F) << 6) | (str.data[i + 1] & 0x3F);
+                i += 2;
+            }
+            else if ((c & 0xF0) == 0xE0) // 3-byte
+            {
+                cp = ((c & 0x0F) << 12) | ((str.data[i + 1] & 0x3F) << 6) | (str.data[i + 2] & 0x3F);
+                i += 3;
+            }
+            else if ((c & 0xF8) == 0xF0) // 4-byte
+            {
+                cp = ((c & 0x07) << 18) | ((str.data[i + 1] & 0x3F) << 12) | ((str.data[i + 2] & 0x3F) << 6) | (str.data[i + 3] & 0x3F);
+                i += 4;
+            }
+            if (toAsciiDigit(cp))
+                return true;
+        }
+        return false;
     }
 
     String convertLocalDigit(const StringRef & str) const
