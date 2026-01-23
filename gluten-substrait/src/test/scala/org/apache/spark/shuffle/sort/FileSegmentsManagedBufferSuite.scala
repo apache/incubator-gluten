@@ -24,6 +24,10 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.io._
 import java.nio.file.Files
 
+class FakeTransportConf extends TransportConf("test", null) {
+  override def memoryMapBytes(): Int = 4096 // 4 KB
+}
+
 class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll {
 
   private var tempFile: File = _
@@ -79,6 +83,25 @@ class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll 
       buf.nioByteBuffer()
     }
     assert(thrown.getMessage.contains("EOF reached while reading segment"))
+  }
+
+  test("nioByteBuffer with mmap for a single segment") {
+    // Create a large file (16 KB)
+    val largeData = (0 until 16384).map(_.toByte).toArray
+    val largeFile = Files.createTempFile("fsegments-mmap-test", ".bin").toFile
+    val fos = new FileOutputStream(largeFile)
+    fos.write(largeData)
+    fos.close()
+
+    val conf = new FakeTransportConf()
+    val segment = (0L, 16384L)
+    val buf = new FileSegmentsManagedBuffer(conf, largeFile, Seq(segment))
+    val nioBuf = buf.nioByteBuffer()
+    val arr = new Array[Byte](16384)
+    nioBuf.get(arr)
+    assert(arr.sameElements(largeData))
+
+    largeFile.delete()
   }
 
   test("createInputStream reads single segment correctly") {

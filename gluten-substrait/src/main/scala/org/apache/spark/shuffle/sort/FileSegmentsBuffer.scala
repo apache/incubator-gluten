@@ -23,6 +23,7 @@ import org.apache.spark.network.util.TransportConf
 
 import java.io.{BufferedInputStream, EOFException, File, FileInputStream, InputStream, IOException, RandomAccessFile, SequenceInputStream}
 import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.util.Vector
 
 /** A {@link ManagedBuffer} backed by a set of segments in a file. */
@@ -42,6 +43,11 @@ class FileSegmentsManagedBuffer(
     val buffer = ByteBuffer.allocate(size().toInt)
     val channel = new RandomAccessFile(file, "r").getChannel
     try {
+      if (conf != null && size() >= conf.memoryMapBytes() && segments.length == 1) {
+        // zero-copy for single segment that is large enough
+        val (offset, length) = segments.head
+        return channel.map(FileChannel.MapMode.READ_ONLY, offset, length)
+      }
       var destPos = 0
       segments.foreach {
         case (offset, length) =>
@@ -61,7 +67,7 @@ class FileSegmentsManagedBuffer(
       buffer.flip()
       buffer
     } finally {
-      channel.close()
+      JavaUtils.closeQuietly(channel)
     }
   }
 
