@@ -18,7 +18,6 @@ package org.apache.spark.sql.delta
 
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
 import org.apache.gluten.extension.columnar.transition.Transitions
-
 import org.apache.spark.sql.{AnalysisException, Dataset}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints, DeltaInvariantCheckerExec}
@@ -28,7 +27,8 @@ import org.apache.spark.sql.delta.perf.{DeltaOptimizedWriterExec, GlutenDeltaOpt
 import org.apache.spark.sql.delta.schema.InnerInvariantViolationException
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.stats.{GlutenDeltaIdentityColumnStatsTracker, GlutenDeltaJobStatisticsTracker}
-import org.apache.spark.sql.execution.SQLExecution
+import org.apache.spark.sql.execution.{SQLExecution, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, WriteJobStatsTracker}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.util.ScalaExtensions.OptionExt
@@ -95,11 +95,17 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
         convertEmptyToNullIfNeeded(queryExecution.executedPlan, partitioningColumns, constraints)
       val maybeCheckInvariants = if (constraints.isEmpty) {
         // Compared to vanilla Delta, we simply avoid adding the invariant checker
-        // when the constraint list is empty, to avoid the unnecessary transitions
+        // when the constraint list is empty, to omit the unnecessary transitions
         // added around the invariant checker.
         empty2NullPlan
       } else {
         DeltaInvariantCheckerExec(empty2NullPlan, constraints)
+      }
+      def toVeloxPlan(plan: SparkPlan): SparkPlan = plan match {
+        case aqe: AdaptiveSparkPlanExec =>
+          assert(!aqe.isFinalPlan)
+          aqe.copy(supportsColumnar = true)
+        case _ => Transitions.toBatchPlan(maybeCheckInvariants, VeloxBatchType)
       }
       // No need to plan optimized write if the write command is OPTIMIZE, which aims to produce
       // evenly-balanced data files already.
@@ -108,13 +114,13 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
           !isOptimize &&
           shouldOptimizeWrite(writeOptions, spark.sessionState.conf)
         ) {
-          // FIXME: This may create unexpected C2R2C / R2C where the original plan is better to be
-          //  written with the vanilla DeltaOptimizedWriterExec. We'd optimize the query plan
-          //  here further.
-          val planWithVeloxOutput = Transitions.toBatchPlan(maybeCheckInvariants, VeloxBatchType)
+          // We uniformly convert the query plan to a columnar plan. If
+          // the further write operation turns out to be non-offload-able, the
+          // columnar plan will be converted back to a row-based plan.
+          val veloxPlan = toVeloxPlan(maybeCheckInvariants)
           try {
             val glutenWriterExec = GlutenDeltaOptimizedWriterExec(
-              planWithVeloxOutput,
+              veloxPlan,
               metadata.partitionColumns,
               deltaLog)
             val validationResult = glutenWriterExec.doValidate()
@@ -134,7 +140,8 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
               DeltaOptimizedWriterExec(maybeCheckInvariants, metadata.partitionColumns, deltaLog)
           }
         } else {
-          maybeCheckInvariants
+          val veloxPlan = toVeloxPlan(maybeCheckInvariants)
+          veloxPlan
         }
 
       val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()

@@ -278,7 +278,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
       val wrappedPlanToExecute = if (writeOffloadable) {
         BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(planToExecute)
       } else {
-        planToExecute
+        Transitions.toRowPlan(planToExecute)
       }
 
       // In testing, this is the only way to get hold of the actually executed plan written to file
