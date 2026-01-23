@@ -33,7 +33,8 @@ RUN yum install -y sudo patch maven perl && \
     source /opt/rh/gcc-toolset-14/enable && \
     bash ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --build_tests=ON --build_benchmarks=ON --enable_gpu=ON && \
     rm -rf /opt/gluten && \
-    rm -rf /opt/spark-3.4.4-bin-hadoop3
+    rm -rf /opt/spark-3.4.4-bin-hadoop3 && \
+    rm -rf /root/.cache/ccache
     
 
 # You can try the data in folder backends-velox/src/test/resources/tpch-data-parquet
