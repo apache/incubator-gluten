@@ -166,7 +166,7 @@ wcwidth==0.2.13
 webcolors==1.13
 webencodings==0.5.1
 websocket-client==1.8.0
-wheel==0.44.0
+wheel==0.46.2
 widgetsnbextension==4.0.11
 zipp>=3.19.1
 zope.interface==5.4.0
