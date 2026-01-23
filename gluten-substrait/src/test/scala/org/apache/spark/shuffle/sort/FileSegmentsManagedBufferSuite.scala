@@ -18,17 +18,66 @@ package org.apache.spark.shuffle.sort
 
 import org.apache.spark.network.util.TransportConf
 
+import _root_.io.netty.channel.FileRegion
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io._
+import java.nio.channels.WritableByteChannel
 import java.nio.file.Files
 
-class FakeTransportConf extends TransportConf("test", null) {
+class FakeTransportConf(private val lazyOpen: Boolean = false) extends TransportConf("test", null) {
   override def memoryMapBytes(): Int = 4096 // 4 KB
+  override def lazyFileDescriptor(): Boolean = lazyOpen
 }
 
 class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll {
+  private class ByteArrayWritableChannel extends WritableByteChannel {
+    private val out = new ByteArrayOutputStream()
+    private var open = true
+
+    def toByteArray: Array[Byte] = out.toByteArray
+
+    override def write(src: java.nio.ByteBuffer): Int = {
+      val size = src.remaining()
+      val buf = new Array[Byte](size)
+      src.get(buf)
+      out.write(buf)
+      size
+    }
+
+    override def isOpen: Boolean = open
+    override def close(): Unit = { open = false }
+  }
+
+  test("convertToNetty returns FileRegion with correct count and content") {
+    val conf = new FakeTransportConf()
+    val segments = Seq((2L, 3L), (10L, 4L))
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val nettyObj = buf.convertToNetty()
+    assert(nettyObj.isInstanceOf[FileRegion])
+    val region = nettyObj.asInstanceOf[FileRegion]
+    assert(region.count() == 7L)
+    assert(region.position() == 0L)
+    val target = new ByteArrayWritableChannel()
+    val written = region.transferTo(target, 0)
+    assert(written == 7L)
+    val expected = fileData.slice(2, 5) ++ fileData.slice(10, 14)
+    assert(target.toByteArray.sameElements(expected))
+  }
+
+  test("convertToNetty supports lazyOpen via FileRegion transfer") {
+    val conf = new FakeTransportConf(lazyOpen = true)
+    val segments = Seq((5L, 3L))
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val nettyObj = buf.convertToNetty()
+    assert(nettyObj.isInstanceOf[FileRegion])
+    val region = nettyObj.asInstanceOf[FileRegion]
+    val target = new ByteArrayWritableChannel()
+    val written = region.transferTo(target, 0)
+    assert(written == 3L)
+    assert(target.toByteArray.sameElements(fileData.slice(5, 8)))
+  }
 
   private var tempFile: File = _
   private val fileData: Array[Byte] = (0 until 100).map(_.toByte).toArray

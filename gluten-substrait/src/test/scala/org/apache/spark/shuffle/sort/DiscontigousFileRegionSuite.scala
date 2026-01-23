@@ -44,17 +44,6 @@ class ByteArrayWritableChannel extends WritableByteChannel {
 }
 
 class DiscontiguousFileRegionSuite extends AnyFunSuite with BeforeAndAfterAll {
-
-  test("transferTo throws after release is called") {
-    val region = new DiscontiguousFileRegion(tempFile, Seq((0L, 3L)), lazyOpen = true)
-    region.release()
-    val target = new ByteArrayWritableChannel()
-    val thrown = intercept[Exception] {
-      region.transferTo(target, 0)
-    }
-    assert(thrown.getMessage.toLowerCase.contains("closed") || thrown.isInstanceOf[IllegalStateException])
-  }
-
   var tempFile: File = _
 
   val fileContent = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

@@ -117,7 +117,8 @@ class FileSegmentsManagedBuffer(
   }
 
   override def convertToNetty(): AnyRef = {
-    // Implement logic to convert to Netty buffer if needed
-    throw new UnsupportedOperationException("Not implemented yet")
+    var lazyOpen = false
+    if (conf != null) lazyOpen = conf.lazyFileDescriptor()
+    new DiscontiguousFileRegion(file, segments, lazyOpen)
   }
 }
