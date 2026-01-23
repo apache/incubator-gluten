@@ -320,6 +320,7 @@ jobs:
           -e matrix.java=${{ matrix.java }} -e matrix.spark=${{ matrix.spark }} \
           centos:7 \
           bash -c "
+            set -e
             sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
             sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
 
@@ -1273,6 +1274,7 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:centos-9-jdk8-cudf bash -c "
+          set -e
           rm -rf /opt/rh/gcc-toolset-12 && ln -s /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12 # hack to use gcc 14, should upgrade in Velox build script later
           df -a
           dnf autoremove -y && dnf clean all
