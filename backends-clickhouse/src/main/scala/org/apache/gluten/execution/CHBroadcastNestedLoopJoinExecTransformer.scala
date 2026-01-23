@@ -21,7 +21,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.optimizer.{BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType, LeftSemi}
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
@@ -111,19 +111,24 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
   }
 
   override def validateJoinTypeAndBuildSide(): ValidationResult = {
-    val baseResult = super.validateJoinTypeAndBuildSide()
-    if (!baseResult.ok()) {
-      return baseResult
+    (joinType, buildSide) match {
+      case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) =>
+        return ValidationResult.failed(s"$joinType join is not supported with $buildSide")
+      case _ =>
     }
+
     joinType match {
-      case _: InnerLike =>
+      case _: InnerLike | FullOuter | LeftOuter | RightOuter =>
       case ExistenceJoin(_) =>
         return ValidationResult.failed("ExistenceJoin is not supported for CH backend.")
       case _ =>
-        if (joinType == LeftSemi || condition.isDefined) {
-          return ValidationResult.failed(
-            s"Broadcast Nested Loop join is not supported join type $joinType with conditions")
-        }
+        return ValidationResult.failed(
+          s"Broadcast Nested Loop join is not supported join type $joinType")
+    }
+
+    if (joinType == LeftSemi || condition.isDefined) {
+      return ValidationResult.failed(
+        s"Broadcast Nested Loop join is not supported join type $joinType with conditions")
     }
 
     ValidationResult.succeeded
