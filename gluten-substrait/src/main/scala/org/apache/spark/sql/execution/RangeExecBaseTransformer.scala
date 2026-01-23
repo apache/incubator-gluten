@@ -34,7 +34,7 @@ abstract class ColumnarRangeBaseExec extends LeafExecNode with ValidatablePlan {
   val end: Long = range.end
   val step: Long = range.step
   val numElements: BigInt = range.numElements
-  def numSlices: Int = range.numSlices.getOrElse(session.leafNodeDefaultParallelism)
+  val numSlices: Int = range.numSlices.getOrElse(session.leafNodeDefaultParallelism)
   val isEmptyRange: Boolean = start == end || (start < end ^ 0 < step)
 
   override def output: Seq[Attribute] = range.output
