@@ -18,6 +18,7 @@ package org.apache.spark.sql.delta
 
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
 import org.apache.gluten.extension.columnar.transition.Transitions
+
 import org.apache.spark.sql.{AnalysisException, Dataset}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints, DeltaInvariantCheckerExec}
@@ -27,7 +28,7 @@ import org.apache.spark.sql.delta.perf.{DeltaOptimizedWriterExec, GlutenDeltaOpt
 import org.apache.spark.sql.delta.schema.InnerInvariantViolationException
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.stats.{GlutenDeltaIdentityColumnStatsTracker, GlutenDeltaJobStatisticsTracker}
-import org.apache.spark.sql.execution.{SQLExecution, SparkPlan}
+import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, WriteJobStatsTracker}
 import org.apache.spark.sql.internal.SQLConf
@@ -119,10 +120,8 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
           // columnar plan will be converted back to a row-based plan.
           val veloxPlan = toVeloxPlan(maybeCheckInvariants)
           try {
-            val glutenWriterExec = GlutenDeltaOptimizedWriterExec(
-              veloxPlan,
-              metadata.partitionColumns,
-              deltaLog)
+            val glutenWriterExec =
+              GlutenDeltaOptimizedWriterExec(veloxPlan, metadata.partitionColumns, deltaLog)
             val validationResult = glutenWriterExec.doValidate()
             if (validationResult.ok()) {
               glutenWriterExec
