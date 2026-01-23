@@ -225,9 +225,8 @@ object OffloadOthers {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan)
         case plan: UnionExec =>
-          val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          ColumnarUnionExec(children)
+          ColumnarUnionExec.from(plan)
         case plan: ExpandExec =>
           val child = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -322,15 +321,7 @@ object OffloadOthers {
           }
         case plan: RangeExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarRangeExec(
-            plan.start,
-            plan.end,
-            plan.step,
-            plan.numSlices,
-            plan.numElements,
-            plan.output,
-            plan.children
-          )
+          ColumnarRangeBaseExec.from(plan)
         case plan: SampleExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child
