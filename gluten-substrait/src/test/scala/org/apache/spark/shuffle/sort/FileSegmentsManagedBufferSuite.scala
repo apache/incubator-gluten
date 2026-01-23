@@ -1,0 +1,100 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.spark.shuffle.sort
+
+import org.apache.spark.network.util.TransportConf
+
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funsuite.AnyFunSuite
+
+import java.io._
+import java.nio.file.Files
+
+class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll {
+
+  private var tempFile: File = _
+  private val fileData: Array[Byte] = (0 until 100).map(_.toByte).toArray
+
+  override def beforeAll(): Unit = {
+    tempFile = Files.createTempFile("fsegments-test", ".bin").toFile
+    val fos = new FileOutputStream(tempFile)
+    fos.write(fileData)
+    fos.close()
+  }
+
+  override def afterAll(): Unit = {
+    if (tempFile != null && tempFile.exists()) tempFile.delete()
+  }
+
+  test("size returns sum of segment lengths") {
+    val conf = null.asInstanceOf[TransportConf]
+    val segments = Seq((2L, 10L), (20L, 5L), (50L, 15L))
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    assert(buf.size() == 10L + 5L + 15L)
+  }
+
+  test("createInputStream reads single segment correctly") {
+    val conf = null.asInstanceOf[TransportConf] // Not used in this test
+    val segments = Seq((10L, 5L))
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val in = buf.createInputStream()
+    val read = new Array[Byte](5)
+    assert(in.read(read) == 5)
+    assert(read.sameElements(fileData.slice(10, 15)))
+    assert(in.read() == -1)
+    in.close()
+  }
+
+  test("createInputStream reads multiple segments in sequence") {
+    val conf = null.asInstanceOf[TransportConf]
+    val segments = Seq((5L, 3L), (20L, 2L), (40L, 4L))
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val in = buf.createInputStream()
+    val out = new Array[Byte](9)
+    var total = 0
+    var n = 0
+    while (n > 0 || total == 0) {
+      n = in.read(out, total, out.length - total)
+      if (n > 0) total += n
+      else if (total == 0) n = 1 // ensure loop runs at least once
+    }
+    assert(total == 9)
+    assert(out.slice(0, 3).sameElements(fileData.slice(5, 8)))
+    assert(out.slice(3, 5).sameElements(fileData.slice(20, 22)))
+    assert(out.slice(5, 9).sameElements(fileData.slice(40, 44)))
+    assert(in.read() == -1)
+    in.close()
+  }
+
+  test("createInputStream read nothing if segment exceeds file length") {
+    val conf = null.asInstanceOf[TransportConf]
+    val segments = Seq((105L, 10L)) // goes past EOF
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    // should raise EOFException or read nothing
+    try {
+      val in = buf.createInputStream()
+      val read = new Array[Byte](10)
+      assert(in.read(read) == -1)
+      in.close()
+    } catch {
+      case e: EOFException =>
+        assert(e.getMessage.contains("reached end of stream"))
+      case t: Throwable =>
+        fail(s"Unexpected exception: $t")
+    }
+  }
+}
