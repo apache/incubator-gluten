@@ -323,6 +323,45 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithMinSparkVersion(
+    "array_contains(map_keys(m), k) vs map_contains_key(m, k)",
+    "3.3") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[Int, String](1 -> "100", 5 -> "500"),
+          Map[Int, String](1 -> "100", 2 -> "200"),
+          Map.empty[Int, String],
+          null.asInstanceOf[Map[Int, String]]
+        )
+          .toDF("i")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        val df = runQueryAndCompare(
+          """
+            |select
+            |  array_contains(map_keys(i), 1) <=> map_contains_key(i, 1) as eq_present,
+            |  array_contains(map_keys(i), 5) <=> map_contains_key(i, 5) as eq_absent,
+            |  array_contains(map_keys(i), cast(null as int)) <=>
+            |    map_contains_key(i, cast(null as int)) as eq_null_key
+            |from map_tbl
+            |""".stripMargin) {
+          checkGlutenPlan[ProjectExecTransformer]
+        }
+
+        val rows = df.collect()
+        assert(rows.nonEmpty)
+        rows.foreach { row =>
+          (0 until row.length).foreach { idx =>
+            assert(row.getBoolean(idx))
+          }
+        }
+    }
+  }
+
   test("map_values") {
     withTempPath {
       path =>
