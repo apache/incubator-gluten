@@ -106,7 +106,7 @@ object GlutenShuffleUtils {
     } else if ("zstd" == codec) {
       checkAndGetBufferSize(IO_COMPRESSION_ZSTD_BUFFERSIZE)
     } else if ("snappy" == codec) {
-      32 * 1024
+      checkAndGetBufferSize(IO_COMPRESSION_SNAPPY_BLOCKSIZE)
     } else if ("gzip" == codec) { // QAT supports it only.
       // Temporarily hard-coded to 32k.
       32 * 1024
