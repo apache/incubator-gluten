@@ -80,7 +80,6 @@ object CHRuleApi {
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
     injector.injectOptimizerRule(_ => EqualToRewrite)
-    injector.injectOptimizerRule(_ => ArrayContainsMapKeysRewriteRule)
     injector.injectPreCBORule(spark => new CHOptimizeMetadataOnlyDeltaQuery(spark))
   }
 
@@ -139,6 +138,7 @@ object CHRuleApi {
     injector.injectPostTransform(c => RemoveDuplicatedColumns(c.session))
     injector.injectPostTransform(c => AddPreProjectionForHashJoin(c.session))
     injector.injectPostTransform(c => ReplaceSubStringComparison(c.session))
+    injector.injectPostTransform(c => RewriteArrayContainsMapKeys(c.session))
     injector.injectPostTransform(c => EliminateDeduplicateAggregateWithAnyJoin(c.session))
     injector.injectPostTransform(c => FlattenNestedExpressions(c.session))
 
