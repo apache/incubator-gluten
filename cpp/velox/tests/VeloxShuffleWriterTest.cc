@@ -99,7 +99,10 @@ std::vector<ShuffleTestParams> getTestParams() {
   }
 
   const std::vector<arrow::Compression::type> compressions = {
-      arrow::Compression::UNCOMPRESSED, arrow::Compression::LZ4_FRAME, arrow::Compression::ZSTD};
+      arrow::Compression::UNCOMPRESSED,
+      arrow::Compression::LZ4_FRAME,
+      arrow::Compression::ZSTD,
+      arrow::Compression::SNAPPY};
   const std::vector<int32_t> compressionThresholds = {-1, 0, 3, 4, 10, 4096};
   const std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
