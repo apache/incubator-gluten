@@ -23,10 +23,10 @@ ENV LD_LIBRARY_PATH=/opt/gluten/ep/build-velox/build/velox_ep/_build/release/_de
 RUN yum install -y sudo patch maven perl && \
     dnf remove -y cuda-toolkit-12* && dnf install -y cuda-toolkit-13-1; \
     dnf autoremove -y && dnf clean all; \
+    rm -rf /opt/rh/gcc-toolset-12 && ln -s /opt/rh/gcc-toolset-14 /opt/rh/gcc-toolset-12; \
     ln -sf /usr/local/bin/cmake /usr/bin && \
     git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten && \
     cd /opt/gluten/.github/workflows/util/ && \
-    ./install-spark-resources.sh 3.4 && \
     cd /opt/gluten && \
     source /opt/rh/gcc-toolset-14/enable && \
     bash ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --build_tests=ON --build_benchmarks=ON --enable_gpu=ON && \
