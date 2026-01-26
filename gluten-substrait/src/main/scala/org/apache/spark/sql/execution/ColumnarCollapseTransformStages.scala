@@ -163,7 +163,9 @@ case class ColumnarCollapseTransformStages(glutenConf: GlutenConfig) extends Rul
   /** Inserts an InputIteratorTransformer on top of those that do not support transform. */
   private def insertInputIteratorTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
-      case p if !supportTransform(p) =>
+      case p if p.isInstanceOf[WholeStageTransformer] || !supportTransform(p) =>
+        // TODO: if p.isInstanceOf[WholeStageTransformer], we can merge two whole stage
+        //  transformers.
         ColumnarCollapseTransformStages.wrapInputIteratorTransformer(insertWholeStageTransformer(p))
       case p =>
         p.withNewChildren(p.children.map(insertInputIteratorTransformer))
@@ -172,6 +174,7 @@ case class ColumnarCollapseTransformStages(glutenConf: GlutenConfig) extends Rul
 
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
+      case wst: WholeStageTransformer => wst
       case t if supportTransform(t) =>
         // transformStageId will be updated by rule `GenerateTransformStageId`.
         WholeStageTransformer(t.withNewChildren(t.children.map(insertInputIteratorTransformer)))(-1)
