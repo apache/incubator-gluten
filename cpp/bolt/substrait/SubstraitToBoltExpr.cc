@@ -587,7 +587,7 @@ core::TypedExprPtr SubstraitBoltExprConverter::toBoltExpr(
   std::vector<core::TypedExprPtr> params;
   // If and then expressions are in pairs.
   params.reserve(ifThenExpr.ifs().size() * 2);
-  std::optional<TypePtr> outputType = std::nullopt;
+  std::optional<TypePtr> outputType;
   for (const auto& ifThen : ifThenExpr.ifs()) {
     params.emplace_back(toBoltExpr(ifThen.if_(), inputType));
     const auto& thenExpr = toBoltExpr(ifThen.then(), inputType);
