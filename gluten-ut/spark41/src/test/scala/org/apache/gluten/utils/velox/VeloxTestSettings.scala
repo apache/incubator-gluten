@@ -604,8 +604,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOuterJoinSuiteForceShjOff]
   enableSuite[GlutenFallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
-    // TODO: fix on Spark-4.1 introduced by see https://github.com/apache/spark/pull/51623
-    .exclude("SPARK-52962: broadcast exchange should not reset metrics")
+    .exclude("SPARK-52962: broadcast exchange should not reset metrics") // Add Gluten test
   enableSuite[GlutenLocalBroadcastExchangeSuite]
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
     // Rewrite for Gluten. Change details are in the inline comments in individual tests.
@@ -751,8 +750,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Result depends on the implementation for nondeterministic expression rand.
     // Not really an issue.
     .exclude("SPARK-10740: handle nondeterministic expressions correctly for set operations")
-    // TODO: fix on Spark-4.1
-    .excludeByPrefix("SPARK-52921") // see https://github.com/apache/spark/pull/51623
+    .excludeByPrefix("SPARK-52921") // Add Gluten test
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
@@ -1015,7 +1013,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Logging plan changes for execution")
     // Rewrite for transformed plan
     .exclude("dumping query execution info to a file - explainMode=formatted")
-    // TODO: fix in Spark-4.0
+    // The case doesn't need to be run in Gluten since it's verifying against
+    // vanilla Spark's query plan.
     .exclude("SPARK-47289: extended explain info")
   enableSuite[GlutenSQLMetricsSuite]
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
