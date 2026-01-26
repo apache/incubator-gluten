@@ -31,11 +31,12 @@ Add the following configurations to your Spark application:
 |-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
 | spark.gluten.auto.adjustStageResource.enabled                     | Experimental: If enabled, gluten will try to set the stage resource according to stage execution plan. NOTE: Only works when aqe is enabled at the same time. | false   |
 | spark.gluten.auto.adjustStageResources.heap.ratio                 | Experimental: Increase executor heap memory when match adjust stage resource rule.                                                                            | 2.0d    |
+| spark.gluten.auto.adjustStageResources.offheap.ratio              | Experimental: Decrease executor offheap memory when match adjust stage resource rule.                                                                         | 0.5d    |
 | spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold | Experimental: Increase executor heap memory when stage contains fallen node count exceeds the total node count ratio.                                         | 0.5d    |
 
 #### **1. Enable Auto-Adjustment**
 ```properties  
-spark.gluten.auto.AdjustStageResource.enabled=true  
+spark.gluten.auto.adjustStageResource.enabled=true  
 ```
 ### **How It Works**
 The framework analyzes each stage during query planning and adjusts resource profiles in following scenarios:
@@ -43,6 +44,14 @@ The framework analyzes each stage during query planning and adjusts resource pro
 #### **Scenario 1: Fallback Operators Exist**
 If a stage all operator fallback to vanilla Spark operator or  fallback operators (e.g., unsupported UDAFs) ratio exceed specified threshold, Gluten will automic increases heap memory allocation to handle the extra load.
 
+#### **Scenario 2: PartialProject / PartialGenerate Exists**
+When a stage contains PartialProject or PartialGenerate operators (introduced to handle unsupported UDFs/UDTFs or blacklisted expressions while keeping the rest of the pipeline columnar), Gluten will still apply a moderate adjustment even if the stage is not a whole-stage fallback and the fallen node ratio is below the configured threshold (`spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold`).
+
+In this scenario, Gluten:
+- increases executor heap memory according to `spark.gluten.auto.adjustStageResources.heap.ratio`; and
+- decreases executor off-heap memory according to `spark.gluten.auto.adjustStageResources.offheap.ratio`.
+
+This provides extra JVM heap space for the row-based part of the stage while reflecting the reduced workload on the native engine.
 
 ### **Verification**
 1. **Check Logs**:  
@@ -68,6 +77,9 @@ And the execution plan will like following with ApplyResourceProfile node insert
                                  +- FileScan parquet default.tmp1[c1#22] Batched: true, DataFilters: [], Format: Parquet
 ```
    
+3. **Check executor JVM options (ps aux | grep java)**  
+   On executor nodes, compare Java process arguments (for example `-Xmx` and off-heap related options) between stages with and without `ApplyResourceProfile`. When PartialProject or PartialGenerate is present and the rule is triggered, the executor heap size should reflect the configured heap/offheap ratios for that stage.
+
 ### **Limitations**
 • Tested with YARN/Kubernetes; other resource managers may need validation.
 
