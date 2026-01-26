@@ -61,6 +61,10 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    // Trigger GC to clean up any residual memory from previous test suites,
+    // ensuring initialGlobalBytes is accurate.
+    System.gc()
+    Thread.sleep(1000)
     initialGlobalBytes = GlobalOffHeapMemory.currentBytes()
     output = Seq(AttributeReference("a", StringType, nullable = false, null)())
     sample1KBytes = randomBytes(1024)
@@ -75,8 +79,8 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
     unsafeRelWithHashMode = null
     System.gc()
     Thread.sleep(1000)
-    // FIXME: This should be zero. We had to assert with the initial bytes because
-    //  there were some allocations from the previous run suites.
+    // Since we trigger GC in beforeAll() to clean up residual memory from previous test suites,
+    // initialGlobalBytes should be accurate and this assertion should be stable.
     assert(GlobalOffHeapMemory.currentBytes() == initialGlobalBytes)
   }
 
