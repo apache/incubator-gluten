@@ -33,7 +33,7 @@ class ArrowMemoryPool final : public arrow::MemoryPool {
   explicit ArrowMemoryPool(AllocationListener* listener)
       : allocator_(std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), listener)) {}
 
-  ~ArrowMemoryPool() override;
+  ~ArrowMemoryPool() override = default;
 
   ArrowMemoryPool(const ArrowMemoryPool&) = delete;
 
