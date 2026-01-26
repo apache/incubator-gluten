@@ -1411,6 +1411,8 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
             |(11, 'MjAyNS0xMS0xMg=='),
             |(12, '4LmS4LmQ4LmS4LmVLeC5keC5kS3guZHguZM=')
             |""".stripMargin)
+      // base64 inputs decode to local digit dates:
+      // 1-3 Arabic-Indic, 5 Persian, 7 Devanagari, 8 Khmer, 10 Bengali, 11 ASCII, 12 Thai
       var query_sql = """
                         |select
                         |from_unixtime(unix_timestamp(cast(unbase64(d) as string), 'yyyy-MM-dd')),
