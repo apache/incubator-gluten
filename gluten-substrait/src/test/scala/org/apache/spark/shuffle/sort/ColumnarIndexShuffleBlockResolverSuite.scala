@@ -17,7 +17,15 @@
 package org.apache.spark.shuffle.sort
 
 import org.apache.spark.SparkConf
+import org.apache.spark.network.buffer.ManagedBuffer
+import org.apache.spark.storage._
+import org.apache.spark.util.Utils
 
+import org.mockito.{Mock, MockitoAnnotations}
+import org.mockito.Answers.RETURNS_SMART_NULLS
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito._
+import org.mockito.invocation.InvocationOnMock
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -31,12 +39,20 @@ class ColumnarIndexShuffleBlockResolverSuite
   with BeforeAndAfterAll
   with BeforeAndAfterEach {
 
-  private var tmpFile: File = _
-  private var channel: FileChannel = _
+  @Mock(answer = RETURNS_SMART_NULLS) private var blockManager: BlockManager = _
+  @Mock(answer = RETURNS_SMART_NULLS) private var diskBlockManager: DiskBlockManager = _
+
+  private val conf: SparkConf = new SparkConf(loadDefaults = false)
+  private var tempDir: File = _
+  private val appId = "TESTAPP"
+
+  private var indexFile: File = _
+  private var dataFile: File = _
+  private var resolver: ColumnarIndexShuffleBlockResolver = _
 
   override def beforeAll(): Unit = {
-    tmpFile = File.createTempFile("index", ".bin")
-    val fc = FileChannel.open(tmpFile.toPath, StandardOpenOption.WRITE, StandardOpenOption.READ)
+    indexFile = File.createTempFile("index", ".bin")
+    val fc = FileChannel.open(indexFile.toPath, StandardOpenOption.WRITE, StandardOpenOption.READ)
     // Partition index: 4 partitions, so 5 offsets
     // Partition 0: 0 segments
     // Partition 1: 1 segment
@@ -66,42 +82,103 @@ class ColumnarIndexShuffleBlockResolverSuite
     // Add one extra byte to mark new format
     fc.write(ByteBuffer.wrap(Array(1.toByte)))
     fc.close()
+
+    // data file with 200 bytes, 0-199
+    dataFile = File.createTempFile("data", ".bin")
+    val out = new java.io.FileOutputStream(dataFile)
+    out.write((0 until 200).map(_.toByte).toArray)
+    out.close()
   }
 
   override def beforeEach(): Unit = {
-    channel = FileChannel.open(tmpFile.toPath, StandardOpenOption.READ)
+    tempDir = Utils.createTempDir()
+    MockitoAnnotations.initMocks(this)
+
+    when(blockManager.diskBlockManager).thenReturn(diskBlockManager)
+    when(diskBlockManager.getFile(any[BlockId])).thenAnswer(
+      (invocation: InvocationOnMock) => new File(tempDir, invocation.getArguments.head.toString))
+    when(diskBlockManager.getFile(any[String])).thenAnswer(
+      (invocation: InvocationOnMock) => new File(tempDir, invocation.getArguments.head.toString))
+    when(diskBlockManager.getMergedShuffleFile(any[BlockId], any[Option[Array[String]]]))
+      .thenAnswer(
+        (invocation: InvocationOnMock) => new File(tempDir, invocation.getArguments.head.toString))
+    when(diskBlockManager.localDirs).thenReturn(Array(tempDir))
+    when(diskBlockManager.createTempFileWith(any(classOf[File])))
+      .thenAnswer {
+        invocationOnMock =>
+          val file = invocationOnMock.getArguments()(0).asInstanceOf[File]
+          Utils.tempFileWith(file)
+      }
+    conf.set("spark.app.id", appId)
+
+    resolver = new ColumnarIndexShuffleBlockResolver(conf, blockManager)
   }
 
   override def afterEach(): Unit = {
-    if (channel != null) {
-      channel.close()
-      channel = null
-    }
+    resolver = null
+    Utils.deleteRecursively(tempDir)
   }
 
   override def afterAll(): Unit = {
-    if (tmpFile != null) tmpFile.delete()
+    if (indexFile != null) indexFile.delete()
+    if (dataFile != null) dataFile.delete()
   }
 
   test("getSegmentsFromIndex returns correct segments for complex index file") {
-    val resolver = new ColumnarIndexShuffleBlockResolver(new SparkConf())
-    val method = classOf[ColumnarIndexShuffleBlockResolver].getDeclaredMethod(
-      "getSegmentsFromIndex",
-      classOf[java.nio.channels.SeekableByteChannel],
-      classOf[Int],
-      classOf[Int])
-    method.setAccessible(true)
-    // Partition 0: 0 segments
-    val segs0 =
-      method.invoke(resolver, channel, Int.box(0), Int.box(1)).asInstanceOf[Seq[(Long, Long)]]
-    assert(segs0.isEmpty)
-    // Partition 1 - 2: 3 segment
-    val segs1 =
-      method.invoke(resolver, channel, Int.box(1), Int.box(3)).asInstanceOf[Seq[(Long, Long)]]
-    assert(segs1 == Seq((0L, 10L), (10L, 20L), (100L, 50L)))
-    // Partition 3: 2 segments, empty segment will be filter out
-    val segs3 =
-      method.invoke(resolver, channel, Int.box(3), Int.box(4)).asInstanceOf[Seq[(Long, Long)]]
-    assert(segs3 == Seq((30L, 70L), (150L, 50L)))
+    val channel = FileChannel.open(indexFile.toPath, StandardOpenOption.READ)
+    try {
+      val method = classOf[ColumnarIndexShuffleBlockResolver].getDeclaredMethod(
+        "getSegmentsFromIndex",
+        classOf[java.nio.channels.SeekableByteChannel],
+        classOf[Int],
+        classOf[Int])
+      method.setAccessible(true)
+      // Partition 0: 0 segments
+      val segs0 =
+        method.invoke(resolver, channel, Int.box(0), Int.box(1)).asInstanceOf[Seq[(Long, Long)]]
+      assert(segs0.isEmpty)
+      // Partition 1 - 2: 3 segment
+      val segs1_2 =
+        method.invoke(resolver, channel, Int.box(1), Int.box(3)).asInstanceOf[Seq[(Long, Long)]]
+      assert(segs1_2 == Seq((0L, 10L), (10L, 20L), (100L, 50L)))
+      // Partition 3: 2 segments, empty segment will be filter out
+      val segs3 =
+        method.invoke(resolver, channel, Int.box(3), Int.box(4)).asInstanceOf[Seq[(Long, Long)]]
+      assert(segs3 == Seq((30L, 70L), (150L, 50L)))
+    } finally {
+      channel.close()
+    }
+  }
+
+  test("getBlockData returns correct data for partition segments") {
+    val shuffleId = 1
+    val mapId = 0L
+    val partitionId = 2
+    val blockId = ShuffleBlockId(shuffleId, mapId, partitionId)
+    // commit index and data files
+    resolver.writeIndexFileAndCommit(shuffleId, mapId, dataFile, indexFile, numPartitions = 4)
+
+    // getBlockData should return a ManagedBuffer for the requested block
+    val buffer = resolver.getBlockData(blockId)
+    val bytes = readManagedBuffer(buffer)
+    // Partition 2 segments: (10,20), (100,50)
+    assert(bytes.length == 70, "Expected 70 bytes, got ${bytes.length}")
+    val expected = ((10 until 30) ++ (100 until 150)).map(_.toByte).toArray
+    assert(
+      bytes.sameElements(expected),
+      s"Expected ${expected.mkString(",")}, got ${bytes.mkString(",")}")
+  }
+
+  private def readManagedBuffer(buffer: ManagedBuffer): Array[Byte] = {
+    val in = buffer.createInputStream()
+    val out = new scala.collection.mutable.ArrayBuffer[Byte]()
+    val buf = new Array[Byte](4096)
+    var n = in.read(buf)
+    while (n != -1) {
+      out ++= buf.take(n)
+      n = in.read(buf)
+    }
+    in.close()
+    out.toArray
   }
 }

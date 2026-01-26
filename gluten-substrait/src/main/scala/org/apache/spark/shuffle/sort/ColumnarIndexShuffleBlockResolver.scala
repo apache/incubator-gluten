@@ -17,14 +17,26 @@
 package org.apache.spark.shuffle.sort
 
 import org.apache.spark.SparkConf
+import org.apache.spark.SparkException
+import org.apache.spark.network.buffer.ManagedBuffer
+import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.shuffle._
+import org.apache.spark.storage._
 
 import java.io.DataInputStream
 import java.io.File
 import java.nio.channels.Channels
+import java.nio.channels.FileChannel
 import java.nio.channels.SeekableByteChannel
+import java.nio.file.StandardOpenOption
 
-class ColumnarIndexShuffleBlockResolver(conf: SparkConf) extends IndexShuffleBlockResolver(conf) {
+class ColumnarIndexShuffleBlockResolver(
+    conf: SparkConf,
+    private var blockManager: BlockManager = null)
+  extends IndexShuffleBlockResolver(conf, blockManager) {
+
+  private val transportConf = SparkTransportConf.fromSparkConf(conf, "shuffle")
+
   private def isNewFormat(index: File): Boolean = {
     // Simple heuristic to determine new format by appending 1 extra bytes.
     // Old index file always has length multiple of 8 bytes.
@@ -64,5 +76,80 @@ class ColumnarIndexShuffleBlockResolver(conf: SparkConf) extends IndexShuffleBlo
       (offset, size)
     }
     segments.filter(_._2 > 0) // filter out zero-size segments
+  }
+
+  private def checkIndexAndDataFile(indexFile: File, dataFile: File, numPartitions: Int): Unit = {
+    if (!indexFile.exists()) {
+      throw new IllegalStateException(s"Index file $indexFile does not exist")
+    }
+    if (!dataFile.exists()) {
+      throw new IllegalStateException(s"Data file $dataFile does not exist")
+    }
+    if (!isNewFormat(indexFile)) {
+      throw new IllegalStateException(s"Index file $indexFile is not in the new format")
+    }
+
+    var index = FileChannel.open(indexFile.toPath, StandardOpenOption.READ)
+    var dataFileSize = dataFile.length()
+    try {
+      for (i <- 0 until numPartitions) {
+        var segments = getSegmentsFromIndex(index, startId = i, endId = i + 1)
+        segments.foreach {
+          case (offset, size) =>
+            if (offset < 0 || size < 0 || offset + size > dataFileSize) {
+              throw new IllegalStateException(
+                s"Index file $indexFile has invalid segment ($offset, $size) " +
+                  s"for partition $i in data file of size $dataFileSize")
+            }
+        }
+      }
+    } finally {
+      index.close()
+    }
+  }
+
+  def writeIndexFileAndCommit(
+      shuffleId: Int,
+      mapId: Long,
+      dataTmp: File,
+      indexTmp: File,
+      numPartitions: Int,
+      checksums: Option[Array[Long]] = None
+  ): Unit = {
+    val indexFile = getIndexFile(shuffleId, mapId)
+    val dataFile = getDataFile(shuffleId, mapId)
+    this.synchronized {
+      checkIndexAndDataFile(indexTmp, dataTmp, numPartitions)
+      dataTmp.renameTo(dataFile)
+      indexTmp.renameTo(indexFile)
+    }
+  }
+
+  override def getBlockData(blockId: BlockId, dirs: Option[Array[String]]): ManagedBuffer = {
+    val (shuffleId, mapId, startReduceId, endReduceId) = blockId match {
+      case id: ShuffleBlockId =>
+        (id.shuffleId, id.mapId, id.reduceId, id.reduceId + 1)
+      case batchId: ShuffleBlockBatchId =>
+        (batchId.shuffleId, batchId.mapId, batchId.startReduceId, batchId.endReduceId)
+      case _ =>
+        throw SparkException.internalError(
+          s"unexpected shuffle block id format: $blockId",
+          category = "SHUFFLE")
+    }
+    val indexFile = getIndexFile(shuffleId, mapId, dirs)
+
+    if (!isNewFormat(indexFile)) {
+      // fallback to old implementation
+      return super.getBlockData(blockId, dirs)
+    }
+
+    var index = FileChannel.open(indexFile.toPath, StandardOpenOption.READ)
+    try {
+      val segments = getSegmentsFromIndex(index, startReduceId, endReduceId)
+      val dataFile = getDataFile(shuffleId, mapId, dirs)
+      new FileSegmentsManagedBuffer(transportConf, dataFile, segments)
+    } finally {
+      index.close()
+    }
   }
 }
