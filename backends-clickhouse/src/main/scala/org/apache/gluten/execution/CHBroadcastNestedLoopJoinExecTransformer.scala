@@ -131,17 +131,14 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     }
 
     joinType match {
-      case _: InnerLike | FullOuter | LeftOuter | RightOuter =>
+      case _: InnerLike =>
       case ExistenceJoin(_) =>
         return ValidationResult.failed("ExistenceJoin is not supported for CH backend.")
       case _ =>
-        return ValidationResult.failed(
-          s"Broadcast Nested Loop join is not supported join type $joinType")
-    }
-
-    if (joinType == LeftSemi || condition.isDefined) {
-      return ValidationResult.failed(
-        s"Broadcast Nested Loop join is not supported join type $joinType with conditions")
+        if (joinType == LeftSemi || condition.isDefined) {
+          return ValidationResult.failed(
+            s"Broadcast Nested Loop join is not supported join type $joinType with conditions")
+        }
     }
 
     ValidationResult.succeeded
