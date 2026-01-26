@@ -16,8 +16,6 @@
 #
 
 FROM ghcr.io/facebookincubator/velox-dev:adapters
-ENV SPARK_HOME=/opt/spark-3.4.4-bin-hadoop3
-ENV PATH=$SPARK_HOME/bin:$PATH
 ENV CUDA_ARCHITECTURES=70
 ENV LD_LIBRARY_PATH=/opt/gluten/ep/build-velox/build/velox_ep/_build/release/_deps/curl-build/lib:$LD_LIBRARY_PATH
 
@@ -33,7 +31,6 @@ RUN yum install -y sudo patch maven perl && \
     source /opt/rh/gcc-toolset-14/enable && \
     bash ./dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=ON --spark_version=3.4 --build_tests=ON --build_benchmarks=ON --enable_gpu=ON && \
     rm -rf /opt/gluten && \
-    rm -rf /opt/spark-3.4.4-bin-hadoop3 && \
     rm -rf /root/.cache/ccache
     
 
