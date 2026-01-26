@@ -19,7 +19,6 @@ package org.apache.gluten.substrait.plan;
 import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
 import org.apache.gluten.substrait.extensions.FunctionMappingNode;
 import org.apache.gluten.substrait.rel.RelNode;
-import org.apache.gluten.substrait.type.TypeNode;
 
 import io.substrait.proto.Plan;
 import io.substrait.proto.PlanRel;
@@ -33,19 +32,16 @@ public class PlanNode implements Serializable {
   private final List<RelNode> relNodes;
   private final List<String> outNames;
 
-  private TypeNode outputSchema = null;
   private AdvancedExtensionNode extension = null;
 
   PlanNode(
       List<FunctionMappingNode> mappingNodes,
       List<RelNode> relNodes,
       List<String> outNames,
-      TypeNode outputSchema,
       AdvancedExtensionNode extension) {
     this.mappingNodes = mappingNodes;
     this.relNodes = relNodes;
     this.outNames = outNames;
-    this.outputSchema = outputSchema;
     this.extension = extension;
   }
 
@@ -63,9 +59,6 @@ public class PlanNode implements Serializable {
       relRootBuilder.setInput(relNode.toProtobuf());
       for (String name : outNames) {
         relRootBuilder.addNames(name);
-      }
-      if (outputSchema != null) {
-        relRootBuilder.setOutputSchema(outputSchema.toProtobuf().getStruct());
       }
       planRelBuilder.setRoot(relRootBuilder.build());
 
