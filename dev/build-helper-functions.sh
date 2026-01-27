@@ -265,6 +265,8 @@ function setup_linux {
     case "$LINUX_VERSION_ID" in
     9.6)
        $GLUTEN_VELOX_SCRIPT_HOME/setup-rhel.sh ;;
+    9.7)
+       $GLUTEN_VELOX_SCRIPT_HOME/setup-rhel.sh ;;
     *)
       echo "Unsupported rhel version: $LINUX_VERSION_ID"
       exit 1
