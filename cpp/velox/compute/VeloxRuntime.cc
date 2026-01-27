@@ -315,9 +315,8 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
   if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
     return std::make_unique<VeloxGpuColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
   }
-#else
-  return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
 #endif
+  return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
 }
 
 void VeloxRuntime::enableDumping() {
