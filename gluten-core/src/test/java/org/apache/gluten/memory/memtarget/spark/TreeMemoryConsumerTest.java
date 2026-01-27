@@ -22,7 +22,6 @@ import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
-import org.apache.spark.TaskContext;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.task.TaskResources$;
@@ -51,8 +50,7 @@ public class TreeMemoryConsumerTest {
     test(
         () -> {
           final TreeMemoryConsumers.Factory factory =
-              TreeMemoryConsumers.factory(
-                  TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP);
+              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP);
           final TreeMemoryTarget consumer =
               factory
                   .isolatedRoot()
@@ -73,8 +71,7 @@ public class TreeMemoryConsumerTest {
     test(
         () -> {
           final TreeMemoryConsumers.Factory factory =
-              TreeMemoryConsumers.factory(
-                  TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP);
+              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP);
           final TreeMemoryTarget consumer =
               factory
                   .legacyRoot()
@@ -95,8 +92,7 @@ public class TreeMemoryConsumerTest {
     test(
         () -> {
           final TreeMemoryTarget legacy =
-              TreeMemoryConsumers.factory(
-                      TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP)
+              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP)
                   .legacyRoot()
                   .newChild(
                       "FOO",
@@ -105,8 +101,7 @@ public class TreeMemoryConsumerTest {
                       Collections.emptyMap());
           Assert.assertEquals(110, legacy.borrow(110));
           final TreeMemoryTarget isolated =
-              TreeMemoryConsumers.factory(
-                      TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP)
+              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP)
                   .isolatedRoot()
                   .newChild(
                       "FOO",
@@ -123,8 +118,7 @@ public class TreeMemoryConsumerTest {
         () -> {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget legacy =
-              TreeMemoryConsumers.factory(
-                      TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP)
+              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP)
                   .legacyRoot()
                   .newChild(
                       "FOO", TreeMemoryTarget.CAPACITY_UNLIMITED, spillers, Collections.emptyMap());
@@ -160,8 +154,7 @@ public class TreeMemoryConsumerTest {
         () -> {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget legacy =
-              TreeMemoryConsumers.factory(
-                      TaskContext.get().taskMemoryManager(), MemoryMode.OFF_HEAP)
+              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP)
                   .legacyRoot()
                   .newChild(
                       "FOO", TreeMemoryTarget.CAPACITY_UNLIMITED, spillers, Collections.emptyMap());
