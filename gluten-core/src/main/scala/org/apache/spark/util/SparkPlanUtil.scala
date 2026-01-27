@@ -23,10 +23,6 @@ import org.apache.spark.sql.internal.SQLConf
 object SparkPlanUtil {
 
   def supportsRowBased(plan: SparkPlan): Boolean = {
-    if (SparkVersionUtil.lteSpark32) {
-      return !plan.supportsColumnar
-    }
-
     val m = classOf[SparkPlan].getMethod("supportsRowBased")
     m.invoke(plan).asInstanceOf[Boolean]
   }
