@@ -312,7 +312,9 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
   auto arrowPool = memoryManager()->defaultArrowMemoryPool();
   auto veloxPool = memoryManager()->getLeafMemoryPool();
 #ifdef GLUTEN_ENABLE_GPU
-  return std::make_unique<VeloxGpuColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
+  if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    return std::make_unique<VeloxGpuColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
+  }
 #else
   return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
 #endif
