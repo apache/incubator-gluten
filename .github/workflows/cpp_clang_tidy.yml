@@ -38,7 +38,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-      - name: Detect CPP file changes
+      - name: Detect C++ file changes
         id: filter
         run: |
           BASE_SHA=$(python3 -c "
@@ -71,6 +71,7 @@ jobs:
           search_artifacts: true
           if_no_artifact_found: fail
       - name: Check Clang Tidy
+        if: steps.filter.outputs.cpp_changed == 'true'
         run: |
           pip3 install regex
           yum install glibc-devel glibc-headers
