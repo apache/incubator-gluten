@@ -181,4 +181,34 @@ class ColumnarIndexShuffleBlockResolverSuite
     in.close()
     out.toArray
   }
+
+  test("canUseNewFormat returns correct value based on config") {
+    val conf1 = new SparkConf()
+      .set("spark.shuffle.push.based.enabled", "false")
+      .set("spark.shuffle.service.enabled", "false")
+    val resolver1 = new ColumnarIndexShuffleBlockResolver(conf1)
+    assert(resolver1.canUseNewFormat(), "Should use new format when both configs are false")
+
+    val conf2 = new SparkConf()
+      .set("spark.shuffle.push.based.enabled", "true")
+      .set("spark.shuffle.service.enabled", "false")
+    val resolver2 = new ColumnarIndexShuffleBlockResolver(conf2)
+    assert(
+      !resolver2.canUseNewFormat(),
+      "Should not use new format when push-based shuffle is enabled")
+
+    val conf3 = new SparkConf()
+      .set("spark.shuffle.push.based.enabled", "false")
+      .set("spark.shuffle.service.enabled", "true")
+    val resolver3 = new ColumnarIndexShuffleBlockResolver(conf3)
+    assert(
+      !resolver3.canUseNewFormat(),
+      "Should not use new format when shuffle service is enabled")
+
+    val conf4 = new SparkConf()
+      .set("spark.shuffle.push.based.enabled", "true")
+      .set("spark.shuffle.service.enabled", "true")
+    val resolver4 = new ColumnarIndexShuffleBlockResolver(conf4)
+    assert(!resolver4.canUseNewFormat(), "Should not use new format when both are enabled")
+  }
 }

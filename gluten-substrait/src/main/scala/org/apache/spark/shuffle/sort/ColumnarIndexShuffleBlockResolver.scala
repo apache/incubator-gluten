@@ -36,6 +36,17 @@ class ColumnarIndexShuffleBlockResolver(
   extends IndexShuffleBlockResolver(conf, blockManager) {
 
   private val transportConf = SparkTransportConf.fromSparkConf(conf, "shuffle")
+  private val SHUFFLE_SERVICE_ENABLED = "spark.shuffle.service.enabled"
+  private val PUSH_BASED_SHUFFLE_ENABLED = "spark.shuffle.push.based.enabled"
+  private var newFormatEnabled: Boolean = _
+
+  // When external shuffle service or push-based shuffle is enabled,
+  // it may directly access the shuffle files without going through this resolver.
+  // we cannot use the new index format to maintain backward compatibility.
+  newFormatEnabled = !(conf.getBoolean(PUSH_BASED_SHUFFLE_ENABLED, false) ||
+    conf.getBoolean(SHUFFLE_SERVICE_ENABLED, false))
+
+  def canUseNewFormat(): Boolean = newFormatEnabled
 
   private def isNewFormat(index: File): Boolean = {
     // Simple heuristic to determine new format by appending 1 extra bytes.
