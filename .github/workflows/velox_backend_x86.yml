@@ -1425,7 +1425,7 @@ jobs:
           path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
-          dnf module -y install python310 && \
+          dnf install -y python3.10 python3.10-pip python3.10-devel && \
           alternatives --set python3 /usr/bin/python3.10 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.5 cython && \
@@ -1480,6 +1480,13 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Prepare
+        run: |
+          dnf install -y python3.10 python3.10-pip python3.10-devel && \
+          alternatives --set python3 /usr/bin/python3.10 && \
+          pip3 install setuptools==77.0.3 && \
+          pip3 install pyspark==3.5.5 cython && \
+          pip3 install pandas==2.2.3 pyarrow==20.0.0
       - name: Prepare Spark Resources for Spark 4.1.0 #TODO remove after image update
         run: |
           rm -rf /opt/shims/spark41
