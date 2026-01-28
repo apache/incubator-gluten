@@ -51,7 +51,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 import java.util.UUID
-import java.util.concurrent.{Callable, Executors, SynchronousQueue, TimeUnit}
+import java.util.concurrent.{Callable, Executors, ExecutorService, SynchronousQueue, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -106,6 +106,7 @@ object GlutenDeltaJobStatsTracker extends Logging {
       rootPath: Path,
       hadoopConf: Configuration)
     extends WriteTaskStatsTracker {
+    private val resultThreadRunner = Executors.newSingleThreadExecutor()
     private val accumulators = mutable.Map[String, VeloxTaskStatsAccumulator]()
 
     override def newPartition(partitionValues: InternalRow): Unit = {}
@@ -113,7 +114,7 @@ object GlutenDeltaJobStatsTracker extends Logging {
     override def newFile(filePath: String): Unit = {
       accumulators.getOrElseUpdate(
         filePath,
-        new VeloxTaskStatsAccumulator(dataCols, statsColExpr)
+        new VeloxTaskStatsAccumulator(resultThreadRunner, dataCols, statsColExpr)
       )
     }
 
@@ -138,7 +139,10 @@ object GlutenDeltaJobStatsTracker extends Logging {
     }
   }
 
-  private class VeloxTaskStatsAccumulator(dataCols: Seq[Attribute], statsColExpr: Expression) {
+  private class VeloxTaskStatsAccumulator(
+      resultThreadRunner: ExecutorService,
+      dataCols: Seq[Attribute],
+      statsColExpr: Expression) {
     private val c2r = new VeloxColumnarToRowExec.Converter(new SQLMetric("convertTime"))
     private var resultRequested: Boolean = false
     private val inputBatchQueue = new SynchronousQueue[ColumnarBatch]()
@@ -267,7 +271,6 @@ object GlutenDeltaJobStatsTracker extends Logging {
 
     private val resultThreadName =
       s"Gluten Delta Statistics Writer - ${System.identityHashCode(this)}"
-    private val resultThreadRunner = Executors.newSingleThreadExecutor()
     private val resJsonFuture = resultThreadRunner.submit(new Callable[String] {
       override def call(): String = {
         Thread.currentThread().setName(resultThreadName)
@@ -291,6 +294,7 @@ object GlutenDeltaJobStatsTracker extends Logging {
 
     def setFinished(): Unit = {
       resultRequested = true
+      resJsonFuture.get() // Blocking wait until the task is released.
     }
 
     def toJson: String = {

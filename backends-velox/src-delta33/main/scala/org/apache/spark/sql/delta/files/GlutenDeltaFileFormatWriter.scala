@@ -467,6 +467,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
       } else {
         concurrentOutputWriterSpec match {
           case Some(spec) =>
+            // TODO: Concurrent writer is not yet supported.
             new DynamicPartitionDataConcurrentWriter(
               description,
               taskAttemptContext,
