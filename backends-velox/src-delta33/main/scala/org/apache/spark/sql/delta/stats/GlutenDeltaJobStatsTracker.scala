@@ -108,13 +108,15 @@ object GlutenDeltaJobStatsTracker extends Logging {
     extends WriteTaskStatsTracker {
     private val resultThreadRunner = Executors.newSingleThreadExecutor()
     private val accumulators = mutable.Map[String, VeloxTaskStatsAccumulator]()
+    private val evaluator = NativePlanEvaluator.create(
+      BackendsApiManager.getBackendName, Map.empty[String, String].asJava)
 
     override def newPartition(partitionValues: InternalRow): Unit = {}
 
     override def newFile(filePath: String): Unit = {
       accumulators.getOrElseUpdate(
         filePath,
-        new VeloxTaskStatsAccumulator(resultThreadRunner, dataCols, statsColExpr)
+        new VeloxTaskStatsAccumulator(evaluator, resultThreadRunner, dataCols, statsColExpr)
       )
     }
 
@@ -140,6 +142,7 @@ object GlutenDeltaJobStatsTracker extends Logging {
   }
 
   private class VeloxTaskStatsAccumulator(
+      evaluator: NativePlanEvaluator,
       resultThreadRunner: ExecutorService,
       dataCols: Seq[Attribute],
       statsColExpr: Expression) {
@@ -246,9 +249,6 @@ object GlutenDeltaJobStatsTracker extends Logging {
       val planNode =
         PlanBuilder.makePlan(substraitContext, Lists.newArrayList(transformedNode.root), outNames)
 
-      val evaluator = NativePlanEvaluator.create(
-        BackendsApiManager.getBackendName,
-        Map.empty[String, String].asJava)
       val spillDirPath = SparkDirectoryUtil
         .get()
         .namespace("gluten-spill")
