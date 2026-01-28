@@ -41,7 +41,7 @@ public final class TreeMemoryConsumers {
   public static Factory factory(MemoryMode mode) {
     final Factory factory =
         TaskResources.addResourceIfNotRegistered(
-            Factory.class.getSimpleName(),
+            Factory.class.getName(),
             new Function0<Factory>() {
               @Override
               public Factory apply() {
