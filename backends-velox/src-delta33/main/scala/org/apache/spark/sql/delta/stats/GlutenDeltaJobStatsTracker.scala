@@ -109,7 +109,8 @@ object GlutenDeltaJobStatsTracker extends Logging {
     private val resultThreadRunner = Executors.newSingleThreadExecutor()
     private val accumulators = mutable.Map[String, VeloxTaskStatsAccumulator]()
     private val evaluator = NativePlanEvaluator.create(
-      BackendsApiManager.getBackendName, Map.empty[String, String].asJava)
+      BackendsApiManager.getBackendName,
+      Map.empty[String, String].asJava)
 
     override def newPartition(partitionValues: InternalRow): Unit = {}
 
