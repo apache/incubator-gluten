@@ -14,10 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.sources
+package org.apache.spark
 
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class GlutenBucketedWriteWithoutHiveSupportSuite
-  extends BucketedWriteWithoutHiveSupportSuite
-  with GlutenSQLTestsBaseTrait {}
+object SparkContextUtils {
+  def createPartitioningAwareUnionRDD(
+      sc: SparkContext,
+      rdds: Seq[RDD[ColumnarBatch]],
+      numPartitions: Int): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException(
+      "SQLPartitioningAwareUnionRDD is only available in Spark 4.1+")
+  }
+}

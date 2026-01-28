@@ -192,6 +192,23 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
   }
 
   @Override
+  public void processWatermark(Watermark mark) throws Exception {
+    task.notifyWatermark(mark.getTimestamp());
+    // Process any pending elements to ensure watermark-triggered operations complete.
+    processElementInternal();
+  }
+
+  @Override
+  public void processWatermark1(Watermark mark) throws Exception {
+    throw new UnsupportedOperationException("Not implemented for GlutenOneInputOperator");
+  }
+
+  @Override
+  public void processWatermark2(Watermark mark) throws Exception {
+    throw new UnsupportedOperationException("Not implemented for GlutenOneInputOperator");
+  }
+
+  @Override
   public void close() throws Exception {
     if (inputQueue != null) {
       inputQueue.noMoreInput();

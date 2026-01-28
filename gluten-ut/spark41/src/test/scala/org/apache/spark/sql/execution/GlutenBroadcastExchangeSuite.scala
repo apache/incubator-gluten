@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.execution.BroadcastHashJoinExecTransformer
+
 import org.apache.spark.{LocalSparkContext, SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.broadcast.TorrentBroadcast
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestsBaseTrait}
@@ -23,7 +25,24 @@ import org.apache.spark.sql.classic.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.broadcast
 
-class GlutenBroadcastExchangeSuite extends BroadcastExchangeSuite with GlutenSQLTestsBaseTrait {}
+class GlutenBroadcastExchangeSuite extends BroadcastExchangeSuite with GlutenSQLTestsBaseTrait {
+
+  testGluten("SPARK-52962: broadcast exchange should not reset metrics") {
+    val df = spark.range(1).toDF()
+    val joinDF = df.join(broadcast(df), "id")
+    joinDF.collect()
+    val broadcastExchangeExec = collect(joinDF.queryExecution.executedPlan) {
+      case p: BroadcastHashJoinExecTransformer => p
+    }
+    assert(broadcastExchangeExec.size == 1, "one and only BroadcastHashJoinExecTransformer")
+
+    val broadcastExchangeNode = broadcastExchangeExec.head
+    val metrics = broadcastExchangeNode.metrics
+    assert(metrics("numOutputRows").value == 1)
+    broadcastExchangeNode.resetMetrics()
+    assert(metrics("numOutputRows").value == 1)
+  }
+}
 
 // Additional tests run in 'local-cluster' mode.
 class GlutenLocalBroadcastExchangeSuite

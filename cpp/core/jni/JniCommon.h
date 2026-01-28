@@ -502,9 +502,12 @@ class JavaRssClient : public RssClient {
       return;
     }
     env->DeleteGlobalRef(javaRssShuffleWriter_);
-    jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
-    env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
-    env->DeleteGlobalRef(array_);
+    // array_ may be nullptr when failed to allocate new byte array in pushPartitionData
+    if (array_ != nullptr) {
+      jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
+      env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
+      env->DeleteGlobalRef(array_);
+    }
   }
 
   int32_t pushPartitionData(int32_t partitionId, const char* bytes, int64_t size) override {

@@ -375,4 +375,11 @@ abstract class BroadcastHashJoinExecTransformerBase(
   override def genJoinParametersInternal(): (Int, Int, String) = {
     (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
   }
+
+  override def resetMetrics(): Unit = {
+    // see https://github.com/apache/spark/pull/51673
+    // no-op
+    // BroadcastExchangeExec after materialized won't be materialized again, so we should not
+    // reset the metrics. Otherwise, we will lose the metrics collected in the broadcast job.
+  }
 }

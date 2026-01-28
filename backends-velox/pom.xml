@@ -538,6 +538,12 @@
           <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
           <scope>provided</scope>
         </dependency>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-dynamodb</artifactId>
+          <version>${aws-java-sdk-dynamodb.version}</version>
+          <scope>test</scope>
+        </dependency>
       </dependencies>
     </profile>
     <profile>
