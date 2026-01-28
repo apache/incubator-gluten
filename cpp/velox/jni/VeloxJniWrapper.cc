@@ -842,6 +842,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
     jint format,
     jstring directory,
     jstring codecJstr,
+    jint partitionId,
+    jlong taskId,
+    jstring operationId,
     jbyteArray partition,
     jbyteArray fieldBytes) {
   JNI_METHOD_START
@@ -863,6 +866,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
       format,
       jStringToCString(env, directory),
       facebook::velox::common::stringToCompressionKind(jStringToCString(env, codecJstr)),
+      partitionId,
+      taskId,
+      jStringToCString(env, operationId),
       spec,
       protoField,
       sparkConf));
