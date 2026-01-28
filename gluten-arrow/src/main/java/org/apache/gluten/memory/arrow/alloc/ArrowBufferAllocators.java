@@ -120,7 +120,7 @@ public class ArrowBufferAllocators {
 
     @Override
     public int priority() {
-      return 10; // lowest priority
+      return 10; // low priority: released after higher-priority task resources
     }
 
     @Override
