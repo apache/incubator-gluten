@@ -249,8 +249,18 @@ class VeloxTestSettings extends BackendTestSettings {
     // Exception.
     .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVv1Suite]
+    // The function testFile in string format  s"""
+    //           |  path "${testFile(carsFile)}"
+    //           |)
+    //       """.stripMargin
+    // cannot be overridden by the subclass, copy the source code, does not need to rewrite
+    .excludeByPrefix("SPARK-46890")
+    .excludeByPrefix("SPARK-48241")
   enableSuite[GlutenCSVv2Suite]
+  // https://github.com/apache/incubator-gluten/issues/11505
   enableSuite[GlutenCSVLegacyTimeParserSuite]
+    .exclude("Write timestamps correctly in ISO8601 format by default")
+    .exclude("csv with variant")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")

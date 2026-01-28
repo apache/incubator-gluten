@@ -30,13 +30,69 @@ import java.sql.{Date, Timestamp}
 
 class GlutenCSVSuite extends CSVSuite with GlutenSQLTestsBaseTrait {
 
+  private val charFile = "test-data/char.csv"
+
   override def sparkConf: SparkConf =
     super.sparkConf
       .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
+      .set("spark.sql.ansi.enabled", "false")
 
   /** Returns full path to the given file in the resource folder */
   override protected def testFile(fileName: String): String = {
-    getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + fileName
+    "file://" + getWorkspaceFilePath(
+      "sql",
+      "core",
+      "src",
+      "test",
+      "resources").toString + "/" + fileName
+  }
+
+  testGluten("SPARK-46890: CSV fails on a column with default and without enforcing schema") {
+    withTable("CarsTable") {
+      spark.sql(s"""
+                   |CREATE TABLE CarsTable(
+                   |  year INT,
+                   |  make STRING,
+                   |  model STRING,
+                   |  comment STRING DEFAULT '',
+                   |  blank STRING DEFAULT '')
+                   |USING csv
+                   |OPTIONS (
+                   |  header "true",
+                   |  inferSchema "false",
+                   |  enforceSchema "false",
+                   |  path "${testFile(carsFile)}"
+                   |)
+       """.stripMargin)
+      val expected = Seq(Row("No comment"), Row("Go get one now they are going fast"))
+      checkAnswer(sql("SELECT comment FROM CarsTable WHERE year < 2014"), expected)
+      checkAnswer(
+        spark.read
+          .format("csv")
+          .options(Map("header" -> "true", "inferSchema" -> "true", "enforceSchema" -> "false"))
+          .load(testFile(carsFile))
+          .select("comment")
+          .where("year < 2014"),
+        expected
+      )
+    }
+  }
+
+  testGluten("SPARK-48241: CSV parsing failure with char/varchar type columns") {
+    withTable("charVarcharTable") {
+      spark.sql(s"""
+                   |CREATE TABLE charVarcharTable(
+                   |  color char(4),
+                   |  name varchar(10))
+                   |USING csv
+                   |OPTIONS (
+                   |  header "true",
+                   |  path "${testFile(charFile)}"
+                   |)
+       """.stripMargin)
+      val expected = Seq(Row("pink", "Bob"), Row("blue", "Mike"), Row("grey", "Tom"))
+      checkAnswer(sql("SELECT * FROM charVarcharTable"), expected)
+    }
   }
 }
 
