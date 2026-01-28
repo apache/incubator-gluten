@@ -52,6 +52,10 @@ DECLARE_bool(velox_memory_pool_capacity_transfer_across_tasks);
 #include "operators/writer/VeloxParquetDataSourceABFS.h"
 #endif
 
+#ifdef GLUTEN_ENABLE_GPU
+#include "operators/serializer/VeloxGpuColumnarBatchSerializer.h"
+#endif
+
 using namespace facebook;
 
 namespace gluten {
@@ -307,6 +311,11 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
 std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(struct ArrowSchema* cSchema) {
   auto arrowPool = memoryManager()->defaultArrowMemoryPool();
   auto veloxPool = memoryManager()->getLeafMemoryPool();
+#ifdef GLUTEN_ENABLE_GPU
+  if (veloxCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    return std::make_unique<VeloxGpuColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
+  }
+#endif
   return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
 }
 
