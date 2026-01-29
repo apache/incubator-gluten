@@ -506,7 +506,8 @@ LocalPartitionWriter::LocalPartitionWriter(
     MemoryManager* memoryManager,
     const std::shared_ptr<LocalPartitionWriterOptions>& options,
     const std::string& dataFile,
-    std::vector<std::string> localDirs)
+    std::vector<std::string> localDirs,
+    const std::string& indexFile)
     : PartitionWriter(numPartitions, std::move(codec), memoryManager),
       options_(options),
       dataFile_(dataFile),

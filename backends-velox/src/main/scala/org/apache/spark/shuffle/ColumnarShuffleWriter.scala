@@ -28,6 +28,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_DISK_WRITE_BUFFER_SIZE, SHUFFLE_FILE_BUFFER_SIZE, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
+import org.apache.spark.shuffle.sort.ColumnarIndexShuffleBlockResolver
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, Utils}
 
@@ -42,6 +43,8 @@ class ColumnarShuffleWriter[K, V](
   with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
+  private var columnarShuffleBlockResolver: ColumnarIndexShuffleBlockResolver = _
+  private var partitionUseMultipleSegments: Boolean = false
 
   dep.shuffleWriterType match {
     case HashShuffleWriterType | SortShuffleWriterType | GpuHashShuffleWriterType =>
@@ -50,6 +53,17 @@ class ColumnarShuffleWriter[K, V](
       throw new IllegalArgumentException(
         s"Unsupported shuffle writer type: ${dep.shuffleWriterType.name}, " +
           s"expected one of: ${HashShuffleWriterType.name}, ${SortShuffleWriterType.name}")
+  }
+
+  shuffleBlockResolver match {
+    case resolver: ColumnarIndexShuffleBlockResolver =>
+      if (resolver.canUseNewFormat() && !GlutenConfig.get.columnarShuffleEnableDictionary) {
+        // For Dictionary encoding, the dict only finializes after all batches are processed,
+        // and dict is required to saved at the head of the partition data.
+        // So we cannot use multiple segments to save partition data incrementally.
+        partitionUseMultipleSegments = true
+        columnarShuffleBlockResolver = resolver
+      }
   }
 
   protected val isSort: Boolean = dep.shuffleWriterType == SortShuffleWriterType
@@ -136,6 +150,11 @@ class ColumnarShuffleWriter[K, V](
     }
 
     val tempDataFile = Utils.tempFileWith(shuffleBlockResolver.getDataFile(dep.shuffleId, mapId))
+    val tempIndexFile = if (partitionUseMultipleSegments) {
+      Utils.tempFileWith(columnarShuffleBlockResolver.getIndexFile(dep.shuffleId, mapId))
+    } else {
+      null
+    }
 
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
@@ -155,6 +174,7 @@ class ColumnarShuffleWriter[K, V](
             blockManager.subDirsPerLocalDir,
             conf.get(SHUFFLE_FILE_BUFFER_SIZE).toInt,
             tempDataFile.getAbsolutePath,
+            if (tempIndexFile != null) tempIndexFile.getAbsolutePath else null,
             localDirs,
             GlutenConfig.get.columnarShuffleEnableDictionary
           )
@@ -273,6 +293,9 @@ class ColumnarShuffleWriter[K, V](
     } finally {
       if (tempDataFile.exists() && !tempDataFile.delete()) {
         logError(s"Error while deleting temp file ${tempDataFile.getAbsolutePath}")
+      }
+      if (tempIndexFile != null && tempIndexFile.exists() && !tempIndexFile.delete()) {
+        logError(s"Error while deleting temp file ${tempIndexFile.getAbsolutePath}")
       }
     }
 

@@ -943,6 +943,7 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
     jint numSubDirs,
     jint shuffleFileBufferSize,
     jstring dataFileJstr,
+    jstring indexFileJstr,
     jstring localDirsJstr,
     jboolean enableDictionary) {
   JNI_METHOD_START
@@ -950,6 +951,7 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
   const auto ctx = getRuntime(env, wrapper);
 
   auto dataFile = jStringToCString(env, dataFileJstr);
+  auto indexFile = jStringToCString(env, indexFileJstr);
   auto localDirs = splitPaths(jStringToCString(env, localDirsJstr));
 
   auto partitionWriterOptions = std::make_shared<LocalPartitionWriterOptions>(
@@ -968,7 +970,8 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
       ctx->memoryManager(),
       partitionWriterOptions,
       dataFile,
-      std::move(localDirs));
+      std::move(localDirs),
+      indexFile);
 
   return ctx->saveObject(partitionWriter);
   JNI_METHOD_END(kInvalidObjectHandle)
