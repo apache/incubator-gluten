@@ -158,8 +158,6 @@ set(VELOX_SRCS
     jni/JniUdf.cc
     jni/VeloxJniWrapper.cc
     memory/BufferOutputStream.cc
-    memory/GlutenDirectBufferedInput.cc
-    memory/GlutenDirectInputStream.cc
     memory/VeloxColumnarBatch.cc
     memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
