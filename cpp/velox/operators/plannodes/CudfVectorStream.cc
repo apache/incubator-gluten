@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-#include "RowVectorStream.h"
+#include "CudfVectorStream.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/exec/Driver.h"
 #include "velox/exec/Operator.h"
 #include "velox/exec/Task.h"
-#include "velox/vector/arrow/Bridge.h"
 
 namespace {
 
@@ -46,8 +45,7 @@ class SuspendedSection {
 } // namespace
 
 namespace gluten {
-
-bool RowVectorStream::hasNext() {
+bool CudfVectorStreamBase::hasNext() {
   if (finished_) {
     return false;
   }
@@ -63,13 +61,7 @@ bool RowVectorStream::hasNext() {
     // As of now, non-zero running threads usually happens when:
     // 1. Task A spills task B;
     // 2. Task A tries to grow buffers created by task B, during which spill is requested on task A again.
-    const facebook::velox::exec::DriverThreadContext* driverThreadCtx =
-    facebook::velox::exec::driverThreadContext();
-    VELOX_CHECK_NOT_NULL(
-        driverThreadCtx,
-        "ExternalStreamDataSource::next() is not called "
-        "from a driver thread");
-    SuspendedSection ss(driverThreadCtx->driverCtx()->driver);
+    SuspendedSection ss(driverCtx_->driver);
     hasNext = iterator_->hasNext();
   }
   if (!hasNext) {
@@ -78,7 +70,7 @@ bool RowVectorStream::hasNext() {
   return hasNext;
 }
 
-std::shared_ptr<ColumnarBatch> RowVectorStream::nextInternal() {
+std::shared_ptr<ColumnarBatch> CudfVectorStreamBase::nextInternal() {
   if (finished_) {
     return nullptr;
   }
@@ -86,19 +78,13 @@ std::shared_ptr<ColumnarBatch> RowVectorStream::nextInternal() {
   {
     // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
     // driver to make the current task open to spilling.
-    const facebook::velox::exec::DriverThreadContext* driverThreadCtx =
-    facebook::velox::exec::driverThreadContext();
-    VELOX_CHECK_NOT_NULL(
-        driverThreadCtx,
-        "ExternalStreamDataSource::next() is not called "
-        "from a driver thread");
-    SuspendedSection ss(driverThreadCtx->driverCtx()->driver);
+    SuspendedSection ss(driverCtx_->driver);
     cb = iterator_->next();
   }
   return cb;
 }
 
-facebook::velox::RowVectorPtr RowVectorStream::next() {
+facebook::velox::RowVectorPtr CudfVectorStreamBase::next() {
   auto cb = nextInternal();
   const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, cb);
   auto vp = vb->getRowVector();
@@ -106,67 +92,4 @@ facebook::velox::RowVectorPtr RowVectorStream::next() {
   return std::make_shared<facebook::velox::RowVector>(
       vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), vp->children());
 }
-
-ValueStreamDataSource::ValueStreamDataSource(
-    const facebook::velox::RowTypePtr& outputType,
-    const facebook::velox::connector::ConnectorTableHandlePtr& tableHandle,
-    const facebook::velox::connector::ColumnHandleMap& columnHandles,
-    facebook::velox::connector::ConnectorQueryCtx* connectorQueryCtx)
-    : outputType_(outputType),
-      pool_(connectorQueryCtx->memoryPool()) {}
-
-void ValueStreamDataSource::addSplit(std::shared_ptr<facebook::velox::connector::ConnectorSplit> split) {
-  // Cast to IteratorConnectorSplit to extract the iterator
-  auto iteratorSplit = std::dynamic_pointer_cast<const IteratorConnectorSplit>(split);
-  if (!iteratorSplit) {
-    throw std::runtime_error("Split is not an IteratorConnectorSplit");
-  }
-  
-  auto iterator = iteratorSplit->iterator();
-  if (!iterator) {
-    throw std::runtime_error("IteratorConnectorSplit contains null iterator");
-  }
-  
-  // Create RowVectorStream wrapper and add to pending queue
-  auto rowVectorStream = std::make_shared<RowVectorStream>(pool_, iterator, outputType_);
-  pendingIterators_.push_back(rowVectorStream);
-}
-
-std::optional<facebook::velox::RowVectorPtr> ValueStreamDataSource::next(
-    uint64_t size,
-    facebook::velox::ContinueFuture& future) {
-  // Try to get current iterator if we don't have one
-  while (!currentIterator_) {
-    if (pendingIterators_.empty()) {
-      // No more iterators to process
-      return nullptr;
-    }
-    
-    // Get next RowVectorStream from queue
-    currentIterator_ = pendingIterators_.front();
-    pendingIterators_.erase(pendingIterators_.begin());
-  }
-
-  // Check if current stream has more data
-  if (!currentIterator_->hasNext()) {
-    // Current stream exhausted, try next one
-    currentIterator_ = nullptr;
-    return next(size, future);  // Recursively try next stream
-  }
-
-  // Get next batch from current stream (RowVectorStream handles conversion)
-  auto rowVector = currentIterator_->next();
-  
-  if (!rowVector) {
-    currentIterator_ = nullptr;
-    return next(size, future);  // Recursively try next stream
-  }
-
-  // Update metrics
-  completedRows_ += rowVector->size();
-  completedBytes_ += rowVector->estimateFlatSize();
-
-  return rowVector;
-}
-
 } // namespace gluten
