@@ -30,11 +30,10 @@ using ArrowMemoryPoolReleaser = std::function<void(arrow::MemoryPool*)>;
 class ArrowMemoryPool final : public arrow::MemoryPool {
  public:
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init, hicpp-member-init)
-  explicit ArrowMemoryPool(AllocationListener* listener, ArrowMemoryPoolReleaser releaser = nullptr)
-      : allocator_(std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), listener)),
-        releaser_(std::move(releaser)) {}
+  explicit ArrowMemoryPool(AllocationListener* listener)
+      : allocator_(std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), listener)) {}
 
-  ~ArrowMemoryPool() override;
+  ~ArrowMemoryPool() override = default;
 
   ArrowMemoryPool(const ArrowMemoryPool&) = delete;
 
@@ -64,8 +63,6 @@ class ArrowMemoryPool final : public arrow::MemoryPool {
 
  private:
   std::unique_ptr<MemoryAllocator> allocator_ = nullptr;
-
-  ArrowMemoryPoolReleaser releaser_;
 };
 
 } // namespace gluten

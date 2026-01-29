@@ -71,3 +71,4 @@ dist/
 metastore_db/
 
 .ipynb_checkpoints
+.worktrees/

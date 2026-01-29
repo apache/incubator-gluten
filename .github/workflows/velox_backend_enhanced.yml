@@ -37,12 +37,12 @@ on:
       - 'ep/build-velox/**'
       - 'cpp/**'
       - 'dev/**'
+      - 'build/mvn'
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-  MVN_CMD: 'mvn -ntp'
+  MVN_CMD: 'build/mvn -ntp'
   WGET_CMD: 'wget -nv'
-  SETUP: 'bash .github/workflows/util/setup-helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
 
 concurrency:
