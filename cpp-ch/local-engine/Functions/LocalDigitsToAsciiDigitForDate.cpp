@@ -166,7 +166,7 @@ public:
                     if (row_index)
                         res_col->insertManyFrom(*data_col, 0, row_index);
                 }
-                LOG_ERROR(
+                LOG_DEBUG(
                     getLogger("LocalDigitsToAsciiDigitForDateFunction"),
                     "Converted local digit string {} to ascii digit string: {}",
                     col_str->getDataAt(row_index).toString(),
@@ -268,7 +268,19 @@ private:
                     continue;
                 }
                 cp = ((c & 0x1F) << 6) | (b1 & 0x3F);
+                auto local_digit = toAsciiDigit(cp);
+                if (local_digit)
+                {
+                    result.push_back(local_digit);
+                    has_local_digit = true;
+                }
+                else
+                {
+                    result.push_back(static_cast<char>(c));
+                    result.push_back(static_cast<char>(b1));
+                }
                 i += 2;
+                continue;
             }
             else if ((c & 0xF0) == 0xE0) // 3-byte
             {
@@ -294,22 +306,42 @@ private:
                     continue;
                 }
                 cp = ((c & 0x0F) << 12) | ((b1 & 0x3F) << 6) | (b2 & 0x3F);
+                auto local_digit = toAsciiDigit(cp);
+                if (local_digit)
+                {
+                    result.push_back(local_digit);
+                    has_local_digit = true;
+                }
+                else
+                {
+                    result.push_back(static_cast<char>(c));
+                    result.push_back(static_cast<char>(b1));
+                    result.push_back(static_cast<char>(b2));
+                }
                 i += 3;
+                continue;
             }
             else if ((c & 0xF8) == 0xF0) // 4-byte
             {
-                cp = ((c & 0x07) << 18) | ((str.data[i + 1] & 0x3F) << 12) | ((str.data[i + 2] & 0x3F) << 6) | (str.data[i + 3] & 0x3F);
+                unsigned char b1 = str.data[i + 1];
+                unsigned char b2 = str.data[i + 2];
+                unsigned char b3 = str.data[i + 3];
+                cp = ((c & 0x07) << 18) | ((b1 & 0x3F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F);
+                auto local_digit = toAsciiDigit(cp);
+                if (local_digit)
+                {
+                    result.push_back(local_digit);
+                    has_local_digit = true;
+                }
+                else
+                {
+                    result.push_back(static_cast<char>(c));
+                    result.push_back(static_cast<char>(b1));
+                    result.push_back(static_cast<char>(b2));
+                    result.push_back(static_cast<char>(b3));
+                }
                 i += 4;
-            }
-            auto local_digit = toAsciiDigit(cp);
-            if (local_digit)
-            {
-                result.push_back(local_digit);
-                has_local_digit = true;
-            }
-            else
-            {
-                result.push_back(cp);
+                continue;
             }
         }
         return has_local_digit;
