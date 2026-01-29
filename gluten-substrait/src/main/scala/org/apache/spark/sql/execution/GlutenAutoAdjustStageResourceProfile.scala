@@ -115,8 +115,16 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
     // and decrease offheap memory.
     val fallenNodeCnt = planNodes.count(p => !p.isInstanceOf[GlutenPlan])
     val totalCount = planNodes.size
+    val fallenNodeRatio = 1.0 * fallenNodeCnt / totalCount
+    val hasPartialNode = GlutenResourceProfile.hasPartialOperator(planNodes)
 
-    if (1.0 * fallenNodeCnt / totalCount >= glutenConf.autoAdjustStageFallenNodeThreshold) {
+    if (fallenNodeRatio >= glutenConf.autoAdjustStageFallenNodeThreshold || hasPartialNode) {
+      logInfo(
+        s"Adjust stage resource profile for plan ${plan.nodeName}, " +
+          s"fallenNodeRatio=$fallenNodeRatio, " +
+          s"fallenNodeThreshold=${glutenConf.autoAdjustStageFallenNodeThreshold}, " +
+          s"hasPartialNode=$hasPartialNode")
+
       val newMemoryAmount = memoryRequest.get.amount * glutenConf.autoAdjustStageRPHeapRatio;
       val newExecutorMemory =
         new ExecutorResourceRequest(ResourceProfile.MEMORY, newMemoryAmount.toLong)
@@ -159,6 +167,14 @@ object GlutenAutoAdjustStageResourceProfile extends Logging {
     val planNodes = new ArrayBuffer[SparkPlan]()
     collectStagePlan(plan, planNodes)
     planNodes
+  }
+
+  def hasPartialOperator(planNodes: Seq[SparkPlan]): Boolean = {
+    planNodes.exists {
+      node =>
+        val nodeName = node.nodeName
+        nodeName.contains("PartialProject") || nodeName.contains("PartialGenerate")
+    }
   }
 
   private def getFinalResourceProfile(

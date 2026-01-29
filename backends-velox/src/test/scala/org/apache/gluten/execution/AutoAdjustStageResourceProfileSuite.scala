@@ -17,12 +17,15 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.execution.{ColumnarPartialGenerateExec, ColumnarPartialProjectExec}
+import org.apache.gluten.udtf.SimpleUDTF
 
 import org.apache.spark.SparkConf
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.sql.execution.{ApplyResourceProfileExec, ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
+import org.apache.spark.sql.functions.udf
 
 @Experimental
 class AutoAdjustStageResourceProfileSuite
@@ -87,6 +90,21 @@ class AutoAdjustStageResourceProfileSuite
 
   private def collectApplyResourceProfileExec(plan: SparkPlan): Int = {
     collect(plan) { case c: ApplyResourceProfileExec => c }.size
+  }
+
+  private def collectPartialProjectExec(plan: SparkPlan): Int = {
+    collect(plan) { case c: ColumnarPartialProjectExec => c }.size
+  }
+
+  private def collectPartialGenerateExec(plan: SparkPlan): Int = {
+    collect(plan) { case c: ColumnarPartialGenerateExec => c }.size
+  }
+
+  private def withTempFunction(funcName: String)(f: => Unit): Unit = {
+    try f
+    finally {
+      spark.sql(s"DROP TEMPORARY FUNCTION IF EXISTS $funcName")
+    }
   }
 
   test("stage contains fallback nodes and apply new resource profile") {
@@ -159,6 +177,50 @@ class AutoAdjustStageResourceProfileSuite
         // format: on
         // scalastyle:on
         df => assert(collectApplyResourceProfileExec(df.queryExecution.executedPlan) == 1)
+      }
+    }
+  }
+
+  test("apply new resource profile when stage contains ColumnarPartialProjectExec") {
+    withSQLConf(
+      GlutenConfig.ENABLE_COLUMNAR_PARTIAL_PROJECT.key -> "true",
+      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO.key -> "0.6",
+      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD.key -> "2.0"
+    ) {
+      val plusOne = udf((x: Long) => x + 1)
+      spark.udf.register("plus_one_stage_rp", plusOne)
+
+      runQueryAndCompare(
+        "select c1, " +
+          "sum(plus_one_stage_rp(cast(c2 as long)) + hash(c1)) " +
+          "from tmp1 group by c1") {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          assert(collectPartialProjectExec(plan) >= 1)
+          assert(collectApplyResourceProfileExec(plan) == 1)
+      }
+    }
+  }
+
+  test("apply new resource profile when stage contains ColumnarPartialGenerateExec") {
+    withTempFunction("simple_udtf_stage_rp") {
+      spark.sql(
+        s"CREATE TEMPORARY FUNCTION simple_udtf_stage_rp AS '${classOf[SimpleUDTF].getName}'")
+      withSQLConf(
+        GlutenConfig.ENABLE_COLUMNAR_PARTIAL_GENERATE.key -> "true",
+        GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_OFFHEAP_RATIO.key -> "0.6",
+        GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD.key -> "2.0"
+      ) {
+        runQueryAndCompare(
+          "select c1, sum(col0) " +
+            "from (select c1, col0 from tmp1 " +
+            "lateral view simple_udtf_stage_rp(cast(c2 as bigint)) as col0) t " +
+            "group by c1") {
+          df =>
+            val plan = df.queryExecution.executedPlan
+            assert(collectPartialGenerateExec(plan) >= 1)
+            assert(collectApplyResourceProfileExec(plan) == 1)
+        }
       }
     }
   }
