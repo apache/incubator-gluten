@@ -352,6 +352,7 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
       jstring element = static_cast<jstring>(env->GetObjectArrayElement(jarray, i));
       std::string cElement = jStringToCString(env, element);
       out.push_back(cElement);
+      env->DeleteLocalRef(element);
     }
     return out;
   }

@@ -869,7 +869,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
         assert(wholeStageTransformers.size == 3)
         val nativePlanString = wholeStageTransformers.head.nativePlanString()
-        assert(nativePlanString.contains("Aggregation[1][SINGLE"))
+        assert(nativePlanString.matches("[\\s\\S]*Aggregation\\[\\d+]\\[SINGLE[\\s\\S]*"))
         assert(nativePlanString.contains("ValueStream"))
         assert(wholeStageTransformers(1).nativePlanString().contains("ValueStream"))
         assert(wholeStageTransformers.last.nativePlanString().contains("TableScan"))
