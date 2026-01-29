@@ -22,14 +22,16 @@ import org.apache.spark.sql.{RunResult, SparkQueryRunner, SparkSession}
 
 import com.google.common.base.Preconditions
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import java.io.File
+import java.net.URI
 
 class QueryRunner(val source: String, val dataPath: String) {
   import QueryRunner._
-
   Preconditions.checkState(
-    new File(dataPath).exists(),
+    fileExists(dataPath),
     s"Data not found at $dataPath, try using command `<gluten-it> data-gen-only <options>` to generate it first.",
     Array(): _*)
 
@@ -62,6 +64,13 @@ class QueryRunner(val source: String, val dataPath: String) {
         println(s"Error running query ${query.id}. Error: ${ExceptionUtils.getStackTrace(e)}")
         Failure(query.id, e)
     }
+  }
+
+  private def fileExists(datapath: String): Boolean = {
+    if (datapath.startsWith("hdfs:")) {
+      val uri = URI.create(datapath)
+      FileSystem.get(uri, new Configuration()).exists(new Path(uri.getPath))
+    } else new File(datapath).exists()
   }
 }
 

@@ -34,6 +34,47 @@ function install_maven {
   fi
 }
 
+function install_hadoop {
+  echo "Installing Hadoop..."
+  
+  apt-get update -y
+  apt-get install -y curl tar gzip
+  
+  local HADOOP_VERSION=3.3.6
+  curl -fsSL -o hadoop.tgz "https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz"
+  tar -xzf hadoop.tgz --no-same-owner --no-same-permissions
+
+  export HADOOP_HOME="$PWD/hadoop-${HADOOP_VERSION}"
+  export PATH="$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$PATH"
+
+  export LD_LIBRARY_PATH="$HADOOP_HOME/lib/native:$LD_LIBRARY_PATH"
+
+  if [ -n "$GITHUB_ENV" ]; then
+    echo "HADOOP_HOME=$HADOOP_HOME" >> $GITHUB_ENV
+    echo "LD_LIBRARY_PATH=$HADOOP_HOME/lib/native:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+    echo "$HADOOP_HOME/bin" >> $GITHUB_PATH
+  fi
+}
+
+function setup_hdfs {
+  wget -q https://repo1.maven.org/maven2/org/mockito/mockito-core/2.23.4/mockito-core-2.23.4.jar \
+    -O "$HADOOP_HOME/share/hadoop/mapreduce/mockito-core-2.23.4.jar"
+
+  export CLASSPATH=$("$HADOOP_HOME/bin/hdfs" classpath --glob)
+
+  if [ -n "$GITHUB_ENV" ]; then
+    echo "CLASSPATH=$CLASSPATH" >> $GITHUB_ENV
+  fi
+
+  "$HADOOP_HOME/bin/hadoop" jar \
+    "$HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-3.3.6-tests.jar" \
+    minicluster -nomr -format \
+    -nnhttpport 9870 -nnport 9000 \
+    -D dfs.permissions=false &
+
+  sleep 10
+  echo "HDFS MiniCluster started"
+}
 for cmd in "$@"
 do
     echo "Running: $cmd"
