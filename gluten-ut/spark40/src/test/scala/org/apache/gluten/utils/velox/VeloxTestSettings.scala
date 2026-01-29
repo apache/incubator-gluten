@@ -20,27 +20,46 @@ import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.GlutenSortShuffleSuite
 import org.apache.spark.sql._
+import org.apache.spark.sql.{GlutenCacheManagerSuite, GlutenDataFrameShowSuite, GlutenDataFrameSubquerySuite, GlutenDataFrameTableValuedFunctionsSuite, GlutenDataFrameTransposeSuite, GlutenDefaultANSIValueSuite, GlutenDeprecatedDatasetAggregatorSuite, GlutenExplainSuite, GlutenICUCollationsMapSuite, GlutenInlineTableParsingImprovementsSuite, GlutenJoinHintSuite, GlutenLogQuerySuite, GlutenPercentileQuerySuite, GlutenRandomDataGeneratorSuite, GlutenRowJsonSuite, GlutenRowSuite, GlutenRuntimeConfigSuite, GlutenSessionStateSuite, GlutenSetCommandSuite, GlutenSingleLevelAggregateHashMapSuite, GlutenSparkSessionBuilderSuite, GlutenSparkSessionJobTaggingAndCancellationSuite, GlutenSSBQuerySuite, GlutenTPCDSCollationQueryTestSuite, GlutenTPCDSModifiedPlanStabilitySuite, GlutenTPCDSModifiedPlanStabilityWithStatsSuite, GlutenTPCDSQueryANSISuite, GlutenTPCDSQuerySuite, GlutenTPCDSQueryTestSuite, GlutenTPCDSQueryWithStatsSuite, GlutenTPCDSV1_4_PlanStabilitySuite, GlutenTPCDSV1_4_PlanStabilityWithStatsSuite, GlutenTPCDSV2_7_PlanStabilitySuite, GlutenTPCDSV2_7_PlanStabilityWithStatsSuite, GlutenTPCHPlanStabilitySuite, GlutenTPCHQuerySuite, GlutenTwoLevelAggregateHashMapSuite, GlutenTwoLevelAggregateHashMapWithVectorizedMapSuite, GlutenUDFSuite, GlutenUDTRegistrationSuite, GlutenUnsafeRowSuite, GlutenUserDefinedTypeSuite, GlutenVariantEndToEndSuite, GlutenVariantShreddingSuite, GlutenVariantSuite, GlutenVariantWriteShreddingSuite, GlutenXmlFunctionsSuite}
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{GlutenAttributeResolutionSuite, GlutenAttributeSetSuite, GlutenBitmapExpressionUtilsSuite, GlutenCallMethodViaReflectionSuite, GlutenCanonicalizeSuite, GlutenCastWithAnsiOnSuite, GlutenCodeGenerationSuite, GlutenCodeGeneratorWithInterpretedFallbackSuite, GlutenCollationExpressionSuite, GlutenCollationRegexpExpressionsSuite, GlutenCsvExpressionsSuite, GlutenDynamicPruningSubquerySuite, GlutenExpressionEvalHelperSuite, GlutenExpressionImplUtilsSuite, GlutenExpressionSetSuite, GlutenExpressionSQLBuilderSuite, GlutenExprIdSuite, GlutenExtractPredicatesWithinOutputSetSuite, GlutenHexSuite, GlutenMutableProjectionSuite, GlutenNamedExpressionSuite, GlutenObjectExpressionsSuite, GlutenOrderingSuite, GlutenScalaUDFSuite, GlutenSchemaPruningSuite, GlutenSelectedFieldSuite, GlutenSubexpressionEliminationSuite, GlutenSubExprEvaluationRuntimeSuite, GlutenTimeWindowSuite, GlutenToPrettyStringSuite, GlutenUnsafeRowConverterSuite, GlutenUnwrapUDTExpressionSuite, GlutenV2ExpressionUtilsSuite, GlutenValidateExternalTypeSuite, GlutenXmlExpressionsSuite}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{GlutenAggregateExpressionSuite, GlutenApproxCountDistinctForIntervalsSuite, GlutenApproximatePercentileSuite, GlutenCountMinSketchAggSuite, GlutenDatasketchesHllSketchSuite, GlutenFirstLastTestSuite, GlutenHistogramNumericSuite, GlutenHyperLogLogPlusPlusSuite, GlutenProductAggSuite}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{GlutenCentralMomentAggSuite, GlutenCovarianceAggSuite}
 import org.apache.spark.sql.connector._
+import org.apache.spark.sql.connector.{GlutenDataSourceV2MetricsSuite, GlutenDataSourceV2OptionSuite, GlutenDataSourceV2UtilsSuite, GlutenGroupBasedUpdateTableSuite, GlutenMergeIntoDataFrameSuite, GlutenProcedureSuite, GlutenPushablePredicateSuite, GlutenV1ReadFallbackWithCatalogSuite, GlutenV1ReadFallbackWithDataFrameReaderSuite, GlutenV1WriteFallbackSessionCatalogSuite, GlutenV1WriteFallbackSuite, GlutenV2CommandsCaseSensitivitySuite}
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
+import org.apache.spark.sql.errors.{GlutenQueryContextSuite, GlutenQueryExecutionAnsiErrorsSuite}
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.{GlutenAggregatingAccumulatorSuite, GlutenCoGroupedIteratorSuite, GlutenColumnarRulesSuite, GlutenDataSourceScanExecRedactionSuite, GlutenDataSourceV2ScanExecRedactionSuite, GlutenDeprecatedWholeStageCodegenSuite, GlutenExecuteImmediateEndToEndSuite, GlutenExternalAppendOnlyUnsafeRowArraySuite, GlutenGlobalTempViewSuite, GlutenGlobalTempViewTestSuite, GlutenGroupedIteratorSuite, GlutenHiveResultSuite, GlutenInsertSortForLimitAndOffsetSuite, GlutenLocalTempViewTestSuite, GlutenLogicalPlanTagInSparkPlanSuite, GlutenOptimizeMetadataOnlyQuerySuite, GlutenPersistedViewTestSuite, GlutenPlannerSuite, GlutenProjectedOrderingAndPartitioningSuite, GlutenQueryPlanningTrackerEndToEndSuite, GlutenRemoveRedundantProjectsSuite, GlutenRemoveRedundantSortsSuite, GlutenRowToColumnConverterSuite, GlutenShufflePartitionsUtilSuite, GlutenSimpleSQLViewSuite, GlutenSparkPlannerSuite, GlutenSparkPlanSuite, GlutenSparkScriptTransformationSuite, GlutenSparkSqlParserSuite, GlutenSQLExecutionSuite, GlutenSQLFunctionSuite, GlutenSQLJsonProtocolSuite, GlutenUnsafeFixedWidthAggregationMapSuite, GlutenUnsafeKVExternalSorterSuite, GlutenUnsafeRowSerializerSuite, GlutenWholeStageCodegenSparkSubmitSuite, GlutenWholeStageCodegenSuite}
 import org.apache.spark.sql.execution.adaptive.velox.VeloxAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.{GlutenBasicWriteJobStatsTrackerMetricSuite, GlutenBasicWriteTaskStatsTrackerSuite, GlutenCustomWriteTaskStatsTrackerSuite, GlutenDataSourceManagerSuite, GlutenDataSourceResolverSuite, GlutenFileResolverSuite, GlutenInMemoryTableMetricSuite, GlutenPushVariantIntoScanSuite, GlutenRowDataSourceStrategySuite, GlutenSaveIntoDataSourceCommandSuite}
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
 import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
+import org.apache.spark.sql.execution.datasources.csv.GlutenCSVParsingOptionsSuite
 import org.apache.spark.sql.execution.datasources.json.{GlutenJsonLegacyTimeParserSuite, GlutenJsonV1Suite, GlutenJsonV2Suite}
+import org.apache.spark.sql.execution.datasources.json.GlutenJsonParsingOptionsSuite
 import org.apache.spark.sql.execution.datasources.orc._
+import org.apache.spark.sql.execution.datasources.orc.GlutenOrcEncryptionSuite
 import org.apache.spark.sql.execution.datasources.parquet._
+import org.apache.spark.sql.execution.datasources.parquet.{GlutenParquetAvroCompatibilitySuite, GlutenParquetCommitterSuite, GlutenParquetFieldIdSchemaSuite, GlutenParquetTypeWideningSuite, GlutenParquetVariantShreddingSuite}
 import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
+import org.apache.spark.sql.execution.datasources.text.{GlutenWholeTextFileV1Suite, GlutenWholeTextFileV2Suite}
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
+import org.apache.spark.sql.execution.datasources.v2.{GlutenFileWriterFactorySuite, GlutenV2SessionCatalogNamespaceSuite, GlutenV2SessionCatalogTableSuite}
 import org.apache.spark.sql.execution.exchange.{GlutenEnsureRequirementsSuite, GlutenValidateRequirementsSuite}
 import org.apache.spark.sql.execution.joins._
+import org.apache.spark.sql.execution.joins.{GlutenHashedRelationSuite, GlutenSingleJoinSuite}
+import org.apache.spark.sql.execution.metric.GlutenCustomMetricsSuite
 import org.apache.spark.sql.execution.metric.GlutenSQLMetricsSuite
 import org.apache.spark.sql.execution.python._
+import org.apache.spark.sql.execution.python.{GlutenPythonDataSourceSuite, GlutenPythonUDFSuite, GlutenPythonUDTFSuite, GlutenRowQueueSuite}
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.gluten.{GlutenFallbackStrategiesSuite, GlutenFallbackSuite}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources._
+import org.apache.spark.sql.sources.{GlutenBucketedReadWithHiveSupportSuite, GlutenBucketedWriteWithHiveSupportSuite, GlutenCommitFailureTestRelationSuite, GlutenDataSourceAnalysisSuite, GlutenDisableUnnecessaryBucketedScanWithHiveSupportSuite, GlutenJsonHadoopFsRelationSuite, GlutenParquetHadoopFsRelationSuite, GlutenSimpleTextHadoopFsRelationSuite}
+import org.apache.spark.sql.streaming._
 import org.apache.spark.sql.streaming.GlutenStreamingQuerySuite
 
 // Some settings' line length exceeds 100
@@ -958,6 +977,261 @@ class VeloxTestSettings extends BackendTestSettings {
     // vanilla Spark's query plan.
     .exclude("SPARK-47289: extended explain info")
   enableSuite[GlutenSQLMetricsSuite]
+  enableSuite[GlutenAcceptsLatestSeenOffsetSuite]
+  enableSuite[GlutenCommitLogSuite]
+  enableSuite[GlutenDeprecatedStreamingAggregationSuite]
+  enableSuite[GlutenEventTimeWatermarkSuite]
+  enableSuite[GlutenFileStreamSinkV1Suite]
+  enableSuite[GlutenFileStreamSinkV2Suite]
+  enableSuite[GlutenFileStreamSourceStressTestSuite]
+  enableSuite[GlutenFileStreamSourceSuite]
+  enableSuite[GlutenFileStreamStressSuite]
+  enableSuite[GlutenFlatMapGroupsInPandasWithStateDistributionSuite]
+  enableSuite[GlutenFlatMapGroupsInPandasWithStateSuite]
+  enableSuite[GlutenFlatMapGroupsWithStateDistributionSuite]
+  enableSuite[GlutenFlatMapGroupsWithStateSuite]
+  enableSuite[GlutenFlatMapGroupsWithStateWithInitialStateSuite]
+  enableSuite[GlutenGroupStateSuite]
+  enableSuite[GlutenLongOffsetSuite]
+  enableSuite[GlutenMemorySourceStressSuite]
+  enableSuite[GlutenMultiStatefulOperatorsSuite]
+  enableSuite[GlutenReportSinkMetricsSuite]
+  enableSuite[GlutenRocksDBStateStoreFlatMapGroupsWithStateSuite]
+  enableSuite[GlutenRocksDBStateStoreStreamingAggregationSuite]
+  enableSuite[GlutenRocksDBStateStoreStreamingDeduplicationSuite]
+  enableSuite[GlutenStreamSuite]
+  enableSuite[GlutenStreamingAggregationDistributionSuite]
+  enableSuite[GlutenStreamingAggregationSuite]
+  enableSuite[GlutenStreamingDeduplicationDistributionSuite]
+  enableSuite[GlutenStreamingDeduplicationSuite]
+  enableSuite[GlutenStreamingDeduplicationWithinWatermarkSuite]
+  enableSuite[GlutenStreamingFullOuterJoinSuite]
+  enableSuite[GlutenStreamingInnerJoinSuite]
+  enableSuite[GlutenStreamingLeftSemiJoinSuite]
+  enableSuite[GlutenStreamingOuterJoinSuite]
+  enableSuite[GlutenStreamingQueryHashPartitionVerifySuite]
+  enableSuite[GlutenStreamingQueryListenerSuite]
+  enableSuite[GlutenStreamingQueryListenersConfSuite]
+  enableSuite[GlutenStreamingQueryManagerSuite]
+  enableSuite[GlutenStreamingQueryOptimizationCorrectnessSuite]
+  enableSuite[GlutenStreamingQueryStatusAndProgressSuite]
+  enableSuite[GlutenStreamingSelfUnionSuite]
+  enableSuite[GlutenStreamingSessionWindowDistributionSuite]
+  enableSuite[GlutenStreamingSessionWindowSuite]
+  enableSuite[GlutenStreamingStateStoreFormatCompatibilitySuite]
+  enableSuite[GlutenStreamingSymmetricHashJoinHelperSuite]
+  enableSuite[GlutenTransformWithListStateSuite]
+  enableSuite[GlutenTransformWithListStateTTLSuite]
+  enableSuite[GlutenTransformWithMapStateSuite]
+  enableSuite[GlutenTransformWithMapStateTTLSuite]
+  enableSuite[GlutenTransformWithStateAvroSuite]
+  enableSuite[GlutenTransformWithStateChainingSuite]
+  enableSuite[GlutenTransformWithStateClusterSuite]
+  enableSuite[GlutenTransformWithStateInitialStateSuite]
+  enableSuite[GlutenTransformWithStateUnsafeRowSuite]
+  enableSuite[GlutenTransformWithStateValidationSuite]
+  enableSuite[GlutenTransformWithValueStateTTLSuite]
+  enableSuite[GlutenTriggerAvailableNowSuite]
+  // Generated suites for org.apache.spark.sql
+  enableSuite[GlutenCacheManagerSuite]
+  enableSuite[GlutenDataFrameShowSuite]
+  enableSuite[GlutenDataFrameSubquerySuite]
+  enableSuite[GlutenDataFrameTableValuedFunctionsSuite]
+  enableSuite[GlutenDataFrameTransposeSuite]
+  enableSuite[GlutenDefaultANSIValueSuite]
+  enableSuite[GlutenDeprecatedDatasetAggregatorSuite]
+  enableSuite[GlutenExplainSuite]
+  enableSuite[GlutenICUCollationsMapSuite]
+  enableSuite[GlutenInlineTableParsingImprovementsSuite]
+  enableSuite[GlutenJoinHintSuite]
+  enableSuite[GlutenLogQuerySuite]
+  enableSuite[GlutenPercentileQuerySuite]
+  enableSuite[GlutenRandomDataGeneratorSuite]
+  enableSuite[GlutenRowJsonSuite]
+  enableSuite[GlutenRowSuite]
+  enableSuite[GlutenRuntimeConfigSuite]
+  enableSuite[GlutenSSBQuerySuite]
+  enableSuite[GlutenSessionStateSuite]
+  enableSuite[GlutenSetCommandSuite]
+  enableSuite[GlutenSingleLevelAggregateHashMapSuite]
+  enableSuite[GlutenSparkSessionBuilderSuite]
+  enableSuite[GlutenSparkSessionJobTaggingAndCancellationSuite]
+  enableSuite[GlutenTPCDSCollationQueryTestSuite]
+  enableSuite[GlutenTPCDSModifiedPlanStabilitySuite]
+  enableSuite[GlutenTPCDSModifiedPlanStabilityWithStatsSuite]
+  enableSuite[GlutenTPCDSQueryANSISuite]
+  enableSuite[GlutenTPCDSQuerySuite]
+  enableSuite[GlutenTPCDSQueryTestSuite]
+  enableSuite[GlutenTPCDSQueryWithStatsSuite]
+  enableSuite[GlutenTPCDSV1_4_PlanStabilitySuite]
+  enableSuite[GlutenTPCDSV1_4_PlanStabilityWithStatsSuite]
+  enableSuite[GlutenTPCDSV2_7_PlanStabilitySuite]
+  enableSuite[GlutenTPCDSV2_7_PlanStabilityWithStatsSuite]
+  enableSuite[GlutenTPCHPlanStabilitySuite]
+  enableSuite[GlutenTPCHQuerySuite]
+  enableSuite[GlutenTwoLevelAggregateHashMapSuite]
+  enableSuite[GlutenTwoLevelAggregateHashMapWithVectorizedMapSuite]
+  enableSuite[GlutenUDFSuite]
+  enableSuite[GlutenUDTRegistrationSuite]
+  enableSuite[GlutenUnsafeRowSuite]
+  enableSuite[GlutenUserDefinedTypeSuite]
+  enableSuite[GlutenVariantEndToEndSuite]
+  enableSuite[GlutenVariantShreddingSuite]
+  enableSuite[GlutenVariantSuite]
+  enableSuite[GlutenVariantWriteShreddingSuite]
+  enableSuite[GlutenXmlFunctionsSuite]
+  // Generated suites for org.apache.spark.sql.catalyst.expressions
+  enableSuite[GlutenAttributeResolutionSuite]
+  enableSuite[GlutenAttributeSetSuite]
+  enableSuite[GlutenBitmapExpressionUtilsSuite]
+  enableSuite[GlutenCallMethodViaReflectionSuite]
+  enableSuite[GlutenCanonicalizeSuite]
+  enableSuite[GlutenCastWithAnsiOnSuite]
+  enableSuite[GlutenCodeGenerationSuite]
+  enableSuite[GlutenCodeGeneratorWithInterpretedFallbackSuite]
+  enableSuite[GlutenCollationExpressionSuite]
+  enableSuite[GlutenCollationRegexpExpressionsSuite]
+  enableSuite[GlutenCsvExpressionsSuite]
+  enableSuite[GlutenDynamicPruningSubquerySuite]
+  enableSuite[GlutenExprIdSuite]
+  enableSuite[GlutenExpressionEvalHelperSuite]
+  enableSuite[GlutenExpressionImplUtilsSuite]
+  enableSuite[GlutenExpressionSQLBuilderSuite]
+  enableSuite[GlutenExpressionSetSuite]
+  enableSuite[GlutenExtractPredicatesWithinOutputSetSuite]
+  enableSuite[GlutenHexSuite]
+  enableSuite[GlutenMutableProjectionSuite]
+  enableSuite[GlutenNamedExpressionSuite]
+  enableSuite[GlutenObjectExpressionsSuite]
+  enableSuite[GlutenOrderingSuite]
+  enableSuite[GlutenScalaUDFSuite]
+  enableSuite[GlutenSchemaPruningSuite]
+  enableSuite[GlutenSelectedFieldSuite]
+  enableSuite[GlutenSubExprEvaluationRuntimeSuite]
+  enableSuite[GlutenSubexpressionEliminationSuite]
+  enableSuite[GlutenTimeWindowSuite]
+  enableSuite[GlutenToPrettyStringSuite]
+  enableSuite[GlutenUnsafeRowConverterSuite]
+  enableSuite[GlutenUnwrapUDTExpressionSuite]
+  enableSuite[GlutenV2ExpressionUtilsSuite]
+  enableSuite[GlutenValidateExternalTypeSuite]
+  enableSuite[GlutenXmlExpressionsSuite]
+  // Generated suites for org.apache.spark.sql.catalyst.expressions.aggregate
+  enableSuite[GlutenAggregateExpressionSuite]
+  enableSuite[GlutenApproxCountDistinctForIntervalsSuite]
+  enableSuite[GlutenApproximatePercentileSuite]
+  enableSuite[GlutenCountMinSketchAggSuite]
+  enableSuite[GlutenDatasketchesHllSketchSuite]
+  enableSuite[GlutenFirstLastTestSuite]
+  enableSuite[GlutenHistogramNumericSuite]
+  enableSuite[GlutenHyperLogLogPlusPlusSuite]
+  enableSuite[GlutenProductAggSuite]
+  // Generated suites for org.apache.spark.sql.connector
+  enableSuite[GlutenDataSourceV2MetricsSuite]
+  enableSuite[GlutenDataSourceV2OptionSuite]
+  enableSuite[GlutenDataSourceV2UtilsSuite]
+  enableSuite[GlutenGroupBasedUpdateTableSuite]
+  enableSuite[GlutenMergeIntoDataFrameSuite]
+  enableSuite[GlutenProcedureSuite]
+  enableSuite[GlutenPushablePredicateSuite]
+  enableSuite[GlutenV1ReadFallbackWithCatalogSuite]
+  enableSuite[GlutenV1ReadFallbackWithDataFrameReaderSuite]
+  enableSuite[GlutenV1WriteFallbackSessionCatalogSuite]
+  enableSuite[GlutenV1WriteFallbackSuite]
+  enableSuite[GlutenV2CommandsCaseSensitivitySuite]
+  // Generated suites for org.apache.spark.sql.errors
+  enableSuite[GlutenQueryContextSuite]
+  enableSuite[GlutenQueryExecutionAnsiErrorsSuite]
+  // Generated suites for org.apache.spark.sql.execution
+  enableSuite[GlutenAggregatingAccumulatorSuite]
+  enableSuite[GlutenCoGroupedIteratorSuite]
+  enableSuite[GlutenColumnarRulesSuite]
+  enableSuite[GlutenDataSourceScanExecRedactionSuite]
+  enableSuite[GlutenDataSourceV2ScanExecRedactionSuite]
+  enableSuite[GlutenDeprecatedWholeStageCodegenSuite]
+  enableSuite[GlutenExecuteImmediateEndToEndSuite]
+  enableSuite[GlutenExternalAppendOnlyUnsafeRowArraySuite]
+  enableSuite[GlutenGlobalTempViewSuite]
+  enableSuite[GlutenGlobalTempViewTestSuite]
+  enableSuite[GlutenGroupedIteratorSuite]
+  enableSuite[GlutenHiveResultSuite]
+  enableSuite[GlutenInsertSortForLimitAndOffsetSuite]
+  enableSuite[GlutenLocalTempViewTestSuite]
+  enableSuite[GlutenLogicalPlanTagInSparkPlanSuite]
+  enableSuite[GlutenOptimizeMetadataOnlyQuerySuite]
+  enableSuite[GlutenPersistedViewTestSuite]
+  enableSuite[GlutenPlannerSuite]
+  enableSuite[GlutenProjectedOrderingAndPartitioningSuite]
+  enableSuite[GlutenQueryPlanningTrackerEndToEndSuite]
+  enableSuite[GlutenRemoveRedundantProjectsSuite]
+  enableSuite[GlutenRemoveRedundantSortsSuite]
+  enableSuite[GlutenRowToColumnConverterSuite]
+  enableSuite[GlutenSQLExecutionSuite]
+  enableSuite[GlutenSQLFunctionSuite]
+  enableSuite[GlutenSQLJsonProtocolSuite]
+  enableSuite[GlutenShufflePartitionsUtilSuite]
+  enableSuite[GlutenSimpleSQLViewSuite]
+  enableSuite[GlutenSparkPlanSuite]
+  enableSuite[GlutenSparkPlannerSuite]
+  enableSuite[GlutenSparkScriptTransformationSuite]
+  enableSuite[GlutenSparkSqlParserSuite]
+  enableSuite[GlutenUnsafeFixedWidthAggregationMapSuite]
+  enableSuite[GlutenUnsafeKVExternalSorterSuite]
+  enableSuite[GlutenUnsafeRowSerializerSuite]
+  enableSuite[GlutenWholeStageCodegenSparkSubmitSuite]
+  enableSuite[GlutenWholeStageCodegenSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources
+  enableSuite[GlutenBasicWriteJobStatsTrackerMetricSuite]
+  enableSuite[GlutenBasicWriteTaskStatsTrackerSuite]
+  enableSuite[GlutenCustomWriteTaskStatsTrackerSuite]
+  enableSuite[GlutenDataSourceManagerSuite]
+  enableSuite[GlutenDataSourceResolverSuite]
+  enableSuite[GlutenFileResolverSuite]
+  enableSuite[GlutenInMemoryTableMetricSuite]
+  enableSuite[GlutenPushVariantIntoScanSuite]
+  enableSuite[GlutenRowDataSourceStrategySuite]
+  enableSuite[GlutenSaveIntoDataSourceCommandSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.csv
+  enableSuite[GlutenCSVParsingOptionsSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.json
+  enableSuite[GlutenJsonParsingOptionsSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.orc
+  enableSuite[GlutenOrcEncryptionSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.parquet
+  enableSuite[GlutenParquetAvroCompatibilitySuite]
+  enableSuite[GlutenParquetCommitterSuite]
+  enableSuite[GlutenParquetFieldIdSchemaSuite]
+  enableSuite[GlutenParquetTypeWideningSuite]
+  enableSuite[GlutenParquetVariantShreddingSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.text
+  enableSuite[GlutenWholeTextFileV1Suite]
+  enableSuite[GlutenWholeTextFileV2Suite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.v2
+  enableSuite[GlutenFileWriterFactorySuite]
+  enableSuite[GlutenV2SessionCatalogNamespaceSuite]
+  enableSuite[GlutenV2SessionCatalogTableSuite]
+  // Generated suites for org.apache.spark.sql.execution.joins
+  enableSuite[GlutenHashedRelationSuite]
+  enableSuite[GlutenSingleJoinSuite]
+  // Generated suites for org.apache.spark.sql.execution.metric
+  enableSuite[GlutenCustomMetricsSuite]
+  // Generated suites for org.apache.spark.sql.execution.python
+  enableSuite[GlutenPythonDataSourceSuite]
+  enableSuite[GlutenPythonUDFSuite]
+  enableSuite[GlutenPythonUDTFSuite]
+  enableSuite[GlutenRowQueueSuite]
+  // Generated suites for org.apache.spark.sql.sources
+  enableSuite[GlutenBucketedReadWithHiveSupportSuite]
+  enableSuite[GlutenBucketedWriteWithHiveSupportSuite]
+  enableSuite[GlutenCommitFailureTestRelationSuite]
+  enableSuite[GlutenDataSourceAnalysisSuite]
+  enableSuite[GlutenDisableUnnecessaryBucketedScanWithHiveSupportSuite]
+  enableSuite[GlutenJsonHadoopFsRelationSuite]
+  enableSuite[GlutenParquetHadoopFsRelationSuite]
+  enableSuite[GlutenSimpleTextHadoopFsRelationSuite]
+  // Generated suites for org.apache.spark.sql.catalyst.expressions.aggregate
+  enableSuite[GlutenCentralMomentAggSuite]
+  enableSuite[GlutenCovarianceAggSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
