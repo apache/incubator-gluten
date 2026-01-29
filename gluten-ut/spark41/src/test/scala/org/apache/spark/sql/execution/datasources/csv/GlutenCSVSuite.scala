@@ -80,7 +80,8 @@ class GlutenCSVv2Suite extends GlutenCSVSuite {
         assert(exception.getCause.isInstanceOf[GlutenException])
         assert(
           exception.getMessage.contains(
-            "[MALFORMED_RECORD_IN_PARSING.WITHOUT_SUGGESTION] Malformed records are detected in record parsing: " +
+            "[MALFORMED_RECORD_IN_PARSING.WITHOUT_SUGGESTION] " +
+              "Malformed records are detected in record parsing: " +
               "[2015,Chevy,Volt,null,null]"))
     }
   }
