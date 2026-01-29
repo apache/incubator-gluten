@@ -1510,3 +1510,63 @@ jobs:
             **/target/*.log
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
+
+  s3-integration-test:
+    needs: build-native-lib-centos-7
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v4
+        with:
+          name: arrow-jars-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Download S3 JARs
+        run: |
+          SPARK_JARS_DIR="/opt/shims/spark35/spark_home/assembly/target/scala-2.12/jars"
+          ${WGET_CMD} https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.2/hadoop-aws-3.3.2.jar -P "$SPARK_JARS_DIR"
+          ${WGET_CMD} https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.788/aws-java-sdk-bundle-1.12.788.jar -P "$SPARK_JARS_DIR"
+      - name: Setup MinIO Server
+        run: |
+          # Install server
+          ${WGET_CMD} https://dl.min.io/server/minio/release/linux-amd64/minio -O /usr/local/bin/minio
+          chmod +x /usr/local/bin/minio
+          # Install client
+          ${WGET_CMD} https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
+          chmod +x /usr/local/bin/mc
+          # Create data directory
+          mkdir -p /data/minio
+          # Set environment variables
+          export MINIO_ROOT_USER=admin
+          export MINIO_ROOT_PASSWORD=admin123
+          # Start server in background
+          nohup minio server --console-address ":9001" /data/minio > /tmp/minio.log 2>&1 &
+          sleep 10
+          # Configure test bucket
+          mc alias set s3local http://localhost:9000 admin admin123
+          mc mb s3local/gluten-it
+      - name: Build gluten-it
+        run: |
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $MVN_CMD clean package -DskipTests
+      - name: Run S3 Integration Tests
+        run: |
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          export GLUTEN_IT_JVM_ARGS="-Xmx6G"
+          # Run TPC-H query with S3 data
+          sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h \
+            --error-on-memleak --off-heap-size=10g -s=1.0 \
+            --threads=16 --iterations=1 --queries=q1 \
+            --data-dir="s3a://gluten-it/test" \
+            --extra-conf=spark.hadoop.fs.s3a.endpoint=http://localhost:9000 \
+            --extra-conf=spark.hadoop.fs.s3a.access.key=admin \
+            --extra-conf=spark.hadoop.fs.s3a.secret.key=admin123 \
+            --extra-conf=spark.hadoop.fs.s3a.path.style.access=true \
+            --extra-conf=spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
