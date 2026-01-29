@@ -612,6 +612,11 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<int64_t>(kBloomFilterNumBits, 8388608));
     configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] =
         std::to_string(veloxCfg_->get<int64_t>(kBloomFilterMaxNumBits, 4194304));
+
+    configs[velox::core::QueryConfig::kHashProbeDynamicFilterPushdownEnabled] =
+        std::to_string(veloxCfg_->get<bool>(kHashProbeDynamicFilterPushdownEnabled, true));
+    configs[velox::core::QueryConfig::kHashProbeBloomFilterPushdownMaxSize] =
+        std::to_string(veloxCfg_->get<uint64_t>(kHashProbeBloomFilterPushdownMaxSize, 0));
     // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
     // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
     configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =
