@@ -166,6 +166,11 @@ abstract class FileSourceScanExecTransformerBase(
       return ValidationResult.failed(s"Unsupported columns scan in native.")
     }
 
+    if (getPartitionSchema.fields.exists(_.dataType.isInstanceOf[DecimalType])) {
+      return ValidationResult.failed(
+        s"Unsupported decimal partition column in native scan.")
+    }
+
     if (hasFieldIds) {
       // Spark read schema expects field Ids , the case didn't support yet by native.
       return ValidationResult.failed(
