@@ -66,11 +66,11 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
     }
 
     def testExecPlan(
-                      convertMetastoreOrc: String,
-                      charTypeFallbackEnabled: String,
-                      shouldFindTransformer: Boolean,
-                      transformerClass: Class[_ <: SparkPlan]
-                    ): Unit = {
+        convertMetastoreOrc: String,
+        charTypeFallbackEnabled: String,
+        shouldFindTransformer: Boolean,
+        transformerClass: Class[_ <: SparkPlan]
+    ): Unit = {
 
       withSQLConf(
         "spark.sql.hive.convertMetastoreOrc" -> convertMetastoreOrc,
