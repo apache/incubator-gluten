@@ -14,8 +14,6 @@
 # limitations under the License.
 
 add_headers_and_sources(gluten_spark_functions .)
-list(APPEND gluten_spark_functions_sources
-     ../AggregateFunctions/AggregateFunctionSparkArrayFold.cpp)
 
 add_library(gluten_spark_functions_obj OBJECT ${gluten_spark_functions_sources})
 list(
