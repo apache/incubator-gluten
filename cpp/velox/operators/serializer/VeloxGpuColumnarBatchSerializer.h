@@ -14,10 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.sources
 
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+#pragma once
 
-class GlutenBucketedWriteWithoutHiveSupportSuite
-  extends BucketedWriteWithoutHiveSupportSuite
-  with GlutenSQLTestsBaseTrait {}
+#include <arrow/c/abi.h>
+
+#include "VeloxColumnarBatchSerializer.h"
+
+#include "memory/ColumnarBatch.h"
+#include "operators/serializer/ColumnarBatchSerializer.h"
+#include "velox/serializers/PrestoSerializer.h"
+
+namespace gluten {
+
+class VeloxGpuColumnarBatchSerializer final : public VeloxColumnarBatchSerializer {
+ public:
+  VeloxGpuColumnarBatchSerializer(
+      arrow::MemoryPool* arrowPool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      struct ArrowSchema* cSchema);
+
+  // Deserialize to cudf table, then the Cudf pipeline accepts CudfVector, we can remove CudfFromveloc operator from the
+  // velox pipeline input.
+  std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) override;
+};
+
+} // namespace gluten

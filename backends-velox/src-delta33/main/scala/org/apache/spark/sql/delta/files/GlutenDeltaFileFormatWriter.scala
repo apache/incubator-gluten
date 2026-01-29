@@ -241,7 +241,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
                             orderingMatched: Boolean,
                             writeOffloadable: Boolean): Set[String] = {
     val projectList = V1WritesUtils.convertEmptyToNull(plan.output, partitionColumns)
-    val empty2NullPlan = if (projectList.nonEmpty) ProjectExec(projectList, plan) else plan
+    val empty2NullPlan = if (projectList.nonEmpty) ProjectExecTransformer(projectList, plan) else plan
 
     writeAndCommit(job, description, committer) {
       val (planToExecute, concurrentOutputWriterSpec) = if (orderingMatched) {
@@ -278,7 +278,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
       val wrappedPlanToExecute = if (writeOffloadable) {
         BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(planToExecute)
       } else {
-        planToExecute
+        Transitions.toRowPlan(planToExecute)
       }
 
       // In testing, this is the only way to get hold of the actually executed plan written to file
