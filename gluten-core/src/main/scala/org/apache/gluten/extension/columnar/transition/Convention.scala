@@ -17,7 +17,6 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
-import org.apache.spark.util.SparkVersionUtil
 
 import scala.collection.mutable
 
@@ -171,20 +170,7 @@ object Convention {
     this: SparkPlan =>
 
     final override def rowType(): RowType = {
-      if (SparkVersionUtil.lteSpark32) {
-        // It's known that in Spark 3.2, one Spark plan node is considered either only having
-        // row-based support or only having columnar support at a time.
-        // Hence, if the plan supports columnar output, we'd disable its row-based support.
-        // The same for the opposite.
-        if (supportsColumnar) {
-          Convention.RowType.None
-        } else {
-          assert(rowType0() != Convention.RowType.None)
-          rowType0()
-        }
-      } else {
-        rowType0()
-      }
+      rowType0()
     }
 
     def rowType0(): RowType
