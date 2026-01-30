@@ -36,6 +36,7 @@ ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
+USE_CLANG=OFF
 ENABLE_VCPKG=OFF
 ENABLE_GPU=OFF
 ENABLE_ENHANCED_FEATURES=OFF
@@ -101,6 +102,10 @@ do
         ;;
         --enable_abfs=*)
         ENABLE_ABFS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --use_clang=*)
+        USE_CLANG=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_vcpkg=*)
@@ -237,7 +242,10 @@ function build_gluten_cpp {
   rm -rf build
   mkdir build
   cd build
-
+  if [ $USE_CLANG = "ON" ]; then
+    export CC="clang"
+    export CXX="clang++"
+  fi
   GLUTEN_CMAKE_OPTIONS="-DBUILD_VELOX_BACKEND=ON \
     -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
     -DVELOX_HOME=$VELOX_HOME \
