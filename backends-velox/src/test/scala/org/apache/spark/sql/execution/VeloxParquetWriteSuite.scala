@@ -164,4 +164,48 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
       Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
+
+  test("test write parquet with custom block size, block rows and page size") {
+    val blockSize = 64 * 1024 * 1024L // 64MB
+    val blockRows = 10000000L // 10M
+    val pageSize = 1024 * 1024L // 1MB
+
+    withTempPath {
+      f =>
+        spark
+          .range(100)
+          .toDF("id")
+          .write
+          .format("parquet")
+          .option(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize.toString)
+          .option(GlutenConfig.PARQUET_BLOCK_ROWS, blockRows.toString)
+          .option(GlutenConfig.PARQUET_DATAPAGE_SIZE, pageSize.toString)
+          .save(f.getCanonicalPath)
+
+        val parquetDf = spark.read.parquet(f.getCanonicalPath)
+        checkAnswer(parquetDf, spark.range(100).toDF("id"))
+    }
+  }
+
+  test("test write parquet with block size, block rows and page size exceeding INT_MAX") {
+    val largeBlockSize = 3L * 1024 * 1024 * 1024 // 3GB
+    val largeBlockRows = 3L * 1000 * 1000 * 1000 // 3 billion
+    val largePageSize = 3L * 1024 * 1024 * 1024 // 3GB
+
+    withTempPath {
+      f =>
+        spark
+          .range(100)
+          .toDF("id")
+          .write
+          .format("parquet")
+          .option(GlutenConfig.PARQUET_BLOCK_SIZE, largeBlockSize.toString)
+          .option(GlutenConfig.PARQUET_BLOCK_ROWS, largeBlockRows.toString)
+          .option(GlutenConfig.PARQUET_DATAPAGE_SIZE, largePageSize.toString)
+          .save(f.getCanonicalPath)
+
+        val parquetDf = spark.read.parquet(f.getCanonicalPath)
+        checkAnswer(parquetDf, spark.range(100).toDF("id"))
+    }
+  }
 }
