@@ -576,7 +576,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def needPreComputeRangeFrameBoundary(): Boolean = true
 
-  override def supportIcebergEqualityDeleteRead(): Boolean = false
+  override def supportIcebergEqualityDeleteRead(): Boolean =
+    VeloxConfig.get.enableEnhancedFeatures()
 
   override def reorderColumnsForPartitionWrite(): Boolean = true
 
