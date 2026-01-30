@@ -16,13 +16,20 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{SortExecTransformer, WindowExecTransformer, WindowGroupLimitExecTransformer}
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 
 class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQLTestsTrait {
+
+  override def sparkConf: SparkConf = {
+    val conf = super.sparkConf
+    conf.set(GlutenConfig.GLUTEN_ANSI_FALLBACK_ENABLED.key, "false")
+  }
 
   private def decimal(v: BigDecimal): Decimal = Decimal(v, 7, 2)
 
@@ -47,8 +54,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     Row(95337, 12, decimal(915.61))
   )
 
-  // TODO: fix in Spark-4.0
-  ignore("Literal in window partition by and sort") {
+  testGluten("Literal in window partition by and sort") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
@@ -94,8 +100,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     }
   }
 
-  // TODO: fix in Spark-4.0
-  ignore("Filter on row number") {
+  testGluten("Filter on row number") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
@@ -186,8 +191,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     }
   }
 
-  // TODO: fix in Spark-4.0
-  ignore("Expression in WindowExpression") {
+  testGluten("Expression in WindowExpression") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
