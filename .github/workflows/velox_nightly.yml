@@ -485,6 +485,9 @@ jobs:
           cd $GITHUB_WORKSPACE/ && \
           ./build/mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
           ./build/mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          # iceberg support for spark-4.1 with java-17 is not avaiable, skip it first
+          ./build/mvn clean install -Pspark-4.1 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
