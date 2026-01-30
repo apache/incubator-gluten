@@ -692,13 +692,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
     var offload = true
     val (newChild, newOutput, newBuildKeys) =
       if (VeloxConfig.get.enableBroadcastBuildOncePerExecutor) {
-        if (
-          buildKeys
-            .forall(
-              k =>
-                k.isInstanceOf[AttributeReference] ||
-                  k.isInstanceOf[BoundReference])
-        ) {
+
+        val noNeedPreOp = buildKeys.forall {
+          case _: AttributeReference | _: BoundReference => true
+          case c: Cast => Cast.canUpCast(c.child.dataType, c.dataType)
+          case _ => false
+        }
+
+        if (noNeedPreOp) {
           (child, child.output, Seq.empty[Expression])
         } else {
           // pre projection in case of expression join keys
