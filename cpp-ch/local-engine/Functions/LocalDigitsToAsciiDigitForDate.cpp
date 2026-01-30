@@ -289,10 +289,16 @@ private:
                 if (c == 0xE0)
                 {
                     if ((b1 == 0xA5 && b2 >= 0xA6 && b2 <= 0xAF) || // Devanagari
-                        (b1 == 0xA7 && b2 >= 0xA6 && b2 <= 0xAF) || // Bengali
-                        (b1 == 0xB9 && b2 >= 0x90 && b2 <= 0x99))   // Thai
+                        (b1 == 0xA7 && b2 >= 0xA6 && b2 <= 0xAF))   // Bengali
                     {
-                        result.push_back(static_cast<char>('0' + (b2 & 0x0F)));
+                        result.push_back(static_cast<char>('0' + (b2 - 0xA6)));
+                        has_local_digit = true;
+                        i += 3;
+                        continue;
+                    }
+                    if (b1 == 0xB9 && b2 >= 0x90 && b2 <= 0x99) // Thai
+                    {
+                        result.push_back(static_cast<char>('0' + (b2 - 0x90)));
                         has_local_digit = true;
                         i += 3;
                         continue;
