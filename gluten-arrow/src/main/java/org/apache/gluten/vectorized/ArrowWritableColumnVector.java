@@ -38,6 +38,8 @@ import org.apache.spark.sql.execution.vectorized.WritableColumnVectorShim;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.sql.utils.SparkArrowUtil;
 import org.apache.spark.sql.utils.SparkSchemaUtil;
+import org.apache.spark.sql.vectorized.ArrowColumnarArray;
+import org.apache.spark.sql.vectorized.ArrowColumnarMap;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.slf4j.Logger;
