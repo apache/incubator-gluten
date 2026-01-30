@@ -27,7 +27,6 @@ on:
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
-  SETUP: 'bash .github/workflows/util/setup-helper.sh'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -86,23 +85,20 @@ jobs:
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* && \
           sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* && \
-          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          $SETUP install_maven
+          yum update -y && yum install -y java-1.8.0-openjdk-devel
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
       - name: Build package for Spark
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
@@ -127,23 +123,20 @@ jobs:
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* && \
           sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* && \
-          yum update -y && yum install -y java-17-openjdk-devel wget
-          $SETUP install_maven
+          yum update -y && yum install -y java-17-openjdk-devel
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
       - name: Build package for Spark
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
@@ -168,20 +161,17 @@ jobs:
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
-          yum update -y && yum install -y java-21-openjdk-devel wget
-          $SETUP install_maven
+          yum update -y && yum install -y java-21-openjdk-devel
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
       - name: Build package for Spark
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-21 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-4.1 -Pscala-2.13 -Pjava-21 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-21 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-4.1 -Pscala-2.13 -Pjava-21 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
@@ -245,23 +235,20 @@ jobs:
         with:
           name: velox-arrow-jar-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* && \
           sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* && \
-          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
-          $SETUP install_maven
+          yum update -y && yum install -y java-1.8.0-openjdk-devel
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
       - name: Build package for Spark
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
@@ -286,23 +273,20 @@ jobs:
         with:
           name: velox-arrow-jar-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
           sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* && \
           sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* && \
-          yum update -y && yum install -y java-17-openjdk-devel wget
-          $SETUP install_maven
+          yum update -y && yum install -y java-17-openjdk-devel
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
       - name: Build package for Spark
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
@@ -327,20 +311,17 @@ jobs:
         with:
           name: velox-arrow-jar-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
+      - name: Setup java
         run: |
-          yum update -y && yum install -y java-21-openjdk-devel wget
-          $SETUP install_maven
+          yum update -y && yum install -y java-21-openjdk-devel
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
       - name: Build package for Spark
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-21 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
-          mvn clean install -Pspark-4.1 -Pscala-2.13 -Pjava-21 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-21 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          ./build/mvn clean install -Pspark-4.1 -Pscala-2.13 -Pjava-21 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
