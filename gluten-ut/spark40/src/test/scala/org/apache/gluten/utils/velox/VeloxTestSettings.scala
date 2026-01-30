@@ -41,7 +41,7 @@ import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite
 import org.apache.spark.sql.gluten.{GlutenFallbackStrategiesSuite, GlutenFallbackSuite}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources._
-import org.apache.spark.sql.streaming.GlutenStreamingQuerySuite
+import org.apache.spark.sql.streaming._
 
 // Some settings' line length exceeds 100
 // scalastyle:off line.size.limit
@@ -958,6 +958,61 @@ class VeloxTestSettings extends BackendTestSettings {
     // vanilla Spark's query plan.
     .exclude("SPARK-47289: extended explain info")
   enableSuite[GlutenSQLMetricsSuite]
+  enableSuite[GlutenAcceptsLatestSeenOffsetSuite]
+  enableSuite[GlutenCommitLogSuite]
+  enableSuite[GlutenDeprecatedStreamingAggregationSuite]
+  enableSuite[GlutenEventTimeWatermarkSuite]
+  enableSuite[GlutenFileStreamSinkV1Suite]
+  enableSuite[GlutenFileStreamSinkV2Suite]
+  enableSuite[GlutenFileStreamSourceStressTestSuite]
+  enableSuite[GlutenFileStreamSourceSuite]
+  enableSuite[GlutenFileStreamStressSuite]
+  enableSuite[GlutenFlatMapGroupsInPandasWithStateDistributionSuite]
+  enableSuite[GlutenFlatMapGroupsInPandasWithStateSuite]
+  enableSuite[GlutenFlatMapGroupsWithStateDistributionSuite]
+  enableSuite[GlutenFlatMapGroupsWithStateSuite]
+  enableSuite[GlutenFlatMapGroupsWithStateWithInitialStateSuite]
+  enableSuite[GlutenGroupStateSuite]
+  enableSuite[GlutenLongOffsetSuite]
+  enableSuite[GlutenMemorySourceStressSuite]
+  enableSuite[GlutenMultiStatefulOperatorsSuite]
+  enableSuite[GlutenReportSinkMetricsSuite]
+  enableSuite[GlutenRocksDBStateStoreFlatMapGroupsWithStateSuite]
+  enableSuite[GlutenRocksDBStateStoreStreamingAggregationSuite]
+  enableSuite[GlutenRocksDBStateStoreStreamingDeduplicationSuite]
+  enableSuite[GlutenStreamSuite]
+  enableSuite[GlutenStreamingAggregationDistributionSuite]
+  enableSuite[GlutenStreamingAggregationSuite]
+  enableSuite[GlutenStreamingDeduplicationDistributionSuite]
+  enableSuite[GlutenStreamingDeduplicationSuite]
+  enableSuite[GlutenStreamingDeduplicationWithinWatermarkSuite]
+  enableSuite[GlutenStreamingFullOuterJoinSuite]
+  enableSuite[GlutenStreamingInnerJoinSuite]
+  enableSuite[GlutenStreamingLeftSemiJoinSuite]
+  enableSuite[GlutenStreamingOuterJoinSuite]
+  enableSuite[GlutenStreamingQueryHashPartitionVerifySuite]
+  enableSuite[GlutenStreamingQueryListenerSuite]
+  enableSuite[GlutenStreamingQueryListenersConfSuite]
+  enableSuite[GlutenStreamingQueryManagerSuite]
+  enableSuite[GlutenStreamingQueryOptimizationCorrectnessSuite]
+  enableSuite[GlutenStreamingQueryStatusAndProgressSuite]
+  enableSuite[GlutenStreamingSelfUnionSuite]
+  enableSuite[GlutenStreamingSessionWindowDistributionSuite]
+  enableSuite[GlutenStreamingSessionWindowSuite]
+  enableSuite[GlutenStreamingStateStoreFormatCompatibilitySuite]
+  enableSuite[GlutenStreamingSymmetricHashJoinHelperSuite]
+  enableSuite[GlutenTransformWithListStateSuite]
+  enableSuite[GlutenTransformWithListStateTTLSuite]
+  enableSuite[GlutenTransformWithMapStateSuite]
+  enableSuite[GlutenTransformWithMapStateTTLSuite]
+  enableSuite[GlutenTransformWithStateAvroSuite]
+  enableSuite[GlutenTransformWithStateChainingSuite]
+  enableSuite[GlutenTransformWithStateClusterSuite]
+  enableSuite[GlutenTransformWithStateInitialStateSuite]
+  enableSuite[GlutenTransformWithStateUnsafeRowSuite]
+  enableSuite[GlutenTransformWithStateValidationSuite]
+  enableSuite[GlutenTransformWithValueStateTTLSuite]
+  enableSuite[GlutenTriggerAvailableNowSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
