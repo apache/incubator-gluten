@@ -28,6 +28,14 @@
 #include <immintrin.h>
 #endif
 
+#if USE_ARM_MULTITARGET_CODE
+#include <arm_sve.h>
+#include <cmath>
+#include <cstdint>
+#include <vector>
+#include <type_traits>
+#endif
+
 namespace local_engine
 {
 template <typename T>
@@ -127,6 +135,70 @@ DECLARE_AVX2_SPECIFIC_CODE(
 
 )
 
+DECLARE_SVE_SPECIFIC_CODE(
+
+    inline void checkFloat32AndSetNullablessve(float *data, uint8_t *null_map, size_t size) {
+        size_t i = 0;
+        const size_t words = svcntw();
+        const size_t loop_bytes = size & ~(words - 1);
+
+        svbool_t pg_lanes = svptrue_b32();
+        svuint32_t all_false = svdup_u32(0);
+
+        svuint32_t all_true   = svdup_u32(!0);
+
+        for (; i < size; i += words) {
+            if (i >= loop_bytes) {
+                pg_lanes = svwhilelt_b32(i, size);
+            }
+
+            svfloat32_t values = svld1(pg_lanes, &data[i]);
+
+            /* svaclt returns false on both NaN and for the value condition are not met,
+            so that by comparing Infinity,it returns false on both NaN and at once,
+            so we get the correct predicate by inverting svaclt result */
+            svbool_t is_fpnum = svaclt_f32(pg_lanes, values, svdup_f32(INFINITY));
+            svbool_t to_nullify = svnot_b_z(pg_lanes, is_fpnum);
+
+            svst1(to_nullify, &data[i], svdup_f32(0.0f));
+            svuint32_t is_null_u32 = svsel_u32(to_nullify, all_true, all_false);
+
+            svst1b_u32(pg_lanes, &null_map[i], is_null_u32);
+        }
+    }
+
+    inline void checkFloat64AndSetNullablessve(double *data, uint8_t *null_map, size_t size) {
+
+        size_t i = 0;
+        const size_t words = svcntd();
+        const size_t loop_bytes = size & ~(words - 1);
+
+        svbool_t pg_lanes = svptrue_b64();
+        svuint64_t all_false  = svdup_u64(0);
+        svuint64_t all_true   = svdup_u64(!0);
+
+        for (; i < size; i += words) {
+            if (i >= loop_bytes) {
+                pg_lanes = svwhilelt_b64(i, size);
+            }
+
+            svfloat64_t values = svld1(pg_lanes, &data[i]);
+
+            /* svaclt returns false on both NaN and for the value condition are not met,
+            so that by comparing Infinity,it returns false on both NaN and at once,
+            so we get the correct predicate by inverting svaclt result */
+            svbool_t is_fpnum = svaclt_f64(pg_lanes, values, svdup_f64(INFINITY));
+            svbool_t to_nullify = svnot_b_z(pg_lanes,is_fpnum);
+
+            svst1(to_nullify, &data[i], svdup_f64(0.0));
+            svuint64_t is_null_u64 = svsel_u64(to_nullify, all_true, all_false);
+
+            svst1b_u64(pg_lanes, &null_map[i], is_null_u64);
+
+        }
+    }
+)
+
 template <typename T, DB::ScaleMode scale_mode>
 requires std::is_floating_point_v<T>
 struct SparkFloatFloorImpl
@@ -169,7 +241,6 @@ public:
             Op<>::compute(reinterpret_cast<T *>(&tmp_src), mm_scale, reinterpret_cast<T *>(&tmp_dst));
             memcpy(p_out, &tmp_dst, tail_size_bytes);
         }
-
 #if USE_MULTITARGET_CODE
         if (isArchSupported(DB::TargetArch::AVX2))
         {
@@ -185,8 +256,24 @@ public:
             }
         }
 #endif
+#if USE_ARM_MULTITARGET_CODE
+            if (isArchSupported(DB::TargetArch::SVE))
+            {
+
+                    if constexpr (std::is_same_v<T, Float32>)
+                    {
+                        TargetSpecific::SVE::checkFloat32AndSetNullablessve(out.data(), reinterpret_cast<uint8_t*>(null_map.data()), out.size());
+                        return;
+                    }
+                    else if constexpr (std::is_same_v<T, Float64>)
+                    {
+                        TargetSpecific::SVE::checkFloat64AndSetNullablessve(out.data(), reinterpret_cast<uint8_t*>(null_map.data()), out.size());
+                        return;
+                    }
+            }
+#endif
         for (size_t i = 0; i < out.size(); ++i)
-             checkAndSetNullable(out[i], null_map[i]);
+            checkAndSetNullable(out[i], null_map[i]);
     }
 };
 
