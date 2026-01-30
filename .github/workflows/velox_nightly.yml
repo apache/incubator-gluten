@@ -507,6 +507,7 @@ jobs:
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           mvn clean install -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
           mvn clean install -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
+          mvn clean install -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pceleborn -Puniffle -Piceberg -Phudi -Pdelta -Ppaimon -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
