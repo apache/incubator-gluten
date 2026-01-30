@@ -54,7 +54,7 @@ case class ConverRowNumbertWindowToAggregateRule(spark: SparkSession)
         if (
           !isSupportedWindowFunction(windowExpressions) || !isTopKLimitFilter(
             condition,
-            windowExpressions(0))
+            windowExpressions(0)) || !hasOrderExpression(partitionSpec, orderSpec)
         ) {
           logDebug(
             s"xxx Not Supported case for converting window to aggregate. is topk limit: " +
@@ -110,6 +110,12 @@ case class ConverRowNumbertWindowToAggregateRule(spark: SparkSession)
     windowFunction match {
       case _: RowNumber => true
       case _ => false
+    }
+  }
+
+  def hasOrderExpression(partitionSpec: Seq[Expression], orderSpec: Seq[SortOrder]): Boolean = {
+    orderSpec.nonEmpty && orderSpec.exists {
+      order => partitionSpec.find(partExpr => partExpr.semanticEquals(order.child)).isEmpty
     }
   }
 
