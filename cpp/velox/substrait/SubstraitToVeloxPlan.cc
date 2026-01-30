@@ -1284,24 +1284,23 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     const ::substrait::ReadRel& readRel, int32_t streamIdx) {
   // Use TableScanNode with iterator connector for runtime iterator inputs
   // Get output schema from ReadRel
-  std::vector<std::string> colNameList;
+  uint64_t colNum = 0;
   std::vector<TypePtr> veloxTypeList;
-  bool asLowerCase = !veloxCfg_->get<bool>(kCaseSensitive, false);
-
   if (readRel.has_base_schema()) {
     const auto& baseSchema = readRel.base_schema();
-    colNameList.reserve(baseSchema.names().size());
-    for (const auto& name : baseSchema.names()) {
-      std::string fieldName = name;
-      if (asLowerCase) {
-        folly::toLowerAscii(fieldName);
-      }
-      colNameList.emplace_back(fieldName);
-    }
-    veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema, asLowerCase);
+    colNum = baseSchema.names().size();
+    veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema);
   }
 
-  auto outputType = ROW(std::move(colNameList), std::move(veloxTypeList));
+  auto nodeId = ValueStreamConnectorFactory::nodeIdOf(streamIdx);
+  std::vector<std::string> outNames;
+  outNames.reserve(colNum);
+  for (int idx = 0; idx < colNum; idx++) {
+    // TODO: We'd use the designated names in readRel rather than assigning new names.
+    auto colName = fmt::format("node_{}_{}", nodeId, idx);
+    outNames.emplace_back(colName);
+  }
+  auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
 
   // Create TableHandle
   auto tableHandle = std::make_shared<ValueStreamTableHandle>(kIteratorConnectorId);
@@ -1309,15 +1308,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
   // Create column assignments
   connector::ColumnHandleMap assignments;
   for (int idx = 0; idx < outputType->size(); idx++) {
-    auto outName = SubstraitParser::makeNodeName(planNodeId_, idx);
-    assignments[outName] = std::make_shared<ValueStreamColumnHandle>(
-        outputType->nameOf(idx),
-        outputType->childAt(idx));
+    auto name = outputType->nameOf(idx);
+    auto type = outputType->childAt(idx);
+    assignments[name] = std::make_shared<ValueStreamColumnHandle>(name, type);
   }
 
   // Create TableScanNode
   auto tableScanNode = std::make_shared<core::TableScanNode>(
-      ValueStreamConnectorFactory::nodeIdOf(streamIdx),
+      nodeId,
       outputType,
       tableHandle,
       assignments);
