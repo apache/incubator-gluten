@@ -40,9 +40,9 @@ trait WriteUtils extends GlutenQueryTest with SQLTestUtils {
       override def onSuccess(funcName: String, qe: QueryExecution, duration: Long): Unit = {
         if (!nativeUsed) {
           nativeUsed = if (isSparkVersionGE("3.4")) {
-            qe.executedPlan.find(_.isInstanceOf[ColumnarWriteFilesExec]).isDefined
+            qe.executedPlan.exists(_.isInstanceOf[ColumnarWriteFilesExec])
           } else {
-            qe.executedPlan.find(_.isInstanceOf[VeloxColumnarToCarrierRowExec]).isDefined
+            qe.executedPlan.exists(_.isInstanceOf[VeloxColumnarToCarrierRowExec])
           }
         }
       }
