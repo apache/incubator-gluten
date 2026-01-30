@@ -177,9 +177,14 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
   // https://issues.apache.org/jira/browse/SPARK-31869
   private def expandPartitioning(partitioning: Partitioning): Partitioning = {
     val expandLimit = conf.broadcastHashJoinOutputPartitioningExpandLimit
+    val (buildKeys, streamedKeys) = if (needSwitchChildren) {
+      (leftKeys, rightKeys)
+    } else {
+      (rightKeys, leftKeys)
+    }
     joinType match {
       case _: InnerLike if expandLimit > 0 =>
-        new ExpandOutputPartitioningShim(streamedKeyExprs, buildKeyExprs, expandLimit)
+        new ExpandOutputPartitioningShim(streamedKeys, buildKeys, expandLimit)
           .expandPartitioning(partitioning)
       case _ => partitioning
     }
@@ -253,7 +258,8 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
       inputStreamedOutput,
       inputBuildOutput,
       context,
-      operatorId
+      operatorId,
+      buildPlan.id.toString
     )
 
     context.registerJoinParam(operatorId, joinParams)
