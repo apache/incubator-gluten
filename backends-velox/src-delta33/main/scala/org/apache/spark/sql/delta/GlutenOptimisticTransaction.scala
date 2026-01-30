@@ -27,7 +27,6 @@ import org.apache.spark.sql.delta.hooks.AutoCompact
 import org.apache.spark.sql.delta.perf.{DeltaOptimizedWriterExec, GlutenDeltaOptimizedWriterExec}
 import org.apache.spark.sql.delta.schema.InnerInvariantViolationException
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.delta.stats.{GlutenDeltaIdentityColumnStatsTracker, GlutenDeltaJobStatisticsTracker}
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, WriteJobStatsTracker}
@@ -72,8 +71,7 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
     // the FileFormatWriter.write call below and will collect per-file stats using
     // StatisticsCollection
     val optionalStatsTracker =
-      getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)._1.map(
-        new GlutenDeltaJobStatisticsTracker(_))
+      getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)._1
 
     val constraints =
       Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
@@ -87,7 +85,6 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
         statsDataSchema,
         trackIdentityHighWaterMarks
       )
-      .map(new GlutenDeltaIdentityColumnStatsTracker(_))
 
     SQLExecution.withNewExecutionId(queryExecution, Option("deltaTransactionalWrite")) {
       val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, output)
@@ -96,8 +93,8 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
         convertEmptyToNullIfNeeded(queryExecution.executedPlan, partitioningColumns, constraints)
       val maybeCheckInvariants = if (constraints.isEmpty) {
         // Compared to vanilla Delta, we simply avoid adding the invariant checker
-        // when the constraint list is empty, to omit the unnecessary transitions
-        // added around the invariant checker.
+        // when the constraint list is empty, to prevent the unnecessary transitions
+        // from being added around the invariant checker.
         empty2NullPlan
       } else {
         DeltaInvariantCheckerExec(empty2NullPlan, constraints)
@@ -206,7 +203,7 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
          committer.addedStatuses.map {
            a =>
              a.copy(stats = optionalStatsTracker
-               .map(_.delegate.recordedStats(a.toPath.getName))
+               .map(_.recordedStats(a.toPath.getName))
                .getOrElse(a.stats))
          }
        } else {
@@ -235,7 +232,7 @@ class GlutenOptimisticTransaction(delegate: OptimisticTransaction)
     if (resultFiles.nonEmpty && !isOptimize) registerPostCommitHook(AutoCompact)
     // Record the updated high water marks to be used during transaction commit.
     identityTrackerOpt.ifDefined {
-      tracker => updatedIdentityHighWaterMarks.appendAll(tracker.delegate.highWaterMarks.toSeq)
+      tracker => updatedIdentityHighWaterMarks.appendAll(tracker.highWaterMarks.toSeq)
     }
 
     resultFiles.toSeq ++ committer.changeFiles
