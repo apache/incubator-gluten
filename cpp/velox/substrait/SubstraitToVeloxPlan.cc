@@ -901,12 +901,13 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   if (injectedProject) {
     // Child should be either ProjectNode or CudfValueStreamNode (GPU) in case of project fallback.
     VELOX_CHECK(
-        (std::dynamic_pointer_cast<const core::ProjectNode>(childNode) != nullptr
+        (std::dynamic_pointer_cast<const core::ProjectNode>(childNode) != nullptr ||
+        std::dynamic_pointer_cast<const core::TableScanNode>(childNode) != nullptr
 #ifdef GLUTEN_ENABLE_GPU
             || std::dynamic_pointer_cast<const CudfValueStreamNode>(childNode) != nullptr
 #endif
         ) && childNode->outputType()->size() > requiredChildOutput.size(),
-        "injectedProject is true, but the ProjectNode or CudfValueStreamNode (in case of projection fallback)"
+        "injectedProject is true, but the ProjectNode or TableScanNode or CudfValueStreamNode (in case of projection fallback)"
         " is missing or does not have the corresponding projection field");
 
     bool isStack = generateRel.has_advanced_extension() &&
