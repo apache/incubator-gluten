@@ -20,12 +20,13 @@ import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.extension.columnar.validator.FallbackInjects
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Final, Partial}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-import java.sql.Timestamp
+import java.sql.{Date, Timestamp}
 
 abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
@@ -49,6 +50,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
+      .set("spark.sql.ansi.enabled", "false")
       .set(GlutenConfig.MERGE_TWO_PHASES_ENABLED.key, "false")
   }
 
@@ -1090,6 +1092,309 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
                          |select collect_list(a) from values (1), (-1), (null) AS tab(a)
                          |""".stripMargin)(
       df => assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 2))
+  }
+
+  test("collect_list with different primitive types") {
+    // Test with different primitive types to ensure comprehensive coverage
+
+    // Boolean type
+    withTempView("bool_tmp") {
+      Seq((1, true), (1, false), (2, true), (2, false))
+        .toDF("key", "val")
+        .createOrReplaceTempView("bool_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM bool_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Byte (TinyInt) type
+    withTempView("byte_tmp") {
+      Seq((1, 1.toByte), (1, 2.toByte), (2, 127.toByte), (2, (-128).toByte))
+        .toDF("key", "val")
+        .createOrReplaceTempView("byte_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM byte_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Short type
+    withTempView("short_tmp") {
+      Seq((1, 100.toShort), (1, 200.toShort), (2, 32767.toShort), (2, (-32768).toShort))
+        .toDF("key", "val")
+        .createOrReplaceTempView("short_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM short_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Integer type
+    withTempView("int_tmp") {
+      Seq((1, 100), (1, 200), (2, Int.MaxValue), (2, Int.MinValue))
+        .toDF("key", "val")
+        .createOrReplaceTempView("int_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM int_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Long type
+    withTempView("long_tmp") {
+      Seq((1, 100L), (1, 200L), (2, Long.MaxValue), (2, Long.MinValue))
+        .toDF("key", "val")
+        .createOrReplaceTempView("long_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM long_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Float type
+    withTempView("float_tmp") {
+      Seq((1, 1.5f), (1, 2.5f), (2, Float.MaxValue), (2, Float.MinValue))
+        .toDF("key", "val")
+        .createOrReplaceTempView("float_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM float_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Double type
+    withTempView("double_tmp") {
+      Seq((1, 1.5d), (1, 2.5d), (2, Double.MaxValue), (2, Double.MinValue))
+        .toDF("key", "val")
+        .createOrReplaceTempView("double_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM double_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Decimal type
+    withTempView("decimal_tmp") {
+      val data = Seq(
+        (1, BigDecimal("123.45")),
+        (1, BigDecimal("678.90")),
+        (2, BigDecimal("999.99")),
+        (2, BigDecimal("-999.99"))
+      )
+      data.toDF("key", "val").createOrReplaceTempView("decimal_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM decimal_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // String type
+    withTempView("string_tmp") {
+      Seq((1, "hello"), (1, "world"), (2, "foo"), (2, "bar"), (2, ""))
+        .toDF("key", "val")
+        .createOrReplaceTempView("string_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM string_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Date type
+    withTempView("date_tmp") {
+      Seq(
+        (1, Date.valueOf("2023-01-01")),
+        (1, Date.valueOf("2023-06-15")),
+        (2, Date.valueOf("2024-12-31")),
+        (2, Date.valueOf("2020-01-01"))
+      ).toDF("key", "val").createOrReplaceTempView("date_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM date_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Timestamp type
+    withTempView("ts_tmp") {
+      Seq(
+        (1, Timestamp.valueOf("2023-01-01 10:00:00")),
+        (1, Timestamp.valueOf("2023-06-15 15:30:00")),
+        (2, Timestamp.valueOf("2024-12-31 23:59:59")),
+        (2, Timestamp.valueOf("2020-01-01 00:00:00"))
+      ).toDF("key", "val").createOrReplaceTempView("ts_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM ts_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Binary type
+    withTempView("binary_tmp") {
+      Seq(
+        (1, Array[Byte](1, 2, 3)),
+        (1, Array[Byte](4, 5, 6)),
+        (2, Array[Byte](7, 8, 9)),
+        (2, Array[Byte](10, 11, 12))
+      ).toDF("key", "val").createOrReplaceTempView("binary_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM binary_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Mixed nulls across all groups - use SQL literal to avoid Seq type inference issues
+    withTempView("null_mix_tmp") {
+      spark
+        .sql("""
+               |SELECT * FROM VALUES
+               |(1, CAST(NULL AS INT)),
+               |(1, CAST(NULL AS INT)),
+               |(2, 100),
+               |(2, CAST(NULL AS INT)),
+               |(3, CAST(NULL AS INT))
+               |AS null_mix_tmp(key, val)
+               |""".stripMargin)
+        .createOrReplaceTempView("null_mix_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM null_mix_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+  }
+
+  test("collect_list with nested complex types") {
+    import org.apache.spark.sql.Row
+
+    // Array of integers
+    withTempView("array_tmp") {
+      spark
+        .createDataFrame(
+          spark.sparkContext.parallelize(
+            Seq(
+              Row(1, Seq(1, 2, 3)),
+              Row(1, Seq(4, 5)),
+              Row(2, Seq(6, 7, 8, 9)),
+              Row(2, null)
+            )),
+          StructType(
+            Seq(
+              StructField("key", IntegerType),
+              StructField("val", ArrayType(IntegerType), nullable = true)
+            ))
+        )
+        .createOrReplaceTempView("array_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM array_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Struct type
+    withTempView("struct_tmp") {
+      spark
+        .createDataFrame(
+          spark.sparkContext.parallelize(
+            Seq(
+              Row(1, Row(100, "a")),
+              Row(1, Row(200, "b")),
+              Row(2, Row(300, "c")),
+              Row(2, null)
+            )),
+          StructType(
+            Seq(
+              StructField("key", IntegerType),
+              StructField(
+                "val",
+                StructType(
+                  Seq(
+                    StructField("id", IntegerType),
+                    StructField("name", StringType)
+                  )),
+                nullable = true)
+            ))
+        )
+        .createOrReplaceTempView("struct_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM struct_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Map type
+    withTempView("map_tmp") {
+      spark
+        .createDataFrame(
+          spark.sparkContext.parallelize(
+            Seq(
+              Row(1, Map("a" -> 1, "b" -> 2)),
+              Row(1, Map("c" -> 3)),
+              Row(2, Map("d" -> 4, "e" -> 5, "f" -> 6)),
+              Row(2, null)
+            )),
+          StructType(
+            Seq(
+              StructField("key", IntegerType),
+              StructField("val", MapType(StringType, IntegerType), nullable = true)
+            ))
+        )
+        .createOrReplaceTempView("map_tmp")
+      runQueryAndCompare("SELECT key, collect_list(val) FROM map_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+  }
+
+  test("collect_list with large result sets") {
+    // Test collect_list with larger number of elements
+    withTempView("large_tmp") {
+      val data = (1 to 1000).map(i => (i % 10, i))
+      data.toDF("key", "val").createOrReplaceTempView("large_tmp")
+      runQueryAndCompare("SELECT key, size(collect_list(val)) FROM large_tmp GROUP BY key") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+  }
+
+  test("collect_list global aggregation without group by") {
+    // Test global aggregation (no GROUP BY)
+    withTempView("global_tmp") {
+      Seq[java.lang.Integer](1, 2, 3, 4, 5, null)
+        .toDF("val")
+        .createOrReplaceTempView("global_tmp")
+      runQueryAndCompare("SELECT collect_list(val) FROM global_tmp") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+
+    // Empty table
+    withTempView("empty_tmp") {
+      spark
+        .createDataFrame(
+          spark.sparkContext.emptyRDD[org.apache.spark.sql.Row],
+          StructType(Seq(StructField("key", IntegerType), StructField("val", IntegerType)))
+        )
+        .createOrReplaceTempView("empty_tmp")
+      runQueryAndCompare("SELECT collect_list(val) FROM empty_tmp") {
+        checkGlutenPlan[HashAggregateExecTransformer]
+      }
+    }
+  }
+
+  test("collect_list fallback for unsupported types") {
+    // Test that collect_list properly falls back to Spark for unsupported types
+    // TimestampNTZ (Timestamp without timezone) is not supported by Velox
+    // TimestampNTZType is only available in Spark 3.4+
+    if (isSparkVersionGE("3.4")) {
+      withTempView("timestamp_ntz_tmp") {
+        // Use SQL to create TimestampNTZ data to avoid compile-time dependency
+        spark
+          .sql("""
+                 |SELECT * FROM VALUES
+                 |  (1, TIMESTAMP_NTZ'2023-01-01 10:30:00'),
+                 |  (1, TIMESTAMP_NTZ'2023-06-15 14:45:30'),
+                 |  (2, TIMESTAMP_NTZ'2024-12-31 23:59:59'),
+                 |  (2, NULL)
+                 |AS timestamp_ntz_tmp(key, val)
+                 |""".stripMargin)
+          .createOrReplaceTempView("timestamp_ntz_tmp")
+
+        // TimestampNTZ should trigger fallback - verify no native HashAggregateExecTransformer
+        runQueryAndCompare(
+          "SELECT key, collect_list(val) FROM timestamp_ntz_tmp GROUP BY key",
+          noFallBack = false) {
+          df =>
+            assert(
+              !getExecutedPlan(df).exists(_.isInstanceOf[HashAggregateExecTransformer]),
+              "Expected fallback to Spark for TimestampNTZ type, but found native HashAggregate"
+            )
+        }
+      }
+    }
   }
 
   test("skewness") {
