@@ -31,7 +31,7 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{DecimalType, StructType}
 
 import com.google.common.base.Objects
 
@@ -162,6 +162,10 @@ abstract class BatchScanExecTransformerBase(
 
     if (hasUnsupportedColumns) {
       return ValidationResult.failed(s"Unsupported columns scan in native.")
+    }
+
+    if (getPartitionSchema.fields.exists(_.dataType.isInstanceOf[DecimalType])) {
+      return ValidationResult.failed(s"Unsupported decimal partition column in native scan.")
     }
 
     super.doValidateInternal()
