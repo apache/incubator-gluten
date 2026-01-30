@@ -12,6 +12,12 @@
   <packaging>jar</packaging>
   <name>Gluten Unit Test Spark40</name>
 
+  <properties>
+    <parquet.version>1.15.2</parquet.version>
+    <parquet.test.deps.scope>test</parquet.test.deps.scope>
+    <avro.version>1.12.0</avro.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>
@@ -23,16 +29,38 @@
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-column</artifactId>
-      <version>1.15.2</version>
+      <version>${parquet.version}</version>
       <classifier>tests</classifier>
-      <scope>test</scope>
+      <scope>${parquet.test.deps.scope}</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-common</artifactId>
-      <version>1.15.2</version>
+      <version>${parquet.version}</version>
       <classifier>tests</classifier>
-      <scope>test</scope>
+      <scope>${parquet.test.deps.scope}</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.parquet</groupId>
+      <artifactId>parquet-avro</artifactId>
+      <version>${parquet.version}</version>
+      <scope>${parquet.test.deps.scope}</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+      <scope>${parquet.test.deps.scope}</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-io</groupId>
+          <artifactId>commons-io</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>

@@ -18,17 +18,14 @@ package org.apache.spark.sql.classic
 
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.classic.ClassicConversions._
 
 /**
- * Ensures compatibility with Spark 4.0. The implicit class ColumnConstructorExt from
- * ClassicConversions is used to construct a Column from an Expression. Since Spark 4.0, the Column
- * class is private to the package org.apache.spark. This class provides a way to construct a Column
- * in code that is outside the org.apache.spark package. Developers can directly call Column(e) if
- * ColumnConstructorExt is imported and the caller code is within this package.
+ * Ensures compatibility with Spark 4.0. Since Spark 4.0, the Column class is private to the package
+ * org.apache.spark. This class provides a way to construct a Column from an Expression in code that
+ * is outside the org.apache.spark package by delegating to ExpressionUtils.column().
  */
 object ClassicColumn {
   def apply(e: Expression): Column = {
-    Column(e)
+    ExpressionUtils.column(e)
   }
 }

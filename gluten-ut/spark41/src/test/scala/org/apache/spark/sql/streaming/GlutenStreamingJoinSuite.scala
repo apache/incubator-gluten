@@ -14,18 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.classic
+package org.apache.spark.sql.streaming
 
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.GlutenTestsCommonTrait
 
-/**
- * Ensures compatibility with Spark 4.0. Since Spark 4.0, the Column class is private to the package
- * org.apache.spark. This class provides a way to construct a Column from an Expression in code that
- * is outside the org.apache.spark package by delegating to ExpressionUtils.column().
- */
-object ClassicColumn {
-  def apply(e: Expression): Column = {
-    ExpressionUtils.column(e)
-  }
-}
+class GlutenStreamingInnerJoinSuite extends StreamingInnerJoinSuite with GlutenTestsCommonTrait {}
+
+class GlutenStreamingOuterJoinSuite extends StreamingOuterJoinSuite with GlutenTestsCommonTrait {}
+
+class GlutenStreamingFullOuterJoinSuite
+  extends StreamingFullOuterJoinSuite
+  with GlutenTestsCommonTrait {}
+
+class GlutenStreamingLeftSemiJoinSuite
+  extends StreamingLeftSemiJoinSuite
+  with GlutenTestsCommonTrait {}
