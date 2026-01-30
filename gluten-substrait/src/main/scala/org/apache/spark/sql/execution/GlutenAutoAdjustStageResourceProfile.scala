@@ -31,6 +31,7 @@ import org.apache.spark.sql.execution.{GlutenAutoAdjustStageResourceProfile => G
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
 import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkTestUtil
 
@@ -64,7 +65,7 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
     GlutenResourceProfile.updateResourceSetting(
       ResourceProfile.getOrCreateDefaultProfile(sparkConf),
       sparkConf)
-    if (!plan.isInstanceOf[Exchange]) {
+    if (!plan.isInstanceOf[Exchange] && !plan.isInstanceOf[ColumnarToRowExecBase]) {
       // todo: support set resource profile for final stage
       return plan
     }
@@ -91,6 +92,32 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
     val offheapRequest = executorResource.get(ResourceProfile.OFFHEAP_MEM)
     logInfo(s"default memory request $memoryRequest")
     logInfo(s"default offheap request $offheapRequest")
+
+//    val offloadGpu =
+//      glutenConf.enableColumnarCudf && planNodes.exists(_.isInstanceOf[BaseJoinExec])
+    val offloadGpu = planNodes.exists(_.isInstanceOf[BaseJoinExec])
+
+    if (offloadGpu) {
+      taskResource.put("gpu", new TaskResourceRequest("gpu", 1))
+      executorResource.put("gpu", new ExecutorResourceRequest("gpu", 1))
+
+      val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
+      return GlutenResourceProfile.applyNewResourceProfileIfPossible(
+        plan,
+        newRP,
+        rpManager,
+        sparkConf)
+    } else {
+      taskResource.put("cpu", new TaskResourceRequest("cpu", 1))
+      executorResource.put("cpu", new ExecutorResourceRequest("cpu", 1))
+
+      val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
+      return GlutenResourceProfile.applyNewResourceProfileIfPossible(
+        plan,
+        newRP,
+        rpManager,
+        sparkConf)
+    }
 
     // case 1: whole stage fallback to vanilla spark in such case we increase the heap
     if (wholeStageFallback) {
