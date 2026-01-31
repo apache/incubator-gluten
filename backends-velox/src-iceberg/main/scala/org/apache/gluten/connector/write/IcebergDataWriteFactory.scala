@@ -44,7 +44,12 @@ case class IcebergDataWriteFactory(
     sortOrder: SortOrder,
     field: IcebergNestedField,
     queryId: String)
-  extends ColumnarBatchDataWriterFactory {
+  extends ColumnarBatchDataWriterFactory
+  with ColumnarStreamingDataWriterFactory {
+
+  override def createWriter(partitionId: Int, taskId: Long): DataWriter[ColumnarBatch] = {
+    createWriter(partitionId, taskId, 0)
+  }
 
   /**
    * Returns a data writer to do the actual writing work. Note that, Spark will reuse the same data
@@ -53,7 +58,10 @@ case class IcebergDataWriteFactory(
    * <p> If this method fails (by throwing an exception), the corresponding Spark write task would
    * fail and get retried until hitting the maximum retry times.
    */
-  override def createWriter(partitionId: Int, taskId: Long): DataWriter[ColumnarBatch] = {
+  override def createWriter(
+      partitionId: Int,
+      taskId: Long,
+      epochId: Long): DataWriter[ColumnarBatch] = {
     val fields = partitionSpec
       .fields()
       .stream()
@@ -64,7 +72,6 @@ case class IcebergDataWriteFactory(
       .setSpecId(partitionSpec.specId())
       .addAllFields(fields)
       .build()
-    val epochId = 0
     val operationId = queryId + "-" + epochId
     val (writerHandle, jniWrapper) =
       getJniWrapper(

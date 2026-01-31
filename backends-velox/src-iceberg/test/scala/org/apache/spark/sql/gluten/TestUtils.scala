@@ -24,7 +24,7 @@ import scala.reflect.ClassTag
 
 object TestUtils {
 
-  def checkExecutedPlanContains[T: ClassTag](spark: SparkSession, sqlStr: String): Unit = {
+  def checkExecutedPlanContains[T: ClassTag](spark: SparkSession, action: => Unit): Unit = {
     var found = false
     val queryListener = new QueryExecutionListener {
       override def onFailure(f: String, qe: QueryExecution, e: Exception): Unit = {}
@@ -36,7 +36,7 @@ object TestUtils {
     }
     try {
       spark.listenerManager.register(queryListener)
-      spark.sql(sqlStr)
+      action
       spark.sparkContext.listenerBus.waitUntilEmpty()
       assert(found)
     } finally {
