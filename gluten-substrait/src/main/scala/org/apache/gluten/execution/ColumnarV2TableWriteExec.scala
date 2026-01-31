@@ -44,10 +44,9 @@ trait ColumnarV2TableWriteExec extends V2TableWriteExec with ValidatablePlan {
 
   def withNewQuery(newQuery: SparkPlan): SparkPlan = withNewChildInternal(newQuery)
 
-  protected def createBatchDataWriterFactory(schema: StructType): ColumnarBatchDataWriterFactory
+  protected def createBatchWriterFactory(schema: StructType): ColumnarBatchDataWriterFactory
 
-  protected def createStreamingDataWriterFactory(
-      schema: StructType): ColumnarStreamingDataWriterFactory
+  protected def createStreamingWriterFactory(schema: StructType): ColumnarStreamingDataWriterFactory
 
   override protected def run(): Seq[InternalRow] = {
     writeColumnarBatchWithV2(batchWrite)
@@ -92,9 +91,9 @@ trait ColumnarV2TableWriteExec extends V2TableWriteExec with ValidatablePlan {
         val epochIdField = m.getClass.getDeclaredField("epochId")
         epochIdField.setAccessible(true)
         val epochId = epochIdField.getLong(m)
-        new ColumnarMicroBatchWriterFactory(epochId, createStreamingDataWriterFactory(query.schema))
+        new ColumnarMicroBatchWriterFactory(epochId, createStreamingWriterFactory(query.schema))
       case _ =>
-        createBatchDataWriterFactory(query.schema)
+        createBatchWriterFactory(query.schema)
     }
     try {
       sparkContext.runJob(

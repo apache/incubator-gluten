@@ -42,12 +42,12 @@ abstract class AbstractIcebergWriteExec extends IcebergWriteExec {
     )
   }
 
-  override protected def createBatchDataWriterFactory(
+  override protected def createBatchWriterFactory(
       schema: StructType): ColumnarBatchDataWriterFactory = {
     createIcebergDataWriteFactory(schema)
   }
 
-  override protected def createStreamingDataWriterFactory(
+  override protected def createStreamingWriterFactory(
       schema: StructType): ColumnarStreamingDataWriterFactory = {
     createIcebergDataWriteFactory(schema)
   }
