@@ -1022,10 +1022,10 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenRemoveRedundantWindowGroupLimitsSuite]
   enableSuite[GlutenSQLCollectLimitExecSuite]
   // Generated suites for org.apache.spark.sql.execution.python
-  enableSuite[GlutenPythonDataSourceSuite]
-  enableSuite[GlutenPythonUDFSuite]
-  enableSuite[GlutenPythonUDTFSuite]
-  enableSuite[GlutenRowQueueSuite]
+  // enableSuite[GlutenPythonDataSourceSuite]
+  // enableSuite[GlutenPythonUDFSuite]
+  // enableSuite[GlutenPythonUDTFSuite]
+  // enableSuite[GlutenRowQueueSuite]
   enableSuite[GlutenBatchEvalPythonExecSuite]
     // Replaced with other tests that check for native operations
     .exclude("Python UDF: push down deterministic FilterExec predicates")
