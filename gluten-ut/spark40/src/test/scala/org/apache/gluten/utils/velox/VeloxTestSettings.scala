@@ -960,7 +960,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSQLMetricsSuite]
   enableSuite[GlutenAcceptsLatestSeenOffsetSuite]
   enableSuite[GlutenCommitLogSuite]
-  enableSuite[GlutenDeprecatedStreamingAggregationSuite]
   enableSuite[GlutenEventTimeWatermarkSuite]
   enableSuite[GlutenFileStreamSinkV1Suite]
   enableSuite[GlutenFileStreamSinkV2Suite]
