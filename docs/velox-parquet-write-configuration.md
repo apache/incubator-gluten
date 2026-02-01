@@ -78,7 +78,7 @@ nav_order: 17
 	</tr>
 	<tr>
 		<td><code>parquet.write.support.class</code></td>
-		<td>org.apache.parquet.hadoop.api.WriteSupport</td><td></td><td></td><td></td>
+		<td>org.apache.parquet<br>.hadoop.api.WriteSupport</td><td></td><td></td><td></td>
 	</tr>
 	<tr>
 		<td><code>parquet.enable.dictionary</code></td>
