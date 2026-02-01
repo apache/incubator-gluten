@@ -91,6 +91,8 @@ class LocalPartitionWriter : public PartitionWriter {
 
   void init();
 
+  arrow::Status writeIndexFile();
+
   arrow::Status requestSpill(bool isFinal);
 
   arrow::Status finishSpill();
@@ -102,6 +104,10 @@ class LocalPartitionWriter : public PartitionWriter {
   arrow::Result<int64_t> mergeSpills(uint32_t partitionId, arrow::io::OutputStream* os);
 
   arrow::Status writeCachedPayloads(uint32_t partitionId, arrow::io::OutputStream* os) const;
+
+  arrow::Status flushCachedPlayloads();
+
+  arrow::Status writeMemoryPayload(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload);
 
   arrow::Status clearResource();
 
@@ -129,6 +135,11 @@ class LocalPartitionWriter : public PartitionWriter {
   int64_t totalBytesWritten_{0};
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
+
+  bool usePartitionMultipleSegments_{false};
+  // For each partition, record all segments' (start, length) in the final data file.
+  // partitionSegments_[pid] = [(start1, length1), (start2, length2), ...]
+  std::vector<std::vector<std::pair<int64_t, int64_t>>> partitionSegments_{};
 
   int32_t lastEvictPid_{-1};
 };

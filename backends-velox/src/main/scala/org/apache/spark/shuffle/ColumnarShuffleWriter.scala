@@ -284,12 +284,22 @@ class ColumnarShuffleWriter[K, V](
 
     partitionLengths = splitResult.getPartitionLengths
     try {
-      shuffleBlockResolver.writeMetadataFileAndCommit(
-        dep.shuffleId,
-        mapId,
-        partitionLengths,
-        Array[Long](),
-        tempDataFile)
+      if (partitionUseMultipleSegments) {
+        columnarShuffleBlockResolver.writeIndexFileAndCommit(
+          dep.shuffleId,
+          mapId,
+          tempDataFile,
+          tempIndexFile,
+          numPartitions,
+          None)
+      } else {
+        shuffleBlockResolver.writeMetadataFileAndCommit(
+          dep.shuffleId,
+          mapId,
+          partitionLengths,
+          Array[Long](),
+          tempDataFile)
+      }
     } finally {
       if (tempDataFile.exists() && !tempDataFile.delete()) {
         logError(s"Error while deleting temp file ${tempDataFile.getAbsolutePath}")
