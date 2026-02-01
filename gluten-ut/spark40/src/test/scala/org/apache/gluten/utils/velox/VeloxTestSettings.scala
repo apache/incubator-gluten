@@ -28,12 +28,12 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.velox.VeloxAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.binaryfile.GlutenBinaryFileFormatSuite
-import org.apache.spark.sql.execution.datasources.csv.{GlutenCSVLegacyTimeParserSuite, GlutenCSVv1Suite, GlutenCSVv2Suite}
-import org.apache.spark.sql.execution.datasources.json.{GlutenJsonLegacyTimeParserSuite, GlutenJsonV1Suite, GlutenJsonV2Suite}
+import org.apache.spark.sql.execution.datasources.csv._
+import org.apache.spark.sql.execution.datasources.json._
 import org.apache.spark.sql.execution.datasources.orc._
 import org.apache.spark.sql.execution.datasources.parquet._
-import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
-import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
+import org.apache.spark.sql.execution.datasources.text._
+import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.execution.exchange.{GlutenEnsureRequirementsSuite, GlutenValidateRequirementsSuite}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.metric.GlutenSQLMetricsSuite
@@ -302,6 +302,36 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenBinaryFileFormatSuite]
     // Exception.
     .exclude("column pruning - non-readable file")
+  // Generated suites for org.apache.spark.sql.execution.datasources
+  enableSuite[GlutenBasicWriteJobStatsTrackerMetricSuite]
+  enableSuite[GlutenBasicWriteTaskStatsTrackerSuite]
+  enableSuite[GlutenCustomWriteTaskStatsTrackerSuite]
+  enableSuite[GlutenDataSourceManagerSuite]
+  enableSuite[GlutenDataSourceResolverSuite]
+  enableSuite[GlutenFileResolverSuite]
+  enableSuite[GlutenInMemoryTableMetricSuite]
+  enableSuite[GlutenPushVariantIntoScanSuite]
+  enableSuite[GlutenRowDataSourceStrategySuite]
+  enableSuite[GlutenSaveIntoDataSourceCommandSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.csv
+  enableSuite[GlutenCSVParsingOptionsSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.json
+  enableSuite[GlutenJsonParsingOptionsSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.orc
+  enableSuite[GlutenOrcEncryptionSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.parquet
+  enableSuite[GlutenParquetAvroCompatibilitySuite]
+  enableSuite[GlutenParquetCommitterSuite]
+  enableSuite[GlutenParquetFieldIdSchemaSuite]
+  enableSuite[GlutenParquetTypeWideningSuite]
+  enableSuite[GlutenParquetVariantShreddingSuite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.text
+  enableSuite[GlutenWholeTextFileV1Suite]
+  enableSuite[GlutenWholeTextFileV2Suite]
+  // Generated suites for org.apache.spark.sql.execution.datasources.v2
+  enableSuite[GlutenFileWriterFactorySuite]
+  enableSuite[GlutenV2SessionCatalogNamespaceSuite]
+  enableSuite[GlutenV2SessionCatalogTableSuite]
   enableSuite[GlutenCSVv1Suite]
     // file cars.csv include null string, Arrow not support to read
     .exclude("DDL test with schema")
