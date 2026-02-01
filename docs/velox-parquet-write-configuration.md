@@ -3,6 +3,17 @@ title: Parquet write configuration
 nav_order: 17
 
 ## Parquet write configurations in Spark/Velox/Gluten
+
+Gluten configuration includes two types. config in parquet and config in spark. the two configurations below has the same effect. One is for spark session, the other is for the query.
+
+```
+sc.conf.set("spark.gluten.sql.native.parquet.write.blockRows")
+
+df.write.option("parquet.block.rows").save()
+
+```
+
+
 <table class="spark-config">
 <thead>
 	<tr>
@@ -10,7 +21,7 @@ nav_order: 17
 		<th>parquet-mr default</th>
 		<th>Spark default</th>
 		<th>Velox Default</th>
-		<th>Gluten Support</th>
+		<th>Gluten Config</th>
 	</tr>
 </thead>
 <tbody>
