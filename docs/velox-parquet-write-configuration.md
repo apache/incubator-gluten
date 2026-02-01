@@ -31,11 +31,11 @@ nav_order: 17
 	</tr>
 	<tr>
 		<td><code>write_batch_size</code></td>
-		<td></td><td></td><td>1024</td><td>Y (batch size)</td>
+		<td></td><td></td><td>1024</td><td>spark.gluten.sql.columnar.maxBatchSize</td>
 	</tr>
 	<tr>
 		<td><code>rowgroup_length</code></td>
-		<td></td><td></td><td>1M</td><td></td>
+		<td></td><td></td><td>1M</td><td>parquet.block.rows<br>spark.gluten.sql.native.parquet.write.blockRows</td>
 	</tr>
 	<tr>
 		<td><code>compression_level</code></td>
@@ -66,15 +66,15 @@ nav_order: 17
 	</tr>
 	<tr>
 		<td><code>parquet.block.size</code></td>
-		<td>128m</td><td></td><td></td><td>Y</td>
+		<td>128m</td><td></td><td></td><td>parquet.block.size<br>spark.gluten.sql.columnar.parquet.write.blockSize</td>
 	</tr>
 	<tr>
 		<td><code>parquet.page.size</code></td>
-		<td>1m</td><td></td><td>1M</td><td>Y</td>
+		<td>1m</td><td></td><td>1M</td><td>parquet.page.size</td>
 	</tr>
 	<tr>
 		<td><code>parquet.compression</code></td>
-		<td>uncompressed</td><td>snappy</td><td>uncompressed</td><td>Y</td>
+		<td>uncompressed</td><td>snappy</td><td>uncompressed</td><td>parquet.compression<br>spark.sql.parquet.compression.codec</td>
 	</tr>
 	<tr>
 		<td><code>parquet.write.support.class</code></td>
@@ -82,7 +82,7 @@ nav_order: 17
 	</tr>
 	<tr>
 		<td><code>parquet.enable.dictionary</code></td>
-		<td>true</td><td></td><td>true</td><td>Y</td>
+		<td>true</td><td></td><td>true</td><td>parquet.enable.dictionary</td>
 	</tr>
 	<tr>
 		<td><code>parquet.dictionary.page.size</code></td>
@@ -94,7 +94,7 @@ nav_order: 17
 	</tr>
 	<tr>
 		<td><code>parquet.writer.version</code></td>
-		<td>PARQUET_1_0</td><td></td><td>PARQUET_2_6</td><td>Y</td>
+		<td>PARQUET_1_0</td><td></td><td>PARQUET_2_6</td><td>parquet.writer.version</td>
 	</tr>
 	<tr>
 		<td><code>parquet.memory.pool.ratio</code></td>
@@ -178,7 +178,7 @@ nav_order: 17
 	</tr>
 	<tr>
 		<td><code>parquet.compression.codec.zstd.level</code></td>
-		<td>3</td><td></td><td>0</td><td>Y</td>
+		<td>3</td><td></td><td>0</td><td>parquet.compression.codec.zstd.level</td>
 	</tr>
 	<tr>
 		<td><code>parquet.compression.codec.zstd.workers</code></td>
