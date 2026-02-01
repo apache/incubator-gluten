@@ -253,6 +253,19 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenV2ExpressionUtilsSuite]
   enableSuite[GlutenValidateExternalTypeSuite]
   enableSuite[GlutenXmlExpressionsSuite]
+  // Generated suites for org.apache.spark.sql.connector
+  enableSuite[GlutenDataSourceV2MetricsSuite]
+  enableSuite[GlutenDataSourceV2OptionSuite]
+  enableSuite[GlutenDataSourceV2UtilsSuite]
+  enableSuite[GlutenGroupBasedUpdateTableSuite]
+  enableSuite[GlutenMergeIntoDataFrameSuite]
+  enableSuite[GlutenProcedureSuite]
+  enableSuite[GlutenPushablePredicateSuite]
+  enableSuite[GlutenV1ReadFallbackWithCatalogSuite]
+  enableSuite[GlutenV1ReadFallbackWithDataFrameReaderSuite]
+  enableSuite[GlutenV1WriteFallbackSessionCatalogSuite]
+  enableSuite[GlutenV1WriteFallbackSuite]
+  enableSuite[GlutenV2CommandsCaseSensitivitySuite]
   enableSuite[VeloxAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
