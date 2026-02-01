@@ -23,7 +23,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate
 import org.apache.spark.sql.connector._
-import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
+import org.apache.spark.sql.errors._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.velox.VeloxAdaptiveQueryExecSuite
 import org.apache.spark.sql.execution.datasources._
@@ -87,15 +87,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
-  enableSuite[GlutenQueryCompilationErrorsDSv2Suite]
-  enableSuite[GlutenQueryCompilationErrorsSuite]
-  enableSuite[GlutenQueryExecutionErrorsSuite]
-    // NEW SUITE: disable as it expects exception which doesn't happen when offloaded to gluten
-    .exclude(
-      "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
-    // Doesn't support unhex with failOnError=true.
-    .exclude("CONVERSION_INVALID_INPUT: to_binary conversion function hex")
-  enableSuite[GlutenQueryParsingErrorsSuite]
   // Generated suites for org.apache.spark.sql.catalyst.expressions.aggregate
   enableSuite[aggregate.GlutenAggregateExpressionSuite]
   enableSuite[aggregate.GlutenApproxCountDistinctForIntervalsSuite]
@@ -277,6 +268,18 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenV1WriteFallbackSessionCatalogSuite]
   enableSuite[GlutenV1WriteFallbackSuite]
   enableSuite[GlutenV2CommandsCaseSensitivitySuite]
+  // Generated suites for org.apache.spark.sql.errors
+  enableSuite[GlutenQueryCompilationErrorsDSv2Suite]
+  enableSuite[GlutenQueryCompilationErrorsSuite]
+  enableSuite[GlutenQueryExecutionErrorsSuite]
+    // NEW SUITE: disable as it expects exception which doesn't happen when offloaded to gluten
+    .exclude(
+      "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
+    // Doesn't support unhex with failOnError=true.
+    .exclude("CONVERSION_INVALID_INPUT: to_binary conversion function hex")
+  enableSuite[GlutenQueryParsingErrorsSuite]
+  enableSuite[GlutenQueryContextSuite]
+  enableSuite[GlutenQueryExecutionAnsiErrorsSuite]
   enableSuite[VeloxAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
