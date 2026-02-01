@@ -21,6 +21,7 @@ import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 import org.apache.spark.GlutenSortShuffleSuite
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
 import org.apache.spark.sql.execution._
@@ -92,6 +93,18 @@ class VeloxTestSettings extends BackendTestSettings {
     // Doesn't support unhex with failOnError=true.
     .exclude("CONVERSION_INVALID_INPUT: to_binary conversion function hex")
   enableSuite[GlutenQueryParsingErrorsSuite]
+  // Generated suites for org.apache.spark.sql.catalyst.expressions.aggregate
+  enableSuite[aggregate.GlutenAggregateExpressionSuite]
+  enableSuite[aggregate.GlutenApproxCountDistinctForIntervalsSuite]
+  enableSuite[aggregate.GlutenApproximatePercentileSuite]
+  enableSuite[aggregate.GlutenCountMinSketchAggSuite]
+  enableSuite[aggregate.GlutenDatasketchesHllSketchSuite]
+  enableSuite[aggregate.GlutenFirstLastTestSuite]
+  enableSuite[aggregate.GlutenHistogramNumericSuite]
+  enableSuite[aggregate.GlutenHyperLogLogPlusPlusSuite]
+  enableSuite[aggregate.GlutenCentralMomentAggSuite]
+  enableSuite[aggregate.GlutenCovarianceAggSuite]
+  enableSuite[aggregate.GlutenProductAggSuite] // to avoid conflict with sql.GlutenProductAggSuite
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
   enableSuite[GlutenBitwiseExpressionsSuite]

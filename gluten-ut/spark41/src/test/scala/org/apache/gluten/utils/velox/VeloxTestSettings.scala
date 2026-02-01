@@ -96,6 +96,18 @@ class VeloxTestSettings extends BackendTestSettings {
     // Doesn't support unhex with failOnError=true.
     .exclude("CONVERSION_INVALID_INPUT: to_binary conversion function hex")
   enableSuite[GlutenQueryParsingErrorsSuite]
+  // Generated suites for org.apache.spark.sql.catalyst.expressions.aggregate
+  enableSuite[aggregate.GlutenAggregateExpressionSuite]
+  enableSuite[aggregate.GlutenApproxCountDistinctForIntervalsSuite]
+  enableSuite[aggregate.GlutenApproximatePercentileSuite]
+  enableSuite[aggregate.GlutenCountMinSketchAggSuite]
+  enableSuite[aggregate.GlutenDatasketchesHllSketchSuite]
+  enableSuite[aggregate.GlutenFirstLastTestSuite]
+  enableSuite[aggregate.GlutenHistogramNumericSuite]
+  enableSuite[aggregate.GlutenHyperLogLogPlusPlusSuite]
+  enableSuite[aggregate.GlutenCentralMomentAggSuite]
+  enableSuite[aggregate.GlutenCovarianceAggSuite]
+  enableSuite[aggregate.GlutenProductAggSuite] // to avoid conflict with sql.GlutenProductAggSuite
   enableSuite[GlutenArithmeticExpressionSuite]
     .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
   enableSuite[GlutenAttributeMapSuite]
