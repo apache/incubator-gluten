@@ -36,7 +36,7 @@ import org.apache.spark.sql.execution.datasources.text._
 import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.execution.exchange.{GlutenEnsureRequirementsSuite, GlutenValidateRequirementsSuite}
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.metric.GlutenSQLMetricsSuite
+import org.apache.spark.sql.execution.metric.{GlutenCustomMetricsSuite, GlutenSQLMetricsSuite}
 import org.apache.spark.sql.execution.python._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.gluten.{GlutenFallbackStrategiesSuite, GlutenFallbackSuite}
@@ -641,7 +641,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Shouldn't bias towards build right if user didn't specify")
     .exclude("SPARK-23192: broadcast hint should be retained after using the cached data")
     .exclude("broadcast join where streamed side's output partitioning is HashPartitioning")
-
+  enableSuite[GlutenHashedRelationSuite]
+  enableSuite[GlutenSingleJoinSuite]
   enableSuite[GlutenExistenceJoinSuite]
   enableSuite[GlutenInnerJoinSuiteForceShjOn]
   enableSuite[GlutenInnerJoinSuiteForceShjOff]
@@ -729,6 +730,15 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenResolvedDataSourceSuite]
   enableSuite[GlutenSaveLoadSuite]
   enableSuite[GlutenTableScanSuite]
+  // Generated suites for org.apache.spark.sql.sources
+  enableSuite[GlutenBucketedReadWithHiveSupportSuite]
+  enableSuite[GlutenBucketedWriteWithHiveSupportSuite]
+  enableSuite[GlutenCommitFailureTestRelationSuite]
+  enableSuite[GlutenDataSourceAnalysisSuite]
+  enableSuite[GlutenDisableUnnecessaryBucketedScanWithHiveSupportSuite]
+  enableSuite[GlutenJsonHadoopFsRelationSuite]
+  enableSuite[GlutenParquetHadoopFsRelationSuite]
+  enableSuite[GlutenSimpleTextHadoopFsRelationSuite]
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenAddMetadataColumnsSuite]
   enableSuite[GlutenAlwaysPersistedConfigsSuite]
@@ -1061,6 +1071,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // The case doesn't need to be run in Gluten since it's verifying against
     // vanilla Spark's query plan.
     .exclude("SPARK-47289: extended explain info")
+  enableSuite[GlutenCustomMetricsSuite]
   enableSuite[GlutenSQLMetricsSuite]
   enableSuite[GlutenAcceptsLatestSeenOffsetSuite]
   enableSuite[GlutenCommitLogSuite]
