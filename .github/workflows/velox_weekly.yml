@@ -25,7 +25,6 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-  MVN_CMD: '$GITHUB_WORKSPACE/build/mvn -ntp'
   TPCH_TEST: "env GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare 
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1"
   INSTALL_PREFIX: /usr/local
@@ -169,7 +168,7 @@ jobs:
           cd $GITHUB_WORKSPACE/
           ./dev/package.sh --spark_version=3.5
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -Pspark-3.5
+          $GITHUB_WORKSPACE/build/mvn -ntp clean install -Pspark-3.5
           cp $GITHUB_WORKSPACE/package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar package/target/lib/
       - name: Run TPC-H
         run: |
@@ -199,7 +198,7 @@ jobs:
           ./dev/vcpkg/setup-build-depends.sh
           ./dev/package-vcpkg.sh --build_arrow=ON --spark_version=3.5
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -Pspark-3.5
+          $GITHUB_WORKSPACE/build/mvn -ntp clean install -Pspark-3.5
       - name: Run TPC-H
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
