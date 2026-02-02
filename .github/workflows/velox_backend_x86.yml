@@ -1406,7 +1406,7 @@ jobs:
             **/gluten-ut/**/core.*
 
   spark-test-spark41:
-    needs: build-native-lib-centos-9
+    needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
     env:
       SPARK_TESTING: true
@@ -1416,12 +1416,12 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: velox-native-lib-centos-9-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
-          name: arrow-jars-centos-9-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
@@ -1463,22 +1463,22 @@ jobs:
             **/gluten-ut/**/core.*
 
   spark-test-spark41-slow:
-    needs: build-native-lib-centos-9
+    needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04
     env:
       SPARK_TESTING: true
-    container: apache/gluten:centos-9-jdk17
+    container: apache/gluten:centos-7-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: velox-native-lib-centos-9-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/
       - name: Download Arrow Jars
         uses: actions/download-artifact@v4
         with:
-          name: arrow-jars-centos-9-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare Spark Resources for Spark 4.1.0 #TODO remove after image update
         run: |
@@ -1510,56 +1510,3 @@ jobs:
             **/target/*.log
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
-
-  build-native-lib-centos-9:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Get Ccache
-        uses: actions/cache/restore@v4
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos9-release-default-${{ github.sha }}
-          restore-keys: |
-            ccache-centos9-release-default
-
-      - name: Build Gluten native libraries
-        run: |
-          docker pull apache/gluten:vcpkg-centos-9
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-9 bash -c "
-            set -e
-            dnf install -y tzdata || true
-
-            df -a
-            cd /work
-
-            export CCACHE_DIR=/work/.ccache
-            export CCACHE_MAXSIZE=1G
-            mkdir -p /work/.ccache
-            ccache -sz || true
-
-            bash dev/ci-velox-buildstatic-centos-9.sh
-
-            ccache -s || true
-
-            mkdir -p /work/.m2/repository/org/apache/arrow/
-            cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
-          "
-
-      - name: "Save ccache"
-        if: always()
-        uses: actions/cache/save@v4
-        id: ccache
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos9-release-default-${{ github.sha }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: velox-native-lib-centos-9-${{ github.sha }}
-          path: ./cpp/build/
-          if-no-files-found: xerror
-      - uses: actions/upload-artifact@v4
-        with:
-          name: arrow-jars-centos-9-${{ github.sha }}
-          path: .m2/repository/org/apache/arrow/
-          if-no-files-found: error
