@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.execution.{CudfTag, WholeStageTransformer}
+import org.apache.gluten.execution.{CudfTag, VeloxResizeBatchesExec, WholeStageTransformer}
 import org.apache.gluten.logging.LogLevelUtil
 
 import org.apache.spark.SparkConf
@@ -156,6 +156,11 @@ object AdjustStageExecutionMode extends Logging {
         shuffle
           .copy(mapperStageMode = Some(stageExecutionMode))
           .withNewChildren(Seq(adjustExecutionMode(shuffle.child, stageExecutionMode)))
+      case resizeBatches: VeloxResizeBatchesExec =>
+        logInfo(s"Adjust VeloxResizeBatchesExec to ${stageExecutionMode.name}.")
+        VeloxResizeBatchesExec(
+          adjustExecutionMode(resizeBatches.child, stageExecutionMode),
+          Some(stageExecutionMode))
       case _ =>
         plan.withNewChildren(plan.children.map(adjustExecutionMode(_, stageExecutionMode)))
     }

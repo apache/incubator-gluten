@@ -16,14 +16,18 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
+import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.ClosableIterator
-import org.apache.gluten.utils.VeloxBatchResizer
+import org.apache.gluten.runtime.Runtimes
+import org.apache.gluten.utils.{GpuBufferBatchResizerJniWrapper, VeloxBatchResizer}
+import org.apache.gluten.vectorized.{ColumnarBatchInIterator, ColumnarBatchOutIterator}
 
 import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{GPUStageMode, SparkPlan, StageExecutionMode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.JavaConverters._
@@ -34,15 +38,29 @@ import scala.collection.JavaConverters._
  */
 case class VeloxResizeBatchesExec(
     override val child: SparkPlan,
-    minOutputBatchSize: Int,
-    maxOutputBatchSize: Int,
-    preferredBatchBytes: Long)
+    executionMode: Option[StageExecutionMode] = None)
   extends ColumnarToColumnarExec(child) {
 
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    VeloxBatchResizer
-      .create(minOutputBatchSize, maxOutputBatchSize, preferredBatchBytes, in.asJava)
-      .asScala
+    val veloxConfig = VeloxConfig.get
+    executionMode match {
+      case Some(GPUStageMode) =>
+        val runtime =
+          Runtimes.contextInstance(
+            BackendsApiManager.getBackendName,
+            "GpuBufferColumnarBatchResizer")
+        val outHandle = GpuBufferBatchResizerJniWrapper
+          .create(runtime)
+          .create(
+            veloxConfig.cudfBatchSize,
+            new ColumnarBatchInIterator(BackendsApiManager.getBackendName, in.asJava))
+        new ColumnarBatchOutIterator(runtime, outHandle).asScala
+      case _ =>
+        val range = veloxConfig.veloxResizeBatchesShuffleInputOutputRange
+        VeloxBatchResizer
+          .create(range.min, range.max, veloxConfig.veloxPreferredBatchBytes, in.asJava)
+          .asScala
+    }
   }
 
   override protected def closeIterator(out: Iterator[ColumnarBatch]): Unit = {

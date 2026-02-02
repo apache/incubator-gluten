@@ -40,7 +40,7 @@ case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPl
     }
 
     if (!SQLConf.get.adaptiveExecutionEnabled) {
-      // Set mapper and reducer stage mode for Shuffle.
+      // Set mapper and reducer stage execution mode for Shuffle.
       setStageExecutionModeForShuffle(taggedPlan, supportsCudf = false)._1
     } else {
       taggedPlan
@@ -97,9 +97,28 @@ object CudfNodeValidationRule {
     }
 
     plan match {
+      case shuffle @ ColumnarShuffleExchangeExec(
+            _,
+            VeloxResizeBatchesExec(child, _),
+            _,
+            _,
+            _,
+            _,
+            _) =>
+        // `supportsCudf` is not decided yet for shuffle writer.
+        val (newChild, mapperStageSupportsCudf) =
+          setStageExecutionModeForShuffle(child, false)
+        val mapperStageMode = getStageExecutionMode(mapperStageSupportsCudf)
+        val reducerStageMode = getStageExecutionMode(supportsCudf)
+        (
+          shuffle.copy(
+            child = VeloxResizeBatchesExec(newChild, Some(mapperStageMode)),
+            mapperStageMode = Some(mapperStageMode),
+            reducerStageMode = Some(reducerStageMode)),
+          supportsCudf)
       case shuffle: ColumnarShuffleExchangeExec =>
         val (newChild, mapperStageSupportsCudf) =
-          setStageExecutionModeForShuffle(shuffle.child, supportsCudf)
+          setStageExecutionModeForShuffle(shuffle.child, false)
         val mapperStageMode = getStageExecutionMode(mapperStageSupportsCudf)
         val reducerStageMode = getStageExecutionMode(supportsCudf)
         (
@@ -108,6 +127,10 @@ object CudfNodeValidationRule {
             mapperStageMode = Some(mapperStageMode),
             reducerStageMode = Some(reducerStageMode)),
           supportsCudf)
+      case resizeBatches: VeloxResizeBatchesExec =>
+        val (newChild, _) =
+          setStageExecutionModeForShuffle(resizeBatches.child, supportsCudf)
+        (VeloxResizeBatchesExec(newChild, Some(getStageExecutionMode(supportsCudf))), supportsCudf)
       case wst: WholeStageTransformer =>
         val (newChild, _) = setStageExecutionModeForShuffle(wst.child, wst.isCudf)
         (wst.withNewChildren(Seq(newChild)), wst.isCudf)
