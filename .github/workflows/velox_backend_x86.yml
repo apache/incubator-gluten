@@ -1438,6 +1438,8 @@ jobs:
       - name: Prepare
         run: |
           dnf install -y python3.11 python3.11-pip python3.11-devel && \
+          ls -la /usr/bin/python3.11 && \
+          alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
           alternatives --set python3 /usr/bin/python3.11 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.5 cython && \
