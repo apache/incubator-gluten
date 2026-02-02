@@ -504,7 +504,7 @@
         <enabled>false</enabled>
       </snapshots>
       <id>central</id>
-      <name>Maven Repository Switchboard</name>
+      <name>Maven Central</name>
       <url>https://repo.maven.apache.org/maven2</url>
     </repository>
   </repositories>
