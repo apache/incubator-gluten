@@ -46,14 +46,17 @@ class SQLQuerySuite extends WholeStageTransformerSuite {
   test("Incorrect decimal casting for partition read") {
     withSQLConf(SQLConf.ANSI_ENABLED.key -> "false") {
       withTable("dynparttest2") {
-        Seq[(Integer, Integer)](
-          (1, 1),
-          (1, 3),
-          (2, 3),
-          (3, 3),
-          (4, null),
-          (5, null)
-        ).toDF("key", "value").createOrReplaceTempView("src")
+        val data =
+          Seq[(Integer, Integer)](
+            (1, 1),
+            (1, 3),
+            (2, 3),
+            (3, 3),
+            (4, null),
+            (5, null)
+          )
+        val df = spark.createDataFrame(data).toDF("key", "value")
+        df.createOrReplaceTempView("src")
 
         // decimal
         sql("create table dynparttest2 (value int) partitioned by (pdec decimal(5, 1))")
