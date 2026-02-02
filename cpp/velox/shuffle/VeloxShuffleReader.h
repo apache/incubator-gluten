@@ -163,7 +163,9 @@ class VeloxShuffleReaderDeserializerFactory {
       VeloxMemoryManager* memoryManager,
       ShuffleWriterType shuffleWriterType);
 
-  std::unique_ptr<ColumnarBatchIterator> createDeserializer(const std::shared_ptr<StreamReader>& streamReader);
+  std::unique_ptr<ColumnarBatchIterator> createDeserializer(
+      const std::shared_ptr<StreamReader>& streamReader,
+      ShuffleOutputType requiredOutputType);
 
   int64_t getDecompressTime();
 
@@ -194,7 +196,9 @@ class VeloxShuffleReader final : public ShuffleReader {
  public:
   VeloxShuffleReader(std::unique_ptr<VeloxShuffleReaderDeserializerFactory> factory);
 
-  std::shared_ptr<ResultIterator> read(const std::shared_ptr<StreamReader>& streamReader) override;
+  std::shared_ptr<ResultIterator> read(
+      const std::shared_ptr<StreamReader>& streamReader,
+      ShuffleOutputType requiredOutputType) override;
 
   int64_t getDecompressTime() const override;
 

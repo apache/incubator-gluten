@@ -24,7 +24,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
-import org.apache.spark.sql.execution.{LimitExec, ShuffledColumnarBatchRDD, SparkPlan}
+import org.apache.spark.sql.execution.{CPUStageMode, LimitExec, ShuffledColumnarBatchRDD, SparkPlan}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsReporter}
 import org.apache.spark.sql.metric.SQLColumnarShuffleReadMetricsReporter
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -102,7 +102,9 @@ abstract class ColumnarCollectLimitBaseExec(
         metrics,
         shuffleWriterType
       ),
-      readMetrics
+      readMetrics,
+      // FIXME: pass proper StageExecutionMode
+      CPUStageMode
     )
   }
 

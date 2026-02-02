@@ -22,6 +22,7 @@ import org.apache.spark._
 import org.apache.spark.internal.{config, Logging}
 import org.apache.spark.io.CompressionCodec
 import org.apache.spark.serializer.SerializerManager
+import org.apache.spark.sql.execution.StageExecutionMode
 import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleBlockFetcherIterator}
 import org.apache.spark.util.CompletionIterator
 
@@ -33,11 +34,12 @@ class ColumnarShuffleReader[K, C](
     blocksByAddress: Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])],
     context: TaskContext,
     readMetrics: ShuffleReadMetricsReporter,
+    executionMode: StageExecutionMode,
     serializerManager: SerializerManager = SparkEnv.get.serializerManager,
     blockManager: BlockManager = SparkEnv.get.blockManager,
     mapOutputTracker: MapOutputTracker = SparkEnv.get.mapOutputTracker,
-    shouldBatchFetch: Boolean = false)
-  extends ShuffleReader[K, C]
+    shouldBatchFetch: Boolean = false
+) extends ShuffleReader[K, C]
   with Logging {
 
   private val dep = handle.dependency
@@ -97,7 +99,7 @@ class ColumnarShuffleReader[K, C](
         columnarDep.serializer
           .newInstance()
           .asInstanceOf[ColumnarBatchSerializerInstance]
-          .deserializeStreams(wrappedStreams)
+          .deserializeStreams(wrappedStreams, executionMode)
           .asKeyValueIterator
       case _ =>
         val serializerInstance = dep.serializer.newInstance()

@@ -27,6 +27,7 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.shuffle.GlutenShuffleUtils
+import org.apache.spark.sql.execution.{CPUStageMode, StageExecutionMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -131,16 +132,20 @@ private class ColumnarBatchSerializerInstanceImpl(
     shuffleReaderHandle
   }
 
+  // TODO: remove this method for columnar shuffle.
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new TaskDeserializationStream(Iterator((null, in)))
   }
 
   override def deserializeStreams(
-      streams: Iterator[(BlockId, InputStream)]): DeserializationStream = {
-    new TaskDeserializationStream(streams)
+      streams: Iterator[(BlockId, InputStream)],
+      executionMode: StageExecutionMode): DeserializationStream = {
+    new TaskDeserializationStream(streams, executionMode)
   }
 
-  private class TaskDeserializationStream(streams: Iterator[(BlockId, InputStream)])
+  private class TaskDeserializationStream(
+      streams: Iterator[(BlockId, InputStream)],
+      executionMode: StageExecutionMode = CPUStageMode)
     extends DeserializationStream
     with TaskResource {
     private val streamReader = ShuffleStreamReader(streams)
@@ -148,7 +153,7 @@ private class ColumnarBatchSerializerInstanceImpl(
     private val wrappedOut: ClosableIterator[ColumnarBatch] = new ColumnarBatchOutIterator(
       runtime,
       jniWrapper
-        .read(shuffleReaderHandle, streamReader))
+        .read(shuffleReaderHandle, streamReader, executionMode.id))
 
     private var cb: ColumnarBatch = _
 

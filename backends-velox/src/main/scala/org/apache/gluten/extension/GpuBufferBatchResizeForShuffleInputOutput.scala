@@ -20,7 +20,7 @@ import org.apache.gluten.config.{HashShuffleWriterType, VeloxConfig}
 import org.apache.gluten.execution.{GpuResizeBufferColumnarBatchExec, VeloxResizeBatchesExec}
 
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, ColumnarShuffleExchangeExecBase, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
@@ -43,12 +43,10 @@ case class GpuBufferBatchResizeForShuffleInputOutput() extends Rule[SparkPlan] {
         val appendBatches =
           VeloxResizeBatchesExec(shuffle.child, range.min, range.max, preferredBatchBytes)
         shuffle.withNewChildren(Seq(appendBatches))
-      case a @ AQEShuffleReadExec(
-            ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExecBase, _),
-            _) =>
+      case a @ AQEShuffleReadExec(ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _), _) =>
         GpuResizeBufferColumnarBatchExec(a, batchSize)
       case a @ AQEShuffleReadExec(
-            ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExecBase), _),
+            ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec), _),
             _) =>
         GpuResizeBufferColumnarBatchExec(a, batchSize)
       // Since it's transformed in a bottom to up order, so we may first encounter
@@ -56,7 +54,7 @@ case class GpuBufferBatchResizeForShuffleInputOutput() extends Rule[SparkPlan] {
       // then we see AQEShuffleReadExec
       case a @ AQEShuffleReadExec(
             GpuResizeBufferColumnarBatchExec(
-              s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExecBase, _),
+              s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _),
               _),
             _) =>
         GpuResizeBufferColumnarBatchExec(a.copy(child = s), batchSize)
@@ -64,17 +62,14 @@ case class GpuBufferBatchResizeForShuffleInputOutput() extends Rule[SparkPlan] {
             GpuResizeBufferColumnarBatchExec(
               s @ ShuffleQueryStageExec(
                 _,
-                ReusedExchangeExec(_, _: ColumnarShuffleExchangeExecBase),
+                ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec),
                 _),
               _),
             _) =>
         GpuResizeBufferColumnarBatchExec(a.copy(child = s), batchSize)
-      case s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExecBase, _) =>
+      case s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
         GpuResizeBufferColumnarBatchExec(s, batchSize)
-      case s @ ShuffleQueryStageExec(
-            _,
-            ReusedExchangeExec(_, _: ColumnarShuffleExchangeExecBase),
-            _) =>
+      case s @ ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec), _) =>
         GpuResizeBufferColumnarBatchExec(s, batchSize)
     }
   }

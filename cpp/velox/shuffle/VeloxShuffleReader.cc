@@ -501,9 +501,9 @@ void VeloxHashShuffleReaderDeserializer::loadNextStream() {
 
   if (readerBufferSize_ > 0) {
     GLUTEN_ASSIGN_OR_THROW(
-          in_,
-          arrow::io::BufferedInputStream::Create(
-              readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
+        in_,
+        arrow::io::BufferedInputStream::Create(
+            readerBufferSize_, memoryManager_->defaultArrowMemoryPool(), std::move(in)));
   } else {
     in_ = std::move(in);
   }
@@ -811,22 +811,27 @@ VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(
 }
 
 std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::createDeserializer(
-    const std::shared_ptr<StreamReader>& streamReader) {
+    const std::shared_ptr<StreamReader>& streamReader,
+    ShuffleOutputType requiredOutputType) {
   switch (shuffleWriterType_) {
-    case ShuffleWriterType::kGpuHashShuffle:
-#ifdef GLUTEN_ENABLE_GPU
-      VELOX_CHECK(!hasComplexType_);
-      return std::make_unique<VeloxGpuHashShuffleReaderDeserializer>(
-          streamReader,
-          schema_,
-          codec_,
-          rowType_,
-          readerBufferSize_,
-          memoryManager_,
-          deserializeTime_,
-          decompressTime_);
-#endif
     case ShuffleWriterType::kHashShuffle:
+    case ShuffleWriterType::kGpuHashShuffle:
+      if (requiredOutputType == ShuffleOutputType::kCudfTable) {
+#ifdef GLUTEN_ENABLE_GPU
+        VELOX_CHECK(!hasComplexType_);
+        return std::make_unique<VeloxGpuHashShuffleReaderDeserializer>(
+            streamReader,
+            schema_,
+            codec_,
+            rowType_,
+            readerBufferSize_,
+            memoryManager_,
+            deserializeTime_,
+            decompressTime_);
+#else
+        throw GlutenException("GLUTEN_ENABLE_GPU is not set. GPU shuffle reader deserializer is not supported.");
+#endif
+      }
       return std::make_unique<VeloxHashShuffleReaderDeserializer>(
           streamReader,
           schema_,
@@ -837,6 +842,8 @@ std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::cr
           deserializeTime_,
           decompressTime_);
     case ShuffleWriterType::kSortShuffle:
+      GLUTEN_CHECK(
+          requiredOutputType == ShuffleOutputType::kRowVector, "Only RowVector output is supported for sort shuffle.");
       return std::make_unique<VeloxSortShuffleReaderDeserializer>(
           streamReader,
           schema_,
@@ -849,6 +856,9 @@ std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::cr
           deserializeTime_,
           decompressTime_);
     case ShuffleWriterType::kRssSortShuffle:
+      GLUTEN_CHECK(
+          requiredOutputType == ShuffleOutputType::kRowVector,
+          "Only RowVector output is supported for rss_sort shuffle.");
       return std::make_unique<VeloxRssSortShuffleReaderDeserializer>(
           streamReader, memoryManager_, rowType_, batchSize_, veloxCompressionType_, deserializeTime_);
   }
@@ -896,8 +906,10 @@ void VeloxShuffleReaderDeserializerFactory::initFromSchema() {
 VeloxShuffleReader::VeloxShuffleReader(std::unique_ptr<VeloxShuffleReaderDeserializerFactory> factory)
     : factory_(std::move(factory)) {}
 
-std::shared_ptr<ResultIterator> VeloxShuffleReader::read(const std::shared_ptr<StreamReader>& streamReader) {
-  return std::make_shared<ResultIterator>(factory_->createDeserializer(streamReader));
+std::shared_ptr<ResultIterator> VeloxShuffleReader::read(
+    const std::shared_ptr<StreamReader>& streamReader,
+    ShuffleOutputType requiredOutputType) {
+  return std::make_shared<ResultIterator>(factory_->createDeserializer(streamReader, requiredOutputType));
 }
 
 int64_t VeloxShuffleReader::getDecompressTime() const {

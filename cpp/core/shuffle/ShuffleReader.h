@@ -21,6 +21,8 @@
 
 namespace gluten {
 
+enum class ShuffleOutputType { kRowVector, kCudfTable };
+
 class StreamReader {
  public:
   virtual ~StreamReader() = default;
@@ -33,11 +35,26 @@ class ShuffleReader {
   virtual ~ShuffleReader() = default;
 
   // FIXME iterator should be unique_ptr or un-copyable singleton
-  virtual std::shared_ptr<ResultIterator> read(const std::shared_ptr<StreamReader>& streamReader) = 0;
+  virtual std::shared_ptr<ResultIterator> read(
+      const std::shared_ptr<StreamReader>& streamReader,
+      ShuffleOutputType requiredOutputType) = 0;
 
   virtual int64_t getDecompressTime() const = 0;
 
   virtual int64_t getDeserializeTime() const = 0;
+
+  static ShuffleOutputType getOutputType(int32_t executionModeId) {
+    switch (executionModeId) {
+      case 0:
+        // Cpu execution mode.
+        return ShuffleOutputType::kRowVector;
+      case 1:
+        // Gpu execution mode.
+        return ShuffleOutputType::kCudfTable;
+      default:
+        throw GlutenException("Unsupported execution mode id: " + std::to_string(executionModeId));
+    }
+  }
 };
 
 } // namespace gluten

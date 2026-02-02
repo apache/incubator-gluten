@@ -109,45 +109,49 @@ std::vector<ShuffleTestParams> getTestParams() {
       for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
         for (const bool useRadixSort : {true, false}) {
           for (const auto deserializerBufferSize : {static_cast<int64_t>(1L), kDefaultDeserializerBufferSize}) {
-            params.push_back(ShuffleTestParams{
-                .shuffleWriterType = ShuffleWriterType::kSortShuffle,
-                .partitionWriterType = partitionWriterType,
-                .compressionType = compression,
-                .diskWriteBufferSize = diskWriteBufferSize,
-                .useRadixSort = useRadixSort,
-                .deserializerBufferSize = deserializerBufferSize});
+            params.push_back(
+                ShuffleTestParams{
+                    .shuffleWriterType = ShuffleWriterType::kSortShuffle,
+                    .partitionWriterType = partitionWriterType,
+                    .compressionType = compression,
+                    .diskWriteBufferSize = diskWriteBufferSize,
+                    .useRadixSort = useRadixSort,
+                    .deserializerBufferSize = deserializerBufferSize});
           }
         }
       }
     }
 
     // Rss sort-based shuffle.
-    params.push_back(ShuffleTestParams{
-        .shuffleWriterType = ShuffleWriterType::kRssSortShuffle,
-        .partitionWriterType = PartitionWriterType::kRss,
-        .compressionType = compression});
+    params.push_back(
+        ShuffleTestParams{
+            .shuffleWriterType = ShuffleWriterType::kRssSortShuffle,
+            .partitionWriterType = PartitionWriterType::kRss,
+            .compressionType = compression});
 
     // Hash-based shuffle.
     for (const auto compressionThreshold : compressionThresholds) {
       // Local.
       for (const auto mergeBufferSize : mergeBufferSizes) {
         for (const bool enableDictionary : {true, false}) {
-          params.push_back(ShuffleTestParams{
-              .shuffleWriterType = ShuffleWriterType::kHashShuffle,
-              .partitionWriterType = PartitionWriterType::kLocal,
-              .compressionType = compression,
-              .compressionThreshold = compressionThreshold,
-              .mergeBufferSize = mergeBufferSize,
-              .enableDictionary = enableDictionary});
+          params.push_back(
+              ShuffleTestParams{
+                  .shuffleWriterType = ShuffleWriterType::kHashShuffle,
+                  .partitionWriterType = PartitionWriterType::kLocal,
+                  .compressionType = compression,
+                  .compressionThreshold = compressionThreshold,
+                  .mergeBufferSize = mergeBufferSize,
+                  .enableDictionary = enableDictionary});
         }
       }
 
       // Rss.
-      params.push_back(ShuffleTestParams{
-          .shuffleWriterType = ShuffleWriterType::kHashShuffle,
-          .partitionWriterType = PartitionWriterType::kRss,
-          .compressionType = compression,
-          .compressionThreshold = compressionThreshold});
+      params.push_back(
+          ShuffleTestParams{
+              .shuffleWriterType = ShuffleWriterType::kHashShuffle,
+              .partitionWriterType = PartitionWriterType::kRss,
+              .compressionType = compression,
+              .compressionThreshold = compressionThreshold});
     }
   }
 
@@ -308,7 +312,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
     const auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
 
-    const auto iter = reader->read(std::make_shared<TestStreamReader>(std::move(in)));
+    const auto iter = reader->read(std::make_shared<TestStreamReader>(std::move(in)), ShuffleOutputType::kRowVector);
     while (iter->hasNext()) {
       auto vector = std::dynamic_pointer_cast<VeloxColumnarBatch>(iter->next())->getRowVector();
       vectors.emplace_back(vector);
@@ -500,12 +504,7 @@ TEST_P(HashPartitioningShuffleWriterTest, hashPart1Vector) {
         makeFlatVector<int128_t>({232, 34567235, 1212, 4567}, DECIMAL(20, 4)),
         makeFlatVector<int32_t>(
             4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
-        makeFlatVector<Timestamp>(
-            4,
-            [](vector_size_t row) {
-              return Timestamp{row % 2, 0};
-            },
-            nullEvery(5))};
+        makeFlatVector<Timestamp>(4, [](vector_size_t row) { return Timestamp{row % 2, 0}; }, nullEvery(5))};
 
     const auto vector = makeRowVector(data);
 

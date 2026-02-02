@@ -111,7 +111,7 @@ object VeloxRuleApi {
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
-    injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
+//    injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => PartialGenerateRule())
@@ -148,6 +148,8 @@ object VeloxRuleApi {
       c => PreventBatchTypeMismatchInTableCache(c.caller.isCache(), Set(VeloxBatchType)))
     injector.injectFinal(
       c => GlutenAutoAdjustStageResourceProfile(new GlutenConfig(c.sqlConf), c.session))
+    injector.injectFinal(
+      c => AdjustStageExecutionMode(new GlutenConfig(c.sqlConf), c.session, c.caller.isAqe()))
     injector.injectFinal(c => GlutenFallbackReporter(new GlutenConfig(c.sqlConf), c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
@@ -216,7 +218,7 @@ object VeloxRuleApi {
     // Gluten RAS: Post rules.
     injector.injectPostTransform(_ => DistinguishIdenticalScans)
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
-    injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
+//    injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => RemoveTransitions)
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
@@ -246,6 +248,8 @@ object VeloxRuleApi {
       c => PreventBatchTypeMismatchInTableCache(c.caller.isCache(), Set(VeloxBatchType)))
     injector.injectPostTransform(
       c => GlutenAutoAdjustStageResourceProfile(new GlutenConfig(c.sqlConf), c.session))
+    injector.injectPostTransform(
+      c => AdjustStageExecutionMode(new GlutenConfig(c.sqlConf), c.session, c.caller.isAqe()))
     injector.injectPostTransform(
       c => GlutenFallbackReporter(new GlutenConfig(c.sqlConf), c.session))
     injector.injectPostTransform(_ => RemoveFallbackTagRule())

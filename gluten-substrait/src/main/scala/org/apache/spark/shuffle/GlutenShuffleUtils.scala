@@ -26,6 +26,7 @@ import org.apache.spark.internal.config._
 import org.apache.spark.shuffle.api.ShuffleExecutorComponents
 import org.apache.spark.shuffle.sort.ColumnarShuffleHandle
 import org.apache.spark.shuffle.sort.SortShuffleManager.canUseBatchFetch
+import org.apache.spark.sql.execution.StageExecutionMode
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 import org.apache.spark.util.random.XORShiftRandom
 
@@ -159,7 +160,8 @@ object GlutenShuffleUtils {
       startPartition: Int,
       endPartition: Int,
       context: TaskContext,
-      metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
+      metrics: ShuffleReadMetricsReporter,
+      executionMode: StageExecutionMode): ShuffleReader[K, C] = {
     val (blocksByAddress, canEnableBatchFetch) = {
       getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
     }
@@ -173,7 +175,8 @@ object GlutenShuffleUtils {
           blocksByAddress,
           context,
           metrics,
-          shouldBatchFetch))
+          shouldBatchFetch,
+          executionMode))
       .shuffleReader
   }
 }

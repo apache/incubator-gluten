@@ -39,7 +39,8 @@ object ShuffleUtil {
         parameters.blocksByAddress,
         parameters.context,
         parameters.readMetrics,
-        ColumnarShuffleManager.bypassDecompressionSerializerManger,
+        parameters.executionMode,
+        serializerManager = ColumnarShuffleManager.bypassDecompressionSerializerManger,
         shouldBatchFetch = parameters.shouldBatchFetch
       )
     } else {
