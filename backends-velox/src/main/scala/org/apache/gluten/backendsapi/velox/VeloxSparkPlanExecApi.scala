@@ -339,15 +339,29 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       aggregateAttributes: Seq[Attribute],
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
-      child: SparkPlan): HashAggregateExecBaseTransformer =
-    RegularHashAggregateExecTransformer(
-      requiredChildDistributionExpressions,
-      groupingExpressions,
-      aggregateExpressions,
-      aggregateAttributes,
-      initialInputBufferOffset,
-      resultExpressions,
-      child)
+      child: SparkPlan,
+      offloadedSortExec: Boolean): HashAggregateExecBaseTransformer =
+    if (offloadedSortExec) {
+      HashFromSortAggregateExecTransformer(
+        requiredChildDistributionExpressions,
+        groupingExpressions,
+        aggregateExpressions,
+        aggregateAttributes,
+        initialInputBufferOffset,
+        resultExpressions,
+        child
+      )
+    } else {
+      RegularHashAggregateExecTransformer(
+        requiredChildDistributionExpressions,
+        groupingExpressions,
+        aggregateExpressions,
+        aggregateAttributes,
+        initialInputBufferOffset,
+        resultExpressions,
+        child
+      )
+    }
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
