@@ -43,6 +43,31 @@ class SQLQuerySuite extends WholeStageTransformerSuite {
     conf
   }
 
+  test("Incorrect decimal casting for partition read") {
+    withSQLConf(SQLConf.ANSI_ENABLED.key -> "false") {
+      withTable("dynparttest2") {
+        Seq[(Integer, Integer)](
+          (1, 1),
+          (1, 3),
+          (2, 3),
+          (3, 3),
+          (4, null),
+          (5, null)
+        ).toDF("key", "value").createOrReplaceTempView("src")
+
+        // decimal
+        sql("create table dynparttest2 (value int) partitioned by (pdec decimal(5, 1))")
+        sql("""
+              |insert into table dynparttest2 partition(pdec)
+              | select count(*), cast('100.12' as decimal(5, 1)) as pdec from src
+          """.stripMargin)
+        checkAnswer(
+          sql("select * from dynparttest2"),
+          Seq(Row(6, new java.math.BigDecimal("100.1"))))
+      }
+    }
+  }
+
   test("Support run with Vector reader in FileSourceScan or BatchScan") {
     withSQLConf(
       SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true",

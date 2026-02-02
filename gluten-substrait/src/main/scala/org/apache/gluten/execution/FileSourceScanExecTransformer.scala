@@ -31,7 +31,7 @@ import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.{DecimalType, StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SparkVersionUtil
 import org.apache.spark.util.collection.BitSet
 
@@ -164,10 +164,6 @@ abstract class FileSourceScanExecTransformerBase(
 
     if (hasUnsupportedColumns) {
       return ValidationResult.failed(s"Unsupported columns scan in native.")
-    }
-
-    if (getPartitionSchema.fields.exists(_.dataType.isInstanceOf[DecimalType])) {
-      return ValidationResult.failed(s"Unsupported decimal partition column in native scan.")
     }
 
     if (hasFieldIds) {
