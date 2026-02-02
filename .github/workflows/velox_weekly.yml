@@ -25,7 +25,7 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-  MVN_CMD: './build/mvn -ntp'
+  MVN_CMD: '$GITHUB_WORKSPACE/build/mvn -ntp'
   TPCH_TEST: "env GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare 
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1"
   INSTALL_PREFIX: /usr/local
