@@ -1467,7 +1467,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       SPARK_TESTING: true
-    container: apache/gluten:centos-7-jdk17
+    container: apache/gluten:centos-9-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
