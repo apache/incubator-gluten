@@ -34,6 +34,19 @@ function install_maven {
   fi
 }
 
+function install_iwyu {
+  yum install -y llvm llvm-devel clang clang-devel llvm-toolset
+  CLANG_VERSION=`clang --version | awk '/clang version/ {print $3}' | cut -d. -f1`
+  echo $CLANG_VERSION
+  git clone https://github.com/include-what-you-use/include-what-you-use.git
+  cd include-what-you-use
+  git checkout clang_$CLANG_VERSION
+  mkdir build && cd build
+  cmake -G "Unix Makefiles" -DCMAKE_PREFIX_PATH=/usr/include/llvm ../
+  make -j$(nproc)
+  ln -s `pwd`/bin/include-what-you-use /usr/bin/include-what-you-use
+}
+
 for cmd in "$@"
 do
     echo "Running: $cmd"
