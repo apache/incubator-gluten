@@ -21,7 +21,7 @@ import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.network.util.LimitedInputStream
 import org.apache.spark.network.util.TransportConf
 
-import java.io.{BufferedInputStream, EOFException, File, FileInputStream, InputStream, IOException, RandomAccessFile, SequenceInputStream}
+import java.io.{EOFException, File, FileInputStream, InputStream, IOException, RandomAccessFile, SequenceInputStream}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.util.Vector
@@ -102,7 +102,7 @@ class FileSegmentsManagedBuffer(
           val fis = new FileInputStream(file)
           filesToClose.add(fis)
           skipFully(fis, offset)
-          streams.add(new BufferedInputStream(new LimitedInputStream(fis, length)))
+          streams.add(new LimitedInputStream(fis, length))
       }
       shouldCloseFile = false
       new SequenceInputStream(streams.elements())
