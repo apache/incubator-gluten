@@ -43,7 +43,7 @@ class SQLQuerySuite extends WholeStageTransformerSuite {
     conf
   }
 
-  test("Incorrect decimal casting for partition read") {
+  testWithMinSparkVersion("Incorrect decimal casting for partition read", "4.0") {
     withSQLConf(SQLConf.ANSI_ENABLED.key -> "false") {
       withTable("dynparttest2") {
         val data =
