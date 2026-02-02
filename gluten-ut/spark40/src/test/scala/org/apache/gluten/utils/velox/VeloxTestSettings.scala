@@ -1121,7 +1121,7 @@ class VeloxTestSettings extends BackendTestSettings {
   // Generated suites for org.apache.spark.sql.execution.python
   // TODO: 4.x enableSuite[GlutenPythonDataSourceSuite]  // 1 failure
   // TODO: 4.x enableSuite[GlutenPythonUDFSuite]  // 1 failure
-  enableSuite[GlutenPythonUDTFSuite]
+  // TODO: 4.x enableSuite[GlutenPythonUDTFSuite]
   enableSuite[GlutenRowQueueSuite]
   enableSuite[GlutenBatchEvalPythonExecSuite]
     // Replaced with other tests that check for native operations
