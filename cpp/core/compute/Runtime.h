@@ -31,6 +31,7 @@
 #include "substrait/plan.pb.h"
 #include "utils/ObjectStore.h"
 #include "utils/WholeStageDumper.h"
+#include "memory/SplitAwareColumnarBatchIterator.h"
 
 namespace gluten {
 
@@ -102,6 +103,10 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   virtual std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs) {
+    throw GlutenException("Not implemented");
+  }
+
+  virtual void noMoreSplits(ResultIterator* iter) {
     throw GlutenException("Not implemented");
   }
 

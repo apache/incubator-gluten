@@ -202,6 +202,14 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   return std::make_shared<ResultIterator>(std::move(wholeStageIter), this);
 }
 
+void VeloxRuntime::noMoreSplits(ResultIterator* iter){
+    auto* splitAwareIter = dynamic_cast<gluten::SplitAwareColumnarBatchIterator*>(iter->getInputIter());
+    if (splitAwareIter == nullptr) {
+      throw GlutenException("Iterator does not support split management");
+    }
+    splitAwareIter->noMoreSplits();
+}
+
 std::shared_ptr<ColumnarToRowConverter> VeloxRuntime::createColumnar2RowConverter(int64_t column2RowMemThreshold) {
   auto veloxPool = memoryManager()->getLeafMemoryPool();
   return std::make_shared<VeloxColumnarToRowConverter>(veloxPool, column2RowMemThreshold);

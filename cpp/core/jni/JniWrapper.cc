@@ -686,17 +686,12 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterato
     jobject wrapper,
     jlong iterHandle) {
   JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
   auto iter = ObjectStore::retrieve<ResultIterator>(iterHandle);
   if (iter == nullptr) {
     throw GlutenException("Invalid iterator handle for noMoreSplits");
   }
-  
-  auto* splitAwareIter = dynamic_cast<gluten::SplitAwareColumnarBatchIterator*>(iter->getInputIter());
-  if (splitAwareIter == nullptr) {
-    throw GlutenException("Iterator does not support split management");
-  }
-  
-  splitAwareIter->noMoreSplits();
+  ctx->noMoreSplits(iter.get());
   JNI_METHOD_END()
 }
 
