@@ -95,7 +95,8 @@ class Spark41Shims extends SparkShims {
       Sig[ArrayAppend](ExpressionNames.ARRAY_APPEND),
       Sig[UrlEncode](ExpressionNames.URL_ENCODE),
       Sig[KnownNotContainsNull](ExpressionNames.KNOWN_NOT_CONTAINS_NULL),
-      Sig[UrlDecode](ExpressionNames.URL_DECODE)
+      Sig[UrlDecode](ExpressionNames.URL_DECODE),
+      Sig[DayName](ExpressionNames.DAY_NAME)
     )
   }
 
