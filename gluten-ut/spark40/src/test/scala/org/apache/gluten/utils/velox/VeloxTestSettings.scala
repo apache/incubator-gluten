@@ -817,6 +817,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameTableValuedFunctionsSuite]
   enableSuite[GlutenDataFrameTransposeSuite]
   enableSuite[GlutenDefaultANSIValueSuite]
+  enableSuite[GlutenDeprecatedDatasetAggregatorSuite]
   // TODO: 4.x enableSuite[GlutenExplainSuite]  // 1 failure
   enableSuite[GlutenICUCollationsMapSuite]
   enableSuite[GlutenInlineTableParsingImprovementsSuite]
