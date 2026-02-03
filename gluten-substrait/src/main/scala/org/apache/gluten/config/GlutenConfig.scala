@@ -470,6 +470,7 @@ object GlutenConfig extends ConfigRegistry {
     SQLConf.LEGACY_SIZE_OF_NULL.key,
     SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
     SQLConf.JSON_GENERATOR_IGNORE_NULL_FIELDS.key,
+    COLUMNAR_CUDF_ENABLED.key,
     "spark.io.compression.codec",
     "spark.sql.decimalOperations.allowPrecisionLoss",
     "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
