@@ -59,8 +59,7 @@ class VeloxRuntime final : public Runtime {
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {}) override;
 
-
-  void noMoreSplits(ResultIterator* iter) override ;
+  void noMoreSplits(ResultIterator* iter) override;
 
   std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(int64_t column2RowMemThreshold) override;
 

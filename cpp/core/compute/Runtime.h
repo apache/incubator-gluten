@@ -23,6 +23,7 @@
 #include "compute/ResultIterator.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/MemoryManager.h"
+#include "memory/SplitAwareColumnarBatchIterator.h"
 #include "operators/c2r/ColumnarToRow.h"
 #include "operators/r2c/RowToColumnar.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
@@ -31,7 +32,6 @@
 #include "substrait/plan.pb.h"
 #include "utils/ObjectStore.h"
 #include "utils/WholeStageDumper.h"
-#include "memory/SplitAwareColumnarBatchIterator.h"
 
 namespace gluten {
 
