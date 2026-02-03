@@ -234,6 +234,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def columnarShuffleEnableDictionary: Boolean =
     getConf(SHUFFLE_ENABLE_DICTIONARY)
 
+  def columnarShuffleUseRssSort: Boolean = getConf(COLUMNAR_SHUFFLE_USE_RSS_SORT)
+
   def maxBatchSize: Int = getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def shuffleWriterBufferSize: Int = getConf(SHUFFLE_WRITER_BUFFER_SIZE)
@@ -1489,6 +1491,13 @@ object GlutenConfig extends ConfigRegistry {
         "If true, use RSS sort implementation for Celeborn sort-based shuffle." +
           "If false, use Gluten's row-based sort implementation. " +
           "Only valid when `spark.celeborn.client.spark.shuffle.writer` is set to `sort`.")
+      .fallbackConf(COLUMNAR_SHUFFLE_USE_RSS_SORT)
+
+  val COLUMNAR_SHUFFLE_USE_RSS_SORT =
+    buildConf("spark.gluten.sql.columnar.shuffle.useRssSort")
+      .doc(
+        "If true, use RSS sort implementation for sort-based shuffle." +
+          "If false, use Gluten's row-based sort implementation.")
       .booleanConf
       .createWithDefault(true)
 

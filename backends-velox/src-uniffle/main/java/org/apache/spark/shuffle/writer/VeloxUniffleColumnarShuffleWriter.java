@@ -19,6 +19,8 @@ package org.apache.spark.shuffle.writer;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.HashShuffleWriterType$;
+import org.apache.gluten.config.RssSortShuffleWriterType$;
 import org.apache.gluten.config.SortShuffleWriterType$;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
@@ -80,8 +82,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       ShuffleWriterJniWrapper.create(runtime);
   private final int nativeBufferSize = GlutenConfig.get().maxBatchSize();
   private final int bufferSize;
+  private final long bufferSpillThreshold;
   private final int numPartitions;
-  private final boolean isSort;
 
   private final ColumnarShuffleDependency<K, V, V> columnarDep;
   private final SparkConf sparkConf;
@@ -125,6 +127,10 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
             sparkConf.getSizeAsBytes(
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.key(),
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.defaultValue().get());
+    bufferSpillThreshold =
+        sparkConf.getSizeAsBytes(
+            RssSparkConfig.RSS_WRITER_BUFFER_SPILL_SIZE.key(),
+            RssSparkConfig.RSS_WRITER_BUFFER_SPILL_SIZE.defaultValue().get());
     this.diskWriteBufferSize =
         (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_DISK_WRITE_BUFFER_SIZE());
     if ((boolean) sparkConf.get(package$.MODULE$.SHUFFLE_COMPRESS())) {
@@ -137,7 +143,6 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
         this.codecBackend = codecBackend.get();
       }
     }
-    isSort = columnarDep.shuffleWriterType().equals(SortShuffleWriterType$.MODULE$);
   }
 
   @Override
@@ -165,7 +170,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   bufferSize,
                   partitionPusher);
 
-          if (isSort) {
+          if (columnarDep.shuffleWriterType().equals(SortShuffleWriterType$.MODULE$)) {
             nativeShuffleWriter =
                 shuffleWriterJniWrapper.createSortShuffleWriter(
                     numPartitions,
@@ -175,6 +180,18 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                     diskWriteBufferSize,
                     (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_INIT_BUFFER_SIZE()),
                     (boolean) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_USE_RADIXSORT()),
+                    partitionWriterHandle);
+
+          } else if (columnarDep.shuffleWriterType().equals(RssSortShuffleWriterType$.MODULE$)) {
+            nativeShuffleWriter =
+                shuffleWriterJniWrapper.createRssSortShuffleWriter(
+                    numPartitions,
+                    columnarDep.nativePartitioning().getShortName(),
+                    GlutenShuffleUtils.getStartPartitionId(
+                        columnarDep.nativePartitioning(), partitionId),
+                    nativeBufferSize,
+                    bufferSpillThreshold,
+                    compressionCodec,
                     partitionWriterHandle);
           } else {
             nativeShuffleWriter =
@@ -234,7 +251,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       throw new RssException(e);
     }
     columnarDep.metrics().get("shuffleWallTime").get().add(System.nanoTime() - startTime);
-    if (!isSort) {
+    if (columnarDep.shuffleWriterType().equals(HashShuffleWriterType$.MODULE$)) {
       columnarDep
           .metrics()
           .get("splitTime")
@@ -250,9 +267,19 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
           .get()
           .set(splitResult.getAvgDictionaryFields());
       columnarDep.metrics().get("dictionarySize").get().add(splitResult.getDictionarySize());
-    } else {
+    } else if (columnarDep.shuffleWriterType().equals(SortShuffleWriterType$.MODULE$)) {
       columnarDep.metrics().get("sortTime").get().add(splitResult.getSortTime());
       columnarDep.metrics().get("c2rTime").get().add(splitResult.getC2RTime());
+    } else if (columnarDep.shuffleWriterType().equals(RssSortShuffleWriterType$.MODULE$)) {
+      columnarDep
+          .metrics()
+          .get("sortTime")
+          .get()
+          .add(
+              columnarDep.metrics().get("shuffleWallTime").get().value()
+                  - splitResult.getTotalPushTime()
+                  - splitResult.getTotalWriteTime()
+                  - splitResult.getTotalCompressTime());
     }
 
     // bytesWritten is calculated in uniffle side: WriteBufferManager.createShuffleBlock
