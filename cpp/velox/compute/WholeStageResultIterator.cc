@@ -358,6 +358,7 @@ void WholeStageResultIterator::constructPartitionColumns(
 }
 
 void WholeStageResultIterator::addIteratorSplits(const std::vector<std::shared_ptr<ResultIterator>>& inputIterators) {
+  GLUTEN_CHECK(!allSplitsAdded, "Method addIteratorSplits should not be called since all splits has been added to the Velox task.");
   // Create IteratorConnectorSplit for each iterator
   for (size_t i = 0; i < streamIds_.size() && i < inputIterators.size(); ++i) {
     if (inputIterators[i] == nullptr) {
