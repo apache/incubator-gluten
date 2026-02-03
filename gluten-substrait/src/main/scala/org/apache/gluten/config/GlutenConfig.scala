@@ -1491,7 +1491,8 @@ object GlutenConfig extends ConfigRegistry {
         "If true, use RSS sort implementation for Celeborn sort-based shuffle." +
           "If false, use Gluten's row-based sort implementation. " +
           "Only valid when `spark.celeborn.client.spark.shuffle.writer` is set to `sort`.")
-      .fallbackConf(COLUMNAR_SHUFFLE_USE_RSS_SORT)
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_SHUFFLE_USE_RSS_SORT =
     buildConf("spark.gluten.sql.columnar.shuffle.useRssSort")
@@ -1499,7 +1500,7 @@ object GlutenConfig extends ConfigRegistry {
         "If true, use RSS sort implementation for sort-based shuffle." +
           "If false, use Gluten's row-based sort implementation.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val HDFS_VIEWFS_ENABLED =
     buildStaticConf("spark.gluten.storage.hdfsViewfs.enabled")
