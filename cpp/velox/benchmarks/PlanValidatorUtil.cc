@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
   conf.insert({kDebugModeEnabled, "true"});
   initVeloxBackend(conf);
   auto pool = defaultLeafVeloxMemoryPool().get();
-  SubstraitToVeloxPlanValidator planValidator(pool, conf);
+  SubstraitToVeloxPlanValidator planValidator(pool);
 
   ::substrait::Plan subPlan;
   parseProtobuf(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), &subPlan);

@@ -84,7 +84,8 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
   blockStripesConstructor = getMethodIdOrError(env, blockStripesClass, "<init>", "(J[J[II[[B)V");
 
-  batchWriteMetricsClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/BatchWriteMetrics;");
+  batchWriteMetricsClass =
+    createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/BatchWriteMetrics;");
   batchWriteMetricsConstructor = getMethodIdOrError(env, batchWriteMetricsClass, "<init>", "(JIJJ)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
@@ -163,11 +164,11 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   }
 
   const auto pool = defaultLeafVeloxMemoryPool().get();
+  SubstraitToVeloxPlanValidator planValidator(pool);
   ::substrait::Plan subPlan;
   parseProtobuf(planData, planSize, &subPlan);
 
   try {
-    SubstraitToVeloxPlanValidator planValidator(pool, runtime->getConfMap());
     const auto isSupported = planValidator.validate(subPlan);
     const auto logs = planValidator.getValidateLog();
     std::string concatLog;
@@ -197,9 +198,6 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateExpressi
   auto inputTypeData = safeInputTypeArray.elems();
   auto inputTypeSize = env->GetArrayLength(inputTypeArray);
 
-  const auto ctx = getRuntime(env, wrapper);
-  const auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
-
   ::substrait::Expression expression;
   parseProtobuf(exprData, exprSize, &expression);
   ::substrait::Type inputSubstraitType;
@@ -224,14 +222,14 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateExpressi
     env->DeleteLocalRef(mapping);
   }
 
+  auto pool = defaultLeafVeloxMemoryPool().get();
+  SubstraitToVeloxPlanValidator planValidator(pool);
   auto inputType = SubstraitParser::parseType(inputSubstraitType);
   if (inputType->kind() != TypeKind::ROW) {
     throw GlutenException("Input type is not a RowType.");
   }
+  auto rowType = std::dynamic_pointer_cast<const RowType>(inputType);
   try {
-    auto pool = defaultLeafVeloxMemoryPool().get();
-    SubstraitToVeloxPlanValidator planValidator(pool, runtime->getConfMap());
-    auto rowType = std::dynamic_pointer_cast<const RowType>(inputType);
     return planValidator.validate(expression, rowType, std::move(functionMappings));
   } catch (std::invalid_argument& e) {
     return false;
@@ -441,8 +439,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchResizerJniWrapper
   auto ctx = getRuntime(env, wrapper);
   auto pool = dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager())->getLeafMemoryPool();
   auto iter = makeJniColumnarBatchIterator(env, jIter, ctx);
-  auto appender = std::make_shared<ResultIterator>(std::make_unique<VeloxBatchResizer>(
-      pool.get(), minOutputBatchSize, maxOutputBatchSize, preferredBatchBytes, std::move(iter)));
+  auto appender = std::make_shared<ResultIterator>(
+      std::make_unique<VeloxBatchResizer>(pool.get(), minOutputBatchSize, maxOutputBatchSize, preferredBatchBytes, std::move(iter)));
   return ctx->saveObject(appender);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
@@ -585,15 +583,12 @@ Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_splitBlockByPartitio
   const auto numRows = inputRowVector->size();
 
   connector::hive::PartitionIdGenerator idGen(
-      asRowType(inputRowVector->type()),
-      partitionColIndicesVec,
-      65536,
-      pool.get()
+      asRowType(inputRowVector->type()), partitionColIndicesVec, 65536, pool.get()
 #ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
-          ,
+      ,
       true
-#endif
-  );
+#endif    
+    );
   raw_vector<uint64_t> partitionIds{};
   idGen.run(inputRowVector, partitionIds);
   GLUTEN_CHECK(partitionIds.size() == numRows, "Mismatched number of partition ids");
