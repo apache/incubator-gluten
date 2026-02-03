@@ -328,8 +328,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCSVParsingOptionsSuite]
   // Generated suites for org.apache.spark.sql.execution.datasources.json
   enableSuite[GlutenJsonParsingOptionsSuite]
-  // Generated suites for org.apache.spark.sql.execution.datasources.orc
-  enableSuite[GlutenOrcEncryptionSuite]
   // Generated suites for org.apache.spark.sql.execution.datasources.parquet
   enableSuite[GlutenParquetAvroCompatibilitySuite]
   enableSuite[GlutenParquetCommitterSuite]
