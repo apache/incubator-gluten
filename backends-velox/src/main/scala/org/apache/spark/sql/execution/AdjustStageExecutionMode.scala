@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.execution.{CudfTag, VeloxResizeBatchesExec, WholeStageTransformer}
+import org.apache.gluten.execution.{CudfTag, TransformSupport, VeloxResizeBatchesExec, WholeStageTransformer}
 import org.apache.gluten.logging.LogLevelUtil
 
 import org.apache.spark.SparkConf
@@ -27,7 +27,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, TaskResourceRequest}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.AdjustStageExecutionMode.adjustExecutionMode
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
+import org.apache.spark.sql.execution.AdjustStageExecutionMode.{adjustExecutionMode, unsetTag}
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ColumnarAQEShuffleReadExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.utils.GlutenResourceProfileUtil
@@ -73,7 +74,7 @@ case class AdjustStageExecutionMode(
     }
     if (transformers.size > 1) {
       logWarning(s"Not offloading GPU because multiple WholeStageTransformer exist. Remove tags.")
-      transformers.foreach(_.unsetTagValue(CudfTag.CudfTag))
+      unsetTag(plan, CudfTag.CudfTag)
       return plan
     }
 
@@ -84,12 +85,13 @@ case class AdjustStageExecutionMode(
         val offloadGpu = planNodes.exists(_.isInstanceOf[BaseJoinExec])
         if (!offloadGpu) {
           logWarning(s"Not offloading GPU because missing offload condition. Remove tag.")
-          transformer.unsetTagValue(CudfTag.CudfTag)
+          unsetTag(plan, CudfTag.CudfTag)
           return plan
         }
       }
 
       val gpuStageMode = if (SparkTestUtil.isTesting) {
+        // Only unset for transformer.
         transformer.unsetTagValue(CudfTag.CudfTag)
         MockGPUStageMode
       } else {
@@ -163,6 +165,14 @@ object AdjustStageExecutionMode extends Logging {
           Some(stageExecutionMode))
       case _ =>
         plan.withNewChildren(plan.children.map(adjustExecutionMode(_, stageExecutionMode)))
+    }
+  }
+
+  def unsetTag[T](plan: SparkPlan, tag: TreeNodeTag[T]): Unit = {
+    plan.foreach {
+      case t: TransformSupport =>
+        t.unsetTagValue(tag)
+      case _ =>
     }
   }
 }
