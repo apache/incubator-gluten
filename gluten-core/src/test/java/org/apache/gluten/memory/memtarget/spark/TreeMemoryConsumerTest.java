@@ -201,8 +201,7 @@ public class TreeMemoryConsumerTest {
         () -> {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget root =
-              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP)
-                  .legacyRoot();
+              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP).legacyRoot();
 
           final AtomicInteger spillCount = new AtomicInteger(0);
           final AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -318,8 +317,7 @@ public class TreeMemoryConsumerTest {
     test(
         () -> {
           final TreeMemoryTarget root =
-              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP)
-                  .legacyRoot();
+              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP).legacyRoot();
           final TreeMemoryTarget warmup =
               root.newChild(
                   "WARMUP",
@@ -414,8 +412,7 @@ public class TreeMemoryConsumerTest {
         () -> {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget root =
-              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP)
-                  .legacyRoot();
+              TreeMemoryConsumers.factory(MemoryMode.OFF_HEAP).legacyRoot();
 
           final AtomicInteger spillCount = new AtomicInteger(0);
           final AtomicReference<Throwable> failure = new AtomicReference<>();
