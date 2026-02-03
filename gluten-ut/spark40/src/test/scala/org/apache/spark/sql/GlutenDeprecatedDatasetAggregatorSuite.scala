@@ -19,4 +19,6 @@ package org.apache.spark.sql
 import scala.annotation.nowarn
 
 @nowarn("cat=deprecation")
-class GlutenDeprecatedDatasetAggregatorSuite extends DeprecatedDatasetAggregatorSuite with GlutenSQLTestsTrait {}
+class GlutenDeprecatedDatasetAggregatorSuite
+  extends DeprecatedDatasetAggregatorSuite
+  with GlutenSQLTestsTrait {}
