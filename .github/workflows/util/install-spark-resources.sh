@@ -89,11 +89,6 @@ INSTALL_DIR=${2:-/opt/}
 mkdir -p ${INSTALL_DIR}
 
 case "$1" in
-3.2)
-    # Spark-3.2
-    cd ${INSTALL_DIR} && \
-    install_spark "3.2.2" "3.2" "2.12"
-    ;;
 3.3)
     # Spark-3.3
     cd ${INSTALL_DIR} && \
@@ -122,7 +117,7 @@ case "$1" in
 4.1)
     # Spark-4.x, scala 2.12 // using 2.12 as a hack as 4.0 does not have 2.13 suffix
     cd ${INSTALL_DIR} && \
-    install_spark "4.1.0" "3" "2.12"
+    install_spark "4.1.1" "3" "2.12"
     ;;
 *)
     echo "Spark version is expected to be specified."

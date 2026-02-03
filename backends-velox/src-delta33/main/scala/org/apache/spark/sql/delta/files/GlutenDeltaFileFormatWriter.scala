@@ -18,9 +18,10 @@ package org.apache.spark.sql.delta.files
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
-import org.apache.gluten.extension.columnar.transition.Transitions
+import org.apache.gluten.extension.columnar.transition.{Convention, Transitions}
 
 import org.apache.spark._
 import org.apache.spark.internal.{LoggingShims, MDC}
@@ -240,7 +241,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
                             orderingMatched: Boolean,
                             writeOffloadable: Boolean): Set[String] = {
     val projectList = V1WritesUtils.convertEmptyToNull(plan.output, partitionColumns)
-    val empty2NullPlan = if (projectList.nonEmpty) ProjectExec(projectList, plan) else plan
+    val empty2NullPlan = if (projectList.nonEmpty) ProjectExecTransformer(projectList, plan) else plan
 
     writeAndCommit(job, description, committer) {
       val (planToExecute, concurrentOutputWriterSpec) = if (orderingMatched) {
@@ -262,6 +263,11 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
           val newPlan = sortPlan.child match {
             case wst @ WholeStageTransformer(wholeStageChild, _) =>
               wst.withNewChildren(Seq(addNativeSort(wholeStageChild)))
+            case other if Convention.get(other).batchType == VeloxBatchType =>
+              val nativeSortPlan = addNativeSort(other)
+              val nativeSortPlanWithWst =
+                GenerateTransformStageId()(ColumnarCollapseTransformStages(new GlutenConfig(sparkSession.sessionState.conf))(nativeSortPlan))
+              nativeSortPlanWithWst
             case other =>
               Transitions.toBatchPlan(sortPlan, VeloxBatchType)
           }
@@ -272,7 +278,7 @@ object GlutenDeltaFileFormatWriter extends LoggingShims {
       val wrappedPlanToExecute = if (writeOffloadable) {
         BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(planToExecute)
       } else {
-        planToExecute
+        Transitions.toRowPlan(planToExecute)
       }
 
       // In testing, this is the only way to get hold of the actually executed plan written to file

@@ -89,7 +89,7 @@ class JniReadFile : public facebook::velox::ReadFile {
       uint64_t offset,
       uint64_t length,
       void* buf,
-      const facebook::velox::FileStorageContext& fileStorageContext = {}) const override {
+      const facebook::velox::FileIoContext& fileStorageContext = {}) const override {
     JNIEnv* env = nullptr;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     env->CallVoidMethod(

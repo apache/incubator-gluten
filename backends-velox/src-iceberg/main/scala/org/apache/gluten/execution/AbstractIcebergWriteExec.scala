@@ -36,7 +36,8 @@ abstract class AbstractIcebergWriteExec extends IcebergWriteExec {
       getCodec,
       getPartitionSpec,
       IcebergWriteUtil.getSortOrder(write),
-      nestedField
+      nestedField,
+      IcebergWriteUtil.getQueryId(write)
     )
   }
 }
