@@ -240,7 +240,7 @@ class VeloxIcebergSuite extends IcebergSuite {
                      |as select * from iceberg_tb1
                      |""".stripMargin
 
-      TestUtils.checkExecutedPlanContains[VeloxIcebergAppendDataExec](spark, spark.sql(sqlStr))
+      TestUtils.checkExecutedPlanContains[VeloxIcebergAppendDataExec](spark, sqlStr)
 
       checkAnswer(
         spark.sql("select * from iceberg_tb2 order by a"),
@@ -356,31 +356,30 @@ class VeloxIcebergSuite extends IcebergSuite {
       withTempDir {
         checkpointDir =>
           spark.sql("CREATE TABLE iceberg_tbl (a INT, b STRING) USING iceberg")
-          TestUtils.checkExecutedPlanContains[VeloxIcebergWriteToDataSourceV2Exec](
-            spark, {
-              val inputData = MemoryStream[(Int, String)]
-              val stream = inputData
-                .toDS()
-                .toDF("a", "b")
-                .writeStream
-                .option("checkpointLocation", checkpointDir.getCanonicalPath)
-                .format("iceberg")
-                .toTable("iceberg_tbl")
+          TestUtils.checkExecutedPlanContains[VeloxIcebergWriteToDataSourceV2Exec](spark) {
+            val inputData = MemoryStream[(Int, String)]
+            val stream = inputData
+              .toDS()
+              .toDF("a", "b")
+              .writeStream
+              .option("checkpointLocation", checkpointDir.getCanonicalPath)
+              .format("iceberg")
+              .toTable("iceberg_tbl")
 
-              val query = () => spark.sql("SELECT * FROM iceberg_tbl ORDER BY a")
-              try {
-                inputData.addData((1, "a"))
-                stream.processAllAvailable()
-                checkAnswer(query(), Seq(Row(1, "a")))
+            val query = () => spark.sql("SELECT * FROM iceberg_tbl ORDER BY a")
+            try {
+              inputData.addData((1, "a"))
+              stream.processAllAvailable()
+              checkAnswer(query(), Seq(Row(1, "a")))
 
-                inputData.addData((2, "b"))
-                stream.processAllAvailable()
-                checkAnswer(query(), Seq(Row(1, "a"), Row(2, "b")))
-              } finally {
-                stream.stop()
-              }
+              inputData.addData((2, "b"))
+              stream.processAllAvailable()
+              checkAnswer(query(), Seq(Row(1, "a"), Row(2, "b")))
+            } finally {
+              stream.stop()
             }
-          )
+          }
+
       }
     }
   }
