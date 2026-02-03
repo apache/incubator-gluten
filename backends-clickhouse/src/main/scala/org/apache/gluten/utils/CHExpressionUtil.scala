@@ -18,6 +18,7 @@ package org.apache.gluten.utils
 
 import org.apache.gluten.expression.ExpressionNames._
 import org.apache.gluten.utils.FunctionValidator._
+import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -83,6 +84,12 @@ case class StringSplitValidator() extends FunctionValidator {
   override def doValidate(expr: Expression): Boolean = {
     val split = expr.asInstanceOf[StringSplit]
     if (!split.regex.isInstanceOf[Literal] || !split.limit.isInstanceOf[Literal]) {
+      return false
+    }
+    val regexLiteral = split.regex.asInstanceOf[Literal]
+    if (
+      regexLiteral.value == null || !NativeRegexValidator.isCompatible(regexLiteral.value.toString)
+    ) {
       return false
     }
 
@@ -166,6 +173,39 @@ case class FormatStringValidator() extends FunctionValidator {
   }
 }
 
+object NativeRegexValidator {
+  def isCompatible(pattern: String): Boolean = {
+    try {
+      CHNativeExpressionEvaluator.validateRegex(pattern)
+    } catch {
+      case _: Throwable => false
+    }
+  }
+}
+
+case class RegexFunctionValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val patternOpt = expr match {
+      case r: RLike => literalPattern(r.right)
+      case r: RegExpReplace => literalPattern(r.regexp)
+      case r: RegExpExtract => literalPattern(r.regexp)
+      case _ if regexFunctionNames.contains(expr.prettyName) && expr.children.size >= 2 =>
+        literalPattern(expr.children(1))
+      case _ =>
+        None
+    }
+    patternOpt.exists(NativeRegexValidator.isCompatible)
+  }
+
+  private def literalPattern(expr: Expression): Option[String] = expr match {
+    case l: Literal if l.value != null => Some(l.value.toString)
+    case _ => None
+  }
+
+  private val regexFunctionNames =
+    Set(REGEXP_REPLACE, REGEXP_EXTRACT, REGEXP_EXTRACT_ALL, RLIKE)
+}
+
 object CHExpressionUtil {
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
     MAX_BY -> DefaultValidator(),
@@ -183,6 +223,10 @@ object CHExpressionUtil {
     LPAD -> StringLPadValidator(),
     RPAD -> StringRPadValidator(),
     DATE_FORMAT -> DateFormatClassValidator(),
+    RLIKE -> RegexFunctionValidator(),
+    REGEXP_REPLACE -> RegexFunctionValidator(),
+    REGEXP_EXTRACT -> RegexFunctionValidator(),
+    REGEXP_EXTRACT_ALL -> RegexFunctionValidator(),
     DECODE -> EncodeDecodeValidator(),
     ENCODE -> EncodeDecodeValidator(),
     DATE_FROM_UNIX_DATE -> DefaultValidator(),
