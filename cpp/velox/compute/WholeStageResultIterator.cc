@@ -393,6 +393,13 @@ void WholeStageResultIterator::noMoreSplits() {
   allSplitsAdded = true;
 }
 
+void WholeStageResultIterator::requestBarrier() {
+  if (task_ == nullptr) {
+    throw GlutenException("Cannot request barrier: task is null");
+  }
+  task_->requestBarrier();
+}
+
 void WholeStageResultIterator::collectMetrics() {
   if (metrics_) {
     // The metrics has already been created.
