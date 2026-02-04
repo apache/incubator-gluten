@@ -531,7 +531,10 @@ object GlutenConfig extends ConfigRegistry {
       (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
       (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
       (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString),
-      (SQLConf.ANSI_ENABLED.key, SQLConf.ANSI_ENABLED.defaultValueString)
+      (SQLConf.ANSI_ENABLED.key, SQLConf.ANSI_ENABLED.defaultValueString),
+      (SQLConf.RUNTIME_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key, SQLConf.RUNTIME_BLOOM_FILTER_EXPECTED_NUM_ITEMS.defaultValueString),
+      (SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_BITS.key, SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_BITS.defaultValueString),
+      (SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS.key, SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS.defaultValueString)
     ).foreach { case (k, defaultValue) => nativeConfMap.put(k, conf.getOrElse(k, defaultValue)) }
 
     Seq(
