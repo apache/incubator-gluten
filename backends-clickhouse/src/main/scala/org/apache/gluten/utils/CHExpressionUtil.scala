@@ -174,7 +174,22 @@ case class FormatStringValidator() extends FunctionValidator {
 }
 
 object NativeRegexValidator {
+  // RE2 does not support lookahead, lookbehind, or backreferences.
+  // Reject these in Scala so we fall back when native lib is unavailable
+  // or behaves differently.
+  private def hasRE2UnsupportedSyntax(pattern: String): Boolean = {
+    if (pattern == null || pattern.isEmpty) return true
+    // Lookahead: (?= or (?!
+    if (pattern.contains("(?=") || pattern.contains("(?!")) return true
+    // Lookbehind: (?<= or (?<!
+    if (pattern.contains("(?<=") || pattern.contains("(?<!")) return true
+    // Backreferences: \1 .. \9
+    if ("""\\[1-9]""".r.findFirstIn(pattern).isDefined) return true
+    false
+  }
+
   def isCompatible(pattern: String): Boolean = {
+    if (hasRE2UnsupportedSyntax(pattern)) return false
     try {
       CHNativeExpressionEvaluator.validateRegex(pattern)
     } catch {
