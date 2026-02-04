@@ -47,7 +47,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
-import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode, SparkHashJoinUtils}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.execution.unsafe.UnsafeColumnarBuildSideRelation
@@ -692,18 +692,24 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
     var offload = true
     val (newChild, newOutput, newBuildKeys) =
       if (VeloxConfig.get.enableBroadcastBuildOncePerExecutor) {
-        if (
+
+        val newBuildKeys = if (SparkHashJoinUtils.canRewriteAsLongType(buildKeys)) {
+          SparkHashJoinUtils.getOriginalKeysFromPacked(buildKeys.head)
+        } else {
           buildKeys
-            .forall(
-              k =>
-                k.isInstanceOf[AttributeReference] ||
-                  k.isInstanceOf[BoundReference])
-        ) {
+        }
+
+        val noNeedPreOp = newBuildKeys.forall {
+          case _: AttributeReference | _: BoundReference => true
+          case _ => false
+        }
+
+        if (noNeedPreOp) {
           (child, child.output, Seq.empty[Expression])
         } else {
           // pre projection in case of expression join keys
           val appendedProjections = new ArrayBuffer[NamedExpression]()
-          val preProjectionBuildKeys = buildKeys.zipWithIndex.map {
+          val preProjectionBuildKeys = newBuildKeys.zipWithIndex.map {
             case (e, idx) =>
               e match {
                 case b: BoundReference => child.output(b.ordinal)
