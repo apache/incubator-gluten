@@ -258,11 +258,13 @@ object GlutenDeltaJobStatsTracker extends Logging {
       val nativeOutItr = evaluator
         .createKernelWithBatchIterator(
           planNode.toProtobuf.toByteArray,
-          new Array[Array[Byte]](0),
-          Seq(inputIterator).asJava,
+          null,
+          null,
           0,
           BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
         )
+      nativeOutItr.addIteratorSplits(Array(inputIterator))
+      nativeOutItr.noMoreSplits()
       Iterators
         .wrap(nativeOutItr.asScala)
         .recyclePayload(b => b.close())
