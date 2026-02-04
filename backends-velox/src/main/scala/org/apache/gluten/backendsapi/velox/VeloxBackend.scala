@@ -500,6 +500,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
     allSupported
   }
 
+  override def enableJoinKeysRewrite(): Boolean = false
+
   override def supportColumnarShuffleExec(): Boolean = {
     val conf = GlutenConfig.get
     conf.enableColumnarShuffle &&
