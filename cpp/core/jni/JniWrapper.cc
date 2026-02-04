@@ -26,6 +26,7 @@
 #include "jni/JniError.h"
 
 #include <arrow/c/bridge.h>
+#include <google/protobuf/stubs/common.h>
 #include <optional>
 #include <string>
 #include "memory/AllocationListener.h"
@@ -305,6 +306,8 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 
   getJniErrorState()->close();
   getJniCommonState()->close();
+
+  google::protobuf::ShutdownProtobufLibrary();
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_createRuntime( // NOLINT
