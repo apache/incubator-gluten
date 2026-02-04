@@ -233,6 +233,7 @@ class SafeNativeArray {
  public:
   virtual ~SafeNativeArray() {
     PrimitiveArray::release(env_, javaArray_, nativeArray_);
+    env_->DeleteLocalRef(javaArray_);
   }
 
   SafeNativeArray(const SafeNativeArray&) = delete;
@@ -255,7 +256,7 @@ class SafeNativeArray {
 
  private:
   SafeNativeArray(JNIEnv* env, JavaArrayType javaArray, JniNativeArrayType nativeArray)
-      : env_(env), javaArray_(javaArray), nativeArray_(nativeArray){};
+      : env_(env), javaArray_(static_cast<JavaArrayType>(env_->NewLocalRef(javaArray))), nativeArray_(nativeArray){};
 
   JNIEnv* env_;
   JavaArrayType javaArray_;

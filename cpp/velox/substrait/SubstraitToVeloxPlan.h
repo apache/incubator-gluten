@@ -70,11 +70,13 @@ class SubstraitToVeloxPlanConverter {
   explicit SubstraitToVeloxPlanConverter(
       memory::MemoryPool* pool,
       const facebook::velox::config::ConfigBase* veloxCfg,
+      const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
       const std::optional<std::string> writeFilesTempPath = std::nullopt,
       const std::optional<std::string> writeFileName = std::nullopt,
       bool validationMode = false)
       : pool_(pool),
         veloxCfg_(veloxCfg),
+        inputIters_(inputIters),
         writeFilesTempPath_(writeFilesTempPath),
         writeFileName_(writeFileName),
         validationMode_(validationMode) {
@@ -133,8 +135,11 @@ class SubstraitToVeloxPlanConverter {
   /// FileProperties: the file sizes and modification times of the files to be scanned.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ReadRel& sRead);
 
-  template <typename T>
+  // Construct a table scan node accepting value streams as input.
   core::PlanNodePtr constructValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+
+  // Construct a cuDF value stream node.
+  core::PlanNodePtr constructCudfValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
 
   // This is only used in benchmark and enable query trace, which will load all the data to ValuesNode.
   core::PlanNodePtr constructValuesNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
@@ -181,8 +186,10 @@ class SubstraitToVeloxPlanConverter {
     splitInfos_ = splitInfos;
   }
 
-  void setInputIters(std::vector<std::shared_ptr<ResultIterator>> inputIters) {
-    inputIters_ = std::move(inputIters);
+  /// The input iterators not inlined to VeloxPlan. They should be then manually added to the Velox task
+  /// via WholeStageResultIterator#addIteratorSplits. Empty if no input iterators remaining.
+  const std::vector<std::shared_ptr<ResultIterator>>& remainingInputIterators() const {
+    return inputIters_;
   }
 
   /// Used to check if ReadRel specifies an input of stream.
@@ -271,8 +278,6 @@ class SubstraitToVeloxPlanConverter {
   /// The map storing the split stats for each PlanNode.
   std::unordered_map<core::PlanNodeId, std::shared_ptr<SplitInfo>> splitInfoMap_;
 
-  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
-
   /// The map storing the pre-built plan nodes which can be accessed through
   /// index. This map is only used when the computation of a Substrait plan
   /// depends on other input nodes.
@@ -290,6 +295,9 @@ class SubstraitToVeloxPlanConverter {
 
   /// A map of custom configs.
   const facebook::velox::config::ConfigBase* veloxCfg_;
+
+  /// Input row-vectors for query trace mode (ValuesNode / cuDF ValueStream support)
+  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 
   /// The temporary path used to write files.
   std::optional<std::string> writeFilesTempPath_;

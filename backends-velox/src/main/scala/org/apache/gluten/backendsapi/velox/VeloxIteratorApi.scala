@@ -213,11 +213,12 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val resIter: ColumnarBatchOutIterator =
       transKernel.createKernelWithBatchIterator(
         inputPartition.plan,
-        splitInfoByteArray,
-        columnarNativeIterators.asJava,
+        if (splitInfoByteArray.nonEmpty) splitInfoByteArray else null,
+        if (columnarNativeIterators.nonEmpty) columnarNativeIterators.toArray else null,
         partitionIndex,
         BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
       )
+    resIter.noMoreSplits()
     val itrMetrics = IteratorMetricsJniWrapper.create()
 
     Iterators
@@ -261,12 +262,12 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val nativeResultIterator =
       transKernel.createKernelWithBatchIterator(
         rootNode.toProtobuf.toByteArray,
-        // Final iterator does not contain scan split, so pass empty split info to native here.
-        new Array[Array[Byte]](0),
-        columnarNativeIterator.asJava,
+        null,
+        if (columnarNativeIterator.nonEmpty) columnarNativeIterator.toArray else null,
         partitionIndex,
         BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
       )
+    nativeResultIterator.noMoreSplits()
     val itrMetrics = IteratorMetricsJniWrapper.create()
 
     Iterators
