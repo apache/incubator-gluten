@@ -138,15 +138,11 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     // Spark has an improvement which would patch integer joins keys to a Long value.
     // But this improvement would cause add extra project before hash join in velox,
     // disabling this improvement as below would help reduce the project.
-    val (lkeys, rkeys) =
-      if (
-        BackendsApiManager.getSettings.enableHashTableBuildOncePerExecutor() &&
-        this.isInstanceOf[BroadcastHashJoinExecTransformerBase]
-      ) {
-        (HashJoin.rewriteKeyExpr(leftKeys), HashJoin.rewriteKeyExpr(rightKeys))
-      } else {
-        (leftKeys, rightKeys)
-      }
+    val (lkeys, rkeys) = if (BackendsApiManager.getSettings.enableJoinKeysRewrite()) {
+      (HashJoin.rewriteKeyExpr(leftKeys), HashJoin.rewriteKeyExpr(rightKeys))
+    } else {
+      (leftKeys, rightKeys)
+    }
     if (needSwitchChildren) {
       (lkeys, rkeys)
     } else {
