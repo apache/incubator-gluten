@@ -28,8 +28,8 @@ namespace gluten {
 class ResultIterator;
 
 struct SplitInfo {
-  /// Whether the split comes from arrow array stream node.
-  bool isStream = false;
+  /// Whether it's a streaming node that accepts iterator splits.
+  bool isSplitAwareStream = false;
 
   /// The Partition index.
   u_int32_t partitionIndex;

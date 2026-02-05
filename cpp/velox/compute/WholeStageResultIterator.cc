@@ -358,7 +358,7 @@ void WholeStageResultIterator::constructPartitionColumns(
 }
 
 void WholeStageResultIterator::addIteratorSplits(const std::vector<std::shared_ptr<ResultIterator>>& inputIterators) {
-  GLUTEN_CHECK(!allSplitsAdded, "Method addIteratorSplits should not be called since all splits has been added to the Velox task.");
+  GLUTEN_CHECK(!allSplitsAdded_, "Method addIteratorSplits should not be called since all splits has been added to the Velox task.");
   // Create IteratorConnectorSplit for each iterator
   for (size_t i = 0; i < streamIds_.size() && i < inputIterators.size(); ++i) {
     if (inputIterators[i] == nullptr) {
@@ -372,7 +372,7 @@ void WholeStageResultIterator::addIteratorSplits(const std::vector<std::shared_p
 }
 
 void WholeStageResultIterator::noMoreSplits() {
-  if (allSplitsAdded) {
+  if (allSplitsAdded_) {
     return;
   }
   // Mark no more splits for all scan nodes
@@ -390,7 +390,7 @@ void WholeStageResultIterator::noMoreSplits() {
   for (const auto& streamId : streamIds_) {
     task_->noMoreSplits(streamId);
   }
-  allSplitsAdded = true;
+  allSplitsAdded_ = true;
 }
 
 void WholeStageResultIterator::collectMetrics() {

@@ -1323,7 +1323,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
 
   // Mark this as a stream-based split
   auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->isStream = true;
+  splitInfo->isSplitAwareStream = true;
   splitInfoMap_[tableScanNode->id()] = splitInfo;
 
   return tableScanNode;
@@ -1360,7 +1360,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructCudfValueStreamNode(
   auto node = std::make_shared<CudfValueStreamNode>(nextPlanNodeId(), outputType, std::move(iterator));
 
   auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->isStream = true;
   splitInfoMap_[node->id()] = splitInfo;
   return node;
 }
@@ -1381,7 +1380,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValuesNode(
   }
   auto node = std::make_shared<facebook::velox::core::ValuesNode>(nextPlanNodeId(), std::move(rowVectors));
   auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->isStream = true;
   splitInfoMap_[node->id()] = splitInfo;
   return node;
 }
