@@ -693,11 +693,12 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val (newChild, newOutput, newBuildKeys) =
       if (VeloxConfig.get.enableBroadcastBuildOncePerExecutor) {
 
-        val newBuildKeys = if (SparkHashJoinUtils.canRewriteAsLongType(buildKeys)) {
-          SparkHashJoinUtils.getOriginalKeysFromPacked(buildKeys.head)
-        } else {
-          buildKeys
-        }
+        val newBuildKeys =
+          if (SparkHashJoinUtils.canRewriteAsLongType(buildKeys) && buildKeys.size > 0) {
+            SparkHashJoinUtils.getOriginalKeysFromPacked(buildKeys.head)
+          } else {
+            buildKeys
+          }
 
         val noNeedPreOp = newBuildKeys.forall {
           case _: AttributeReference | _: BoundReference => true
