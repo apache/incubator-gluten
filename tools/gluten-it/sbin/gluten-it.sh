@@ -24,7 +24,12 @@ if [[ ! -d $LIB_DIR ]]; then
   exit 1
 fi
 
-JAR_PATH=$LIB_DIR/*
+GLUTEN_JAR=$(find $LIB_DIR -maxdepth 1 -name "gluten-package-*.jar" | head -n 1)
+if [ -z "$GLUTEN_JAR" ]; then
+  echo "Error: gluten-package jar not found in $LIB_DIR"
+  exit 1
+fi
+JAR_PATH=$GLUTEN_JAR:$LIB_DIR/*
 
 SPARK_JVM_OPTIONS=$($JAVA_HOME/bin/java -cp $JAR_PATH org.apache.gluten.integration.SparkJvmOptions)
 

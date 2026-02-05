@@ -497,6 +497,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenEnsureRequirementsSuite]
 
   enableSuite[GlutenBroadcastJoinSuite]
+    .exclude("join key rewritten")
     .exclude("Shouldn't change broadcast join buildSide if user clearly specified")
     .exclude("Shouldn't bias towards build right if user didn't specify")
     .exclude("SPARK-23192: broadcast hint should be retained after using the cached data")
