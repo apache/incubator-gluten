@@ -72,3 +72,7 @@ metastore_db/
 
 .ipynb_checkpoints
 .worktrees/
+
+# GitHub Copilot config (allow local customization)
+.github/copilot-instructions.md
+.github/copilot-setup-steps.yml

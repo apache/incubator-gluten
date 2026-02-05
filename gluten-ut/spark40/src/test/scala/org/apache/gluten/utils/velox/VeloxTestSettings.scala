@@ -817,6 +817,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameTableValuedFunctionsSuite]
   enableSuite[GlutenDataFrameTransposeSuite]
   enableSuite[GlutenDefaultANSIValueSuite]
+  enableSuite[GlutenDeprecatedDatasetAggregatorSuite]
   // TODO: 4.x enableSuite[GlutenExplainSuite]  // 1 failure
   enableSuite[GlutenICUCollationsMapSuite]
   enableSuite[GlutenInlineTableParsingImprovementsSuite]
@@ -864,6 +865,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("InMemoryRelation statistics")
     // Extra ColumnarToRow is needed to transform vanilla columnar data to gluten columnar data.
     .exclude("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
+    // Rewritten because native raise_error throws Spark exception
+    .exclude("SPARK-52684: Atomicity of cache table on error")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenColumnExpressionSuite]

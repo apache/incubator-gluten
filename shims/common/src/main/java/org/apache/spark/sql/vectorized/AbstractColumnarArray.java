@@ -14,28 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.vectorized;
+package org.apache.spark.sql.vectorized;
 
 import org.apache.spark.sql.catalyst.expressions.SpecializedGettersReader;
 import org.apache.spark.sql.catalyst.expressions.UnsafeArrayData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.types.*;
-import org.apache.spark.sql.vectorized.ColumnVector;
-import org.apache.spark.sql.vectorized.ColumnarArray;
-import org.apache.spark.sql.vectorized.ColumnarMap;
-import org.apache.spark.sql.vectorized.ColumnarRow;
 import org.apache.spark.unsafe.types.CalendarInterval;
 import org.apache.spark.unsafe.types.UTF8String;
 
-public class ColumnarArrayShim extends ArrayData {
+/**
+ * Because `get` method in `ColumnarArray` don't check whether the data to get is null and arrow
+ * vectors will throw exception when we try to access null value, so we define the following class
+ * as a workaround. Its implementation is copied from Spark-4.0, except that the `handleNull`
+ * parameter is set to true when we call `SpecializedGettersReader.read` in `get`, which means that
+ * when trying to access a value of the array, we will check whether the value to get is null first.
+ *
+ * <p>There are some differences between the supported Spark versions, which are reflected in the
+ * implementations of respective child classes in the shim modules.
+ */
+abstract class AbstractColumnarArray extends ArrayData {
   // The data for this array. This array contains elements from
   // data[offset] to data[offset + length).
-  private final ColumnVector data;
-  private final int offset;
-  private final int length;
+  protected final ColumnVector data;
+  protected final int offset;
+  protected final int length;
 
-  public ColumnarArrayShim(ColumnVector data, int offset, int length) {
+  AbstractColumnarArray(ColumnVector data, int offset, int length) {
     this.data = data;
     this.offset = offset;
     this.length = length;

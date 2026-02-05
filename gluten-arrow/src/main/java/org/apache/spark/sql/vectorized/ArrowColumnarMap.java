@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.vectorized;
+package org.apache.spark.sql.vectorized;
 
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.MapData;
-import org.apache.spark.sql.vectorized.ColumnVector;
 
 /** See [[ArrowColumnarArray]]. */
 public class ArrowColumnarMap extends MapData {

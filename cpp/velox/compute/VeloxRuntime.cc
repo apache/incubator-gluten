@@ -17,6 +17,8 @@
 
 #include "VeloxRuntime.h"
 
+#include <operators/plannodes/RowVectorStream.h>
+
 #include <algorithm>
 #include <filesystem>
 
@@ -124,14 +126,19 @@ void VeloxRuntime::getInfoAndIds(
     std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
     std::vector<velox::core::PlanNodeId>& scanIds,
     std::vector<velox::core::PlanNodeId>& streamIds) {
+  int32_t streamIdx = 0;
   for (const auto& leafPlanNodeId : leafPlanNodeIds) {
     auto it = splitInfoMap.find(leafPlanNodeId);
     if (it == splitInfoMap.end()) {
       throw std::runtime_error("Could not find leafPlanNodeId.");
     }
     auto splitInfo = it->second;
+    // Based on the current code, indexing of streams and files follow different orders:
+    // 1. Streams follow "iterator:<idx>" in the substrait plan;
+    // 2. Files follow the traversal order in the plan node tree.
+    // FIXME: Why we didn't have a unified design?
     if (splitInfo->isStream) {
-      streamIds.emplace_back(leafPlanNodeId);
+      streamIds.emplace_back(ValueStreamConnectorFactory::nodeIdOf(streamIdx++));
     } else {
       scanInfos.emplace_back(splitInfo);
       scanIds.emplace_back(leafPlanNodeId);
@@ -140,10 +147,8 @@ void VeloxRuntime::getInfoAndIds(
 }
 
 std::string VeloxRuntime::planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) {
-  std::vector<std::shared_ptr<ResultIterator>> inputs;
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
-  VeloxPlanConverter veloxPlanConverter(
-      inputs, veloxMemoryPool.get(), veloxCfg_.get(), std::nullopt, std::nullopt, true);
+  VeloxPlanConverter veloxPlanConverter(veloxMemoryPool.get(), veloxCfg_.get(), {}, std::nullopt, std::nullopt, true);
   auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_, localFiles_);
   return veloxPlan->toString(details, true);
 }
@@ -160,9 +165,9 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
   VeloxPlanConverter veloxPlanConverter(
-      inputs,
       memoryManager()->getLeafMemoryPool().get(),
       veloxCfg_.get(),
+      inputs,
       *localWriteFilesTempPath(),
       *localWriteFileName());
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_, std::move(localFiles_));
@@ -187,7 +192,22 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
       spillDir,
       veloxCfg_,
       taskInfo_.has_value() ? taskInfo_.value() : SparkTaskInfo{});
+
+  auto remainingInputIterators = veloxPlanConverter.remainingInputIterators();
+  if (!remainingInputIterators.empty()) {
+  // Converts remaining input iterators to splits and add them to the task.
+    wholeStageIter->addIteratorSplits(remainingInputIterators);
+  }
+
   return std::make_shared<ResultIterator>(std::move(wholeStageIter), this);
+}
+
+void VeloxRuntime::noMoreSplits(ResultIterator* iter){
+    auto* splitAwareIter = dynamic_cast<gluten::SplitAwareColumnarBatchIterator*>(iter->getInputIter());
+    if (splitAwareIter == nullptr) {
+      throw GlutenException("Iterator does not support split management");
+    }
+    splitAwareIter->noMoreSplits();
 }
 
 std::shared_ptr<ColumnarToRowConverter> VeloxRuntime::createColumnar2RowConverter(int64_t column2RowMemThreshold) {

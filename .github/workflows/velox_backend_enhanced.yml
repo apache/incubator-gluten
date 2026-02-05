@@ -229,7 +229,7 @@ jobs:
       - name: Prepare Spark Resources for Spark 3.5.5
         run: |
           rm -rf /opt/shims/spark35
-          bash .github/workflows/util/install-spark-resources.sh 3.5
+          bash .github/workflows/util/install-resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
