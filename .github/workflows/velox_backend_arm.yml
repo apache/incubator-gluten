@@ -195,3 +195,23 @@ jobs:
         with:
           name: ${{ github.job }}-test-log
           path: "**/target/*.log"
+
+  build-on-macos:
+    strategy:
+      fail-fast: false
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: macos-15
+    env:
+      INSTALL_PREFIX: /tmp/deps-install
+      NUM_THREADS: 4
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install Dependencies
+        run: brew install wget pkgconfig ccache cmake autoconf automake libtool autoconf-archive bison flex
+      - name: Build
+        run: ./dev/buildbundle-veloxbe.sh --enable_vcpkg=ON --run_setup_script=OFF --build_arrow=ON --build_tests=ON --build_benchmarks=ON --spark_version=3.5
