@@ -255,6 +255,8 @@ object GlutenDeltaJobStatsTracker extends Logging {
               ArrowBufferAllocators.contextInstance(),
               new ColumnarBatch(Array[ColumnVector](dummyKeyVec), numRows)))
           val compositeBatch = VeloxColumnarBatches.compose(dummyKeyBatch, valueBatch)
+          dummyKeyBatch.close()
+          valueBatch.close()
           inputBatchQueue.put(Some(compositeBatch))
       }
     }
