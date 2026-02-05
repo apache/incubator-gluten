@@ -18,13 +18,11 @@ package org.apache.spark.shuffle.sort
 
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.network.util.JavaUtils
-import org.apache.spark.network.util.LimitedInputStream
 import org.apache.spark.network.util.TransportConf
 
-import java.io.{EOFException, File, FileInputStream, InputStream, IOException, RandomAccessFile, SequenceInputStream}
+import java.io.{EOFException, File, InputStream, RandomAccessFile}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.util.Vector
 
 /** A {@link ManagedBuffer} backed by a set of segments in a file. */
 class FileSegmentsManagedBuffer(
@@ -71,49 +69,8 @@ class FileSegmentsManagedBuffer(
     }
   }
 
-  @throws[IOException]
-  private def skipFully(in: InputStream, n: Long): Unit = {
-    var remaining = n
-    val toSkip = n
-    while (remaining > 0L) {
-      val amt = in.skip(remaining)
-      if (amt == 0L) {
-        // Try reading a byte to see if we are at EOF
-        if (in.read() == -1) {
-          val skipped = toSkip - remaining
-          throw new EOFException(
-            s"reached end of stream after skipping $skipped bytes; $toSkip bytes expected")
-        }
-        remaining -= 1
-      } else {
-        remaining -= amt
-      }
-    }
-  }
-
-  @throws[IOException]
   override def createInputStream(): InputStream = {
-    val streams = new Vector[InputStream]()
-    val filesToClose = new Vector[FileInputStream]()
-    var shouldCloseFile = true
-    try {
-      segments.foreach {
-        case (offset, length) =>
-          val fis = new FileInputStream(file)
-          filesToClose.add(fis)
-          skipFully(fis, offset)
-          streams.add(new LimitedInputStream(fis, length))
-      }
-      shouldCloseFile = false
-      new SequenceInputStream(streams.elements())
-    } finally {
-      if (shouldCloseFile) {
-        val it = filesToClose.elements()
-        while (it.hasMoreElements) {
-          JavaUtils.closeQuietly(it.nextElement())
-        }
-      }
-    }
+    new FileSegmentsInputStream(file, segments)
   }
 
   override def convertToNetty(): AnyRef = {
