@@ -770,7 +770,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSSBQuerySuite]
   enableSuite[GlutenSessionStateSuite]
   // TODO: 4.x enableSuite[GlutenSetCommandSuite]  // 1 failure
-  // TODO: 4.x enableSuite[GlutenSingleLevelAggregateHashMapSuite]  // 1 failure
+  enableSuite[GlutenSingleLevelAggregateHashMapSuite]
   enableSuite[GlutenSparkSessionBuilderSuite]
   // TODO: 4.x enableSuite[GlutenSparkSessionJobTaggingAndCancellationSuite]  // 1 failure
   enableSuite[GlutenTPCDSCollationQueryTestSuite]
@@ -786,8 +786,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenTPCDSV2_7_PlanStabilityWithStatsSuite]
   enableSuite[GlutenTPCHPlanStabilitySuite]
   enableSuite[GlutenTPCHQuerySuite]
-  // TODO: 4.x enableSuite[GlutenTwoLevelAggregateHashMapSuite]  // 1 failure
-  // TODO: 4.x enableSuite[GlutenTwoLevelAggregateHashMapWithVectorizedMapSuite]  // 1 failure
+  enableSuite[GlutenTwoLevelAggregateHashMapSuite]
+  enableSuite[GlutenTwoLevelAggregateHashMapWithVectorizedMapSuite]
   enableSuite[GlutenUDFSuite]
   enableSuite[GlutenUDTRegistrationSuite]
   enableSuite[GlutenUnsafeRowSuite]
