@@ -16,6 +16,7 @@
  */
 package org.apache.spark.shuffle.sort
 
+import _root_.io.netty.util.internal.PlatformDependent
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -89,6 +90,24 @@ class FileSegmentsInputStreamSuite extends AnyFunSuite with BeforeAndAfterAll {
     val skipped3 = in.skip(100)
     assert(skipped3 == 1) // 1 byte left in segments
     assert(in.read() == -1)
+    in.close()
+  }
+
+  test("read into native memory") {
+    val segments = Seq((2L, 3L), (10L, 4L))
+    val in = new FileSegmentsInputStream(tempFile, segments)
+    val expected = fileData.slice(2, 5) ++ fileData.slice(10, 14)
+
+    val buffer = java.nio.ByteBuffer.allocateDirect(expected.length)
+    val addr = PlatformDependent.directBufferAddress(buffer)
+    val read = in.read(addr, expected.length)
+    assert(read == expected.length)
+
+    buffer.limit(expected.length)
+    val out = new Array[Byte](expected.length)
+    buffer.get(out)
+    assert(out.sameElements(expected))
+    assert(in.read(addr, 1) == 0)
     in.close()
   }
 

@@ -17,23 +17,22 @@
 package org.apache.gluten.vectorized;
 
 import io.netty.util.internal.PlatformDependent;
-import org.apache.spark.network.util.LimitedInputStream;
+import org.apache.spark.shuffle.sort.FileSegmentsInputStream;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.SequenceInputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+
+import scala.Tuple2;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 public class LowCopyFileSegmentsJniByteInputStreamTest {
   private File tempFile;
@@ -59,14 +58,17 @@ public class LowCopyFileSegmentsJniByteInputStreamTest {
 
     int firstLen = 4;
     int secondLen = bytes.length - firstLen;
-    InputStream first = createLimited(tempFile, 0, firstLen);
-    InputStream second = createLimited(tempFile, firstLen, secondLen);
-    List<InputStream> streams = Arrays.asList(first, second);
+    Seq<Tuple2<Object, Object>> segments =
+        toScalaSeq(
+            Arrays.asList(
+                new Tuple2<>(0L, (long) firstLen),
+                new Tuple2<>((long) firstLen, (long) secondLen)));
 
-    SequenceInputStream sin = new SequenceInputStream(Collections.enumeration(streams));
-    Assert.assertTrue(LowCopyFileSegmentsJniByteInputStream.isSupported(sin));
+    FileSegmentsInputStream segmentStream = new FileSegmentsInputStream(tempFile, segments);
+    Assert.assertTrue(LowCopyFileSegmentsJniByteInputStream.isSupported(segmentStream));
 
-    LowCopyFileSegmentsJniByteInputStream in = new LowCopyFileSegmentsJniByteInputStream(sin);
+    LowCopyFileSegmentsJniByteInputStream in =
+        new LowCopyFileSegmentsJniByteInputStream(segmentStream);
     ByteBuffer buffer = PlatformDependent.allocateDirectNoCleaner(bytes.length);
     long addr = PlatformDependent.directBufferAddress(buffer);
 
@@ -93,14 +95,14 @@ public class LowCopyFileSegmentsJniByteInputStreamTest {
     }
 
     // Select two non-contiguous segments: [2,5) and [10,15)
-    InputStream seg1 = createLimited(tempFile, 2, 3); // "cde"
-    InputStream seg2 = createLimited(tempFile, 10, 5); // "12345"
-    List<InputStream> streams = Arrays.asList(seg1, seg2);
+    Seq<Tuple2<Object, Object>> segments =
+        toScalaSeq(Arrays.asList(new Tuple2<>(2L, 3L), new Tuple2<>(10L, 5L)));
 
-    SequenceInputStream sin = new SequenceInputStream(Collections.enumeration(streams));
-    Assert.assertTrue(LowCopyFileSegmentsJniByteInputStream.isSupported(sin));
+    FileSegmentsInputStream segmentStream = new FileSegmentsInputStream(tempFile, segments);
+    Assert.assertTrue(LowCopyFileSegmentsJniByteInputStream.isSupported(segmentStream));
 
-    LowCopyFileSegmentsJniByteInputStream in = new LowCopyFileSegmentsJniByteInputStream(sin);
+    LowCopyFileSegmentsJniByteInputStream in =
+        new LowCopyFileSegmentsJniByteInputStream(segmentStream);
     ByteBuffer buffer = PlatformDependent.allocateDirectNoCleaner(8);
     long addr = PlatformDependent.directBufferAddress(buffer);
 
@@ -117,16 +119,8 @@ public class LowCopyFileSegmentsJniByteInputStreamTest {
     in.close();
   }
 
-  private static InputStream createLimited(File file, long offset, long length) throws Exception {
-    FileInputStream fin = new FileInputStream(file);
-    long skipped = 0;
-    while (skipped < offset) {
-      long step = fin.skip(offset - skipped);
-      if (step <= 0) {
-        throw new IllegalStateException("Unable to skip to offset " + offset);
-      }
-      skipped += step;
-    }
-    return new LimitedInputStream(fin, length);
+  private static Seq<Tuple2<Object, Object>> toScalaSeq(
+      java.util.List<Tuple2<Object, Object>> segments) {
+    return JavaConverters.asScalaBuffer(segments).toSeq();
   }
 }

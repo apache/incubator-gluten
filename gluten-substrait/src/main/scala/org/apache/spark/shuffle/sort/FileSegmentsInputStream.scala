@@ -16,6 +16,8 @@
  */
 package org.apache.spark.shuffle.sort
 
+import _root_.io.netty.util.internal.PlatformDependent
+
 import java.io.{File, InputStream, IOException, RandomAccessFile}
 import java.nio.ByteBuffer
 
@@ -40,6 +42,55 @@ class FileSegmentsInputStream(file: File, segments: Seq[(Long, Long)]) extends I
     currentOffset = segments.head._1
     remainingInSegment = segments.head._2
     channel.position(currentOffset)
+  }
+
+  /** Returns the number of bytes remaining to be read from all segments. */
+  def remainingBytes: Long = {
+    if (closed) return 0L
+    var total = remainingInSegment
+    var idx = currentIndex + 1
+    while (idx < segments.length) {
+      total += segments(idx)._2
+      idx += 1
+    }
+    total
+  }
+
+  /**
+   * Read bytes directly into native memory at the given address.
+   *
+   * @param destAddress
+   *   destination memory address
+   * @param maxSize
+   *   max number of bytes to read
+   * @return
+   *   number of bytes read, or 0 if no more data
+   */
+  @throws[IOException]
+  def read(destAddress: Long, maxSize: Long): Long = {
+    if (closed) {
+      throw new IOException("Stream is closed")
+    }
+
+    var totalRead = 0
+    var remaining = maxSize
+    while (remaining > 0 && currentIndex < segments.length) {
+      if (remainingInSegment == 0) {
+        if (!advanceSegment()) {
+          return totalRead
+        }
+      }
+      val bytesThisRead = Math.min(remainingInSegment, remaining.toLong).toInt
+      val direct = PlatformDependent.directBuffer(destAddress + totalRead, bytesThisRead)
+      val n = channel.read(direct)
+      if (n == -1) {
+        return totalRead
+      }
+      remainingInSegment -= n
+      totalRead += n
+      remaining -= n
+    }
+    totalRead
   }
 
   override def read(): Int = {
@@ -120,6 +171,7 @@ class FileSegmentsInputStream(file: File, segments: Seq[(Long, Long)]) extends I
     if (remainingInSegment > Int.MaxValue) Int.MaxValue else remainingInSegment.toInt
   }
 
+  @throws[IOException]
   override def close(): Unit = {
     if (!closed) {
       closed = true
