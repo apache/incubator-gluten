@@ -11,6 +11,3 @@ set(VCPKG_BUILD_TYPE release)
 set(VCPKG_C_FLAGS "")
 set(VCPKG_CXX_FLAGS "-std=c++20 -Wno-missing-template-arg-list-after-template-kw")
 
-#if("${PORT}" STREQUAL "grpc")
-#    set(VCPKG_CXX_FLAGS "${VCPKG_CXX_FLAGS} -Wno-missing-template-arg-list-after-template-kw")
-#endif()
