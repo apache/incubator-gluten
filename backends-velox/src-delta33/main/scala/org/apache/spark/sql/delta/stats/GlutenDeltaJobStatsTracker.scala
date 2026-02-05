@@ -29,29 +29,28 @@ import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.PlanBuilder
-import org.apache.gluten.vectorized.{ColumnarBatchInIterator, ColumnarBatchOutIterator, NativePlanEvaluator}
-
+import org.apache.gluten.vectorized.{ArrowWritableColumnVector, ColumnarBatchInIterator, ColumnarBatchOutIterator, NativePlanEvaluator}
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, Projection, UnsafeProjection}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, AttributeReference, Expression, Projection, SortOrder, UnsafeProjection}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, DeclarativeAggregate}
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, LeafExecNode}
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, LeafExecNode, ProjectExec}
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, WriteJobStatsTracker, WriteTaskStats, WriteTaskStatsTracker}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.StringType
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.types.{IntegerType, StructType}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.util.{SerializableConfiguration, SparkDirectoryUtil}
-
 import com.google.common.collect.Lists
+import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 import java.util.UUID
-import java.util.concurrent.{Callable, Executors, Future, SynchronousQueue, TimeUnit}
-
+import java.util.concurrent.{Callable, Executors, Future, SynchronousQueue}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -112,7 +111,7 @@ object GlutenDeltaJobStatsTracker extends Logging {
       BackendsApiManager.getBackendName,
       Map.empty[String, String].asJava)
     private val c2r = new VeloxColumnarToRowExec.Converter(new SQLMetric("convertTime"))
-    private val inputBatchQueue = new SynchronousQueue[ColumnarBatch]()
+    private val inputBatchQueue = new SynchronousQueue[Option[ColumnarBatch]]()
     private val aggregates: Seq[AggregateExpression] = statsColExpr.collect {
       case ae: AggregateExpression if ae.aggregateFunction.isInstanceOf[DeclarativeAggregate] =>
         assert(ae.mode == Complete)
@@ -132,19 +131,28 @@ object GlutenDeltaJobStatsTracker extends Logging {
       inputSchema = aggBufferAttrs
     )
     private val taskContext = TaskContext.get()
+    private val dummyKeyAttr = {
+      // FIXME: We have to force the use of Velox's streaming aggregation since hash aggregation
+      //  doesn't support task barriers. But as streaming aggregation should always be keyed, we
+      //  have to do a small hack here by adding a dummy key for the global aggregation.
+      AttributeReference("__GLUTEN_DELTA_DUMMY_KEY__", IntegerType)()
+    }
+    private val statsAttrs = aggregates.flatMap(_.aggregateFunction.aggBufferAttributes)
+    private val statsResultAttrs = aggregates.flatMap(_.aggregateFunction.inputAggBufferAttributes)
     private val veloxAggTask: ColumnarBatchOutIterator = {
-      val inputNode = StatisticsInputNode(dataCols)
+      val inputNode = StatisticsInputNode(Seq(dummyKeyAttr), dataCols)
       val aggOp = SortAggregateExec(
         None,
-        false,
+        isStreaming = false,
         None,
-        Seq.empty,
+        Seq(dummyKeyAttr),
         aggregates,
-        Seq(AttributeReference("stats", StringType)()),
+        statsAttrs,
         0,
-        Seq.empty,
+        dummyKeyAttr +: statsResultAttrs,
         inputNode
       )
+      val projOp = ProjectExec(statsResultAttrs, aggOp)
       // Invoke the legacy transform rule to get a local Velox aggregation query plan.
       val offloads = Seq(OffloadOthers()).map(_.toStrcitRule())
       val validatorBuilder: GlutenConfig => Validator = conf =>
@@ -153,19 +161,20 @@ object GlutenDeltaJobStatsTracker extends Logging {
       val config = GlutenConfig.get
       val transformRule =
         HeuristicTransform.WithRewrites(validatorBuilder(config), rewrites, offloads)
-      val aggTransformer = ColumnarCollapseTransformStages(config)(transformRule(aggOp))
+      val veloxTransformer = transformRule(projOp)
+      val wholeStageTransformer = ColumnarCollapseTransformStages(config)(veloxTransformer)
         .asInstanceOf[WholeStageTransformer]
         .child
-        .asInstanceOf[RegularHashAggregateExecTransformer]
+        .asInstanceOf[TransformSupport]
       val substraitContext = new SubstraitContext
       TransformerState.enterValidation
       val transformedNode =
         try {
-          aggTransformer.transform(substraitContext)
+          wholeStageTransformer.transform(substraitContext)
         } finally {
           TransformerState.finishValidation
         }
-      val outNames = aggTransformer.output.map(ConverterUtils.genColumnNameWithExprId).asJava
+      val outNames = wholeStageTransformer.output.map(ConverterUtils.genColumnNameWithExprId).asJava
       val planNode =
         PlanBuilder.makePlan(substraitContext, Lists.newArrayList(transformedNode.root), outNames)
 
@@ -202,15 +211,14 @@ object GlutenDeltaJobStatsTracker extends Logging {
         override def call(): String = {
           Thread.currentThread().setName(resultThreadName)
           TaskContext.setTaskContext(taskContext)
-          val rows = veloxAggTask.asScala.flatMap {
-            batch =>
-              val row = c2r.toRowIterator(batch)
-              batch.close()
-              row
-          }.toSeq
+          val outBatches = veloxAggTask.asScala.toSeq
+          assert(outBatches.size == 1)
+          val batch = outBatches.head
+          val rows = c2r.toRowIterator(batch).toSeq
           assert(
             rows.size == 1,
             "Only one single output row is expected from the global aggregation.")
+          batch.close()
           val row = rows.head
           val jsonStats = getStats(row).getString(0)
           jsonStats
@@ -221,9 +229,10 @@ object GlutenDeltaJobStatsTracker extends Logging {
 
     override def closeFile(filePath: String): Unit = {
       assert(filePath == currentPath)
-      inputBatchQueue.put(null)
+      val fileName = new Path(filePath).getName
+      inputBatchQueue.put(None)
       val json = currentJsonFuture.get()
-      resultJsonMap(filePath) = json
+      resultJsonMap(fileName) = json
       currentPath = null
     }
 
@@ -232,7 +241,21 @@ object GlutenDeltaJobStatsTracker extends Logging {
       row match {
         case _: PlaceholderRow =>
         case t: TerminalRow =>
-          inputBatchQueue.put(t.batch())
+          val valueBatch = t.batch()
+          val numRows = valueBatch.numRows()
+          val dummyKeyVec = ArrowWritableColumnVector
+            .allocateColumns(numRows, new StructType().add(dummyKeyAttr.name, IntegerType))
+            .head
+          (0 until numRows).foreach {
+            i =>
+              dummyKeyVec.putInt(i, 1)
+          }
+          val dummyKeyBatch = VeloxColumnarBatches.toVeloxBatch(
+            ColumnarBatches.offload(
+              ArrowBufferAllocators.contextInstance(),
+              new ColumnarBatch(Array[ColumnVector](dummyKeyVec), numRows)))
+          val compositeBatch = VeloxColumnarBatches.compose(dummyKeyBatch, valueBatch)
+          inputBatchQueue.put(Some(compositeBatch))
       }
     }
 
@@ -254,14 +277,14 @@ object GlutenDeltaJobStatsTracker extends Logging {
               while (!Thread.currentThread().isInterrupted) {
                 val tmp =
                   try {
-                    inputBatchQueue.poll(100, TimeUnit.MILLISECONDS)
+                    inputBatchQueue.take()
                   } catch {
                     case _: InterruptedException =>
                       Thread.currentThread().interrupt()
                       return false;
                   }
-                if (tmp != null) {
-                  batch = tmp
+                if (tmp.isDefined) {
+                  batch = tmp.get
                   return true
                 }
                 return false
@@ -286,13 +309,17 @@ object GlutenDeltaJobStatsTracker extends Logging {
     }
   }
 
-  private case class StatisticsInputNode(override val output: Seq[Attribute])
+  private case class StatisticsInputNode(keySchema: Seq[Attribute], dataSchema: Seq[Attribute])
     extends GlutenPlan
     with LeafExecNode {
+    override def output: Seq[Attribute] = keySchema ++ dataSchema
     override def batchType(): Convention.BatchType = VeloxBatchType
     override def rowType0(): Convention.RowType = Convention.RowType.None
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
       throw new UnsupportedOperationException()
+    override def outputOrdering: Seq[SortOrder] = {
+      keySchema.map(key => SortOrder(key, Ascending))
+    }
   }
 }
