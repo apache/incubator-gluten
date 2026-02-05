@@ -1,0 +1,176 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[versions]
+# Core versions (these can be overridden via gradle.properties or -P flags)
+scala212 = "2.12.15"
+scala213 = "2.13.17"
+
+# Spark versions
+spark33 = "3.3.1"
+spark34 = "3.4.4"
+spark35 = "3.5.5"
+spark40 = "4.0.1"
+spark41 = "4.1.1"
+
+# Arrow
+arrow = "18.1.0"
+arrowGluten = "18.1.0"
+
+# Protobuf and serialization
+protobuf = "3.23.4"
+flatbuffers = "1.12.0"
+
+# Google libraries
+guava = "33.4.0-jre"
+gson = "2.10.1"
+
+# Apache libraries
+hadoop = "3.4.1"
+antlr4 = "4.13.1"
+commonsIo = "2.14.0"
+commonsLang3 = "3.17.0"
+
+# Caching
+caffeine = "3.1.8"
+
+# Logging
+slf4j = "2.0.16"
+log4j = "2.24.3"
+
+# Data lake connectors
+delta40 = "4.0.0"
+delta33 = "3.3.2"
+delta24 = "2.4.0"
+delta23 = "2.3.0"
+iceberg = "1.10.0"
+paimon = "1.3.0"
+hudi = "1.1.0"
+celeborn = "0.6.1"
+uniffle = "0.10.0"
+
+# Testing
+junit4 = "4.13.1"
+junit5 = "5.11.4"
+scalatest = "3.2.16"
+scalacheck = "1.17.0"
+mockito = "2.23.4"
+bytebuddy = "1.9.3"
+flexmark = "0.62.2"
+javafaker = "1.0.2"
+
+# Jackson/Fasterxml
+jackson = "2.18.2"
+
+# Plugins
+scalaPlugin = "1.2.0"
+spotless = "6.25.0"
+shadow = "8.1.1"
+protobufPlugin = "0.9.4"
+antlrPlugin = "3.0.0-alpha.1"
+googleJavaFormat = "1.17.0"
+scalafmt = "3.8.3"
+wartremover = "3.2.0"
+
+# XML
+scalaXml = "2.1.0"
+
+# Servlet
+javaxServlet = "3.1.0"
+
+[libraries]
+# Scala libraries
+scala-library212 = { module = "org.scala-lang:scala-library", version.ref = "scala212" }
+scala-library213 = { module = "org.scala-lang:scala-library", version.ref = "scala213" }
+scala-xml = { module = "org.scala-lang.modules:scala-xml_2.13", version.ref = "scalaXml" }
+scala-collection-compat212 = { module = "org.scala-lang.modules:scala-collection-compat_2.12", version = "2.11.0" }
+scala-collection-compat213 = { module = "org.scala-lang.modules:scala-collection-compat_2.13", version = "2.11.0" }
+
+# Arrow
+arrow-vector = { module = "org.apache.arrow:arrow-vector", version.ref = "arrow" }
+arrow-memory-unsafe = { module = "org.apache.arrow:arrow-memory-unsafe", version.ref = "arrow" }
+arrow-memory-netty = { module = "org.apache.arrow:arrow-memory-netty", version.ref = "arrow" }
+
+# Protobuf
+protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
+flatbuffers-java = { module = "com.google.flatbuffers:flatbuffers-java", version.ref = "flatbuffers" }
+
+# Google libraries
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+jimfs = { module = "com.google.jimfs:jimfs", version = "1.3.0" }
+
+# Apache commons
+commons-io = { module = "commons-io:commons-io", version.ref = "commonsIo" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commonsLang3" }
+
+# Caching
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+
+# Logging
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+slf4j-log4j12 = { module = "org.slf4j:slf4j-log4j12", version = "1.7.30" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
+log4j-slf4j2-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
+
+# Jackson
+jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
+jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
+jackson-datatype-guava = { module = "com.fasterxml.jackson.datatype:jackson-datatype-guava", version.ref = "jackson" }
+jackson-module-scala212 = { module = "com.fasterxml.jackson.module:jackson-module-scala_2.12", version.ref = "jackson" }
+jackson-module-scala213 = { module = "com.fasterxml.jackson.module:jackson-module-scala_2.13", version.ref = "jackson" }
+
+# Testing
+junit4 = { module = "junit:junit", version.ref = "junit4" }
+junit5-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
+scalatest212 = { module = "org.scalatest:scalatest_2.12", version.ref = "scalatest" }
+scalatest213 = { module = "org.scalatest:scalatest_2.13", version.ref = "scalatest" }
+scalacheck212 = { module = "org.scalacheck:scalacheck_2.12", version.ref = "scalacheck" }
+scalacheck213 = { module = "org.scalacheck:scalacheck_2.13", version.ref = "scalacheck" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "bytebuddy" }
+flexmark-all = { module = "com.vladsch.flexmark:flexmark-all", version.ref = "flexmark" }
+javafaker = { module = "com.github.javafaker:javafaker", version.ref = "javafaker" }
+scalatestplus-mockito212 = { module = "org.scalatestplus:scalatestplus-mockito_2.12", version = "1.0.0-M2" }
+scalatestplus-mockito213 = { module = "org.scalatestplus:scalatestplus-mockito_2.13", version = "1.0.0-M2" }
+scalatestplus-scalacheck212 = { module = "org.scalatestplus:scalatestplus-scalacheck_2.12", version = "3.1.0.0-RC2" }
+scalatestplus-scalacheck213 = { module = "org.scalatestplus:scalatestplus-scalacheck_2.13", version = "3.1.0.0-RC2" }
+
+# ANTLR
+antlr4 = { module = "org.antlr:antlr4", version.ref = "antlr4" }
+antlr4-runtime = { module = "org.antlr:antlr4-runtime", version.ref = "antlr4" }
+
+# WartRemover for Scala
+wartremover212 = { module = "org.wartremover:wartremover_2.12", version = "3.0.6" }
+wartremover213 = { module = "org.wartremover:wartremover_2.13", version.ref = "wartremover" }
+scalawarts212 = { module = "io.github.zhztheplayer.scalawarts:scalawarts_2.12", version = "0.1.2" }
+scalawarts213 = { module = "io.github.zhztheplayer.scalawarts:scalawarts_2.13", version = "0.1.2" }
+
+# Servlet
+javax-servlet = { module = "javax.servlet:javax.servlet-api", version.ref = "javaxServlet" }
+
+[bundles]
+jackson = ["jackson-core", "jackson-databind", "jackson-annotations"]
+testing-scala212 = ["scalatest212", "scalacheck212", "junit4", "mockito-core"]
+testing-scala213 = ["scalatest213", "scalacheck213", "junit4", "mockito-core"]
+
+[plugins]
+scala = { id = "com.github.maiflai.scalatest", version = "0.32" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
+protobuf = { id = "com.google.protobuf", version.ref = "protobufPlugin" }
+antlr = { id = "org.gradle.antlr", version = "8.4" }
