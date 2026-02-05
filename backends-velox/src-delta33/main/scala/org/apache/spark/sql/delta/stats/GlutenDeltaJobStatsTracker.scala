@@ -18,6 +18,7 @@ package org.apache.spark.sql.delta.stats
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
+import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.{ConverterUtils, TransformerState}
@@ -27,9 +28,11 @@ import org.apache.gluten.extension.columnar.rewrite.PullOutPreProject
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.iterator.Iterators
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.vectorized.{ArrowWritableColumnVector, ColumnarBatchInIterator, ColumnarBatchOutIterator, NativePlanEvaluator}
+
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -41,16 +44,16 @@ import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, WriteJobStatsTracker, WriteTaskStats, WriteTaskStatsTracker}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{IntegerType, StructType}
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.spark.util.{SerializableConfiguration, SparkDirectoryUtil}
+
 import com.google.common.collect.Lists
-import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 import java.util.UUID
 import java.util.concurrent.{Callable, Executors, Future, SynchronousQueue}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -246,10 +249,7 @@ object GlutenDeltaJobStatsTracker extends Logging {
           val dummyKeyVec = ArrowWritableColumnVector
             .allocateColumns(numRows, new StructType().add(dummyKeyAttr.name, IntegerType))
             .head
-          (0 until numRows).foreach {
-            i =>
-              dummyKeyVec.putInt(i, 1)
-          }
+          (0 until numRows).foreach(i => dummyKeyVec.putInt(i, 1))
           val dummyKeyBatch = VeloxColumnarBatches.toVeloxBatch(
             ColumnarBatches.offload(
               ArrowBufferAllocators.contextInstance(),

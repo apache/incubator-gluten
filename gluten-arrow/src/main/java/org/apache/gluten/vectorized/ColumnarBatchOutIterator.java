@@ -111,16 +111,17 @@ public class ColumnarBatchOutIterator extends ClosableIterator<ColumnarBatch>
   }
 
   /**
-   * Request a barrier in the task execution. This signals the task to finish processing
-   * all currently queued splits and drain all stateful operators before continuing.
-   * After calling this method, continue calling next() to fetch results. When next() returns
-   * null and hasNext() returns false, the barrier has been reached.
-   * 
-   * This enables task reuse and deterministic execution for workloads like AI training data
+   * Request a barrier in the task execution. This signals the task to finish processing all
+   * currently queued splits and drain all stateful operators before continuing. After calling this
+   * method, continue calling next() to fetch results. When next() returns null and hasNext()
+   * returns false, the barrier has been reached.
+   *
+   * <p>This enables task reuse and deterministic execution for workloads like AI training data
    * loading and real-time streaming processing.
    *
    * @throws IllegalStateException if the iterator is closed
-   * @see <a href="https://facebookincubator.github.io/velox/develop/task-barrier.html">Velox Task Barrier Documentation</a>
+   * @see <a href="https://facebookincubator.github.io/velox/develop/task-barrier.html">Velox Task
+   *     Barrier Documentation</a>
    */
   public void requestBarrier() {
     if (closed.get()) {
