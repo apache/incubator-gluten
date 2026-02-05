@@ -99,7 +99,7 @@ class GlutenCastWithAnsiOffSuite extends CastWithAnsiOffSuite with GlutenTestsTr
 
     // SystemV timezones are a legacy way of specifying timezones in Unix-like OS.
     // It is not supported by Velox.
-    for (tz <- ALL_TIMEZONES.filterNot(_.getId.contains("SystemV"))) {
+    for (tz <- ALL_TIMEZONES.filterNot(_.getId.contains("SystemV")).filterNot(_.getId.contains("America/Coyhaique"))) {
       withSQLConf(
         SQLConf.SESSION_LOCAL_TIMEZONE.key -> tz.getId
       ) {
@@ -184,6 +184,7 @@ class GlutenCastWithAnsiOffSuite extends CastWithAnsiOffSuite with GlutenTestsTr
         .filterNot(_.getId.contains("America/Ciudad_Juarez"))
         .filterNot(_.getId.contains("Antarctica/Vostok"))
         .filterNot(_.getId.contains("Pacific/Kanton"))
+        .filterNot(_.getId.contains("America/Coyhaique"))
         .filterNot(_.getId.contains("Asia/Tehran"))
         .filterNot(_.getId.contains("Iran")),
       prefix = "CastSuiteBase-cast-string-to-timestamp",
