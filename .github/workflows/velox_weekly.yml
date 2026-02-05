@@ -220,6 +220,6 @@ jobs:
           distribution: temurin
           java-version: 17
       - name: Install Dependencies
-        run: brew install wget pkgconfig ccache cmake autoconf automake libtool autoconf-archive bison flex
+        run: brew install wget pkgconfig abseil ccache
       - name: Build
-        run: ./dev/buildbundle-veloxbe.sh --enable_vcpkg=ON --run_setup_script=OFF --build_arrow=ON --build_tests=ON --build_benchmarks=ON --spark_version=3.5
+        run: ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON --build_benchmarks=ON --spark_version=3.5
