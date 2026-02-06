@@ -22,7 +22,6 @@ plugins {
 }
 
 val scalaBinaryVersion: String by project
-val scalaVersion: String by project
 val protobufVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveHadoopVersion: String by rootProject.extra
@@ -47,8 +46,6 @@ dependencies {
     // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$effectiveHadoopVersion")
 
-    // Scala (provided)
-    compileOnly("org.scala-lang:scala-library:$scalaVersion")
     implementation("org.scala-lang.modules:scala-collection-compat_$scalaBinaryVersion:2.11.0")
 
     // Jackson (provided)
@@ -70,13 +67,6 @@ dependencies {
     testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-}
-
-// Configure protobuf compilation
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:$protobufVersion"
-    }
 }
 
 sourceSets {

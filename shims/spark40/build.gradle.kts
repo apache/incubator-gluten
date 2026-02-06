@@ -22,12 +22,10 @@ plugins {
 
 // Spark 4.0 requires Scala 2.13
 val scalaBinaryVersion = "2.13"
-val scalaVersion = "2.13.17"
 
 // Spark 4.0 specific versions
 val sparkFullVersion = "4.0.1"
 val hadoopVersion = "3.4.1"
-val antlr4Version = "4.13.1"
 
 dependencies {
     // Shims common
@@ -41,9 +39,6 @@ dependencies {
 
     // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$hadoopVersion")
-
-    // Scala (provided)
-    compileOnly("org.scala-lang:scala-library:$scalaVersion")
 
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")

@@ -21,7 +21,6 @@ plugins {
 }
 
 val scalaBinaryVersion: String by project
-val scalaVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
 val celebornVersion: String by project
@@ -32,24 +31,24 @@ sourceSets {
         scala {
             srcDir("src-celeborn/main/scala")
             srcDir("src-celeborn/main/java")
-            srcDir("src-celeborn-spark${effectiveSparkPlainVersion}/main/scala")
-            srcDir("src-celeborn-spark${effectiveSparkPlainVersion}/main/java")
+            srcDir("src-celeborn-spark$effectiveSparkPlainVersion/main/scala")
+            srcDir("src-celeborn-spark$effectiveSparkPlainVersion/main/java")
         }
         resources {
             srcDir("src-celeborn/main/resources")
-            srcDir("src-celeborn-spark${effectiveSparkPlainVersion}/main/resources")
+            srcDir("src-celeborn-spark$effectiveSparkPlainVersion/main/resources")
         }
     }
     test {
         scala {
             srcDir("src-celeborn/test/scala")
             srcDir("src-celeborn/test/java")
-            srcDir("src-celeborn-spark${effectiveSparkPlainVersion}/test/scala")
-            srcDir("src-celeborn-spark${effectiveSparkPlainVersion}/test/java")
+            srcDir("src-celeborn-spark$effectiveSparkPlainVersion/test/scala")
+            srcDir("src-celeborn-spark$effectiveSparkPlainVersion/test/java")
         }
         resources {
             srcDir("src-celeborn/test/resources")
-            srcDir("src-celeborn-spark${effectiveSparkPlainVersion}/test/resources")
+            srcDir("src-celeborn-spark$effectiveSparkPlainVersion/test/resources")
         }
     }
 }
@@ -59,16 +58,15 @@ dependencies {
     implementation(project(":gluten-substrait"))
 
     // Celeborn (provided)
-    compileOnly("org.apache.celeborn:celeborn-client-spark-${effectiveSparkPlainVersion.take(1)}-shaded_$scalaBinaryVersion:$celebornVersion")
+    compileOnly(
+        "org.apache.celeborn:celeborn-client-spark-${effectiveSparkPlainVersion.take(1)}-shaded_$scalaBinaryVersion:$celebornVersion",
+    )
 
     // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
-
-    // Scala (provided)
-    compileOnly("org.scala-lang:scala-library:$scalaVersion")
 
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")

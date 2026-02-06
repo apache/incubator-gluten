@@ -45,9 +45,6 @@ dependencies {
     // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$effectiveHadoopVersion")
 
-    // Scala (provided)
-    compileOnly("org.scala-lang:scala-library:$scalaVersion")
-
     // Protobuf (provided - will be shaded in final JAR)
     compileOnly("com.google.protobuf:protobuf-java:$protobufVersion")
 
@@ -63,13 +60,6 @@ dependencies {
     testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-}
-
-// Configure protobuf compilation
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:$protobufVersion"
-    }
 }
 
 sourceSets {
@@ -92,26 +82,13 @@ val generateBuildInfo by tasks.registering {
         val propsFile = outputDir.get().file("gluten-build-info.properties").asFile
         propsFile.parentFile.mkdirs()
 
-        val gitRevision =
+        fun gitOutput(vararg args: String): String =
             try {
-                val process =
-                    ProcessBuilder("git", "rev-parse", "HEAD")
-                        .directory(projectDir)
-                        .redirectErrorStream(true)
-                        .start()
-                process.inputStream.bufferedReader().readText().trim()
-            } catch (e: Exception) {
-                "unknown"
-            }
-
-        val gitBranch =
-            try {
-                val process =
-                    ProcessBuilder("git", "rev-parse", "--abbrev-ref", "HEAD")
-                        .directory(projectDir)
-                        .redirectErrorStream(true)
-                        .start()
-                process.inputStream.bufferedReader().readText().trim()
+                ProcessBuilder(*args)
+                    .directory(projectDir)
+                    .redirectErrorStream(true)
+                    .start()
+                    .inputStream.bufferedReader().readText().trim()
             } catch (e: Exception) {
                 "unknown"
             }
@@ -119,8 +96,8 @@ val generateBuildInfo by tasks.registering {
         propsFile.writeText(
             """
             |gluten_version=${project.version}
-            |branch=$gitBranch
-            |revision=$gitRevision
+            |branch=${gitOutput("git", "rev-parse", "--abbrev-ref", "HEAD")}
+            |revision=${gitOutput("git", "rev-parse", "HEAD")}
             |java_version=${System.getProperty("java.version")}
             |scala_version=$scalaVersion
             |spark_version=$effectiveSparkFullVersion

@@ -21,7 +21,6 @@ plugins {
 }
 
 val scalaBinaryVersion: String by project
-val scalaVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
 val effectiveArrowVersion: String by rootProject.extra
@@ -44,9 +43,6 @@ dependencies {
     compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-network-common_$scalaBinaryVersion:$effectiveSparkFullVersion")
-
-    // Scala (provided)
-    compileOnly("org.scala-lang:scala-library:$scalaVersion")
 
     // Test dependencies
     testImplementation(project(":gluten-core", "testArtifacts"))

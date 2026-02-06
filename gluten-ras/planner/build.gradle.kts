@@ -21,12 +21,8 @@ plugins {
 }
 
 val scalaBinaryVersion: String by project
-val scalaVersion: String by project
 
 dependencies {
-    // Scala (provided)
-    compileOnly("org.scala-lang:scala-library:$scalaVersion")
-
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("junit:junit:4.13.1")

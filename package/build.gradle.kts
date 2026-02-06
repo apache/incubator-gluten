@@ -26,9 +26,7 @@ plugins {
 val scalaBinaryVersion: String by project
 val sparkVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
-val effectiveSparkPlainVersion: String by rootProject.extra
 val backend: String by project
-val glutenShadePackageName: String by project
 val platform = rootProject.extra.get("platform") as String
 val arch = rootProject.extra.get("arch") as String
 
@@ -48,30 +46,17 @@ dependencies {
     }
 
     // Optional module dependencies
-    val deltaEnabled = providers.gradleProperty("delta").getOrElse("false").toBoolean()
-    val icebergEnabled = providers.gradleProperty("iceberg").getOrElse("false").toBoolean()
-    val hudiEnabled = providers.gradleProperty("hudi").getOrElse("false").toBoolean()
-    val paimonEnabled = providers.gradleProperty("paimon").getOrElse("false").toBoolean()
-    val celebornEnabled = providers.gradleProperty("celeborn").getOrElse("false").toBoolean()
-    val uniffleEnabled = providers.gradleProperty("uniffle").getOrElse("false").toBoolean()
-
-    if (deltaEnabled) {
-        implementation(project(":gluten-delta"))
-    }
-    if (icebergEnabled) {
-        implementation(project(":gluten-iceberg"))
-    }
-    if (hudiEnabled) {
-        implementation(project(":gluten-hudi"))
-    }
-    if (paimonEnabled) {
-        implementation(project(":gluten-paimon"))
-    }
-    if (celebornEnabled) {
-        implementation(project(":gluten-celeborn"))
-    }
-    if (uniffleEnabled) {
-        implementation(project(":gluten-uniffle"))
+    mapOf(
+        "delta" to ":gluten-delta",
+        "iceberg" to ":gluten-iceberg",
+        "hudi" to ":gluten-hudi",
+        "paimon" to ":gluten-paimon",
+        "celeborn" to ":gluten-celeborn",
+        "uniffle" to ":gluten-uniffle",
+    ).forEach { (property, module) ->
+        if (providers.gradleProperty(property).getOrElse("false").toBoolean()) {
+            implementation(project(module))
+        }
     }
 }
 
@@ -83,47 +68,18 @@ tasks.processResources {
     }
 }
 
+// The gluten.shading plugin provides relocations, META-INF exclusions, and mergeServiceFiles.
+// Here we add package-specific configuration on top.
 tasks.withType<ShadowJar>().configureEach {
-    // Relocations
-    relocate("com.google.protobuf", "$glutenShadePackageName.com.google.protobuf")
-    relocate("com.google.common", "$glutenShadePackageName.com.google.common") {
-        exclude("com.google.common.jimfs.**")
-    }
-    relocate("com.google.thirdparty", "$glutenShadePackageName.com.google.thirdparty")
-    relocate("com.google.errorprone.annotations", "$glutenShadePackageName.com.google.errorprone.annotations")
-    relocate("com.google.j2objc", "$glutenShadePackageName.com.google.j2objc")
-    relocate("com.google.gson", "$glutenShadePackageName.com.google.gson")
-    relocate("org.apache.arrow", "$glutenShadePackageName.org.apache.arrow") {
-        exclude("org.apache.arrow.c.*")
-        exclude("org.apache.arrow.c.jni.*")
-        exclude("org.apache.arrow.dataset.**")
-    }
-    relocate("com.google.flatbuffers", "$glutenShadePackageName.com.google.flatbuffers")
-
-    // Exclusions
-    exclude("META-INF/*.SF")
-    exclude("META-INF/*.DSA")
-    exclude("META-INF/*.RSA")
-    exclude("META-INF/DEPENDENCIES")
-    exclude("META-INF/LICENSE.txt")
-    exclude("META-INF/NOTICE.txt")
-    exclude("LICENSE.txt")
-    exclude("NOTICE.txt")
     exclude("gluten-build-info.properties") // Excluded from gluten-core, included from resources
 
-    // Exclude findbugs annotations
     dependencies {
         exclude(dependency("com.google.code.findbugs:jsr305"))
     }
 
-    // Merge service files
-    mergeServiceFiles()
-
     // Output naming - match Maven convention
-    val sparkBundleVersion = sparkVersion.replace(".", "")
     archiveBaseName.set("gluten-$backend-bundle-spark${sparkVersion}_$scalaBinaryVersion-${platform}_$arch")
     archiveVersion.set(project.version.toString())
-    archiveClassifier.set("")
 }
 
 // Copy the shadow JAR with the Maven-compatible name

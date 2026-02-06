@@ -23,7 +23,6 @@ plugins {
 }
 
 val scalaBinaryVersion: String by project
-val scalaVersion: String by project
 val protobufVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveHadoopVersion: String by rootProject.extra
@@ -55,8 +54,6 @@ dependencies {
     // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$effectiveHadoopVersion")
 
-    // Scala (provided)
-    compileOnly("org.scala-lang:scala-library:$scalaVersion")
     implementation("org.scala-lang.modules:scala-collection-compat_$scalaBinaryVersion:2.11.0")
 
     // Jackson (provided)
@@ -91,8 +88,10 @@ dependencies {
     testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-tags_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
 
-    // Spark common-utils needed for SparkBuildInfo (contains version info)
-    testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
+    // Spark common-utils needed for SparkBuildInfo (Spark 4.0+)
+    if (effectiveSparkFullVersion.startsWith("4")) {
+        testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
+    }
 
     // ScalaTest JUnit runner
     testRuntimeOnly("org.scalatestplus:junit-4-13_$scalaBinaryVersion:3.2.16.0")
@@ -100,13 +99,6 @@ dependencies {
     // JUnit 5 platform
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.3")
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.9.3")
-}
-
-// Configure protobuf compilation
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:$protobufVersion"
-    }
 }
 
 sourceSets {

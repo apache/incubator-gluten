@@ -39,8 +39,6 @@ val backend: String by project
 
 // Version properties for dependencies
 val arrowVersion: String by project
-val protobufVersion: String by project
-val guavaVersion: String by project
 val hadoopVersion: String by project
 val caffeineVersion: String =
     if ((javaVersion.toIntOrNull() ?: 17) >= 11) {
@@ -48,7 +46,6 @@ val caffeineVersion: String =
     } else {
         "2.9.3"
     }
-val antlr4Version: String by project
 
 // Computed properties based on Spark version
 val sparkProperties =
@@ -105,21 +102,7 @@ val sparkProperties =
                 "hadoopVersion" to "3.4.1",
                 "arrowVersion" to "18.1.0",
             )
-        "4.1" ->
-            mapOf(
-                "sparkFullVersion" to "4.1.1",
-                "sparkPlainVersion" to "41",
-                "deltaVersion" to "4.0.0",
-                "deltaBinaryVersion" to "40",
-                "deltaPackageName" to "delta-spark",
-                "icebergVersion" to "1.10.0",
-                "icebergBinaryVersion" to "10",
-                "antlr4Version" to "4.13.1",
-                "hudiVersion" to "1.1.0",
-                "paimonVersion" to "1.3.0",
-                "hadoopVersion" to "3.4.1",
-                "arrowVersion" to "18.1.0",
-            )
+        // "4.1" and default
         else ->
             mapOf(
                 "sparkFullVersion" to "4.1.1",
@@ -137,8 +120,7 @@ val sparkProperties =
             )
     }
 
-// Make properties available to subprojects
-extra["sparkProperties"] = sparkProperties
+// Make computed properties available to subprojects
 extra["effectiveSparkFullVersion"] = sparkProperties["sparkFullVersion"] ?: sparkFullVersion
 extra["effectiveSparkPlainVersion"] = sparkProperties["sparkPlainVersion"] ?: sparkPlainVersion
 extra["effectiveHadoopVersion"] = sparkProperties["hadoopVersion"] ?: hadoopVersion
@@ -148,7 +130,6 @@ extra["effectiveDeltaBinaryVersion"] = sparkProperties["deltaBinaryVersion"]
 extra["effectiveDeltaPackageName"] = sparkProperties["deltaPackageName"]
 extra["effectiveIcebergVersion"] = sparkProperties["icebergVersion"]
 extra["effectiveIcebergBinaryVersion"] = sparkProperties["icebergBinaryVersion"]
-extra["effectiveAntlr4Version"] = sparkProperties["antlr4Version"] ?: antlr4Version
 extra["effectiveHudiVersion"] = sparkProperties["hudiVersion"]
 extra["effectivePaimonVersion"] = sparkProperties["paimonVersion"]
 
@@ -173,7 +154,6 @@ val arch =
 
 extra["platform"] = platform
 extra["arch"] = arch
-extra["osFullName"] = "${platform}_$arch"
 
 // Validate version compatibility
 if (sparkVersion in listOf("4.0", "4.1")) {
@@ -195,12 +175,6 @@ allprojects {
 }
 
 subprojects {
-    // Common configuration applied to all subprojects
-    tasks.withType<JavaCompile>().configureEach {
-        options.encoding = "UTF-8"
-        options.compilerArgs.addAll(listOf("-Xlint:all,-serial,-path"))
-    }
-
     // Configure test tasks
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()

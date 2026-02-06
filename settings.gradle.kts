@@ -82,35 +82,17 @@ if (backend == "clickhouse") {
 }
 
 // Optional feature modules
-val deltaEnabled = providers.gradleProperty("delta").getOrElse("false").toBoolean()
-val icebergEnabled = providers.gradleProperty("iceberg").getOrElse("false").toBoolean()
-val hudiEnabled = providers.gradleProperty("hudi").getOrElse("false").toBoolean()
-val paimonEnabled = providers.gradleProperty("paimon").getOrElse("false").toBoolean()
-val celebornEnabled = providers.gradleProperty("celeborn").getOrElse("false").toBoolean()
-val uniffleEnabled = providers.gradleProperty("uniffle").getOrElse("false").toBoolean()
-
-if (deltaEnabled) {
-    include("gluten-delta")
-}
-
-if (icebergEnabled) {
-    include("gluten-iceberg")
-}
-
-if (hudiEnabled) {
-    include("gluten-hudi")
-}
-
-if (paimonEnabled) {
-    include("gluten-paimon")
-}
-
-if (celebornEnabled) {
-    include("gluten-celeborn")
-}
-
-if (uniffleEnabled) {
-    include("gluten-uniffle")
+mapOf(
+    "delta" to "gluten-delta",
+    "iceberg" to "gluten-iceberg",
+    "hudi" to "gluten-hudi",
+    "paimon" to "gluten-paimon",
+    "celeborn" to "gluten-celeborn",
+    "uniffle" to "gluten-uniffle",
+).forEach { (property, module) ->
+    if (providers.gradleProperty(property).getOrElse("false").toBoolean()) {
+        include(module)
+    }
 }
 
 // Package module (shadow JAR assembly)

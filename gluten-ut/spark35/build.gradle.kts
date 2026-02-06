@@ -21,12 +21,10 @@ plugins {
 }
 
 val scalaBinaryVersion: String by project
-val scalaVersion: String by project
 val backend: String by project
 
 // Spark 3.5 specific versions
 val sparkFullVersion = "3.5.5"
-val hadoopVersion = "3.3.4"
 
 dependencies {
     // Project dependencies
@@ -43,9 +41,6 @@ dependencies {
     compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$sparkFullVersion")
     compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$sparkFullVersion")
     compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$sparkFullVersion")
-
-    // Scala (provided)
-    compileOnly("org.scala-lang:scala-library:$scalaVersion")
 
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
