@@ -36,10 +36,10 @@ sourceSets {
         scala {
             srcDir("src-iceberg/main/scala")
             srcDir("src-iceberg/main/java")
-            srcDir("src-iceberg${icebergBinaryVersion}/main/scala")
-            srcDir("src-iceberg${icebergBinaryVersion}/main/java")
-            srcDir("src-iceberg-spark${effectiveSparkPlainVersion}/main/scala")
-            srcDir("src-iceberg-spark${effectiveSparkPlainVersion}/main/java")
+            srcDir("src-iceberg$icebergBinaryVersion/main/scala")
+            srcDir("src-iceberg$icebergBinaryVersion/main/java")
+            srcDir("src-iceberg-spark$effectiveSparkPlainVersion/main/scala")
+            srcDir("src-iceberg-spark$effectiveSparkPlainVersion/main/java")
         }
         resources {
             srcDir("src-iceberg/main/resources")
@@ -49,12 +49,12 @@ sourceSets {
         scala {
             srcDir("src-iceberg/test/scala")
             srcDir("src-iceberg/test/java")
-            srcDir("src-iceberg${icebergBinaryVersion}/test/scala")
-            srcDir("src-iceberg${icebergBinaryVersion}/test/java")
+            srcDir("src-iceberg$icebergBinaryVersion/test/scala")
+            srcDir("src-iceberg$icebergBinaryVersion/test/java")
         }
         resources {
             srcDir("src-iceberg/test/resources")
-            srcDir("src-iceberg${icebergBinaryVersion}/test/resources")
+            srcDir("src-iceberg$icebergBinaryVersion/test/resources")
         }
     }
 }
@@ -64,7 +64,11 @@ dependencies {
     implementation(project(":gluten-substrait"))
 
     // Iceberg (provided)
-    compileOnly("org.apache.iceberg:iceberg-spark-runtime-${effectiveSparkPlainVersion.take(1)}.${effectiveSparkPlainVersion.drop(1)}_$scalaBinaryVersion:$icebergVersion")
+    compileOnly(
+        "org.apache.iceberg:iceberg-spark-runtime-${effectiveSparkPlainVersion.take(
+            1,
+        )}.${effectiveSparkPlainVersion.drop(1)}_$scalaBinaryVersion:$icebergVersion",
+    )
 
     // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
@@ -78,4 +82,22 @@ dependencies {
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("junit:junit:4.13.1")
+
+    // Test JARs from other modules (WholeStageTransformerSuite etc.)
+    testImplementation(project(":backends-velox", "testArtifacts"))
+    testImplementation(project(":gluten-substrait", "testArtifacts"))
+
+    // Iceberg for tests
+    testImplementation(
+        "org.apache.iceberg:iceberg-spark-runtime-${effectiveSparkPlainVersion.take(
+            1,
+        )}.${effectiveSparkPlainVersion.drop(1)}_$scalaBinaryVersion:$icebergVersion",
+    )
+
+    // Spark test JARs
+    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
 }

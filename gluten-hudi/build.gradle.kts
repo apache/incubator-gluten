@@ -34,24 +34,24 @@ sourceSets {
         scala {
             srcDir("src-hudi/main/scala")
             srcDir("src-hudi/main/java")
-            srcDir("src-hudi-spark${effectiveSparkPlainVersion}/main/scala")
-            srcDir("src-hudi-spark${effectiveSparkPlainVersion}/main/java")
+            srcDir("src-hudi-spark$effectiveSparkPlainVersion/main/scala")
+            srcDir("src-hudi-spark$effectiveSparkPlainVersion/main/java")
         }
         resources {
             srcDir("src-hudi/main/resources")
-            srcDir("src-hudi-spark${effectiveSparkPlainVersion}/main/resources")
+            srcDir("src-hudi-spark$effectiveSparkPlainVersion/main/resources")
         }
     }
     test {
         scala {
             srcDir("src-hudi/test/scala")
             srcDir("src-hudi/test/java")
-            srcDir("src-hudi-spark${effectiveSparkPlainVersion}/test/scala")
-            srcDir("src-hudi-spark${effectiveSparkPlainVersion}/test/java")
+            srcDir("src-hudi-spark$effectiveSparkPlainVersion/test/scala")
+            srcDir("src-hudi-spark$effectiveSparkPlainVersion/test/java")
         }
         resources {
             srcDir("src-hudi/test/resources")
-            srcDir("src-hudi-spark${effectiveSparkPlainVersion}/test/resources")
+            srcDir("src-hudi-spark$effectiveSparkPlainVersion/test/resources")
         }
     }
 }
@@ -61,7 +61,11 @@ dependencies {
     implementation(project(":gluten-substrait"))
 
     // Hudi (provided)
-    compileOnly("org.apache.hudi:hudi-spark${effectiveSparkPlainVersion.take(1)}.${effectiveSparkPlainVersion.drop(1)}-bundle_$scalaBinaryVersion:$hudiVersion")
+    compileOnly(
+        "org.apache.hudi:hudi-spark${effectiveSparkPlainVersion.take(
+            1,
+        )}.${effectiveSparkPlainVersion.drop(1)}-bundle_$scalaBinaryVersion:$hudiVersion",
+    )
 
     // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
@@ -75,4 +79,22 @@ dependencies {
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("junit:junit:4.13.1")
+
+    // Test JARs from other modules (WholeStageTransformerSuite etc.)
+    testImplementation(project(":backends-velox", "testArtifacts"))
+    testImplementation(project(":gluten-substrait", "testArtifacts"))
+
+    // Hudi for tests
+    testImplementation(
+        "org.apache.hudi:hudi-spark${effectiveSparkPlainVersion.take(
+            1,
+        )}.${effectiveSparkPlainVersion.drop(1)}-bundle_$scalaBinaryVersion:$hudiVersion",
+    )
+
+    // Spark test JARs
+    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
 }

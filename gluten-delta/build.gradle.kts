@@ -39,36 +39,36 @@ sourceSets {
         scala {
             srcDir("src-delta/main/scala")
             srcDir("src-delta/main/java")
-            srcDir("src-delta-spark${effectiveSparkPlainVersion}/main/scala")
-            srcDir("src-delta-spark${effectiveSparkPlainVersion}/main/java")
-            srcDir("src-delta${deltaBinaryVersion}/main/scala")
-            srcDir("src-delta${deltaBinaryVersion}/main/java")
-            srcDir("src-delta${deltaBinaryVersion}-spark${effectiveSparkPlainVersion}/main/scala")
-            srcDir("src-delta${deltaBinaryVersion}-spark${effectiveSparkPlainVersion}/main/java")
+            srcDir("src-delta-spark$effectiveSparkPlainVersion/main/scala")
+            srcDir("src-delta-spark$effectiveSparkPlainVersion/main/java")
+            srcDir("src-delta$deltaBinaryVersion/main/scala")
+            srcDir("src-delta$deltaBinaryVersion/main/java")
+            srcDir("src-delta$deltaBinaryVersion-spark$effectiveSparkPlainVersion/main/scala")
+            srcDir("src-delta$deltaBinaryVersion-spark$effectiveSparkPlainVersion/main/java")
         }
         resources {
             srcDir("src-delta/main/resources")
-            srcDir("src-delta-spark${effectiveSparkPlainVersion}/main/resources")
-            srcDir("src-delta${deltaBinaryVersion}/main/resources")
-            srcDir("src-delta${deltaBinaryVersion}-spark${effectiveSparkPlainVersion}/main/resources")
+            srcDir("src-delta-spark$effectiveSparkPlainVersion/main/resources")
+            srcDir("src-delta$deltaBinaryVersion/main/resources")
+            srcDir("src-delta$deltaBinaryVersion-spark$effectiveSparkPlainVersion/main/resources")
         }
     }
     test {
         scala {
             srcDir("src-delta/test/scala")
             srcDir("src-delta/test/java")
-            srcDir("src-delta-spark${effectiveSparkPlainVersion}/test/scala")
-            srcDir("src-delta-spark${effectiveSparkPlainVersion}/test/java")
-            srcDir("src-delta${deltaBinaryVersion}/test/scala")
-            srcDir("src-delta${deltaBinaryVersion}/test/java")
-            srcDir("src-delta${deltaBinaryVersion}-spark${effectiveSparkPlainVersion}/test/scala")
-            srcDir("src-delta${deltaBinaryVersion}-spark${effectiveSparkPlainVersion}/test/java")
+            srcDir("src-delta-spark$effectiveSparkPlainVersion/test/scala")
+            srcDir("src-delta-spark$effectiveSparkPlainVersion/test/java")
+            srcDir("src-delta$deltaBinaryVersion/test/scala")
+            srcDir("src-delta$deltaBinaryVersion/test/java")
+            srcDir("src-delta$deltaBinaryVersion-spark$effectiveSparkPlainVersion/test/scala")
+            srcDir("src-delta$deltaBinaryVersion-spark$effectiveSparkPlainVersion/test/java")
         }
         resources {
             srcDir("src-delta/test/resources")
-            srcDir("src-delta-spark${effectiveSparkPlainVersion}/test/resources")
-            srcDir("src-delta${deltaBinaryVersion}/test/resources")
-            srcDir("src-delta${deltaBinaryVersion}-spark${effectiveSparkPlainVersion}/test/resources")
+            srcDir("src-delta-spark$effectiveSparkPlainVersion/test/resources")
+            srcDir("src-delta$deltaBinaryVersion/test/resources")
+            srcDir("src-delta$deltaBinaryVersion-spark$effectiveSparkPlainVersion/test/resources")
         }
     }
 }
@@ -95,4 +95,21 @@ dependencies {
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("junit:junit:4.13.1")
+
+    // Test JARs from other modules (WholeStageTransformerSuite etc.)
+    testImplementation(project(":backends-velox", "testArtifacts"))
+    testImplementation(project(":gluten-substrait", "testArtifacts"))
+
+    // Delta for tests
+    testImplementation("io.delta:${deltaPackageName}_$scalaBinaryVersion:$deltaVersion") {
+        exclude(group = "org.antlr")
+        exclude(group = "org.scala-lang", module = "scala-library")
+    }
+
+    // Spark test JARs
+    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
 }

@@ -32,24 +32,24 @@ sourceSets {
         scala {
             srcDir("src-uniffle/main/scala")
             srcDir("src-uniffle/main/java")
-            srcDir("src-uniffle-spark${effectiveSparkPlainVersion}/main/scala")
-            srcDir("src-uniffle-spark${effectiveSparkPlainVersion}/main/java")
+            srcDir("src-uniffle-spark$effectiveSparkPlainVersion/main/scala")
+            srcDir("src-uniffle-spark$effectiveSparkPlainVersion/main/java")
         }
         resources {
             srcDir("src-uniffle/main/resources")
-            srcDir("src-uniffle-spark${effectiveSparkPlainVersion}/main/resources")
+            srcDir("src-uniffle-spark$effectiveSparkPlainVersion/main/resources")
         }
     }
     test {
         scala {
             srcDir("src-uniffle/test/scala")
             srcDir("src-uniffle/test/java")
-            srcDir("src-uniffle-spark${effectiveSparkPlainVersion}/test/scala")
-            srcDir("src-uniffle-spark${effectiveSparkPlainVersion}/test/java")
+            srcDir("src-uniffle-spark$effectiveSparkPlainVersion/test/scala")
+            srcDir("src-uniffle-spark$effectiveSparkPlainVersion/test/java")
         }
         resources {
             srcDir("src-uniffle/test/resources")
-            srcDir("src-uniffle-spark${effectiveSparkPlainVersion}/test/resources")
+            srcDir("src-uniffle-spark$effectiveSparkPlainVersion/test/resources")
         }
     }
 }

@@ -68,4 +68,18 @@ dependencies {
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("junit:junit:4.13.1")
+
+    // Test JARs from other modules (WholeStageTransformerSuite etc.)
+    testImplementation(project(":backends-velox", "testArtifacts"))
+    testImplementation(project(":gluten-substrait", "testArtifacts"))
+
+    // Paimon for tests
+    testImplementation("org.apache.paimon:paimon-spark_$scalaBinaryVersion:$paimonVersion")
+
+    // Spark test JARs
+    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
 }
