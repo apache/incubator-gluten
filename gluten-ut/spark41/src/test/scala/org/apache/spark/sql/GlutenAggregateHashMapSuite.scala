@@ -18,12 +18,12 @@ package org.apache.spark.sql
 
 class GlutenSingleLevelAggregateHashMapSuite
   extends SingleLevelAggregateHashMapSuite
-  with GlutenTestsCommonTrait {}
+  with GlutenSQLTestsTrait {}
 
 class GlutenTwoLevelAggregateHashMapSuite
   extends TwoLevelAggregateHashMapSuite
-  with GlutenTestsCommonTrait {}
+  with GlutenSQLTestsTrait {}
 
 class GlutenTwoLevelAggregateHashMapWithVectorizedMapSuite
   extends TwoLevelAggregateHashMapWithVectorizedMapSuite
-  with GlutenTestsCommonTrait {}
+  with GlutenSQLTestsTrait {}
