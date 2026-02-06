@@ -44,3 +44,12 @@ tasks.withType<Javadoc>().configureEach {
     options.encoding = "UTF-8"
     isFailOnError = false
 }
+
+// Make compileOnly dependencies available for test compilation
+// This is needed because Spark dependencies are declared as compileOnly
+// but are required for test compilation
+configurations {
+    testImplementation {
+        extendsFrom(configurations.compileOnly.get())
+    }
+}

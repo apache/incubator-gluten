@@ -22,13 +22,14 @@ plugins {
 
 val scalaBinaryVersion: String by project
 val scalaVersion: String by project
+val caffeineVersion: String by project
 
 dependencies {
     // Scala (provided)
     compileOnly("org.scala-lang:scala-library:$scalaVersion")
 
     // Caffeine for caching
-    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    implementation("com.github.ben-manes.caffeine:caffeine:$caffeineVersion")
 
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
