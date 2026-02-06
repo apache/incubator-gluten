@@ -37,8 +37,9 @@ import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, AttributeReference, Expression, Projection, SortOrder, UnsafeProjection}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, AttributeReference, EmptyRow, Expression, Projection, SortOrder, SpecificInternalRow, UnsafeProjection}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete, DeclarativeAggregate}
+import org.apache.spark.sql.catalyst.expressions.codegen.GenerateMutableProjection
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, LeafExecNode, ProjectExec}
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, WriteJobStatsTracker, WriteTaskStats, WriteTaskStatsTracker}
@@ -120,14 +121,23 @@ object GlutenDeltaJobStatsTracker extends Logging {
         assert(ae.mode == Complete)
         ae
     }
+    private val declarativeAggregates: Seq[DeclarativeAggregate] = aggregates.map {
+      ae => ae.aggregateFunction.asInstanceOf[DeclarativeAggregate]
+    }
     private val resultExpr: Expression = statsColExpr.transform {
       case ae: AggregateExpression if ae.aggregateFunction.isInstanceOf[DeclarativeAggregate] =>
         ae.aggregateFunction.asInstanceOf[DeclarativeAggregate].evaluateExpression
     }
-    protected val aggBufferAttrs: Seq[Attribute] = statsColExpr.flatMap {
-      case ae: AggregateExpression if ae.aggregateFunction.isInstanceOf[DeclarativeAggregate] =>
-        ae.aggregateFunction.asInstanceOf[DeclarativeAggregate].aggBufferAttributes
-      case _ => None
+    private val aggBufferAttrs: Seq[Attribute] =
+      declarativeAggregates.flatMap(_.aggBufferAttributes)
+    private val emptyRow: InternalRow = {
+      val initializeStats = GenerateMutableProjection.generate(
+        expressions = declarativeAggregates.flatMap(_.initialValues),
+        inputSchema = Seq.empty,
+        useSubexprElimination = false
+      )
+      val buffer = new SpecificInternalRow(aggBufferAttrs.map(_.dataType))
+      initializeStats.target(buffer).apply(EmptyRow)
     }
     private val getStats: Projection = UnsafeProjection.create(
       exprs = Seq(resultExpr),
@@ -215,14 +225,19 @@ object GlutenDeltaJobStatsTracker extends Logging {
           Thread.currentThread().setName(resultThreadName)
           TaskContext.setTaskContext(taskContext)
           val outBatches = veloxAggTask.asScala.toSeq
-          assert(outBatches.size == 1)
-          val batch = outBatches.head
-          val rows = c2r.toRowIterator(batch).toSeq
-          assert(
-            rows.size == 1,
-            "Only one single output row is expected from the global aggregation.")
-          batch.close()
-          val row = rows.head
+          val row: InternalRow = if (outBatches.isEmpty) {
+            // No input was received. Returns the default aggregation values.
+            emptyRow
+          } else {
+            assert(outBatches.size == 1)
+            val batch = outBatches.head
+            val rows = c2r.toRowIterator(batch).toSeq
+            assert(
+              rows.size == 1,
+              "Only one single output row is expected from the global aggregation.")
+            batch.close()
+            rows.head
+          }
           val jsonStats = getStats(row).getString(0)
           jsonStats
         }
