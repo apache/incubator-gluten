@@ -736,6 +736,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSessionStateSuite]
   // TODO: 4.x enableSuite[GlutenSetCommandSuite]  // 1 failure
   enableSuite[GlutenSingleLevelAggregateHashMapSuite]
+    .exclude("SPARK-22223: ObjectHashAggregate should not introduce unnecessary shuffle")
+    .exclude(
+      "SPARK-19471: AggregationIterator does not initialize the generated result projection before using it")
+    // Checks Spark specific codegen code for HashMap
+    .exclude("SPARK-43876: Enable fast hashmap for distinct queries")
+    .excludeByPrefix("SPARK-31620: agg with subquery (whole-stage-codegen =")
   enableSuite[GlutenSparkSessionBuilderSuite]
   // TODO: 4.x enableSuite[GlutenSparkSessionJobTaggingAndCancellationSuite]  // 1 failure
   enableSuite[GlutenTPCDSCollationQueryTestSuite]
