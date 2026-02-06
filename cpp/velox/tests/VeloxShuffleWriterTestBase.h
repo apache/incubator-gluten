@@ -22,6 +22,8 @@
 #include <gtest/gtest.h>
 
 #include <compute/VeloxBackend.h>
+#include "../utils/VeloxArrowUtils.h"
+#include "config/GlutenConfig.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/PartitionWriter.h"
@@ -29,7 +31,6 @@
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/LocalRssClient.h"
 #include "utils/TestAllocationListener.h"
-#include "utils/VeloxArrowUtils.h"
 #include "velox/type/Type.h"
 
 #include "velox/vector/tests/VectorTestUtils.h"
@@ -51,20 +52,6 @@ std::string makeString(uint32_t length) {
   }
   return res;
 }
-
-std::unique_ptr<PartitionWriter> createPartitionWriter(
-    PartitionWriterType partitionWriterType,
-    uint32_t numPartitions,
-    const std::string& dataFile,
-    const std::vector<std::string>& localDirs,
-    const PartitionWriterOptions& options,
-    arrow::MemoryPool* pool) {
-  if (partitionWriterType == PartitionWriterType::kRss) {
-    auto rssClient = std::make_unique<LocalRssClient>(dataFile);
-    return std::make_unique<RssPartitionWriter>(numPartitions, options, pool, std::move(rssClient));
-  }
-  return std::make_unique<LocalPartitionWriter>(numPartitions, options, pool, dataFile, localDirs);
-}
 } // namespace
 
 class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase {
@@ -75,7 +62,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
     auto listener = std::make_unique<TestAllocationListener>();
     listener_ = listener.get();
 
-    std::unordered_map<std::string, std::string> conf{{kMemoryReservationBlockSize, "1"}};
+    std::unordered_map<std::string, std::string> conf{{kMemoryReservationBlockSize, "1"}, {kDebugModeEnabled, "true"}};
 
     VeloxBackend::create(std::move(listener), conf);
   }
@@ -106,8 +93,8 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
              std::nullopt}),
         makeNullableFlatVector<float>(
             {-0.1234567,
-             std::nullopt,
              0.1234567,
+             std::nullopt,
              std::nullopt,
              -0.142857,
              std::nullopt,
@@ -118,9 +105,27 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
         makeNullableFlatVector<bool>(
             {std::nullopt, true, false, std::nullopt, true, true, false, true, std::nullopt, std::nullopt}),
         makeFlatVector<facebook::velox::StringView>(
-            {"alice0", "bob1", "alice2", "bob3", "Alice4", "Bob5", "AlicE6", "boB7", "ALICE8", "BOB9"}),
+            {"a",
+             "bobbobbobooooooooooooooooooooooooooooob1",
+             "alice2",
+             "bob3",
+             "Alice4",
+             "Bob5",
+             "AlicE6",
+             "boB7",
+             "ALICE8",
+             "BOB9"}),
         makeNullableFlatVector<facebook::velox::StringView>(
-            {"alice", "bob", std::nullopt, std::nullopt, "Alice", "Bob", std::nullopt, "alicE", std::nullopt, "boB"}),
+            {std::nullopt,
+             "bob_1",
+             std::nullopt,
+             std::nullopt,
+             "Alice_4",
+             "Bob_5",
+             std::nullopt,
+             "alicE_7",
+             std::nullopt,
+             "boB_9"}),
         facebook::velox::BaseVector::create(facebook::velox::UNKNOWN(), 10, pool())};
 
     children2_ = {
@@ -226,12 +231,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
     return arrow::Status::OK();
   }
 
-  virtual std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) = 0;
-
   inline static TestAllocationListener* listener_{nullptr};
-
-  ShuffleWriterOptions shuffleWriterOptions_{};
-  PartitionWriterOptions partitionWriterOptions_{};
 
   std::vector<std::unique_ptr<arrow::internal::TemporaryDir>> tmpDirs_;
   std::string dataFile_;

@@ -25,24 +25,24 @@ import java.util.List;
 /** Iterator for velox RowVector. */
 public class VLVectorIterator implements Iterator<RowVector> {
 
-    private final List<RowVector> rows;
+  private final List<RowVector> rows;
 
-    public VLVectorIterator() {
-        this.rows = new LinkedList<>();
-    }
+  public VLVectorIterator() {
+    this.rows = new LinkedList<>();
+  }
 
-    public boolean hasNext() {
-        return !rows.isEmpty();
-    }
+  public boolean hasNext() {
+    return !rows.isEmpty();
+  }
 
-    public RowVector next() {
-        if (!hasNext()) {
-            return null;
-        }
-        return rows.remove(0);
+  public RowVector next() {
+    if (!hasNext()) {
+      return null;
     }
+    return rows.remove(0);
+  }
 
-    public void addRow(RowVector row) {
-        rows.add(row);
-    }
+  public void addRow(RowVector row) {
+    rows.add(row);
+  }
 }

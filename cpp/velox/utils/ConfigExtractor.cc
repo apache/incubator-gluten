@@ -22,29 +22,19 @@
 
 #include "config/VeloxConfig.h"
 #include "utils/Exception.h"
+#include "utils/Macros.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/storage_adapters/s3fs/S3Config.h"
+#include "velox/dwio/parquet/writer/Writer.h"
 
 namespace gluten {
 
-std::string getConfigValue(
-    const std::unordered_map<std::string, std::string>& confMap,
-    const std::string& key,
-    const std::optional<std::string>& fallbackValue) {
-  auto got = confMap.find(key);
-  if (got == confMap.end()) {
-    if (fallbackValue == std::nullopt) {
-      throw std::runtime_error("No such config key: " + key);
-    }
-    return fallbackValue.value();
-  }
-  return got->second;
-}
+namespace {
 
-std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
-    std::shared_ptr<facebook::velox::config::ConfigBase> conf) {
-  std::unordered_map<std::string, std::string> hiveConfMap;
-
+void getS3HiveConfig(
+    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
+    FileSystemType fsType,
+    std::unordered_map<std::string, std::string>& hiveConfMap) {
 #ifdef ENABLE_S3
   using namespace facebook::velox::filesystems;
   std::string_view kSparkHadoopS3Prefix = "spark.hadoop.fs.s3a.";
@@ -74,7 +64,8 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
       {S3Config::Keys::kMaxAttempts, std::make_pair("retry.limit", std::nullopt)},
       {S3Config::Keys::kRetryMode, std::make_pair("retry.mode", "legacy")},
       {S3Config::Keys::kMaxConnections, std::make_pair("connection.maximum", "15")},
-      {S3Config::Keys::kConnectTimeout, std::make_pair("connection.timeout", "200s")},
+      {S3Config::Keys::kSocketTimeout, std::make_pair("connection.timeout", "200s")},
+      {S3Config::Keys::kConnectTimeout, std::make_pair("connection.establish.timeout", "30s")},
       {S3Config::Keys::kUseInstanceCredentials, std::make_pair("instance.credentials", "false")},
       {S3Config::Keys::kIamRole, std::make_pair("iam.role", std::nullopt)},
       {S3Config::Keys::kIamRoleSessionName, std::make_pair("iam.role.session.name", "gluten-session")},
@@ -130,6 +121,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   setConfigIfPresent(S3Config::Keys::kSSLEnabled);
   setConfigIfPresent(S3Config::Keys::kPathStyleAccess);
   setConfigIfPresent(S3Config::Keys::kMaxConnections);
+  setConfigIfPresent(S3Config::Keys::kSocketTimeout);
   setConfigIfPresent(S3Config::Keys::kConnectTimeout);
   setConfigIfPresent(S3Config::Keys::kEndpointRegion);
 
@@ -139,7 +131,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   hiveConfMap[S3Config::kS3PayloadSigningPolicy] =
       conf->get<std::string>(kVeloxS3PayloadSigningPolicy, kVeloxS3PayloadSigningPolicyDefault);
   auto logLocation = conf->get<std::string>(kVeloxS3LogLocation);
-  if (logLocation.hasValue()) {
+  if (logLocation.has_value()) {
     hiveConfMap[S3Config::kS3LogLocation] = logLocation.value();
   };
 
@@ -159,11 +151,16 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
     }
   }
 #endif
+}
 
+void getGcsHiveConfig(
+    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
+    FileSystemType fsType,
+    std::unordered_map<std::string, std::string>& hiveConfMap) {
 #ifdef ENABLE_GCS
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
   auto gsStorageRootUrl = conf->get<std::string>("spark.hadoop.fs.gs.storage.root.url");
-  if (gsStorageRootUrl.hasValue()) {
+  if (gsStorageRootUrl.has_value()) {
     std::string gcsEndpoint = gsStorageRootUrl.value();
 
     if (!gcsEndpoint.empty()) {
@@ -174,35 +171,40 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#http-transport-configuration
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedErrorCountRetryPolicy
   auto gsMaxRetryCount = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry");
-  if (gsMaxRetryCount.hasValue()) {
+  if (gsMaxRetryCount.has_value()) {
     hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryCount] = gsMaxRetryCount.value();
   }
 
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedTimeRetryPolicy
   auto gsMaxRetryTime = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry-time");
-  if (gsMaxRetryTime.hasValue()) {
+  if (gsMaxRetryTime.has_value()) {
     hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryTime] = gsMaxRetryTime.value();
   }
 
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
   auto gsAuthType = conf->get<std::string>("spark.hadoop.fs.gs.auth.type");
-  if (gsAuthType.hasValue()) {
-    std::string type = gsAuthType.value();
-    if (type == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-      auto gsAuthServiceAccountJsonKeyfile =
-          conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
-      if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
-        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
-            gsAuthServiceAccountJsonKeyfile.value();
-      } else {
-        LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
-                        "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
-        throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
-      }
+  auto gsAuthServiceAccountJsonKeyfile = conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
+  if (gsAuthType.has_value() && gsAuthType.value() == "SERVICE_ACCOUNT_JSON_KEYFILE") {
+    if (gsAuthServiceAccountJsonKeyfile.has_value()) {
+      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
+          gsAuthServiceAccountJsonKeyfile.value();
+    } else {
+      LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
+                      "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
+      throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
     }
+  } else if (gsAuthServiceAccountJsonKeyfile.has_value()) {
+    LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is set, "
+                    "but conf spark.hadoop.fs.gs.auth.type is not SERVICE_ACCOUNT_JSON_KEYFILE";
+    throw GlutenException("Conf spark.hadoop.fs.gs.auth.type is missing or incorrect");
   }
 #endif
+}
 
+void getAbfsHiveConfig(
+    std::shared_ptr<facebook::velox::config::ConfigBase> conf,
+    FileSystemType fsType,
+    std::unordered_map<std::string, std::string>& hiveConfMap) {
 #ifdef ENABLE_ABFS
   std::string_view kSparkHadoopPrefix = "spark.hadoop.";
   std::string_view kSparkHadoopAbfsPrefix = "spark.hadoop.fs.azure.";
@@ -213,6 +215,72 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
     }
   }
 #endif
+}
+
+} // namespace
+
+std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorSessionConfig(
+    const std::shared_ptr<facebook::velox::config::ConfigBase>& conf) {
+  // The configs below are used at session level.
+  std::unordered_map<std::string, std::string> configs = {};
+  // The semantics of reading as lower case is opposite with case-sensitive.
+  configs[facebook::velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
+      !conf->get<bool>(kCaseSensitive, false) ? "true" : "false";
+  configs[facebook::velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
+  configs[facebook::velox::parquet::WriterOptions::kParquetSessionWriteTimestampUnit] = std::string("6");
+  configs[facebook::velox::connector::hive::HiveConfig::kReadTimestampUnitSession] = std::string("6");
+  configs[facebook::velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
+      conf->get<std::string>(kMaxPartitions, "10000");
+  configs[facebook::velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
+      conf->get<bool>(kIgnoreMissingFiles, false) ? "true" : "false";
+  configs[facebook::velox::connector::hive::HiveConfig::kParquetUseColumnNamesSession] =
+      conf->get<bool>(kParquetUseColumnNames, true) ? "true" : "false";
+  configs[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] =
+      conf->get<bool>(kOrcUseColumnNames, true) ? "true" : "false";
+
+  overwriteVeloxConf(conf.get(), configs, kDynamicBackendConfPrefix);
+  return std::make_shared<facebook::velox::config::ConfigBase>(std::move(configs));
+}
+
+std::string getConfigValue(
+    const std::unordered_map<std::string, std::string>& confMap,
+    const std::string& key,
+    const std::optional<std::string>& fallbackValue) {
+  auto got = confMap.find(key);
+  if (got == confMap.end()) {
+    if (fallbackValue == std::nullopt) {
+      throw std::runtime_error("No such config key: " + key);
+    }
+    return fallbackValue.value();
+  }
+  return got->second;
+}
+
+std::shared_ptr<facebook::velox::config::ConfigBase> createHiveConnectorConfig(
+    const std::shared_ptr<facebook::velox::config::ConfigBase>& conf,
+    FileSystemType fsType) {
+  std::unordered_map<std::string, std::string> hiveConfMap;
+
+  switch (fsType) {
+    case FileSystemType::kS3:
+      getS3HiveConfig(conf, fsType, hiveConfMap);
+      break;
+    case FileSystemType::kAbfs:
+      getAbfsHiveConfig(conf, fsType, hiveConfMap);
+      break;
+    case FileSystemType::kGcs:
+      getGcsHiveConfig(conf, fsType, hiveConfMap);
+      break;
+    case FileSystemType::kHdfs:
+      break;
+    case FileSystemType::kAll:
+      getS3HiveConfig(conf, fsType, hiveConfMap);
+      getAbfsHiveConfig(conf, fsType, hiveConfMap);
+      getGcsHiveConfig(conf, fsType, hiveConfMap);
+      break;
+    default:
+      GLUTEN_UNREACHABLE();
+  }
 
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
@@ -224,19 +292,28 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
       conf->get<std::string>(kPrefetchRowGroups, "1");
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kLoadQuantum] =
       conf->get<std::string>(kLoadQuantum, "268435456"); // 256M
+  auto footerEstimatedSize = conf->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kFooterEstimatedSize] =
-      conf->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
+      conf->get<std::string>(kFooterEstimatedSize, footerEstimatedSize); // 32K
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
       conf->get<std::string>(kFilePreloadThreshold, "1048576"); // 1M
 
   // read as UTC
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
 
-  // Maps table field names to file field names using names, not indices.
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
-
+  overwriteVeloxConf(conf.get(), hiveConfMap, kStaticBackendConfPrefix);
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
+}
+
+void overwriteVeloxConf(
+    const facebook::velox::config::ConfigBase* from,
+    std::unordered_map<std::string, std::string>& to,
+    const std::string& prefix) {
+  for (const auto& [k, v] : from->rawConfigs()) {
+    if (k.starts_with(prefix)) {
+      to[k.substr(prefix.size())] = v;
+    }
+  }
 }
 
 } // namespace gluten

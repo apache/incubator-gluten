@@ -23,9 +23,7 @@
 #include <arrow/type.h>
 #include <arrow/type_fwd.h>
 #include <arrow/util/type_fwd.h>
-#include <boost/algorithm/string.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
-#include <parquet/properties.h>
 
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxColumnarBatch.h"
@@ -41,7 +39,6 @@
 #include "velox/connectors/hive/storage_adapters/gcs/GcsFileSystem.h"
 #endif
 #ifdef ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsUtil.h"
 #endif
 #ifdef ENABLE_ABFS
@@ -87,10 +84,11 @@ class VeloxParquetDataSource : public VeloxDataSource {
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool,
       std::shared_ptr<arrow::Schema> schema)
-      : VeloxDataSource(filePath, schema), filePath_(filePath), schema_(schema), pool_(std::move(veloxPool)) {}
-
-  static std::unique_ptr<facebook::velox::parquet::WriterOptions> makeParquetWriteOption(
-      const std::unordered_map<std::string, std::string>& sparkConfs);
+      : VeloxDataSource(filePath, schema),
+        filePath_(filePath),
+        sinkPool_(std::move(sinkPool)),
+        schema_(schema),
+        pool_(std::move(veloxPool)) {}
 
   void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
   virtual void initSink(const std::unordered_map<std::string, std::string>& sparkConfs);

@@ -18,14 +18,13 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.{JoinParams, SubstraitContext}
 import org.apache.gluten.utils.SubstraitUtil
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, RightOuter}
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, InnerLike, JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{ExplainUtils, SparkPlan}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
@@ -79,22 +78,8 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     BackendsApiManager.getMetricsApiInstance.genNestedLoopJoinTransformerMetricsUpdater(metrics)
   }
 
-  override def output: Seq[Attribute] = {
-    joinType match {
-      case _: InnerLike =>
-        left.output ++ right.output
-      case LeftOuter =>
-        left.output ++ right.output.map(_.withNullability(true))
-      case RightOuter =>
-        left.output.map(_.withNullability(true)) ++ right.output
-      case LeftExistence(_) =>
-        left.output
-      case FullOuter =>
-        left.output.map(_.withNullability(true)) ++ right.output.map(_.withNullability(true))
-      case x =>
-        throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
-    }
-  }
+  override def output: Seq[Attribute] =
+    JoinUtils.getDirectJoinOutputSeq(joinType, left.output, right.output, getClass.getSimpleName)
 
   override def outputPartitioning: Partitioning = buildSide match {
     case BuildLeft =>
@@ -108,7 +93,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     case BuildRight =>
       joinType match {
         case _: InnerLike => left.outputPartitioning
-        case LeftOuter => left.outputPartitioning
+        case LeftOuter | ExistenceJoin(_) => left.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building right side")
@@ -157,26 +142,14 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       inputStreamedOutput,
       inputBuildOutput
     )
-
-    JoinUtils.createTransformContext(
-      needSwitchChildren,
-      output,
-      projectRelPostJoinRel,
-      inputStreamedOutput,
-      inputBuildOutput)
+    TransformContext(output, projectRelPostJoinRel)
   }
 
   def validateJoinTypeAndBuildSide(): ValidationResult = {
     val result = joinType match {
       case _: InnerLike | LeftOuter | RightOuter => ValidationResult.succeeded
-      case FullOuter
-          if BackendsApiManager.getSettings.broadcastNestedLoopJoinSupportsFullOuterJoin() =>
-        if (condition.isEmpty) {
-          ValidationResult.succeeded
-        } else {
-          ValidationResult.failed(
-            s"FullOuter join with join condition is not supported with BroadcastNestedLoopJoin")
-        }
+      case ExistenceJoin(_) =>
+        ValidationResult.succeeded
       case _ =>
         ValidationResult.failed(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
@@ -186,9 +159,10 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     }
 
     (joinType, buildSide) match {
-      case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) =>
+      case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) | (ExistenceJoin(_), BuildLeft) =>
         ValidationResult.failed(s"$joinType join is not supported with $buildSide")
-      case _ => ValidationResult.succeeded // continue
+      case _ =>
+        ValidationResult.succeeded
     }
   }
 

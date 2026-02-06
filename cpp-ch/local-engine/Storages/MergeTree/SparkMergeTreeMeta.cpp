@@ -218,6 +218,10 @@ MergeTreeTableInstance::MergeTreeTableInstance(const std::string & info) : Merge
         assertChar('\n', in);
         readIntText(part.end, in);
         assertChar('\n', in);
+        readString(part.row_index_filter_type, in);
+        assertChar('\n', in);
+        readString(part.row_index_filter_id_encoded, in);
+        assertChar('\n', in);
         parts.emplace_back(part);
     }
 }
@@ -292,7 +296,7 @@ RangesInDataParts MergeTreeTableInstance::extractRange(DataPartsVector parts_vec
         std::inserter(ranges_in_data_parts, ranges_in_data_parts.end()),
         [&](const MergeTreePart & part)
         {
-            RangesInDataPart ranges_in_data_part{name_index.at(part.name), 0, 0, {MarkRange(part.begin, part.end)}};
+            RangesInDataPart ranges_in_data_part{name_index.at(part.name),nullptr, 0, 0, {MarkRange(part.begin, part.end)}};
             return ranges_in_data_part;
         });
     return ranges_in_data_parts;

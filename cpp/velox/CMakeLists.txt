@@ -71,6 +71,10 @@ if(NOT DEFINED VELOX_BUILD_PATH)
   endif()
 endif()
 
+set(VELOX_PROTO_SRC_DIR
+    ${GLUTEN_HOME}/backends-velox/src/main/resources/org/apache/gluten/proto)
+message(STATUS "Set Gluten Proto Directory in ${VELOX_PROTO_SRC_DIR}")
+
 function(import_library TARGET_NAME LIB_PATH)
   if(NOT EXISTS ${LIB_PATH})
     message(FATAL_ERROR "Library does not exist: ${LIB_PATH}")
@@ -125,8 +129,26 @@ macro(find_azure)
   find_package(azure-identity-cpp CONFIG REQUIRED)
 endmacro()
 
+# Set up Proto
+set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
+
+# List Gluten Proto compiled files
+file(GLOB VELOX_PROTO_FILES ${VELOX_PROTO_SRC_DIR}/*.proto)
+foreach(PROTO ${VELOX_PROTO_FILES})
+  file(RELATIVE_PATH REL_PROTO ${VELOX_PROTO_SRC_DIR} ${PROTO})
+  string(REGEX REPLACE "\\.proto" "" PROTO_NAME ${REL_PROTO})
+  list(APPEND VELOX_PROTO_SRCS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.cc")
+  list(APPEND VELOX_PROTO_HDRS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.h")
+endforeach()
+set(VELOX_PROTO_OUTPUT_FILES ${VELOX_PROTO_HDRS} ${VELOX_PROTO_SRCS})
+set_source_files_properties(${VELOX_PROTO_OUTPUT_FILES} PROPERTIES GENERATED
+                                                                   TRUE)
+get_filename_component(VELOX_PROTO_DIR ${VELOX_PROTO_SRC_DIR}/ DIRECTORY)
+
 # Build Velox backend.
 set(VELOX_SRCS
+    ${VELOX_PROTO_SRCS}
     compute/VeloxBackend.cc
     compute/VeloxRuntime.cc
     compute/VeloxPlanConverter.cc
@@ -141,13 +163,15 @@ set(VELOX_SRCS
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
     operators/functions/SparkExprToSubfieldFilterParser.cc
+    operators/plannodes/RowVectorStream.cc
     operators/reader/FileReaderIterator.cc
     operators/reader/ParquetReaderIterator.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
-    operators/writer/VeloxArrowWriter.cc
+    operators/writer/VeloxColumnarBatchWriter.cc
     operators/writer/VeloxParquetDataSource.cc
+    shuffle/ArrowShuffleDictionaryWriter.cc
     shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxRssSortShuffleWriter.cc
     shuffle/VeloxShuffleReader.cc
@@ -166,13 +190,41 @@ set(VELOX_SRCS
     udf/UdfLoader.cc
     utils/Common.cc
     utils/ConfigExtractor.cc
-    utils/LocalRssClient.cc
-    utils/TestAllocationListener.cc
     utils/VeloxArrowUtils.cc
-    utils/VeloxBatchResizer.cc)
+    utils/VeloxBatchResizer.cc
+    utils/VeloxWholeStageDumper.cc
+    utils/VeloxWriterUtils.cc)
 
 if(ENABLE_S3)
   find_package(ZLIB)
+endif()
+
+if(ENABLE_GPU)
+  list(
+    APPEND
+    VELOX_SRCS
+    cudf/CudfPlanValidator.cc
+    cudf/GpuLock.cc
+    operators/plannodes/CudfVectorStream.cc
+    shuffle/VeloxGpuShuffleReader.cc
+    shuffle/VeloxGpuShuffleWriter.cc
+    operators/serializer/VeloxGpuColumnarBatchSerializer.cc
+    utils/GpuBufferBatchResizer.cc
+    memory/GpuBufferColumnarBatch.cc)
+endif()
+
+if(ENABLE_ENHANCED_FEATURES)
+  list(APPEND VELOX_SRCS compute/iceberg/IcebergFormat.cc
+       compute/iceberg/IcebergWriter.cc)
+endif()
+
+if(BUILD_TESTS OR BUILD_BENCHMARKS)
+  set(BUILD_TEST_UTILS ON)
+endif()
+
+if(BUILD_TEST_UTILS)
+  list(APPEND VELOX_SRCS tests/utils/LocalRssClient.cc
+       tests/utils/TestAllocationListener.cc)
 endif()
 
 add_library(velox SHARED ${VELOX_SRCS})
@@ -183,13 +235,32 @@ if(ENABLE_GLUTEN_VCPKG AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
     velox PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 endif()
 
-target_include_directories(
-  velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
-               ${VELOX_BUILD_PATH} ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME})
+find_protobuf()
+message(STATUS "Found Protobuf: ${PROTOBUF_LIBRARY}")
 
-if(BUILD_TESTS)
-  target_include_directories(velox PUBLIC ${VELOX_BUILD_PATH})
-endif()
+add_custom_command(
+  OUTPUT ${VELOX_PROTO_OUTPUT_FILES}
+  COMMAND ${PROTOC_BIN} --proto_path ${VELOX_PROTO_SRC_DIR}/ --cpp_out
+          ${PROTO_OUTPUT_DIR} ${VELOX_PROTO_FILES}
+  DEPENDS ${VELOX_PROTO_DIR}
+  COMMENT "Running Gluten Velox PROTO compiler"
+  VERBATIM)
+
+add_custom_target(velox_jni_proto ALL DEPENDS ${SUBSTRAIT_PROTO_OUTPUT_FILES}
+                                              ${VELOX_PROTO_OUTPUT_FILES})
+add_dependencies(velox_jni_proto protobuf::libprotobuf)
+
+add_dependencies(velox velox_jni_proto)
+
+target_include_directories(
+  velox
+  PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH}
+         ${JNI_INCLUDE_DIRS}
+         ${VELOX_BUILD_PATH}
+         ${CMAKE_CURRENT_SOURCE_DIR}
+         ${VELOX_HOME}
+         ${PROTO_OUTPUT_DIR}
+         ${PROTOBUF_INCLUDE})
 
 set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                                        ${root_directory}/releases)
@@ -269,6 +340,15 @@ else()
 endif()
 target_link_libraries(velox PUBLIC external::stemmer)
 
+find_package(geos)
+if(geos_FOUND AND TARGET GEOS::geos)
+  add_library(external::geos ALIAS GEOS::geos)
+else()
+  message(STATUS "import Velox bundled geos")
+  import_library(external::geos ${VELOX_BUILD_PATH}/lib/libgeos.a)
+endif()
+target_link_libraries(velox PUBLIC external::geos)
+
 find_package(simdjson CONFIG)
 if(simdjson_FOUND AND TARGET simdjson::simdjson)
   target_link_libraries(velox PUBLIC simdjson::simdjson)
@@ -339,13 +419,36 @@ if(BUILD_EXAMPLES)
 endif()
 
 if(ENABLE_GPU)
+  find_package(cudf CONFIG REQUIRED)
+
+  import_library(
+    facebook::velox::velox_cudf_expression
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/expression/libvelox_cudf_expression.a
+  )
   import_library(
     facebook::velox::velox_cudf_exec
     ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)
+  import_library(
+    facebook::velox::velox_cudf_vector
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/vector/libvelox_cudf_vector.a)
+  import_library(
+    facebook::velox::velox_cudf_hive_connector
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/connectors/hive/libvelox_cudf_hive_connector.a
+  )
 
-  target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_exec)
-  target_link_libraries(velox
-                        PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so)
+  target_compile_definitions(
+    velox PRIVATE LIBCUDACXX_ENABLE_EXPERIMENTAL_MEMORY_RESOURCE)
+
+  add_library(velox_curl SHARED IMPORTED GLOBAL)
+  set_target_properties(
+    velox_curl PROPERTIES IMPORTED_LOCATION
+                          ${VELOX_BUILD_PATH}/_deps/curl-build/lib/libcurl.so)
+
+  target_link_libraries(
+    velox
+    PUBLIC facebook::velox::velox_cudf_exec facebook::velox::velox_cudf_vector
+           facebook::velox::velox_cudf_hive_connector
+           facebook::velox::velox_cudf_expression cudf::cudf velox_curl)
 endif()
 
 add_custom_command(

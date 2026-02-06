@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.execution.PartitionedFileUtilShim
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{FileSourceOptions, InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -181,7 +183,7 @@ abstract class AbstractFileSourceScanExec(
     logInfo(s"Planning with ${bucketSpec.numBuckets} buckets")
     val filesGroupedToBuckets =
       selectedPartitions
-        .flatMap(p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, p.values)))
+        .flatMap(p => p.files.map(f => PartitionedFileUtilShim.getPartitionedFile(f, p.values)))
         .groupBy {
           f =>
             BucketingUtils
@@ -264,12 +266,11 @@ abstract class AbstractFileSourceScanExec(
         partition =>
           partition.files.flatMap {
             file =>
-              if (shouldProcess(file.getPath)) {
-                val isSplitable = relation.fileFormat.isSplitable(
-                  relation.sparkSession,
-                  relation.options,
-                  file.getPath)
-                PartitionedFileUtil.splitFiles(
+              val filePath = file.getPath
+              if (shouldProcess(filePath)) {
+                val isSplitable =
+                  relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
+                PartitionedFileUtilShim.splitFiles(
                   sparkSession = relation.sparkSession,
                   file = file,
                   isSplitable = isSplitable,

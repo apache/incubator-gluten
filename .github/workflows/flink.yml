@@ -1,0 +1,79 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Gluten Flink Github Runner
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/flink.yml'
+      - 'build/mvn'
+      - 'gluten-flink/**'
+
+env:
+  MAVEN_OPTS: >-
+    -Xmx2g
+    --add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
+    --add-opens=java.base/sun.nio.ch=org.apache.arrow.memory.core,ALL-UNNAMED
+    --add-opens=java.base/java.lang=ALL-UNNAMED
+    --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+    --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+    --add-opens=java.base/java.io=ALL-UNNAMED
+    --add-opens=java.base/java.net=ALL-UNNAMED
+    --add-opens=java.base/java.util=ALL-UNNAMED
+    --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+    --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+    --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
+  JAVA_TOOL_OPTIONS: >-
+    --add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
+    --add-opens=java.base/sun.nio.ch=org.apache.arrow.memory.core,ALL-UNNAMED
+    --add-opens=java.base/java.lang=ALL-UNNAMED
+    --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+    --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+    --add-opens=java.base/java.io=ALL-UNNAMED
+    --add-opens=java.base/java.net=ALL-UNNAMED
+    --add-opens=java.base/java.util=ALL-UNNAMED
+    --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+    --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+    --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
+
+jobs:
+  flink-test:
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk17
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare
+        run: |
+          source /opt/rh/gcc-toolset-11/enable
+          sudo dnf install -y patchelf
+          sudo yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
+          sudo .github/workflows/util/install-flink-resources.sh
+          git clone -b gluten-0530 https://github.com/bigo-sg/velox4j.git
+          cd velox4j && git reset --hard 288d181a1b05c47f1f17339eb498dd6375f7aec8
+          git apply $GITHUB_WORKSPACE/gluten-flink/patches/fix-velox4j.patch
+          $GITHUB_WORKSPACE/build/mvn clean install -DskipTests -Dgpg.skip -Dspotless.skip=true
+          cd ..
+          git clone https://github.com/nexmark/nexmark.git
+          cd nexmark
+          $GITHUB_WORKSPACE/build/mvn clean install -DskipTests
+      - name: Build Gluten Flink
+        run: |
+          cd $GITHUB_WORKSPACE/gluten-flink
+          $GITHUB_WORKSPACE/build/mvn clean package -Dmaven.test.skip=true
+      - name: Run Unit Tests
+        run: |
+          cd $GITHUB_WORKSPACE/gluten-flink
+          $GITHUB_WORKSPACE/build/mvn test

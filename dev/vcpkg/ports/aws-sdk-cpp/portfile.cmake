@@ -4,9 +4,8 @@ vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO aws/aws-sdk-cpp
     REF "${VERSION}"
-    SHA512 826be806ddd87eb452f97df70b19df4194e984775408d8f99246244b6949abcab583e4cbe1ae3bc5d61f3c78267d0e75ea9e69956188ab12e0318344a4314591
+    SHA512 aee9e7e733f4d54d58dc28b59374cb1457acde8634fc3319a22865ccece4e46f34ef96c0778a9ae3b6b1738cad71429a164913b1470de4dc32954a7c7bd04ff0
     PATCHES
-        patch-relocatable-rpath.patch
         fix-aws-root.patch
         lock-curl-http-and-tls-settings.patch
         fix-awsmigrationhub-build.patch
@@ -45,7 +44,7 @@ vcpkg_cmake_configure(
         "-DBUILD_SHARED_LIBS=OFF"
         "-DAWS_SDK_WARNINGS_ARE_ERRORS=OFF"
         "-DCMAKE_INSTALL_RPATH=${rpath}"
-        "-DCMAKE_MODULE_PATH=${CURRENT_INSTALLED_DIR}/share/aws-c-common" # use extra cmake files
+        "-DCMAKE_MODULE_PATH=${CURRENT_INSTALLED_DIR}/share/aws-c-common/modules" # use extra cmake files
 )
 vcpkg_cmake_install()
 

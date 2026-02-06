@@ -18,16 +18,16 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.{CHRangeMetricsUpdater, MetricsUpdater}
 import org.apache.gluten.substrait.`type`._
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.Partition
+import org.apache.spark.sql.catalyst.plans.logical.{Range => LogicalRange}
+import org.apache.spark.sql.execution.{ColumnarRangeBaseExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
@@ -36,16 +36,13 @@ import io.substrait.proto.NamedStruct
 
 import scala.collection.JavaConverters;
 
-case class CHRangeExecTransformer(
-    start: Long,
-    end: Long,
-    step: Long,
-    numSlices: Int,
-    numElements: BigInt,
-    outputAttributes: Seq[Attribute],
-    child: Seq[SparkPlan])
-  extends ColumnarRangeBaseExec(start, end, step, numSlices, numElements, outputAttributes, child)
+case class CHRangeExecTransformer(range: LogicalRange)
+  extends ColumnarRangeBaseExec
   with LeafTransformSupport {
+
+  override def doCanonicalize(): SparkPlan = {
+    CHRangeExecTransformer(range.canonicalized.asInstanceOf[LogicalRange])
+  }
 
   override def getSplitInfos: Seq[SplitInfo] = {
     (0 until numSlices).map {
@@ -54,11 +51,14 @@ case class CHRangeExecTransformer(
     }
   }
 
-  override def getPartitions: Seq[InputPartition] = {
+  override def getPartitions: Seq[Partition] = {
     (0 until numSlices).map {
       sliceIndex => GlutenRangeExecPartition(start, end, step, numSlices, sliceIndex)
     }
   }
+
+  override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
+    getPartitions.map((_, ReadFileFormat.UnknownFormat))
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
@@ -80,7 +80,6 @@ case class CHRangeExecTransformer(
   override protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val output = outputAttributes
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = JavaConverters
@@ -88,16 +87,15 @@ case class CHRangeExecTransformer(
         output.map(attr => new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)))
       .asJava
 
-    val optimizationContent = s"isRange=1\n"
     val optimization =
       BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder.setValue(optimizationContent).build)
+        StringValue.newBuilder.setValue("isRange=1\n").build)
     val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
     val readNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
-      columnTypeNodes,
       null,
+      columnTypeNodes,
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))

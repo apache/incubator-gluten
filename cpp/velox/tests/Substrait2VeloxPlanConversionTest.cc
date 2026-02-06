@@ -69,10 +69,10 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
   }
 
   std::shared_ptr<exec::test::TempDirectoryPath> tmpDir_{exec::test::TempDirectoryPath::create()};
-  std::shared_ptr<VeloxPlanConverter> planConverter_ = std::make_shared<VeloxPlanConverter>(
-      std::vector<std::shared_ptr<ResultIterator>>(),
-      pool(),
-      std::unordered_map<std::string, std::string>());
+  std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_ =
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>());
+  std::shared_ptr<VeloxPlanConverter> planConverter_ =
+      std::make_shared<VeloxPlanConverter>(pool(), veloxCfg_.get(), std::vector<std::shared_ptr<ResultIterator>>());
 };
 
 // This test will firstly generate mock TPC-H lineitem ORC file. Then, Velox's
@@ -265,7 +265,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, ifthenTest) {
   // Convert to Velox PlanNode.
   auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   ASSERT_EQ(
-      "-- Project[1][expressions: ] -> \n  -- TableScan[0][table: hive_table, remaining filter: (and(and(and(and(isnotnull(\"hd_vehicle_count\"),or(equalto(\"hd_buy_potential\",\">10000\"),equalto(\"hd_buy_potential\",\"unknown\"))),greaterthan(\"hd_vehicle_count\",0)),if(greaterthan(\"hd_vehicle_count\",0),greaterthan(divide(cast \"hd_dep_count\" as DOUBLE,cast \"hd_vehicle_count\" as DOUBLE),1.2))),isnotnull(\"hd_demo_sk\"))), data columns: ROW<hd_demo_sk:BIGINT,hd_buy_potential:VARCHAR,hd_dep_count:BIGINT,hd_vehicle_count:BIGINT>] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:BIGINT, n0_3:BIGINT\n",
+      "-- Project[1][expressions: ] -> \n  -- TableScan[0][table: hive_table, remaining filter: (and(and(and(and(isnotnull(\"hd_vehicle_count\"),or(equalto(\"hd_buy_potential\",>10000),equalto(\"hd_buy_potential\",unknown))),greaterthan(\"hd_vehicle_count\",0)),if(greaterthan(\"hd_vehicle_count\",0),greaterthan(divide(cast(\"hd_dep_count\" as DOUBLE),cast(\"hd_vehicle_count\" as DOUBLE)),1.2))),isnotnull(\"hd_demo_sk\"))), data columns: ROW<hd_demo_sk:BIGINT,hd_buy_potential:VARCHAR,hd_dep_count:BIGINT,hd_vehicle_count:BIGINT>] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:BIGINT, n0_3:BIGINT\n",
       planNode->toString(true, true));
 }
 

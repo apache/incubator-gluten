@@ -16,6 +16,7 @@
  */
 package org.apache.spark.memory
 
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
 import org.apache.gluten.memory.memtarget.{KnownNameAndStats, MemoryTarget, MemoryTargetUtil, MemoryTargetVisitor}
@@ -34,6 +35,13 @@ class GlobalOffHeapMemoryTarget private[memory]
   with Logging {
   private val targetName = MemoryTargetUtil.toUniqueName("GlobalOffHeap")
   private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
+  private val mode: MemoryMode = {
+    val enabled = Option(SparkEnv.get)
+      .map(_.conf.getBoolean(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, false))
+      .getOrElse(false)
+    if (enabled) MemoryMode.ON_HEAP
+    else MemoryMode.OFF_HEAP
+  }
 
   private val FIELD_MEMORY_MANAGER: Field = {
     val f =
@@ -54,10 +62,7 @@ class GlobalOffHeapMemoryTarget private[memory]
       .map {
         mm =>
           val succeeded =
-            mm.acquireStorageMemory(
-              BlockId(s"test_${UUID.randomUUID()}"),
-              size,
-              MemoryMode.OFF_HEAP)
+            mm.acquireStorageMemory(BlockId(s"test_${UUID.randomUUID()}"), size, mode)
 
           if (succeeded) {
             recorder.inc(size)
@@ -65,6 +70,17 @@ class GlobalOffHeapMemoryTarget private[memory]
           } else {
             // OOM.
             // Throw OOM.
+            if (mode == MemoryMode.ON_HEAP) {
+              val storageUsed = mm.onHeapStorageMemoryUsed
+              val executionUsed = mm.onHeapExecutionMemoryUsed
+              val onHeapMemoryTotal = storageUsed + executionUsed
+              logError(
+                s"Spark on-heap memory is exhausted. " +
+                  s"Requested: $size, " +
+                  s"Storage: $storageUsed / $onHeapMemoryTotal, " +
+                  s"Execution: $executionUsed / $onHeapMemoryTotal")
+              return 0;
+            }
             val storageUsed = mm.offHeapStorageMemoryUsed
             val executionUsed = mm.offHeapExecutionMemoryUsed
             val offHeapMemoryTotal = storageUsed + executionUsed
@@ -82,7 +98,7 @@ class GlobalOffHeapMemoryTarget private[memory]
     memoryManagerOption()
       .map {
         mm =>
-          mm.releaseStorageMemory(size, MemoryMode.OFF_HEAP)
+          mm.releaseStorageMemory(size, mode)
           recorder.inc(-size)
           size
       }
@@ -96,6 +112,8 @@ class GlobalOffHeapMemoryTarget private[memory]
   private[memory] def memoryManagerOption(): Option[MemoryManager] = {
     val env = SparkEnv.get
     if (env != null) {
+      // SPARK-46947: https://github.com/apache/spark/pull/45052.
+      ensureMemoryStoreInitialized(env)
       return Some(env.memoryManager)
     }
     val tc = TaskContext.get()
@@ -106,6 +124,10 @@ class GlobalOffHeapMemoryTarget private[memory]
     logWarning(
       "Memory manager not found because the code is unlikely be run in a Spark application")
     None
+  }
+
+  private def ensureMemoryStoreInitialized(env: SparkEnv): Unit = {
+    assert(env.blockManager.memoryStore != null)
   }
 
   override def name(): String = targetName

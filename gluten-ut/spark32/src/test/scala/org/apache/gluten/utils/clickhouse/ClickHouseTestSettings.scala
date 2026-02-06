@@ -135,6 +135,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDSV2CharVarcharTestSuite]
     // failed on spark32 UT, see https://github.com/oap-project/gluten/issues/4043
     .exclude("SPARK-34833: right-padding applied correctly for correlated subqueries - other preds")
+    // Excluded. The Gluten tests for char/varchar validation were rewritten for Velox.
+    // ClickHouse backend doesn't support this feature and falls back to vanilla Spark,
+    // causing mismatches in error messages.
+    .excludeGlutenTest("length check for input string values: nested in struct")
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude("average")
@@ -354,6 +359,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("varchar type values length check and trim: partitioned columns")
     .exclude("char/varchar type values length check: partitioned columns of other types")
     .exclude("char type comparison: partitioned columns")
+    // Excluded. The Gluten tests for char/varchar validation were rewritten for Velox.
+    // ClickHouse backend doesn't support this feature and falls back to vanilla Spark,
+    // causing mismatches in error messages.
+    .excludeGlutenTest("length check for input string values: nested in struct")
+    .excludeGlutenTest("length check for input string values: nested in struct of array")
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
     .exclude("SPARK-33474: Support typed literals as partition spec values")
     .exclude(
@@ -609,11 +619,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34727: cast from float II")
     .exclude("SPARK-35720: cast invalid string input to timestamp without time zone")
     .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
-    .exclude("cast array element from integer to string")
-    .exclude("cast array element from double to string")
-    .exclude("cast array element from bool to string")
-    .exclude("cast array element from date to string")
-    .exclude("cast array from timestamp to string")
+    .exclude("cast from boolean to timestamp")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")
     .exclude("cast string to date")
@@ -699,6 +705,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("add_months")
     .exclude("SPARK-34721: add a year-month interval to a date")
     .exclude("months_between")
+    .excludeGlutenTest("months_between")
     .exclude("next_day")
     .exclude("TruncDate")
     .exclude("TruncTimestamp")
@@ -941,7 +948,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("partitioning reporting")
     .exclude("SPARK-33267: push down with condition 'in (..., null)' should not throw NPE")
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
-    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    // Rewritten
     .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]

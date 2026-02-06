@@ -13,7 +13,7 @@ Please init vcpkg env first:
 
 Vcpkg already maintains a lot of libraries.
 You can find them by vcpkg cli.
-(NOTE: Please always use cli because [packages on vcpkg.io](https://vcpkg.io/en/packages.html) is outdate).
+(NOTE: Please always use cli because [packages on vcpkg.io](https://vcpkg.io/en/packages.html) is outdated).
 
 ```
 $ ./.vcpkg/vcpkg search folly
@@ -65,37 +65,11 @@ See also [Versioning](https://learn.microsoft.com/en-us/vcpkg/users/versioning).
 
 Otherwise, you must create a new port in `./ports/$package` to override the vcpkg's original version.
 
-**If a new ports has been merged in vcpkg main branch**.
-You can find git tree-ish and checkout it.
-For example, arrow 12.0.0 has been merged but not include in last release (2023.04.15).
-
-``` patch
-# https://patch-diff.githubusercontent.com/raw/microsoft/vcpkg/pull/31321.patch
-
-diff --git a/versions/a-/arrow.json b/versions/a-/arrow.json
-index 07c7ef67cb27c..f7bbe94b4f914 100644
---- a/versions/a-/arrow.json
-+++ b/versions/a-/arrow.json
-@@ -1,5 +1,10 @@
- {
-   "versions": [
-+    {
-+      "git-tree": "881bfaaab349dae46929b36e5b84e7036a009ad3",
-+      "version": "12.0.0",
-+      "port-version": 0
-+    },
-     {
-       "git-tree": "21fea47a1e9c7bf68e6c088ad5a6b7b6e33c2fcb",
-       "version": "11.0.0",
-```
-
-Git tree-ish is `21fea47a1e9c7bf68e6c088ad5a6b7b6e33c2fcb`. Then fetch and checkout it.
-
-``` sh
-cd .vcpkg
-git fetch origin master
-git archive 21fea47a1e9c7bf68e6c088ad5a6b7b6e33c2fcb | tar -x -C ../ports/arrow
-```
+**If a newer version of a library is supported in a later version of vcpkg**.
+Developers can configure `vcpkg-configuration.json` to allow importing a new port, overriding the
+corresponding port specified in the `builtin-baseline`. This approach also applies to libraries
+that have been removed from vcpkg at the `builtin-baseline`; by setting a historical vcpkg version,
+you can import such ports.
 
 **If you want to modify port based on vcpkg version**.
 Copy port directory from `./.vcpkg/ports/$package` to `./ports/$package`.
@@ -161,7 +135,7 @@ vcpkg_from_github(
 
 # Download from source archive
 vcpkg_download_distfile(ARCHIVE
-    URLS "https://ftp.gnu.org/gnu/gsasl/gsasl-2.2.0.tar.gz"
+    URLS "https://ftp.gnu.org/gnu/gsasl/gsasl-2.2.0.tar.gz" "https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/gsasl/gsasl-2.2.0.tar.gz"
     FILENAME "gsasl-2.2.0.tar.gz"
     SHA512 0ae318a8616fe675e9718a3f04f33731034f9a7ba03d83ccb1a72954ded54ced35dc7c7e173fdcb6fa0f0813f8891c6cbcedf8bf70b37d00b8ec512eb9f07f5f
 )

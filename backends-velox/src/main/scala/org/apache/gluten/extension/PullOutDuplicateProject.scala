@@ -32,37 +32,47 @@ import scala.collection.mutable.ArrayBuffer
 object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case l @ LimitExecTransformer(p: ProjectExecTransformer, _, _) =>
-      val pullOutAliases = new ArrayBuffer[Alias]()
-      val newChild = rewriteProject(p, AttributeSet.empty, pullOutAliases)
-      if (pullOutAliases.isEmpty) {
+      val duplicates = calculateDuplicates(p, AttributeSet.empty)
+      if (duplicates.isEmpty) {
         l
       } else {
+        val pullOutAliases = new ArrayBuffer[Alias]()
+        val newChild = rewriteProject(p, AttributeSet.empty, pullOutAliases, duplicates)
         outerProject(l.copy(child = newChild), l.output, pullOutAliases)
       }
     case p @ ProjectExecTransformer(_, child: ProjectExecTransformer) =>
-      val pullOutAliases = new ArrayBuffer[Alias]()
-      val newChild = rewriteProject(child, AttributeSet.empty, pullOutAliases)
-      val aliasMap = AttributeMap(pullOutAliases.map(a => a.toAttribute -> a))
-      val newProjectList = p.projectList.map(replaceAliasButKeepName(_, aliasMap))
-      ProjectExecTransformer(newProjectList, newChild)
+      val duplicates = calculateDuplicates(child, AttributeSet.empty)
+      if (duplicates.isEmpty) {
+        p
+      } else {
+        val pullOutAliases = new ArrayBuffer[Alias]()
+        val newChild = rewriteProject(child, AttributeSet.empty, pullOutAliases, duplicates)
+        val aliasMap = AttributeMap(pullOutAliases.map(a => a.toAttribute -> a))
+        val newProjectList = p.projectList.map(replaceAliasButKeepName(_, aliasMap))
+        ProjectExecTransformer(newProjectList, newChild)
+      }
     case f @ FilterExecTransformer(_, child: ProjectExecTransformer) =>
-      val pullOutAliases = new ArrayBuffer[Alias]()
-      val newChild = rewriteProject(child, f.references, pullOutAliases)
-      if (pullOutAliases.isEmpty) {
+      val duplicates = calculateDuplicates(child, f.references)
+      if (duplicates.isEmpty) {
         f
       } else {
+        val pullOutAliases = new ArrayBuffer[Alias]()
+        val newChild = rewriteProject(child, f.references, pullOutAliases, duplicates)
         outerProject(f.copy(child = newChild), f.output, pullOutAliases)
       }
     case bhj: BroadcastHashJoinExecTransformer
         if bhj.streamedPlan.isInstanceOf[ProjectExecTransformer] =>
-      val pullOutAliases = new ArrayBuffer[Alias]()
-      val newStreamedPlan = rewriteProject(
-        bhj.streamedPlan.asInstanceOf[ProjectExecTransformer],
-        bhj.references,
-        pullOutAliases)
-      if (pullOutAliases.isEmpty) {
+      val duplicates =
+        calculateDuplicates(bhj.streamedPlan.asInstanceOf[ProjectExecTransformer], bhj.references)
+      if (duplicates.isEmpty) {
         bhj
       } else {
+        val pullOutAliases = new ArrayBuffer[Alias]()
+        val newStreamedPlan = rewriteProject(
+          bhj.streamedPlan.asInstanceOf[ProjectExecTransformer],
+          bhj.references,
+          pullOutAliases,
+          duplicates)
         val newBhj = bhj.joinBuildSide match {
           case BuildLeft => bhj.copy(right = newStreamedPlan)
           case BuildRight => bhj.copy(left = newStreamedPlan)
@@ -80,16 +90,12 @@ object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
     ProjectExecTransformer(newProjectList, child)
   }
 
-  /**
-   * If there are duplicate projections and not refer to parent, only the original attribute is kept
-   * in the project.
-   */
-  private def rewriteProject(
+  /** Calculate the original attributes corresponding to duplicate projections. */
+  private def calculateDuplicates(
       project: ProjectExecTransformer,
-      references: AttributeSet,
-      pullOutAliases: ArrayBuffer[Alias]): SparkPlan = {
+      references: AttributeSet): AttributeSet = {
     val projectList = project.projectList
-    val duplicates = AttributeSet(
+    AttributeSet(
       projectList
         .collect {
           case attr: Attribute if !references.contains(attr) => attr
@@ -100,23 +106,32 @@ object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
         .groupBy(_.exprId)
         .filter(_._2.size > 1)
         .map(_._2.head))
-    if (duplicates.nonEmpty) {
-      val newProjectList = projectList.filter {
-        case a @ Alias(attr: Attribute, _)
-            if !references.contains(a) && duplicates.contains(attr) =>
-          pullOutAliases.append(a)
-          false
-        case _ => true
-      } ++ duplicates.filter(!project.outputSet.contains(_)).toSeq
-      val newProject = project.copy(projectList = newProjectList)
-      // If the output of the new project is the same as the child, delete it to simplify the plan.
-      if (newProject.outputSet.equals(project.child.outputSet)) {
-        project.child
-      } else {
-        newProject
-      }
+  }
+
+  /**
+   * If there are duplicate projections and not refer to parent, only the original attribute is kept
+   * in the project.
+   */
+  private def rewriteProject(
+      project: ProjectExecTransformer,
+      references: AttributeSet,
+      pullOutAliases: ArrayBuffer[Alias],
+      duplicates: AttributeSet): SparkPlan = {
+    val projectList = project.projectList
+    val newProjectList = projectList.distinct.filter {
+      case a @ Alias(attr: Attribute, _) if !references.contains(a) && duplicates.contains(attr) =>
+        pullOutAliases.append(a)
+        false
+      case _ => true
+    } ++ duplicates.filter(!project.outputSet.contains(_)).toSeq
+    val newProject = project.copy(projectList = newProjectList)
+    newProject.copyTagsFrom(project)
+    // If the output of the new project is the same as the child, delete it to simplify the plan.
+    if (newProject.outputSet.equals(project.child.outputSet)) {
+      project.child
     } else {
-      project
+      newProject
+
     }
   }
 }

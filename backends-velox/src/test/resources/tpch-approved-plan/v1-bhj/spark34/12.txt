@@ -20,10 +20,10 @@ AdaptiveSparkPlan (44)
                                              :  +- BroadcastQueryStage (5), Statistics(X)
                                              :     +- ColumnarBroadcastExchange (4)
                                              :        +- ^ FilterExecTransformer (2)
-                                             :           +- ^ ScanTransformer parquet  (1)
+                                             :           +- ^ FileSourceScanExecTransformer parquet  (1)
                                              +- ^ ProjectExecTransformer (10)
                                                 +- ^ FilterExecTransformer (9)
-                                                   +- ^ ScanTransformer parquet  (8)
+                                                   +- ^ FileSourceScanExecTransformer parquet  (8)
 +- == Initial Plan ==
    Sort (43)
    +- Exchange (42)
@@ -40,7 +40,7 @@ AdaptiveSparkPlan (44)
                            +- Scan parquet (34)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [2]: [o_orderkey#X, o_orderpriority#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -69,7 +69,7 @@ Input [2]: [o_orderkey#X, o_orderpriority#X]
 (7) InputIteratorTransformer
 Input [2]: [o_orderkey#X, o_orderpriority#X]
 
-(8) ScanTransformer parquet 
+(8) FileSourceScanExecTransformer parquet 
 Output [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -111,7 +111,7 @@ Arguments: false
 
 (16) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, l_shipmode#X, sum#X, sum#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (17) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_shipmode#X, sum#X, sum#X]
@@ -140,7 +140,7 @@ Arguments: false
 
 (23) VeloxResizeBatches
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (24) ColumnarExchange
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]

@@ -60,6 +60,7 @@ object ExpressionNames {
   final val ADD = "add"
   final val SUBTRACT = "subtract"
   final val MULTIPLY = "multiply"
+  final val DIV = "div"
   final val DIVIDE = "divide"
   final val POSITIVE = "positive"
   final val NEGATIVE = "negative"
@@ -91,6 +92,7 @@ object ExpressionNames {
   final val CHECKED_SUBTRACT = "checked_subtract"
   final val CHECKED_DIVIDE = "checked_divide"
   final val CHECKED_MULTIPLY = "checked_multiply"
+  final val CHECKED_DIV = "checked_div"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -138,6 +140,7 @@ object ExpressionNames {
   final val BASE64 = "base64"
   final val MASK = "mask"
   final val FORMAT_STRING = "format_string"
+  final val LUHN_CHECK = "luhn_check"
 
   // URL functions
   final val PARSE_URL = "parse_url"
@@ -216,7 +219,8 @@ object ExpressionNames {
   final val TRUNC = "trunc"
   final val DATE_TRUNC = "date_trunc"
   final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
-  final val TIMESTAMP_ADD = "timestamp_add"
+  final val TIMESTAMP_ADD = "timestampadd"
+  final val TIMESTAMP_DIFF = "timestampdiff"
   final val NEXT_DAY = "next_day"
   final val LAST_DAY = "last_day"
   final val MONTHS_BETWEEN = "months_between"
@@ -350,6 +354,7 @@ object ExpressionNames {
   final val KNOWN_NULLABLE = "known_nullable"
   final val KNOWN_NOT_NULL = "known_not_null"
   final val KNOWN_FLOATING_POINT_NORMALIZED = "known_floating_point_normalized"
+  final val KNOWN_NOT_CONTAINS_NULL = "known_not_contains_null"
   final val NORMALIZE_NANAND_ZERO = "normalize_nanand_zero"
 
   // Window functions used by Substrait plan.
@@ -369,4 +374,17 @@ object ExpressionNames {
   // A placeholder for native UDF functions
   final val UDF_PLACEHOLDER = "udf_placeholder"
   final val UDAF_PLACEHOLDER = "udaf_placeholder"
+
+  // Spark StaticInvoke Catalyst util functions
+  final val VARCHAR_TYPE_WRITE_SIDE_CHECK = "varchar_type_write_side_check"
+  final val CHAR_TYPE_WRITE_SIDE_CHECK = "char_type_write_side_check"
+  final val READ_SIDE_PADDING = "read_side_padding"
+
+  // Iceberg function names
+  final val YEARS = "years"
+  final val MONTHS = "months"
+  final val DAYS = "days"
+  final val HOURS = "hours"
+  final val BUCKET = "bucket"
+  final val TRUNCATE = "truncate"
 }

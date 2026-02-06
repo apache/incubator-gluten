@@ -166,12 +166,17 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::SparkRowInfoJNI::init(env);
 
     local_engine::JNIUtils::vm = vm;
+
+    local_engine::JniEnvStatusWatcher::instance().setActive();
     return JNI_VERSION_1_8;
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+    // Ensure that current_thread is valid before initializing resource.
+    DB::ThreadStatus thread_status;
+
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
     const std::string::size_type plan_buf_size = conf_plan_a.length();
     local_engine::SparkConfigs::update(
@@ -191,22 +196,29 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeDestroyNative(JNIEnv * env, jclass)
 {
-    LOG_INFO(&Poco::Logger::get("jni"), "start destroy native");
-    local_engine::BackendFinalizerUtil::finalizeGlobally();
+    LOCAL_ENGINE_JNI_DESTROY_METHOD_START
+    {
+        // Ensure that current_thread is valid before destroying resource to avoid
+        // any future calls to CurrentThread::get() in parts of the code.
+        // For example, see `MergeTreeData::getInMemoryMetadataPtr()`
+        DB::ThreadStatus thread_status;
+        local_engine::BackendFinalizerUtil::finalizeGlobally();
 
-    local_engine::JniErrorsGlobalState::instance().destroy(env);
-    local_engine::BroadCastJoinBuilder::destroy(env);
-    local_engine::SparkMergeTreeWriterJNI::destroy(env);
-    local_engine::SparkRowInfoJNI::destroy(env);
+        local_engine::JniErrorsGlobalState::instance().destroy(env);
+        local_engine::BroadCastJoinBuilder::destroy(env);
+        local_engine::SparkMergeTreeWriterJNI::destroy(env);
+        local_engine::SparkRowInfoJNI::destroy(env);
 
-    env->DeleteGlobalRef(block_stripes_class);
-    env->DeleteGlobalRef(split_result_class);
-    env->DeleteGlobalRef(block_stats_class);
-    env->DeleteGlobalRef(local_engine::ShuffleReader::shuffle_input_stream_class);
-    env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
-    env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
-    env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
-    env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
+        env->DeleteGlobalRef(block_stripes_class);
+        env->DeleteGlobalRef(split_result_class);
+        env->DeleteGlobalRef(block_stats_class);
+        env->DeleteGlobalRef(local_engine::ShuffleReader::shuffle_input_stream_class);
+        env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
+        env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
+        env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
+        env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
+    }
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
 /// Set settings for the current query. It assumes that all parameters are started with `CH_RUNTIME_SETTINGS_PREFIX` prefix,
@@ -266,9 +278,10 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     }
 
     local_engine::LocalExecutor * executor = parser.createExecutor(plan_pb).release();
-    LOG_INFO(&Poco::Logger::get("jni"), "Construct LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
+    LOG_INFO(getLogger("jni"), "Construct LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
     executor->setMetric(parser.getMetric());
     executor->setExtraPlanHolder(parser.extra_plan_holder);
+    local_engine::QueryContext::instance().attachLocalExecutor(executor);
 
     return reinterpret_cast<jlong>(executor);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
@@ -297,7 +310,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeCancel(JNIE
     LOCAL_ENGINE_JNI_METHOD_START
     auto * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
     executor->cancel();
-    LOG_INFO(&Poco::Logger::get("jni"), "Cancel LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
+    LOG_INFO(getLogger("jni"), "Cancel LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
@@ -305,9 +318,12 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeClose(JNIEn
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
-    LOG_INFO(&Poco::Logger::get("jni"), "Finalize LocalExecutor {}", reinterpret_cast<intptr_t>(executor));
+    LOG_INFO(getLogger("jni"), "Finalize LocalExecutor {}", reinterpret_cast<intptr_t>(executor));
     local_engine::LocalExecutor::resetCurrentExecutor();
-    delete executor;
+    if (local_engine::QueryContext::instance().detachLocalExecutor(executor))
+        delete executor;
+    else
+        LOG_WARNING(getLogger("jni"), "The LocalExecutor {} has been detached before, should not delete it again.", reinterpret_cast<intptr_t>(executor));
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
@@ -980,6 +996,9 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     JNIEnv * env, jclass, jbyteArray plan_, jbyteArray read_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+    // Ensure that current_thread is valid, even if this function is called on Driver.
+    DB::ThreadStatus thread_status;
+
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan_);
     auto plan_pb = local_engine::BinaryToMessage<substrait::Plan>(
         {reinterpret_cast<const char *>(plan_a.elems()), static_cast<size_t>(plan_a.length())});
@@ -1284,6 +1303,7 @@ Java_org_apache_gluten_vectorized_SimpleExpressionEval_createNativeInstance(JNIE
     const jobject iter = env->NewGlobalRef(input);
     parser.addInputIter(iter, false);
     local_engine::LocalExecutor * executor = parser.createExecutor(plan_pb).release();
+    local_engine::QueryContext::instance().attachLocalExecutor(executor);
     return reinterpret_cast<jlong>(executor);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
@@ -1292,7 +1312,10 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_SimpleExpressionEval_nativeClos
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::LocalExecutor * executor = reinterpret_cast<local_engine::LocalExecutor *>(instance);
-    delete executor;
+    if (local_engine::QueryContext::instance().detachLocalExecutor(executor))
+        delete executor;
+    else
+        LOG_WARNING(getLogger("jni"), "The LocalExecutor {} has been detached before, should not delete it again.", reinterpret_cast<intptr_t>(executor));
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
@@ -1390,13 +1413,14 @@ JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_removeFiles
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_createDeletionVectorWriter(
-    JNIEnv * env, jclass, jstring table_path_, jint prefix_length_, jlong packingTargetSize_)
+    JNIEnv * env, jclass, jstring table_path_, jint prefix_length_, jlong packingTargetSize_, jstring dv_file_name_prefix_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto table_path = jstring2string(env, table_path_);
+    auto dv_file_name_prefix = jstring2string(env, dv_file_name_prefix_);
 
     const auto query_context = local_engine::QueryContext::instance().currentQueryContext();
-    auto writer = new local_engine::delta::DeltaWriter(query_context, table_path, prefix_length_, packingTargetSize_);
+    auto writer = new local_engine::delta::DeltaWriter(query_context, table_path, prefix_length_, packingTargetSize_, dv_file_name_prefix);
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1);
 }

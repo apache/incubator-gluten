@@ -17,7 +17,6 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.RuleApi
-import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
@@ -52,6 +51,11 @@ class CHRuleApi extends RuleApi {
 }
 
 object CHRuleApi {
+
+  /**
+   * Registers Spark rules or extensions, except for Gluten's columnar rules that are supposed to be
+   * injected through [[injectLegacy]] / [[injectRas]].
+   */
   private def injectSpark(injector: SparkInjector): Unit = {
     // Inject the regular Spark rules directly.
     injector.injectQueryStagePrepRule(FallbackBroadcastHashJoinPrepQueryStage.apply)
@@ -79,6 +83,10 @@ object CHRuleApi {
     injector.injectPreCBORule(spark => new CHOptimizeMetadataOnlyDeltaQuery(spark))
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed by default in Gluten for
+   * columnar query planning.
+   */
   private def injectLegacy(injector: LegacyInjector): Unit = {
     // Legacy: Pre-transform rules.
     injector.injectPreTransform(_ => RemoveTransitions)
@@ -105,7 +113,8 @@ object CHRuleApi {
     injector.injectTransform(
       c =>
         intercept(
-          HeuristicTransform.WithRewrites(validatorBuilder(c.glutenConf), rewrites, offloads)))
+          HeuristicTransform
+            .WithRewrites(validatorBuilder(new GlutenConfig(c.sqlConf)), rewrites, offloads)))
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => PruneNestedColumnsInHiveTableScan)
@@ -121,10 +130,11 @@ object CHRuleApi {
     injector.injectPostTransform(
       c =>
         intercept(
-          SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
-            c.session)))
+          SparkPlanRules.extendedColumnarRule(
+            new GlutenConfig(c.sqlConf).extendedColumnarTransformRules)(c.session)))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
-    injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatch))
+    injector.injectPostTransform(_ => CollectTailTransformerRule())
+    injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatchType))
     injector.injectPostTransform(c => RemoveDuplicatedColumns(c.session))
     injector.injectPostTransform(c => AddPreProjectionForHashJoin(c.session))
     injector.injectPostTransform(c => ReplaceSubStringComparison(c.session))
@@ -140,19 +150,26 @@ object CHRuleApi {
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => intercept(each(c.session))))
-    injector.injectPost(c => ColumnarCollapseTransformStages(c.glutenConf))
+    injector.injectPost(c => ColumnarCollapseTransformStages(new GlutenConfig(c.sqlConf)))
     injector.injectPost(
       c =>
         intercept(
-          SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarPostRules)(c.session)))
+          SparkPlanRules.extendedColumnarRule(
+            new GlutenConfig(c.sqlConf).extendedColumnarPostRules)(c.session)))
     injector.injectPost(c => GlutenNoopWriterRule.apply(c.session))
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.injectFinal(c => GlutenFallbackReporter(c.glutenConf, c.session))
+    injector.injectFinal(c => GlutenFallbackReporter(new GlutenConfig(c.sqlConf), c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
+  /**
+   * Registers Gluten's columnar rules. These rules will be executed only when RAS (relational
+   * algebra selector) is enabled by spark.gluten.ras.enabled=true.
+   *
+   * These rules are covered by CI test job spark-test-spark35-ras.
+   */
   private def injectRas(injector: RasInjector): Unit = {
     // CH backend doesn't work with RAS at the moment. Inject a rule that aborts any
     // execution calls.

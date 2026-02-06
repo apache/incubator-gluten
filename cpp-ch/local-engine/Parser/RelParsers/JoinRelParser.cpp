@@ -30,8 +30,8 @@
 #include <Operator/EarlyStopStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/ExpressionParser.h>
-#include <Parsers/ASTIdentifier.h>
 #include <Parser/SubstraitParserUtils.h>
+#include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
@@ -46,6 +46,7 @@ namespace Setting
 {
 extern const SettingsJoinAlgorithm join_algorithm;
 extern const SettingsUInt64 max_block_size;
+extern const SettingsUInt64 min_joined_block_size_rows;
 extern const SettingsUInt64 min_joined_block_size_bytes;
 extern const SettingsNonZeroUInt64 grace_hash_join_initial_buckets;
 extern const SettingsNonZeroUInt64 grace_hash_join_max_buckets;
@@ -169,7 +170,7 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
     /// To support mixed join conditions, we must make sure that the column names in the right be the same as
     /// storage_join's right sample block.
     ActionsDAG right_project = ActionsDAG::makeConvertingActions(
-        right.getCurrentHeader().getColumnsWithTypeAndName(),
+        right.getCurrentHeader()->getColumnsWithTypeAndName(),
         storage_join.getRightSampleBlock().getColumnsWithTypeAndName(),
         ActionsDAG::MatchColumnsMode::Position);
 
@@ -182,15 +183,15 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
     /// avoid the columns name in the right table be changed in `addConvertStep`.
     /// This could happen in tpc-ds q44.
     DB::ColumnsWithTypeAndName new_left_cols;
-    const auto & right_header = right.getCurrentHeader();
+    const auto & right_header = *right.getCurrentHeader();
     auto left_prefix = getUniqueName("left");
-    for (const auto & col : left.getCurrentHeader())
+    for (const auto & col : *left.getCurrentHeader())
         if (right_header.has(col.name))
             new_left_cols.emplace_back(col.column, col.type, left_prefix + col.name);
         else
             new_left_cols.emplace_back(col.column, col.type, col.name);
     ActionsDAG left_project = ActionsDAG::makeConvertingActions(
-        left.getCurrentHeader().getColumnsWithTypeAndName(), new_left_cols, ActionsDAG::MatchColumnsMode::Position);
+        left.getCurrentHeader()->getColumnsWithTypeAndName(), new_left_cols, ActionsDAG::MatchColumnsMode::Position);
 
     QueryPlanStepPtr left_project_step = std::make_unique<ExpressionStep>(left.getCurrentHeader(), std::move(left_project));
     left_project_step->setStepDescription("Rename Left Table Name for broadcast join");
@@ -210,14 +211,14 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         renamePlanColumns(*left, *right, *storage_join);
 
     auto table_join = createDefaultTableJoin(join.type(), join_opt_info, context);
-    DB::Block right_header_before_convert_step = right->getCurrentHeader();
+    DB::Block right_header_before_convert_step{*right->getCurrentHeader()};
     addConvertStep(*table_join, *left, *right);
 
     // Add a check to find error easily.
     if (storage_join)
     {
         bool is_col_names_changed = false;
-        const auto & current_right_header = right->getCurrentHeader();
+        const auto & current_right_header = *right->getCurrentHeader();
         if (right_header_before_convert_step.columns() != current_right_header.columns())
             is_col_names_changed = true;
         if (!is_col_names_changed)
@@ -236,20 +237,20 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
             throw DB::Exception(
                 DB::ErrorCodes::LOGICAL_ERROR,
                 "For broadcast join, we must not change the columns name in the right table.\nleft header:{},\nright header: {} -> {}",
-                left->getCurrentHeader().dumpStructure(),
+                left->getCurrentHeader()->dumpStructure(),
                 right_header_before_convert_step.dumpStructure(),
-                right->getCurrentHeader().dumpStructure());
+                right->getCurrentHeader()->dumpStructure());
         }
     }
 
     Names after_join_names;
-    auto left_names = left->getCurrentHeader().getNames();
+    auto left_names = left->getCurrentHeader()->getNames();
     after_join_names.insert(after_join_names.end(), left_names.begin(), left_names.end());
     auto right_name = table_join->columnsFromJoinedTable().getNames();
     after_join_names.insert(after_join_names.end(), right_name.begin(), right_name.end());
 
-    auto left_header = left->getCurrentHeader();
-    auto right_header = right->getCurrentHeader();
+    const auto & left_header = *left->getCurrentHeader();
+    const auto & right_header = *right->getCurrentHeader();
 
     QueryPlanPtr query_plan;
 
@@ -272,7 +273,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
             }
             else if (!storage_join->is_empty_hash_table)
             {
-                auto input_header = left->getCurrentHeader();
+                auto input_header = *left->getCurrentHeader();
                 DB::ActionsDAG filter_is_not_null_dag{input_header.getColumnsWithTypeAndName()};
                 // when is_null_aware_anti_join is true, there is only one join key
                 auto field_index = SubstraitParserUtils::getStructFieldIndex(join.expression().scalar_function().arguments(0).value());
@@ -312,13 +313,15 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         if (need_post_filter && table_join->kind() != DB::JoinKind::Inner)
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Sort merge join doesn't support mixed join conditions, except inner join.");
 
-        JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentHeader().cloneEmpty(), -1);
+        SharedHeader rigth_sample_block = right->getCurrentHeader();
+        JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, rigth_sample_block, -1);
         MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
         QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
             left->getCurrentHeader(),
             right->getCurrentHeader(),
             smj_join,
             context->getSettingsRef()[Setting::max_block_size],
+            context->getSettingsRef()[Setting::min_joined_block_size_rows],
             context->getSettingsRef()[Setting::min_joined_block_size_bytes],
             1,
             /* required_output_ = */ NameSet{},
@@ -355,7 +358,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         }
     }
 
-    JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
+    JoinUtil::adjustJoinOutput(*query_plan, after_join_names);
     /// Need to project the right table column into boolean type
     if (join_opt_info.is_existence_join)
         existenceJoinPostProject(*query_plan, left_names);
@@ -371,7 +374,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 /// we mark the flag 0, otherwise mark it 1.
 void JoinRelParser::existenceJoinPostProject(DB::QueryPlan & plan, const DB::Names & left_input_cols)
 {
-    DB::ActionsDAG actions_dag{plan.getCurrentHeader().getColumnsWithTypeAndName()};
+    DB::ActionsDAG actions_dag{plan.getCurrentHeader()->getColumnsWithTypeAndName()};
     const auto * right_col_node = actions_dag.getInputs().back();
     auto function_builder = DB::FunctionFactory::instance().get("isNotNull", getContext());
     const auto * not_null_node = &actions_dag.addFunction(function_builder, {right_col_node}, right_col_node->result_name);
@@ -389,27 +392,27 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
 {
     /// If the columns name in right table is duplicated with left table, we need to rename the right table's columns.
     NameSet left_columns_set;
-    for (const auto & col : left.getCurrentHeader().getNames())
+    for (const auto & col : left.getCurrentHeader()->getNames())
         left_columns_set.emplace(col);
     table_join.setColumnsFromJoinedTable(
-        right.getCurrentHeader().getNamesAndTypesList(),
+        right.getCurrentHeader()->getNamesAndTypesList(),
         left_columns_set,
         getUniqueName("right") + ".",
-        left.getCurrentHeader().getNamesAndTypesList());
+        left.getCurrentHeader()->getNamesAndTypesList());
 
     // fix right table key duplicate
     NamesWithAliases right_table_alias;
     for (size_t idx = 0; idx < table_join.columnsFromJoinedTable().size(); idx++)
     {
-        auto origin_name = right.getCurrentHeader().getByPosition(idx).name;
+        auto origin_name = right.getCurrentHeader()->getByPosition(idx).name;
         auto dedup_name = table_join.columnsFromJoinedTable().getNames().at(idx);
         if (origin_name != dedup_name)
             right_table_alias.emplace_back(NameWithAlias(origin_name, dedup_name));
     }
     if (!right_table_alias.empty())
     {
-        ActionsDAG rename_dag{right.getCurrentHeader().getNamesAndTypesList()};
-        auto original_right_columns = right.getCurrentHeader();
+        ActionsDAG rename_dag{right.getCurrentHeader()->getNamesAndTypesList()};
+        const auto & original_right_columns = *right.getCurrentHeader();
         for (const auto & column_alias : right_table_alias)
         {
             if (original_right_columns.has(column_alias.first))
@@ -431,7 +434,7 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
     std::optional<ActionsDAG> left_convert_actions;
     std::optional<ActionsDAG> right_convert_actions;
     std::tie(left_convert_actions, right_convert_actions) = table_join.createConvertingActions(
-        left.getCurrentHeader().getColumnsWithTypeAndName(), right.getCurrentHeader().getColumnsWithTypeAndName());
+        left.getCurrentHeader()->getColumnsWithTypeAndName(), right.getCurrentHeader()->getColumnsWithTypeAndName());
 
     if (right_convert_actions)
     {
@@ -522,8 +525,8 @@ bool JoinRelParser::applyJoinFilter(
         return true;
     const auto & expr = join_rel.post_join_filter();
 
-    const auto & left_header = left.getCurrentHeader();
-    const auto & right_header = right.getCurrentHeader();
+    const auto & left_header = *left.getCurrentHeader();
+    const auto & right_header = *right.getCurrentHeader();
     ColumnsWithTypeAndName mixed_columns;
     std::unordered_set<String> added_column_name;
     for (const auto & col : left_header.getColumnsWithTypeAndName())
@@ -613,7 +616,7 @@ bool JoinRelParser::applyJoinFilter(
 void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::JoinRel & join)
 {
     std::string filter_name;
-    ActionsDAG actions_dag{query_plan.getCurrentHeader().getColumnsWithTypeAndName()};
+    ActionsDAG actions_dag{query_plan.getCurrentHeader()->getColumnsWithTypeAndName()};
     if (!join.post_join_filter().has_scalar_function())
     {
         // It may be singular_or_list
@@ -744,6 +747,7 @@ DB::QueryPlanPtr JoinRelParser::buildMultiOnClauseHashJoin(
         right_plan->getCurrentHeader(),
         hash_join,
         context->getSettingsRef()[Setting::max_block_size],
+        context->getSettingsRef()[Setting::min_joined_block_size_rows],
         context->getSettingsRef()[Setting::min_joined_block_size_bytes],
         1,
         /* required_output_ = */ NameSet{},
@@ -781,13 +785,14 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
     }
     else
     {
-        hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentHeader().cloneEmpty());
+        hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentHeader());
     }
     QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
         left_plan->getCurrentHeader(),
         right_plan->getCurrentHeader(),
         hash_join,
         context->getSettingsRef()[Setting::max_block_size],
+        context->getSettingsRef()[Setting::min_joined_block_size_rows],
         context->getSettingsRef()[Setting::min_joined_block_size_bytes],
         1,
         /* required_output_ = */ NameSet{},

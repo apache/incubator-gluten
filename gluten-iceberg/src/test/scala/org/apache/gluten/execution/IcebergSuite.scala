@@ -52,7 +52,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }
@@ -271,7 +271,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
               getExecutedPlan(df).map {
                 case plan: IcebergScanTransformer =>
                   assert(plan.getKeyGroupPartitioning.isDefined)
-                  assert(plan.getSplitInfosWithIndex.length == 3)
+                  assert(plan.getSplitInfos.length == 3)
                 case _ => // do nothing
               }
             }
@@ -348,7 +348,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
               getExecutedPlan(df).map {
                 case plan: IcebergScanTransformer =>
                   assert(plan.getKeyGroupPartitioning.isDefined)
-                  assert(plan.getSplitInfosWithIndex.length == 3)
+                  assert(plan.getSplitInfos.length == 3)
                 case _ => // do nothing
               }
             }
@@ -516,7 +516,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }
@@ -584,14 +584,14 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[IcebergScanTransformer]
+        checkGlutenPlan[IcebergScanTransformer]
       }
     }
   }
 
   // Spark configuration spark.sql.iceberg.handle-timestamp-without-timezone is not supported
   // in Spark 3.4
-  testWithSpecifiedSparkVersion("iceberg partition type - timestamp", "3.2", "3.3", "3.5") {
+  testWithSpecifiedSparkVersion("iceberg partition type - timestamp", "3.3", "3.5") {
     Seq("true", "false").foreach {
       flag =>
         withSQLConf(
@@ -643,6 +643,25 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
 
       assert(result.length == 1)
       assert(result.head.getString(3) == "test_p2")
+    }
+  }
+
+  test("test read iceberg with special characters in column name") {
+    val testTable = "test_table_with_special_characters"
+    withTable(testTable) {
+      spark.sql(s"""
+                   |CREATE TABLE $testTable (id INT, `my/data` STRING)
+                   |USING iceberg
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |INSERT INTO $testTable VALUES
+                   |(1, 'test_data');
+                   |""".stripMargin)
+      val resultDf = spark.sql(s"SELECT id, `my/data` FROM $testTable")
+      val result = resultDf.collect()
+
+      assert(result.length == 1)
+      assert(result.head.getString(1) == "test_data")
     }
   }
 }

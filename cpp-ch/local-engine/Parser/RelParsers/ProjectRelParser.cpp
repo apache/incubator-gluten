@@ -64,7 +64,7 @@ ProjectRelParser::parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel
     if (project_rel.expressions_size())
     {
         std::vector<substrait::Expression> expressions;
-        auto header = query_plan->getCurrentHeader();
+        const auto & header = *query_plan->getCurrentHeader();
         for (int i = 0; i < project_rel.expressions_size(); ++i)
         {
             expressions.emplace_back(project_rel.expressions(i));
@@ -99,7 +99,7 @@ DB::QueryPlanPtr ProjectRelParser::parseReplicateRows(DB::QueryPlanPtr query_pla
     {
         expressions.emplace_back(generate_rel.generator().scalar_function().arguments(i).value());
     }
-    auto header = query_plan->getCurrentHeader();
+    const auto& header = *query_plan->getCurrentHeader();
     auto actions_dag = expressionsToActionsDAG(expressions, header);
     auto before_replicate_rows = std::make_unique<DB::ExpressionStep>(query_plan->getCurrentHeader(), std::move(actions_dag));
     before_replicate_rows->setStepDescription("Before ReplicateRows");
@@ -116,7 +116,10 @@ DB::QueryPlanPtr ProjectRelParser::parseReplicateRows(DB::QueryPlanPtr query_pla
 DB::QueryPlanPtr
 ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & /*rel_stack_*/)
 {
-    const auto & generate_rel = rel.generate();
+    ExpressionsRewriter rewriter(parser_context);
+    substrait::Rel final_rel = rel;
+    rewriter.rewrite(final_rel);
+    const auto & generate_rel = final_rel.generate();
     if (isReplicateRows(generate_rel))
     {
         return parseReplicateRows(std::move(query_plan), generate_rel);
@@ -128,7 +131,7 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
     }
 
     expressions.emplace_back(generate_rel.generator());
-    auto header = query_plan->getCurrentHeader();
+    const auto & header = *query_plan->getCurrentHeader();
     auto actions_dag = expressionsToActionsDAG(expressions, header);
 
     if (!ArrayJoinHelper::findArrayJoinNode(actions_dag))

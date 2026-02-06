@@ -28,24 +28,24 @@ AdaptiveSparkPlan (95)
                                              :     :     :     :     :  +- BroadcastQueryStage (5), Statistics(X)
                                              :     :     :     :     :     +- ColumnarBroadcastExchange (4)
                                              :     :     :     :     :        +- ^ FilterExecTransformer (2)
-                                             :     :     :     :     :           +- ^ ScanTransformer parquet  (1)
+                                             :     :     :     :     :           +- ^ FileSourceScanExecTransformer parquet  (1)
                                              :     :     :     :     +- ^ FilterExecTransformer (9)
-                                             :     :     :     :        +- ^ ScanTransformer parquet  (8)
+                                             :     :     :     :        +- ^ FileSourceScanExecTransformer parquet  (8)
                                              :     :     :     +- ^ InputIteratorTransformer (18)
                                              :     :     :        +- BroadcastQueryStage (16), Statistics(X)
                                              :     :     :           +- ColumnarBroadcastExchange (15)
                                              :     :     :              +- ^ FilterExecTransformer (13)
-                                             :     :     :                 +- ^ ScanTransformer parquet  (12)
+                                             :     :     :                 +- ^ FileSourceScanExecTransformer parquet  (12)
                                              :     :     +- ^ InputIteratorTransformer (27)
                                              :     :        +- BroadcastQueryStage (25), Statistics(X)
                                              :     :           +- ColumnarBroadcastExchange (24)
                                              :     :              +- ^ FilterExecTransformer (22)
-                                             :     :                 +- ^ ScanTransformer parquet  (21)
+                                             :     :                 +- ^ FileSourceScanExecTransformer parquet  (21)
                                              :     +- ^ InputIteratorTransformer (36)
                                              :        +- BroadcastQueryStage (34), Statistics(X)
                                              :           +- ColumnarBroadcastExchange (33)
                                              :              +- ^ FilterExecTransformer (31)
-                                             :                 +- ^ ScanTransformer parquet  (30)
+                                             :                 +- ^ FileSourceScanExecTransformer parquet  (30)
                                              +- ^ InputIteratorTransformer (42)
                                                 +- BroadcastQueryStage (40), Statistics(X)
                                                    +- ReusedExchange (39)
@@ -84,7 +84,7 @@ AdaptiveSparkPlan (95)
                            +- Scan parquet (85)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -113,7 +113,7 @@ Input [2]: [s_suppkey#X, s_nationkey#X]
 (7) InputIteratorTransformer
 Input [2]: [s_suppkey#X, s_nationkey#X]
 
-(8) ScanTransformer parquet 
+(8) FileSourceScanExecTransformer parquet 
 Output [5]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -134,7 +134,7 @@ Join condition: None
 Output [5]: [s_nationkey#X, l_orderkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Input [7]: [s_suppkey#X, s_nationkey#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
-(12) ScanTransformer parquet 
+(12) FileSourceScanExecTransformer parquet 
 Output [2]: [o_orderkey#X, o_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -173,7 +173,7 @@ Join condition: None
 Output [5]: [s_nationkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X, o_custkey#X]
 Input [7]: [s_nationkey#X, l_orderkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X, o_orderkey#X, o_custkey#X]
 
-(21) ScanTransformer parquet 
+(21) FileSourceScanExecTransformer parquet 
 Output [2]: [c_custkey#X, c_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -212,7 +212,7 @@ Join condition: None
 Output [5]: [s_nationkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X, c_nationkey#X]
 Input [7]: [s_nationkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X, o_custkey#X, c_custkey#X, c_nationkey#X]
 
-(30) ScanTransformer parquet 
+(30) FileSourceScanExecTransformer parquet 
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -291,7 +291,7 @@ Arguments: false
 
 (48) VeloxResizeBatches
 Input [6]: [hash_partition_key#X, supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (49) ColumnarExchange
 Input [6]: [hash_partition_key#X, supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
@@ -320,7 +320,7 @@ Arguments: false
 
 (55) VeloxResizeBatches
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (56) ColumnarExchange
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]

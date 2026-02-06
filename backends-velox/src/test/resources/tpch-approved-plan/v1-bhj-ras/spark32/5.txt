@@ -28,31 +28,31 @@ AdaptiveSparkPlan (102)
                                              :     :     :     :     :  +- BroadcastQueryStage (5)
                                              :     :     :     :     :     +- ColumnarBroadcastExchange (4)
                                              :     :     :     :     :        +- ^ FilterExecTransformer (2)
-                                             :     :     :     :     :           +- ^ ScanTransformer parquet  (1)
+                                             :     :     :     :     :           +- ^ FileSourceScanExecTransformer parquet  (1)
                                              :     :     :     :     +- ^ ProjectExecTransformer (10)
                                              :     :     :     :        +- ^ FilterExecTransformer (9)
-                                             :     :     :     :           +- ^ ScanTransformer parquet  (8)
+                                             :     :     :     :           +- ^ FileSourceScanExecTransformer parquet  (8)
                                              :     :     :     +- ^ InputIteratorTransformer (19)
                                              :     :     :        +- BroadcastQueryStage (17)
                                              :     :     :           +- ColumnarBroadcastExchange (16)
                                              :     :     :              +- ^ FilterExecTransformer (14)
-                                             :     :     :                 +- ^ ScanTransformer parquet  (13)
+                                             :     :     :                 +- ^ FileSourceScanExecTransformer parquet  (13)
                                              :     :     +- ^ InputIteratorTransformer (28)
                                              :     :        +- BroadcastQueryStage (26)
                                              :     :           +- ColumnarBroadcastExchange (25)
                                              :     :              +- ^ FilterExecTransformer (23)
-                                             :     :                 +- ^ ScanTransformer parquet  (22)
+                                             :     :                 +- ^ FileSourceScanExecTransformer parquet  (22)
                                              :     +- ^ InputIteratorTransformer (37)
                                              :        +- BroadcastQueryStage (35)
                                              :           +- ColumnarBroadcastExchange (34)
                                              :              +- ^ FilterExecTransformer (32)
-                                             :                 +- ^ ScanTransformer parquet  (31)
+                                             :                 +- ^ FileSourceScanExecTransformer parquet  (31)
                                              +- ^ InputIteratorTransformer (47)
                                                 +- BroadcastQueryStage (45)
                                                    +- ColumnarBroadcastExchange (44)
                                                       +- ^ ProjectExecTransformer (42)
                                                          +- ^ FilterExecTransformer (41)
-                                                            +- ^ ScanTransformer parquet  (40)
+                                                            +- ^ FileSourceScanExecTransformer parquet  (40)
 +- == Initial Plan ==
    Sort (101)
    +- Exchange (100)
@@ -90,7 +90,7 @@ AdaptiveSparkPlan (102)
                               +- Scan parquet (91)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [2]: [c_custkey#X, c_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -119,7 +119,7 @@ Input [2]: [c_custkey#X, c_nationkey#X]
 (7) InputIteratorTransformer
 Input [2]: [c_custkey#X, c_nationkey#X]
 
-(8) ScanTransformer parquet 
+(8) FileSourceScanExecTransformer parquet 
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -143,7 +143,7 @@ Join condition: None
 Output [2]: [c_nationkey#X, o_orderkey#X]
 Input [4]: [c_custkey#X, c_nationkey#X, o_orderkey#X, o_custkey#X]
 
-(13) ScanTransformer parquet 
+(13) FileSourceScanExecTransformer parquet 
 Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -181,7 +181,7 @@ Join condition: None
 Output [4]: [c_nationkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 Input [6]: [c_nationkey#X, o_orderkey#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
 
-(22) ScanTransformer parquet 
+(22) FileSourceScanExecTransformer parquet 
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -219,7 +219,7 @@ Join condition: None
 Output [3]: [l_extendedprice#X, l_discount#X, s_nationkey#X]
 Input [6]: [c_nationkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X, s_suppkey#X, s_nationkey#X]
 
-(31) ScanTransformer parquet 
+(31) FileSourceScanExecTransformer parquet 
 Output [3]: [n_nationkey#X, n_name#X, n_regionkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -257,7 +257,7 @@ Join condition: None
 Output [4]: [l_extendedprice#X, l_discount#X, n_name#X, n_regionkey#X]
 Input [6]: [l_extendedprice#X, l_discount#X, s_nationkey#X, n_nationkey#X, n_name#X, n_regionkey#X]
 
-(40) ScanTransformer parquet 
+(40) FileSourceScanExecTransformer parquet 
 Output [2]: [r_regionkey#X, r_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -316,7 +316,7 @@ Arguments: false
 
 (53) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, n_name#X, sum#X, isEmpty#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (54) ColumnarExchange
 Input [4]: [hash_partition_key#X, n_name#X, sum#X, isEmpty#X]
@@ -345,7 +345,7 @@ Arguments: false
 
 (60) VeloxResizeBatches
 Input [2]: [n_name#X, revenue#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (61) ColumnarExchange
 Input [2]: [n_name#X, revenue#X]

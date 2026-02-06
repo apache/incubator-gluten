@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.cost
 
-import org.apache.gluten.execution.RowToColumnarExecBase
+import org.apache.gluten.execution.{ColumnarToCarrierRowExecBase, RowToColumnarExecBase}
 import org.apache.gluten.extension.columnar.transition.{ColumnarToColumnarLike, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
@@ -42,6 +42,7 @@ object RoughCoster extends LongCoster {
         // Avoid moving computation back to native when transition has complex types in schema.
         // Such transitions are observed to be extremely expensive as of now.
         Long.MaxValue
+      case _: ColumnarToCarrierRowExecBase => 0L
       case ColumnarToRowLike(_) => 10L
       case RowToColumnarLike(_) => 10L
       case ColumnarToColumnarLike(_) => 5L

@@ -294,3 +294,29 @@ case class CHArraySortTransformer(
     }
   }
 }
+
+case class CHTimestampAddTransformer(
+    substraitExprName: String,
+    unit: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    timeZoneId: String,
+    original: Expression)
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = {
+    Seq(LiteralTransformer(unit), left, right, LiteralTransformer(timeZoneId))
+  }
+}
+
+case class CHMonthsBetweenTransformer(
+    substraitExprName: String,
+    date1: ExpressionTransformer,
+    date2: ExpressionTransformer,
+    roundOff: ExpressionTransformer,
+    original: MonthsBetween)
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = {
+    val timeZoneId = original.timeZoneId.map(timeZoneId => LiteralTransformer(timeZoneId))
+    Seq(date1, date2, roundOff) ++ timeZoneId
+  }
+}

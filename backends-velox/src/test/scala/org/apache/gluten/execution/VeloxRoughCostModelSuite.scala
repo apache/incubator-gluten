@@ -48,7 +48,7 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
   test("fallback trivial project if its neighbor nodes fell back") {
     withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
       runQueryAndCompare("select c1 as c3 from tmp1") {
-        checkSparkOperatorMatch[ProjectExec]
+        checkSparkPlan[ProjectExec]
       }
     }
   }
@@ -56,7 +56,7 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
   test("avoid adding r2c whose schema contains complex data types") {
     withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
       runQueryAndCompare("select array_contains(c3, 0) as list from tmp1") {
-        checkSparkOperatorMatch[ProjectExec]
+        checkSparkPlan[ProjectExec]
       }
     }
   }

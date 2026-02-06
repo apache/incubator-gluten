@@ -24,9 +24,10 @@ import org.apache.gluten.utils.ConfigUtil
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf}
 import org.apache.spark.task.TaskResource
 
-import org.slf4j.LoggerFactory
-
+import java.util
 import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.collection.JavaConverters._ // for 2.12
 
 trait Runtime {
   def memoryManager(): NativeMemoryManager
@@ -35,19 +36,29 @@ trait Runtime {
 
 object Runtime {
   private[runtime] def apply(backendName: String, name: String): Runtime with TaskResource = {
-    new RuntimeImpl(backendName, name)
+    new RuntimeImpl(backendName, name, new util.HashMap[String, String]())
   }
 
-  private class RuntimeImpl(backendName: String, name: String) extends Runtime with TaskResource {
-    private val LOGGER = LoggerFactory.getLogger(classOf[Runtime])
+  private[runtime] def apply(
+      backendName: String,
+      name: String,
+      extraConf: util.Map[String, String]): Runtime with TaskResource = {
+    new RuntimeImpl(backendName, name, extraConf)
+  }
+
+  private class RuntimeImpl(backendName: String, name: String, extraConf: util.Map[String, String])
+    extends Runtime
+    with TaskResource {
 
     private val nmm: NativeMemoryManager = NativeMemoryManager(backendName, name)
     private val handle = RuntimeJniWrapper.createRuntime(
       backendName,
       nmm.getHandle(),
       ConfigUtil.serialize(
-        GlutenConfig
-          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
+        (GlutenConfig
+          .getNativeSessionConf(
+            backendName,
+            GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)) ++ extraConf.asScala).asJava)
     )
 
     private val released: AtomicBoolean = new AtomicBoolean(false)
@@ -65,7 +76,7 @@ object Runtime {
 
     }
 
-    override def priority(): Int = 20
+    override def priority(): Int = 30
 
     override def resourceName(): String = s"runtime"
   }

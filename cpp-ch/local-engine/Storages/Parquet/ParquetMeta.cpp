@@ -57,6 +57,7 @@ Block ParquetMetaBuilder::collectFileSchema(const ContextPtr & context, ReadBuff
 
     FormatSettings format_settings = getFormatSettings(context);
     ParquetMetaBuilder metaBuilder{
+        .format_settings = format_settings,
         .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
         .allow_missing_columns = false,
         .collectPageIndex = false,
@@ -73,7 +74,7 @@ std::vector<Int32> ParquetMetaBuilder::pruneColumn(
     THROW_ARROW_NOT_OK(parquet::arrow::FromParquetSchema(metadata.schema(), &schema));
 
     ArrowFieldIndexUtil field_util(case_insensitive, allow_missing_columns);
-    auto index_mapping = field_util.findRequiredIndices(header, *schema, metadata);
+    auto index_mapping = field_util.findRequiredIndices(header, *schema, metadata, std::nullopt);
 
     std::vector<Int32> column_indices;
     for (const auto & [clickhouse_header_index, parquet_indexes] : index_mapping)
@@ -110,7 +111,8 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildSchema(const parquet::FileMetaData
         std::shared_ptr<arrow::Schema> schema;
         THROW_ARROW_NOT_OK(parquet::arrow::FromParquetSchema(file_meta.schema(), &schema));
 
-        fileHeader = ArrowColumnToCHColumn::arrowSchemaToCHHeader(*schema, "Parquet", false, true);
+        fileHeader = ArrowColumnToCHColumn::arrowSchemaToCHHeader(
+            *schema, file_meta.key_value_metadata(), "Parquet", format_settings, false, true);
     }
     return *this;
 }

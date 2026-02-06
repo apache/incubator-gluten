@@ -20,27 +20,31 @@
 #include "shuffle/VeloxRssSortShuffleWriter.h"
 #include "shuffle/VeloxSortShuffleWriter.h"
 
+#ifdef GLUTEN_ENABLE_GPU
+#include "VeloxGpuShuffleWriter.h"
+#endif
+
 namespace gluten {
 
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
     ShuffleWriterType type,
     uint32_t numPartitions,
-    std::unique_ptr<PartitionWriter> partitionWriter,
-    ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* arrowPool) {
+    const std::shared_ptr<PartitionWriter>& partitionWriter,
+    const std::shared_ptr<ShuffleWriterOptions>& options,
+    MemoryManager* memoryManager) {
   std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
   switch (type) {
     case ShuffleWriterType::kHashShuffle:
-      return VeloxHashShuffleWriter::create(
-          numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
+      return VeloxHashShuffleWriter::create(numPartitions, std::move(partitionWriter), options, memoryManager);
     case ShuffleWriterType::kSortShuffle:
-      return VeloxSortShuffleWriter::create(
-          numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
+      return VeloxSortShuffleWriter::create(numPartitions, std::move(partitionWriter), options, memoryManager);
     case ShuffleWriterType::kRssSortShuffle:
-      return VeloxRssSortShuffleWriter::create(
-          numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
-    default:
+      return VeloxRssSortShuffleWriter::create(numPartitions, std::move(partitionWriter), options, memoryManager);
+#ifdef GLUTEN_ENABLE_GPU
+    case ShuffleWriterType::kGpuHashShuffle:
+      return VeloxGpuHashShuffleWriter::create(numPartitions, std::move(partitionWriter), options, memoryManager);
+#endif
+      default:
       return arrow::Status::Invalid("Unsupported shuffle writer type: ", typeToString(type));
   }
 }

@@ -16,12 +16,13 @@
  */
 package org.apache.spark.shuffle.sort
 
+import org.apache.gluten.shuffle.SupportsColumnarShuffle
+
 import org.apache.spark.{ShuffleDependency, SparkConf, SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.api.ShuffleExecutorComponents
-import org.apache.spark.shuffle.sort.SortShuffleManager.canUseBatchFetch
 import org.apache.spark.storage.BlockId
 import org.apache.spark.util.collection.OpenHashSet
 
@@ -30,7 +31,10 @@ import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
-class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
+class ColumnarShuffleManager(conf: SparkConf)
+  extends ShuffleManager
+  with SupportsColumnarShuffle
+  with Logging {
 
   import ColumnarShuffleManager._
 
@@ -78,12 +82,12 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
     val mapTaskIds =
       taskIdMapsForShuffle.computeIfAbsent(handle.shuffleId, _ => new OpenHashSet[Long](16))
     mapTaskIds.synchronized {
-      mapTaskIds.add(context.taskAttemptId())
+      mapTaskIds.add(mapId)
     }
     val env = SparkEnv.get
     handle match {
       case columnarShuffleHandle: ColumnarShuffleHandle[K @unchecked, V @unchecked] =>
-        GlutenShuffleWriterWrapper.genColumnarShuffleWriter(
+        GlutenShuffleUtils.genColumnarShuffleWriter(
           shuffleBlockResolver,
           columnarShuffleHandle,
           mapId,
@@ -128,34 +132,14 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
       endPartition: Int,
       context: TaskContext,
       metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
-    val (blocksByAddress, canEnableBatchFetch) = {
-      GlutenShuffleUtils.getReaderParam(
-        handle,
-        startMapIndex,
-        endMapIndex,
-        startPartition,
-        endPartition)
-    }
-    val shouldBatchFetch =
-      canEnableBatchFetch && canUseBatchFetch(startPartition, endPartition, context)
-    if (handle.isInstanceOf[ColumnarShuffleHandle[_, _]]) {
-      new BlockStoreShuffleReader(
-        handle.asInstanceOf[BaseShuffleHandle[K, _, C]],
-        blocksByAddress,
-        context,
-        metrics,
-        serializerManager = bypassDecompressionSerializerManger,
-        shouldBatchFetch = shouldBatchFetch
-      )
-    } else {
-      new BlockStoreShuffleReader(
-        handle.asInstanceOf[BaseShuffleHandle[K, _, C]],
-        blocksByAddress,
-        context,
-        metrics,
-        shouldBatchFetch = shouldBatchFetch
-      )
-    }
+    GlutenShuffleUtils.genColumnarShuffleReader(
+      handle,
+      startMapIndex,
+      endMapIndex,
+      startPartition,
+      endPartition,
+      context,
+      metrics)
   }
 
   /** Remove a shuffle's metadata from the ShuffleManager. */

@@ -96,7 +96,7 @@ TEST(LocalExecutor, StorageObjectStorageSink)
     EXPECT_TRUE(func && func->name == "HDFS");
 
     DB::StorageHDFSConfiguration config;
-    StorageObjectStorage::Configuration::initialize(config, arg->children[0]->children, QueryContext::globalContext(), false, nullptr);
+    StorageObjectStorageConfiguration::initialize(config, arg->children[0]->children, QueryContext::globalContext(), false);
 
     const std::shared_ptr<DB::HDFSObjectStorage> object_storage
         = std::dynamic_pointer_cast<DB::HDFSObjectStorage>(config.createObjectStorage(QueryContext::globalContext(), false));
@@ -106,8 +106,14 @@ TEST(LocalExecutor, StorageObjectStorageSink)
     object_storage->listObjects("/clickhouse", files_with_metadata, 0);
 
     /// 1. Create ObjectStorageSink
+    auto config_cloned_ptr = std::make_shared<StorageHDFSConfiguration>(config);
     DB::StorageObjectStorageSink sink{
-        object_storage, config.clone(), {}, {{STRING(), "name"}, {UINT(), "value"}}, QueryContext::globalContext(), ""};
+        config_cloned_ptr->getPaths().back().path,
+        object_storage,
+        config_cloned_ptr,
+        {},
+        toShared(Block{{STRING(), "name"}, {UINT(), "value"}}),
+        QueryContext::globalContext()};
 
     /// 2. Create Chunk
     auto chunk = testChunk();

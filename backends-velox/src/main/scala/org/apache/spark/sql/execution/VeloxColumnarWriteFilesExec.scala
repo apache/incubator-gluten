@@ -18,12 +18,12 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.execution.WriteFilesExecTransformer
-import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.execution.{ValidationResult, WriteFilesExecTransformer}
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
-import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
+import org.apache.spark.{Partition, TaskContext, TaskOutputFileAlreadyExistException}
+import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, SparkHadoopWriterUtils}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.FetchFailedException
@@ -98,64 +98,68 @@ class VeloxColumnarWriteFilesRDD(
     // The first row in the row column contains the number of written numRows.
     // The fragments column contains detailed information about the file writes.
     val loadedCb = ColumnarBatches.load(ArrowBufferAllocators.contextInstance, cb)
-    assert(loadedCb.numCols() == 3)
-    val numWrittenRows = loadedCb.column(0).getLong(0)
+    try {
+      assert(loadedCb.numCols() == 3)
+      val numWrittenRows = loadedCb.column(0).getLong(0)
 
-    var updatedPartitions = Set.empty[String]
-    val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
-    var numBytes = 0L
-    val objectMapper = new ObjectMapper()
-    objectMapper.registerModule(DefaultScalaModule)
-    for (i <- 0 until loadedCb.numRows() - 1) {
-      val fragments = loadedCb.column(1).getUTF8String(i + 1)
-      val metrics = objectMapper
-        .readValue(fragments.toString.getBytes("UTF-8"), classOf[VeloxWriteFilesMetrics])
-      logDebug(s"Velox write files metrics: $metrics")
+      var updatedPartitions = Set.empty[String]
+      val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
+      var numBytes = 0L
+      val objectMapper = new ObjectMapper()
+      objectMapper.registerModule(DefaultScalaModule)
+      for (i <- 0 until loadedCb.numRows() - 1) {
+        val fragments = loadedCb.column(1).getUTF8String(i + 1)
+        val metrics = objectMapper
+          .readValue(fragments.toString.getBytes("UTF-8"), classOf[VeloxWriteFilesMetrics])
+        logDebug(s"Velox write files metrics: $metrics")
 
-      val fileWriteInfos = metrics.fileWriteInfos
-      assert(fileWriteInfos.length == 1)
-      val fileWriteInfo = fileWriteInfos.head
-      numBytes += fileWriteInfo.fileSize
-      val targetFileName = fileWriteInfo.targetFileName
-      val outputPath = description.path
+        val fileWriteInfos = metrics.fileWriteInfos
+        assert(fileWriteInfos.length == 1)
+        val fileWriteInfo = fileWriteInfos.head
+        numBytes += fileWriteInfo.fileSize
+        val targetFileName = fileWriteInfo.targetFileName
+        val outputPath = description.path
 
-      // part1=1/part2=1
-      val partitionFragment = metrics.name
-      // Write a partitioned table
-      if (partitionFragment != "") {
-        updatedPartitions += partitionFragment
-        val tmpOutputPath = outputPath + "/" + partitionFragment + "/" + targetFileName
-        val customOutputPath = description.customPartitionLocations.get(
-          PartitioningUtils.parsePathFragment(partitionFragment))
-        if (customOutputPath.isDefined) {
-          addedAbsPathFiles(tmpOutputPath) = customOutputPath.get + "/" + targetFileName
+        // part1=1/part2=1
+        val partitionFragment = metrics.name
+        // Write a partitioned table
+        if (partitionFragment != "") {
+          updatedPartitions += partitionFragment
+          val tmpOutputPath = outputPath + "/" + partitionFragment + "/" + targetFileName
+          val customOutputPath = description.customPartitionLocations.get(
+            PartitioningUtils.parsePathFragment(partitionFragment))
+          if (customOutputPath.isDefined) {
+            addedAbsPathFiles(tmpOutputPath) = customOutputPath.get + "/" + targetFileName
+          }
         }
       }
-    }
 
-    val numFiles = loadedCb.numRows() - 1
-    val partitionsInternalRows = updatedPartitions.map {
-      part =>
-        val parts = new Array[Any](1)
-        parts(0) = part
-        new GenericInternalRow(parts)
-    }.toSeq
-    val stats = BasicWriteTaskStats(
-      partitions = partitionsInternalRows,
-      numFiles = numFiles,
-      numBytes = numBytes,
-      numRows = numWrittenRows)
-    val summary =
-      ExecutedWriteSummary(updatedPartitions = updatedPartitions, stats = Seq(stats))
+      val numFiles = loadedCb.numRows() - 1
+      val partitionsInternalRows = updatedPartitions.map {
+        part =>
+          val parts = new Array[Any](1)
+          parts(0) = part
+          new GenericInternalRow(parts)
+      }.toSeq
+      val stats = BasicWriteTaskStats(
+        partitions = partitionsInternalRows,
+        numFiles = numFiles,
+        numBytes = numBytes,
+        numRows = numWrittenRows)
+      val summary =
+        ExecutedWriteSummary(updatedPartitions = updatedPartitions, stats = Seq(stats))
 
-    // Write an empty iterator
-    if (numFiles == 0) {
-      None
-    } else {
-      Some(
-        WriteTaskResult(
-          new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
-          summary))
+      // Write an empty iterator
+      if (numFiles == 0) {
+        None
+      } else {
+        Some(
+          WriteTaskResult(
+            new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
+            summary))
+      }
+    } finally {
+      loadedCb.close()
     }
   }
 
@@ -195,11 +199,14 @@ class VeloxColumnarWriteFilesRDD(
 
     commitProtocol.setupTask()
     val writePath = commitProtocol.newTaskAttemptTempPath()
+    val suffix = description.outputWriterFactory.getFileExtension(commitProtocol.taskAttemptContext)
+    val fileNameSpec = FileNameSpec("", suffix)
+    val fileName = commitProtocol.getFilename(fileNameSpec)
     logDebug(s"Velox staging write path: $writePath")
     var writeTaskResult: WriteTaskResult = null
     try {
       Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
-        BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, "")
+        BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, fileName)
 
         // Initialize the native plan
         val iter = firstParent[ColumnarBatch].iterator(split, context)
@@ -220,7 +227,7 @@ class VeloxColumnarWriteFilesRDD(
       })(
         catchBlock = {
           // If there is an error, abort the task
-          commitProtocol.abortTask()
+          commitProtocol.abortTask(writePath)
           logError(s"Job ${commitProtocol.getJobId} aborted.")
         }
       )
@@ -230,10 +237,7 @@ class VeloxColumnarWriteFilesRDD(
       case f: FileAlreadyExistsException if SQLConf.get.fastFailFileFormatOutput =>
         throw new TaskOutputFileAlreadyExistException(f)
       case t: Throwable =>
-        throw new SparkException(
-          s"Task failed while writing rows to staging path: $writePath, " +
-            s"output path: ${description.path}",
-          t)
+        SparkShimLoader.getSparkShims.throwExceptionInWrite(t, writePath, description.path)
     }
 
     assert(writeTaskResult != null)

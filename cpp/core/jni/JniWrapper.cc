@@ -26,16 +26,17 @@
 #include "jni/JniError.h"
 
 #include <arrow/c/bridge.h>
+#include <google/protobuf/stubs/common.h>
 #include <optional>
 #include <string>
 #include "memory/AllocationListener.h"
+#include "memory/SplitAwareColumnarBatchIterator.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/Partitioning.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/Utils.h"
-#include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/ArrowStatus.h"
 #include "utils/StringUtil.h"
 
@@ -45,6 +46,11 @@ namespace {
 
 jclass byteArrayClass;
 
+jclass jniUnsafeByteBufferClass;
+jmethodID jniUnsafeByteBufferAllocate;
+jmethodID jniUnsafeByteBufferAddress;
+jmethodID jniUnsafeByteBufferSize;
+
 jclass jniByteInputStreamClass;
 jmethodID jniByteInputStreamRead;
 jmethodID jniByteInputStreamTell;
@@ -52,9 +58,6 @@ jmethodID jniByteInputStreamClose;
 
 jclass splitResultClass;
 jmethodID splitResultConstructor;
-
-jclass columnarBatchSerializeResultClass;
-jmethodID columnarBatchSerializeResultConstructor;
 
 jclass metricsBuilderClass;
 jmethodID metricsBuilderConstructor;
@@ -64,6 +67,9 @@ jmethodID nativeColumnarToRowInfoConstructor;
 jclass shuffleReaderMetricsClass;
 jmethodID shuffleReaderMetricsSetDecompressTime;
 jmethodID shuffleReaderMetricsSetDeserializeTime;
+
+jclass shuffleStreamReaderClass;
+jmethodID shuffleStreamReaderNextStream;
 
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
@@ -147,8 +153,12 @@ class InternalMemoryManager : public MemoryManager {
  public:
   InternalMemoryManager(const std::string& kind) : MemoryManager(kind) {}
 
-  arrow::MemoryPool* getArrowMemoryPool() override {
+  arrow::MemoryPool* defaultArrowMemoryPool() override {
     throw GlutenException("Not implemented");
+  }
+
+  std::shared_ptr<arrow::MemoryPool> getOrCreateArrowMemoryPool(const std::string& name) override {
+    throw GlutenException("Not yet implemented");
   }
 
   const MemoryUsageStats collectMemoryUsageStats() const override {
@@ -190,6 +200,39 @@ void internalRuntimeReleaser(Runtime* runtime) {
   delete runtime;
 }
 
+class ShuffleStreamReader : public StreamReader {
+ public:
+  ShuffleStreamReader(JNIEnv* env, jobject reader) {
+    if (env->GetJavaVM(&vm_) != JNI_OK) {
+      throw GlutenException("Unable to get JavaVM instance");
+    }
+    ref_ = env->NewGlobalRef(reader);
+  }
+
+  ~ShuffleStreamReader() override {
+    JNIEnv* env = nullptr;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    env->DeleteGlobalRef(ref_);
+  }
+
+  std::shared_ptr<arrow::io::InputStream> readNextStream(arrow::MemoryPool* pool) override {
+    JNIEnv* env = nullptr;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+
+    jobject jniIn = env->CallObjectMethod(ref_, shuffleStreamReaderNextStream);
+    checkException(env);
+    if (jniIn == nullptr) {
+      return nullptr; // No more streams to read
+    }
+    std::shared_ptr<arrow::io::InputStream> in = std::make_shared<JavaInputStreamAdaptor>(env, pool, jniIn);
+    return in;
+  }
+
+ private:
+  JavaVM* vm_;
+  jobject ref_;
+};
+
 } // namespace
 
 #ifdef __cplusplus
@@ -209,18 +252,20 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   byteArrayClass = createGlobalClassReferenceOrError(env, "[B");
 
+  jniUnsafeByteBufferClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/unsafe/JniUnsafeByteBuffer;");
+  jniUnsafeByteBufferAllocate = env->GetStaticMethodID(
+      jniUnsafeByteBufferClass, "allocate", "(J)Lorg/apache/spark/sql/execution/unsafe/JniUnsafeByteBuffer;");
+  jniUnsafeByteBufferAddress = env->GetMethodID(jniUnsafeByteBufferClass, "address", "()J");
+  jniUnsafeByteBufferSize = env->GetMethodID(jniUnsafeByteBufferClass, "size", "()J");
+
   jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/JniByteInputStream;");
   jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", "(JJ)J");
   jniByteInputStreamTell = getMethodIdOrError(env, jniByteInputStreamClass, "tell", "()J");
   jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", "()V");
 
   splitResultClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/GlutenSplitResult;");
-  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJJJJ[J[J)V");
-
-  columnarBatchSerializeResultClass =
-      createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchSerializeResult;");
-  columnarBatchSerializeResultConstructor =
-      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", "(J[B)V");
+  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJJJJDJ[J[J)V");
 
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
 
@@ -228,7 +273,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       env,
       metricsBuilderClass,
       "<init>",
-      "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[JLjava/lang/String;)V");
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
@@ -241,6 +286,11 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   shuffleReaderMetricsSetDeserializeTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");
 
+  shuffleStreamReaderClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ShuffleStreamReader;");
+  shuffleStreamReaderNextStream = getMethodIdOrError(
+      env, shuffleStreamReaderClass, "nextStream", "()Lorg/apache/gluten/vectorized/JniByteInputStream;");
+
   return jniVersion;
 }
 
@@ -249,13 +299,15 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);
-  env->DeleteGlobalRef(columnarBatchSerializeResultClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
+  env->DeleteGlobalRef(jniUnsafeByteBufferClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
 
   getJniErrorState()->close();
   getJniCommonState()->close();
+
+  google::protobuf::ShutdownProtobufLibrary();
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_createRuntime( // NOLINT
@@ -375,7 +427,7 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrap
   auto planData = safeArray.elems();
   auto planSize = env->GetArrayLength(planArray);
   auto ctx = getRuntime(env, wrapper);
-  ctx->parsePlan(planData, planSize, false);
+  ctx->parsePlan(planData, planSize);
   auto& conf = ctx->getConfMap();
   auto planString = ctx->planString(details, conf);
   return env->NewStringUTF(planString.c_str());
@@ -386,12 +438,18 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrap
 JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_injectWriteFilesTempPath( // NOLINT
     JNIEnv* env,
     jclass,
-    jbyteArray path) {
+    jbyteArray path,
+    jbyteArray fileName) {
   JNI_METHOD_START
   auto len = env->GetArrayLength(path);
   auto safeArray = getByteArrayElementsSafe(env, path);
   std::string pathStr(reinterpret_cast<char*>(safeArray.elems()), len);
   *Runtime::localWriteFilesTempPath() = pathStr;
+
+  len = env->GetArrayLength(fileName);
+  auto fileNameArray = getByteArrayElementsSafe(env, fileName);
+  std::string fileNameStr(reinterpret_cast<char*>(fileNameArray.elems()), len);
+  *Runtime::localWriteFileName() = fileNameStr;
   JNI_METHOD_END()
 }
 
@@ -401,47 +459,54 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jobject wrapper,
     jbyteArray planArr,
     jobjectArray splitInfosArr,
-    jobjectArray iterArr,
+    jobjectArray batchItrArray,
     jint stageId,
     jint partitionId,
     jlong taskId,
-    jboolean saveInput,
+    jboolean enableDumping,
     jstring spillDir) {
   JNI_METHOD_START
 
   auto ctx = getRuntime(env, wrapper);
-  auto& conf = ctx->getConfMap();
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
-  ctx->dumpConf(saveInput);
+  if (enableDumping) {
+    ctx->enableDumping();
+  }
 
   auto spillDirStr = jStringToCString(env, spillDir);
 
   auto safePlanArray = getByteArrayElementsSafe(env, planArr);
   auto planSize = env->GetArrayLength(planArr);
-  ctx->parsePlan(safePlanArray.elems(), planSize, saveInput);
 
-  for (jsize i = 0, splitInfoArraySize = env->GetArrayLength(splitInfosArr); i < splitInfoArraySize; i++) {
-    jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
-    jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
-    auto safeSplitArray = getByteArrayElementsSafe(env, splitInfoArray);
-    auto splitInfoData = safeSplitArray.elems();
-    ctx->parseSplitInfo(splitInfoData, splitInfoSize, i, saveInput);
+  ctx->parsePlan(safePlanArray.elems(), planSize);
+
+  if (splitInfosArr != nullptr) {
+    for (jsize i = 0, splitInfoArraySize = env->GetArrayLength(splitInfosArr); i < splitInfoArraySize; i++) {
+      jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
+      jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
+      auto safeSplitArray = getByteArrayElementsSafe(env, splitInfoArray);
+      auto splitInfoData = safeSplitArray.elems();
+
+      ctx->parseSplitInfo(splitInfoData, splitInfoSize, i);
+    }
   }
 
   // Handle the Java iters
-  jsize itersLen = env->GetArrayLength(iterArr);
   std::vector<std::shared_ptr<ResultIterator>> inputIters;
-  for (int idx = 0; idx < itersLen; idx++) {
-    auto writer = ctx->createArrowWriter(saveInput, idx);
-    jobject iter = env->GetObjectArrayElement(iterArr, idx);
-    auto arrayIter = makeJniColumnarBatchIterator(env, iter, ctx, writer);
-    auto resultIter = std::make_shared<ResultIterator>(std::move(arrayIter));
-    inputIters.push_back(std::move(resultIter));
+  if (batchItrArray != nullptr) {
+    jsize itersLen = env->GetArrayLength(batchItrArray);
+    inputIters.reserve(itersLen);
+    for (int idx = 0; idx < itersLen; idx++) {
+      jobject iter = env->GetObjectArrayElement(batchItrArray, idx);
+      auto arrayIter = std::make_unique<JniColumnarBatchIterator>(env, iter, ctx, idx);
+      auto resultIter = std::make_shared<ResultIterator>(std::move(arrayIter));
+      inputIters.push_back(std::move(resultIter));
+    }
   }
 
-  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters, conf));
+  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters));
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
@@ -526,6 +591,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_metrics_IteratorMetricsJniWrapp
       longArray[Metrics::kNumReplacedWithDynamicFilterRows],
       longArray[Metrics::kFlushRowCount],
       longArray[Metrics::kLoadedToValueHook],
+      longArray[Metrics::kBloomFilterBlocksByteSize],
       longArray[Metrics::kScanTime],
       longArray[Metrics::kSkippedSplits],
       longArray[Metrics::kProcessedSplits],
@@ -537,9 +603,14 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_metrics_IteratorMetricsJniWrapp
       longArray[Metrics::kLocalReadBytes],
       longArray[Metrics::kRamReadBytes],
       longArray[Metrics::kPreloadSplits],
+      longArray[Metrics::kPageLoadTime],
+      longArray[Metrics::kDataSourceAddSplitWallNanos],
+      longArray[Metrics::kDataSourceReadWallNanos],
       longArray[Metrics::kPhysicalWrittenBytes],
       longArray[Metrics::kWriteIOTime],
-      longArray[Metrics::kNumWrittenFiles]);
+      longArray[Metrics::kNumWrittenFiles],
+      longArray[Metrics::kLoadLazyVectorTime],
+      metrics && metrics->stats.has_value() ? env->NewStringUTF(metrics->stats->c_str()) : nullptr);
 
   JNI_METHOD_END(nullptr)
 }
@@ -565,6 +636,66 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterato
     jlong iterHandle) {
   JNI_METHOD_START
   ObjectStore::release(iterHandle);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jboolean JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterator_nativeAddIteratorSplits( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong iterHandle,
+    jobjectArray batchItrArray) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto outIter = ObjectStore::retrieve<ResultIterator>(iterHandle);
+  if (outIter == nullptr) {
+    throw GlutenException("Invalid iterator handle for addSplits");
+  }
+  
+  // Get the underlying split-aware iterator
+  auto* splitAwareIter = dynamic_cast<gluten::SplitAwareColumnarBatchIterator*>(outIter->getInputIter());
+  if (splitAwareIter == nullptr) {
+    throw GlutenException("Iterator does not support split management");
+  }
+
+  GLUTEN_CHECK(batchItrArray != nullptr, "FATAL: Splits to add cannot be null");
+
+  // Convert Java ColumnarBatchInIterator[] to native iterators and add as splits
+  jsize numIterators = env->GetArrayLength(batchItrArray);
+  std::vector<std::shared_ptr<ResultIterator>> inputIterators;
+  inputIterators.reserve(numIterators);
+
+  for (jsize idx = 0; idx < numIterators; idx++) {
+    jobject iter = env->GetObjectArrayElement(batchItrArray, idx);
+    if (iter == nullptr) {
+      inputIterators.push_back(nullptr);
+    } else {
+      auto arrayIter = std::make_unique<JniColumnarBatchIterator>(env, iter, ctx, idx);
+      auto resultIter = std::make_shared<ResultIterator>(std::move(arrayIter));
+      inputIterators.push_back(std::move(resultIter));
+    }
+    env->DeleteLocalRef(iter);
+  }
+
+  // Add iterator splits via interface method
+  if (!inputIterators.empty()) {
+    splitAwareIter->addIteratorSplits(inputIterators);
+  }
+
+  return true;
+  JNI_METHOD_END(false)
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterator_nativeNoMoreSplits( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong iterHandle) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto iter = ObjectStore::retrieve<ResultIterator>(iterHandle);
+  if (iter == nullptr) {
+    throw GlutenException("Invalid iterator handle for noMoreSplits");
+  }
+  ctx->noMoreSplits(iter.get());
   JNI_METHOD_END()
 }
 
@@ -774,6 +905,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   auto safeArray = getIntArrayElementsSafe(env, jcolumnIndices);
   int size = env->GetArrayLength(jcolumnIndices);
   std::vector<int32_t> columnIndices;
+  columnIndices.reserve(size);
   for (int32_t i = 0; i < size; i++) {
     columnIndices.push_back(safeArray.elems()[i]);
   }
@@ -782,152 +914,173 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-// Shuffle
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_nativeMake( // NOLINT
+JNIEXPORT jlong JNICALL
+Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartitionWriter( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jstring partitioningNameJstr,
     jint numPartitions,
-    jint bufferSize,
-    jint mergeBufferSize,
-    jdouble mergeThreshold,
     jstring codecJstr,
     jstring codecBackendJstr,
     jint compressionLevel,
     jint compressionBufferSize,
-    jint diskWriteBufferSize,
     jint compressionThreshold,
-    jstring compressionModeJstr,
-    jint initialSortBufferSize,
-    jboolean useRadixSort,
-    jstring dataFileJstr,
+    jint mergeBufferSize,
+    jdouble mergeThreshold,
     jint numSubDirs,
+    jint shuffleFileBufferSize,
+    jstring dataFileJstr,
     jstring localDirsJstr,
-    jdouble reallocThreshold,
-    jlong firstBatchHandle,
-    jlong taskAttemptId,
-    jint startPartitionId,
-    jint pushBufferMaxSize,
-    jlong sortBufferMaxSize,
-    jobject partitionPusher,
-    jstring partitionWriterTypeJstr,
-    jstring shuffleWriterTypeJstr) {
+    jboolean enableDictionary) {
   JNI_METHOD_START
-  auto ctx = getRuntime(env, wrapper);
-  if (partitioningNameJstr == nullptr) {
-    throw GlutenException(std::string("Short partitioning name can't be null"));
-  }
 
-  // Build ShuffleWriterOptions.
-  auto shuffleWriterOptions = ShuffleWriterOptions{
-      .bufferSize = bufferSize,
-      .bufferReallocThreshold = reallocThreshold,
-      .partitioning = toPartitioning(jStringToCString(env, partitioningNameJstr)),
-      .taskAttemptId = static_cast<int64_t>(taskAttemptId),
-      .startPartitionId = startPartitionId,
-      .shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr)),
-      .initialSortBufferSize = initialSortBufferSize,
-      .diskWriteBufferSize = diskWriteBufferSize,
-      .useRadixSort = static_cast<bool>(useRadixSort)};
+  const auto ctx = getRuntime(env, wrapper);
 
-  // Build PartitionWriterOptions.
-  auto partitionWriterOptions = PartitionWriterOptions{
-      .mergeBufferSize = mergeBufferSize,
-      .mergeThreshold = mergeThreshold,
-      .compressionBufferSize = compressionBufferSize,
-      .compressionThreshold = compressionThreshold,
-      .compressionType = getCompressionType(env, codecJstr),
-      .compressionLevel = compressionLevel,
-      .bufferedWrite = true,
-      .numSubDirs = numSubDirs,
-      .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
-      .sortBufferMaxSize = sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold};
-  if (codecJstr != NULL) {
-    partitionWriterOptions.codecBackend = getCodecBackend(env, codecBackendJstr);
-    partitionWriterOptions.compressionMode = getCompressionMode(env, compressionModeJstr);
-  }
-  const auto& conf = ctx->getConfMap();
-  {
-    auto it = conf.find(kShuffleFileBufferSize);
-    if (it != conf.end()) {
-      partitionWriterOptions.shuffleFileBufferSize = static_cast<int64_t>(stoi(it->second));
-    }
-  }
+  auto dataFile = jStringToCString(env, dataFileJstr);
+  auto localDirs = splitPaths(jStringToCString(env, localDirsJstr));
 
-  std::unique_ptr<PartitionWriter> partitionWriter;
+  auto partitionWriterOptions = std::make_shared<LocalPartitionWriterOptions>(
+      shuffleFileBufferSize,
+      compressionBufferSize,
+      compressionThreshold,
+      mergeBufferSize,
+      mergeThreshold,
+      numSubDirs,
+      enableDictionary);
 
-  auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
-  auto partitionWriterType = std::string(partitionWriterTypeC);
-  env->ReleaseStringUTFChars(partitionWriterTypeJstr, partitionWriterTypeC);
+  auto partitionWriter = std::make_shared<LocalPartitionWriter>(
+      numPartitions,
+      createCompressionCodec(
+          getCompressionType(env, codecJstr), getCodecBackend(env, codecBackendJstr), compressionLevel),
+      ctx->memoryManager(),
+      partitionWriterOptions,
+      dataFile,
+      std::move(localDirs));
 
-  if (partitionWriterType == "local") {
-    if (dataFileJstr == NULL) {
-      throw GlutenException(std::string("Shuffle DataFile can't be null"));
-    }
-    if (localDirsJstr == NULL) {
-      throw GlutenException(std::string("Shuffle DataFile can't be null"));
-    }
-    auto dataFileC = env->GetStringUTFChars(dataFileJstr, JNI_FALSE);
-    auto dataFile = std::string(dataFileC);
-    env->ReleaseStringUTFChars(dataFileJstr, dataFileC);
-
-    auto localDirsC = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
-    auto configuredDirs = splitPaths(std::string(localDirsC));
-    env->ReleaseStringUTFChars(localDirsJstr, localDirsC);
-
-    partitionWriter = std::make_unique<LocalPartitionWriter>(
-        numPartitions,
-        std::move(partitionWriterOptions),
-        ctx->memoryManager()->getArrowMemoryPool(),
-        dataFile,
-        configuredDirs);
-  } else if (partitionWriterType == "celeborn") {
-    jclass celebornPartitionPusherClass =
-        createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
-    jmethodID celebornPushPartitionDataMethod =
-        getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[BI)I");
-    JavaVM* vm;
-    if (env->GetJavaVM(&vm) != JNI_OK) {
-      throw GlutenException("Unable to get JavaVM instance");
-    }
-    std::shared_ptr<JavaRssClient> celebornClient =
-        std::make_shared<JavaRssClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
-    partitionWriter = std::make_unique<RssPartitionWriter>(
-        numPartitions,
-        std::move(partitionWriterOptions),
-        ctx->memoryManager()->getArrowMemoryPool(),
-        std::move(celebornClient));
-  } else if (partitionWriterType == "uniffle") {
-    jclass unifflePartitionPusherClass =
-        createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/writer/PartitionPusher;");
-    jmethodID unifflePushPartitionDataMethod =
-        getMethodIdOrError(env, unifflePartitionPusherClass, "pushPartitionData", "(I[BI)I");
-    JavaVM* vm;
-    if (env->GetJavaVM(&vm) != JNI_OK) {
-      throw GlutenException("Unable to get JavaVM instance");
-    }
-    std::shared_ptr<JavaRssClient> uniffleClient =
-        std::make_shared<JavaRssClient>(vm, partitionPusher, unifflePushPartitionDataMethod);
-    partitionWriter = std::make_unique<RssPartitionWriter>(
-        numPartitions,
-        std::move(partitionWriterOptions),
-        ctx->memoryManager()->getArrowMemoryPool(),
-        std::move(uniffleClient));
-  } else {
-    throw GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
-  }
-
-  return ctx->saveObject(
-      ctx->createShuffleWriter(numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions)));
+  return ctx->saveObject(partitionWriter);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_nativeEvict( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_createHashShuffleWriter(
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring partitioningNameJstr,
+    jint startPartitionId,
+    jint splitBufferSize,
+    jdouble splitBufferReallocThreshold,
+    jlong partitionWriterHandle) {
+  JNI_METHOD_START
+  const auto ctx = getRuntime(env, wrapper);
+
+  auto partitionWriter = ObjectStore::retrieve<PartitionWriter>(partitionWriterHandle);
+  if (partitionWriter == nullptr) {
+    throw GlutenException("Partition writer handle is invalid: " + std::to_string(partitionWriterHandle));
+  }
+  ObjectStore::release(partitionWriterHandle);
+
+  auto shuffleWriterOptions = std::make_shared<HashShuffleWriterOptions>(
+      toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      startPartitionId,
+      splitBufferSize,
+      splitBufferReallocThreshold);
+
+  return ctx->saveObject(ctx->createShuffleWriter(numPartitions, partitionWriter, shuffleWriterOptions));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_createGpuHashShuffleWriter(
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring partitioningNameJstr,
+    jint startPartitionId,
+    jint splitBufferSize,
+    jdouble splitBufferReallocThreshold,
+    jlong partitionWriterHandle) {
+  JNI_METHOD_START
+  
+  const auto ctx = getRuntime(env, wrapper);
+
+  auto partitionWriter = ObjectStore::retrieve<PartitionWriter>(partitionWriterHandle);
+  if (partitionWriter == nullptr) {
+    throw GlutenException("Partition writer handle is invalid: " + std::to_string(partitionWriterHandle));
+  }
+  ObjectStore::release(partitionWriterHandle);
+
+  auto shuffleWriterOptions = std::make_shared<GpuHashShuffleWriterOptions>(
+      toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      startPartitionId,
+      splitBufferSize,
+      splitBufferReallocThreshold);
+  return ctx->saveObject(ctx->createShuffleWriter(numPartitions, partitionWriter, shuffleWriterOptions));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_createSortShuffleWriter(
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring partitioningNameJstr,
+    jint startPartitionId,
+    jint diskWriteBufferSize,
+    jint initialSortBufferSize,
+    jboolean useRadixSort,
+    jlong partitionWriterHandle) {
+  JNI_METHOD_START
+  const auto ctx = getRuntime(env, wrapper);
+
+  auto partitionWriter = ObjectStore::retrieve<PartitionWriter>(partitionWriterHandle);
+  if (partitionWriter == nullptr) {
+    throw GlutenException("Partition writer handle is invalid: " + std::to_string(partitionWriterHandle));
+  }
+  ObjectStore::release(partitionWriterHandle);
+
+  auto shuffleWriterOptions = std::make_shared<SortShuffleWriterOptions>(
+      toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      startPartitionId,
+      initialSortBufferSize,
+      diskWriteBufferSize,
+      static_cast<bool>(useRadixSort));
+
+  return ctx->saveObject(ctx->createShuffleWriter(numPartitions, partitionWriter, shuffleWriterOptions));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_createRssSortShuffleWriter(
+    JNIEnv* env,
+    jobject wrapper,
+    jint numPartitions,
+    jstring partitioningNameJstr,
+    jint startPartitionId,
+    jint splitBufferSize,
+    jlong sortBufferMaxSize,
+    jstring codecJstr,
+    jlong partitionWriterHandle) {
+  JNI_METHOD_START
+  const auto ctx = getRuntime(env, wrapper);
+
+  auto partitionWriter = ObjectStore::retrieve<PartitionWriter>(partitionWriterHandle);
+  if (partitionWriter == nullptr) {
+    throw GlutenException("Partition writer handle is invalid: " + std::to_string(partitionWriterHandle));
+  }
+  ObjectStore::release(partitionWriterHandle);
+
+  auto shuffleWriterOptions = std::make_shared<RssSortShuffleWriterOptions>(
+      toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      startPartitionId,
+      splitBufferSize,
+      sortBufferMaxSize,
+      getCompressionType(env, codecJstr));
+
+  return ctx->saveObject(ctx->createShuffleWriter(numPartitions, partitionWriter, shuffleWriterOptions));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_reclaim( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong shuffleWriterHandle,
-    jlong size,
-    jboolean callBySelf) {
+    jlong size) {
   JNI_METHOD_START
   auto shuffleWriter = ObjectStore::retrieve<ShuffleWriter>(shuffleWriterHandle);
   if (!shuffleWriter) {
@@ -936,7 +1089,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   }
   int64_t evictedSize;
   arrowAssertOkOrThrow(shuffleWriter->reclaimFixedSize(size, &evictedSize), "(shuffle) nativeEvict: evict failed");
-  return (jlong)evictedSize;
+  return evictedSize;
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
@@ -956,9 +1109,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
 
   // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeShuffleWriter)
   auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
-  auto numBytes = batch->numBytes();
   arrowAssertOkOrThrow(shuffleWriter->write(batch, memLimit), "Native write: shuffle writer failed");
-  return numBytes;
+  return shuffleWriter->bytesWritten();
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
@@ -994,10 +1146,12 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrap
       shuffleWriter->totalCompressTime(),
       shuffleWriter->totalSortTime(),
       shuffleWriter->totalC2RTime(),
-      shuffleWriter->totalBytesWritten(),
+      shuffleWriter->bytesWritten(),
       shuffleWriter->totalBytesEvicted(),
       shuffleWriter->totalBytesToEvict(),
       shuffleWriter->peakBytesAllocated(),
+      shuffleWriter->avgDictionaryFields(),
+      shuffleWriter->dictionarySize(),
       partitionLengthArr,
       rawPartitionLengthArr);
 
@@ -1056,16 +1210,18 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper_readStream( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper_read( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong shuffleReaderHandle,
-    jobject jniIn) {
+    jobject jStreamReader) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
   auto reader = ObjectStore::retrieve<ShuffleReader>(shuffleReaderHandle);
-  std::shared_ptr<arrow::io::InputStream> in = std::make_shared<JavaInputStreamAdaptor>(env, reader->getPool(), jniIn);
-  auto outItr = reader->readStream(in);
+
+  auto streamReader = std::make_shared<ShuffleStreamReader>(env, jStreamReader);
+
+  auto outItr = reader->read(streamReader);
   return ctx->saveObject(outItr);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
@@ -1097,36 +1253,22 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
 JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlongArray handles) {
+    jlong handle) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
 
-  int32_t numBatches = env->GetArrayLength(handles);
-  auto safeArray = getLongArrayElementsSafe(env, handles);
-
-  std::vector<std::shared_ptr<ColumnarBatch>> batches;
-  int64_t numRows = 0L;
-  for (int32_t i = 0; i < numBatches; i++) {
-    auto batch = ObjectStore::retrieve<ColumnarBatch>(safeArray.elems()[i]);
-    GLUTEN_DCHECK(
-        batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(safeArray.elems()[i]));
-    numRows += batch->numRows();
-    batches.emplace_back(batch);
-  }
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
+  GLUTEN_DCHECK(batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
 
   auto serializer = ctx->createColumnarBatchSerializer(nullptr);
-  auto buffer = serializer->serializeColumnarBatches(batches);
-  auto bufferArr = env->NewByteArray(buffer->size());
-  GLUTEN_CHECK(
-      bufferArr != nullptr,
-      "Cannot construct a byte array of size " + std::to_string(buffer->size()) +
-          " byte(s) to serialize columnar batches");
-  env->SetByteArrayRegion(bufferArr, 0, buffer->size(), reinterpret_cast<const jbyte*>(buffer->data()));
+  serializer->append(batch);
+  auto serializedSize = serializer->maxSerializedSize();
+  auto byteBuffer = env->CallStaticObjectMethod(jniUnsafeByteBufferClass, jniUnsafeByteBufferAllocate, serializedSize);
+  auto byteBufferAddress = env->CallLongMethod(byteBuffer, jniUnsafeByteBufferAddress);
+  auto byteBufferSize = env->CallLongMethod(byteBuffer, jniUnsafeByteBufferSize);
+  serializer->serializeTo(reinterpret_cast<uint8_t*>(byteBufferAddress), byteBufferSize);
 
-  jobject columnarBatchSerializeResult =
-      env->NewObject(columnarBatchSerializeResultClass, columnarBatchSerializeResultConstructor, numRows, bufferArr);
-
-  return columnarBatchSerializeResult;
+  return byteBuffer;
   JNI_METHOD_END(nullptr)
 }
 

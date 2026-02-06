@@ -43,7 +43,7 @@ class ColumnarBatchArray : public ColumnarBatchIterator {
 class VeloxBatchResizerTest : public ::testing::Test, public test::VectorTestBase {
  protected:
   static void SetUpTestCase() {
-    memory::MemoryManager::testingSetInstance({});
+    memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 
   RowVectorPtr newVector(size_t numRows) {
@@ -53,12 +53,13 @@ class VeloxBatchResizerTest : public ::testing::Test, public test::VectorTestBas
     return out;
   }
 
-  void checkResize(int32_t min, int32_t max, std::vector<int32_t> inSizes, std::vector<int32_t> outSizes) {
+  void checkResize(int32_t min, int32_t max, int64_t preferredBatchBytes, std::vector<int32_t> inSizes, std::vector<int32_t> outSizes) {
     auto inBatches = std::vector<std::shared_ptr<ColumnarBatch>>();
+    inBatches.reserve(inSizes.size());
     for (const auto& size : inSizes) {
       inBatches.push_back(std::make_shared<VeloxColumnarBatch>(newVector(size)));
     }
-    VeloxBatchResizer resizer(pool(), min, max, std::make_unique<ColumnarBatchArray>(std::move(inBatches)));
+    VeloxBatchResizer resizer(pool(), min, max, preferredBatchBytes, std::make_unique<ColumnarBatchArray>(std::move(inBatches)));
     auto actualOutSizes = std::vector<int32_t>();
     while (true) {
       auto next = resizer.next();
@@ -72,15 +73,25 @@ class VeloxBatchResizerTest : public ::testing::Test, public test::VectorTestBas
 };
 
 TEST_F(VeloxBatchResizerTest, sanity) {
-  checkResize(100, std::numeric_limits<int32_t>::max(), {30, 50, 30, 40, 30}, {110, 70});
-  checkResize(1, 40, {10, 20, 50, 30, 40, 30}, {10, 20, 40, 10, 30, 40, 30});
-  checkResize(1, 39, {10, 20, 50, 30, 40, 30}, {10, 20, 39, 11, 30, 39, 1, 30});
-  checkResize(40, 40, {10, 20, 50, 30, 40, 30}, {30, 40, 10, 30, 40, 30});
-  checkResize(39, 39, {10, 20, 50, 30, 40, 30}, {30, 39, 11, 30, 39, 1, 30});
-  checkResize(100, 200, {5, 900, 50}, {5, 200, 200, 200, 200, 100, 50});
-  checkResize(100, 200, {5, 900, 30, 80}, {5, 200, 200, 200, 200, 100, 110});
-  checkResize(100, 200, {5, 900, 700}, {5, 200, 200, 200, 200, 100, 200, 200, 200, 100});
-  ASSERT_ANY_THROW(checkResize(0, 0, {}, {}));
+  checkResize(100, std::numeric_limits<int32_t>::max(), (10L << 20), {30, 50, 30, 40, 30}, {110, 70});
+  checkResize(1, 40, (10L << 20), {10, 20, 50, 30, 40, 30}, {10, 20, 40, 10, 30, 40, 30});
+  checkResize(1, 39, (10L << 20), {10, 20, 50, 30, 40, 30}, {10, 20, 39, 11, 30, 39, 1, 30});
+  checkResize(40, 40, (10L << 20), {10, 20, 50, 30, 40, 30}, {30, 40, 10, 30, 40, 30});
+  checkResize(39, 39, (10L << 20), {10, 20, 50, 30, 40, 30}, {30, 39, 11, 30, 39, 1, 30});
+  checkResize(100, 200, (10L << 20), {5, 900, 50}, {5, 200, 200, 200, 200, 100, 50});
+  checkResize(100, 200, (10L << 20), {5, 900, 30, 80}, {5, 200, 200, 200, 200, 100, 110});
+  checkResize(100, 200, (10L << 20), {5, 900, 700}, {5, 200, 200, 200, 200, 100, 200, 200, 200, 100});
+  ASSERT_ANY_THROW(checkResize(0, 0, (10L << 20), {}, {}));
+}
+
+TEST_F(VeloxBatchResizerTest, preferredBatchBytesTest) {
+  checkResize(100, std::numeric_limits<int32_t>::max(), 0, {30, 50, 30, 40, 30}, {30, 50, 30, 40, 30});
+  checkResize(40, 40, 0, {10, 20, 50, 30, 40, 30}, {10, 20, 40, 10, 30, 40, 30});
+  checkResize(39, 39, 0, {10, 20, 50, 30, 40, 30}, {10, 20, 39, 11, 30, 39, 1, 30});
+  checkResize(100, 200, 0, {5, 900, 50}, {5, 200, 200, 200, 200, 100, 50});
+  checkResize(100, 200, 0, {5, 900, 30, 80}, {5, 200, 200, 200, 200, 100, 30, 80});
+  checkResize(100, 200, 0, {5, 900, 700}, {5, 200, 200, 200, 200, 100, 200, 200, 200, 100});
+  ASSERT_ANY_THROW(checkResize(0, 0, 0, {}, {}));
 }
 
 } // namespace gluten

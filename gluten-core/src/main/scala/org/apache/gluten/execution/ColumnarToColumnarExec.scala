@@ -16,24 +16,26 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.iterator.Iterators
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicLong
 
-abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention.BatchType)
-  extends ColumnarToColumnarTransition
-  with GlutenPlan {
+abstract class ColumnarToColumnarExec(override val child: SparkPlan)
+  extends GlutenPlan
+  with UnaryExecNode {
 
-  def child: SparkPlan
   protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch]
+
+  protected def closeIterator(out: Iterator[ColumnarBatch]): Unit = {}
+
+  protected def needRecyclePayload: Boolean = false
 
   override lazy val metrics: Map[String, SQLMetric] =
     Map(
@@ -44,17 +46,8 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
       "selfTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert batches")
     )
 
-  override def batchType(): Convention.BatchType = to
-
-  override def rowType0(): Convention.RowType = {
-    Convention.RowType.None
-  }
-
-  override def requiredChildConvention(): Seq[ConventionReq] = {
-    List(ConventionReq.ofBatch(ConventionReq.BatchType.Is(from)))
-  }
-
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
+
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")
     val numInputBatches = longMetric("numInputBatches")
@@ -77,12 +70,18 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
               inBatch
           }
         val out = mapIterator(wrappedIn)
-        val wrappedOut = Iterators
+        val builder = Iterators
           .wrap(out)
+          .protectInvocationFlow()
           .collectReadMillis(outMillis => selfMillis.getAndAdd(outMillis))
           .recycleIterator {
+            closeIterator(out)
             selfTime += selfMillis.get()
           }
+        if (needRecyclePayload) {
+          builder.recyclePayload(_.close())
+        }
+        builder
           .create()
           .map {
             outBatch =>
@@ -90,7 +89,6 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
               numOutputBatches += 1
               outBatch
           }
-        wrappedOut
     }
 
   }

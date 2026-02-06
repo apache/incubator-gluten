@@ -23,10 +23,12 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.ExpressionNode
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 
+import com.google.protobuf.{Any, DoubleValue, Int32Value, Int64Value, Message, StringValue}
 import io.substrait.proto.{CrossRel, JoinRel, NamedStruct, Type}
 
+import java.lang.{Double => JDouble, Long => JLong}
 import java.util.{Collections, List => JList}
 
 import scala.collection.JavaConverters._
@@ -59,7 +61,7 @@ object SubstraitUtil {
       // the left and right relations are exchanged and the
       // join type is reverted.
       CrossRel.JoinType.JOIN_TYPE_LEFT
-    case LeftSemi =>
+    case LeftSemi | ExistenceJoin(_) =>
       CrossRel.JoinType.JOIN_TYPE_LEFT_SEMI
     case FullOuter =>
       CrossRel.JoinType.JOIN_TYPE_OUTER
@@ -106,5 +108,19 @@ object SubstraitUtil {
     val typeList = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithExprId(output)
     createNameStructBuilder(typeList, nameList, Collections.emptyList()).build()
+  }
+
+  def convertJavaObjectToAny(obj: AnyRef): Any = {
+    if (obj == null) return null
+    val msg: Message = obj match {
+      case s: String => StringValue.newBuilder.setValue(s).build
+      case i: Integer => Int32Value.newBuilder.setValue(i).build
+      case l: JLong => Int64Value.newBuilder.setValue(l).build
+      case d: JDouble => DoubleValue.newBuilder.setValue(d).build
+      case _ =>
+        // TODO: generate the message according to the object type
+        StringValue.newBuilder.setValue(obj.toString).build
+    }
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(msg)
   }
 }

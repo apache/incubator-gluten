@@ -16,12 +16,13 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.connector.read.streaming.SparkDataStream
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.types.StructType
@@ -29,6 +30,7 @@ import org.apache.spark.util.collection.BitSet
 
 case class HudiScanTransformer(
     @transient override val relation: HadoopFsRelation,
+    @transient stream: Option[SparkDataStream],
     override val output: Seq[Attribute],
     override val requiredSchema: StructType,
     override val partitionFilters: Seq[Expression],
@@ -36,9 +38,11 @@ case class HudiScanTransformer(
     override val optionalNumCoalescedBuckets: Option[Int],
     override val dataFilters: Seq[Expression],
     override val tableIdentifier: Option[TableIdentifier],
-    override val disableBucketedScan: Boolean = false)
+    override val disableBucketedScan: Boolean = false,
+    override val pushDownFilters: Option[Seq[Expression]] = None)
   extends FileSourceScanExecTransformerBase(
     relation,
+    stream,
     output,
     requiredSchema,
     partitionFilters,
@@ -52,15 +56,13 @@ case class HudiScanTransformer(
   override lazy val fileFormat: ReadFileFormat = ReadFileFormat.ParquetReadFormat
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (requiredSchema.fields.exists(_.name.startsWith("_hoodie"))) {
-      return ValidationResult.failed(s"Hudi meta field not supported.")
-    }
     super.doValidateInternal()
   }
 
   override def doCanonicalize(): HudiScanTransformer = {
     HudiScanTransformer(
       relation,
+      None,
       output.map(QueryPlan.normalizeExpressions(_, output)),
       requiredSchema,
       QueryPlan.normalizePredicates(
@@ -70,9 +72,13 @@ case class HudiScanTransformer(
       optionalNumCoalescedBuckets,
       QueryPlan.normalizePredicates(dataFilters, output),
       None,
-      disableBucketedScan
+      disableBucketedScan,
+      pushDownFilters.map(QueryPlan.normalizePredicates(_, output))
     )
   }
+
+  override def withNewPushdownFilters(filters: Seq[Expression]): BasicScanExecTransformer =
+    copy(pushDownFilters = Some(filters))
 }
 
 object HudiScanTransformer {
@@ -80,6 +86,7 @@ object HudiScanTransformer {
   def apply(scanExec: FileSourceScanExec): HudiScanTransformer = {
     new HudiScanTransformer(
       scanExec.relation,
+      SparkShimLoader.getSparkShims.getFileSourceScanStream(scanExec),
       scanExec.output,
       scanExec.requiredSchema,
       scanExec.partitionFilters,

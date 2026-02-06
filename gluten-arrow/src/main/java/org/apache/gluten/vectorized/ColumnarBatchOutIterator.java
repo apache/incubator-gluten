@@ -25,7 +25,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class ColumnarBatchOutIterator extends ClosableIterator implements RuntimeAware {
+public class ColumnarBatchOutIterator extends ClosableIterator<ColumnarBatch>
+    implements RuntimeAware {
   private final Runtime runtime;
   private final long iterHandle;
 
@@ -52,6 +53,11 @@ public class ColumnarBatchOutIterator extends ClosableIterator implements Runtim
 
   private native void nativeClose(long iterHandle);
 
+  private native boolean nativeAddIteratorSplits(
+      long iterHandle, ColumnarBatchInIterator[] batchItr);
+
+  private native void nativeNoMoreSplits(long iterHandle);
+
   @Override
   public boolean hasNext0() throws IOException {
     return nativeHasNext(iterHandle);
@@ -72,6 +78,34 @@ public class ColumnarBatchOutIterator extends ClosableIterator implements Runtim
     } else {
       return 0L;
     }
+  }
+
+  /**
+   * Add new iterator splits to the iterator as new inputs for processing. Note: File-based splits
+   * are not supported.
+   *
+   * @param batchItr Array of iterators to add as splits
+   * @return true if splits were added successfully, false otherwise
+   * @throws IllegalStateException if the iterator is closed
+   */
+  public boolean addIteratorSplits(ColumnarBatchInIterator[] batchItr) {
+    if (closed.get()) {
+      throw new IllegalStateException("Cannot add splits to a closed iterator");
+    }
+    return nativeAddIteratorSplits(iterHandle, batchItr);
+  }
+
+  /**
+   * Signal that no more splits will be added to the iterator. This is required for proper task
+   * completion and is a prerequisite for barrier support.
+   *
+   * @throws IllegalStateException if the iterator is closed
+   */
+  public void noMoreSplits() {
+    if (closed.get()) {
+      throw new IllegalStateException("Cannot call noMoreSplits on a closed iterator");
+    }
+    nativeNoMoreSplits(iterHandle);
   }
 
   @Override

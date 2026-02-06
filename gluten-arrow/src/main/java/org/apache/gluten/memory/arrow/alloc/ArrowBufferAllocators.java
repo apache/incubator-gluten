@@ -17,13 +17,14 @@
 package org.apache.gluten.memory.arrow.alloc;
 
 import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.memory.memtarget.MemoryTargets;
 import org.apache.gluten.memory.memtarget.Spillers;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.memory.GlobalOffHeapMemory;
 import org.apache.spark.task.TaskResource;
 import org.apache.spark.task.TaskResources;
 import org.slf4j.Logger;
@@ -34,6 +35,14 @@ import java.util.List;
 import java.util.Vector;
 
 public class ArrowBufferAllocators {
+  private static final SimpleMemoryUsageRecorder GLOBAL_USAGE = new SimpleMemoryUsageRecorder();
+  private static final BufferAllocator GLOBAL_INSTANCE;
+
+  static {
+    final AllocationListener listener =
+        new ManagedAllocationListener(GlobalOffHeapMemory.target(), GLOBAL_USAGE);
+    GLOBAL_INSTANCE = new RootAllocator(listener, Long.MAX_VALUE);
+  }
 
   private ArrowBufferAllocators() {}
 
@@ -51,6 +60,10 @@ public class ArrowBufferAllocators {
         .managed;
   }
 
+  public static BufferAllocator globalInstance() {
+    return GLOBAL_INSTANCE;
+  }
+
   public static class ArrowBufferAllocatorManager implements TaskResource {
     private static Logger LOGGER = LoggerFactory.getLogger(ArrowBufferAllocatorManager.class);
     private static final List<BufferAllocator> LEAKED = new Vector<>();
@@ -58,7 +71,6 @@ public class ArrowBufferAllocators {
     private final String name;
 
     {
-      final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
       if (GlutenConfig.get().memoryUntracked()) {
         listener = AllocationListener.NOOP;
       } else {
@@ -67,7 +79,7 @@ public class ArrowBufferAllocators {
                 MemoryTargets.throwOnOom(
                     MemoryTargets.dynamicOffHeapSizingIfEnabled(
                         MemoryTargets.newConsumer(
-                            tmm, "ArrowContextInstance", Spillers.NOOP, Collections.emptyMap()))),
+                            "ArrowContextInstance", Spillers.NOOP, Collections.emptyMap()))),
                 TaskResources.getSharedUsage());
       }
     }
@@ -108,7 +120,7 @@ public class ArrowBufferAllocators {
 
     @Override
     public int priority() {
-      return 0; // lowest priority
+      return 10; // low priority: released after higher-priority task resources
     }
 
     @Override

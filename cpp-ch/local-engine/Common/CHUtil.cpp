@@ -35,8 +35,8 @@
 #include <Core/ServerSettings.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
@@ -188,7 +188,7 @@ BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively,
         if (const DB::DataTypeArray * type_arr = typeid_cast<const DB::DataTypeArray *>(nested_type.get()))
         {
             const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(type_arr->getNestedType().get());
-            if (type_tuple && type_tuple->haveExplicitNames() && (flags & FLAT_NESTED_TABLE))
+            if (type_tuple && type_tuple->hasExplicitNames() && (flags & FLAT_NESTED_TABLE))
             {
                 const DB::DataTypes & element_types = type_tuple->getElements();
                 const DB::Strings & names = type_tuple->getElementNames();
@@ -239,7 +239,7 @@ BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively,
         }
         else if (const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(nested_type.get()))
         {
-            if ((flags & FLAT_STRUCT_FORCE) || (type_tuple->haveExplicitNames() && (flags & FLAT_STRUCT)))
+            if ((flags & FLAT_STRUCT_FORCE) || (type_tuple->hasExplicitNames() && (flags & FLAT_STRUCT)))
             {
                 const DB::DataTypes & element_types = type_tuple->getElements();
                 DB::Strings element_names = type_tuple->getElementNames();
@@ -468,7 +468,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
     };
 
     Poco::Util::AbstractConfiguration::Keys disks;
-    std::unordered_set<String> disk_types = {"s3_gluten", "hdfs_gluten", "cache"};
+    std::unordered_set<String> disk_types = {GlutenObjectStorageConfig::S3_DISK_TYPE, GlutenObjectStorageConfig::HDFS_DISK_TYPE, "cache"};
     config.keys("storage_configuration.disks", disks);
 
     std::ranges::for_each(
@@ -481,7 +481,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
                 return;
             if (disk_type == "cache")
                 change_func(disk_prefix + ".path");
-            else if (disk_type == "s3_gluten" || disk_type == "hdfs_gluten")
+            else if (disk_type == GlutenObjectStorageConfig::S3_DISK_TYPE || disk_type == GlutenObjectStorageConfig::HDFS_DISK_TYPE)
                 change_func(disk_prefix + ".metadata_path");
         });
 
@@ -545,7 +545,8 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const SparkConf
     // FIXMEX: workaround for https://github.com/ClickHouse/ClickHouse/pull/75452#pullrequestreview-2625467710
     // entry in DiskSelector::initialize
     // Bug in FileCacheSettings::loadFromConfig
-    auto updateCacheDiskType = [](Poco::Util::AbstractConfiguration & config) {
+    auto updateCacheDiskType = [](Poco::Util::AbstractConfiguration & config)
+    {
         const std::string config_prefix = "storage_configuration.disks";
         Poco::Util::AbstractConfiguration::Keys keys;
         config.keys(config_prefix, keys);
@@ -671,7 +672,7 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     /// We currently do not support lazy materialization.
     /// "test 'order by' two keys" will failed if we enable it.
     settings[Setting::query_plan_optimize_lazy_materialization] = false;
-    
+
     for (const auto & [key, value] : spark_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
@@ -762,7 +763,8 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
         {
             auto mem_gb = task_memory / static_cast<double>(1_GiB);
             // 2.8x+5, Heuristics calculate the block size of external sort, [8,16]
-            settings[Setting::prefer_external_sort_block_bytes] = std::max(std::min(static_cast<size_t>(2.8 * mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
+            settings[Setting::prefer_external_sort_block_bytes]
+                = std::max(std::min(static_cast<size_t>(2.8 * mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
         }
     }
 }
@@ -997,8 +999,8 @@ void BackendFinalizerUtil::finalizeGlobally()
 {
     // Make sure client caches release before ClientCacheRegistry
     ReadBufferBuilderFactory::instance().clean();
-    StorageMergeTreeFactory::clear();
-    QueryContext::resetGlobal();
+    StorageMergeTreeFactory::clear_cache_map();
+    QueryContext::instance().reset();
     std::lock_guard lock(paths_mutex);
     std::ranges::for_each(
         paths_need_to_clean,
@@ -1046,16 +1048,25 @@ UInt64 MemoryUtil::getMemoryRSS()
     return rss * sysconf(_SC_PAGESIZE);
 }
 
-
-void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
+void JoinUtil::adjustJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 {
-    ActionsDAG project{plan.getCurrentHeader().getNamesAndTypesList()};
-    NamesWithAliases project_cols;
+    auto header = plan.getCurrentHeader();
+    std::unordered_map<String, const DB::ActionsDAG::Node *> name_to_node;
+    ActionsDAG project;
+    for (const auto & col : header->getColumnsWithTypeAndName())
+    {
+        const auto * node = &(project.addInput(col));
+        name_to_node[col.name] = node;
+    }
     for (const auto & col : cols)
     {
-        project_cols.emplace_back(NameWithAlias(col, col));
+        const auto it = name_to_node.find(col);
+        if (it == name_to_node.end())
+        {
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Column {} not found in header", col);
+        }
+        project.addOrReplaceInOutputs(*(it->second));
     }
-    project.project(project_cols);
     QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentHeader(), std::move(project));
     project_step->setStepDescription("Reorder Join Output");
     plan.addStep(std::move(project_step));
@@ -1095,9 +1106,11 @@ std::pair<DB::JoinKind, DB::JoinStrictness> JoinUtil::getCrossJoinKindAndStrictn
     switch (join_type)
     {
         case substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
-        case substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
-        case substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
             return {DB::JoinKind::Cross, DB::JoinStrictness::All};
+        case substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+            return {DB::JoinKind::Left, DB::JoinStrictness::All};
+        case substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
+            return {DB::JoinKind::Full, DB::JoinStrictness::All};
         default:
             throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
     }

@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.backendsapi
 
-import org.apache.gluten.config.GlutenNumaBindingInfo
 import org.apache.gluten.execution.{BaseGlutenPartition, LeafTransformSupport, WholeStageTransformContext}
 import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.substrait.plan.PlanNode
@@ -24,7 +23,6 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
 
 import org.apache.spark._
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
@@ -33,19 +31,13 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 trait IteratorApi {
 
   def genSplitInfo(
-      partition: InputPartition,
+      partitionIndex: Int,
+      partition: Seq[Partition],
       partitionSchema: StructType,
+      dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo
-
-  def genSplitInfoForPartitions(
-      partitionIndex: Int,
-      partition: Seq[InputPartition],
-      partitionSchema: StructType,
-      fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = throw new UnsupportedOperationException()
 
   /** Generate native row partition. */
   def genPartitions(
@@ -75,7 +67,8 @@ trait IteratorApi {
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq(),
+      enableCudf: Boolean = false
   ): Iterator[ColumnarBatch]
 
   /**
@@ -86,12 +79,12 @@ trait IteratorApi {
   def genFinalStageIterator(
       context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
-      numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      materializeInput: Boolean = false): Iterator[ColumnarBatch]
+      materializeInput: Boolean = false,
+      enableCudf: Boolean = false): Iterator[ColumnarBatch]
   // scalastyle:on argcount
 }

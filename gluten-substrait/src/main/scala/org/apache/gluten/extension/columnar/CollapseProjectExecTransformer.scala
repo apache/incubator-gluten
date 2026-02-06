@@ -42,6 +42,10 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] {
         val validationResult = collapsedProject.doValidate()
         if (validationResult.ok()) {
           logDebug(s"Collapse project $p1 and $p2.")
+          // copy tags from p1 first
+          collapsedProject.copyTagsFrom(p1)
+          // if p1 has no tags, copy p2's tags
+          collapsedProject.copyTagsFrom(p2)
           collapsedProject
         } else {
           logDebug(s"Failed to collapse project, due to ${validationResult.reason()}")

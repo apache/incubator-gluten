@@ -18,13 +18,13 @@ AdaptiveSparkPlan (46)
                                           +- ^ BroadcastHashJoinExecTransformer LeftSemi BuildRight (12)
                                              :- ^ ProjectExecTransformer (3)
                                              :  +- ^ FilterExecTransformer (2)
-                                             :     +- ^ ScanTransformer parquet  (1)
+                                             :     +- ^ FileSourceScanExecTransformer parquet  (1)
                                              +- ^ InputIteratorTransformer (11)
                                                 +- BroadcastQueryStage (9), Statistics(X)
                                                    +- ColumnarBroadcastExchange (8)
                                                       +- ^ ProjectExecTransformer (6)
                                                          +- ^ FilterExecTransformer (5)
-                                                            +- ^ ScanTransformer parquet  (4)
+                                                            +- ^ FileSourceScanExecTransformer parquet  (4)
 +- == Initial Plan ==
    Sort (45)
    +- Exchange (44)
@@ -42,7 +42,7 @@ AdaptiveSparkPlan (46)
                               +- Scan parquet (35)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -57,7 +57,7 @@ Arguments: ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_
 Output [2]: [o_orderkey#X, o_orderpriority#X]
 Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
 
-(4) ScanTransformer parquet 
+(4) FileSourceScanExecTransformer parquet 
 Output [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -117,7 +117,7 @@ Arguments: false
 
 (17) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (18) ColumnarExchange
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
@@ -146,7 +146,7 @@ Arguments: false
 
 (24) VeloxResizeBatches
 Input [2]: [o_orderpriority#X, order_count#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (25) ColumnarExchange
 Input [2]: [o_orderpriority#X, order_count#X]

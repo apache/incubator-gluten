@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.utils.{BackendTestSettings, BackendTestUtils}
 
@@ -34,7 +35,7 @@ import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
 
-import java.io.File
+import java.io.{File, FileNotFoundException}
 import java.net.URI
 import java.util.Locale
 
@@ -192,12 +193,13 @@ class GlutenSQLQueryTestSuite
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set(GlutenConfig.SMALL_FILE_THRESHOLD.key, "0")
 
     if (isCHBackend) {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-        .set("spark.gluten.sql.enable.native.validation", "false")
+        .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
         .set("spark.sql.files.openCostInBytes", "134217728")
         .set("spark.unsafe.exceptionOnMemoryLeak", "true")
     } else {
@@ -637,11 +639,15 @@ class GlutenSQLQueryTestSuite
 
   /** Returns all the files (not directories) in a directory, recursively. */
   protected def listFilesRecursively(path: File): Seq[File] = {
-    val (dirs, files) = path.listFiles().partition(_.isDirectory)
-    // Filter out test files with invalid extensions such as temp files created
-    // by vi (.swp), Mac (.DS_Store) etc.
-    val filteredFiles = files.filter(_.getName.endsWith(validFileExtensions))
-    filteredFiles ++ dirs.flatMap(listFilesRecursively)
+    if (path.exists) {
+      val (dirs, files) = path.listFiles().partition(_.isDirectory)
+      // Filter out test files with invalid extensions such as temp files created
+      // by vi (.swp), Mac (.DS_Store) etc.
+      val filteredFiles = files.filter(_.getName.endsWith(validFileExtensions))
+      filteredFiles ++ dirs.flatMap(listFilesRecursively)
+    } else {
+      throw new FileNotFoundException(s"Directory does not exist: ${path.getAbsolutePath}")
+    }
   }
 
   /** Load built-in test tables into the SparkSession. */

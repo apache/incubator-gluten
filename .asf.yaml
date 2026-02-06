@@ -30,10 +30,11 @@ github:
   collaborators:
     - majetideepak
     - pedroerp
+    - kevinwilfong
   enabled_merge_buttons:
     squash: true
     merge: false
-    rebase: false
+    rebase: true
   protected_branches:
     main:
       required_pull_request_reviews:
@@ -51,4 +52,4 @@ notifications:
   commits: commits@gluten.apache.org
   issues: commits@gluten.apache.org
   pullrequests: commits@gluten.apache.org
-  discussions: commits@gluten.apache.org
+  discussions: dev@gluten.apache.org

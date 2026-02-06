@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.connector
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.SortMergeJoinExecTransformerBase
 
 import org.apache.spark.SparkConf
@@ -39,7 +40,7 @@ class GlutenKeyGroupedPartitioningSuite
   override def sparkConf: SparkConf = {
     // Native SQL configs
     super.sparkConf
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "false")
+      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.shuffle.partitions", "5")
   }

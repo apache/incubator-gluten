@@ -30,9 +30,7 @@
 #include "velox/vector/VectorStream.h"
 
 #include <arrow/array/util.h>
-#include <arrow/ipc/writer.h>
 #include <arrow/memory_pool.h>
-#include <arrow/record_batch.h>
 #include <arrow/result.h>
 #include <arrow/type.h>
 
@@ -52,10 +50,9 @@ class VeloxShuffleWriter : public ShuffleWriter {
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       ShuffleWriterType type,
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* arrowPool);
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options,
+      MemoryManager* memoryManager);
 
   facebook::velox::RowVectorPtr getStrippedRowVector(const facebook::velox::RowVector& rv) {
     // get new row type
@@ -119,16 +116,14 @@ class VeloxShuffleWriter : public ShuffleWriter {
  protected:
   VeloxShuffleWriter(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* pool)
-      : ShuffleWriter(numPartitions, std::move(options), pool),
-        partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(pool)),
-        veloxPool_(std::move(veloxPool)),
-        partitionWriter_(std::move(partitionWriter)) {
-    partitioner_ = Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId);
-    arenas_.resize(numPartitions);
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options,
+      MemoryManager* memoryManager)
+      : ShuffleWriter(numPartitions, options->partitioning),
+        partitionBufferPool_(memoryManager->getOrCreateArrowMemoryPool("VeloxShuffleWriter.partitionBufferPool")),
+        veloxPool_(dynamic_cast<VeloxMemoryManager*>(memoryManager)->getLeafMemoryPool()),
+        partitionWriter_(partitionWriter) {
+    partitioner_ = Partitioner::make(options->partitioning, numPartitions_, options->startPartitionId);
     serdeOptions_.useLosslessTimestamp = true;
   }
 
@@ -136,17 +131,15 @@ class VeloxShuffleWriter : public ShuffleWriter {
 
   // Memory Pool used to track memory usage of partition buffers.
   // The actual allocation is delegated to options_.memoryPool.
-  std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
+  std::shared_ptr<arrow::MemoryPool> partitionBufferPool_;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 
   // PartitionWriter must destruct before partitionBufferPool_, as it may hold buffers allocated by
   // partitionBufferPool_.
-  std::unique_ptr<PartitionWriter> partitionWriter_;
+  std::shared_ptr<PartitionWriter> partitionWriter_;
 
   std::shared_ptr<Partitioner> partitioner_;
-
-  std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
 
   facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
 

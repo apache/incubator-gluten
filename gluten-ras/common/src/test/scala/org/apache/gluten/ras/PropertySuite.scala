@@ -21,7 +21,7 @@ import org.apache.gluten.ras.RasConfig.PlannerType
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.memo.Memo
 import org.apache.gluten.ras.property.PropertySet
-import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
+import org.apache.gluten.ras.rule.{EnforcerRuleFactory, RasRule, Shape, Shapes}
 
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -72,7 +72,7 @@ abstract class PropertySuite extends AnyFunSuite {
     memo.memorize(ras, PassNodeType(1, PassNodeType(1, PassNodeType(1, TypedLeaf(TypeB, 1)))))
     val state = memo.newState()
     assert(state.allClusters().size == 4)
-    assert(state.getGroupCount() == 4)
+    assert(state.getGroupCount() == 8)
   }
 
   test(s"Get property") {
@@ -87,10 +87,10 @@ abstract class PropertySuite extends AnyFunSuite {
     assert(propDefs.head.getProperty(leaf) === DummyProperty(0))
     assert(propDefs.head.getProperty(unary) === DummyProperty(0))
     assert(propDefs.head.getProperty(binary) === DummyProperty(0))
-    assert(propDefs.head.getChildrenConstraints(DummyProperty(0), leaf) === Seq.empty)
-    assert(propDefs.head.getChildrenConstraints(DummyProperty(0), unary) === Seq(DummyProperty(0)))
+    assert(propDefs.head.getChildrenConstraints(leaf, DummyProperty(0)) === Seq.empty)
+    assert(propDefs.head.getChildrenConstraints(unary, DummyProperty(0)) === Seq(DummyProperty(0)))
     assert(propDefs.head
-      .getChildrenConstraints(DummyProperty(0), binary) === Seq(DummyProperty(0), DummyProperty(0)))
+      .getChildrenConstraints(binary, DummyProperty(0)) === Seq(DummyProperty(0), DummyProperty(0)))
   }
 
   test(s"Cannot enforce property") {
@@ -201,7 +201,7 @@ abstract class PropertySuite extends AnyFunSuite {
     val out = planner.plan()
     assert(out == TypedLeaf(TypeA, 1))
 
-    // Cluster 2 and 1 are able to merge but we'd make sure
+    // Cluster 2 and 1 are able to merge, but we'd make sure
     // they are identified as the same right after HitCacheOp is applied
     val clusterCount = planner.newState().memoState().allClusters().size
     assert(clusterCount == 2)
@@ -489,6 +489,41 @@ abstract class PropertySuite extends AnyFunSuite {
         TypeEnforcer(TypeB, 1, TypedUnary(TypeA, 10, TypeEnforcer(TypeA, 1, TypedLeaf(TypeB, 0)))),
         TypedLeaf(TypeB, 0)))
   }
+
+  test(s"Converting to hub nodes prevents redundant cluster creations") {
+    object ConvertLeafTypeAToTypeB extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = node match {
+        case TypedLeaf(TypeA, cost) => List(TypedLeaf(TypeB, cost - 1))
+        case other => List.empty
+      }
+      override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
+    }
+
+    object ConvertUnaryTypeAToTypeB extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = node match {
+        case TypedUnary(TypeA, cost, child) => List(TypedUnary(TypeB, cost - 1, child))
+        case other => List.empty
+      }
+      override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
+    }
+
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        propertyModelWithoutEnforcerRules(),
+        ExplainImpl,
+        RasRule.Factory.reuse(List(ConvertLeafTypeAToTypeB, ConvertUnaryTypeAToTypeB))
+      ).withNewConfig(_ => conf)
+
+    val plan =
+      TypedUnary(TypeA, 10, TypedLeaf(TypeA, 20))
+    val planner = ras.newPlanner(plan)
+    val out = planner.plan()
+    assert(out == TypedUnary(TypeB, 9, TypedLeaf(TypeB, 19)))
+    assert(planner.newState().memoState().allClusters().size == 2)
+  }
 }
 
 object PropertySuite {
@@ -501,15 +536,6 @@ object PropertySuite {
   // Dummy property model
 
   case class DummyProperty(id: Int) extends Property[TestNode] {
-    override def satisfies(other: Property[TestNode]): Boolean = {
-      other match {
-        case DummyProperty(otherId) =>
-          // Higher ID satisfies lower IDs.
-          id >= otherId
-        case _ => throw new IllegalStateException()
-      }
-    }
-
     override def definition(): PropertyDef[TestNode, DummyProperty] = {
       DummyPropertyDef
     }
@@ -547,8 +573,8 @@ object PropertySuite {
     }
 
     override def getChildrenConstraints(
-        constraint: Property[TestNode],
-        plan: TestNode): Seq[DummyProperty] = {
+        plan: TestNode,
+        constraint: Property[TestNode]): Seq[DummyProperty] = {
       plan match {
         case PUnary(_, _, _) => Seq(DummyProperty(0))
         case PLeaf(_, _) => Seq.empty
@@ -556,14 +582,31 @@ object PropertySuite {
         case _ => throw new IllegalStateException()
       }
     }
+
+    override def satisfies(
+        property: Property[TestNode],
+        constraint: Property[TestNode]): Boolean = {
+      (property, constraint) match {
+        case (DummyProperty(id), DummyProperty(otherId)) =>
+          id >= otherId
+      }
+    }
+
+    override def assignToGroup(
+        group: GroupLeafBuilder[TestNode],
+        constraint: Property[TestNode]): GroupLeafBuilder[TestNode] =
+      (group, constraint) match {
+        case (builder: Group.Builder, c: DummyProperty) =>
+          builder.withConstraint(c)
+      }
   }
 
   object DummyPropertyModel extends PropertyModel[TestNode] {
     override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
       DummyPropertyDef)
 
-    override def newEnforcerRuleFactory(propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
-        : EnforcerRuleFactory[TestNode] = (constraint: Property[TestNode]) => List.empty
+    override def newEnforcerRuleFactory(): EnforcerRuleFactory[TestNode] =
+      (_: PropertySet[TestNode]) => Seq.empty
   }
 
   // Node type property model
@@ -618,20 +661,20 @@ object PropertySuite {
     override def withNewChildren(children: Seq[TestNode]): TestNode = copy(selfCost, children.head)
   }
 
-  case class NodeTypeEnforcerRule(reqType: NodeType) extends RasRule[TestNode] {
-    override def shift(node: TestNode): Iterable[TestNode] = {
+  case class NodeTypeEnforcerRule() extends EnforcerRuleFactory.SubRule[TestNode] {
+    override def enforce(node: TestNode, constraint: Property[TestNode]): Iterable[TestNode] = {
+      val reqType = constraint.asInstanceOf[NodeType]
       node match {
         case typed: TypedNode if typed.nodeType.satisfies(reqType) => List(typed)
         case typed: TypedNode => List(TypeEnforcer(reqType, 1, typed))
         case _ => throw new IllegalStateException()
       }
     }
-
-    override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
   }
 
-  case class ZeroDepthNodeTypeEnforcerRule(reqType: NodeType) extends RasRule[TestNode] {
-    override def shift(node: TestNode): Iterable[TestNode] = {
+  case class ZeroDepthNodeTypeEnforcerRule() extends EnforcerRuleFactory.SubRule[TestNode] {
+    override def enforce(node: TestNode, constraint: Property[TestNode]): Iterable[TestNode] = {
+      val reqType = constraint.asInstanceOf[NodeType]
       node match {
         case group: Group =>
           val groupType = group.constraintSet.get(NodeTypeDef)
@@ -643,8 +686,6 @@ object PropertySuite {
         case _ => throw new IllegalStateException()
       }
     }
-
-    override def shape(): Shape[TestNode] = Shapes.fixedHeight(0)
   }
 
   object ReplaceByTypeARule extends RasRule[TestNode] {
@@ -681,8 +722,8 @@ object PropertySuite {
     }
 
     override def getChildrenConstraints(
-        constraint: Property[TestNode],
-        plan: TestNode): Seq[NodeType] = plan match {
+        plan: TestNode,
+        constraint: Property[TestNode]): Seq[NodeType] = plan match {
       case TypedLeaf(_, _) => Seq.empty
       case TypedUnary(t, _, _) => Seq(t)
       case TypedBinary(t, _, _, _) => Seq(t, t)
@@ -694,6 +735,25 @@ object PropertySuite {
     override def toString: String = "NodeTypeDef"
 
     override def any(): NodeType = TypeAny
+
+    override def satisfies(
+        property: Property[TestNode],
+        constraint: Property[TestNode]): Boolean = {
+      (property, constraint) match {
+        case (_, TypeAny) => true
+        case (one, other) if one == other => true
+        case _ => false
+      }
+    }
+
+    override def assignToGroup(
+        group: GroupLeafBuilder[TestNode],
+        constraint: Property[TestNode]): GroupLeafBuilder[TestNode] = {
+      (group, constraint) match {
+        case (builder: Group.Builder, c: NodeType) =>
+          builder.withConstraint(c)
+      }
+    }
   }
 
   trait NodeType extends Property[TestNode] {
@@ -701,40 +761,13 @@ object PropertySuite {
     override def toString: String = getClass.getSimpleName
   }
 
-  object TypeAny extends NodeType {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case TypeAny => true
-      case _: NodeType => false
-      case _ => throw new IllegalStateException()
-    }
-  }
+  object TypeAny extends NodeType
 
-  object TypeA extends NodeType {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case TypeA => true
-      case TypeAny => true
-      case _: NodeType => false
-      case _ => throw new IllegalStateException()
-    }
-  }
+  object TypeA extends NodeType
 
-  object TypeB extends NodeType {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case TypeB => true
-      case TypeAny => true
-      case _: NodeType => false
-      case _ => throw new IllegalStateException()
-    }
-  }
+  object TypeB extends NodeType
 
-  object TypeC extends NodeType {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case TypeC => true
-      case TypeAny => true
-      case _: NodeType => false
-      case _ => throw new IllegalStateException()
-    }
-  }
+  object TypeC extends NodeType
 
   private def propertyModel(zeroDepth: Boolean): PropertyModel[TestNode] = {
     if (zeroDepth) {
@@ -752,13 +785,18 @@ object PropertySuite {
       override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
         NodeTypeDef)
 
-      override def newEnforcerRuleFactory(
-          propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
-          : EnforcerRuleFactory[TestNode] = {
-        (constraint: Property[TestNode]) =>
-          {
-            List(NodeTypeEnforcerRule(constraint.asInstanceOf[NodeType]))
+      override def newEnforcerRuleFactory(): EnforcerRuleFactory[TestNode] = {
+        EnforcerRuleFactory.fromSubRules(Seq(new EnforcerRuleFactory.SubRuleFactory[TestNode] {
+          override def newSubRule(constraintDef: PropertyDef[TestNode, _ <: Property[TestNode]])
+              : EnforcerRuleFactory.SubRule[TestNode] = {
+            constraintDef match {
+              case NodeTypeDef =>
+                NodeTypeEnforcerRule()
+            }
           }
+
+          override def ruleShape: Shape[TestNode] = Shapes.fixedHeight(1)
+        }))
       }
     }
 
@@ -766,13 +804,18 @@ object PropertySuite {
       override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
         NodeTypeDef)
 
-      override def newEnforcerRuleFactory(
-          propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
-          : EnforcerRuleFactory[TestNode] = {
-        (constraint: Property[TestNode]) =>
-          {
-            List(ZeroDepthNodeTypeEnforcerRule(constraint.asInstanceOf[NodeType]))
+      override def newEnforcerRuleFactory(): EnforcerRuleFactory[TestNode] = {
+        EnforcerRuleFactory.fromSubRules(Seq(new EnforcerRuleFactory.SubRuleFactory[TestNode] {
+          override def newSubRule(constraintDef: PropertyDef[TestNode, _ <: Property[TestNode]])
+              : EnforcerRuleFactory.SubRule[TestNode] = {
+            constraintDef match {
+              case NodeTypeDef =>
+                ZeroDepthNodeTypeEnforcerRule()
+            }
           }
+
+          override def ruleShape: Shape[TestNode] = Shapes.fixedHeight(0)
+        }))
       }
     }
 
@@ -780,9 +823,8 @@ object PropertySuite {
       override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
         NodeTypeDef)
 
-      override def newEnforcerRuleFactory(
-          propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
-          : EnforcerRuleFactory[TestNode] = (_: Property[TestNode]) => List.empty
+      override def newEnforcerRuleFactory(): EnforcerRuleFactory[TestNode] =
+        (_: PropertySet[TestNode]) => Seq.empty
     }
   }
 }

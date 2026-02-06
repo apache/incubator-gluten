@@ -20,24 +20,56 @@
 #include <iostream>
 
 // static
+std::unique_ptr<gluten::ObjectStore> gluten::ObjectStore::create() {
+  static std::mutex mtx;
+  std::lock_guard<std::mutex> lock(mtx);
+  StoreHandle nextId = stores().nextId();
+  auto store = std::unique_ptr<gluten::ObjectStore>(new gluten::ObjectStore(nextId));
+  StoreHandle storeId = safeCast<StoreHandle>(stores().insert(store.get()));
+  GLUTEN_CHECK(storeId == nextId, "Store ID mismatched, this should not happen");
+  return store;
+}
+
+// static
 gluten::ResourceMap<gluten::ObjectStore*>& gluten::ObjectStore::stores() {
   static gluten::ResourceMap<gluten::ObjectStore*> stores;
   return stores;
 }
 
+// static
+std::pair<gluten::ObjectStore*, gluten::ResourceHandle> gluten::ObjectStore::lookup(gluten::ObjectHandle handle) {
+  ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(gluten::ResourceHandle) * 8));
+  ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::max());
+  auto store = stores().lookup(storeId);
+  return {store, resourceId};
+};
+
 gluten::ObjectStore::~ObjectStore() {
-  // destructing in reversed order (the last added object destructed first)
-  const std::lock_guard<std::mutex> lock(mtx_);
-  for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
-    const ResourceHandle handle = (*itr).first;
-    const std::string_view description = (*itr).second;
-    VLOG(2) << "Unclosed object ["
-            << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", Description: " << description
-            << "] is found when object store is closing. Gluten will"
-               " destroy it automatically but it's recommended to manually close"
-               " the object through the Java closing API after use,"
-               " to minimize peak memory pressure of the application.";
-    store_.erase(handle);
+  for (;;) {
+    if (aliveObjects_.empty()) {
+      break;
+    }
+    std::shared_ptr<void> tempObj;
+    {
+      const std::lock_guard<std::mutex> lock(mtx_);
+      // destructing in reversed order (the last added object destructed first)
+      auto itr = aliveObjects_.rbegin();
+      const ResourceHandle handle = (*itr).first;
+      const auto& info = (*itr).second;
+      const std::string_view typeName = info.typeName;
+      const size_t size = info.size;
+      VLOG(2) << "Unclosed object ["
+              << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", TypeName: " << typeName
+              << ", Size: " << size
+              << "] is found when object store is closing. Gluten will"
+                 " destroy it automatically but it's recommended to manually close"
+                 " the object through the Java closing API after use,"
+                 " to minimize peak memory pressure of the application.";
+      tempObj = store_.lookup(handle);
+      store_.erase(handle);
+      aliveObjects_.erase(handle);
+    }
+    tempObj.reset(); // this will call the destructor of the object
   }
   stores().erase(storeId_);
 }

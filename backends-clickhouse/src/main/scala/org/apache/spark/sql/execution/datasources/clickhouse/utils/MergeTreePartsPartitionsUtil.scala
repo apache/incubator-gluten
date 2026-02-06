@@ -20,17 +20,18 @@ import org.apache.gluten.backendsapi.clickhouse.{CHBackendSettings, CHConfig}
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.softaffinity.SoftAffinityManager
+import org.apache.gluten.sql.shims.DeltaShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.RelBuilder
 
+import org.apache.spark.Partition
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.ClickhouseSnapshot
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -68,7 +69,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean,
-      filterExprs: Seq[Expression]): Seq[InputPartition] = {
+      filterExprs: Seq[Expression]): Seq[Partition] = {
     if (
       !relation.location.isInstanceOf[TahoeFileIndex] || !relation.fileFormat
         .isInstanceOf[DeltaMergeTreeFileFormat]
@@ -81,7 +82,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
     val snapshotId =
       ClickhouseSnapshot.genSnapshotId(table.deltaLog.update(stalenessAcceptable = true))
 
-    val partitions = new ArrayBuffer[InputPartition]
+    val partitions = new ArrayBuffer[Partition]
     val (database, tableName) = if (table.catalogTable.isDefined) {
       (table.catalogTable.get.identifier.database.get, table.catalogTable.get.identifier.table)
     } else {
@@ -94,7 +95,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
 
     // bucket table
     if (table.bucketOption.isDefined && bucketedScan) {
-      genBucketedInputPartitionSeq(
+      genBucketedPartitionSeq(
         engine,
         database,
         tableName,
@@ -114,7 +115,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         sparkSession
       )
     } else {
-      genInputPartitionSeq(
+      genPartitionSeq(
         relation,
         engine,
         database,
@@ -136,7 +137,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
     partitions.toSeq
   }
 
-  def genInputPartitionSeq(
+  def genPartitionSeq(
       relation: HadoopFsRelation,
       engine: String,
       database: String,
@@ -147,7 +148,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       optionalBucketSet: Option[BitSet],
       selectedPartitions: Array[PartitionDirectory],
       tableSchema: StructType,
-      partitions: ArrayBuffer[InputPartition],
+      partitions: ArrayBuffer[Partition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
       output: Seq[Attribute],
@@ -237,7 +238,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
               part.targetNode,
               part.start,
               part.marks,
-              part.size
+              part.size,
+              part.rowIndexFilterType,
+              part.rowIndexFilterIdEncoded
             )
         }
       genInputPartitionSeqByFileCnt(
@@ -276,7 +279,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
                   part.targetNode,
                   offset,
                   size,
-                  size * part.size / part.marks)
+                  size * part.size / part.marks,
+                  part.rowIndexFilterType,
+                  part.rowIndexFilterIdEncoded)
             }
         }
 
@@ -311,7 +316,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       relativeTablePath: String,
       absoluteTablePath: String,
       tableSchema: StructType,
-      partitions: ArrayBuffer[InputPartition],
+      partitions: ArrayBuffer[Partition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
       splitFiles: Seq[MergeTreePartSplit],
@@ -367,7 +372,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       relativeTablePath: String,
       absoluteTablePath: String,
       tableSchema: StructType,
-      partitions: ArrayBuffer[InputPartition],
+      partitions: ArrayBuffer[Partition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
       splitFiles: Seq[MergeTreePartSplit],
@@ -436,7 +441,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
   }
 
   /** Generate bucket partition */
-  def genBucketedInputPartitionSeq(
+  def genBucketedPartitionSeq(
       engine: String,
       database: String,
       tableName: String,
@@ -448,7 +453,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       optionalNumCoalescedBuckets: Option[Int],
       selectedPartitions: Array[PartitionDirectory],
       tableSchema: StructType,
-      partitions: ArrayBuffer[InputPartition],
+      partitions: ArrayBuffer[Partition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
       output: Seq[Attribute],
@@ -529,7 +534,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
                 part.targetNode,
                 part.start,
                 part.marks,
-                part.size)
+                part.size,
+                part.rowIndexFilterType,
+                part.rowIndexFilterIdEncoded)
           }
           val newPartition = GlutenMergeTreePartition(
             partitions.size,
@@ -627,8 +634,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
       val readNode = RelBuilder.makeReadRel(
         typeNodes,
         nameList,
-        columnTypeNodes,
         transformer.map(_.doTransform(substraitContext)).orNull,
+        columnTypeNodes,
         extensionNode,
         substraitContext,
         substraitContext.nextOperatorId("readRel")
@@ -655,28 +662,16 @@ object MergeTreePartsPartitionsUtil extends Logging {
           range => {
             val part = partMap.get(range.getPartName).orNull
             val marks = range.getEnd - range.getBegin
-            MergeTreePartRange(
-              part.name,
-              part.dirName,
-              part.targetNode,
-              part.bucketNum,
-              range.getBegin,
-              marks,
-              marks * size_per_mark)
+            DeltaShimLoader.getDeltaShims
+              .generateMergeTreePartRange(part, range.getBegin, marks, marks * size_per_mark)
           })
         .toSeq
     } else {
       selectPartsFiles
         .map(
           part =>
-            MergeTreePartRange(
-              part.name,
-              part.dirName,
-              part.targetNode,
-              part.bucketNum,
-              0,
-              part.marks,
-              part.size))
+            DeltaShimLoader.getDeltaShims
+              .generateMergeTreePartRange(part, 0, part.marks, part.size))
         .toSeq
     }
   }

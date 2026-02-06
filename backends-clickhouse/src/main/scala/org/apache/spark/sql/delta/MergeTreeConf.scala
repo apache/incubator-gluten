@@ -47,6 +47,14 @@ trait MergeTreeConfBase {
               |""".stripMargin)
       .longConf
       .createWithDefault(0)
+
+  val WRITE_MARKS_FOR_SUBSTREAMS_IN_COMPACT_PARTS =
+    buildCHConf("write_marks_for_substreams_in_compact_parts")
+      .doc(s""" Used in UT for compatibility.
+              | https://clickhouse.com/docs/en/operations/settings/merge-tree-settings#write_marks_for_substreams_in_compact_parts
+              |""".stripMargin)
+      .booleanConf
+      .createWithDefault(false)
   // scalastyle:on line.size.limit
 
   val OPTIMIZE_TASK =

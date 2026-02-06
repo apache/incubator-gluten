@@ -16,26 +16,16 @@
  */
 package org.apache.gluten.execution.tpch
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.catalyst.plans.LeftSemi
 import org.apache.spark.sql.execution.{ReusedSubqueryExec, SubqueryExec}
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
-
-class GlutenClickHouseTPCHParquetAQESuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "queries-output"
+class GlutenClickHouseTPCHParquetAQESuite extends ParquetTPCHSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -48,15 +38,30 @@ class GlutenClickHouseTPCHParquetAQESuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .setCHConfig("use_local_format", true)
-      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
+      .set(CHBackendSettings.GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM, "sparkMurmurHash3_32")
   }
 
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
+  final override val testCases: Seq[Int] = Seq(
+    4, 6, 10, 12, 13, 16, 19, 20, 21
+  )
+  final override val testCasesWithConfig: Map[Int, Seq[(String, String)]] =
+    Map(
+      7 -> Seq(
+        ("spark.sql.shuffle.partitions", "2"),
+        ("spark.sql.autoBroadcastJoinThreshold", "-1")),
+      8 -> Seq(
+        ("spark.sql.shuffle.partitions", "1"),
+        ("spark.sql.autoBroadcastJoinThreshold", "-1")),
+      14 -> Seq(
+        ("spark.sql.shuffle.partitions", "1"),
+        ("spark.sql.autoBroadcastJoinThreshold", "-1")),
+      17 -> Seq(("spark.shuffle.sort.bypassMergeThreshold", "2")),
+      18 -> Seq(("spark.shuffle.sort.bypassMergeThreshold", "2"))
+    )
+  setupTestCase()
 
   test("TPCH Q1") {
-    runTPCHQuery(1) {
+    customCheck(1) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val scanExec = collect(df.queryExecution.executedPlan) {
@@ -67,7 +72,7 @@ class GlutenClickHouseTPCHParquetAQESuite
   }
 
   test("TPCH Q2") {
-    runTPCHQuery(2) {
+    customCheck(2) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val scanExec = collect(df.queryExecution.executedPlan) {
@@ -79,7 +84,7 @@ class GlutenClickHouseTPCHParquetAQESuite
 
   test("TPCH Q3") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(3) {
+      customCheck(3) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val shjBuildLeft = collect(df.queryExecution.executedPlan) {
@@ -90,13 +95,9 @@ class GlutenClickHouseTPCHParquetAQESuite
     }
   }
 
-  test("TPCH Q4") {
-    runTPCHQuery(4) { df => }
-  }
-
   test("TPCH Q5") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(5) {
+      customCheck(5) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val bhjRes = collect(df.queryExecution.executedPlan) {
@@ -105,10 +106,6 @@ class GlutenClickHouseTPCHParquetAQESuite
           assert(bhjRes.isEmpty)
       }
     }
-  }
-
-  test("TPCH Q6") {
-    runTPCHQuery(6) { df => }
   }
 
   /**
@@ -120,63 +117,27 @@ class GlutenClickHouseTPCHParquetAQESuite
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(7) { df => }
-    }
-  }
-
-  test("TPCH Q7") {
-    withSQLConf(
-      ("spark.sql.shuffle.partitions", "2"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(7) { df => }
-    }
-  }
-
-  test("TPCH Q8") {
-    withSQLConf(
-      ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(8) { df => }
+      check(7)
     }
   }
 
   test("TPCH Q9") {
-    runTPCHQuery(9, compareResult = false) { df => }
-  }
-
-  test("TPCH Q10") {
-    runTPCHQuery(10) { df => }
+    check(9, compare = false)
   }
 
   test("TPCH Q11") {
-    runTPCHQuery(11, compareResult = false) {
+    customCheck(11, compare = false) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
           case adaptive: AdaptiveSparkPlanExec => adaptive
         }
         assert(adaptiveSparkPlanExec.size == 2)
-    }
-  }
-
-  test("TPCH Q12") {
-    runTPCHQuery(12) { df => }
-  }
-
-  test("TPCH Q13") {
-    runTPCHQuery(13) { df => }
-  }
-
-  test("TPCH Q14") {
-    withSQLConf(
-      ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(14) { df => }
     }
   }
 
   test("TPCH Q15") {
-    runTPCHQuery(15) {
+    customCheck(15) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
@@ -186,53 +147,24 @@ class GlutenClickHouseTPCHParquetAQESuite
     }
   }
 
-  test("TPCH Q16") {
-    runTPCHQuery(16) { df => }
-  }
-
-  test("TPCH Q17") {
-    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(17) { df => }
-    }
-  }
-
-  test("TPCH Q18") {
-    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(18) { df => }
-    }
-  }
-
-  test("TPCH Q19") {
-    runTPCHQuery(19) { df => }
-  }
-
-  test("TPCH Q20") {
-    runTPCHQuery(20) { df => }
-  }
-
-  test("TPCH Q21") {
-    runTPCHQuery(21) { df => }
-  }
-
-  test(
-    "TPCH Q21 with GLUTEN-7971: Support using left side as the build table for the left anti/semi join") {
+  test("GLUTEN-7971:Q21 Support using left side as the build table for the left anti/semi join") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.backend.ch.convert.left.anti_semi.to.right", "true")) {
-      runTPCHQuery(21, compareResult = false) {
+      (CHBackendSettings.GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT, "true")) {
+      customCheck(21, compare = false) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val shuffledHashJoinExecs = collect(df.queryExecution.executedPlan) {
             case h: CHShuffledHashJoinExecTransformer if h.joinType == LeftSemi => h
           }
           assertResult(1)(shuffledHashJoinExecs.size)
-          assertResult(BuildLeft)(shuffledHashJoinExecs(0).buildSide)
+          assertResult(BuildLeft)(shuffledHashJoinExecs.head.buildSide)
       }
     }
   }
 
   test("TPCH Q22") {
-    runTPCHQuery(22) {
+    customCheck(22) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
@@ -247,7 +179,8 @@ class GlutenClickHouseTPCHParquetAQESuite
       """
         |SELECT *
         |    FROM (
-        |        SELECT t1.O_ORDERSTATUS, t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |        SELECT t1.O_ORDERSTATUS,
+        |               t4.ACTIVECUSTOMERS / t1.ACTIVECUSTOMERS AS REPEATPURCHASERATE
         |        FROM (
         |            SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
         |            FROM orders
@@ -261,14 +194,16 @@ class GlutenClickHouseTPCHParquetAQESuite
         |            ON t1.O_ORDERSTATUS = t4.O_ORDERSTATUS
         |   ) t5
         |        INNER JOIN (
-        |            SELECT t8.O_ORDERSTATUS, t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
+        |            SELECT t8.O_ORDERSTATUS,
+        |                   t9.ACTIVECUSTOMERS / t8.ACTIVECUSTOMERS AS REPEATPURCHASERATE
         |            FROM (
         |                SELECT o_orderstatus AS O_ORDERSTATUS, COUNT(1) AS ACTIVECUSTOMERS
         |                FROM orders
         |                GROUP BY o_orderstatus
         |            ) t8
         |                INNER JOIN (
-        |                    SELECT o_orderstatus AS O_ORDERSTATUS, MAX(o_totalprice) AS ACTIVECUSTOMERS
+        |                    SELECT o_orderstatus AS O_ORDERSTATUS,
+        |                          MAX(o_totalprice) AS ACTIVECUSTOMERS
         |                    FROM orders
         |                    GROUP BY o_orderstatus
         |                ) t9
@@ -299,7 +234,8 @@ class GlutenClickHouseTPCHParquetAQESuite
         |        FROM
         |            lineitem
         |        WHERE
-        |            l_shipdate >= date'1996-01-01' AND l_shipdate < date'1996-01-01' + interval 3 month
+        |            l_shipdate >= date'1996-01-01' AND
+        |            l_shipdate < date'1996-01-01' + interval 3 month
         |        GROUP BY
         |            supplier_no) revenue0
         |WHERE
@@ -314,7 +250,8 @@ class GlutenClickHouseTPCHParquetAQESuite
         |            FROM
         |                lineitem
         |            WHERE
-        |                l_shipdate >= date'1996-01-01' AND l_shipdate < date'1996-01-01' + interval 3 month
+        |                l_shipdate >= date'1996-01-01' AND
+        |                l_shipdate < date'1996-01-01' + interval 3 month
         |            GROUP BY
         |                supplier_no) revenue1)
         |    AND total_revenue_1 < (
@@ -327,7 +264,8 @@ class GlutenClickHouseTPCHParquetAQESuite
         |            FROM
         |                lineitem
         |            WHERE
-        |                l_shipdate >= date'1996-01-01' AND l_shipdate < date'1996-01-01' + interval 3 month
+        |                l_shipdate >= date'1996-01-01' AND
+        |                l_shipdate < date'1996-01-01' + interval 3 month
         |            GROUP BY
         |                supplier_no) revenue1)
         |ORDER BY
@@ -408,4 +346,3 @@ class GlutenClickHouseTPCHParquetAQESuite
     }
   }
 }
-// scalastyle:off line.size.limit

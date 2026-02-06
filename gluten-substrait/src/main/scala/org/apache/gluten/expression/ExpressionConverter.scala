@@ -26,7 +26,7 @@ import org.apache.spark.{SPARK_REVISION, SPARK_VERSION_SHORT}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.{StringTrimBoth, _}
-import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
+import org.apache.spark.sql.catalyst.expressions.objects.{Invoke, StaticInvoke, StructsToJsonInvoke}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
 import org.apache.spark.sql.hive.HiveUDFTransformer
@@ -144,6 +144,108 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     DecimalArithmeticExpressionTransformer(substraitName, leftChild, rightChild, resultType, b)
   }
 
+  // Mapping for Iceberg static invoke functions
+  private val icebergStaticInvokeMap = Map(
+    "BucketFunction" -> ExpressionNames.BUCKET,
+    "TruncateFunction" -> ExpressionNames.TRUNCATE,
+    "YearsFunction" -> ExpressionNames.YEARS,
+    "MonthsFunction" -> ExpressionNames.MONTHS,
+    "DaysFunction" -> ExpressionNames.DAYS,
+    "HoursFunction" -> ExpressionNames.HOURS
+  )
+
+  // Mapping for other static invoke functions
+  private val staticInvokeMap = Map(
+    "varcharTypeWriteSideCheck" -> ExpressionNames.VARCHAR_TYPE_WRITE_SIDE_CHECK,
+    "charTypeWriteSideCheck" -> ExpressionNames.CHAR_TYPE_WRITE_SIDE_CHECK,
+    "readSidePadding" -> ExpressionNames.READ_SIDE_PADDING,
+    "lengthOfJsonArray" -> ExpressionNames.JSON_ARRAY_LENGTH,
+    "jsonObjectKeys" -> ExpressionNames.JSON_OBJECT_KEYS
+  )
+
+  private def replaceStaticInvokeWithExpressionTransformer(
+      i: StaticInvoke,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
+
+    val objName = i.objectName
+    val funcName = i.functionName
+
+    def doTransform(child: Expression): ExpressionTransformer =
+      replaceWithExpressionTransformer0(child, attributeSeq, expressionsMap)
+
+    def validateAndTransform(
+        exprName: String,
+        childTransformers: => Seq[ExpressionTransformer]): ExpressionTransformer = {
+      if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(exprName, i)) {
+        throw new GlutenNotSupportException(
+          s"Not supported to map current ${i.getClass} call on function: $funcName.")
+      }
+      GenericExpressionTransformer(exprName, childTransformers, i)
+    }
+
+    // Try to match Iceberg static invoke first
+    val icebergTransformer: Option[ExpressionTransformer] =
+      if (funcName == "invoke") {
+        icebergStaticInvokeMap.collectFirst {
+          case (func, name) if objName.startsWith("org.apache.iceberg.spark.functions." + func) =>
+            GenericExpressionTransformer(name, i.arguments.map(doTransform), i)
+        }
+      } else {
+        None
+      }
+
+    icebergTransformer.getOrElse {
+      funcName match {
+        case "isLuhnNumber" =>
+          validateAndTransform(ExpressionNames.LUHN_CHECK, Seq(doTransform(i.arguments.head)))
+
+        case fn @ ("encode" | "decode") if objName.endsWith("UrlCodec") =>
+          validateAndTransform("url_" + fn, Seq(doTransform(i.arguments.head)))
+
+        case fn @ ("encode" | "decode")
+            if objName.endsWith("Base64") && BackendsApiManager.getValidatorApiInstance
+              .doExprValidate(ExpressionNames.BASE64, i) =>
+          BackendsApiManager.getSparkPlanExecApiInstance.genBase64StaticInvokeTransformer(
+            ExpressionNames.BASE64,
+            doTransform(i.arguments.head),
+            i
+          )
+
+        case fn if staticInvokeMap.contains(fn) =>
+          validateAndTransform(staticInvokeMap(fn), i.arguments.map(doTransform))
+
+        case _ =>
+          throw new GlutenNotSupportException(
+            s"Not supported to transform StaticInvoke with object: $objName, function: $funcName")
+      }
+    }
+  }
+
+  private def replaceInvokeWithExpressionTransformer(
+      invoke: Invoke,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
+
+    // Pattern matching for different Invoke types
+    invoke match {
+      // StructsToJson evaluator
+      case StructsToJsonInvoke(options, child, timeZoneId) =>
+        val toJsonExpr = StructsToJson(options, child, timeZoneId)
+        val substraitExprName = getAndCheckSubstraitName(toJsonExpr, expressionsMap)
+        BackendsApiManager.getSparkPlanExecApiInstance.genToJsonTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(child, attributeSeq, expressionsMap),
+          toJsonExpr
+        )
+
+      // Unsupported invoke
+      case _ =>
+        throw new GlutenNotSupportException(
+          s"Not supported to transform Invoke with function: $invoke")
+    }
+  }
+
   private def replaceWithExpressionTransformer0(
       expr: Expression,
       attributeSeq: Seq[Attribute],
@@ -152,36 +254,59 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       s"replaceWithExpressionTransformer expr: $expr class: ${expr.getClass} " +
         s"name: ${expr.prettyName}")
 
-    expr match {
-      case p: PythonUDF =>
-        return replacePythonUDFWithExpressionTransformer(p, attributeSeq, expressionsMap)
-      case s: ScalaUDF =>
-        return replaceScalaUDFWithExpressionTransformer(s, attributeSeq, expressionsMap)
-      case _ if HiveUDFTransformer.isHiveUDF(expr) =>
-        return BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(
-          expr,
-          attributeSeq)
-      case i @ StaticInvoke(_, _, "encode" | "decode", Seq(_, _), _, _, _, _)
-          if i.objectName.endsWith("UrlCodec") =>
-        return GenericExpressionTransformer(
-          "url_" + i.functionName,
-          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
-          i)
-      case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
-        throw new GlutenNotSupportException(
-          s"Not supported to transform StaticInvoke with object: ${clz.getName}, " +
-            s"function: $functionName")
-      case _ =>
-    }
+    tryTransformWithoutExpressionMapping(expr, attributeSeq, expressionsMap).getOrElse {
+      val substraitExprName: String = getAndCheckSubstraitName(expr, expressionsMap)
+      val backendConverted = BackendsApiManager.getSparkPlanExecApiInstance
+        .extraExpressionConverter(substraitExprName, expr, attributeSeq)
 
-    val substraitExprName: String = getAndCheckSubstraitName(expr, expressionsMap)
-    val backendConverted = BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionConverter(
-      substraitExprName,
-      expr,
-      attributeSeq)
-    if (backendConverted.isDefined) {
-      return backendConverted.get
+      backendConverted.getOrElse(
+        transformExpression(expr, attributeSeq, expressionsMap, substraitExprName))
     }
+  }
+
+  /**
+   * Transform expressions that don't have direct expression class mapping in expressionsMap. This
+   * handles special cases like UDFs (Python, Scala, Hive), StaticInvoke, and Invoke expressions,
+   * where the transformation logic is based on runtime information rather than expression class
+   * type.
+   *
+   * @param expr
+   *   The expression to transform
+   * @param attributeSeq
+   *   The sequence of attributes for binding
+   * @param expressionsMap
+   *   The expression class to substrait name mapping (not used for these cases)
+   * @return
+   *   Some(ExpressionTransformer) if the expression matches one of these special cases, None
+   *   otherwise
+   */
+  private def tryTransformWithoutExpressionMapping(
+      expr: Expression,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): Option[ExpressionTransformer] = {
+    Option {
+      expr match {
+        case pythonUDF: PythonUDF =>
+          replacePythonUDFWithExpressionTransformer(pythonUDF, attributeSeq, expressionsMap)
+        case scalaUDF: ScalaUDF =>
+          replaceScalaUDFWithExpressionTransformer(scalaUDF, attributeSeq, expressionsMap)
+        case _ if HiveUDFTransformer.isHiveUDF(expr) =>
+          BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(expr, attributeSeq)
+        case staticInvoke: StaticInvoke =>
+          replaceStaticInvokeWithExpressionTransformer(staticInvoke, attributeSeq, expressionsMap)
+        case invoke: Invoke =>
+          replaceInvokeWithExpressionTransformer(invoke, attributeSeq, expressionsMap)
+        case _ =>
+          null
+      }
+    }
+  }
+
+  private def transformExpression(
+      expr: Expression,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String],
+      substraitExprName: String): ExpressionTransformer = {
     expr match {
       case c: CreateArray =>
         val children =
@@ -233,20 +358,20 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           a)
       case a: AttributeReference =>
         if (attributeSeq == null) {
-          throw new UnsupportedOperationException(s"attributeSeq should not be null.")
+          throw new UnsupportedOperationException("attributeSeq should not be null.")
         }
-        try {
-          val bindReference =
-            BindReferences.bindReference(expr, attributeSeq, allowFailures = false)
-          val b = bindReference.asInstanceOf[BoundReference]
-          AttributeReferenceTransformer(substraitExprName, a, b)
-        } catch {
-          case e: IllegalStateException =>
-            // This situation may need developers to fix, although we just throw the below
-            // exception to let the corresponding operator fall back.
-            throw new UnsupportedOperationException(
-              s"Failed to bind reference for $expr: ${e.getMessage}")
+        val input = AttributeSeq(attributeSeq)
+        if (input.indexOf(a.exprId) == -1) {
+          // This situation may need developers to fix, although we just throw the below
+          // exception to let the corresponding operator fall back.
+          throw new UnsupportedOperationException(
+            "Failed to bind reference: " +
+              s"couldn't find $a in ${input.attrs.mkString("[", ",", "]")}")
         }
+        val b = BindReferences
+          .bindReference(expr, input, allowFailures = false)
+          .asInstanceOf[BoundReference]
+        AttributeReferenceTransformer(substraitExprName, a, b)
       case b: BoundReference =>
         BoundReferenceTransformer(substraitExprName, b)
       case l: Literal =>
@@ -264,24 +389,18 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(r.child, attributeSeq, expressionsMap),
           r)
       case t: ToUnixTimestamp =>
-        // The failOnError depends on the config for ANSI. ANSI is not supported currently.
-        // And timeZoneId is passed to backend config.
-        GenericExpressionTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genToUnixTimestampTransformer(
           substraitExprName,
-          Seq(
-            replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap),
-            replaceWithExpressionTransformer0(t.format, attributeSeq, expressionsMap)
-          ),
+          replaceWithExpressionTransformer0(t.timeExp, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(t.format, attributeSeq, expressionsMap),
           t
         )
       case u: UnixTimestamp =>
-        GenericExpressionTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genToUnixTimestampTransformer(
           substraitExprName,
-          Seq(
-            replaceWithExpressionTransformer0(u.timeExp, attributeSeq, expressionsMap),
-            replaceWithExpressionTransformer0(u.format, attributeSeq, expressionsMap)
-          ),
-          ToUnixTimestamp(u.timeExp, u.format, u.timeZoneId, u.failOnError)
+          replaceWithExpressionTransformer0(u.timeExp, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(u.format, attributeSeq, expressionsMap),
+          u
         )
       case t: TruncTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTruncTimestampTransformer(
@@ -292,7 +411,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           t
         )
       case m: MonthsBetween =>
-        MonthsBetweenTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genMonthsBetweenTransformer(
           substraitExprName,
           replaceWithExpressionTransformer0(m.date1, attributeSeq, expressionsMap),
           replaceWithExpressionTransformer0(m.date2, attributeSeq, expressionsMap),
@@ -505,8 +624,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case CheckOverflow(b: BinaryArithmetic, decimalType, _)
           if !BackendsApiManager.getSettings.transformCheckOverflow &&
             DecimalArithmeticUtil.isDecimalArithmetic(b) =>
-        DecimalArithmeticUtil.checkAllowDecimalArithmetic()
-        val arithmeticExprName = getAndCheckSubstraitName(b, expressionsMap)
+        val arithmeticExprName =
+          BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
+            getAndCheckSubstraitName(b, expressionsMap))
         val left =
           replaceWithExpressionTransformer0(b.left, attributeSeq, expressionsMap)
         val right =
@@ -522,17 +642,18 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           "CheckOverflowInTableInsert is used in ANSI mode, but Gluten does not support ANSI mode."
         )
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
-        DecimalArithmeticUtil.checkAllowDecimalArithmetic()
+        val exprName = BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
+          substraitExprName)
         if (!BackendsApiManager.getSettings.transformCheckOverflow) {
           GenericExpressionTransformer(
-            substraitExprName,
+            exprName,
             expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
             expr
           )
         } else {
           // Without the rescale and remove cast, result is right for high version Spark,
           // but performance regression in velox
-          genRescaleDecimalTransformer(substraitExprName, b, attributeSeq, expressionsMap)
+          genRescaleDecimalTransformer(exprName, b, attributeSeq, expressionsMap)
         }
       case n: NaNvl =>
         BackendsApiManager.getSparkPlanExecApiInstance.genNaNvlTransformer(
@@ -552,20 +673,19 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           m.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
           m)
-      case timestampAdd if timestampAdd.getClass.getSimpleName.equals("TimestampAdd") =>
-        // for spark3.3
-        val extract = SparkShimLoader.getSparkShims.extractExpressionTimestampAddUnit(timestampAdd)
-        if (extract.isEmpty) {
-          throw new UnsupportedOperationException(s"Not support expression TimestampAdd.")
-        }
-        val add = timestampAdd.asInstanceOf[BinaryExpression]
-        TimestampAddTransformer(
+      case tsAdd: BinaryExpression if tsAdd.getClass.getSimpleName.equals("TimestampAdd") =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTimestampAddTransformer(
           substraitExprName,
-          extract.get.head,
-          replaceWithExpressionTransformer0(add.left, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformer0(add.right, attributeSeq, expressionsMap),
-          extract.get.last,
-          add
+          replaceWithExpressionTransformer0(tsAdd.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(tsAdd.right, attributeSeq, expressionsMap),
+          tsAdd
+        )
+      case tsDiff: BinaryExpression if tsDiff.getClass.getSimpleName.equals("TimestampDiff") =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTimestampDiffTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(tsDiff.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(tsDiff.right, attributeSeq, expressionsMap),
+          tsDiff
         )
       case e: Transformable =>
         val childrenTransformers =
@@ -658,6 +778,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           a,
           ExpressionNames.CHECKED_DIVIDE
         )
+      case i: IntegralDivide =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(i.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(i.right, attributeSeq, expressionsMap),
+          i,
+          ExpressionNames.CHECKED_DIV
+        )
       case tryEval: TryEval =>
         // This is a placeholder to handle try_eval(other expressions).
         BackendsApiManager.getSparkPlanExecApiInstance.genTryEvalTransformer(
@@ -703,7 +831,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case t: TransformKeys =>
         // default is `EXCEPTION`
         val mapKeyDedupPolicy = SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
-        if (mapKeyDedupPolicy == SQLConf.MapKeyDedupPolicy.LAST_WIN.toString) {
+
+        // Calling `.toString` on both sides ensures compatibility across all Spark versions.
+        // Starting from Spark 4.1, `SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)` returns
+        // an enum instead of a String. Without `.toString`, the comparison
+        // `mapKeyDedupPolicy == SQLConf.MapKeyDedupPolicy.LAST_WIN.toString` would silently fail
+        // in tests, producing only a "Comparing unrelated types" warning in IntelliJ IDEA,
+        // but no compile-time error.
+        if (mapKeyDedupPolicy.toString == SQLConf.MapKeyDedupPolicy.LAST_WIN.toString) {
           // TODO: Remove after fix ready for
           //  https://github.com/facebookincubator/velox/issues/10219
           throw new GlutenNotSupportException(
@@ -728,13 +863,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           dateAdd.children,
           dateAdd
         )
-      case timeAdd: TimeAdd =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genDateAddTransformer(
-          attributeSeq,
-          substraitExprName,
-          timeAdd.children,
-          timeAdd
-        )
       case ss: StringSplit =>
         BackendsApiManager.getSparkPlanExecApiInstance.genStringSplitTransformer(
           substraitExprName,
@@ -748,12 +876,31 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
           j)
+      case s: StructsToJson =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genToJsonTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(s.child, attributeSeq, expressionsMap),
+          s
+        )
+      case u: UnBase64 =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genUnbase64Transformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(u.child, attributeSeq, expressionsMap),
+          u
+        )
       case ce if BackendsApiManager.getSparkPlanExecApiInstance.expressionFlattenSupported(ce) =>
         replaceFlattenedExpressionWithExpressionTransformer(
           substraitExprName,
           ce,
           attributeSeq,
           expressionsMap)
+      case re: RaiseError =>
+        val errorMessage =
+          BackendsApiManager.getSparkPlanExecApiInstance.getErrorMessage(re)
+        GenericExpressionTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(errorMessage, attributeSeq, expressionsMap),
+          re)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
@@ -770,14 +917,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     // Check whether Gluten supports this expression
     expressionsMap
       .get(expr.getClass)
-      .flatMap {
-        name =>
-          if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(name, expr)) {
-            None
-          } else {
-            Some(name)
-          }
-      }
+      .filter(BackendsApiManager.getValidatorApiInstance.doExprValidate(_, expr))
       .getOrElse {
         throw new GlutenNotSupportException(
           s"Not supported to map spark function name" +

@@ -18,17 +18,15 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MapNode implements TypeNode, Serializable {
-  private final Boolean nullable;
+public class MapNode extends TypeNode {
   private final TypeNode keyType;
   private final TypeNode valType;
 
   public MapNode(Boolean nullable, TypeNode keyType, TypeNode valType) {
-    this.nullable = nullable;
+    super(nullable);
     this.keyType = keyType;
     this.valType = valType;
   }

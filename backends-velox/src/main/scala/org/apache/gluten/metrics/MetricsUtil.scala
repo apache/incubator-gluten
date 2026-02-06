@@ -20,6 +20,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.substrait.{AggregationParams, JoinParams}
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.metrics.TaskStatsAccumulator
 import org.apache.spark.sql.execution.SparkPlan
 
 import java.lang.{Long => JLong}
@@ -65,6 +66,9 @@ object MetricsUtil extends Logging {
       }
     }
 
+    val accumulator = new TaskStatsAccumulator()
+    child.session.sparkContext.register(accumulator, "velox task stats")
+
     val mut: MetricsUpdaterTree = treeifyMetricsUpdaters(child)
 
     genMetricsUpdatingFunction(
@@ -72,7 +76,8 @@ object MetricsUtil extends Logging {
       relMap,
       JLong.valueOf(relMap.size() - 1),
       joinParamsMap,
-      aggParamsMap)
+      aggParamsMap,
+      accumulator)
   }
 
   /**
@@ -117,6 +122,7 @@ object MetricsUtil extends Logging {
     var numReplacedWithDynamicFilterRows: Long = 0
     var flushRowCount: Long = 0
     var loadedToValueHook: Long = 0
+    var bloomFilterBlocksByteSize: Long = 0
     var scanTime: Long = 0
     var skippedSplits: Long = 0
     var processedSplits: Long = 0
@@ -128,7 +134,11 @@ object MetricsUtil extends Logging {
     var localReadBytes: Long = 0
     var ramReadBytes: Long = 0
     var preloadSplits: Long = 0
+    var pageLoadTime: Long = 0
+    var dataSourceAddSplitTime: Long = 0
+    var dataSourceReadTime: Long = 0
     var numWrittenFiles: Long = 0
+    var loadLazyVectorTime: Long = 0
 
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
@@ -147,6 +157,7 @@ object MetricsUtil extends Logging {
       numReplacedWithDynamicFilterRows += metrics.numReplacedWithDynamicFilterRows
       flushRowCount += metrics.flushRowCount
       loadedToValueHook += metrics.loadedToValueHook
+      bloomFilterBlocksByteSize += metrics.bloomFilterBlocksByteSize
       scanTime += metrics.scanTime
       skippedSplits += metrics.skippedSplits
       processedSplits += metrics.processedSplits
@@ -158,7 +169,11 @@ object MetricsUtil extends Logging {
       localReadBytes += metrics.localReadBytes
       ramReadBytes += metrics.ramReadBytes
       preloadSplits += metrics.preloadSplits
+      pageLoadTime += metrics.pageLoadTime
+      dataSourceAddSplitTime += metrics.dataSourceAddSplitTime
+      dataSourceReadTime += metrics.dataSourceReadTime
       numWrittenFiles += metrics.numWrittenFiles
+      loadLazyVectorTime += metrics.loadLazyVectorTime
     }
 
     new OperatorMetrics(
@@ -184,6 +199,7 @@ object MetricsUtil extends Logging {
       numReplacedWithDynamicFilterRows,
       flushRowCount,
       loadedToValueHook,
+      bloomFilterBlocksByteSize,
       scanTime,
       skippedSplits,
       processedSplits,
@@ -195,9 +211,13 @@ object MetricsUtil extends Logging {
       localReadBytes,
       ramReadBytes,
       preloadSplits,
+      pageLoadTime,
+      dataSourceAddSplitTime,
+      dataSourceReadTime,
       physicalWrittenBytes,
       writeIOTime,
-      numWrittenFiles
+      numWrittenFiles,
+      loadLazyVectorTime
     )
   }
 
@@ -229,17 +249,17 @@ object MetricsUtil extends Logging {
         })
 
     mutNode.updater match {
-      case ju: HashJoinMetricsUpdater =>
-        // JoinRel outputs two suites of metrics respectively for hash build and hash probe.
+      case smj: SortMergeJoinMetricsUpdater =>
+        smj.updateJoinMetrics(
+          operatorMetrics,
+          metrics.getSingleMetrics,
+          joinParamsMap.get(operatorIdx))
+      case ju: JoinMetricsUpdaterBase =>
+        // JoinRel and CrossRel output two suites of metrics respectively for build and probe.
         // Therefore, fetch one more suite of metrics here.
         operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
         curMetricsIdx -= 1
         ju.updateJoinMetrics(
-          operatorMetrics,
-          metrics.getSingleMetrics,
-          joinParamsMap.get(operatorIdx))
-      case smj: SortMergeJoinMetricsUpdater =>
-        smj.updateJoinMetrics(
           operatorMetrics,
           metrics.getSingleMetrics,
           joinParamsMap.get(operatorIdx))
@@ -316,7 +336,8 @@ object MetricsUtil extends Logging {
       relMap: JMap[JLong, JList[JLong]],
       operatorIdx: JLong,
       joinParamsMap: JMap[JLong, JoinParams],
-      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
+      aggParamsMap: JMap[JLong, AggregationParams],
+      taskStatsAccumulator: TaskStatsAccumulator): IMetrics => Unit = {
     imetrics =>
       try {
         val metrics = imetrics.asInstanceOf[Metrics]
@@ -332,6 +353,11 @@ object MetricsUtil extends Logging {
             numNativeMetrics - 1,
             joinParamsMap,
             aggParamsMap)
+
+          // Update the task stats accumulator with the metrics.
+          if (metrics.taskStats != null) {
+            taskStatsAccumulator.add(metrics.taskStats)
+          }
         }
       } catch {
         case e: Exception =>

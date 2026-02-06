@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.sql.shims.SparkShimLoader
 
+import org.apache.spark.Partition
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, PlanExpression, Predicate}
@@ -74,7 +75,7 @@ abstract class FileSourceScanExecShim(
 
   def hasFieldIds: Boolean = ParquetUtils.hasFieldIds(requiredSchema)
 
-  private def isDynamicPruningFilter(e: Expression): Boolean =
+  protected def isDynamicPruningFilter(e: Expression): Boolean =
     e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
 
   protected def setFilesNumAndSizeMetric(
@@ -100,16 +101,15 @@ abstract class FileSourceScanExecShim(
     val selected = if (dynamicPartitionFilters.nonEmpty) {
       GlutenTimeMetric.withMillisTime {
         // call the file index for the files matching all filters except dynamic partition filters
-        val predicate = dynamicPartitionFilters.reduce(And)
-        val partitionColumns = relation.partitionSchema
-        val boundPredicate = Predicate.create(
-          predicate.transform {
-            case a: AttributeReference =>
-              val index = partitionColumns.indexWhere(a.name == _.name)
-              BoundReference(index, partitionColumns(index).dataType, nullable = true)
-          },
-          Nil
-        )
+        val boundedFilters = dynamicPartitionFilters.map {
+          dynamicPartitionFilter =>
+            dynamicPartitionFilter.transform {
+              case a: AttributeReference =>
+                val index = relation.partitionSchema.indexWhere(a.name == _.name)
+                BoundReference(index, relation.partitionSchema(index).dataType, nullable = true)
+            }
+        }
+        val boundPredicate = Predicate.create(boundedFilters.reduce(And), Nil)
         val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
         setFilesNumAndSizeMetric(ret, static = false)
         ret
@@ -119,6 +119,14 @@ abstract class FileSourceScanExecShim(
     }
     sendDriverMetrics()
     selected
+  }
+
+  def getPartitionArray: Array[PartitionDirectory] = {
+    dynamicallySelectedPartitions
+  }
+
+  def getPartitionsSeq(): Seq[Partition] = {
+    Seq()
   }
 }
 

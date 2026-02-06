@@ -49,10 +49,12 @@ gluten::VeloxBatchResizer::VeloxBatchResizer(
     facebook::velox::memory::MemoryPool* pool,
     int32_t minOutputBatchSize,
     int32_t maxOutputBatchSize,
+    int64_t preferredBatchBytes,
     std::unique_ptr<ColumnarBatchIterator> in)
     : pool_(pool),
       minOutputBatchSize_(minOutputBatchSize),
       maxOutputBatchSize_(maxOutputBatchSize),
+      preferredBatchBytes_(static_cast<uint64_t>(preferredBatchBytes)),
       in_(std::move(in)) {
   GLUTEN_CHECK(
       minOutputBatchSize_ > 0 && maxOutputBatchSize_ > 0,
@@ -75,25 +77,33 @@ std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
     return nullptr;
   }
 
-  if (cb->numRows() < minOutputBatchSize_) {
+  uint64_t numBytes = cb->numBytes();
+  if (cb->numRows() < minOutputBatchSize_ && numBytes <= preferredBatchBytes_) {
     auto vb = VeloxColumnarBatch::from(pool_, cb);
     auto rv = vb->getRowVector();
     auto buffer = facebook::velox::RowVector::createEmpty(rv->type(), pool_);
     buffer->append(rv.get());
 
-    for (auto nextCb = in_->next(); nextCb != nullptr; nextCb = in_->next()) {
-      auto nextVb = VeloxColumnarBatch::from(pool_, nextCb);
-      auto nextRv = nextVb->getRowVector();
-      if (buffer->size() + nextRv->size() > maxOutputBatchSize_) {
+    for (cb = in_->next(); cb != nullptr; cb = in_->next()) {
+      vb = VeloxColumnarBatch::from(pool_, cb);
+      rv = vb->getRowVector();
+      uint64_t addedBytes = cb->numBytes();
+      if (buffer->size() + rv->size() > maxOutputBatchSize_ ||
+          numBytes + addedBytes > static_cast<uint64_t>(preferredBatchBytes_)) {
         GLUTEN_CHECK(next_ == nullptr, "Invalid state");
-        next_ = std::make_unique<SliceRowVector>(maxOutputBatchSize_, nextRv);
+        next_ = std::make_unique<SliceRowVector>(maxOutputBatchSize_, rv);
         return std::make_shared<VeloxColumnarBatch>(buffer);
       }
-      buffer->append(nextRv.get());
+      numBytes += addedBytes;
+      buffer->append(rv.get());
       if (buffer->size() >= minOutputBatchSize_) {
         // Buffer is full.
         break;
       }
+      // Call reset manully to potentially release memory
+      rv.reset();
+      vb.reset();
+      cb.reset();
     }
     return std::make_shared<VeloxColumnarBatch>(buffer);
   }

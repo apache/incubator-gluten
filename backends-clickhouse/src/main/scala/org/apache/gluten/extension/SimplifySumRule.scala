@@ -19,6 +19,7 @@ package org.apache.gluten.extension
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.analysis.TypeCoercion.ImplicitTypeCasts
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -48,17 +49,17 @@ case class SimplifySumRule(spark: SparkSession) extends Rule[LogicalPlan] {
         // Rule 1: sum(expr / literal) -> sum(expr) / literal
         case Divide(numerator, denominator @ Literal(_, _), _) =>
           val newSum = aggrExpr.copy(aggregateFunction = Sum(numerator))
-          Divide(newSum, denominator)
+          ImplicitTypeCasts.transform(Divide(newSum, denominator))
 
         // Rule 2: sum(expr * literal) -> literal * sum(expr)
         case Multiply(expr, literal @ Literal(_, _), _) =>
           val newSum = aggrExpr.copy(aggregateFunction = Sum(expr))
-          Multiply(literal, newSum)
+          ImplicitTypeCasts.transform(Multiply(literal, newSum))
 
         // Rule 3: sum(literal * expr) -> literal * sum(expr)
         case Multiply(literal @ Literal(_, _), expr, _) =>
           val newSum = aggrExpr.copy(aggregateFunction = Sum(expr))
-          Multiply(literal, newSum)
+          ImplicitTypeCasts.transform(Multiply(literal, newSum))
 
         case _ => aggrExpr
       }

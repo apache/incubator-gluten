@@ -25,7 +25,7 @@ function semver {
 
 install_maven_from_source() {
     if [ -z "$(which mvn)" ]; then
-        maven_version=3.9.2
+        maven_version=3.9.12
         maven_install_dir=/opt/maven-$maven_version
         if [ -d /opt/maven-$maven_version ]; then
             echo "Failed to install maven: ${maven_install_dir} is exists" >&2
@@ -33,9 +33,12 @@ install_maven_from_source() {
         fi
 
         cd /tmp
-        wget https://archive.apache.org/dist/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
-        tar -xvf apache-maven-$maven_version-bin.tar.gz
-        rm -f apache-maven-$maven_version-bin.tar.gz
+        local_binary="apache-maven-${maven_version}-bin.tar.gz";
+        mirror_host="https://www.apache.org/dyn/closer.lua";
+        url="${mirror_host}/maven/maven-3/${maven_version}/binaries/${local_binary}?action=download";
+        wget -nv -O ${local_binary} ${url};
+        tar -xvf ${local_binary};
+        rm -rf ${local_binary};
         mv apache-maven-$maven_version "${maven_install_dir}"
         ln -s "${maven_install_dir}/bin/mvn" /usr/local/bin/mvn
     fi
@@ -48,7 +51,9 @@ install_gcc11_from_source() {
             gcc_install_dir=/usr/local/${gcc_version}
             cd /tmp
             if [ ! -d $gcc_version ]; then
-                wget https://ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                GCC_URL1=https://ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                GCC_URL2=https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                wget ${GCC_URL1} || wget ${GCC_URL2}
                 tar -xvf ${gcc_version}.tar.gz
             fi
             cd ${gcc_version}
@@ -93,9 +98,11 @@ install_centos_7() {
 
     # Requires git >= 2.7.4
     if [[ "$(git --version)" != "git version 2."* ]]; then
-        [ -f /etc/yum.repos.d/ius.repo ] || yum -y install https://repo.ius.io/ius-release-el7.rpm
         yum -y remove git
-        yum -y install git236
+        # Requires 'centos-release-scl' package to be installed.
+        yum -y install rh-git227
+        source /opt/rh/rh-git227/enable
+        echo "source /opt/rh/rh-git227/enable" >> ~/.bashrc
     fi
 
     # flex>=2.6.0
@@ -116,7 +123,11 @@ install_centos_7() {
     installed_automake_version="$(aclocal --version | sed -En "1s/^.* ([1-9\.]*)$/\1/p")"
     if [ "$(semver "$installed_automake_version")" -lt "$(semver 1.14)" ]; then
         mkdir -p /tmp/automake
-        wget -O - http://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz | tar -x --xz -C /tmp/automake --strip-components=1
+        AUTOMAKE_URL1="https://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
+        AUTOMAKE_URL2="https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
+        wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL1" || wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL2"
+        tar -xf /tmp/automake.tar.xz -C /tmp/automake --strip-components=1
+        rm -f /tmp/automake.tar.xz
         cd /tmp/automake
         ./configure
         make install -j
@@ -154,6 +165,24 @@ install_centos_8() {
     install_maven_from_source
 }
 
+install_centos_9() {
+    yum -y install \
+        wget tar zip unzip git which sudo patch \
+        cmake perl-IPC-Cmd autoconf automake libtool \
+        gcc-toolset-12 \
+        flex bison python3 python3-pip \
+        java-17-openjdk java-17-openjdk-devel
+
+    pip3 install --upgrade pip
+
+    # Requires cmake >= 3.28.3
+    pip3 install cmake==3.28.3
+
+    dnf -y --enablerepo=crb install autoconf-archive ninja-build
+
+    install_maven_from_source
+}
+
 install_ubuntu_20.04() {
     apt-get update && apt-get -y install \
         wget curl tar zip unzip git \
@@ -169,6 +198,19 @@ install_ubuntu_20.04() {
 }
 
 install_ubuntu_22.04() { install_ubuntu_20.04; }
+
+install_openeuler_24.03() {
+    dnf -y update
+    dnf -y install dnf-plugins-core
+    dnf -y update
+    dnf -y install wget curl tar zip unzip git which bison flex \
+        gcc g++ cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
+        java-1.8.0-openjdk java-1.8.0-openjdk-devel python3-devel python3-pip libstdc++-static
+
+    pip install cmake==3.28.3
+
+    install_maven_from_source
+}
 
 install_alinux_3() {
     yum -y groupinstall "Development Tools"
@@ -250,7 +292,7 @@ eval "$(sed -En "/^(VERSION_|)ID=/s/^/OS_/p" /etc/os-release)"
 
 [ -n "$OS_ID" -a -n "$OS_VERSION_ID" ] || log_fatal "Failed to detect os: ID or VERSION_ID is empty"
 
-INSTALL_FUNC="install_${OS_ID}_${OS_VERSION_ID}"
+INSTALL_FUNC="install_$(echo "$OS_ID" | tr 'A-Z' 'a-z')_${OS_VERSION_ID}"
 [ "$(type -t "$INSTALL_FUNC")" == function ] || log_fatal "Unsupport OS: ${OS_ID} ${OS_VERSION_ID}"
 
 set -x

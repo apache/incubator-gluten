@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.fuzzer
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.RowToVeloxColumnarExec
 import org.apache.gluten.fuzzer.FuzzerResult.Successful
 import org.apache.gluten.tags.{FuzzerTest, SkipTest}
@@ -29,11 +30,11 @@ class RowToColumnarFuzzer extends FuzzerBase {
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.sql.columnar.filescan", "false")
+      .set(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key, "false")
   }
 
   private def checkOperators(df: DataFrame): Unit = {
-    checkGlutenOperatorMatch[RowToVeloxColumnarExec](df)
+    checkGlutenPlan[RowToVeloxColumnarExec](df)
   }
 
   private val TEST_ROW_TO_COLUMNAR = "row to columnar"

@@ -25,12 +25,12 @@ import org.apache.gluten.proto.ConfigMap
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import org.apache.gluten.utils.InputPartitionsUtil
+import org.apache.gluten.utils.PartitionsUtil
 import org.apache.gluten.vectorized.PlanEvaluatorJniWrapper
 
+import org.apache.spark.Partition
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.hive.execution.HiveFileFormat
@@ -39,13 +39,13 @@ import org.apache.spark.task.TaskResources
 import org.apache.spark.util.collection.BitSet
 
 import com.google.protobuf.{Any, Message}
+import org.apache.commons.lang3.math.NumberUtils
 
 import java.util.{Map => JMap}
 
 class VeloxTransformerApi extends TransformerApi with Logging {
 
-  /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
-  def genInputPartitionSeq(
+  def genPartitionSeq(
       relation: HadoopFsRelation,
       requiredSchema: StructType,
       selectedPartitions: Array[PartitionDirectory],
@@ -54,8 +54,8 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean,
-      filterExprs: Seq[Expression] = Seq.empty): Seq[InputPartition] = {
-    InputPartitionsUtil(
+      filterExprs: Seq[Expression] = Seq.empty): Seq[Partition] = {
+    PartitionsUtil(
       relation,
       requiredSchema,
       selectedPartitions,
@@ -64,13 +64,32 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       optionalBucketSet,
       optionalNumCoalescedBuckets,
       disableBucketedScan)
-      .genInputPartitionSeq()
+      .genPartitionSeq()
   }
 
   override def postProcessNativeConfig(
       nativeConfMap: JMap[String, String],
       backendPrefix: String): Unit = {
-    // TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
+    // S3A configurations that require time units for Velox.
+    // Hadoop-aws versions before 3.4 do not include time units by default.
+    // scalastyle:off line.size.limit
+    // Reference: https://hadoop.apache.org/docs/r3.3.6/hadoop-aws/tools/hadoop-aws/#General_S3A_Client_configuration
+    // scalastyle:on line.size.limit
+    val s3aTimeConfigs = Map(
+      "spark.hadoop.fs.s3a.connection.timeout" -> "ms",
+      "spark.hadoop.fs.s3a.connection.establish.timeout" -> "ms",
+      "spark.hadoop.fs.s3a.threads.keepalivetime" -> "s",
+      "spark.hadoop.fs.s3a.multipart.purge.age" -> "s"
+    )
+
+    s3aTimeConfigs.foreach {
+      case (configKey, defaultUnit) =>
+        val configValue = nativeConfMap.get(configKey)
+        if (NumberUtils.isCreatable(configValue)) {
+          // Config is numeric (no unit), append the default unit for backward compatibility
+          nativeConfMap.put(configKey, s"$configValue$defaultUnit")
+        }
+    }
   }
 
   override def createCheckOverflowExprNode(
@@ -85,7 +104,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       childNode
     } else {
       val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-      ExpressionBuilder.makeCast(typeNode, childNode, !nullOnOverflow)
+      ExpressionBuilder.makeCast(typeNode, childNode, nullOnOverflow)
     }
   }
 

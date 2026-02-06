@@ -18,10 +18,16 @@ package org.apache.gluten.integration
 
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 
-import java.io.File
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
+
+import java.net.URI
+
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 trait TableCreator {
-  def create(spark: SparkSession, dataPath: String): Unit
+  def create(spark: SparkSession, source: String, dataPath: String): Unit
 }
 
 object TableCreator {
@@ -30,21 +36,58 @@ object TableCreator {
   }
 
   private object DiscoverSchema extends TableCreator {
-    override def create(spark: SparkSession, dataPath: String): Unit = {
-      val files = new File(dataPath).listFiles()
-      files.foreach(file => {
-        if (spark.catalog.tableExists(file.getName)) {
-          println("Table exists: " + file.getName)
-        } else {
-          println("Creating catalog table: " + file.getName)
-          spark.catalog.createTable(file.getName, file.getAbsolutePath, "parquet")
-          try {
-            spark.catalog.recoverPartitions(file.getName)
-          } catch {
-            case _: AnalysisException =>
+    override def create(spark: SparkSession, source: String, dataPath: String): Unit = {
+      val uri = URI.create(dataPath)
+      val fs = FileSystem.get(uri, new Configuration())
+
+      val basePath = new Path(dataPath)
+      val statuses = fs.listStatus(basePath)
+
+      val tableDirs = statuses.filter(_.isDirectory).map(_.getPath)
+
+      val tableNames = ArrayBuffer[String]()
+
+      val existedTableNames = mutable.ArrayBuffer[String]()
+      val createdTableNames = mutable.ArrayBuffer[String]()
+      val recoveredPartitionTableNames = mutable.ArrayBuffer[String]()
+
+      tableDirs.foreach {
+        tablePath =>
+          val tableName = tablePath.getName
+          tableNames += tableName
+      }
+
+      println("Creating catalog tables: " + tableNames.mkString(", "))
+
+      tableDirs.foreach {
+        tablePath =>
+          val tableName = tablePath.getName
+          if (spark.catalog.tableExists(tableName)) {
+            existedTableNames += tableName
+          } else {
+            spark.catalog.createTable(tableName, tablePath.toString, source)
+            createdTableNames += tableName
+            try {
+              spark.catalog.recoverPartitions(tableName)
+              recoveredPartitionTableNames += tableName
+            } catch {
+              case _: AnalysisException =>
+            }
           }
-        }
-      })
+      }
+
+      if (tableNames.isEmpty) {
+        return
+      }
+      if (existedTableNames.nonEmpty) {
+        println("Tables already exists: " + existedTableNames.mkString(", "))
+      }
+      if (createdTableNames.nonEmpty) {
+        println("Tables created: " + createdTableNames.mkString(", "))
+      }
+      if (recoveredPartitionTableNames.nonEmpty) {
+        println("Recovered partition tables: " + recoveredPartitionTableNames.mkString(", "))
+      }
     }
   }
 }

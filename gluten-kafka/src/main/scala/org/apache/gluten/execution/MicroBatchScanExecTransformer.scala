@@ -20,8 +20,9 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.rel.{ReadRelNode, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, PartitionReaderFactory, Scan}
 import org.apache.spark.sql.connector.read.streaming.{MicroBatchStream, Offset}
@@ -63,13 +64,21 @@ case class MicroBatchScanExecTransformer(
   @transient override lazy val inputPartitionsShim: Seq[InputPartition] =
     stream.planInputPartitions(start, end)
 
-  override def filterExprs(): Seq[Expression] = Seq.empty
+  override def scanFilters: Seq[Expression] = Seq.empty
+
+  override def supportPushDownFilters: Boolean = false
+
+  def pushDownFilters: Option[Seq[Expression]] = None
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
-  override def outputAttributes(): Seq[Attribute] = output
+  // todo: consider grouped partitions
+  override def getPartitions: Seq[Partition] = inputPartitionsShim.zipWithIndex.map {
+    case (inputPartition, index) => new SparkDataSourceRDDPartition(index, Seq(inputPartition))
+  }
 
-  override def getPartitions: Seq[InputPartition] = inputPartitionsShim
+  override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
+    getPartitions.map((_, fileFormat))
 
   /** Returns the actual schema of this data source scan. */
   override def getDataSchema: StructType = scan.readSchema()
@@ -82,7 +91,8 @@ case class MicroBatchScanExecTransformer(
     MicroBatchScanExecTransformer.supportsBatchScan(scan)
   }
 
-  override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
+  override def getSplitInfosFromPartitions(
+      partitions: Seq[(Partition, ReadFileFormat)]): Seq[SplitInfo] = {
     val groupedPartitions = filteredPartitions.flatten
     groupedPartitions.zipWithIndex.map {
       case (p, _) => GlutenStreamKafkaSourceUtil.genSplitInfo(p)

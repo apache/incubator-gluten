@@ -16,11 +16,9 @@
  */
 package org.apache.gluten.execution.tpch
 
-import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
+import org.apache.gluten.execution.ParquetTPCHSuite
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.types.DoubleType
 
 import java.util.concurrent.ForkJoinPool
@@ -28,16 +26,7 @@ import java.util.concurrent.ForkJoinPool
 import scala.collection.parallel.ForkJoinTaskSupport
 import scala.collection.parallel.immutable.ParVector
 
-class GlutenClickHouseTPCHParquetAQEConcurrentSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
+class GlutenClickHouseTPCHParquetAQEConcurrentSuite extends ParquetTPCHSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -48,36 +37,22 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
-  override protected def runTPCHQuery(
-      queryNum: Int,
-      tpchQueries: String,
-      queriesResults: String,
-      compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    withDataFrame(tpchSQL(queryNum, tpchQueries)) {
+
+  private def checkResultWithoutDouble(queryNum: Int): Unit = {
+    withDataFrame(queryNum) {
       df =>
         val result = df.collect()
-        if (compareResult) {
-          val schema = df.schema
-          if (schema.exists(_.dataType == DoubleType)) {} else {
-            compareResultStr(s"q$queryNum", result, queriesResults)
-          }
-        } else {
-          df.collect()
+        val schema = df.schema
+        if (schema.exists(_.dataType == DoubleType)) {} else {
+          compareResultStr(s"q$queryNum", result, queriesResults)
         }
-        customCheck(df)
+        checkDataFrame(noFallBack = true, NOOP, df)
     }
   }
 
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
-
   test("fix race condition at the global variable of ColumnarOverrideRules::isAdaptiveContext") {
-
     val queries = ParVector((1 to 22) ++ (1 to 22) ++ (1 to 22) ++ (1 to 22): _*)
     queries.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(22))
-    queries.map(queryId => runTPCHQuery(queryId) { df => })
-
+    queries.map(queryId => checkResultWithoutDouble(queryId))
   }
 }

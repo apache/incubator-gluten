@@ -106,6 +106,8 @@ object MetricsUtil extends Logging {
         val numNativeMetrics = metrics.metricsDataList.size()
         val relSize = relMap.values().asScala.flatMap(l => l.asScala).size
         if (numNativeMetrics == 0 || numNativeMetrics != relSize) {
+          // TODO: if `RuntimeSettings.COLLECT_METRICS` set to false, we should not log the warning
+          //       otherwise, we should raise an exception
           logWarning(
             s"Updating native metrics failed due to the wrong size of metrics data: " +
               s"$numNativeMetrics")

@@ -18,17 +18,15 @@ package org.apache.gluten.integration.command;
 
 import org.apache.gluten.integration.action.Action;
 import org.apache.gluten.integration.action.DataGenOnly;
+
 import picocli.CommandLine;
 
 public class DataGenMixin {
-  @CommandLine.Option(names = {"--data-gen"}, description = "The strategy of data generation, accepted values: skip, once, always", defaultValue = "always")
+  @CommandLine.Option(
+      names = {"--data-gen"},
+      description = "The strategy of data generation, accepted values: skip, once, always",
+      defaultValue = "always")
   private String dataGenStrategy;
-
-  @CommandLine.Option(names = {"-s", "--scale"}, description = "The scale factor of sample TPC-H dataset", defaultValue = "0.1")
-  private double scale;
-
-  @CommandLine.Option(names = {"--gen-partitioned-data"}, description = "Generate data with partitions", defaultValue = "false")
-  private boolean genPartitionedData;
 
   public Action[] makeActions() {
     final DataGenOnly.Strategy strategy;
@@ -45,14 +43,6 @@ public class DataGenMixin {
       default:
         throw new IllegalArgumentException("Unexpected data-gen strategy: " + dataGenStrategy);
     }
-    return new Action[]{new org.apache.gluten.integration.action.DataGenOnly(strategy, scale, genPartitionedData)};
-  }
-
-  public double getScale() {
-    return scale;
-  }
-
-  public boolean genPartitionedData() {
-    return genPartitionedData;
+    return new Action[] {new org.apache.gluten.integration.action.DataGenOnly(strategy)};
   }
 }

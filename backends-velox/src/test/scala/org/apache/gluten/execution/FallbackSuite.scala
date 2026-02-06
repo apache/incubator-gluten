@@ -16,13 +16,18 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
+import org.apache.gluten.events.GlutenPlanFallbackEvent
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, SortExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
+import org.apache.spark.utils.GlutenSuiteUtils
+
+import scala.collection.mutable.ArrayBuffer
 
 class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -35,6 +40,9 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.memory.offHeap.size", "2g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
+      // The gluten ui event test suite expects the spark ui to be enabled.
+      .set(GlutenConfig.GLUTEN_UI_ENABLED.key, "true")
+      .set("spark.ui.enabled", "true")
   }
 
   override def beforeAll(): Unit = {
@@ -109,7 +117,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
 
   test("offload BroadcastExchange and fall back BHJ") {
     withSQLConf(
-      "spark.gluten.sql.columnar.broadcastJoin" -> "false"
+      GlutenConfig.COLUMNAR_BROADCAST_JOIN_ENABLED.key -> "false"
     ) {
       runQueryAndCompare(
         """
@@ -123,7 +131,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
             case _: BroadcastHashJoinExecTransformerBase => true
             case _ => false
           }
-          assert(!columnarBhj.isDefined)
+          assert(columnarBhj.isEmpty)
 
           val vanillaBhj = find(plan) {
             case _: BroadcastHashJoinExec => true
@@ -267,6 +275,87 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
         df =>
           val plan = df.queryExecution.executedPlan
           assert(collect(plan) { case smj: SortMergeJoinExec => smj }.size == 1)
+      }
+    }
+  }
+
+  test("fallback with index based schema evolution") {
+    val query = "SELECT c2 FROM test"
+    Seq("parquet", "orc").foreach {
+      format =>
+        Seq("true", "false").foreach {
+          parquetUseColumnNames =>
+            Seq("true", "false").foreach {
+              orcUseColumnNames =>
+                withSQLConf(
+                  VeloxConfig.PARQUET_USE_COLUMN_NAMES.key -> parquetUseColumnNames,
+                  VeloxConfig.ORC_USE_COLUMN_NAMES.key -> orcUseColumnNames
+                ) {
+                  withTable("test") {
+                    spark
+                      .range(100)
+                      .selectExpr("to_timestamp_ntz(from_unixtime(id % 3)) as c1", "id as c2")
+                      .write
+                      .format(format)
+                      .saveAsTable("test")
+
+                    runQueryAndCompare(query) {
+                      df =>
+                        val plan = df.queryExecution.executedPlan
+                        val fallback = parquetUseColumnNames == "false" ||
+                          orcUseColumnNames == "false"
+                        assert(collect(plan) { case g: GlutenPlan => g }.isEmpty == fallback)
+                    }
+                  }
+                }
+            }
+        }
+    }
+  }
+
+  test("fallback on spilt with unsupported regex") {
+    runQueryAndCompare("SELECT split(cast(c1 as string), '(?<=\\\\}),(?=\\\\{)') from tmp1") {
+      df =>
+        val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
+        assert(columnarToRow == 1)
+    }
+  }
+
+  test("get correct fallback reason on nodes without logicalLink") {
+    val events = new ArrayBuffer[GlutenPlanFallbackEvent]
+    val listener = new SparkListener {
+      override def onOtherEvent(event: SparkListenerEvent): Unit = {
+        event match {
+          case e: GlutenPlanFallbackEvent => events.append(e)
+          case _ =>
+        }
+      }
+    }
+    spark.sparkContext.addSparkListener(listener)
+    withSQLConf(GlutenConfig.COLUMNAR_SORT_ENABLED.key -> "false") {
+      try {
+        val df = spark.sql("""
+                             |SELECT
+                             |  c1,
+                             |  c2,
+                             |  ROW_NUMBER() OVER (PARTITION BY c1 ORDER BY c2) as row_num,
+                             |  RANK() OVER (PARTITION BY c1 ORDER BY c2) as rank_num
+                             |FROM tmp1
+                             |
+                             |""".stripMargin)
+        df.collect()
+        GlutenSuiteUtils.waitUntilEmpty(spark.sparkContext)
+        val sort = find(df.queryExecution.executedPlan) {
+          _.isInstanceOf[SortExec]
+        }
+        assert(sort.isDefined)
+        val fallbackReasons = events.flatMap(_.fallbackNodeToReason.values)
+        assert(fallbackReasons.nonEmpty)
+        assert(
+          fallbackReasons.forall(
+            _.contains("[FallbackByUserOptions] Validation failed on node Sort")))
+      } finally {
+        spark.sparkContext.removeSparkListener(listener)
       }
     }
   }

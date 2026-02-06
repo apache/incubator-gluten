@@ -20,15 +20,15 @@ AdaptiveSparkPlan (54)
                                     :     :     +- ColumnarBroadcastExchange (5)
                                     :     :        +- ^ ProjectExecTransformer (3)
                                     :     :           +- ^ FilterExecTransformer (2)
-                                    :     :              +- ^ ScanTransformer parquet  (1)
+                                    :     :              +- ^ FileSourceScanExecTransformer parquet  (1)
                                     :     +- ^ FilterExecTransformer (10)
-                                    :        +- ^ ScanTransformer parquet  (9)
+                                    :        +- ^ FileSourceScanExecTransformer parquet  (9)
                                     +- ^ InputIteratorTransformer (20)
                                        +- BroadcastQueryStage (18), Statistics(X)
                                           +- ColumnarBroadcastExchange (17)
                                              +- ^ ProjectExecTransformer (15)
                                                 +- ^ FilterExecTransformer (14)
-                                                   +- ^ ScanTransformer parquet  (13)
+                                                   +- ^ FileSourceScanExecTransformer parquet  (13)
 +- == Initial Plan ==
    TakeOrderedAndProject (53)
    +- HashAggregate (52)
@@ -50,7 +50,7 @@ AdaptiveSparkPlan (54)
                            +- Scan parquet (44)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [2]: [c_custkey#X, c_mktsegment#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -83,7 +83,7 @@ Input [1]: [c_custkey#X]
 (8) InputIteratorTransformer
 Input [1]: [c_custkey#X]
 
-(9) ScanTransformer parquet 
+(9) FileSourceScanExecTransformer parquet 
 Output [4]: [o_orderkey#X, o_custkey#X, o_orderdate#X, o_shippriority#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -104,7 +104,7 @@ Join condition: None
 Output [3]: [o_orderkey#X, o_orderdate#X, o_shippriority#X]
 Input [5]: [c_custkey#X, o_orderkey#X, o_custkey#X, o_orderdate#X, o_shippriority#X]
 
-(13) ScanTransformer parquet 
+(13) FileSourceScanExecTransformer parquet 
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -164,7 +164,7 @@ Arguments: false
 
 (26) VeloxResizeBatches
 Input [6]: [hash_partition_key#X, l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (27) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]

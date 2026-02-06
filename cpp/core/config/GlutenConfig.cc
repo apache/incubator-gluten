@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include "config/GlutenConfig.h"
+
 #include <boost/regex.hpp>
 #include <jni.h>
 #include <optional>

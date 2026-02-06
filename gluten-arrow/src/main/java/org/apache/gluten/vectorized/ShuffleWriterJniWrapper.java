@@ -37,167 +37,49 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  /**
-   * Construct native shuffle writer for shuffled RecordBatch over
-   *
-   * @param bufferSize size of native buffers held by each partition writer
-   * @param mergeBufferSize maximum size of the merged buffer
-   * @param mergeThreshold threshold to control whether native partition buffer need to be merged
-   * @param codec compression codec
-   * @param codecBackend HW backend for offloading compression
-   * @param dataFile acquired from spark IndexShuffleBlockResolver
-   * @param subDirsPerLocalDir SparkConf spark.diskStore.subDirectories
-   * @param localDirs configured local directories where Spark can write files
-   * @return native shuffle writer instance handle if created successfully.
-   */
-  public long make(
-      String shortName,
+  public native long createHashShuffleWriter(
       int numPartitions,
-      int bufferSize,
-      int mergeBufferSize,
-      double mergeThreshold,
-      String codec,
-      String codecBackend,
-      int compressionLevel,
-      int compressionBufferSize,
-      int diskWriteBufferSize,
-      int bufferCompressThreshold,
-      String compressionMode,
-      int sortBufferInitialSize,
-      boolean useRadixSort,
-      String dataFile,
-      int subDirsPerLocalDir,
-      String localDirs,
-      double reallocThreshold,
-      long handle,
-      long taskAttemptId,
+      String partitioningName,
       int startPartitionId,
-      String shuffleWriterType) {
-    return nativeMake(
-        shortName,
-        numPartitions,
-        bufferSize,
-        mergeBufferSize,
-        mergeThreshold,
-        codec,
-        codecBackend,
-        compressionLevel,
-        compressionBufferSize,
-        diskWriteBufferSize,
-        bufferCompressThreshold,
-        compressionMode,
-        sortBufferInitialSize,
-        useRadixSort,
-        dataFile,
-        subDirsPerLocalDir,
-        localDirs,
-        reallocThreshold,
-        handle,
-        taskAttemptId,
-        startPartitionId,
-        0,
-        0,
-        null,
-        "local",
-        shuffleWriterType);
-  }
+      int splitBufferSize,
+      double splitBufferReallocThreshold,
+      long partitionWriterHandle);
 
-  /**
-   * Construct RSS native shuffle writer for shuffled RecordBatch over
-   *
-   * @param bufferSize size of native buffers hold by partition writer
-   * @param codec compression codec
-   * @return native shuffle writer instance handle if created successfully.
-   */
-  public long makeForRSS(
-      String shortName,
+  public native long createSortShuffleWriter(
       int numPartitions,
-      int bufferSize,
-      String codec,
-      int compressionLevel,
-      int compressionBufferSize,
+      String partitioningName,
+      int startPartitionId,
       int diskWriteBufferSize,
-      int bufferCompressThreshold,
-      String compressionMode,
-      int sortBufferInitialSize,
+      int initialSortBufferSize,
       boolean useRadixSort,
-      int pushBufferMaxSize,
+      long partitionWriterHandle);
+
+  public native long createRssSortShuffleWriter(
+      int numPartitions,
+      String partitioningName,
+      int startPartitionId,
+      int splitBufferSize,
       long sortBufferMaxSize,
-      Object pusher,
-      long handle,
-      long taskAttemptId,
-      int startPartitionId,
-      String partitionWriterType,
-      String shuffleWriterType,
-      double reallocThreshold) {
-    return nativeMake(
-        shortName,
-        numPartitions,
-        bufferSize,
-        0,
-        0,
-        codec,
-        null,
-        compressionLevel,
-        compressionBufferSize,
-        diskWriteBufferSize,
-        bufferCompressThreshold,
-        compressionMode,
-        sortBufferInitialSize,
-        useRadixSort,
-        null,
-        0,
-        null,
-        reallocThreshold,
-        handle,
-        taskAttemptId,
-        startPartitionId,
-        pushBufferMaxSize,
-        sortBufferMaxSize,
-        pusher,
-        partitionWriterType,
-        shuffleWriterType);
-  }
-
-  public native long nativeMake(
-      String shortName,
-      int numPartitions,
-      int bufferSize,
-      int mergeBufferSize,
-      double mergeThreshold,
       String codec,
-      String codecBackend,
-      int compressionLevel,
-      int compressionBufferSize,
-      int diskWriteBufferSize,
-      int bufferCompressThreshold,
-      String compressionMode,
-      int sortBufferInitialSize,
-      boolean useRadixSort,
-      String dataFile,
-      int subDirsPerLocalDir,
-      String localDirs,
-      double reallocThreshold,
-      long handle,
-      long taskAttemptId,
+      long partitionWriterHandle);
+
+  public native long createGpuHashShuffleWriter(
+      int numPartitions,
+      String partitioningName,
       int startPartitionId,
-      int pushBufferMaxSize,
-      long sortBufferMaxSize,
-      Object pusher,
-      String partitionWriterType,
-      String shuffleWriterType);
+      int splitBufferSize,
+      double splitBufferReallocThreshold,
+      long partitionWriterHandle);
 
   /**
-   * Evict partition data.
+   * Reclaim memory from the shuffle writer instance. It will first try to shrink allocated memory,
+   * and may trigger a spill if needed.
    *
    * @param shuffleWriterHandle shuffle writer instance handle
-   * @param size expected size to Evict (in bytes)
-   * @param callBySelf whether the caller is the shuffle writer itself, true when running out of
-   *     off-heap memory due to allocations from the evaluator itself
+   * @param size expected size to reclaim (in bytes)
    * @return actual spilled size
    */
-  public native long nativeEvict(long shuffleWriterHandle, long size, boolean callBySelf)
-      throws RuntimeException;
+  public native long reclaim(long shuffleWriterHandle, long size) throws RuntimeException;
 
   /**
    * Split one record batch represented by bufAddrs and bufSizes into several batches. The batch is
@@ -205,12 +87,13 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    *
    * @param shuffleWriterHandle shuffle writer instance handle
    * @param numRows Rows per batch
-   * @param handler handler of Velox Vector
+   * @param columnarBatchHandle handle of Velox Vector
    * @param memLimit memory usage limit for the split operation FIXME setting a cap to pool /
    *     allocator instead
    * @return batch bytes.
    */
-  public native long write(long shuffleWriterHandle, int numRows, long handler, long memLimit);
+  public native long write(
+      long shuffleWriterHandle, int numRows, long columnarBatchHandle, long memLimit);
 
   /**
    * Write the data remained in the buffers hold by native shuffle writer to each partition's

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.execution.ProjectExecTransformer
 import org.apache.gluten.tags.{SkipTest, UDFTest}
 
@@ -163,19 +164,19 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
 
           val offloadWithImplicitConversionDF =
             spark.sql(s"""SELECT hive_string_string(col1, 'a') FROM $tbl""")
-          checkGlutenOperatorMatch[ProjectExecTransformer](offloadWithImplicitConversionDF)
+          checkGlutenPlan[ProjectExecTransformer](offloadWithImplicitConversionDF)
           val offloadWithImplicitConversionResult = offloadWithImplicitConversionDF.collect()
 
           val offloadDF =
             spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""")
-          checkGlutenOperatorMatch[ProjectExecTransformer](offloadDF)
+          checkGlutenPlan[ProjectExecTransformer](offloadDF)
           val offloadResult = offloadWithImplicitConversionDF.collect()
 
           // Unregister native hive udf to fallback.
           UDFResolver.UDFNames.remove("org.apache.spark.sql.hive.execution.UDFStringString")
           val fallbackDF =
             spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""")
-          checkSparkOperatorMatch[ProjectExec](fallbackDF)
+          checkSparkPlan[ProjectExec](fallbackDF)
           val fallbackResult = fallbackDF.collect()
           assert(offloadWithImplicitConversionResult.sameElements(fallbackResult))
           assert(offloadResult.sameElements(fallbackResult))
@@ -187,7 +188,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
                       |AS 'org.apache.spark.sql.hive.execution.UDFIntegerToString'
                       |""".stripMargin)
           val df = spark.sql(s"""select hive_int_to_string(col1) from $tbl""")
-          checkSparkOperatorMatch[ProjectExec](df)
+          checkSparkPlan[ProjectExec](df)
           checkAnswer(df, Seq(Row("1"), Row("2"), Row("3")))
         } finally {
           spark.sql(s"DROP TABLE IF EXISTS $tbl")
@@ -240,7 +241,7 @@ class VeloxUdfSuiteLocal extends VeloxUdfSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.files", udfLibPath)
-      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibRelativePath)
+      .set(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, udfLibRelativePath)
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
   }
 }
@@ -277,8 +278,8 @@ class VeloxUdfSuiteCluster extends VeloxUdfSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.files", udfLibPath)
-      .set("spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths", driverUdfLibPath)
-      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibRelativePath)
+      .set(VeloxBackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS, driverUdfLibPath)
+      .set(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, udfLibRelativePath)
       .set("spark.driver.extraClassPath", glutenJar)
       .set("spark.executor.extraClassPath", glutenJar)
   }

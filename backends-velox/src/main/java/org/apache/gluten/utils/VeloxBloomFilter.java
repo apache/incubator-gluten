@@ -19,15 +19,16 @@ package org.apache.gluten.utils;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.runtime.Runtimes;
 
+import io.netty.util.internal.PlatformDependent;
 import org.apache.commons.io.IOUtils;
 import org.apache.spark.util.sketch.BloomFilter;
 import org.apache.spark.util.sketch.IncompatibleMergeException;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 public class VeloxBloomFilter extends BloomFilter {
   private final VeloxBloomFilterJniWrapper jni =
@@ -49,19 +50,15 @@ public class VeloxBloomFilter extends BloomFilter {
 
   public static VeloxBloomFilter readFrom(InputStream in) {
     try {
-      byte[] all = IOUtils.toByteArray(in);
-      return new VeloxBloomFilter(all);
+      byte[] data = IOUtils.toByteArray(in);
+      return new VeloxBloomFilter(data);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
   public static VeloxBloomFilter readFrom(byte[] data) {
-    try (ByteArrayInputStream in = new ByteArrayInputStream(data)) {
-      return readFrom(in);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    return new VeloxBloomFilter(data);
   }
 
   public byte[] serialize() {
@@ -143,6 +140,35 @@ public class VeloxBloomFilter extends BloomFilter {
   @Override
   public boolean mightContainLong(long item) {
     return jni.mightContainLong(handle, item);
+  }
+
+  /**
+   * GLUTEN-9849: We have to use this API for static may-contain evaluation over {@link
+   * #mightContainLong} in Spark because if we are on Spark driver, there is no task context
+   * available for managing the releasing of the native bloom-filter handles. In the case, it's
+   * practical to serialize the bloom-filter into a Java direct buffer, then invoke this API for
+   * zero-copy may-contain evaluation. JVM should manage the releasing correctly for the direct
+   * buffer that stores the serialized bloom-filter data.
+   */
+  public static boolean mightContainLongOnSerializedBloom(ByteBuffer serializedBloom, long item) {
+    return mightContainLongOnSerializedBloom(
+        PlatformDependent.directBufferAddress(serializedBloom), item);
+  }
+
+  /**
+   * Similar to the previous method, but accepts the exact memory address of the bloom-filter data
+   * as input.
+   */
+  public static boolean mightContainLongOnSerializedBloom(long address, long item) {
+    return VeloxBloomFilterJniWrapper.mightContainLongOnSerializedBloom(address, item);
+  }
+
+  /** Serializes the current bloom-filter into a direct byte buffer. */
+  public ByteBuffer serializeToDirectBuffer() {
+    final byte[] serialized = serialize();
+    final ByteBuffer bb = ByteBuffer.allocateDirect(serialized.length);
+    bb.put(serialized);
+    return bb;
   }
 
   @Override

@@ -62,13 +62,14 @@ Gluten supports 30+ operators (Drag to right to see all data types)
 |                             | The enforce single row operation checks that input contains at most one row and returns that row unmodified                                                                 | N                                                      | EnforceSingleRowNode  | NS      | NS   | NS    | NS  | NS   | NS    | NS     | NS     | NS   | NS     | NS    | NS  | NS          | NS   | NS        | NS      | NS       | NS  |
 |                             | The assign unique id operation adds one column at the end of the input columns with unique value per row                                                                    | N                                                      | AssignUniqueIdNode    | NS      | NS   | NS    | NS  | NS   | NS    | NS     | NS     | NS   | NS     | NS    | NS  | NS          | S    | S         | S       | S        | S   |
 | ReusedExchangeExec          | A wrapper for reused exchange to have different output                                                                                                                      | ReusedExchangeExec                                     | N                     |         |      |       |     |      |       |        |        |      |        |       |     |             |      |           |         |          |     |
-| CollectLimitExec            | Reduce to single partition and apply limit                                                                                                                                  | N                                                      | N                     |         |      |       |     |      |       |        |        |      |        |       |     |             |      |           |         |          |     |
+| CollectLimitExec            | Reduce to single partition and apply limit                                                                                                                                  | ColumnarCollectLimitExec                               | N                     | S       | S    | S     | S   | S    | S     | S      | S      | S    | S      | S     | S   | S           | S    | S         | S       | S        | S   |
+| CollectTailExec             | Collect the tail `x` elements from dataframe                                                                                                                                | ColumnarCollectTailExec                                | N                     | S       | S    | S     | S   | S    | S     | S      | S      | S    | S      | S     | S   | S           | S    | S         | S       | S        | S   |
 | BroadcastExchangeExec       | The backend for broadcast exchange of data                                                                                                                                  | Y                                                      | Y                     | S       | S    | S     | S   | S    | S     | S      | S      | S    | S      | NS    | NS  | NS          | S    | NS        | S       | NS       | NS  |
 | ObjectHashAggregateExec     | The backend for hash based aggregations supporting TypedImperativeAggregate functions                                                                                       | HashAggregateExecBaseTransformer                       | N                     |         |      |       |     |      |       |        |        |      |        |       |     |             |      |           |         |          |     |
 | SortAggregateExec           | The backend for sort based aggregations                                                                                                                                     | HashAggregateExecBaseTransformer (Partially supported) | N                     |         |      |       |     |      |       |        |        |      |        |       |     |             |      |           |         |          |     |
 | CoalesceExec                | Reduce the partition numbers                                                                                                                                                | CoalesceExecTransformer                                | N                     |         |      |       |     |      |       |        |        |      |        |       |     |             |      |           |         |          |     |
 | GenerateExec                | The backend for operations that generate more output rows than input rows like explode                                                                                      | GenerateExecTransformer                                | UnnestNode            |         |      |       |     |      |       |        |        |      |        |       |     |             |      |           |         |          |     |
-| RangeExec                   | The backend for range operator                                                                                                                                              | N                                                      | N                     |         |      |       |     |      |       |        |        |      |        |       |     |             |      |           |         |          |     |
+| RangeExec                   | The backend for range operator                                                                                                                                              | ColumnarRangeExec                                      | N                     | S       | S    | S     | S   | S    | S     | S      | S      | S    | S      | S     | S   | S           | S    | S         | S       | S        | S   | 
 | SampleExec                  | The backend for the sample operator                                                                                                                                         | SampleExecTransformer                                  | N                     |         |      |       |     |      |       |        |        |      |        |       |     |             |      |           |         |          |     |
 | SubqueryBroadcastExec       | Plan to collect and transform the broadcast key values                                                                                                                      | Y                                                      | Y                     | S       | S    | S     | S   | S    | S     | S      | S      | S    | S      | NS    | NS  | NS          | S    | NS        | S       | NS       | NS  |
 | TakeOrderedAndProjectExec   | Take the first limit elements as defined by the sortOrder, and do projection if needed                                                                                      | Y                                                      | Y                     | S       | S    | S     | S   | S    | S     | S      | S      | S    | S      | NS    | NS  | NS          | S    | NS        | S       | NS       | NS  |
@@ -91,10 +92,23 @@ Gluten supports 30+ operators (Drag to right to see all data types)
 Spark categorizes built-in functions into four types: Scalar Functions, Aggregate Functions,
 Window Functions, and Generator Functions.
 In Gluten, function support is automatically generated by a script and maintained in separate files.
-Run the following command to generate and update the support status. Note that `--spark_home` should
-be set to the directory containing the Spark source code for the latest supported Spark version in
-Gluten, and the Spark project must be built from source.
 
+When running the script, the `--spark_home` arg should be set to either:
+* The directory containing the Spark source code for the latest supported Spark version in Gluten, and the Spark
+  project must be built from source.
+* Or use the `install-spark-resources.sh` script to get a directory with the necessary resource files:
+  ```
+  # Define a directory to use for the Spark files and the latest Spark version
+  export spark_dir=/tmp/spark
+  export spark_version=3.5
+
+  # Run the install-spark-resources.sh script
+  .github/workflows/util/install-spark-resources.sh ${spark_version} ${spark_dir}
+  ```
+  After running the `install-spark-resources.sh`, the `--spark_home` for the document generation script will be
+  something like: `--spark_home=${spark_dir}/shims/spark35/spark_home"`
+
+Use the following command to generate and update the support status:
 ```shell
 python3 tools/scripts/gen-function-support-docs.py --spark_home=/path/to/spark_source_code
 ```

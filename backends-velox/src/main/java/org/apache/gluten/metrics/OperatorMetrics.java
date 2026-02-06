@@ -40,6 +40,7 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long numReplacedWithDynamicFilterRows;
   public long flushRowCount;
   public long loadedToValueHook;
+  public long bloomFilterBlocksByteSize;
   public long skippedSplits;
   public long processedSplits;
   public long skippedStrides;
@@ -50,10 +51,15 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long localReadBytes;
   public long ramReadBytes;
   public long preloadSplits;
+  public long pageLoadTime;
+  public long dataSourceAddSplitTime;
+  public long dataSourceReadTime;
 
   public long physicalWrittenBytes;
   public long writeIOTime;
   public long numWrittenFiles;
+
+  public long loadLazyVectorTime;
 
   /** Create an instance for operator metrics. */
   public OperatorMetrics(
@@ -79,6 +85,7 @@ public class OperatorMetrics implements IOperatorMetrics {
       long numReplacedWithDynamicFilterRows,
       long flushRowCount,
       long loadedToValueHook,
+      long bloomFilterBlocksByteSize,
       long scanTime,
       long skippedSplits,
       long processedSplits,
@@ -90,9 +97,13 @@ public class OperatorMetrics implements IOperatorMetrics {
       long localReadBytes,
       long ramReadBytes,
       long preloadSplits,
+      long pageLoadTime,
+      long dataSourceAddSplitTime,
+      long dataSourceReadTime,
       long physicalWrittenBytes,
       long writeIOTime,
-      long numWrittenFiles) {
+      long numWrittenFiles,
+      long loadLazyVectorTime) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -116,6 +127,7 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;
     this.flushRowCount = flushRowCount;
     this.loadedToValueHook = loadedToValueHook;
+    this.bloomFilterBlocksByteSize = bloomFilterBlocksByteSize;
     this.skippedSplits = skippedSplits;
     this.processedSplits = processedSplits;
     this.skippedStrides = skippedStrides;
@@ -126,8 +138,12 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.localReadBytes = localReadBytes;
     this.ramReadBytes = ramReadBytes;
     this.preloadSplits = preloadSplits;
+    this.pageLoadTime = pageLoadTime;
+    this.dataSourceAddSplitTime = dataSourceAddSplitTime;
+    this.dataSourceReadTime = dataSourceReadTime;
     this.physicalWrittenBytes = physicalWrittenBytes;
     this.writeIOTime = writeIOTime;
     this.numWrittenFiles = numWrittenFiles;
+    this.loadLazyVectorTime = loadLazyVectorTime;
   }
 }

@@ -21,6 +21,7 @@ import org.apache.gluten.datasource.ArrowCSVFileFormat
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.{ArrowFileSourceScanExec, BaseArrowScanExec, ColumnarToRowExec}
+import org.apache.spark.sql.execution.columnar.SparkCacheUtil
 import org.apache.spark.sql.types.{IntegerType, StringType, StructType}
 
 import org.scalatest.Ignore
@@ -81,6 +82,18 @@ class ArrowCsvScanWithTableCacheSuite extends ArrowCsvScanSuiteBase {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "csv")
       .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
+  }
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    // A common practice as well as in Spark tests, to clear the cache serializer
+    // in case it was already set as the default row-based serializer.
+    SparkCacheUtil.clearCacheSerializer()
+  }
+
+  override def afterAll(): Unit = {
+    SparkCacheUtil.clearCacheSerializer()
+    super.afterAll()
   }
 
   /**
@@ -147,7 +160,7 @@ abstract class ArrowCsvScanSuite extends ArrowCsvScanSuiteBase {
       runQueryAndCompare("""
                            |insert into insert_csv_t select * from student;
                            |""".stripMargin) {
-        checkGlutenOperatorMatch[BaseArrowScanExec]
+        checkGlutenPlan[BaseArrowScanExec]
       }
     }
   }

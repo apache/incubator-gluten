@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.types.StructType
 
@@ -30,7 +31,9 @@ case class MergeTreePartRange(
     bucketNum: String,
     start: Long,
     marks: Long,
-    size: Long) {
+    size: Long,
+    rowIndexFilterType: String,
+    rowIndexFilterIdEncoded: String) {
   override def toString: String = {
     s"part name: $name, range: $start-${start + marks}"
   }
@@ -42,7 +45,9 @@ case class MergeTreePartSplit private (
     targetNode: String,
     start: Long,
     length: Long,
-    bytesOnDisk: Long) {
+    bytesOnDisk: Long,
+    rowIndexFilterType: String,
+    rowIndexFilterIdEncoded: String) {
   override def toString: String = {
     s"part name: $name, range: $start-${start + length}"
   }
@@ -55,12 +60,22 @@ object MergeTreePartSplit {
       targetNode: String,
       start: Long,
       length: Long,
-      bytesOnDisk: Long
+      bytesOnDisk: Long,
+      rowIndexFilterType: String,
+      rowIndexFilterIdEncoded: String
   ): MergeTreePartSplit = {
     // Ref to org.apache.spark.sql.delta.files.TahoeFileIndex.absolutePath
     val uriDecodeName = new Path(new URI(name)).toString
     val uriDecodeDirName = new Path(new URI(dirName)).toString
-    new MergeTreePartSplit(uriDecodeName, uriDecodeDirName, targetNode, start, length, bytesOnDisk)
+    new MergeTreePartSplit(
+      uriDecodeName,
+      uriDecodeDirName,
+      targetNode,
+      start,
+      length,
+      bytesOnDisk,
+      rowIndexFilterType,
+      rowIndexFilterIdEncoded)
   }
 }
 
@@ -81,7 +96,8 @@ case class GlutenMergeTreePartition(
     partList: Array[MergeTreePartSplit],
     tableSchema: StructType,
     clickhouseTableConfigs: Map[String, String])
-  extends InputPartition {
+  extends Partition
+  with InputPartition {
   override def preferredLocations(): Array[String] = {
     Array.empty[String]
   }

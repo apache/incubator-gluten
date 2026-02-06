@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.expression.ExpressionConverter
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}

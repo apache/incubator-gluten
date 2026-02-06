@@ -33,10 +33,9 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* arrowPool);
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options,
+      MemoryManager* memoryManager);
 
   arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
 
@@ -53,10 +52,9 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
  private:
   VeloxSortShuffleWriter(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* pool);
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<SortShuffleWriterOptions>& options,
+      MemoryManager* memoryManager);
 
   arrow::Status init();
 
@@ -77,7 +75,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   arrow::Status evictPartition(uint32_t partitionId, size_t begin, size_t end);
 
-  arrow::Status evictPartitionInternal(uint32_t partitionId, uint8_t* buffer, int64_t rawLength);
+  arrow::Status evictPartitionInternal(uint32_t partitionId, uint32_t numRows, uint8_t* buffer, int64_t rawLength);
 
   facebook::velox::vector_size_t maxRowsToInsert(
       facebook::velox::vector_size_t offset,
@@ -95,6 +93,10 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   void updateSpillMetrics(const std::unique_ptr<InMemoryPayload>& payload);
 
+  bool useRadixSort_;
+  int32_t initialSortBufferSize_;
+  int32_t diskWriteBufferSize_;
+
   // Stores compact row id -> row
   facebook::velox::BufferPtr array_;
   uint64_t* arrayPtr_;
@@ -104,7 +106,9 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   std::list<facebook::velox::BufferPtr> pages_;
   std::vector<char*> pageAddresses_;
   char* currentPage_;
+  // 13-bit: max 8192 pages
   uint32_t pageNumber_;
+  // 27-bit: max 128MB page size
   uint32_t pageCursor_;
   // For debug.
   uint32_t currenPageSize_;
@@ -114,7 +118,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   // Row ID -> Partition ID
   // subscript: The index of row in the current input RowVector
-  // value: Partition ID
+  // value: Partition ID (24-bit: max 16M partitions)
   // Updated for each input RowVector.
   std::vector<uint32_t> row2Partition_;
 

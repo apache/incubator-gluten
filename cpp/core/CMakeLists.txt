@@ -128,7 +128,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     memory/MemoryManager.cc
     memory/ArrowMemoryPool.cc
     memory/ColumnarBatch.cc
-    operators/writer/ArrowWriter.cc
+    shuffle/Dictionary.cc
     shuffle/FallbackRangePartitioner.cc
     shuffle/HashPartitioner.cc
     shuffle/LocalPartitionWriter.cc
@@ -138,7 +138,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     shuffle/rss/RssPartitionWriter.cc
     shuffle/RandomPartitioner.cc
     shuffle/RoundRobinPartitioner.cc
-    shuffle/ShuffleMemoryPool.cc
     shuffle/ShuffleWriter.cc
     shuffle/SinglePartitioner.cc
     shuffle/Spill.cc
@@ -177,15 +176,7 @@ if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
 endif()
 
 find_arrow_lib(${ARROW_LIB_NAME})
-find_arrow_lib(${PARQUET_LIB_NAME})
 find_arrow_lib(${ARROW_BUNDLED_DEPS})
-
-if(ENABLE_HBM)
-  include(BuildMemkind)
-  target_sources(gluten PRIVATE memory/HbwAllocator.cc)
-  target_link_libraries(gluten PRIVATE memkind::memkind)
-  add_definitions(-DGLUTEN_ENABLE_HBM)
-endif()
 
 if(ENABLE_QAT)
   include(BuildQATzip)
@@ -194,13 +185,6 @@ if(ENABLE_QAT)
   target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR}
                                            ${QATZSTD_INCLUDE_DIR})
   target_link_libraries(gluten PUBLIC qatzip::qatzip qatzstd::qatzstd)
-endif()
-
-if(ENABLE_IAA)
-  include(BuildQpl)
-  target_include_directories(gluten PUBLIC ${QPL_INCLUDE_DIR})
-  target_sources(gluten PRIVATE utils/qpl/QplJobPool.cc utils/qpl/QplCodec.cc)
-  target_link_libraries(gluten PUBLIC qpl::qpl)
 endif()
 
 find_protobuf()
@@ -244,7 +228,7 @@ else()
   set(LIBHDFS3_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-target_link_libraries(gluten PUBLIC Arrow::parquet Arrow::arrow
+target_link_libraries(gluten PUBLIC Arrow::arrow
                                     Arrow::arrow_bundled_dependencies)
 target_link_libraries(gluten PRIVATE google::glog)
 

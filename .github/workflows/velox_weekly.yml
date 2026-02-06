@@ -13,32 +13,72 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend weekly job
+name: Velox Backend Weekly Job
 
 on:
   pull_request:
     paths:
       - '.github/workflows/velox_weekly.yml'
+      - 'build/mvn'
   schedule:
     - cron: '0 20 * * 0'
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  TPCH_TEST: "env GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare 
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1"
+  INSTALL_PREFIX: /usr/local
+
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
+  build-on-centos-7:
+    strategy:
+      fail-fast: false
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ubuntu-22.04
+    container: centos:7
+    steps:
+      - name: Build Gluten native libraries and package
+        run: |
+          sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
+          sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
+          yum update -y
+          yum install -y epel-release sudo dnf
+          yum install -y centos-release-scl
+          rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
+          sed -i \
+          -e 's/^mirrorlist/#mirrorlist/' \
+          -e 's/^#baseurl/baseurl/' \
+          -e 's/mirror\.centos\.org/vault.centos.org/' \
+          /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+          yum install -y devtoolset-11
+          source /opt/rh/devtoolset-11/enable
+          yum install -y java-1.8.0-openjdk-devel patch wget git perl python3-pip
+          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
+          export PATH=$JAVA_HOME/bin:$PATH
+          
+          # action/checkout does not work centos7 anymore, so we clone the branch instead.
+          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
+          if [ ${{ github.event_name }} = "pull_request" ]; then
+            git fetch origin ${{ github.ref }}:pr_branch && git checkout pr_branch
+          fi
+          ./dev/package.sh --spark_version=3.5
+
   build-on-centos:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "centos:7", "centos:8", "quay.io/centos/centos:stream9" ]
+        os: [ "centos:8", "quay.io/centos/centos:stream9" ]
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Update mirror list
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -67,36 +107,119 @@ jobs:
           yum install -y java-1.8.0-openjdk-devel patch wget git perl
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           export PATH=$JAVA_HOME/bin:$PATH
-          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-          mv apache-maven-3.8.8 /usr/lib/maven && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
-          ./dev/package.sh
+
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh --spark_version=3.5
 
   build-on-ubuntu:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu:20.04", "ubuntu:22.04" ]
+        os: [ "ubuntu:22.04" ] # skip "ubuntu:20.04" due to not enough disk space
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: build
         run: |
+          # sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
           # To avoid the prompt for region selection during installing tzdata.
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update && apt-get install -y sudo maven wget git
+          apt-get update && apt-get install -y sudo maven wget git curl
           if [ "${{ matrix.os }}" = "ubuntu:20.04" ]; then
             sudo apt install -y software-properties-common
             sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-            sudo apt update && sudo apt install -y gcc-11 g++-11
+            sudo apt update && sudo apt install -y gcc-11 g++-11 build-essential cmake
             export CC=/usr/bin/gcc-11
             export CXX=/usr/bin/g++-11
+            wget https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.1.tar.gz
+            tar xf v0.8.1.tar.gz
+            cd xxHash-0.8.1/
+            make && make install
+            cd /tmp
+            wget https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz
+            tar xf v1.13.0.tar.gz && cd googletest-1.13.0/
+            export CXXFLAGS=-fPIC
+            cmake . && make install -j
+            apt autoremove -y
+            rm -rf /tmp/*
           fi
-          sudo apt-get install -y openjdk-8-jdk
+          sudo apt-get install -y openjdk-8-jdk python3-pip cmake
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh --spark_version=3.5
+
+  build-on-openeuler:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "openeuler/openeuler:24.03" ]
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ubuntu-24.04-arm
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch git perl
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/
+          ./dev/package.sh --spark_version=3.5
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $GITHUB_WORKSPACE/build/mvn -ntp clean install -Pspark-3.5
+          cp $GITHUB_WORKSPACE/package/target/thirdparty-lib/gluten-thirdparty-lib-*.jar package/target/lib/
+      - name: Run TPC-H
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $TPCH_TEST --extra-conf=spark.gluten.loadLibFromJar=true \
+            --extra-conf=spark.gluten.loadLibOS=openEuler --extra-conf=spark.gluten.loadLibOSVersion=24.03
+
+  build-on-openeuler-vcpkg:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ "openeuler/openeuler:24.03" ]
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: ubuntu-24.04-arm
+    container: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          dnf update -y && dnf install -y java-1.8.0-openjdk-devel sudo patch git perl
+          echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/
+          ./dev/vcpkg/setup-build-depends.sh
+          ./dev/package-vcpkg.sh --build_arrow=ON --spark_version=3.5
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $GITHUB_WORKSPACE/build/mvn -ntp clean install -Pspark-3.5
+      - name: Run TPC-H
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          cd $GITHUB_WORKSPACE/tools/gluten-it
+          $TPCH_TEST
+
+  build-on-macos:
+    strategy:
+      fail-fast: false
+    if: ${{ startsWith(github.repository, 'apache/') }}
+    runs-on: macos-15
+    env:
+      INSTALL_PREFIX: /tmp/deps-install
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install Dependencies
+        run: brew install wget pkgconfig abseil ccache
+      - name: Build
+        run: ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --build_tests=ON --build_benchmarks=ON --spark_version=3.5

@@ -18,4 +18,9 @@ package org.apache.gluten.execution
 
 import org.apache.spark.sql.execution.UnaryExecNode
 
+/**
+ * A columnar-to-columnar transition. By implementing this trait, the class will be seen by
+ * [[org.apache.gluten.extension.columnar.transition.RemoveTransitions]] and removed when that rule
+ * is executed.
+ */
 trait ColumnarToColumnarTransition extends UnaryExecNode

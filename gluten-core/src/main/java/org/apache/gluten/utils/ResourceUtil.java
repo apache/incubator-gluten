@@ -25,14 +25,10 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
 /**
@@ -61,7 +57,7 @@ public class ResourceUtil {
     final List<String> buffer = new ArrayList<>();
     final Enumeration<URL> containerUrls;
     try {
-      containerUrls = Thread.currentThread().getContextClassLoader().getResources(container);
+      containerUrls = ResourceUtil.class.getClassLoader().getResources(container);
     } catch (IOException e) {
       throw new GlutenException(e);
     }
@@ -108,14 +104,12 @@ public class ResourceUtil {
     final ZipFile zf;
     try {
       zf = new ZipFile(jarFile);
-    } catch (final ZipException e) {
-      throw new RuntimeException(e);
     } catch (final IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
-    final Enumeration e = zf.entries();
+    final Enumeration<? extends ZipEntry> e = zf.entries();
     while (e.hasMoreElements()) {
-      final ZipEntry ze = (ZipEntry) e.nextElement();
+      final ZipEntry ze = e.nextElement();
       final String fileName = ze.getName();
       if (!fileName.startsWith(dir)) {
         continue;
@@ -130,13 +124,13 @@ public class ResourceUtil {
     try {
       zf.close();
     } catch (final IOException e1) {
-      throw new RuntimeException(e1);
+      throw new GlutenException(e1);
     }
   }
 
   private static void getResourcesFromDirectory(
       final File root, final File directory, final Pattern pattern, final List<String> buffer) {
-    final File[] fileList = directory.listFiles();
+    final File[] fileList = Objects.requireNonNull(directory.listFiles());
     for (final File file : fileList) {
       if (file.isDirectory()) {
         getResourcesFromDirectory(root, file, pattern, buffer);

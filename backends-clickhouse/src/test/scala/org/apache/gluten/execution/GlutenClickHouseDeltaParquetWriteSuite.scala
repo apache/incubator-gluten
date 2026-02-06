@@ -16,13 +16,13 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.RuntimeSettings
 import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.gluten.delta.DeltaStatsUtils
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.files.TahoeFileIndex
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import io.delta.tables.DeltaTable
 
@@ -31,17 +31,7 @@ import java.io.File
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
-class GlutenClickHouseDeltaParquetWriteSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  import org.apache.gluten.backendsapi.clickhouse.CHConfig._
+class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -54,12 +44,8 @@ class GlutenClickHouseDeltaParquetWriteSuite
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, spark35.toString)
       .set("spark.sql.storeAssignmentPolicy", "legacy")
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
       .set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   private val q1SchemaString: String =
@@ -89,7 +75,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
   private def createLineitem(table: String): String =
     s"""CREATE TABLE IF NOT EXISTS $table ($q1SchemaString) USING delta
        |TBLPROPERTIES (write.format.default = 'parquet')
-       |LOCATION '$basePath/$table'
+       |LOCATION '$dataHome/$table'
        |""".stripMargin
 
   test("test parquet table write with the delta") {
@@ -100,7 +86,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     val table = "lineitem_delta_parquet"
     doInsert(drop(table), createLineitem(table), insert(table))
 
-    runTPCHQueryBySQL(1, q1(table)) {
+    customCheckQuery(q1(table)) {
       df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -109,7 +95,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
         assert(plans.size === 4)
 
         val parquetScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet "))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet "))
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -124,14 +110,14 @@ class GlutenClickHouseDeltaParquetWriteSuite
       val expected = DeltaStatsUtils
         .statsDF(
           spark,
-          s"$basePath/$vanillaTable/_delta_log/00000000000000000001.json",
+          s"$dataHome/$vanillaTable/_delta_log/00000000000000000001.json",
           q1SchemaString)
         .collect()
 
       checkAnswer(
         DeltaStatsUtils.statsDF(
           spark,
-          s"$basePath/$table/_delta_log/00000000000000000001.json",
+          s"$dataHome/$table/_delta_log/00000000000000000001.json",
           q1SchemaString),
         expected
       )
@@ -160,7 +146,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       s"""
          |CREATE TABLE IF NOT EXISTS $table ($q1SchemaString) USING delta
          |PARTITIONED BY (l_shipdate)
-         |LOCATION '$basePath/$table'
+         |LOCATION '$dataHome/$table'
          |""".stripMargin,
       s"""
          | insert into table $table select * from lineitem
@@ -186,7 +172,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                    |($q1SchemaString)
                    |USING delta
                    |PARTITIONED BY (l_shipdate)
-                   |LOCATION '$basePath/lineitem_delta_parquet_insertoverwrite3'
+                   |LOCATION '$dataHome/lineitem_delta_parquet_insertoverwrite3'
                    |""".stripMargin)
 
       spark.sql(s"""
@@ -221,7 +207,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                  |CREATE TABLE IF NOT EXISTS lineitem_delta_parquet_update
                  |($q1SchemaString)
                  |USING delta
-                 |LOCATION '$basePath/lineitem_delta_parquet_update'
+                 |LOCATION '$dataHome/lineitem_delta_parquet_update'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -253,7 +239,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       assert(scanExec.size === 1)
 
       val parquetScan = scanExec.head
-      assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+      assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -279,7 +265,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                  |CREATE TABLE IF NOT EXISTS lineitem_delta_parquet_delete
                  |($q1SchemaString)
                  |USING delta
-                 |LOCATION '$basePath/lineitem_delta_parquet_delete'
+                 |LOCATION '$dataHome/lineitem_delta_parquet_delete'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -329,7 +315,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                  |CREATE TABLE IF NOT EXISTS lineitem_delta_parquet_upsert
                  |($q1SchemaString)
                  |USING delta
-                 |LOCATION '$basePath/lineitem_delta_parquet_upsert'
+                 |LOCATION '$dataHome/lineitem_delta_parquet_upsert'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -415,7 +401,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                  |($q1SchemaString)
                  |USING delta
                  |PARTITIONED BY (l_shipdate, l_returnflag)
-                 |LOCATION '$basePath/lineitem_delta_parquet_partition'
+                 |LOCATION '$dataHome/lineitem_delta_parquet_partition'
                  |""".stripMargin)
 
     // dynamic partitions
@@ -488,7 +474,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
          |  l_comment from lineitem
          |  where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
          |""".stripMargin)
-    runTPCHQueryBySQL(1, q1("lineitem_delta_parquet_partition"), compareResult = false) {
+    customCheckQuery(q1("lineitem_delta_parquet_partition"), compare = false) {
       df =>
         val result = df.collect()
         assert(result.length === 2)
@@ -506,7 +492,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
         assert(scanExec.size === 1)
 
         val parquetScan = scanExec.head
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
         assert(parquetScan.metrics("numFiles").value === 201)
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -527,11 +513,11 @@ class GlutenClickHouseDeltaParquetWriteSuite
     spark.sql(s"""
                  |CREATE TABLE lineitem_delta_parquet_ctas1
                  |USING delta
-                 |LOCATION '$basePath/lineitem_delta_parquet_ctas1'
+                 |LOCATION '$dataHome/lineitem_delta_parquet_ctas1'
                  | as select * from lineitem
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1("lineitem_delta_parquet_ctas1")) {
+    customCheckQuery(q1("lineitem_delta_parquet_ctas1")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -539,7 +525,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
         assert(scanExec.size === 1)
 
         val parquetScan = scanExec.head
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -556,14 +542,14 @@ class GlutenClickHouseDeltaParquetWriteSuite
                  |CREATE TABLE IF NOT EXISTS lineitem_delta_parquet_ctas2
                  |USING delta
                  |PARTITIONED BY (l_returnflag)
-                 |LOCATION '$basePath/lineitem_mergetree_ctas2'
+                 |LOCATION '$dataHome/lineitem_mergetree_ctas2'
                  | as select * from lineitem
                  |""".stripMargin)
-    runTPCHQueryBySQL(1, q1("lineitem_delta_parquet_ctas2")) { _ => {} }
+    checkQuery(q1("lineitem_delta_parquet_ctas2"))
   }
 
   test("test path based parquet write with the delta") {
-    val dataPath = s"$basePath/lineitem_delta_parquet_filebased"
+    val dataPath = s"$dataHome/lineitem_delta_parquet_filebased"
     clearDataPath(dataPath)
     val sourceDF = spark.sql("select * from lineitem")
     spark.sql(s"CREATE TABLE delta.`$dataPath` ($q1SchemaString) USING delta")
@@ -581,7 +567,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       .mode(SaveMode.Overwrite)
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"delta.`$dataPath`")) {
+    customCheckQuery(q1(s"delta.`$dataPath`")) {
       df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -590,7 +576,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
         assert(plans.size === 4)
 
         val parquetScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -607,7 +593,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
   test(
     "test path based parquet insert overwrite partitioned table with small table, static with delta") {
-    val dataPath = s"$basePath/lineitem_delta_parquet_insertoverwrite2"
+    val dataPath = s"$dataHome/lineitem_delta_parquet_insertoverwrite2"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -641,7 +627,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
   test(
     "test path based parquet insert overwrite partitioned table with small table, dynamic with delta") {
     withSQLConf(("spark.sql.sources.partitionOverwriteMode", "dynamic")) {
-      val dataPath = s"$basePath/lineitem_delta_parquet_insertoverwrite3"
+      val dataPath = s"$dataHome/lineitem_delta_parquet_insertoverwrite3"
       clearDataPath(dataPath)
 
       val sourceDF = spark.sql(s"""
@@ -674,7 +660,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
   }
 
   test("test path based parquet update with the delta") {
-    val dataPath = s"$basePath/lineitem_delta_parquet_update"
+    val dataPath = s"$dataHome/lineitem_delta_parquet_update"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -702,7 +688,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       assert(scanExec.size === 1)
 
       val parquetScan = scanExec.head
-      assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+      assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -724,7 +710,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       assert(scanExec.size === 1)
 
       val parquetScan = scanExec.head
-      assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+      assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil)
@@ -738,7 +724,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
   }
 
   test("test path based parquet delete with the delta") {
-    val dataPath = s"$basePath/lineitem_delta_parquet_delete"
+    val dataPath = s"$dataHome/lineitem_delta_parquet_delete"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -774,7 +760,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
   }
 
   test("test path based parquet upsert with the delta") {
-    val dataPath = s"$basePath/lineitem_delta_parquet_upsert"
+    val dataPath = s"$dataHome/lineitem_delta_parquet_upsert"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -852,7 +838,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
   }
 
   test("test path based parquet write with partition + delta") {
-    val dataPath = s"$basePath/lineitem_delta_parquet_partition"
+    val dataPath = s"$dataHome/lineitem_delta_parquet_partition"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -876,7 +862,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"delta.`$dataPath`"), compareResult = false) {
+    customCheckQuery(q1(s"delta.`$dataPath`"), compare = false) {
       df =>
         val result = df.collect()
         assert(result.length === 2)
@@ -894,7 +880,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
         assert(scanExec.size === 1)
 
         val parquetScan = scanExec.head
-        assert(parquetScan.nodeName.startsWith("ScanTransformer parquet"))
+        assert(parquetScan.nodeName.startsWith("FileSourceScanExecTransformer parquet"))
         assert(parquetScan.metrics("numFiles").value === 200)
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -907,7 +893,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
   }
 
   test("test path based parquet CTAS with delta") {
-    val dataPath = s"$basePath/lineitem_delta_parquet_ctas"
+    val dataPath = s"$dataHome/lineitem_delta_parquet_ctas"
     clearDataPath(dataPath)
 
     spark.sql(s"""
@@ -917,7 +903,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                  | as select * from lineitem
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1(s"delta.`$dataPath`")) { _ => {} }
+    checkQuery(q1(s"delta.`$dataPath`"))
   }
 
   test("test parquet optimize basic") {
@@ -929,7 +915,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       spark.sql(s"""
                    |CREATE TABLE IF NOT EXISTS lineitem_delta_parquet_optimize
                    |USING delta
-                   |LOCATION '$basePath/lineitem_delta_parquet_optimize'
+                   |LOCATION '$dataHome/lineitem_delta_parquet_optimize'
                    | as select  /*+ REPARTITION(20) */ * from lineitem
                    |""".stripMargin)
 
@@ -938,7 +924,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       assert(ret.apply(0).get(0) === 600572)
 
       assert(
-        countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize")) === 24
+        countFiles(new File(s"$dataHome/lineitem_delta_parquet_optimize")) === 24
       )
     }
   }
@@ -948,6 +934,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       val files = directory.listFiles
       val count = files
         .filter(!_.getName.endsWith(".crc"))
+        .filter(!_.getName.endsWith("vacuum_info"))
         .count(_.isFile) + files.filter(_.isDirectory).map(countFiles).sum
       count
     } else {
@@ -964,7 +951,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                  |CREATE TABLE IF NOT EXISTS lineitem_delta_parquet_optimize_p2
                  |USING delta
                  |PARTITIONED BY (l_returnflag)
-                 |LOCATION '$basePath/lineitem_delta_parquet_optimize_p2'
+                 |LOCATION '$dataHome/lineitem_delta_parquet_optimize_p2'
                  | as select /*+ REPARTITION(6) */ * from lineitem
                  |""".stripMargin)
 
@@ -982,12 +969,12 @@ class GlutenClickHouseDeltaParquetWriteSuite
     val ret = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p2").collect()
     assert(ret.apply(0).get(0) === 600572)
 
-    assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) === 23)
+    assert(countFiles(new File(s"$dataHome/lineitem_delta_parquet_optimize_p2")) === 23)
     spark.sql("VACUUM lineitem_delta_parquet_optimize_p2 RETAIN 0 HOURS")
     if (spark32) {
-      assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) === 5)
+      assert(countFiles(new File(s"$dataHome/lineitem_delta_parquet_optimize_p2")) === 5)
     } else {
-      assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) === 7)
+      assert(countFiles(new File(s"$dataHome/lineitem_delta_parquet_optimize_p2")) === 7)
     }
 
     val ret2 = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p2").collect()
@@ -1004,7 +991,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                    |CREATE TABLE IF NOT EXISTS lineitem_delta_parquet_optimize_p4
                    |USING delta
                    |PARTITIONED BY (l_linenumber,l_returnflag)
-                   |LOCATION '$basePath/lineitem_delta_parquet_optimize_p4'
+                   |LOCATION '$dataHome/lineitem_delta_parquet_optimize_p4'
                    | as select /*+ REPARTITION(6) */ * from lineitem
                    |""".stripMargin)
 
@@ -1012,12 +999,12 @@ class GlutenClickHouseDeltaParquetWriteSuite
       val ret = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p4").collect()
       assert(ret.apply(0).get(0) === 600572)
 
-      assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) === 149)
+      assert(countFiles(new File(s"$dataHome/lineitem_delta_parquet_optimize_p4")) === 149)
       spark.sql("VACUUM lineitem_delta_parquet_optimize_p4 RETAIN 0 HOURS")
       if (spark32) {
-        assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) === 23)
+        assert(countFiles(new File(s"$dataHome/lineitem_delta_parquet_optimize_p4")) === 23)
       } else {
-        assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) === 25)
+        assert(countFiles(new File(s"$dataHome/lineitem_delta_parquet_optimize_p4")) === 25)
       }
 
       val ret2 = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p4").collect()
@@ -1026,7 +1013,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
   }
 
   test("test parquet optimize with the path based table") {
-    val dataPath = s"$basePath/lineitem_delta_parquet_optimize_path_based"
+    val dataPath = s"$dataHome/lineitem_delta_parquet_optimize_path_based"
     clearDataPath(dataPath)
     withSQLConf(
       "spark.databricks.delta.optimize.maxFileSize" -> "1100000",

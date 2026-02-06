@@ -19,25 +19,7 @@ package org.apache.gluten.vectorized;
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.DateDayVector;
-import org.apache.arrow.vector.DecimalVector;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.Float4Vector;
-import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.NullVector;
-import org.apache.arrow.vector.SmallIntVector;
-import org.apache.arrow.vector.TimeStampMicroTZVector;
-import org.apache.arrow.vector.TimeStampMicroVector;
-import org.apache.arrow.vector.TimeStampVector;
-import org.apache.arrow.vector.TinyIntVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.VectorLoader;
-import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -56,8 +38,8 @@ import org.apache.spark.sql.execution.vectorized.WritableColumnVectorShim;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.sql.utils.SparkArrowUtil;
 import org.apache.spark.sql.utils.SparkSchemaUtil;
-import org.apache.spark.sql.vectorized.ColumnarArray;
-import org.apache.spark.sql.vectorized.ColumnarMap;
+import org.apache.spark.sql.vectorized.ArrowColumnarArray;
+import org.apache.spark.sql.vectorized.ArrowColumnarMap;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.slf4j.Logger;
@@ -107,6 +89,23 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       vectors[i] = new ArrowWritableColumnVector(fieldVectors.get(i), i, capacity, true);
     }
     // LOG.info("allocateColumns allocator is " + allocator);
+    return vectors;
+  }
+
+  public static ArrowWritableColumnVector[] allocateColumns(
+      int valueCount, long[] totalSizes, StructType schema) {
+    String timeZoneId = SparkSchemaUtil.getLocalTimezoneID();
+    Schema arrowSchema = SparkArrowUtil.toArrowSchema(schema, timeZoneId);
+    VectorSchemaRoot newRoot =
+        VectorSchemaRoot.create(arrowSchema, ArrowBufferAllocators.contextInstance());
+
+    List<FieldVector> fieldVectors = newRoot.getFieldVectors();
+    ArrowWritableColumnVector[] vectors = new ArrowWritableColumnVector[fieldVectors.size()];
+    for (int i = 0; i < fieldVectors.size(); i++) {
+      vectors[i] =
+          new ArrowWritableColumnVector(
+              fieldVectors.get(i), null, i, valueCount, totalSizes[i], true);
+    }
     return vectors;
   }
 
@@ -164,6 +163,41 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     if (init) {
       vector.setInitialCapacity(capacity);
       vector.allocateNew();
+    }
+    writer = createVectorWriter(vector);
+    createVectorAccessor(vector, dicionaryVector);
+  }
+
+  public ArrowWritableColumnVector(
+      ValueVector vector,
+      ValueVector dicionaryVector,
+      int ordinal,
+      int valueCount,
+      long totalBytes,
+      boolean init) {
+    super(valueCount, SparkArrowUtil.fromArrowField(vector.getField()));
+    vectorCount.getAndIncrement();
+    refCnt.getAndIncrement();
+
+    this.ordinal = ordinal;
+    this.vector = vector;
+    this.dictionaryVector = dicionaryVector;
+    if (init) {
+      if (vector instanceof VariableWidthVector) {
+        ((VariableWidthVector) vector).allocateNew(totalBytes, capacity);
+      } else if (vector instanceof DensityAwareVector) {
+        double density;
+        if (vector instanceof ListVector) {
+          density = Math.sqrt(1.0 * totalBytes / valueCount);
+        } else {
+          density = 1.0 * totalBytes / valueCount;
+        }
+        ((DensityAwareVector) vector).setInitialCapacity(capacity, density);
+        vector.allocateNew();
+      } else {
+        vector.setInitialCapacity(capacity);
+        vector.allocateNew();
+      }
     }
     writer = createVectorWriter(vector);
     createVectorAccessor(vector, dicionaryVector);
@@ -344,7 +378,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   @Override
-  protected ArrowWritableColumnVector reserveNewColumn(int capacity, DataType type) {
+  public ArrowWritableColumnVector reserveNewColumn(int capacity, DataType type) {
     return new ArrowWritableColumnVector(capacity, type);
   }
 
@@ -375,6 +409,32 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
 
   public static String stat() {
     return "vectorCounter is " + vectorCount.get();
+  }
+
+  // `get` method in Spark `ColumnarArray` doesn't check null values and arrow vectors will throw
+  // exception when we try to access a null value, so here we return `ArrowColumnarMap`
+  // as a workaround.
+  public MapData getMapInternal(int rowId) {
+    return accessor.getMap(rowId);
+  }
+
+  // `get` method in Spark `ColumnarArray` doesn't check null values and arrow vectors will throw
+  // exception when we try to access a null value, so here we return `ArrowColumnarMap`
+  // as a workaround.
+  public ArrayData getArrayInternal(int rowId) {
+    return accessor.getArray(rowId);
+  }
+
+  // `get` method in Spark `ColumnarRow` doesn't check whether the data to get is a null value,
+  // so we return `ArrowColumnarRow` as a workaround.
+  public ArrowColumnarRow getStructInternal(int rowId) {
+    if (isNullAt(rowId)) return null;
+    ArrowWritableColumnVector[] writableColumns =
+        new ArrowWritableColumnVector[childColumns.length];
+    for (int i = 0; i < writableColumns.length; i++) {
+      writableColumns[i] = (ArrowWritableColumnVector) childColumns[i];
+    }
+    return new ArrowColumnarRow(writableColumns, rowId);
   }
 
   @Override
@@ -753,6 +813,10 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     writer.write(input, ordinal);
   }
 
+  public void writeUnsafe(SpecializedGetters input, int ordinal) {
+    writer.writeUnsafe(input, ordinal);
+  }
+
   public void finishWrite() {
     writer.finish();
   }
@@ -845,7 +909,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       throw new UnsupportedOperationException();
     }
 
-    ColumnarArray getArray(int rowId) {
+    ArrayData getArray(int rowId) {
       throw new UnsupportedOperationException();
     }
 
@@ -857,7 +921,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       throw new UnsupportedOperationException();
     }
 
-    ColumnarMap getMap(int rowId) {
+    MapData getMap(int rowId) {
       throw new UnsupportedOperationException();
     }
   }
@@ -1191,8 +1255,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     }
 
     @Override
-    final ColumnarArray getArray(int rowId) {
-      return new ColumnarArray(elements, getArrayOffset(rowId), getArrayLength(rowId));
+    final ArrayData getArray(int rowId) {
+      return new ArrowColumnarArray(elements, getArrayOffset(rowId), getArrayLength(rowId));
     }
 
     @Override
@@ -1216,11 +1280,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     }
 
     @Override
-    final ColumnarMap getMap(int rowId) {
+    final MapData getMap(int rowId) {
       int index = rowId * MapVector.OFFSET_WIDTH;
       int offset = accessor.getOffsetBuffer().getInt(index);
       int length = accessor.getInnerValueCountAt(rowId);
-      return new ColumnarMap(keys, values, offset, length);
+      return new ArrowColumnarMap(keys, values, offset, length);
     }
 
     @Override
@@ -1414,11 +1478,22 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
 
     abstract void setValueNullSafe(SpecializedGetters input, int ordinal);
 
+    abstract void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal);
+
     void write(SpecializedGetters input, int ordinal) {
       if (input.isNullAt(ordinal)) {
         setNull(count);
       } else {
         setValueNullSafe(input, ordinal);
+      }
+      count = count + 1;
+    }
+
+    void writeUnsafe(SpecializedGetters input, int ordinal) {
+      if (input.isNullAt(ordinal)) {
+        setNull(count);
+      } else {
+        unsafeSetValueNullSafe(input, ordinal);
       }
       count = count + 1;
     }
@@ -1469,6 +1544,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       this.setBoolean(count, input.getBoolean(ordinal));
     }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.set(count, input.getBoolean(ordinal) ? 1 : 0);
+    }
   }
 
   private static class ByteWriter extends ArrowVectorWriter {
@@ -1513,6 +1593,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     @Override
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       this.setByte(count, input.getByte(ordinal));
+    }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.set(count, input.getByte(ordinal));
     }
   }
 
@@ -1565,6 +1650,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     @Override
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       this.setShort(count, input.getShort(ordinal));
+    }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.setSafe(count, input.getShort(ordinal));
     }
   }
 
@@ -1630,6 +1720,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     @Override
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       setInt(count, input.getInt(ordinal));
+    }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.set(count, input.getInt(ordinal));
     }
   }
 
@@ -1702,6 +1797,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
         writer.setSafe(rowId + i, tmp);
       }
     }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.set(count, input.getLong(ordinal));
+    }
   }
 
   private static class FloatWriter extends ArrowVectorWriter {
@@ -1747,6 +1847,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       setFloat(count, input.getFloat(ordinal));
     }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.set(count, input.getFloat(ordinal));
+    }
   }
 
   private static class DoubleWriter extends ArrowVectorWriter {
@@ -1791,6 +1896,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     @Override
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       setDouble(count, input.getDouble(ordinal));
+    }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.set(count, input.getDouble(ordinal));
     }
   }
 
@@ -1846,6 +1956,16 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
         setNull(count);
       }
     }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      Decimal decimal = input.getDecimal(ordinal, precision, scale);
+      if (decimal.changePrecision(precision, scale)) {
+        writer.set(count, decimal.toJavaBigDecimal());
+      } else {
+        setNull(count);
+      }
+    }
   }
 
   private static class StringWriter extends ArrowVectorWriter {
@@ -1886,6 +2006,12 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       UTF8String value = input.getUTF8String(ordinal);
       setBytes(count, value.numBytes(), value.getBytes(), 0);
     }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      UTF8String value = input.getUTF8String(ordinal);
+      writer.set(count, value.getBytes(), 0, value.numBytes());
+    }
   }
 
   private static class BinaryWriter extends ArrowVectorWriter {
@@ -1918,6 +2044,12 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       byte[] value = input.getBinary(ordinal);
       setBytes(count, value.length, value, 0);
     }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      byte[] value = input.getBinary(ordinal);
+      writer.set(count, value, 0, value.length);
+    }
   }
 
   private static class DateWriter extends ArrowVectorWriter {
@@ -1930,7 +2062,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
 
     @Override
     final void setInt(int rowId, int value) {
-      writer.set(rowId, value);
+      writer.setSafe(rowId, value);
     }
 
     @Override
@@ -1955,6 +2087,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     @Override
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       setInt(count, input.getInt(ordinal));
+    }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.set(count, input.getInt(ordinal));
     }
   }
 
@@ -1994,6 +2131,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       setLong(count, input.getLong(ordinal));
     }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.set(count, input.getLong(ordinal));
+    }
   }
 
   private static class ArrayWriter extends ArrowVectorWriter {
@@ -2023,6 +2165,18 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       ArrayData arrayData = input.getArray(ordinal);
       writer.startNewValue(count);
+      for (int i = 0; i < arrayData.numElements(); ++i) {
+        elementWriter.write(arrayData, i);
+      }
+      writer.endValue(count, arrayData.numElements());
+    }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      ArrayData arrayData = input.getArray(ordinal);
+      writer.startNewValue(count);
+      // We just make sure the value buffer size allocated is enough, so the vector may
+      // reallocate the validity buffer, so we use the safe interface here.
       for (int i = 0; i < arrayData.numElements(); ++i) {
         elementWriter.write(arrayData, i);
       }
@@ -2070,6 +2224,17 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       InternalRow struct = input.getStruct(ordinal, childrenWriter.length);
       writer.setIndexDefined(count);
+      for (int i = 0; i < struct.numFields(); ++i) {
+        childrenWriter[i].write(struct, i);
+      }
+    }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      InternalRow struct = input.getStruct(ordinal, childrenWriter.length);
+      writer.setIndexDefined(count);
+      // We just make sure the value buffer size allocated is enough, so the vector may
+      // reallocate the validity buffer, so we use the safe interface here.
       for (int i = 0; i < struct.numFields(); ++i) {
         childrenWriter[i].write(struct, i);
       }
@@ -2124,6 +2289,23 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     }
 
     @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      MapData mapData = input.getMap(ordinal);
+      writer.startNewValue(count);
+      ArrayData keys = mapData.keyArray();
+      ArrayData values = mapData.valueArray();
+      // We just make sure the value buffer size allocated is enough, so the vector may
+      // reallocate the validity buffer, so we use the safe interface here.
+      for (int i = 0; i < mapData.numElements(); ++i) {
+        keyWriter.write(keys, i);
+      }
+      for (int i = 0; i < mapData.numElements(); ++i) {
+        valueWriter.write(values, i);
+      }
+      writer.endValue(count, mapData.numElements());
+    }
+
+    @Override
     void finish() {
       super.finish();
       keyWriter.finish();
@@ -2154,6 +2336,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     @Override
     void setValueNullSafe(SpecializedGetters input, int ordinal) {
       setNull(count);
+    }
+
+    @Override
+    void unsafeSetValueNullSafe(SpecializedGetters input, int ordinal) {
+      writer.setValueCount(writer.getValueCount() + 1);
     }
   }
 }

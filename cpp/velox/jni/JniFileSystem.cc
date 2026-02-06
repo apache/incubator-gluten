@@ -89,7 +89,7 @@ class JniReadFile : public facebook::velox::ReadFile {
       uint64_t offset,
       uint64_t length,
       void* buf,
-      facebook::velox::filesystems::File::IoStats* stats = nullptr) const override {
+      const facebook::velox::FileIoContext& fileStorageContext = {}) const override {
     JNIEnv* env = nullptr;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     env->CallVoidMethod(
@@ -347,10 +347,12 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
         static_cast<jobjectArray>(env->CallObjectMethod(obj_, jniFileSystemList, createJString(env, path)));
     checkException(env);
     jsize length = env->GetArrayLength(jarray);
+    out.reserve(length);
     for (jsize i = 0; i < length; ++i) {
       jstring element = static_cast<jstring>(env->GetObjectArrayElement(jarray, i));
       std::string cElement = jStringToCString(env, element);
       out.push_back(cElement);
+      env->DeleteLocalRef(element);
     }
     return out;
   }

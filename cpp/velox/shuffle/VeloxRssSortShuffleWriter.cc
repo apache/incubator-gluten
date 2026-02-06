@@ -21,25 +21,27 @@
 #include "shuffle/ShuffleSchema.h"
 #include "utils/Common.h"
 #include "utils/Macros.h"
-#include "utils/VeloxArrowUtils.h"
 
 #include "velox/common/base/Nulls.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
+#include "velox/vector/VectorEncoding.h"
 
 namespace gluten {
 
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxRssSortShuffleWriter::create(
     uint32_t numPartitions,
-    std::unique_ptr<PartitionWriter> partitionWriter,
-    ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* arrowPool) {
-  std::shared_ptr<VeloxRssSortShuffleWriter> res(new VeloxRssSortShuffleWriter(
-      numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
-  RETURN_NOT_OK(res->init());
-  return res;
-} // namespace gluten
+    const std::shared_ptr<PartitionWriter>& partitionWriter,
+    const std::shared_ptr<ShuffleWriterOptions>& options,
+    MemoryManager* memoryManager) {
+  if (auto rssOptions = std::dynamic_pointer_cast<RssSortShuffleWriterOptions>(options)) {
+    std::shared_ptr<VeloxRssSortShuffleWriter> res(
+        new VeloxRssSortShuffleWriter(numPartitions, partitionWriter, rssOptions, memoryManager));
+    RETURN_NOT_OK(res->init());
+    return res;
+  }
+  return arrow::Status::Invalid("Error casting ShuffleWriterOptions to RssSortShuffleWriterOptions.");
+}
 
 arrow::Status VeloxRssSortShuffleWriter::init() {
   rowVectorIndexMap_.reserve(numPartitions_);
@@ -49,68 +51,73 @@ arrow::Status VeloxRssSortShuffleWriter::init() {
 }
 
 arrow::Status VeloxRssSortShuffleWriter::doSort(facebook::velox::RowVectorPtr rv, int64_t memLimit) {
-  currentInputColumnBytes_ += rv->estimateFlatSize();
+  calculateBatchesSize(rv);
   batches_.push_back(rv);
   if (currentInputColumnBytes_ > memLimit) {
     for (auto pid = 0; pid < numPartitions(); ++pid) {
       RETURN_NOT_OK(evictRowVector(pid));
     }
-    batches_.clear();
-    currentInputColumnBytes_ = 0;
+    resetBatches();
   }
-  setSortState(SortState::kSortInit);
+  setSortState(RssSortState::kSortInit);
   return arrow::Status::OK();
 }
 
 arrow::Status VeloxRssSortShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, int64_t /* memLimit */) {
-  if (options_.partitioning == Partitioning::kSingle) {
+  writtenBytes_ = 0;
+  if (partitioning_ == Partitioning::kSingle) {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
     auto rv = veloxColumnBatch->getFlattenedRowVector();
     RETURN_NOT_OK(initFromRowVector(*rv.get()));
-    RETURN_NOT_OK(doSort(rv, partitionWriter_.get()->options().sortBufferMaxSize));
-  } else if (options_.partitioning == Partitioning::kRange) {
+    RETURN_NOT_OK(doSort(rv, sortBufferMaxSize_));
+  } else if (partitioning_ == Partitioning::kRange) {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
     const int32_t numColumns = veloxColumnBatch->numColumns();
     VELOX_CHECK(numColumns >= 2);
     auto pidBatch = veloxColumnBatch->select(veloxPool_.get(), {0});
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
-    START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
-    setSortState(SortState::kSort);
-    RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), batches_.size(), rowVectorIndexMap_));
-    END_TIMING();
+    {
+      SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCompute]);
+      setSortState(RssSortState::kSort);
+      RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), batches_.size(), rowVectorIndexMap_));
+    }
     std::vector<int32_t> range;
+    range.reserve(numColumns);
     for (int32_t i = 1; i < numColumns; i++) {
       range.push_back(i);
     }
     auto rvBatch = veloxColumnBatch->select(veloxPool_.get(), range);
     auto rv = rvBatch->getFlattenedRowVector();
     RETURN_NOT_OK(initFromRowVector(*rv.get()));
-    RETURN_NOT_OK(doSort(rv, partitionWriter_.get()->options().sortBufferMaxSize));
+    RETURN_NOT_OK(doSort(rv, sortBufferMaxSize_));
   } else {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
     facebook::velox::RowVectorPtr rv;
-    START_TIMING(cpuWallTimingList_[CpuWallTimingFlattenRV]);
-    rv = veloxColumnBatch->getFlattenedRowVector();
-    END_TIMING();
+    {
+      SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingFlattenRV]);
+      rv = veloxColumnBatch->getFlattenedRowVector();
+    }
     if (partitioner_->hasPid()) {
       auto pidArr = getFirstColumn(*rv);
-      START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
-      setSortState(SortState::kSort);
-      RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), batches_.size(), rowVectorIndexMap_));
-      END_TIMING();
+      {
+        SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCompute]);
+        setSortState(RssSortState::kSort);
+        RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), batches_.size(), rowVectorIndexMap_));
+      }
       auto strippedRv = getStrippedRowVector(*rv);
       RETURN_NOT_OK(initFromRowVector(*strippedRv));
-      RETURN_NOT_OK(doSort(strippedRv, partitionWriter_.get()->options().sortBufferMaxSize));
+      RETURN_NOT_OK(doSort(strippedRv, sortBufferMaxSize_));
     } else {
       RETURN_NOT_OK(initFromRowVector(*rv));
-      START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
-      setSortState(SortState::kSort);
-      RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), batches_.size(), rowVectorIndexMap_));
-      END_TIMING();
-      RETURN_NOT_OK(doSort(rv, partitionWriter_.get()->options().sortBufferMaxSize));
+      {
+        SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCompute]);
+        setSortState(RssSortState::kSort);
+        RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), batches_.size(), rowVectorIndexMap_));
+      }
+      RETURN_NOT_OK(doSort(rv, sortBufferMaxSize_));
     }
   }
   return arrow::Status::OK();
@@ -122,19 +129,18 @@ arrow::Status VeloxRssSortShuffleWriter::evictBatch(uint32_t partitionId) {
   auto buffer = bufferOutputStream_->getBuffer();
   auto arrowBuffer = std::make_shared<arrow::Buffer>(buffer->as<uint8_t>(), buffer->size());
   ARROW_ASSIGN_OR_RAISE(
-      auto payload,
-      BlockPayload::fromBuffers(Payload::kRaw, 0, {std::move(arrowBuffer)}, nullptr, nullptr, nullptr, nullptr));
-  RETURN_NOT_OK(partitionWriter_->evict(partitionId, std::move(payload), stopped_));
+      auto payload, BlockPayload::fromBuffers(Payload::kRaw, 0, {std::move(arrowBuffer)}, nullptr, nullptr, nullptr));
+  RETURN_NOT_OK(partitionWriter_->evict(partitionId, std::move(payload), stopped_, writtenBytes_));
   batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get(), serde_.get());
-  batch_->createStreamTree(rowType_, options_.bufferSize, &serdeOptions_);
+  batch_->createStreamTree(rowType_, splitBufferSize_, &serdeOptions_);
   return arrow::Status::OK();
 }
 
 arrow::Status VeloxRssSortShuffleWriter::evictRowVector(uint32_t partitionId) {
   int32_t accumulatedRows = 0;
-  const int32_t maxRowsPerBatch = options_.bufferSize;
+  const int32_t maxRowsPerBatch = splitBufferSize_;
 
-  if (options_.partitioning != Partitioning::kSingle) {
+  if (partitioning_ != Partitioning::kSingle) {
     if (auto it = rowVectorIndexMap_.find(partitionId); it != rowVectorIndexMap_.end()) {
       const auto& rowIndices = it->second;
       VELOX_DCHECK(!rowIndices.empty());
@@ -189,6 +195,7 @@ arrow::Status VeloxRssSortShuffleWriter::evictRowVector(uint32_t partitionId) {
 }
 
 arrow::Status VeloxRssSortShuffleWriter::stop() {
+  writtenBytes_ = 0;
   stopped_ = true;
   for (auto pid = 0; pid < numPartitions(); ++pid) {
     RETURN_NOT_OK(evictRowVector(pid));
@@ -197,8 +204,8 @@ arrow::Status VeloxRssSortShuffleWriter::stop() {
   currentInputColumnBytes_ = 0;
   {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingStop]);
-    setSortState(SortState::kSortStop);
-    RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
+    setSortState(RssSortState::kSortStop);
+    RETURN_NOT_OK(partitionWriter_->stop(&metrics_, writtenBytes_));
   }
 
   stat();
@@ -209,9 +216,9 @@ arrow::Status VeloxRssSortShuffleWriter::stop() {
 arrow::Status VeloxRssSortShuffleWriter::initFromRowVector(const facebook::velox::RowVector& rv) {
   if (!rowType_) {
     rowType_ = facebook::velox::asRowType(rv.type());
-    serdeOptions_ = {false, arrowCompressionTypeToVelox(partitionWriter_->options().compressionType)};
+    serdeOptions_ = {false, compressionKind_};
     batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get(), serde_.get());
-    batch_->createStreamTree(rowType_, options_.bufferSize, &serdeOptions_);
+    batch_->createStreamTree(rowType_, splitBufferSize_, &serdeOptions_);
   }
   return arrow::Status::OK();
 }
@@ -223,7 +230,7 @@ arrow::Status VeloxRssSortShuffleWriter::reclaimFixedSize(int64_t size, int64_t*
   }
   EvictGuard evictGuard{evictState_};
 
-  if (sortState_ == SortState::kSortInit) {
+  if (sortState_ == RssSortState::kSortInit) {
     for (auto pid = 0; pid < numPartitions(); ++pid) {
       RETURN_NOT_OK(evictRowVector(pid));
     }
@@ -250,8 +257,53 @@ void VeloxRssSortShuffleWriter::stat() const {
 #endif
 }
 
-void VeloxRssSortShuffleWriter::setSortState(SortState state) {
+void VeloxRssSortShuffleWriter::setSortState(RssSortState state) {
   sortState_ = state;
+}
+
+void VeloxRssSortShuffleWriter::calculateBatchesSize(const facebook::velox::RowVectorPtr& vector) {
+  currentInputColumnBytes_ += vector->retainedSize();
+  for (auto& child : vector->children()) {
+    deduplicateStrBuffer(child);
+  }
+}
+
+void VeloxRssSortShuffleWriter::deduplicateStrBuffer(const facebook::velox::VectorPtr& vector) {
+  switch (vector->encoding()) {
+    case facebook::velox::VectorEncoding::Simple::FLAT:
+      if ((vector->type()->isVarchar() || vector->type()->isVarbinary())) {
+        for (auto& buffer : vector->asFlatVector<facebook::velox::StringView>()->stringBuffers()) {
+          if (!stringBuffers_.insert(buffer.get()).second) {
+            currentInputColumnBytes_ -= buffer->capacity();
+          }
+        }
+      }
+      break;
+    case facebook::velox::VectorEncoding::Simple::MAP:
+      deduplicateStrBuffer(vector->asUnchecked<facebook::velox::MapVector>()->mapKeys());
+      deduplicateStrBuffer(vector->asUnchecked<facebook::velox::MapVector>()->mapValues());
+      break;
+    case facebook::velox::VectorEncoding::Simple::ROW:
+      for (auto& child : vector->asUnchecked<facebook::velox::RowVector>()->children()) {
+        deduplicateStrBuffer(child);
+      }
+      break;
+    case facebook::velox::VectorEncoding::Simple::ARRAY:
+      deduplicateStrBuffer(vector->asUnchecked<facebook::velox::ArrayVector>()->elements());
+      break;
+    default:
+      VELOX_FAIL("The encoding of flatten vector should not be " + mapSimpleToName(vector->encoding()));
+  }
+}
+
+uint32_t VeloxRssSortShuffleWriter::getInputColumnBytes() const {
+  return currentInputColumnBytes_;
+}
+
+void VeloxRssSortShuffleWriter::resetBatches() {
+  batches_.clear();
+  currentInputColumnBytes_ = 0;
+  stringBuffers_.clear();
 }
 
 } // namespace gluten

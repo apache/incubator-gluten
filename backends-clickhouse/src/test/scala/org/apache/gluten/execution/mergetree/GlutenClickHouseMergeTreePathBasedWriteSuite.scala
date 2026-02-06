@@ -26,7 +26,6 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.LocalTableScanExec
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.functions._
@@ -38,15 +37,7 @@ import java.io.File
 
 import scala.io.Source
 
-class GlutenClickHouseMergeTreePathBasedWriteSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
+class GlutenClickHouseMergeTreePathBasedWriteSuite extends CreateMergeTreeSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -63,17 +54,13 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
       .set(RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key, "100000")
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
       .setCHSettings("input_format_parquet_max_block_size", 8192)
 
   }
 
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
-
   test("test mergetree path based write") {
-    val dataPath = s"$basePath/lineitem_filebased"
+    val dataPath = s"$dataHome/lineitem_filebased"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -118,7 +105,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Overwrite)
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
+    customCheckQuery(q1(s"clickhouse.`$dataPath`")) {
       df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -127,7 +114,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(4)(plans.size)
 
         val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -157,7 +144,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based write with dataframe api") {
-    val dataPath = s"$basePath/lineitem_filebased_df"
+    val dataPath = s"$dataHome/lineitem_filebased_df"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -184,7 +171,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .option("clickhouse.lowCardKey", "l_returnflag,l_linestatus")
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
+    customCheckQuery(q1(s"clickhouse.`$dataPath`")) {
       df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -193,7 +180,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(4)(plans.size)
 
         val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -233,7 +220,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based insert overwrite partitioned table with small table, static") {
-    val dataPath = s"$basePath/lineitem_mergetree_insertoverwrite2"
+    val dataPath = s"$dataHome/lineitem_mergetree_insertoverwrite2"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -268,7 +255,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
 
   test("test mergetree path based insert overwrite partitioned table with small table, dynamic") {
     withSQLConf(("spark.sql.sources.partitionOverwriteMode", "dynamic")) {
-      val dataPath = s"$basePath/lineitem_mergetree_insertoverwrite3"
+      val dataPath = s"$dataHome/lineitem_mergetree_insertoverwrite3"
       clearDataPath(dataPath)
 
       val sourceDF = spark.sql(s"""
@@ -303,7 +290,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based table update") {
-    val dataPath = s"$basePath/lineitem_mergetree_update"
+    val dataPath = s"$dataHome/lineitem_mergetree_update"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -338,7 +325,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -375,7 +362,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -396,7 +383,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based table delete") {
-    val dataPath = s"$basePath/lineitem_mergetree_delete"
+    val dataPath = s"$dataHome/lineitem_mergetree_delete"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -445,7 +432,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based table upsert") {
-    val dataPath = s"$basePath/lineitem_mergetree_upsert"
+    val dataPath = s"$dataHome/lineitem_mergetree_upsert"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -529,7 +516,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based write with orderby keys / primary keys") {
-    val dataPath = s"$basePath/lineitem_mergetree_orderbykey"
+    val dataPath = s"$dataHome/lineitem_mergetree_orderbykey"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -543,7 +530,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
+    customCheckQuery(q1(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -551,7 +538,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -586,7 +573,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based write with partition") {
-    val dataPath = s"$basePath/lineitem_mergetree_partition"
+    val dataPath = s"$dataHome/lineitem_mergetree_partition"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -611,7 +598,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`"), compareResult = false) {
+    customCheckQuery(q1(s"clickhouse.`$dataPath`"), compare = false) {
       df =>
         val result = df.collect()
         assertResult(4)(result.length)
@@ -629,7 +616,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
         assertResult(3744)(mergetreeScan.metrics("numFiles").value)
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -664,7 +651,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   testSparkVersionLE33("test mergetree path based write with bucket table") {
-    val dataPath = s"$basePath/lineitem_mergetree_bucket"
+    val dataPath = s"$dataHome/lineitem_mergetree_bucket"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -681,7 +668,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
+    customCheckQuery(q1(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -689,7 +676,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -747,7 +734,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based CTAS simple") {
-    val dataPath = s"$basePath/lineitem_mergetree_ctas1"
+    val dataPath = s"$dataHome/lineitem_mergetree_ctas1"
     clearDataPath(dataPath)
 
     spark.sql(s"""
@@ -756,7 +743,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
                  | as select * from lineitem
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
+    customCheckQuery(q1(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -764,7 +751,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -782,7 +769,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based CTAS partition") {
-    val dataPath = s"$basePath/lineitem_mergetree_ctas2"
+    val dataPath = s"$dataHome/lineitem_mergetree_ctas2"
     clearDataPath(dataPath)
 
     spark.sql(s"""
@@ -792,12 +779,12 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
                  | as select * from lineitem
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) { _ => {} }
+    checkQuery(q1(s"clickhouse.`$dataPath`"))
 
   }
 
   test("test mergetree path based table with low cardinality column") {
-    val dataPath = s"$basePath/lineitem_mergetree_lowcard"
+    val dataPath = s"$dataHome/lineitem_mergetree_lowcard"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -810,7 +797,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) { _ => {} }
+    checkQuery(q1(s"clickhouse.`$dataPath`"))
     val directory = new File(dataPath)
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
@@ -850,7 +837,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test mergetree path based table with primary keys filter") {
-    val dataPath = s"$basePath/lineitem_mergetree_orderbykey2"
+    val dataPath = s"$dataHome/lineitem_mergetree_orderbykey2"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -864,7 +851,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    runTPCHQueryBySQL(6, q6(s"clickhouse.`$dataPath`")) {
+    customCheckQuery(q6(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -872,7 +859,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -901,7 +888,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test simple minmax index") {
-    val dataPath = s"$basePath/lineitem_mergetree_minmax"
+    val dataPath = s"$dataHome/lineitem_mergetree_minmax"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -938,7 +925,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test simple bloom filter index") {
-    val dataPath = s"$basePath/lineitem_mergetree_bf"
+    val dataPath = s"$dataHome/lineitem_mergetree_bf"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -973,7 +960,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("test simple set index") {
-    val dataPath = s"$basePath/lineitem_mergetree_set"
+    val dataPath = s"$dataHome/lineitem_mergetree_set"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -1009,7 +996,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
 
   test("GLUTEN-5219: Fix the table metadata sync issue for the CH backend") {
     def checkQueryResult(tableName: String): Unit = {
-      runTPCHQueryBySQL(1, q1(s"clickhouse.`$tableName`")) {
+      customCheckQuery(q1(s"clickhouse.`$tableName`")) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {
             case f: FileSourceScanExecTransformer => f
@@ -1017,7 +1004,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
           assertResult(1)(scanExec.size)
 
           val mergetreeScan = scanExec.head
-          assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+          assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
           val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
           val addFiles =
@@ -1027,7 +1014,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       }
     }
 
-    val dataPath = s"$basePath/lineitem_mergetree_ctas_5219"
+    val dataPath = s"$dataHome/lineitem_mergetree_ctas_5219"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -1041,7 +1028,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
 
     checkQueryResult(dataPath)
 
-    val dataPath1 = s"$basePath/lineitem_mergetree_ctas_5219"
+    val dataPath1 = s"$dataHome/lineitem_mergetree_ctas_5219"
     clearDataPath(dataPath1)
     sourceDF.write
       .format("clickhouse")
@@ -1058,7 +1045,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     assertResult(6)(dataFileList.length)
 
     // re-create the same table
-    val dataPath2 = s"$basePath/lineitem_mergetree_5219_s"
+    val dataPath2 = s"$dataHome/lineitem_mergetree_5219_s"
     for (i <- 0 until 10) {
       clearDataPath(dataPath2)
 
@@ -1078,7 +1065,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   }
 
   test("GLUTEN-6378: Support delta count optimizer for the MergeTree format") {
-    val dataPath = s"$basePath/lineitem_mergetree_count_opti"
+    val dataPath = s"$dataHome/lineitem_mergetree_count_opti"
     clearDataPath(dataPath)
 
     val sourceDF = spark.sql(s"""
@@ -1109,9 +1096,9 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
   test(
     "GLUTEN-7344: Fix the error default database name and table " +
       "name for the mergetree file format when using path based") {
-    val dataPath = s"$basePath/lineitem_filebased_7344"
+    val dataPath = s"$dataHome/lineitem_filebased_7344"
     clearDataPath(dataPath)
-    val dataPath1 = s"$basePath/lineitem_filebased_7344_1"
+    val dataPath1 = s"$dataHome/lineitem_filebased_7344_1"
     clearDataPath(dataPath1)
 
     val sourceDF = spark.sql(s"""

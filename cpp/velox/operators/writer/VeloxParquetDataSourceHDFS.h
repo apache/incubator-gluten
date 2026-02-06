@@ -43,8 +43,9 @@ class VeloxParquetDataSourceHDFS final : public VeloxParquetDataSource {
       : VeloxParquetDataSource(filePath, veloxPool, sinkPool, schema) {}
 
   void initSink(const std::unordered_map<std::string, std::string>& sparkConfs) override {
-    auto hiveConf = getHiveConfig(std::make_shared<facebook::velox::config::ConfigBase>(
-        std::unordered_map<std::string, std::string>(sparkConfs)));
+    auto hiveConf = createHiveConnectorConfig(
+        std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(sparkConfs)),
+        FileSystemType::kHdfs);
     sink_ = dwio::common::FileSink::create(filePath_, {.connectorProperties = hiveConf, .pool = sinkPool_.get()});
   }
 };

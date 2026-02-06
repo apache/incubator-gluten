@@ -16,16 +16,16 @@
  */
 package org.apache.spark.sql.execution.datasources;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.Iterator;
 
+// FIXME: The abstraction is broken: VL / CH don't rely on the same binary layout of
+//  this class.
 public class BlockStripes implements Iterable<BlockStripe> {
     public long originBlockAddress;
     public long[] blockAddresses;
-    public int[] headingRowIndice;
+    public int[] headingRowIndice; // Only used by CH backend.
     public int originBlockNumColumns;
-    public byte[] rowBytes;
+    public byte[][] headingRowBytes; // Only used by Velox backend.
 
     public BlockStripes(
             long originBlockAddress,
@@ -43,19 +43,18 @@ public class BlockStripes implements Iterable<BlockStripe> {
         long[] blockAddresses,
         int[] headingRowIndice,
         int originBlockNumColumns,
-        byte[] rowBytes) {
+        byte[][] headingRowBytes) {
         this.originBlockAddress = originBlockAddress;
         this.blockAddresses = blockAddresses;
         this.headingRowIndice = headingRowIndice;
         this.originBlockNumColumns = originBlockNumColumns;
-        this.rowBytes = rowBytes;
+        this.headingRowBytes = headingRowBytes;
     }
 
     public void release() {
         throw new UnsupportedOperationException("subclass of BlockStripe should implement this");
     }
 
-    @NotNull
     @Override
     public Iterator<BlockStripe> iterator() {
         throw new UnsupportedOperationException("subclass of BlockStripe should implement this");

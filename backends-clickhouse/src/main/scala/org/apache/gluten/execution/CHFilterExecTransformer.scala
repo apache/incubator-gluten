@@ -36,7 +36,7 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
       condition
     } else {
       val remainingFilters =
-        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(condition))
+        FilterHandler.subtractFilters(splitConjunctivePredicates(condition), scanFilters)
       remainingFilters.reduceLeftOption(And).orNull
     }
   }
@@ -56,7 +56,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
         case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
         case _ => false
       }
-      notNullPreds.flatMap(_.references).distinct.map(_.exprId)
-    case _ => notNullPreds.flatMap(_.references).distinct.map(_.exprId)
+      notNullPreds.flatMap(_.references).distinct.map(_.exprId).toList
+    case _ => notNullPreds.flatMap(_.references).distinct.map(_.exprId).toList
   }
 }

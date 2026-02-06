@@ -24,8 +24,10 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.debug.DebugExec
+import org.apache.spark.util.SparkVersionUtil
 
 package object transition {
+
   type TransitionGraph = FloydWarshallGraph[TransitionGraph.Vertex, Transition]
   // These 5 plan operators (as of Spark 3.5) are operators that have the
   // same convention with their children.
@@ -33,7 +35,8 @@ package object transition {
   // Extend this list in shim layer once Spark has more.
   def canPropagateConvention(plan: SparkPlan): Boolean = plan match {
     case p: DebugExec => true
-    case p: UnionExec => true
+    case p: UnionExec if SparkVersionUtil.gteSpark33 =>
+      true
     case p: AQEShuffleReadExec => true
     case p: InputAdapter => true
     case p: WholeStageCodegenExec => true
@@ -62,7 +65,7 @@ package object transition {
     }
   }
 
-  // Extractor for Gluten's C2C
+  // Extractor for Gluten's C2C with different convention
   object ColumnarToColumnarLike {
     def unapply(plan: SparkPlan): Option[SparkPlan] = {
       plan match {

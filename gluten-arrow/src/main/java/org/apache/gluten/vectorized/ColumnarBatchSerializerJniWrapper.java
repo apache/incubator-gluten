@@ -19,6 +19,8 @@ package org.apache.gluten.vectorized;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
 
+import org.apache.spark.sql.execution.unsafe.JniUnsafeByteBuffer;
+
 public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {
   private final Runtime runtime;
 
@@ -35,7 +37,7 @@ public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public native ColumnarBatchSerializeResult serialize(long[] handles);
+  public native JniUnsafeByteBuffer serialize(long handle);
 
   // Return the native ColumnarBatchSerializer handle
   public native long init(long cSchema);

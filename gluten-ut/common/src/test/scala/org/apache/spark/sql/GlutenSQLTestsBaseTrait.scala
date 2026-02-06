@@ -16,11 +16,12 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
 
 /** Basic trait for Gluten SQL test cases. */
@@ -43,7 +44,7 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
     }
 
     val inputPlans: Seq[SparkPlan] = plans.map {
-      case stage: ShuffleQueryStageExec => stage.plan
+      case stage: QueryStageExec => stage.plan
       case plan => plan
     }
 
@@ -92,7 +93,7 @@ object GlutenSQLTestsBaseTrait {
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.ui.enabled", "false")
-      .set("spark.gluten.ui.enabled", "false")
+      .set(GlutenConfig.GLUTEN_UI_ENABLED.key, "false")
     // Avoid static evaluation by spark catalyst. But there are some UT issues
     // coming from spark, e.g., expecting SparkException is thrown, but the wrapped
     // exception is thrown.
@@ -103,7 +104,7 @@ object GlutenSQLTestsBaseTrait {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-        .set("spark.gluten.sql.enable.native.validation", "false")
+        .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
         .set("spark.sql.files.openCostInBytes", "134217728")
         .set("spark.unsafe.exceptionOnMemoryLeak", "true")
     } else {

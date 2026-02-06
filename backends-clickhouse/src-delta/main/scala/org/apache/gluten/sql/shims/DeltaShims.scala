@@ -16,12 +16,13 @@
  */
 package org.apache.gluten.sql.shims
 
-import org.apache.gluten.execution.GlutenPlan
+import org.apache.gluten.execution.{GlutenPlan, MergeTreePartRange}
 
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.PartitionedFile
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
 import java.util.{HashMap => JHashMap, Map => JMap}
 
@@ -42,4 +43,21 @@ trait DeltaShims {
       file: PartitionedFile,
       otherConstantMetadataColumnValues: JMap[String, Object]): JMap[String, Object] =
     new JHashMap[String, Object]()
+
+  def generateMergeTreePartRange(
+      addMergeTreeParts: AddMergeTreeParts,
+      start: Long,
+      marks: Long,
+      size: Long): MergeTreePartRange = {
+    MergeTreePartRange(
+      addMergeTreeParts.name,
+      addMergeTreeParts.dirName,
+      addMergeTreeParts.targetNode,
+      addMergeTreeParts.bucketNum,
+      start,
+      marks,
+      size,
+      "",
+      "")
+  }
 }

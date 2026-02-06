@@ -39,15 +39,17 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 **Get Velox4j**
 
-Gluten for Flink depends on [Velox4j](https://github.com/velox4j/velox4j) commit:7aaa6465cb2c56c8898b737bcc770bae35a94ee4 to call velox. This is an experimental feature.
+Gluten for Flink depends on [Velox4j](https://github.com/velox4j/velox4j) to call velox. This is an experimental feature.
 You need to get the Velox4j code, and compile it first.
+
+As some features have not been committed to upstream, you have to use the following fork to run it first.
 
 ```bash
 ## fetch velox4j code
-git clone https://github.com/velox4j/velox4j.git
+git clone -b gluten-0530 https://github.com/bigo-sg/velox4j.git
 cd velox4j
-git reset --hard 7aaa6465cb2c56c8898b737bcc770bae35a94ee4
-mvn clean install
+git reset --hard 288d181a1b05c47f1f17339eb498dd6375f7aec8
+mvn clean install -DskipTests -Dgpg.skip -Dspotless.skip=true
 ```
 **Get gluten**
 
@@ -62,13 +64,21 @@ git clone https://github.com/apache/incubator-gluten.git
 
 ```
 cd /path/to/gluten/gluten-flink
-mvn clean package 
+mvn clean package -Dmaven.test.skip=true
 ```
 
-## Dependency library deployment
-
-You need to get the Velox4j packages and used them with gluten.
-Velox4j jar available now is velox4j-0.1.0-SNAPSHOT.jar. 
+# Run Unit Tests
+**Get Nexmark**
+```shell
+git clone https://github.com/nexmark/nexmark.git
+cd nexmark
+mvn clean install -DskipTests
+```
+**Run Tests**
+```shell
+cd /path/to/gluten/gluten-flink
+mvn test
+``` 
 
 ## Submit the Flink SQL job
 
@@ -76,25 +86,51 @@ Submit test script from `flink run`. You can use the `StreamSQLExample` as an ex
 
 ### Flink local cluster
 
-After deploying flink binaries, please add gluten-flink jar to flink library path,
-including gluten-flink-runtime-1.4.0.jar, gluten-flink-loader-1.4.0.jar and Velox4j jars above.
+After deploying Flink binaries, please configure the paths of gluten-flink jars and the dependency jars for Flink to use, as follows:
+
+```shell
+# notice: first set your own specified project home, you may set it
+# mannualy in you .bash_profile so that it can auto take effect. 
+export VELOX4J_HOME=
+export GLUTEN_FLINK_HOME=
+export FLINK_HOME=
+
+cd $FLINK_HOME
+mkdir -p gluten_lib
+ln -s $VELOX4J_HOME/target/velox4j-0.1.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar
+ln -s $GLUTEN_FLINK_HOME/runtime/target/gluten-flink-runtime-1.6.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-runtime-1.6.0.jar
+ln -s $GLUTEN_FLINK_HOME/loader/target/gluten-flink-loader-1.6.0-SNAPSHOT.jar $FLINK_HOME/gluten_lib/gluten-flink-loader-1.6.0.jar
+```
+
 And make them loaded before flink libraries.
+
+#### How to make sure gluten classes loaded first in Flink?
+
+Gluten classes need to be loaded first in Flink, 
+you can modify the constructFlinkClassPath function in `$FLINK_HOME/bin/config.sh` like this: 
+
+```
+GLUTEN_JAR="$FLINK_HOME/gluten_lib/gluten-flink-loader-1.6.0.jar:$FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar:$FLINK_HOME/gluten_lib/gluten-flink-runtime-1.6.0.jar:"
+echo "$GLUTEN_JAR""$FLINK_CLASSPATH""$FLINK_DIST"
+```
+
 Then you can go to flink binary path and use the below scripts to
 submit the example job.
 
 ```bash
+cd $FLINK_HOME
 bin/start-cluster.sh
-bin/flink run -d -m 0.0.0.0:8080 \
-    -c org.apache.flink.table.examples.java.basics.StreamSQLExample \
-    lib/flink-examples-table_2.12-1.20.1.jar
+bin/flink run examples/table/StreamSQLExample.jar
 ```
 
 Then you can get the result in `log/flink-*-taskexecutor-*.out`.
-And you can see an operator named `gluten-cal` from the web frontend of your flink job. 
+And you can see an operator named `gluten-cal` from the web frontend of your flink job.
+
+**Notice: current this example will cause npe until  [issue-10315](https://github.com/apache/incubator-gluten/issues/10315) get resolved.**
 
 #### All operators executed by native
 Another example supports all operators executed by native. 
-You can use the data-generator.sql in dev directory.
+You can use the data-generator.sql under dev directory.
 
 ```bash
 bin/sql-client.sh -f data-generator.sql
@@ -105,9 +141,35 @@ bin/sql-client.sh -f data-generator.sql
 TODO
 
 ## Performance
-Using the data-generator example, it shows that for native execution, it can generate 10,0000
-records in about 60ms, while Flink generator 10,000 records in about 600ms. It runs 10 times faster.
-More perf cases to be added.
+We are working on supporting the [Nexmark](https://github.com/nexmark/nexmark) benchmark for Flink.
+Now the q0 has been supported.
+
+Results show that running with gluten can be 2.x times faster than Flink.
+
+Result using gluten (will support TPS metric soon):
+```
+-------------------------------- Nexmark Results --------------------------------
+
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+| Query| Events Num      | Cores  | Time(s)  | Cores * Time(s) | Throughput   | Throughput/Cores|
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+|q0    |100,000,000      |NaN     |161.428   |NaN              |619.47 K/s    |0/s              |
+|Total |100,000,000      |NaN     |161.428   |NaN              |619.47 K/s    |0/s              |
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+```
+
+Result using Flink:
+```
+-------------------------------- Nexmark Results --------------------------------
+
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+| Query| Events Num      | Cores  | Time(s)  | Cores * Time(s) | Throughput   | Throughput/Cores|
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+|q0    |100,000,000      |1.21    |462.069   |558.210          |216.42 K/s    |179.14/s         |
+|Total |100,000,000      |1.208   |462.069   |558.210          |216.42 K/s    |179.14/s         |
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+```
+We are still optimizing it.
 
 ## Notes:
 Now both Gluten for Flink and Velox4j have not a bundled jar including all jars depends on.

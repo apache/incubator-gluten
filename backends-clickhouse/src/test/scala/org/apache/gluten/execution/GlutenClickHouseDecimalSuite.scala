@@ -18,7 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{col, rand, when}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -32,20 +31,9 @@ case class DataTypesWithNonPrimitiveType(
     decimal_field: java.math.BigDecimal
 )
 
-class GlutenClickHouseDecimalSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+class GlutenClickHouseDecimalSuite extends ParquetSuite {
 
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
-  override protected val createNullableTables = true
-  override protected def createTPCHNotNullTables(): Unit = {}
-
-  override protected def createTPCHNullableTables(): Unit = {
+  override protected def createTestTables(): Unit = {
     decimalTPCHTables.foreach(t => createDecimalTables(t._1))
   }
   override protected def sparkConf: SparkConf = {
@@ -80,12 +68,12 @@ class GlutenClickHouseDecimalSuite
     // first process the parquet data to:
     // 1. make every column nullable in schema (optional rather than required)
     // 2. salt some null values randomly
-    val saltedTablesPath = tablesPath + s"-decimal_${dataType.precision}_${dataType.scale}"
+    val saltedTablesPath = s"$dataHome/tpch-data-decimal_${dataType.precision}_${dataType.scale}"
     withSQLConf(vanillaSparkConfs(): _*) {
       Seq("customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier")
         .map(
           tableName => {
-            val originTablePath = tablesPath + "/" + tableName
+            val originTablePath = s"$testParquetAbsolutePath/$tableName"
             spark.read.parquet(originTablePath).createOrReplaceTempView(tableName + "_ori")
 
             val sql = tableName match {
@@ -283,22 +271,8 @@ class GlutenClickHouseDecimalSuite
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.size == 16)
+    assert(result.length == 16)
     spark.sql(s"use default")
-  }
-
-  override protected def runTPCHQuery(
-      queryNum: Int,
-      tpchQueries: String = tpchQueries,
-      queriesResults: String = queriesResults,
-      compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    compareTPCHQueryAgainstVanillaSpark(
-      queryNum,
-      tpchQueries,
-      compareResult = compareResult,
-      customCheck = customCheck,
-      noFallBack = noFallBack)
   }
 
   test("from decimalArithmeticOperations.sql") {
@@ -365,17 +339,15 @@ class GlutenClickHouseDecimalSuite
                 dt =>
                   {
                     val compareResult = !dt._2.contains(sql_num)
-                    val compare = if (compareResult) "compare" else "noCompare"
+                    val compareStr = if (compareResult) "compare" else "noCompare"
                     val PrecisionLoss = s"allowPrecisionLoss=$allowPrecisionLoss"
                     val decimalType = dt._1
                     test(s"""TPCH Decimal(${decimalType.precision},${decimalType.scale})
-                            | Q$sql_num[$PrecisionLoss,native,$compare]""".stripMargin) {
+                            | Q$sql_num[$PrecisionLoss,native,$compareStr]""".stripMargin) {
                       spark.sql(s"use decimal_${decimalType.precision}_${decimalType.scale}")
                       withSQLConf(
                         (SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, allowPrecisionLoss)) {
-                        runTPCHQuery(sql_num, tpchQueries, compareResult = compareResult) {
-                          _ => {}
-                        }
+                        check(sql_num, compareResult)
                       }
                       spark.sql(s"use default")
                     }
@@ -468,7 +440,7 @@ class GlutenClickHouseDecimalSuite
 
   test("Fix issue(6015) allow overflow when converting decimal to integer") {
     val sql = "select int(cast(id * 9999999999 as decimal(29, 2))) from range(10)"
-    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenPlan[ProjectExecTransformer])
   }
 
   def testFromRandomBase(

@@ -31,7 +31,7 @@ namespace gluten {
 class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBase {
  protected:
   static void SetUpTestCase() {
-    memory::MemoryManager::testingSetInstance({});
+    memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 
   void testRowBufferAddr(velox::RowVectorPtr vector, uint8_t* expectArr, int32_t expectArrSize) {

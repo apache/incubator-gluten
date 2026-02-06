@@ -28,6 +28,8 @@ import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData, TypeUtils}
+import org.apache.spark.sql.classic.ClassicColumn
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
@@ -42,7 +44,10 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 trait GlutenTestsTrait extends GlutenTestsCommonTrait {
-
+  // TODO: remove this if we can suppress unused import error.
+  locally {
+    new ColumnConstructorExt(Column)
+  }
   override def beforeAll(): Unit = {
     // prepare working paths
     val basePathDir = new File(basePath)
@@ -111,7 +116,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         sparkBuilder
           .config("spark.io.compression.codec", "LZ4")
           .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-          .config("spark.gluten.sql.enable.native.validation", "false")
+          .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
           .config("spark.sql.files.openCostInBytes", "134217728")
           .config("spark.unsafe.exceptionOnMemoryLeak", "true")
           .config(GlutenConfig.UT_STATISTIC.key, "true")
@@ -244,7 +249,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
       val empData = Seq(Row(1))
       _spark.createDataFrame(_spark.sparkContext.parallelize(empData), schema)
     }
-    val resultDF = df.select(Column(expression))
+    val resultDF = df.select(ClassicColumn(expression))
     val result = resultDF.collect()
     TestStats.testUnitNumber = TestStats.testUnitNumber + 1
     if (

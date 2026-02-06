@@ -19,15 +19,17 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.{ExpressionConverter, ExpressionTransformer}
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
+import org.apache.spark.SparkContextUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.utils.StructTypeFWD
@@ -55,11 +57,6 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
   protected val notNullAttributes: Seq[ExprId] =
     notNullPreds.flatMap(_.references).distinct.map(_.exprId)
-
-  override def isNullIntolerant(expr: Expression): Boolean = expr match {
-    case e: NullIntolerant => e.children.forall(isNullIntolerant)
-    case _ => false
-  }
 
   override def isNoop: Boolean = getRemainingCondition == null
 
@@ -120,7 +117,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       cond
     } else {
       val remainingFilters =
-        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(cond))
+        FilterHandler.subtractFilters(splitConjunctivePredicates(cond), scanFilters)
       remainingFilters.reduceLeftOption(And).orNull
     }
   }
@@ -192,11 +189,6 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
     }()
   }
 
-  override def isNullIntolerant(expr: Expression): Boolean = expr match {
-    case e: NullIntolerant => e.children.forall(isNullIntolerant)
-    case _ => false
-  }
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(metrics)
 
@@ -244,7 +236,9 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
 }
 
 // An alternative for UnionExec.
-case class ColumnarUnionExec(children: Seq[SparkPlan]) extends ValidatablePlan {
+case class ColumnarUnionExec(children: Seq[SparkPlan], partitioning: Partitioning)
+  extends ValidatablePlan {
+  require(children.nonEmpty, "ColumnarUnionExec requires at least one child.")
   children.foreach {
     case w: WholeStageTransformer =>
       // FIXME: Avoid such practice for plan immutability.
@@ -255,6 +249,8 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends ValidatablePlan {
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
+
+  override def outputPartitioning: Partitioning = partitioning
 
   override def output: Seq[Attribute] = {
     children.map(_.output).transpose.map {
@@ -276,19 +272,32 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends ValidatablePlan {
       newChildren: IndexedSeq[SparkPlan]): ColumnarUnionExec =
     copy(children = newChildren)
 
-  def columnarInputRDD: RDD[ColumnarBatch] = {
-    if (children.isEmpty) {
-      throw new IllegalArgumentException(s"Empty children")
-    }
-    sparkContext.union(children.map(c => c.executeColumnar()))
-  }
-
-  override protected def doExecute()
-      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    if (outputPartitioning.isInstanceOf[UnknownPartitioning]) {
+      sparkContext.union(children.map(c => c.executeColumnar()))
+    } else {
+      // This union has a known partitioning, i.e., its children have the same partitioning
+      // in semantics so this union can choose not to change the partitioning by using a
+      // custom partitioning aware union RDD.
+      val nonEmptyRdds = children.map(_.executeColumnar()).filter(!_.partitions.isEmpty)
+      SparkContextUtils.createPartitioningAwareUnionRDD(
+        sparkContext,
+        nonEmptyRdds,
+        outputPartitioning.numPartitions)
+    }
+  }
+}
+
+object ColumnarUnionExec {
+  def from(union: UnionExec): ColumnarUnionExec = {
+    val children = union.children
+    val outputPartitioning: Partitioning = union.outputPartitioning
+    ColumnarUnionExec(children, outputPartitioning)
+  }
 }
 
 /**
@@ -323,16 +332,12 @@ object FilterHandler extends PredicateHelper {
     }
   }
 
-  /**
-   * Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
-   *
-   * @param scanFilters
-   *   : the conditions pushed down into Scan
-   * @param filters
-   *   : the conditions in the Filter after the Scan
-   * @return
-   *   the filter conditions not pushed down into Scan.
-   */
-  def getRemainingFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] =
-    (filters.toSet -- scanFilters.toSet).toSeq
+  def subtractFilters(left: Seq[Expression], right: Seq[Expression]): Seq[Expression] = {
+    val scanSet = right.map(_.canonicalized).toSet
+    left.filter(f => !scanSet.contains(f.canonicalized))
+  }
+
+  def combineFilters(left: Seq[Expression], right: Seq[Expression]): Seq[Expression] = {
+    (left.toSet ++ right.toSet).toSeq
+  }
 }

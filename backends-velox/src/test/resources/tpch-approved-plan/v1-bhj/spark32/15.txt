@@ -13,7 +13,7 @@ AdaptiveSparkPlan (46)
                         :  +- BroadcastQueryStage (5)
                         :     +- ColumnarBroadcastExchange (4)
                         :        +- ^ FilterExecTransformer (2)
-                        :           +- ^ ScanTransformer parquet  (1)
+                        :           +- ^ FileSourceScanExecTransformer parquet  (1)
                         +- ^ FilterExecTransformer (20)
                            +- ^ RegularHashAggregateExecTransformer (19)
                               +- ^ InputIteratorTransformer (18)
@@ -24,7 +24,7 @@ AdaptiveSparkPlan (46)
                                              +- ^ FlushableHashAggregateExecTransformer (11)
                                                 +- ^ ProjectExecTransformer (10)
                                                    +- ^ FilterExecTransformer (9)
-                                                      +- ^ ScanTransformer parquet  (8)
+                                                      +- ^ FileSourceScanExecTransformer parquet  (8)
 +- == Initial Plan ==
    Sort (45)
    +- Exchange (44)
@@ -42,7 +42,7 @@ AdaptiveSparkPlan (46)
                               +- Scan parquet (35)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -71,7 +71,7 @@ Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 (7) InputIteratorTransformer
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 
-(8) ScanTransformer parquet 
+(8) FileSourceScanExecTransformer parquet 
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -103,7 +103,7 @@ Arguments: false
 
 (14) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (15) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
@@ -145,7 +145,7 @@ Arguments: false
 
 (24) VeloxResizeBatches
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (25) ColumnarExchange
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]

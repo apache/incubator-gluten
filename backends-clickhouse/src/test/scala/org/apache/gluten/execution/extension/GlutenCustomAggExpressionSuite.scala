@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.extension
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
@@ -26,24 +27,14 @@ import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions.aggregate.CustomSum
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
-class GlutenCustomAggExpressionSuite extends GlutenClickHouseTPCHAbstractSuite {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
+class GlutenCustomAggExpressionSuite extends ParquetSuite {
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
+      .set("spark.sql.adaptive.enabled", "false")
       .set(
-        "spark.gluten.sql.columnar.extended.expressions.transformer",
+        GlutenConfig.EXTENDED_EXPRESSION_TRAN_CONF.key,
         "org.apache.gluten.execution.extension.CustomAggExpressionTransformer")
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   override def beforeAll(): Unit = {
@@ -79,7 +70,7 @@ class GlutenCustomAggExpressionSuite extends GlutenClickHouseTPCHAbstractSuite {
          |""".stripMargin
     val df = spark.sql(sql)
     // Final stage is not supported, it will be fallback
-    WholeStageTransformerSuite.checkFallBack(df, false)
+    GlutenQueryComparisonTest.checkFallBack(df, noFallback = false)
 
     val planExecs = df.queryExecution.executedPlan.collect {
       case agg: HashAggregateExec => agg

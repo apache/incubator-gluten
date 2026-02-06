@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
+#include "../utils/VeloxArrowUtils.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "operators/serializer//VeloxColumnarToRowConverter.h"
 #include "operators/serializer//VeloxRowToColumnarConverter.h"
-#include "utils/VeloxArrowUtils.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
 
 using namespace facebook;
@@ -30,7 +30,7 @@ namespace gluten {
 class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBase {
  protected:
   static void SetUpTestCase() {
-    memory::MemoryManager::testingSetInstance({});
+    memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 
   void testRowVectorEqual(velox::RowVectorPtr vector) {
@@ -43,7 +43,7 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
     uint8_t* address = columnarToRowConverter->getBufferAddress();
     auto lengthVec = columnarToRowConverter->getLengths();
 
-    int64_t lengthArr[lengthVec.size()];
+    std::vector<int64_t> lengthArr(lengthVec.size());
     for (int i = 0; i < lengthVec.size(); i++) {
       lengthArr[i] = lengthVec[i];
     }
@@ -52,7 +52,7 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
     toArrowSchema(vector->type(), pool(), &cSchema);
     auto rowToColumnarConverter = std::make_shared<VeloxRowToColumnarConverter>(&cSchema, pool_);
 
-    auto cb = rowToColumnarConverter->convert(numRows, lengthArr, address);
+    auto cb = rowToColumnarConverter->convert(numRows, lengthArr.data(), address);
     auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
     velox::test::assertEqualVectors(vector, vp);
   }

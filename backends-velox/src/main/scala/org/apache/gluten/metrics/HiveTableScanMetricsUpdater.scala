@@ -37,6 +37,9 @@ class HiveTableScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric]
   val skippedSplits: SQLMetric = metrics("skippedSplits")
   val processedSplits: SQLMetric = metrics("processedSplits")
   val preloadSplits: SQLMetric = metrics("preloadSplits")
+  val pageLoadTime: SQLMetric = metrics("pageLoadTime")
+  val dataSourceAddSplitTime: SQLMetric = metrics("dataSourceAddSplitTime")
+  val dataSourceReadTime: SQLMetric = metrics("dataSourceReadTime")
   val skippedStrides: SQLMetric = metrics("skippedStrides")
   val processedStrides: SQLMetric = metrics("processedStrides")
   val remainingFilterTime: SQLMetric = metrics("remainingFilterTime")
@@ -44,6 +47,7 @@ class HiveTableScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric]
   val storageReadBytes: SQLMetric = metrics("storageReadBytes")
   val localReadBytes: SQLMetric = metrics("localReadBytes")
   val ramReadBytes: SQLMetric = metrics("ramReadBytes")
+  val loadLazyVectorTime: SQLMetric = metrics("loadLazyVectorTime")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     inputMetrics.bridgeIncBytesRead(rawInputBytes.value)
@@ -75,6 +79,10 @@ class HiveTableScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric]
       localReadBytes += operatorMetrics.localReadBytes
       ramReadBytes += operatorMetrics.ramReadBytes
       preloadSplits += operatorMetrics.preloadSplits
+      pageLoadTime += operatorMetrics.pageLoadTime
+      dataSourceAddSplitTime += operatorMetrics.dataSourceAddSplitTime
+      dataSourceReadTime += operatorMetrics.dataSourceReadTime
+      loadLazyVectorTime += operatorMetrics.loadLazyVectorTime
     }
   }
 }

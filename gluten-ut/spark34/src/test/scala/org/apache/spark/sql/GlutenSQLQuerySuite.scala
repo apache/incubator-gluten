@@ -17,11 +17,20 @@
 package org.apache.spark.sql
 
 import org.apache.spark.SparkException
+import org.apache.spark.sql.execution.SortExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.internal.SQLConf
 
-class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
+class GlutenSQLQuerySuite
+  extends SQLQuerySuite
+  with GlutenSQLTestsTrait
+  with WithQueryPlanListener {
   import testImplicits._
+
+  // Assert no fallbacks on the trivial supported operators.
+  // We only check for sort fallback at the moment since there
+  // are fallbacks that exist for other operators.
+  planListeners.assertNoInstanceOf[SortExec]
 
   testGluten("SPARK-28156: self-join should not miss cached view") {
     withTable("table1") {

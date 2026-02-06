@@ -18,7 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, IteratorApi}
 import org.apache.gluten.backendsapi.velox.VeloxIteratorApi.unescapePathName
-import org.apache.gluten.config.GlutenNumaBindingInfo
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.execution._
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.metrics.{IMetrics, IteratorMetricsJniWrapper}
@@ -28,107 +28,92 @@ import org.apache.gluten.substrait.rel.{LocalFilesBuilder, LocalFilesNode, Split
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.vectorized._
 
-import org.apache.spark.{SparkConf, TaskContext}
+import org.apache.spark.{Partition, SparkConf, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
-import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{ExecutorManager, SparkDirectoryUtil}
+import org.apache.spark.util.SparkDirectoryUtil
 
 import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, UUID}
+import java.util.UUID
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class VeloxIteratorApi extends IteratorApi with Logging {
 
-  override def genSplitInfo(
-      partition: InputPartition,
-      partitionSchema: StructType,
-      fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = {
-    partition match {
-      case f: FilePartition =>
-        val (
-          paths,
-          starts,
-          lengths,
-          fileSizes,
-          modificationTimes,
-          partitionColumns,
-          metadataColumns,
-          otherMetadataColumns) =
-          constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
-        val preferredLocations =
-          SoftAffinity.getFilePartitionLocations(f)
-        LocalFilesBuilder.makeLocalFiles(
-          f.index,
-          paths,
-          starts,
-          lengths,
-          fileSizes,
-          modificationTimes,
-          partitionColumns,
-          metadataColumns,
-          fileFormat,
-          preferredLocations.toList.asJava,
-          mapAsJavaMap(properties),
-          otherMetadataColumns
-        )
-      case _ =>
-        throw new UnsupportedOperationException(s"Unsupported input partition.")
+  private def setFileSchemaForLocalFiles(
+      localFilesNode: LocalFilesNode,
+      fileSchema: StructType,
+      fileFormat: ReadFileFormat): LocalFilesNode = {
+    if (
+      ((fileFormat == ReadFileFormat.OrcReadFormat || fileFormat == ReadFileFormat.DwrfReadFormat)
+        && !VeloxConfig.get.orcUseColumnNames)
+      || (fileFormat == ReadFileFormat.ParquetReadFormat && !VeloxConfig.get.parquetUseColumnNames)
+    ) {
+      localFilesNode.setFileSchema(fileSchema)
     }
+
+    localFilesNode
   }
 
-  override def genSplitInfoForPartitions(
+  override def genSplitInfo(
       partitionIndex: Int,
-      partitions: Seq[InputPartition],
+      partitions: Seq[Partition],
       partitionSchema: StructType,
+      dataSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo = {
-    val partitionFiles = partitions.flatMap {
-      p =>
-        if (!p.isInstanceOf[FilePartition]) {
-          throw new UnsupportedOperationException(
-            s"Unsupported input partition ${p.getClass.getName}.")
-        }
-        p.asInstanceOf[FilePartition].files
-    }.toArray
-    val locations =
-      partitions.flatMap(p => SoftAffinity.getFilePartitionLocations(p.asInstanceOf[FilePartition]))
-    val (
-      paths,
-      starts,
-      lengths,
-      fileSizes,
-      modificationTimes,
-      partitionColumns,
-      metadataColumns,
-      otherMetadataColumns) =
-      constructSplitInfo(partitionSchema, partitionFiles, metadataColumnNames)
-    LocalFilesBuilder.makeLocalFiles(
-      partitionIndex,
-      paths,
-      starts,
-      lengths,
-      fileSizes,
-      modificationTimes,
-      partitionColumns,
-      metadataColumns,
-      fileFormat,
-      locations.toList.asJava,
-      mapAsJavaMap(properties),
-      otherMetadataColumns
+    val filePartitions: Seq[FilePartition] = partitions.map {
+      case p: FilePartition => p
+      case o =>
+        throw new UnsupportedOperationException(
+          s"Unsupported input partition: ${o.getClass.getName}")
+    }
+    val partitionFiles = filePartitions.flatMap(_.files)
+    val locations = filePartitions.flatMap(p => SoftAffinity.getFilePartitionLocations(p))
+    val (paths, starts, lengths) = getPartitionedFileInfo(partitionFiles).unzip3
+    val (fileSizes, modificationTimes) = partitionFiles
+      .map(f => SparkShimLoader.getSparkShims.getFileSizeAndModificationTime(f))
+      .collect {
+        case (Some(size), Some(time)) =>
+          (JLong.valueOf(size), JLong.valueOf(time))
+      }
+      .unzip
+
+    val partitionColumns = getPartitionColumns(partitionSchema, partitionFiles)
+    val metadataColumns = partitionFiles
+      .map(
+        f => SparkShimLoader.getSparkShims.generateMetadataColumns(f, metadataColumnNames).asJava)
+    val otherMetadataColumns = partitionFiles
+      .map(f => SparkShimLoader.getSparkShims.getOtherConstantMetadataColumnValues(f))
+
+    setFileSchemaForLocalFiles(
+      LocalFilesBuilder.makeLocalFiles(
+        partitionIndex,
+        paths.asJava,
+        starts.asJava,
+        lengths.asJava,
+        fileSizes.asJava,
+        modificationTimes.asJava,
+        partitionColumns.map(_.asJava).asJava,
+        metadataColumns.asJava,
+        fileFormat,
+        locations.toList.asJava,
+        mapAsJavaMap(properties),
+        otherMetadataColumns.asJava
+      ),
+      dataSchema,
+      fileFormat
     )
   }
 
@@ -145,79 +130,53 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         GlutenPartition(
           index,
           planByteArray,
-          splitInfos.map(_.asInstanceOf[LocalFilesNode].toProtobuf.toByteArray).toArray,
-          splitInfos.flatMap(_.preferredLocations().asScala).toArray
+          splitInfos.toArray
         )
     }
   }
 
-  private def constructSplitInfo(
+  private def getPartitionedFileInfo(
+      partitionedFiles: Seq[PartitionedFile]): Seq[(String, JLong, JLong)] = {
+    partitionedFiles.map {
+      partitionedFile =>
+        val path = unescapePathName(partitionedFile.filePath.toString)
+        (path, JLong.valueOf(partitionedFile.start), JLong.valueOf(partitionedFile.length))
+    }
+  }
+
+  private def getPartitionColumns(
       schema: StructType,
-      files: Array[PartitionedFile],
-      metadataColumnNames: Seq[String]) = {
-    val paths = new JArrayList[String]()
-    val starts = new JArrayList[JLong]
-    val lengths = new JArrayList[JLong]()
-    val fileSizes = new JArrayList[JLong]()
-    val modificationTimes = new JArrayList[JLong]()
-    val partitionColumns = new JArrayList[JMap[String, String]]
-    val metadataColumns = new JArrayList[JMap[String, String]]
-    val otherMetadataColumns = new JArrayList[JMap[String, Object]]
-    files.foreach {
-      file =>
-        paths.add(unescapePathName(file.filePath.toString))
-        starts.add(JLong.valueOf(file.start))
-        lengths.add(JLong.valueOf(file.length))
-        val (fileSize, modificationTime) =
-          SparkShimLoader.getSparkShims.getFileSizeAndModificationTime(file)
-        (fileSize, modificationTime) match {
-          case (Some(size), Some(time)) =>
-            fileSizes.add(JLong.valueOf(size))
-            modificationTimes.add(JLong.valueOf(time))
-          case _ => // Do nothing
-        }
-        val metadataColumn =
-          SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
-        metadataColumns.add(metadataColumn)
-        val partitionColumn = new JHashMap[String, String]()
-        for (i <- 0 until file.partitionValues.numFields) {
-          val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
+      partitionedFiles: Seq[PartitionedFile]): Seq[Map[String, String]] = {
+    partitionedFiles.map {
+      partitionedFile =>
+        val partitionColumn = mutable.Map[String, String]()
+        for (i <- 0 until partitionedFile.partitionValues.numFields) {
+          val partitionColumnValue = if (partitionedFile.partitionValues.isNullAt(i)) {
             ExternalCatalogUtils.DEFAULT_PARTITION_NAME
           } else {
-            val pn = file.partitionValues.get(i, schema.fields(i).dataType)
+            val pv = partitionedFile.partitionValues.get(i, schema.fields(i).dataType)
             schema.fields(i).dataType match {
               case _: BinaryType =>
-                new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
+                new String(pv.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
               case _: DateType =>
-                DateFormatter.apply().format(pn.asInstanceOf[Integer])
+                DateFormatter.apply().format(pv.asInstanceOf[Integer])
               case _: DecimalType =>
-                pn.asInstanceOf[Decimal].toJavaBigInteger.toString
+                pv.asInstanceOf[Decimal].toJavaBigInteger.toString
               case _: TimestampType =>
                 TimestampFormatter
                   .getFractionFormatter(ZoneOffset.UTC)
-                  .format(pn.asInstanceOf[java.lang.Long])
-              case _ => pn.toString
+                  .format(pv.asInstanceOf[java.lang.Long])
+              case _ => pv.toString
             }
           }
-          partitionColumn.put(schema.names(i), partitionColumnValue)
+          partitionColumn += (schema.names(i) -> partitionColumnValue)
         }
-        partitionColumns.add(partitionColumn)
-        otherMetadataColumns.add(
-          SparkShimLoader.getSparkShims.getOtherConstantMetadataColumnValues(file))
+        partitionColumn.toMap
     }
-    (
-      paths,
-      starts,
-      lengths,
-      fileSizes,
-      modificationTimes,
-      partitionColumns,
-      metadataColumns,
-      otherMetadataColumns)
   }
 
   override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
-    NativePlanEvaluator.injectWriteFilesTempPath(path)
+    NativePlanEvaluator.injectWriteFilesTempPath(path, fileName)
   }
 
   /** Generate Iterator[ColumnarBatch] for first stage. */
@@ -228,20 +187,24 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq(),
+      enableCudf: Boolean = false): Iterator[ColumnarBatch] = {
     assert(
       inputPartition.isInstanceOf[GlutenPartition],
       "Velox backend only accept GlutenPartition.")
 
-    val columnarNativeIterators =
-      new JArrayList[ColumnarBatchInIterator](inputIterators.map {
-        iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
-      }.asJava)
-    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
+    val columnarNativeIterators = inputIterators.map {
+      iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
+    }
+
+    val extraConf = Map(GlutenConfig.COLUMNAR_CUDF_ENABLED.key -> enableCudf.toString).asJava
+    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName, extraConf)
 
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
-      .splitInfosByteArray
+      .splitInfos
+      .map(splitInfo => splitInfo.toProtobuf.toByteArray)
+      .toArray
     val spillDirPath = SparkDirectoryUtil
       .get()
       .namespace("gluten-spill")
@@ -250,11 +213,12 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val resIter: ColumnarBatchOutIterator =
       transKernel.createKernelWithBatchIterator(
         inputPartition.plan,
-        splitInfoByteArray,
-        columnarNativeIterators,
+        if (splitInfoByteArray.nonEmpty) splitInfoByteArray else null,
+        if (columnarNativeIterators.nonEmpty) columnarNativeIterators.toArray else null,
         partitionIndex,
         BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
       )
+    resIter.noMoreSplits()
     val itrMetrics = IteratorMetricsJniWrapper.create()
 
     Iterators
@@ -262,7 +226,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       .protectInvocationFlow()
       .recycleIterator {
         updateNativeMetrics(itrMetrics.fetch(resIter))
-        updateInputMetrics(TaskContext.get().taskMetrics().inputMetrics)
+        updateInputMetrics(context.taskMetrics().inputMetrics)
         resIter.close()
       }
       .recyclePayload(batch => batch.close())
@@ -277,21 +241,19 @@ class VeloxIteratorApi extends IteratorApi with Logging {
   override def genFinalStageIterator(
       context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
-      numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      materializeInput: Boolean): Iterator[ColumnarBatch] = {
-
-    ExecutorManager.tryTaskSet(numaBindingInfo)
-
-    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
+      materializeInput: Boolean,
+      enableCudf: Boolean = false): Iterator[ColumnarBatch] = {
+    val extraConf = Map(GlutenConfig.COLUMNAR_CUDF_ENABLED.key -> enableCudf.toString).asJava
+    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName, extraConf)
     val columnarNativeIterator =
-      new JArrayList[ColumnarBatchInIterator](inputIterators.map {
+      inputIterators.map {
         iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
-      }.asJava)
+      }
     val spillDirPath = SparkDirectoryUtil
       .get()
       .namespace("gluten-spill")
@@ -300,12 +262,12 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val nativeResultIterator =
       transKernel.createKernelWithBatchIterator(
         rootNode.toProtobuf.toByteArray,
-        // Final iterator does not contain scan split, so pass empty split info to native here.
-        new Array[Array[Byte]](0),
-        columnarNativeIterator,
+        null,
+        if (columnarNativeIterator.nonEmpty) columnarNativeIterator.toArray else null,
         partitionIndex,
         BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
       )
+    nativeResultIterator.noMoreSplits()
     val itrMetrics = IteratorMetricsJniWrapper.create()
 
     Iterators

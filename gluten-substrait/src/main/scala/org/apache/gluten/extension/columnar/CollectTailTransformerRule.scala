@@ -24,7 +24,7 @@ import org.apache.spark.sql.execution.{CollectTailExec, SparkPlan}
 
 case class CollectTailTransformerRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.get.enableColumnarCollectLimit) {
+    if (!GlutenConfig.get.enableColumnarCollectTail) {
       return plan
     }
 

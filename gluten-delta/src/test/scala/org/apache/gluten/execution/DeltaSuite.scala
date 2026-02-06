@@ -43,7 +43,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
   }
 
   // IdMapping is supported in Delta 2.2 (related to Spark3.3.1)
-  testWithMinSparkVersion("column mapping mode = id", "3.3") {
+  test("column mapping mode = id") {
     withTable("delta_cm1") {
       spark.sql(s"""
                    |create table delta_cm1 (id int, name string) using delta
@@ -82,7 +82,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithMinSparkVersion("delta: time travel", "3.3") {
+  test("delta: time travel") {
     withTable("delta_tm") {
       spark.sql(s"""
                    |create table delta_tm (id int, name string) using delta
@@ -209,7 +209,13 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
           s"ALTER TABLE delta.`$path` SET TBLPROPERTIES ('delta.enableDeletionVectors' = true)")
         checkAnswer(spark.read.format("delta").load(path), df1.union(df2))
         spark.sql(s"DELETE FROM delta.`$path` WHERE id IN (${values2.mkString(", ")})")
-        checkAnswer(spark.read.format("delta").load(path), df1)
+        import org.apache.spark.sql.execution.GlutenImplicits._
+        val df = spark.read.format("delta").load(path)
+        assert(
+          df.fallbackSummary.fallbackNodeToReason
+            .flatMap(_.values)
+            .exists(_.contains("Deletion vector is not supported in native")))
+        checkAnswer(df, df1)
     }
   }
 
@@ -306,6 +312,31 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
             Row(2, "b", 20, "2025-03-12", "2025-03")
           )
         )
+      }
+    }
+  }
+
+  test("delta: filter should be offloaded with scan") {
+    withSQLConf("spark.gluten.sql.columnar.scanOnly" -> "true") {
+      // TODO: When RAS is enabled, filter is not offloaded along with scan.
+      withSQLConf("spark.gluten.ras.enabled" -> "false") {
+        withTable("delta_pf") {
+          spark.sql(s"""
+                       |create table test (id int, name string) using delta
+                       |""".stripMargin)
+          spark.sql(s"""
+                       |insert into test values (1, "v1"), (2, "v2"), (3, "v1"), (4, "v2")
+                       |""".stripMargin)
+          runQueryAndCompare(
+            "select id from test where name > 'v1'",
+            compareResult = true,
+            noFallBack = false) {
+            df =>
+              val plan = df.queryExecution.executedPlan
+              assert(plan.collect { case node: BasicScanExecTransformer => node }.nonEmpty)
+              assert(plan.collect { case node: FilterExecTransformerBase => node }.nonEmpty)
+          }
+        }
       }
     }
   }

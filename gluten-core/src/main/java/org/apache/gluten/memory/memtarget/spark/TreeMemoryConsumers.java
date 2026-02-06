@@ -16,36 +16,55 @@
  */
 package org.apache.gluten.memory.memtarget.spark;
 
-import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.GlutenCoreConfig;
 import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
-import org.apache.commons.collections.map.ReferenceMap;
+import com.google.common.base.Preconditions;
+import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.task.TaskResource;
+import org.apache.spark.task.TaskResources;
 import org.apache.spark.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class TreeMemoryConsumers {
-  private static final ReferenceMap FACTORIES = new ReferenceMap();
+import scala.Function0;
 
+public final class TreeMemoryConsumers {
   private TreeMemoryConsumers() {}
 
-  @SuppressWarnings("unchecked")
-  public static Factory factory(TaskMemoryManager tmm) {
-    synchronized (FACTORIES) {
-      return (Factory) FACTORIES.computeIfAbsent(tmm, m -> new Factory((TaskMemoryManager) m));
-    }
+  public static Factory factory(MemoryMode mode) {
+    final Factory factory =
+        TaskResources.addResourceIfNotRegistered(
+            Factory.class.getName(),
+            new Function0<Factory>() {
+              @Override
+              public Factory apply() {
+                return new Factory(TaskResources.getLocalTaskContext().taskMemoryManager(), mode);
+              }
+            });
+    final MemoryMode foundMode = factory.sparkConsumer.getMode();
+    Preconditions.checkState(
+        foundMode == mode,
+        "An existing Spark memory consumer already exists but is of the different memory "
+            + "mode: %s",
+        foundMode);
+    return factory;
   }
 
-  public static class Factory {
+  public static class Factory implements TaskResource {
+    private static final Logger LOG = LoggerFactory.getLogger(Factory.class);
+
     private final TreeMemoryConsumer sparkConsumer;
     private final Map<Long, TreeMemoryTarget> roots = new ConcurrentHashMap<>();
 
-    private Factory(TaskMemoryManager tmm) {
-      this.sparkConsumer = new TreeMemoryConsumer(tmm);
+    private Factory(TaskMemoryManager tmm, MemoryMode mode) {
+      this.sparkConsumer = new TreeMemoryConsumer(tmm, mode);
     }
 
     private TreeMemoryTarget ofCapacity(long capacity) {
@@ -77,7 +96,27 @@ public final class TreeMemoryConsumers {
      * <p>See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
      */
     public TreeMemoryTarget isolatedRoot() {
-      return ofCapacity(GlutenConfig.get().conservativeTaskOffHeapMemorySize());
+      return ofCapacity(GlutenCoreConfig.get().conservativeTaskOffHeapMemorySize());
+    }
+
+    @Override
+    public void release() throws Exception {
+      if (sparkConsumer.usedBytes() != 0) {
+        LOG.warn(
+            "{} still used {} bytes when task is ending," + " this may cause memory leak",
+            resourceName(),
+            sparkConsumer.usedBytes());
+      }
+    }
+
+    @Override
+    public int priority() {
+      return 5;
+    }
+
+    @Override
+    public String resourceName() {
+      return Factory.class.getSimpleName();
     }
   }
 }

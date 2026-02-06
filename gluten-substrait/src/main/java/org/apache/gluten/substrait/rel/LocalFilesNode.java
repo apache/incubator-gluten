@@ -18,7 +18,7 @@ package org.apache.gluten.substrait.rel;
 
 import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.expression.ConverterUtils;
-import org.apache.gluten.substrait.utils.SubstraitUtil;
+import org.apache.gluten.utils.SubstraitUtil;
 
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
@@ -109,15 +109,14 @@ public class LocalFilesNode implements SplitInfo {
   private NamedStruct buildNamedStruct() {
     NamedStruct.Builder namedStructBuilder = NamedStruct.newBuilder();
 
-    if (fileSchema != null) {
-      Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-      for (StructField field : fileSchema.fields()) {
-        structBuilder.addTypes(
-            ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
-        namedStructBuilder.addNames(ConverterUtils.normalizeColName(field.name()));
-      }
-      namedStructBuilder.setStruct(structBuilder.build());
+    Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
+    for (StructField field : fileSchema.fields()) {
+      structBuilder.addTypes(
+          ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
+      namedStructBuilder.addNames(ConverterUtils.normalizeColName(field.name()));
     }
+    namedStructBuilder.setStruct(structBuilder.build());
+
     return namedStructBuilder.build();
   }
 
@@ -195,8 +194,11 @@ public class LocalFilesNode implements SplitInfo {
             ReadRel.LocalFiles.FileOrFiles.metadataColumn.newBuilder();
         fileBuilder.addMetadataColumns(mcBuilder.build());
       }
-      NamedStruct namedStruct = buildNamedStruct();
-      fileBuilder.setSchema(namedStruct);
+
+      if (fileSchema != null) {
+        NamedStruct namedStruct = buildNamedStruct();
+        fileBuilder.setSchema(namedStruct);
+      }
 
       if (!otherMetadataColumns.isEmpty()) {
         Map<String, Object> otherMetadatas = otherMetadataColumns.get(i);
@@ -214,10 +216,7 @@ public class LocalFilesNode implements SplitInfo {
       switch (fileFormat) {
         case ParquetReadFormat:
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
-              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
-                  .setEnableRowGroupMaxminIndex(
-                      GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
-                  .build();
+              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder().build();
           fileBuilder.setParquet(parquetReadOptions);
           break;
         case OrcReadFormat:

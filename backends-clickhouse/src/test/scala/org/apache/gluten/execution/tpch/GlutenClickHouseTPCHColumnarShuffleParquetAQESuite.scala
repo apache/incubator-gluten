@@ -24,21 +24,13 @@ import org.apache.gluten.utils.Arm
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.execution.InputIteratorTransformer
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 
 import java.io.File
 
 import scala.io.Source
 
-class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = s"$queryPath/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "queries-output"
+class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite extends ParquetTPCHSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -55,12 +47,28 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
       .set(CHConfig.COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD.key, (1024 * 1024).toString)
   }
 
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
+  final override val testCases: Seq[Int] = Seq(
+    4, 6, 10, 12, 13, 16, 19, 20
+  )
+
+  final override val testCasesWithConfig: Map[Int, Seq[(String, String)]] =
+    Map(
+      7 -> Seq(
+        ("spark.sql.shuffle.partitions", "2"),
+        ("spark.sql.autoBroadcastJoinThreshold", "-1")),
+      8 -> Seq(
+        ("spark.sql.shuffle.partitions", "1"),
+        ("spark.sql.autoBroadcastJoinThreshold", "-1")),
+      14 -> Seq(
+        ("spark.sql.shuffle.partitions", "1"),
+        ("spark.sql.autoBroadcastJoinThreshold", "-1")),
+      17 -> Seq(("spark.shuffle.sort.bypassMergeThreshold", "2")),
+      18 -> Seq(("spark.shuffle.sort.bypassMergeThreshold", "2"))
+    )
+  setupTestCase()
 
   test("TPCH Q1") {
-    runTPCHQuery(1) {
+    customCheck(1) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val plans = collect(df.queryExecution.executedPlan) {
@@ -92,8 +100,8 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   }
 
   test("Check the metrics values") {
-    withSQLConf(("spark.gluten.sql.columnar.sort", "false")) {
-      runTPCHQuery(1, noFallBack = false) {
+    withSQLConf((GlutenConfig.COLUMNAR_SORT_ENABLED.key, "false")) {
+      customCheck(1, native = false) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val plans = collect(df.queryExecution.executedPlan) {
@@ -138,12 +146,11 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
                 |""".stripMargin)
     compareResultsAgainstVanillaSpark(
       "select a, b, to_timestamp(c), p from part_by_timestamp",
-      compareResult = true,
       customCheck = { _ => })
   }
 
   test("TPCH Q2") {
-    runTPCHQuery(2) {
+    customCheck(2) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val scanExec = collect(df.queryExecution.executedPlan) {
@@ -155,7 +162,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
 
   test("TPCH Q3") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(3) {
+      customCheck(3) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val shjBuildLeft = collect(df.queryExecution.executedPlan) {
@@ -184,13 +191,9 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
     }
   }
 
-  test("TPCH Q4") {
-    runTPCHQuery(4) { df => }
-  }
-
   test("TPCH Q5") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(5) {
+      customCheck(5) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val bhjRes = collect(df.queryExecution.executedPlan) {
@@ -199,10 +202,6 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           assert(bhjRes.isEmpty)
       }
     }
-  }
-
-  test("TPCH Q6") {
-    runTPCHQuery(6) { df => }
   }
 
   /**
@@ -214,63 +213,27 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(7) { df => }
-    }
-  }
-
-  test("TPCH Q7") {
-    withSQLConf(
-      ("spark.sql.shuffle.partitions", "2"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(7) { df => }
-    }
-  }
-
-  test("TPCH Q8") {
-    withSQLConf(
-      ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(8) { df => }
+      check(7)
     }
   }
 
   test("TPCH Q9") {
-    runTPCHQuery(9, compareResult = false) { df => }
-  }
-
-  test("TPCH Q10") {
-    runTPCHQuery(10) { df => }
+    check(9, compare = false)
   }
 
   test("TPCH Q11") {
-    runTPCHQuery(11, compareResult = false) {
+    customCheck(11, compare = false) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
           case adaptive: AdaptiveSparkPlanExec => adaptive
         }
         assert(adaptiveSparkPlanExec.size == 2)
-    }
-  }
-
-  test("TPCH Q12") {
-    runTPCHQuery(12) { df => }
-  }
-
-  test("TPCH Q13") {
-    runTPCHQuery(13) { df => }
-  }
-
-  test("TPCH Q14") {
-    withSQLConf(
-      ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(14) { df => }
     }
   }
 
   test("TPCH Q15") {
-    runTPCHQuery(15) {
+    customCheck(15) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
@@ -279,33 +242,8 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         assert(adaptiveSparkPlanExec.size == 2)
     }
   }
-
-  test("TPCH Q16") {
-    runTPCHQuery(16) { df => }
-  }
-
-  test("TPCH Q17") {
-    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(17) { df => }
-    }
-  }
-
-  test("TPCH Q18") {
-    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(18) { df => }
-    }
-  }
-
-  test("TPCH Q19") {
-    runTPCHQuery(19) { df => }
-  }
-
-  test("TPCH Q20") {
-    runTPCHQuery(20) { df => }
-  }
-
   test("TPCH Q21") {
-    runTPCHQuery(21) {
+    customCheck(21) {
       df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
@@ -319,7 +257,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   }
 
   test("TPCH Q22") {
-    runTPCHQuery(22) {
+    customCheck(22) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
         val adaptiveSparkPlanExec = collectWithSubqueries(df.queryExecution.executedPlan) {
@@ -331,7 +269,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
 
   test("Test 'spark.gluten.enabled' false") {
     withSQLConf((GlutenConfig.GLUTEN_ENABLED.key, "false")) {
-      runTPCHQuery(2, noFallBack = false) {
+      customCheck(2, native = false) {
         df =>
           val glutenPlans = collect(df.queryExecution.executedPlan) {
             case glutenPlan: GlutenPlan => glutenPlan
@@ -350,14 +288,14 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         |lateral view explode(set) as b
         |order by a, b
         |""".stripMargin
-    runQueryAndCompare(sql)(checkGlutenOperatorMatch[CHHashAggregateExecTransformer])
+    runQueryAndCompare(sql)(checkGlutenPlan[CHHashAggregateExecTransformer])
   }
 
   test("test 'aggregate function collect_list'") {
     val df = runQueryAndCompare(
       "select l_orderkey,from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
         "from lineitem order by l_orderkey desc limit 10"
-    )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    )(checkGlutenPlan[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
   }
 

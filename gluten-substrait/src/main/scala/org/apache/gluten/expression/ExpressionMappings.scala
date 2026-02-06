@@ -21,7 +21,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.ExpressionNames._
 import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.sql.catalyst.expressions.{StringTrimBoth, _}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
@@ -37,6 +37,7 @@ object ExpressionMappings {
     Sig[Subtract](SUBTRACT),
     Sig[Multiply](MULTIPLY),
     Sig[Divide](DIVIDE),
+    Sig[IntegralDivide](DIV),
     Sig[UnaryPositive](POSITIVE),
     Sig[UnaryMinus](NEGATIVE),
     Sig[And](AND),
@@ -178,7 +179,6 @@ object ExpressionMappings {
     Sig[Second](EXTRACT),
     Sig[FromUnixTime](FROM_UNIXTIME),
     Sig[DateAdd](DATE_ADD),
-    Sig[TimeAdd](TIMESTAMP_ADD),
     Sig[DateSub](DATE_SUB),
     Sig[DateDiff](DATE_DIFF),
     Sig[ToUnixTimestamp](TO_UNIX_TIMESTAMP),

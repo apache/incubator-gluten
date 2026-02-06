@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkException
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.functions.{assert_true, expr, input_file_name, lit, raise_error}
@@ -73,7 +75,7 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
   testGluten(
     "input_file_name, input_file_block_start and input_file_block_length " +
       "should fall back if scan falls back") {
-    withSQLConf(("spark.gluten.sql.columnar.filescan", "false")) {
+    withSQLConf((GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key, "false")) {
       withTempPath {
         dir =>
           val data = sparkContext.parallelize(0 to 10).toDF("id")

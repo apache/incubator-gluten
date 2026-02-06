@@ -16,500 +16,264 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.test.TPCHCHSchema
+
 import org.apache.spark.{SparkConf, SparkEnv}
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.test.SharedSparkSession
 
-import org.apache.commons.io.FileUtils
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import java.io.File
 
+trait TPCHDatabase extends SharedSparkSession with TPCHCHSchema with TestDatabase {
+  final protected def createTPCHTables(
+      tablePath: String,
+      format: String = "parquet",
+      DB: String = "default",
+      isNull: Boolean = true,
+      props: Map[String, String] = Map.empty[String, String]): Unit = {
+    if (DB != "default") {
+      spark.sql(s"CREATE DATABASE IF NOT EXISTS $DB")
+      spark.sql(s"use $DB")
+    }
+    tpchTables.foreach {
+      table =>
+        spark.sql(s"DROP TABLE IF EXISTS $table")
+        val s = createTableBuilder(table, format, s"$tablePath/$table")
+          .withProps(props)
+          .withIsNull(isNull)
+          .build()
+        spark.sql(s)
+    }
+    assert(spark.sql("show tables").collect().length === 8)
+  }
+
+  final protected def insertIntoTPCHTables(dataSourceDB: String): Unit = {
+    tpchTables
+      .map(table => s"insert into $table select * from $dataSourceDB.$table")
+      .foreach(spark.sql)
+  }
+
+  /** Parquet Source DB, Empty means no need Parquet Source DB */
+  protected def parquetSourceDB: String = ""
+  final def createParquetSource(): Unit = {
+    if (parquetSourceDB.nonEmpty) {
+      // create parquet data source table
+      createTPCHTables(testParquetAbsolutePath, DB = parquetSourceDB)
+    }
+    spark.sql(s"use default")
+  }
+  final override protected def prepareTestTables(): Unit = {
+    createParquetSource()
+    createTestTables()
+  }
+  protected def createTestTables(): Unit
+}
+
+trait TPCHParquetSource extends TPCHDatabase {
+  final override protected def parquetSourceDB: String = "default"
+  override protected def createTestTables(): Unit = {}
+}
+
+trait TPCHNullableMergeTreeSource extends TPCHDatabase {
+  override protected def parquetSourceDB: String = "parquet_source"
+  override protected def createTestTables(): Unit = {
+    createTPCHTables(
+      s"$dataHome/tpch-data-ch",
+      format = "clickhouse",
+      props = Map("engine" -> "'MergeTree'")
+    )
+    insertIntoTPCHTables(parquetSourceDB)
+  }
+}
+
+trait TPCHMergeTreeSource extends TPCHDatabase {
+  override protected def parquetSourceDB: String = "parquet_source"
+  override protected def createTestTables(): Unit = {
+    createTPCHTables(
+      s"$dataHome/tpch-data-ch",
+      format = "clickhouse",
+      isNull = false,
+      props = Map("engine" -> "'MergeTree'")
+    )
+    insertIntoTPCHTables(parquetSourceDB)
+  }
+}
+
+trait TPCHBucketTableSource extends TPCHDatabase {
+  val hasSortByCol: Boolean
+  val tableFormat: String
+  override protected def parquetSourceDB: String = "parquet_source"
+  override protected def createTestTables(): Unit = {
+    createTPCHDefaultBucketTables(s"$dataHome/tpch-data-ch")
+    insertIntoTPCHTables(parquetSourceDB)
+  }
+
+  final def createTPCHDefaultBucketTables(dataPath: String, DB: String = "default"): Unit = {
+    if (DB != "default") {
+      spark.sql(s"CREATE DATABASE IF NOT EXISTS $DB")
+      spark.sql(s"use $DB")
+    }
+    val table2ClusterKey: Map[String, (String, Int)] = Map(
+      "customer" -> ("c_custkey", 2),
+      "lineitem" -> ("l_orderkey", 2),
+      "nation" -> ("n_nationkey", 1),
+      "region" -> ("r_regionkey", 1),
+      "orders" -> ("o_orderkey", 2),
+      "part" -> ("p_partkey", 2),
+      "partsupp" -> ("ps_partkey", 2),
+      "supplier" -> ("s_suppkey", 1)
+    )
+    val table2SortByCol: Map[String, Seq[String]] = Map(
+      "customer" -> Seq("c_custkey"),
+      "lineitem" -> Seq("l_shipdate", "l_orderkey"),
+      "nation" -> Seq("n_nationkey"),
+      "region" -> Seq("r_regionkey"),
+      "orders" -> Seq("o_orderkey", "o_orderdate"),
+      "part" -> Seq("p_partkey"),
+      "partsupp" -> Seq("ps_partkey"),
+      "supplier" -> Seq("s_suppkey")
+    )
+    def create(table: String): Unit = {
+      spark.sql(s"DROP TABLE IF EXISTS $table")
+      val s = createTableBuilder(table, tableFormat, s"$dataPath/$table")
+        .withClusterKey(table2ClusterKey(table))
+        .withSortByOfBuckets(if (hasSortByCol) table2SortByCol(table) else Seq.empty)
+        .build()
+      spark.sql(s)
+    }
+    tpchTables.foreach(create)
+    assert(spark.sql("show tables").collect().length === 8)
+  }
+}
+
+trait withTPCHQuery extends GlutenClickHouseWholeStageTransformerSuite {
+  private val tpchQueryPath: String = new File(s"$queryPath/tpch-queries-ch").getCanonicalPath
+
+  // Reusable empty function to avoid creating a new lambda for each call
+  val NOOP: DataFrame => Unit = _ => {}
+
+  def customCheck(num: Int, compare: Boolean = true, native: Boolean = true)(
+      customCheck: DataFrame => Unit): Unit = {
+    require(num >= 1 && num <= 22, s"Query number must be between 1 and 22, got $num")
+    compareTPCHQueryAgainstVanillaSpark(
+      num,
+      tpchQueryPath,
+      noFallBack = native,
+      compareResult = compare,
+      customCheck = customCheck)
+  }
+
+  def check(num: Int, compare: Boolean = true): Unit = {
+    require(num >= 1 && num <= 22, s"Query number must be between 1 and 22, got $num")
+    compareTPCHQueryAgainstVanillaSpark(
+      num,
+      tpchQueryPath,
+      compareResult = compare,
+      customCheck = NOOP)
+  }
+
+  def withDataFrame(queryNum: Int)(f: DataFrame => Unit): Unit =
+    withDataFrame(tpchSQL(queryNum, tpchQueryPath))(f)
+
+  def doRunTPCHQuery(num: Int, queriesResults: String, compare: Boolean, native: Boolean)(
+      customCheck: DataFrame => Unit): Unit =
+    super.runTPCHQuery(num, tpchQueryPath, queriesResults, compare, native)(customCheck)
+
+  def q1(tableName: String): (String, Int) = {
+    val sql =
+      s"""
+         |SELECT
+         |    l_returnflag,
+         |    l_linestatus,
+         |    sum(l_quantity) AS sum_qty,
+         |    sum(l_extendedprice) AS sum_base_price,
+         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
+         |    avg(l_quantity) AS avg_qty,
+         |    avg(l_extendedprice) AS avg_price,
+         |    avg(l_discount) AS avg_disc,
+         |    count(*) AS count_order
+         |FROM
+         |    $tableName
+         |WHERE
+         |    l_shipdate <= date'1998-09-02' - interval 1 day
+         |GROUP BY
+         |    l_returnflag,
+         |    l_linestatus
+         |ORDER BY
+         |    l_returnflag,
+         |    l_linestatus;
+         |
+         |""".stripMargin
+    (sql, 1)
+  }
+
+  def q6(tableName: String): (String, Int) = {
+    val sql =
+      s"""
+         |SELECT
+         |    sum(l_extendedprice * l_discount) AS revenue
+         |FROM
+         |    $tableName
+         |WHERE
+         |    l_shipdate >= date'1994-01-01'
+         |    AND l_shipdate < date'1994-01-01' + interval 1 year
+         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+         |    AND l_quantity < 24
+         |""".stripMargin
+    (sql, 6)
+  }
+}
+
+trait withCacheResult extends withTPCHQuery {
+  val queriesResults: String
+
+  final override def customCheck(num: Int, compare: Boolean = true, native: Boolean = true)(
+      customCheck: DataFrame => Unit): Unit = {
+    require(num >= 1 && num <= 22, s"Query number must be between 1 and 22, got $num")
+    doRunTPCHQuery(num, queriesResults, compare, native)(customCheck)
+  }
+
+  final override def check(queryNum: Int, compare: Boolean = true): Unit =
+    doRunTPCHQuery(queryNum, queriesResults, compare, native = true)(NOOP)
+
+  final def customCheckQuery(query: (String, Int), compare: Boolean = true, native: Boolean = true)(
+      customCheck: DataFrame => Unit): Unit = {
+    require(
+      query._2 >= 1 && query._2 <= 22,
+      s"Query number must be between 1 and 22, got ${query._2}")
+    require(query._1.nonEmpty, "SQL query string cannot be empty")
+    withDataFrame(query._1) {
+      df =>
+        if (compare) {
+          verifyTPCHResult(df, s"q${query._2}", queriesResults)
+        } else {
+          df.collect()
+        }
+        checkDataFrame(native, customCheck, df)
+    }
+  }
+
+  final def checkQuery(query: (String, Int), compare: Boolean = true): Unit =
+    customCheckQuery(query, compare)(NOOP)
+}
+
+trait TPCHParquetResult extends withCacheResult {
+  final val queriesResults: String = s"${resPath}result/queries-output"
+}
+
+trait TPCHMergeTreeResult extends withCacheResult {
+  final val queriesResults: String = s"${resPath}result/mergetree-queries-output"
+}
+
 abstract class GlutenClickHouseTPCHAbstractSuite
   extends GlutenClickHouseWholeStageTransformerSuite
-  with Logging {
-
-  protected val createNullableTables = false
-
-  protected val needCopyParquetToTablePath = false
-
-  protected val parquetTableDataPath: String =
-    "../../../../gluten-core/src/test/resources/tpch-data"
-
-  final protected lazy val absoluteParquetPath = rootPath + parquetTableDataPath
-
-  protected val tablesPath: String
-  protected val tpchQueries: String
-  protected val queriesResults: String
-
-  protected val lineitemNullableSchema: String = lineitemSchema()
-  protected val lineitemNotNullSchema: String = lineitemSchema(false)
-
-  override def beforeAll(): Unit = {
-
-    super.beforeAll()
-
-    if (needCopyParquetToTablePath) {
-      val sourcePath = new File(absoluteParquetPath)
-      FileUtils.copyDirectory(sourcePath, new File(tablesPath))
-    }
-
-    spark.sparkContext.setLogLevel(logLevel)
-    if (createNullableTables) {
-      createTPCHNullableTables()
-    } else {
-      createTPCHNotNullTables()
-    }
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    // create parquet data source table
-    val parquetSourceDB = "parquet_source"
-    spark.sql(s"""
-                 |CREATE DATABASE IF NOT EXISTS $parquetSourceDB
-                 |""".stripMargin)
-    spark.sql(s"use $parquetSourceDB")
-
-    val parquetTablePath = basePath + "/tpch-data"
-    FileUtils.copyDirectory(new File(absoluteParquetPath), new File(parquetTablePath))
-
-    createNotNullTPCHTablesInParquet(parquetTablePath)
-
-    // create mergetree tables
-    spark.sql(s"use default")
-    val customerData = tablesPath + "/customer"
-    spark.sql(s"DROP TABLE IF EXISTS customer")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS customer (
-                 | c_custkey    bigint not null,
-                 | c_name       string not null,
-                 | c_address    string not null,
-                 | c_nationkey  bigint not null,
-                 | c_phone      string not null,
-                 | c_acctbal    double not null,
-                 | c_mktsegment string not null,
-                 | c_comment    string not null)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$customerData'
-                 |""".stripMargin)
-
-    val lineitemData = tablesPath + "/lineitem"
-    spark.sql(s"DROP TABLE IF EXISTS lineitem")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem (
-                 | $lineitemNotNullSchema)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$lineitemData'
-                 |""".stripMargin)
-
-    val nationData = tablesPath + "/nation"
-    spark.sql(s"DROP TABLE IF EXISTS nation")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS nation (
-                 | n_nationkey bigint not null,
-                 | n_name      string not null,
-                 | n_regionkey bigint not null,
-                 | n_comment   string not null)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$nationData'
-                 |""".stripMargin)
-
-    val regionData = tablesPath + "/region"
-    spark.sql(s"DROP TABLE IF EXISTS region")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS region (
-                 | r_regionkey bigint not null,
-                 | r_name      string not null,
-                 | r_comment   string not null)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$regionData'
-                 |""".stripMargin)
-
-    val ordersData = tablesPath + "/orders"
-    spark.sql(s"DROP TABLE IF EXISTS orders")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS orders (
-                 | o_orderkey      bigint not null,
-                 | o_custkey       bigint not null,
-                 | o_orderstatus   string not null,
-                 | o_totalprice    double not null,
-                 | o_orderdate     date not null,
-                 | o_orderpriority string not null,
-                 | o_clerk         string not null,
-                 | o_shippriority  bigint not null,
-                 | o_comment       string not null)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$ordersData'
-                 |""".stripMargin)
-
-    val partData = tablesPath + "/part"
-    spark.sql(s"DROP TABLE IF EXISTS part")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS part (
-                 | p_partkey     bigint not null,
-                 | p_name        string not null,
-                 | p_mfgr        string not null,
-                 | p_brand       string not null,
-                 | p_type        string not null,
-                 | p_size        bigint not null,
-                 | p_container   string not null,
-                 | p_retailprice double not null,
-                 | p_comment     string not null)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$partData'
-                 |""".stripMargin)
-
-    val partsuppData = tablesPath + "/partsupp"
-    spark.sql(s"DROP TABLE IF EXISTS partsupp")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp (
-                 | ps_partkey    bigint not null,
-                 | ps_suppkey    bigint not null,
-                 | ps_availqty   bigint not null,
-                 | ps_supplycost double not null,
-                 | ps_comment    string not null)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$partsuppData'
-                 |""".stripMargin)
-
-    val supplierData = tablesPath + "/supplier"
-    spark.sql(s"DROP TABLE IF EXISTS supplier")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS supplier (
-                 | s_suppkey   bigint not null,
-                 | s_name      string not null,
-                 | s_address   string not null,
-                 | s_nationkey bigint not null,
-                 | s_phone     string not null,
-                 | s_acctbal   double not null,
-                 | s_comment   string not null)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$supplierData'
-                 |""".stripMargin)
-
-    val result = spark
-      .sql(s"""
-              | show tables;
-              |""".stripMargin)
-      .collect()
-    assert(result.length == 8)
-
-    // insert data into mergetree tables from parquet tables
-    insertIntoMergeTreeTPCHTables(parquetSourceDB)
-  }
-
-  protected def createTPCHNullableTables(): Unit = {
-    // create parquet data source table
-    val parquetSourceDB = "parquet_source"
-    spark.sql(s"""
-                 |CREATE DATABASE IF NOT EXISTS $parquetSourceDB
-
-                 |""".stripMargin)
-    spark.sql(s"use $parquetSourceDB")
-
-    val parquetTablePath = basePath + "/tpch-data"
-    FileUtils.copyDirectory(new File(absoluteParquetPath), new File(parquetTablePath))
-
-    createNotNullTPCHTablesInParquet(parquetTablePath)
-
-    // create mergetree tables
-    spark.sql(s"""
-                 |CREATE DATABASE IF NOT EXISTS tpch_nullable
-                 |""".stripMargin)
-    spark.sql("use tpch_nullable")
-    val customerData = tablesPath + "/customer"
-    spark.sql(s"DROP TABLE IF EXISTS customer")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS customer (
-                 | c_custkey    bigint,
-                 | c_name       string,
-                 | c_address    string,
-                 | c_nationkey  bigint,
-                 | c_phone      string,
-                 | c_acctbal    double,
-                 | c_mktsegment string,
-                 | c_comment    string)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$customerData'
-                 |""".stripMargin)
-
-    val lineitemData = tablesPath + "/lineitem"
-    spark.sql(s"DROP TABLE IF EXISTS lineitem")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem (
-                 | $lineitemNullableSchema
-                 | )
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$lineitemData'
-                 |""".stripMargin)
-
-    val nationData = tablesPath + "/nation"
-    spark.sql(s"DROP TABLE IF EXISTS nation")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS nation (
-                 | n_nationkey bigint,
-                 | n_name      string,
-                 | n_regionkey bigint,
-                 | n_comment   string)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$nationData'
-                 |""".stripMargin)
-
-    val regionData = tablesPath + "/region"
-    spark.sql(s"DROP TABLE IF EXISTS region")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS region (
-                 | r_regionkey bigint,
-                 | r_name      string,
-                 | r_comment   string)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$regionData'
-                 |""".stripMargin)
-
-    val ordersData = tablesPath + "/orders"
-    spark.sql(s"DROP TABLE IF EXISTS orders")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS orders (
-                 | o_orderkey      bigint,
-                 | o_custkey       bigint,
-                 | o_orderstatus   string,
-                 | o_totalprice    double,
-                 | o_orderdate     date,
-                 | o_orderpriority string,
-                 | o_clerk         string,
-                 | o_shippriority  bigint,
-                 | o_comment       string)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$ordersData'
-                 |""".stripMargin)
-
-    val partData = tablesPath + "/part"
-    spark.sql(s"DROP TABLE IF EXISTS part")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS part (
-                 | p_partkey     bigint,
-                 | p_name        string,
-                 | p_mfgr        string,
-                 | p_brand       string,
-                 | p_type        string,
-                 | p_size        bigint,
-                 | p_container   string,
-                 | p_retailprice double,
-                 | p_comment     string)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$partData'
-                 |""".stripMargin)
-
-    val partsuppData = tablesPath + "/partsupp"
-    spark.sql(s"DROP TABLE IF EXISTS partsupp")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp (
-                 | ps_partkey    bigint,
-                 | ps_suppkey    bigint,
-                 | ps_availqty   bigint,
-                 | ps_supplycost double,
-                 | ps_comment    string)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$partsuppData'
-                 |""".stripMargin)
-
-    val supplierData = tablesPath + "/supplier"
-    spark.sql(s"DROP TABLE IF EXISTS supplier")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS supplier (
-                 | s_suppkey   bigint,
-                 | s_name      string,
-                 | s_address   string,
-                 | s_nationkey bigint,
-                 | s_phone     string,
-                 | s_acctbal   double,
-                 | s_comment   string)
-                 | USING clickhouse
-                 | TBLPROPERTIES (engine='MergeTree'
-                 |                )
-                 | LOCATION '$supplierData'
-                 |""".stripMargin)
-
-    val result = spark
-      .sql(s"""
-              | show tables;
-              |""".stripMargin)
-      .collect()
-    assert(result.length == 8)
-
-    insertIntoMergeTreeTPCHTables(parquetSourceDB)
-  }
-
-  protected def insertIntoMergeTreeTPCHTables(dataSourceDB: String): Unit = {
-    spark.sql(s"""
-                 | insert into table customer select * from $dataSourceDB.customer
-                 |""".stripMargin)
-    spark.sql(s"""
-                 | insert into table lineitem select * from $dataSourceDB.lineitem
-                 |""".stripMargin)
-    spark.sql(s"""
-                 | insert into table nation select * from $dataSourceDB.nation
-                 |""".stripMargin)
-    spark.sql(s"""
-                 | insert into table region select * from $dataSourceDB.region
-                 |""".stripMargin)
-    spark.sql(s"""
-                 | insert into table orders select * from $dataSourceDB.orders
-                 |""".stripMargin)
-    spark.sql(s"""
-                 | insert into table part select * from $dataSourceDB.part
-                 |""".stripMargin)
-    spark.sql(s"""
-                 | insert into table partsupp select * from $dataSourceDB.partsupp
-                 |""".stripMargin)
-    spark.sql(s"""
-                 | insert into table supplier select * from $dataSourceDB.supplier
-                 |""".stripMargin)
-  }
-
-  protected def createNotNullTPCHTablesInParquet(parquetTablePath: String): Unit = {
-    val customerData = parquetTablePath + "/customer"
-    spark.sql(s"DROP TABLE IF EXISTS customer")
-    spark.sql(s"""
-                 | CREATE TABLE IF NOT EXISTS customer (
-                 | c_custkey    bigint,
-                 | c_name       string,
-                 | c_address    string,
-                 | c_nationkey  bigint,
-                 | c_phone      string,
-                 | c_acctbal    double,
-                 | c_mktsegment string,
-                 | c_comment    string)
-                 | USING PARQUET LOCATION '$customerData'
-                 |""".stripMargin)
-
-    val lineitemData = parquetTablePath + "/lineitem"
-    spark.sql(s"DROP TABLE IF EXISTS lineitem")
-    spark.sql(s"""
-                 | CREATE TABLE IF NOT EXISTS lineitem (
-                 | $lineitemNullableSchema
-                 | )
-                 | USING PARQUET LOCATION '$lineitemData'
-                 |""".stripMargin)
-
-    val nationData = parquetTablePath + "/nation"
-    spark.sql(s"DROP TABLE IF EXISTS nation")
-    spark.sql(s"""
-                 | CREATE TABLE IF NOT EXISTS nation (
-                 | n_nationkey bigint,
-                 | n_name      string,
-                 | n_regionkey bigint,
-                 | n_comment   string)
-                 | USING PARQUET LOCATION '$nationData'
-                 |""".stripMargin)
-
-    val regionData = parquetTablePath + "/region"
-    spark.sql(s"DROP TABLE IF EXISTS region")
-    spark.sql(s"""
-                 | CREATE TABLE IF NOT EXISTS region (
-                 | r_regionkey bigint,
-                 | r_name      string,
-                 | r_comment   string)
-                 | USING PARQUET LOCATION '$regionData'
-                 |""".stripMargin)
-
-    val ordersData = parquetTablePath + "/orders"
-    spark.sql(s"DROP TABLE IF EXISTS orders")
-    spark.sql(s"""
-                 | CREATE TABLE IF NOT EXISTS orders (
-                 | o_orderkey      bigint,
-                 | o_custkey       bigint,
-                 | o_orderstatus   string,
-                 | o_totalprice    double,
-                 | o_orderdate     date,
-                 | o_orderpriority string,
-                 | o_clerk         string,
-                 | o_shippriority  bigint,
-                 | o_comment       string)
-                 | USING PARQUET LOCATION '$ordersData'
-                 |""".stripMargin)
-
-    val partData = parquetTablePath + "/part"
-    spark.sql(s"DROP TABLE IF EXISTS part")
-    spark.sql(s"""
-                 | CREATE TABLE IF NOT EXISTS part (
-                 | p_partkey     bigint,
-                 | p_name        string,
-                 | p_mfgr        string,
-                 | p_brand       string,
-                 | p_type        string,
-                 | p_size        bigint,
-                 | p_container   string,
-                 | p_retailprice double,
-                 | p_comment     string)
-                 | USING PARQUET LOCATION '$partData'
-                 |""".stripMargin)
-
-    val partsuppData = parquetTablePath + "/partsupp"
-    spark.sql(s"DROP TABLE IF EXISTS partsupp")
-    spark.sql(s"""
-                 | CREATE TABLE IF NOT EXISTS partsupp (
-                 | ps_partkey    bigint,
-                 | ps_suppkey    bigint,
-                 | ps_availqty   bigint,
-                 | ps_supplycost double,
-                 | ps_comment    string)
-                 | USING PARQUET LOCATION '$partsuppData'
-                 |""".stripMargin)
-
-    val supplierData = parquetTablePath + "/supplier"
-    spark.sql(s"DROP TABLE IF EXISTS supplier")
-    spark.sql(s"""
-                 | CREATE TABLE IF NOT EXISTS supplier (
-                 | s_suppkey   bigint,
-                 | s_name      string,
-                 | s_address   string,
-                 | s_nationkey bigint,
-                 | s_phone     string,
-                 | s_acctbal   double,
-                 | s_comment   string)
-                 | USING PARQUET LOCATION '$supplierData'
-                 |""".stripMargin)
-
-    val result = spark
-      .sql(s"""
-              | show tables;
-              |""".stripMargin)
-      .collect()
-    assert(result.length == 8)
-  }
+  with withTPCHQuery {
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -529,11 +293,28 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.warehouse.dir", warehouse)
-    /* .set("spark.sql.catalogImplementation", "hive")
-      .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
-        metaStorePathAbsolute + "/metastore_db"};create=true") */
+  }
+
+  val testCases: Seq[Int] = Seq.empty
+  val testCasesWithConfig: Map[Int, Seq[(String, String)]] = Map.empty
+  def setupTestCase(): Unit = {
+    testCases.foreach {
+      num =>
+        test(s"TPCH Q$num") {
+          check(num)
+        }
+    }
+
+    testCasesWithConfig.foreach {
+      case (num, configs) =>
+        test(s"TPCH Q$num") {
+          withSQLConf(configs: _*) {
+            check(num)
+          }
+        }
+    }
   }
 
   override protected def afterAll(): Unit = {
@@ -553,95 +334,46 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     DeltaLog.clearCache()
     super.afterAll()
   }
-
-  override protected def runTPCHQuery(
-      queryNum: Int,
-      tpchQueries: String = tpchQueries,
-      queriesResults: String = queriesResults,
-      compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult, noFallBack)(
-      customCheck)
-  }
-
-  protected def runTPCHQueryBySQL(
-      queryNum: Int,
-      sqlStr: String,
-      queriesResults: String = queriesResults,
-      compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = withDataFrame(sqlStr) {
-    df =>
-      if (compareResult) {
-        verifyTPCHResult(df, s"q$queryNum", queriesResults)
-      } else {
-        df.collect()
-      }
-      checkDataFrame(noFallBack, customCheck, df)
-  }
-
-  def q1(tableName: String): String =
-    s"""
-       |SELECT
-       |    l_returnflag,
-       |    l_linestatus,
-       |    sum(l_quantity) AS sum_qty,
-       |    sum(l_extendedprice) AS sum_base_price,
-       |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-       |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-       |    avg(l_quantity) AS avg_qty,
-       |    avg(l_extendedprice) AS avg_price,
-       |    avg(l_discount) AS avg_disc,
-       |    count(*) AS count_order
-       |FROM
-       |    $tableName
-       |WHERE
-       |    l_shipdate <= date'1998-09-02' - interval 1 day
-       |GROUP BY
-       |    l_returnflag,
-       |    l_linestatus
-       |ORDER BY
-       |    l_returnflag,
-       |    l_linestatus;
-       |
-       |""".stripMargin
-
-  def q6(tableName: String): String =
-    s"""
-       |SELECT
-       |    sum(l_extendedprice * l_discount) AS revenue
-       |FROM
-       |    $tableName
-       |WHERE
-       |    l_shipdate >= date'1994-01-01'
-       |    AND l_shipdate < date'1994-01-01' + interval 1 year
-       |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-       |    AND l_quantity < 24
-       |""".stripMargin
-
-  private def lineitemSchema(nullable: Boolean = true): String = {
-    val nullableSql = if (nullable) {
-      ""
-    } else {
-      " not null "
-    }
-
-    s"""
-       | l_orderkey      bigint $nullableSql,
-       | l_partkey       bigint $nullableSql,
-       | l_suppkey       bigint $nullableSql,
-       | l_linenumber    bigint $nullableSql,
-       | l_quantity      double $nullableSql,
-       | l_extendedprice double $nullableSql,
-       | l_discount      double $nullableSql,
-       | l_tax           double $nullableSql,
-       | l_returnflag    string $nullableSql,
-       | l_linestatus    string $nullableSql,
-       | l_shipdate      date   $nullableSql,
-       | l_commitdate    date   $nullableSql,
-       | l_receiptdate   date   $nullableSql,
-       | l_shipinstruct  string $nullableSql,
-       | l_shipmode      string $nullableSql,
-       | l_comment       string $nullableSql
-       |""".stripMargin
-  }
 }
+
+/**
+ * This test suite is designed to validate the creation of MergeTree tables in ClickHouse. The
+ * source data, based on the TPCH schema, is stored in Parquet format files referenced through
+ * external tables in the default database.
+ */
+class CreateMergeTreeSuite
+  extends GlutenClickHouseTPCHAbstractSuite
+  with TPCHMergeTreeResult
+  with TPCHParquetSource {}
+
+/**
+ * `MergeTreeSuite` extends GlutenClickHouseTPCHAbstractSuite and integrates functionality provided
+ * by the `MergeTreeResult` trait. It provides the structure necessary to test and validate merge
+ * tree query executions against the ClickHouse backend using the TPCH schema.
+ */
+class MergeTreeSuite
+  extends GlutenClickHouseTPCHAbstractSuite
+  with TPCHMergeTreeResult
+  with TPCHMergeTreeSource {}
+
+/**
+ * A test suite designed for testing nullable support in the MergeTree table implementation in the
+ * ClickHouse backend of Gluten's integration with Apache Spark.
+ *
+ * This suite extends the `GlutenClickHouseTPCHAbstractSuite` and incorporates additional traits
+ * specific to MergeTree table behavior and nullable data handling.
+ */
+class NullableMergeTreeSuite
+  extends GlutenClickHouseTPCHAbstractSuite
+  with TPCHMergeTreeResult
+  with TPCHNullableMergeTreeSource {}
+
+class ParquetTPCHSuite
+  extends GlutenClickHouseTPCHAbstractSuite
+  with TPCHParquetResult
+  with TPCHParquetSource
+
+class ParquetSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with withTPCHQuery
+  with TPCHParquetSource

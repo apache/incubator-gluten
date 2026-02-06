@@ -16,13 +16,13 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{ConfigRegistry, GlutenConfig}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
-object CHConfig {
+object CHConfig extends ConfigRegistry {
   private[clickhouse] val BACKEND_NAME: String = "ch"
   private[clickhouse] val CONF_PREFIX: String = GlutenConfig.prefixOf(BACKEND_NAME)
   private val RUNTIME_SETTINGS: String = s"$CONF_PREFIX.runtime_settings"
@@ -58,8 +58,6 @@ object CHConfig {
   def removeSettingsPrefix(key: String): String = key.substring(RUNTIME_SETTINGS.length + 1)
 
   def get: CHConfig = new CHConfig(SQLConf.get)
-
-  import GlutenConfig._
 
   val ENABLE_ONEPIPELINE_MERGETREE_WRITE =
     buildConf(prefixOf("mergetree.write.pipeline"))
@@ -130,4 +128,9 @@ class CHConfig(conf: SQLConf) extends GlutenConfig(conf) {
     getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
 
   def enableGlutenLocalFileCache: Boolean = getConf(ENABLE_GLUTEN_LOCAL_FILE_CACHE)
+}
+
+object GlutenObjectStorageConfig {
+  val S3_DISK_TYPE: String = "s3_gluten"
+  val HDFS_DISK_TYPE: String = "hdfs_gluten"
 }

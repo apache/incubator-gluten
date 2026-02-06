@@ -17,8 +17,9 @@
 package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackend
-import org.apache.gluten.execution.{OffloadDeltaFilter, OffloadDeltaNode, OffloadDeltaProject}
-import org.apache.gluten.extension.DeltaPostTransformRules
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.execution.OffloadDeltaNode
+import org.apache.gluten.extension.{DeltaPostTransformRules, OffloadDeltaFilter, OffloadDeltaProject}
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators
@@ -28,12 +29,16 @@ import org.apache.gluten.sql.shims.DeltaShimLoader
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.sql.execution.{FilterExec, ProjectExec}
+import org.apache.spark.util.SparkReflectionUtil
 
 class CHDeltaComponent extends Component {
   override def name(): String = "ch-delta"
-  override def buildInfo(): Component.BuildInfo =
-    Component.BuildInfo("CHDelta", "N/A", "N/A", "N/A")
+
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[CHBackend] :: Nil
+
+  override def isRuntimeCompatible: Boolean = {
+    SparkReflectionUtil.isClassPresent("io.delta.sql.DeltaSparkSessionExtension")
+  }
 
   override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit =
     DeltaShimLoader.getDeltaShims.onDriverStart(sc, pc)
@@ -44,7 +49,9 @@ class CHDeltaComponent extends Component {
     legacy.injectTransform {
       c =>
         val offload = Seq(OffloadDeltaNode(), OffloadDeltaProject(), OffloadDeltaFilter())
-        HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
+        HeuristicTransform.Simple(
+          Validators.newValidator(new GlutenConfig(c.sqlConf), offload),
+          offload)
     }
     val offloads: Seq[RasOffload] = Seq(
       RasOffload.from[ProjectExec](OffloadDeltaProject()),
@@ -53,7 +60,7 @@ class CHDeltaComponent extends Component {
     offloads.foreach(
       offload =>
         ras.injectRasRule(
-          c => RasOffload.Rule(offload, Validators.newValidator(c.glutenConf), Nil)))
+          c => RasOffload.Rule(offload, Validators.newValidator(new GlutenConfig(c.sqlConf)), Nil)))
     DeltaPostTransformRules.rules.foreach {
       r =>
         legacy.injectPostTransform(_ => r)

@@ -17,15 +17,14 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.ValidationResult
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.optimizer.{BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType, LeftSemi}
-import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{FileSourceScanExecShim, SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -111,9 +110,30 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
 
+  private def isBuildSideEmpty: Boolean = buildPlan match {
+    case scan: FileSourceScanExecTransformerBase =>
+      scan.getPartitions.isEmpty
+    case scan: FileSourceScanExecShim =>
+      scan.getPartitionArray.isEmpty
+    case _ =>
+      false
+  }
+
   override def validateJoinTypeAndBuildSide(): ValidationResult = {
+    if (
+      isBuildSideEmpty && (
+        (joinType == LeftOuter && buildSide == BuildRight) ||
+          (joinType == RightOuter && buildSide == BuildLeft)
+      )
+    ) {
+      return ValidationResult.failed(
+        s"Broadcast Nested Loop join is not supported for $joinType when build side is empty")
+    }
+
     joinType match {
       case _: InnerLike =>
+      case ExistenceJoin(_) =>
+        return ValidationResult.failed("ExistenceJoin is not supported for CH backend.")
       case _ =>
         if (joinType == LeftSemi || condition.isDefined) {
           return ValidationResult.failed(

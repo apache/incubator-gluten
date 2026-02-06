@@ -18,7 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ExpressionConverter
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
@@ -26,7 +25,7 @@ import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, Expression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.window.{Final, Partial, WindowGroupLimitMode}
+import org.apache.spark.sql.execution.window.{GlutenFinal, GlutenPartial, GlutenWindowGroupLimitMode}
 
 import io.substrait.proto.SortField
 
@@ -37,7 +36,7 @@ case class WindowGroupLimitExecTransformer(
     orderSpec: Seq[SortOrder],
     rankLikeFunction: Expression,
     limit: Int,
-    mode: WindowGroupLimitMode,
+    mode: GlutenWindowGroupLimitMode,
     child: SparkPlan)
   extends UnaryTransformSupport {
 
@@ -53,8 +52,8 @@ case class WindowGroupLimitExecTransformer(
   override def output: Seq[Attribute] = child.output
 
   override def requiredChildDistribution: Seq[Distribution] = mode match {
-    case Partial => super.requiredChildDistribution
-    case Final =>
+    case GlutenPartial => super.requiredChildDistribution
+    case GlutenFinal =>
       if (partitionSpec.isEmpty) {
         AllTuples :: Nil
       } else {

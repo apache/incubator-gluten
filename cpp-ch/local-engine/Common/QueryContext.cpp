@@ -27,6 +27,7 @@
 #include <Common/ThreadStatus.h>
 #include <Common/formatReadable.h>
 #include <Common/logger_useful.h>
+#include <Parser/LocalExecutor.h>
 
 namespace DB
 {
@@ -59,6 +60,7 @@ DB::ContextMutablePtr QueryContext::globalMutableContext()
 {
     return Data::global_context;
 }
+
 void QueryContext::resetGlobal()
 {
     if (Data::global_context)
@@ -67,6 +69,23 @@ void QueryContext::resetGlobal()
         Data::global_context.reset();
     }
     Data::shared_context.reset();
+}
+
+void QueryContext::reset()
+{
+    {
+         std::lock_guard<std::mutex> lock(local_executor_mutex_);
+        for (auto it = active_executors_.begin(); it != active_executors_.end(); ++it)
+        {
+            auto * executor = *it;
+            executor->cancel();
+            LOG_ERROR(logger_, "Not closed LocalExecutor({}):\n{}", reinterpret_cast<intptr_t>(executor), executor->dumpPipeline());
+            delete executor;
+        }
+        active_executors_.clear();
+    }
+    query_map_.clear();
+    QueryContext::resetGlobal();
 }
 
 DB::ContextMutablePtr QueryContext::createGlobal()
@@ -101,7 +120,7 @@ int64_t QueryContext::initializeQuery(const String & task_id)
     // this generated random query id a qualified global queryid for the spark query
     query_context->query_context->setCurrentQueryId(toString(UUIDHelpers::generateV4()) + "_" + task_id);
     auto config = MemoryConfig::loadFromContext(query_context->query_context);
-    query_context->thread_status = std::make_shared<ThreadStatus>(false);
+    query_context->thread_status = std::make_shared<ThreadStatus>();
     query_context->thread_group = std::make_shared<ThreadGroup>(query_context->query_context);
     CurrentThread::attachToGroup(query_context->thread_group);
     auto memory_limit = config.off_heap_per_task;
@@ -195,14 +214,20 @@ void QueryContext::finalizeQuery(int64_t id)
 size_t currentThreadGroupMemoryUsage()
 {
     if (!CurrentThread::getGroup())
-        throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found, please call initializeQuery first.");
+    {
+        LOG_ERROR(getLogger("QueryContext"), "Thread group not found, please call initializeQuery first.");
+        return 0;
+    }
     return CurrentThread::getGroup()->memory_tracker.get();
 }
 
 double currentThreadGroupMemoryUsageRatio()
 {
     if (!CurrentThread::getGroup())
-        throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found, please call initializeQuery first.");
+    {
+        LOG_ERROR(getLogger("QueryContext"), "Thread group not found, please call initializeQuery first.");
+        return 0;
+    }
     return static_cast<double>(CurrentThread::getGroup()->memory_tracker.get()) / CurrentThread::getGroup()->memory_tracker.getSoftLimit();
 }
 }

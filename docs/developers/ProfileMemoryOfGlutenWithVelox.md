@@ -119,6 +119,21 @@ spark.executorEnv.MALLOC_CONF prof:true,lg_prof_interval:30,prof_prefix:/tmp/glu
 
 Finally, profiling files prefixed with `/tmp/gluten_heap_perf.${PID}` will be generated for each spark executor.
 
+## Memory dump on spark executor exit
+
+Sometimes, when native memory is not managed by gluten or there are some memory leaks that will cause spark executor to be killed due to memory limit,
+we only need to trigger a memory dump on executor exit.
+
+If we want to enable this feature we need to follow steps:
+
+1. Build gluten with `--enable_jemalloc_stats=ON` to enabled jemalloc stats.
+2. Enabled memory dump on exit, add spark executor environments to load jemalloc lib and make memory profiling active.
+    ```
+   spark.gluten.monitor.memoryDumpOnExit=true
+   spark.executorEnv.LD_PRELOAD=/path/to/libjemalloc.so
+   spark.executorEnv.MALLOC_CONF=prof:true,prof_prefix:/tmp/gluten_heap_perf
+   ```
+
 ## Analyze profiling output
 
 Prepare the required native libraries. Assume static build is used for Gluten, so there is no other shared dependency libs.

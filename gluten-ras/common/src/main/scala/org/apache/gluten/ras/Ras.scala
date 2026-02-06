@@ -16,19 +16,16 @@
  */
 package org.apache.gluten.ras
 
-import org.apache.gluten.ras.property.PropertySet
-import org.apache.gluten.ras.rule.RasRule
-
-import scala.collection.mutable
+import org.apache.gluten.ras.property.{PropertySet, PropertySetFactory}
+import org.apache.gluten.ras.property.role.MemoRoleAwarePropertySet
+import org.apache.gluten.ras.rule.{EnforcerRuleFactory, RasRule}
 
 /**
- * Entrypoint of RAS (relational algebra selector)'s search engine. See basic introduction of RAS:
- * https://github.com/apache/incubator-gluten/issues/5057.
+ * Entrypoint of RAS (relational algebra selector) 's search engine. See the basic introduction of
+ * RAS: https://github.com/apache/incubator-gluten/issues/5057.
  */
 trait Optimization[T <: AnyRef] {
   def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T]
-  def anyPropSet(): PropertySet[T]
-  def withNewConfig(confFunc: RasConfig => RasConfig): Optimization[T]
 }
 
 object Optimization {
@@ -41,12 +38,6 @@ object Optimization {
       ruleFactory: RasRule.Factory[T]): Optimization[T] = {
     Ras(planModel, costModel, metadataModel, propertyModel, explain, ruleFactory)
   }
-
-  implicit class OptimizationImplicits[T <: AnyRef](opt: Optimization[T]) {
-    def newPlanner(plan: T): RasPlanner[T] = {
-      opt.newPlanner(plan, opt.anyPropSet())
-    }
-  }
 }
 
 class Ras[T <: AnyRef] private (
@@ -54,27 +45,20 @@ class Ras[T <: AnyRef] private (
     val planModel: PlanModel[T],
     val costModel: CostModel[T],
     val metadataModel: MetadataModel[T],
-    val propertyModel: PropertyModel[T],
+    private val propertyModel: PropertyModel[T],
     val explain: RasExplain[T],
     val ruleFactory: RasRule.Factory[T])
   extends Optimization[T] {
+
   import Ras._
 
-  override def withNewConfig(confFunc: RasConfig => RasConfig): Ras[T] = {
-    new Ras(
-      confFunc(config),
-      planModel,
-      costModel,
-      metadataModel,
-      propertyModel,
-      explain,
-      ruleFactory)
+  private val propSetFactory: PropertySetFactory[T] = {
+    PropertySetFactory(propertyModel, planModel)
   }
 
-  private val propSetFactory: PropertySetFactory[T] = PropertySetFactory(propertyModel, planModel)
   // Normal groups start with ID 0, so it's safe to use Int.MinValue to do validation.
   private val dummyGroup: T =
-    planModel.newGroupLeaf(Int.MinValue, metadataModel.dummy(), propSetFactory.any())
+    newGroupLeaf(Int.MinValue, metadataModel.dummy(), MemoRoleAwarePropertySet.HubConstraintSet())
   private val infCost: Cost = costModel.makeInfCost()
 
   validateModels()
@@ -108,14 +92,44 @@ class Ras[T <: AnyRef] private (
   }
 
   override def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T] = {
-    RasPlanner(this, constraintSet, plan)
+    RasPlanner(this, withUserConstraint(constraintSet), plan)
   }
 
-  override def anyPropSet(): PropertySet[T] = propertySetFactory().any()
+  def newPlanner(plan: T): RasPlanner[T] = {
+    RasPlanner(this, userConstraintSet(), plan)
+  }
+
+  def withNewConfig(confFunc: RasConfig => RasConfig): Ras[T] = {
+    new Ras(
+      confFunc(config),
+      planModel,
+      costModel,
+      metadataModel,
+      propertyModel,
+      explain,
+      ruleFactory)
+  }
+
+  private[ras] def withUserConstraint(from: PropertySet[T]): PropertySet[T] = {
+    MemoRoleAwarePropertySet.UserConstraintSet(from)
+  }
+
+  private[ras] def userConstraintSet(): PropertySet[T] = propSetFactory.any()
+
+  private[ras] def hubConstraintSet(): PropertySet[T] = MemoRoleAwarePropertySet.HubConstraintSet()
 
   private[ras] def propSetOf(plan: T): PropertySet[T] = {
-    val out = propertySetFactory().get(plan)
-    out
+    propSetFactory.get(plan)
+  }
+
+  private[ras] def childrenConstraintSets(
+      node: T,
+      constraintSet: PropertySet[T]): Seq[PropertySet[T]] = {
+    propSetFactory.childrenConstraintSets(node, constraintSet)
+  }
+
+  private[ras] def newEnforcerRuleFactory(): EnforcerRuleFactory[T] = {
+    propSetFactory.newEnforcerRuleFactory()
   }
 
   private[ras] def withNewChildren(node: T, newChildren: Seq[T]): T = {
@@ -131,7 +145,7 @@ class Ras[T <: AnyRef] private (
   }
 
   private[ras] def isLeaf(node: T): Boolean = {
-    planModel.childrenOf(node).isEmpty
+    planModel.isLeaf(node)
   }
 
   private[ras] def isCanonical(node: T): Boolean = {
@@ -146,8 +160,6 @@ class Ras[T <: AnyRef] private (
       .map(child => planModel.getGroupId(child))
   }
 
-  private[ras] def propertySetFactory(): PropertySetFactory[T] = propSetFactory
-
   private[ras] def dummyGroupLeaf(): T = {
     dummyGroup
   }
@@ -157,6 +169,13 @@ class Ras[T <: AnyRef] private (
   private[ras] def isInfCost(cost: Cost) = costModel.costComparator().equiv(cost, infCost)
 
   private[ras] def toHashKey(node: T): UnsafeHashKey[T] = UnsafeHashKey(this, node)
+
+  private[ras] def newGroupLeaf(groupId: Int, meta: Metadata, constraintSet: PropertySet[T]): T = {
+    val builder = planModel.newGroupLeaf(groupId)
+    metadataModel.assignToGroup(builder, meta)
+    propSetFactory.assignToGroup(builder, constraintSet)
+    builder.build()
+  }
 }
 
 object Ras {
@@ -177,79 +196,23 @@ object Ras {
       ruleFactory)
   }
 
-  trait PropertySetFactory[T <: AnyRef] {
-    def any(): PropertySet[T]
-    def get(node: T): PropertySet[T]
-    def childrenConstraintSets(constraintSet: PropertySet[T], node: T): Seq[PropertySet[T]]
-  }
-
-  private object PropertySetFactory {
-    def apply[T <: AnyRef](
-        propertyModel: PropertyModel[T],
-        planModel: PlanModel[T]): PropertySetFactory[T] =
-      new PropertySetFactoryImpl[T](propertyModel, planModel)
-
-    private class PropertySetFactoryImpl[T <: AnyRef](
-        propertyModel: PropertyModel[T],
-        planModel: PlanModel[T])
-      extends PropertySetFactory[T] {
-      private val propDefs: Seq[PropertyDef[T, _ <: Property[T]]] = propertyModel.propertyDefs
-      private val anyConstraint = {
-        val m: Map[PropertyDef[T, _ <: Property[T]], Property[T]] =
-          propDefs.map(propDef => (propDef, propDef.any())).toMap
-        PropertySet[T](m)
-      }
-
-      override def any(): PropertySet[T] = anyConstraint
-
-      override def get(node: T): PropertySet[T] = {
-        val m: Map[PropertyDef[T, _ <: Property[T]], Property[T]] =
-          propDefs.map(propDef => (propDef, propDef.getProperty(node))).toMap
-        PropertySet[T](m)
-      }
-
-      override def childrenConstraintSets(
-          constraintSet: PropertySet[T],
-          node: T): Seq[PropertySet[T]] = {
-        val builder: Seq[mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]]] =
-          planModel
-            .childrenOf(node)
-            .map(_ => mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]]())
-
-        propDefs
-          .foldLeft(builder) {
-            (
-                builder: Seq[mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]]],
-                propDef: PropertyDef[T, _ <: Property[T]]) =>
-              val constraint = constraintSet.get(propDef)
-              val childrenConstraints = propDef.getChildrenConstraints(constraint, node)
-              builder.zip(childrenConstraints).map {
-                case (childBuilder, childConstraint) =>
-                  childBuilder += (propDef -> childConstraint)
-              }
-          }
-          .map {
-            builder: mutable.Map[PropertyDef[T, _ <: Property[T]], Property[T]] =>
-              PropertySet[T](builder.toMap)
-          }
-      }
-    }
-  }
-
   trait UnsafeHashKey[T]
 
   private object UnsafeHashKey {
     def apply[T <: AnyRef](ras: Ras[T], self: T): UnsafeHashKey[T] =
       new UnsafeHashKeyImpl(ras, self)
+
     private class UnsafeHashKeyImpl[T <: AnyRef](ras: Ras[T], val self: T)
       extends UnsafeHashKey[T] {
       override def hashCode(): Int = ras.planModel.hashCode(self)
+
       override def equals(other: Any): Boolean = {
         other match {
           case that: UnsafeHashKeyImpl[T] => ras.planModel.equals(self, that.self)
           case _ => false
         }
       }
+
       override def toString: String = ras.explain.describeNode(self)
     }
   }

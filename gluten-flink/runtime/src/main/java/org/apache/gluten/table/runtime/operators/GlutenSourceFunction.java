@@ -14,86 +14,234 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.table.runtime.operators;
 
-import io.github.zhztheplayer.velox4j.connector.FuzzerConnectorSplit;
-import io.github.zhztheplayer.velox4j.query.BoundSplit;
+import org.apache.gluten.table.runtime.config.VeloxConnectorConfig;
+import org.apache.gluten.table.runtime.config.VeloxQueryConfig;
+import org.apache.gluten.table.runtime.metrics.SourceTaskMetrics;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
-import io.github.zhztheplayer.velox4j.Velox4j;
-import io.github.zhztheplayer.velox4j.config.Config;
-import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
-import io.github.zhztheplayer.velox4j.data.RowVector;
-import io.github.zhztheplayer.velox4j.iterator.CloseableIterator;
-import io.github.zhztheplayer.velox4j.iterator.UpIterators;
-import io.github.zhztheplayer.velox4j.memory.AllocationListener;
-import io.github.zhztheplayer.velox4j.memory.MemoryManager;
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
+import io.github.zhztheplayer.velox4j.iterator.UpIterator;
+import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
 import io.github.zhztheplayer.velox4j.query.Query;
+import io.github.zhztheplayer.velox4j.query.SerialTask;
 import io.github.zhztheplayer.velox4j.session.Session;
+import io.github.zhztheplayer.velox4j.stateful.StatefulElement;
+import io.github.zhztheplayer.velox4j.stateful.StatefulRecord;
+import io.github.zhztheplayer.velox4j.stateful.StatefulWatermark;
 import io.github.zhztheplayer.velox4j.type.RowType;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.data.RowData;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
+import java.util.Map;
 
-/** Gluten legacy source function, call velox plan to execute. */
-public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
+/**
+ * Gluten legacy source function, call velox plan to execute. It sends RowVector to downstream
+ * instead of RowData to avoid data conversion.
+ */
+public class GlutenSourceFunction<OUT> extends RichParallelSourceFunction<OUT>
+    implements CheckpointedFunction {
+  private static final Logger LOG = LoggerFactory.getLogger(GlutenSourceFunction.class);
 
-    private final PlanNode planNode;
-    private final RowType outputType;
-    private final String id;
-    private volatile boolean isRunning = true;
+  private final StatefulPlanNode planNode;
+  private final Map<String, RowType> outputTypes;
+  private final String id;
+  private final ConnectorSplit split;
+  private volatile boolean isRunning = true;
 
-    private Session session;
-    private Query query;
-    BufferAllocator allocator;
+  private GlutenSessionResource sessionResource;
+  private Query query;
+  private SerialTask task;
+  private SourceTaskMetrics taskMetrics;
+  private final Class<OUT> outClass;
 
-    public GlutenSourceFunction(PlanNode planNode, RowType outputType, String id) {
-        this.planNode = planNode;
-        this.outputType = outputType;
-        this.id = id;
+  public GlutenSourceFunction(
+      StatefulPlanNode planNode,
+      Map<String, RowType> outputTypes,
+      String id,
+      ConnectorSplit split,
+      Class<OUT> outClass) {
+    this.planNode = planNode;
+    this.outputTypes = outputTypes;
+    this.id = id;
+    this.split = split;
+    this.outClass = outClass;
+  }
+
+  public StatefulPlanNode getPlanNode() {
+    return planNode;
+  }
+
+  public Map<String, RowType> getOutputTypes() {
+    return outputTypes;
+  }
+
+  public String getId() {
+    return id;
+  }
+
+  public ConnectorSplit getConnectorSplit() {
+    return split;
+  }
+
+  @Override
+  public void open(Configuration parameters) throws Exception {
+    initSession();
+  }
+
+  @Override
+  public void run(SourceContext<OUT> sourceContext) throws Exception {
+    while (isRunning) {
+      UpIterator.State state = task.advance();
+      switch (state) {
+        case AVAILABLE:
+          processAvailableElement(sourceContext);
+          break;
+        case BLOCKED:
+          LOG.debug("Get empty row");
+          break;
+        default:
+          LOG.info("Velox task finished");
+          return;
+      }
+      taskMetrics.updateMetrics(task, id);
     }
+  }
 
-    public PlanNode getPlanNode() {
-        return planNode;
+  /** Processes an available element from the task, handling records and watermarks. */
+  private void processAvailableElement(SourceContext<OUT> sourceContext) {
+    StatefulElement element = task.statefulGet();
+    try {
+      if (element.isRecord()) {
+        processRecord(sourceContext, element.asRecord());
+      } else if (element.isWatermark()) {
+        processWatermark(sourceContext, element.asWatermark());
+      } else {
+        LOG.debug("Ignoring element that is neither record nor watermark");
+      }
+    } finally {
+      element.close();
     }
+  }
 
-    public RowType getOutputType() { return outputType; }
-
-    public String getId() { return id; }
-
-    @Override
-    public void run(SourceContext<RowData> sourceContext) throws Exception {
-        final List<BoundSplit> splits = List.of(new BoundSplit(
-                id,
-                -1,
-                new FuzzerConnectorSplit("connector-fuzzer", 1000)));
-        session = Velox4j.newSession(MemoryManager.create(AllocationListener.NOOP));
-        query = new Query(planNode, splits, Config.empty(), ConnectorConfig.empty());
-        allocator = new RootAllocator(Long.MAX_VALUE);
-
-        while (isRunning) {
-            CloseableIterator<RowVector> result =
-                    UpIterators.asJavaIterator(session.queryOps().execute(query));
-            if (result.hasNext()) {
-                List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
-                        result.next(),
-                        allocator,
-                        session,
-                        outputType);
-                for (RowData row : rows) {
-                    sourceContext.collect(row);
-                }
-            }
-        }
+  /** Strategy for collecting a StatefulRecord into the source context. */
+  private interface OutputHandler<OUT> {
+    void collect(SourceContext<OUT> sourceContext, StatefulRecord record);
+  }
+  /** Returns the appropriate OutputHandler based on the configured output class. */
+  private OutputHandler<OUT> getOutputHandler() {
+    if (isRowDataOutput()) {
+      return this::collectAsRowData;
     }
-
-    @Override
-    public void cancel() {
-        isRunning = false;
+    if (isStatefulRecordOutput()) {
+      return this::collectAsStatefulRecord;
     }
+    throw unsupportedOutputException();
+  }
+  /** Creates an exception for unsupported output class configurations. */
+  private UnsupportedOperationException unsupportedOutputException() {
+    return new UnsupportedOperationException("Unsupported output class: " + outClass.getName());
+  }
+  /** Processes a StatefulRecord and collects it to the source context. */
+  private void processRecord(SourceContext<OUT> sourceContext, StatefulRecord record) {
+    OutputHandler handler = getOutputHandler();
+    handler.collect(sourceContext, record);
+  }
+
+  /** Processes a watermark and emits it to the source context. */
+  private void processWatermark(SourceContext<OUT> sourceContext, StatefulWatermark watermark) {
+    sourceContext.emitWatermark(new Watermark(watermark.getTimestamp()));
+  }
+
+  /** Collects a StatefulRecord as RowData by converting the RowVector. */
+  private void collectAsRowData(SourceContext<OUT> sourceContext, StatefulRecord record) {
+    List<RowData> rows =
+        FlinkRowToVLVectorConvertor.toRowData(
+            record.getRowVector(), sessionResource.getAllocator(), outputTypes.get(id));
+    for (RowData row : rows) {
+      sourceContext.collect((OUT) row);
+    }
+  }
+
+  /** Collects a StatefulRecord directly without conversion. */
+  private void collectAsStatefulRecord(SourceContext<OUT> sourceContext, StatefulRecord record) {
+    sourceContext.collect((OUT) record);
+  }
+
+  private boolean isRowDataOutput() {
+    return outClass.isAssignableFrom(RowData.class);
+  }
+
+  private boolean isStatefulRecordOutput() {
+    return outClass.isAssignableFrom(StatefulRecord.class);
+  }
+
+  @Override
+  public void cancel() {
+    isRunning = false;
+  }
+
+  @Override
+  public void close() throws Exception {
+    isRunning = false;
+    if (task != null) {
+      task.close();
+      task = null;
+    }
+    if (sessionResource != null) {
+      sessionResource.close();
+      sessionResource = null;
+    }
+  }
+
+  @Override
+  public void snapshotState(FunctionSnapshotContext context) throws Exception {
+    // TODO: implement it
+    this.task.snapshotState(0);
+  }
+
+  @Override
+  public void initializeState(FunctionInitializationContext context) throws Exception {
+    initSession();
+    // TODO: implement it
+    this.task.initializeState(0);
+  }
+
+  public String[] notifyCheckpointComplete(long checkpointId) throws Exception {
+    // TODO: notify velox
+    return this.task.notifyCheckpointComplete(checkpointId);
+  }
+
+  public void notifyCheckpointAborted(long checkpointId) throws Exception {
+    // TODO: notify velox
+    this.task.notifyCheckpointAborted(checkpointId);
+  }
+
+  private void initSession() {
+    if (sessionResource != null) {
+      return;
+    }
+    sessionResource = new GlutenSessionResource();
+    Session session = sessionResource.getSession();
+    query =
+        new Query(
+            planNode,
+            VeloxQueryConfig.getConfig(getRuntimeContext()),
+            VeloxConnectorConfig.getConfig(getRuntimeContext()));
+    task = session.queryOps().execute(query);
+    task.addSplit(id, split);
+    task.noMoreSplits(id);
+    taskMetrics = new SourceTaskMetrics(getRuntimeContext().getMetricGroup());
+  }
 }

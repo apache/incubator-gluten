@@ -33,9 +33,9 @@ sealed trait Convention {
 object Convention {
   def ensureSparkRowAndBatchTypesRegistered(): Unit = {
     RowType.None.ensureRegistered()
-    RowType.VanillaRow.ensureRegistered()
+    RowType.VanillaRowType.ensureRegistered()
     BatchType.None.ensureRegistered()
-    BatchType.VanillaBatch.ensureRegistered()
+    BatchType.VanillaBatchType.ensureRegistered()
   }
 
   implicit class ConventionOps(val conv: Convention) extends AnyVal {
@@ -84,43 +84,22 @@ object Convention {
     Impl(rowType, batchType)
   }
 
-  sealed trait RowType extends TransitionGraph.Vertex with Serializable {
-    import RowType._
-
-    final protected[this] def register0(): Unit = BatchType.synchronized {
-      assert(all.add(this))
-    }
-  }
-
-  object RowType {
-    private val all: mutable.Set[RowType] = mutable.Set()
-    def values(): Set[RowType] = all.toSet
-
-    // None indicates that the plan doesn't support row-based processing.
-    final case object None extends RowType
-    final case object VanillaRow extends RowType
-  }
-
-  trait BatchType extends TransitionGraph.Vertex with Serializable {
-    import BatchType._
-
-    final protected[this] def register0(): Unit = BatchType.synchronized {
-      assert(all.add(this))
-      registerTransitions()
-    }
+  trait RowOrBatchType extends TransitionGraph.Vertex {
 
     /**
-     * User batch type could override this method to define transitions from/to this batch type by
-     * calling the subsequent protected APIs.
+     * User row / batch type could override this method to define transitions from/to this batch
+     * type by calling the subsequent protected APIs.
      */
     protected[this] def registerTransitions(): Unit
 
-    final protected[this] def fromRow(transition: Transition): Unit = {
-      Transition.factory.update(graph => graph.addEdge(RowType.VanillaRow, this, transition))
+    final protected[this] def fromRow(from: RowType, transition: Transition): Unit = {
+      assert(from != this)
+      Transition.factory.update(graph => graph.addEdge(from, this, transition))
     }
 
-    final protected[this] def toRow(transition: Transition): Unit = {
-      Transition.factory.update(graph => graph.addEdge(this, RowType.VanillaRow, transition))
+    final protected[this] def toRow(to: RowType, transition: Transition): Unit = {
+      assert(to != this)
+      Transition.factory.update(graph => graph.addEdge(this, to, transition))
     }
 
     final protected[this] def fromBatch(from: BatchType, transition: Transition): Unit = {
@@ -134,6 +113,37 @@ object Convention {
     }
   }
 
+  trait RowType extends RowOrBatchType with Serializable {
+    import RowType._
+
+    final protected[this] def register0(): Unit = BatchType.synchronized {
+      assert(all.add(this))
+      registerTransitions()
+    }
+  }
+
+  object RowType {
+    private val all: mutable.Set[RowType] = mutable.Set()
+    def values(): Set[RowType] = all.toSet
+
+    // None indicates that the plan doesn't support row-based processing.
+    final case object None extends RowType {
+      override protected[this] def registerTransitions(): Unit = {}
+    }
+    final case object VanillaRowType extends RowType {
+      override protected[this] def registerTransitions(): Unit = {}
+    }
+  }
+
+  trait BatchType extends RowOrBatchType with Serializable {
+    import BatchType._
+
+    final protected[this] def register0(): Unit = BatchType.synchronized {
+      assert(all.add(this))
+      registerTransitions()
+    }
+  }
+
   object BatchType {
     private val all: mutable.Set[BatchType] = mutable.Set()
     def values(): Set[BatchType] = all.toSet
@@ -141,10 +151,10 @@ object Convention {
     final case object None extends BatchType {
       override protected[this] def registerTransitions(): Unit = {}
     }
-    final case object VanillaBatch extends BatchType {
+    final case object VanillaBatchType extends BatchType {
       override protected[this] def registerTransitions(): Unit = {
-        fromRow(RowToColumnarExec.apply)
-        toRow(ColumnarToRowExec.apply)
+        fromRow(RowType.VanillaRowType, RowToColumnarExec.apply)
+        toRow(RowType.VanillaRowType, ColumnarToRowExec.apply)
       }
     }
   }
@@ -159,10 +169,9 @@ object Convention {
 
   trait KnownRowTypeForSpark33OrLater extends KnownRowType {
     this: SparkPlan =>
-    import KnownRowTypeForSpark33OrLater._
 
     final override def rowType(): RowType = {
-      if (lteSpark32) {
+      if (SparkVersionUtil.lteSpark32) {
         // It's known that in Spark 3.2, one Spark plan node is considered either only having
         // row-based support or only having columnar support at a time.
         // Hence, if the plan supports columnar output, we'd disable its row-based support.
@@ -170,7 +179,8 @@ object Convention {
         if (supportsColumnar) {
           Convention.RowType.None
         } else {
-          Convention.RowType.VanillaRow
+          assert(rowType0() != Convention.RowType.None)
+          rowType0()
         }
       } else {
         rowType0()
@@ -178,12 +188,5 @@ object Convention {
     }
 
     def rowType0(): RowType
-  }
-
-  object KnownRowTypeForSpark33OrLater {
-    private val lteSpark32: Boolean = {
-      val v = SparkVersionUtil.majorMinorVersion()
-      SparkVersionUtil.compareMajorMinorVersion(v, (3, 2)) <= 0
-    }
   }
 }

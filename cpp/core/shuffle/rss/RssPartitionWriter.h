@@ -26,16 +26,15 @@
 
 namespace gluten {
 
-class RssPartitionWriterOutputStream;
-
 class RssPartitionWriter final : public PartitionWriter {
  public:
   RssPartitionWriter(
-      uint32_t numPartitions,
-      PartitionWriterOptions options,
-      arrow::MemoryPool* pool,
-      std::shared_ptr<RssClient> rssClient)
-      : PartitionWriter(numPartitions, std::move(options), pool), rssClient_(rssClient) {
+      const uint32_t numPartitions,
+      std::unique_ptr<arrow::util::Codec> codec,
+      MemoryManager* memoryManager,
+      const std::shared_ptr<RssPartitionWriterOptions>& options,
+      const std::shared_ptr<RssClient>& rssClient)
+      : PartitionWriter(numPartitions, std::move(codec), memoryManager), options_(options), rssClient_(rssClient) {
     init();
   }
 
@@ -43,105 +42,36 @@ class RssPartitionWriter final : public PartitionWriter {
       uint32_t partitionId,
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
-      bool reuseBuffers) override;
+      bool reuseBuffers,
+      int64_t& evictBytes) override;
 
-  arrow::Status sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal)
+  arrow::Status sortEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      bool isFinal,
+      int64_t& evictBytes) override;
+
+  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes)
       override;
-
-  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) override;
 
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
-  arrow::Status stop(ShuffleWriterMetrics* metrics) override;
+  arrow::Status stop(ShuffleWriterMetrics* metrics, int64_t& evictBytes) override;
 
  private:
   void init();
 
-  arrow::Status doEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload);
+  arrow::Status doEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, int64_t& evictBytes);
 
+  std::shared_ptr<RssPartitionWriterOptions> options_;
   std::shared_ptr<RssClient> rssClient_;
 
   std::vector<int64_t> bytesEvicted_;
   std::vector<int64_t> rawPartitionLengths_;
 
-  int32_t lastEvictedPartitionId_{-1};
-  std::shared_ptr<RssPartitionWriterOutputStream> rssOs_;
-  std::shared_ptr<ShuffleCompressedOutputStream> compressedOs_;
+  bool shouldInitializeOs_{true};
+  std::shared_ptr<arrow::io::BufferOutputStream> rssOs_{nullptr};
+  std::shared_ptr<ShuffleCompressedOutputStream> compressedOs_{nullptr};
 };
 
-class RssPartitionWriterOutputStream final : public arrow::io::OutputStream {
- public:
-  RssPartitionWriterOutputStream(int32_t partitionId, RssClient* rssClient, int64_t pushBufferSize)
-      : partitionId_(partitionId), rssClient_(rssClient), bufferSize_(pushBufferSize) {}
-
-  arrow::Status init() {
-    ARROW_ASSIGN_OR_RAISE(pushBuffer_, arrow::AllocateBuffer(bufferSize_, arrow::default_memory_pool()));
-    pushBufferPtr_ = pushBuffer_->mutable_data();
-    return arrow::Status::OK();
-  }
-
-  arrow::Status Close() override {
-    RETURN_NOT_OK(Flush());
-    pushBuffer_.reset();
-    return arrow::Status::OK();
-  }
-
-  bool closed() const override {
-    return pushBuffer_ == nullptr;
-  }
-
-  arrow::Result<int64_t> Tell() const override {
-    return bytesEvicted_ + bufferPos_;
-  }
-
-  arrow::Status Write(const void* data, int64_t nbytes) override {
-    auto dataPtr = static_cast<const char*>(data);
-    if (nbytes < 0) {
-      return arrow::Status::Invalid("write count should be >= 0");
-    }
-    if (nbytes == 0) {
-      return arrow::Status::OK();
-    }
-
-    if (nbytes + bufferPos_ <= bufferSize_) {
-      std::memcpy(pushBufferPtr_ + bufferPos_, dataPtr, nbytes);
-      bufferPos_ += nbytes;
-      return arrow::Status::OK();
-    }
-
-    int64_t bytesWritten = 0;
-    while (bytesWritten < nbytes) {
-      auto remaining = nbytes - bytesWritten;
-      if (remaining <= bufferSize_ - bufferPos_) {
-        std::memcpy(pushBufferPtr_ + bufferPos_, dataPtr + bytesWritten, remaining);
-        bufferPos_ += remaining;
-        return arrow::Status::OK();
-      }
-      auto toWrite = bufferSize_ - bufferPos_;
-      std::memcpy(pushBufferPtr_ + bufferPos_, dataPtr + bytesWritten, toWrite);
-      bytesWritten += toWrite;
-      bufferPos_ += toWrite;
-      RETURN_NOT_OK(Flush());
-    }
-    return arrow::Status::OK();
-  }
-
-  arrow::Status Flush() override {
-    if (bufferPos_ > 0) {
-      bytesEvicted_ += rssClient_->pushPartitionData(partitionId_, reinterpret_cast<char*>(pushBufferPtr_), bufferPos_);
-      bufferPos_ = 0;
-    }
-    return arrow::Status::OK();
-  }
-
- private:
-  int32_t partitionId_;
-  RssClient* rssClient_;
-  int64_t bufferSize_{kDefaultPushMemoryThreshold};
-
-  std::shared_ptr<arrow::Buffer> pushBuffer_;
-  uint8_t* pushBufferPtr_{nullptr};
-  int64_t bufferPos_{0};
-  int64_t bytesEvicted_{0};
-};
 } // namespace gluten

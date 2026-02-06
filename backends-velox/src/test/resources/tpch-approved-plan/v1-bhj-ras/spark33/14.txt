@@ -13,12 +13,12 @@ AdaptiveSparkPlan (35)
                            +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (11)
                               :- ^ ProjectExecTransformer (3)
                               :  +- ^ FilterExecTransformer (2)
-                              :     +- ^ ScanTransformer parquet  (1)
+                              :     +- ^ FileSourceScanExecTransformer parquet  (1)
                               +- ^ InputIteratorTransformer (10)
                                  +- BroadcastQueryStage (8), Statistics(X)
                                     +- ColumnarBroadcastExchange (7)
                                        +- ^ FilterExecTransformer (5)
-                                          +- ^ ScanTransformer parquet  (4)
+                                          +- ^ FileSourceScanExecTransformer parquet  (4)
 +- == Initial Plan ==
    HashAggregate (34)
    +- Exchange (33)
@@ -33,7 +33,7 @@ AdaptiveSparkPlan (35)
                      +- Scan parquet (27)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [4]: [l_partkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -48,7 +48,7 @@ Arguments: (((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1995-09-01)) AND (l_s
 Output [3]: [l_partkey#X, l_extendedprice#X, l_discount#X]
 Input [4]: [l_partkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
-(4) ScanTransformer parquet 
+(4) FileSourceScanExecTransformer parquet 
 Output [2]: [p_partkey#X, p_type#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -99,7 +99,7 @@ Arguments: false
 
 (15) VeloxResizeBatches
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (16) ColumnarExchange
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]

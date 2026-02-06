@@ -43,7 +43,7 @@ object RasNode {
       node.asInstanceOf[GroupNode[T]]
     }
 
-    def toHashKey(): UnsafeHashKey[T] = node.ras().toHashKey(node.self())
+    def toHashKey: UnsafeHashKey[T] = node.ras().toHashKey(node.self())
   }
 }
 
@@ -52,6 +52,8 @@ trait CanonicalNode[T <: AnyRef] extends RasNode[T] {
 }
 
 object CanonicalNode {
+  trait UniqueKey extends Any
+
   def apply[T <: AnyRef](ras: Ras[T], canonical: T): CanonicalNode[T] = {
     assert(ras.isCanonical(canonical))
     val propSet = ras.propSetOf(canonical)
@@ -96,7 +98,7 @@ trait GroupNode[T <: AnyRef] extends RasNode[T] {
 object GroupNode {
   def apply[T <: AnyRef](ras: Ras[T], group: RasGroup[T]): GroupNode[T] = {
     val self = group.self()
-    // Re-derive property set of group leaf. User should define an appropriate conversion
+    // Re-derive a property set of group leaf. User should define an appropriate conversion
     // from group constraints to its output properties in property model or plan model.
     val propSet = ras.propSetOf(self)
     new GroupNodeImpl[T](ras, self, propSet, group.id())

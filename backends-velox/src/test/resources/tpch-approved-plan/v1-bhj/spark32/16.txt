@@ -24,12 +24,12 @@ AdaptiveSparkPlan (59)
                                                             +- ^ ProjectExecTransformer (11)
                                                                +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (10)
                                                                   :- ^ FilterExecTransformer (2)
-                                                                  :  +- ^ ScanTransformer parquet  (1)
+                                                                  :  +- ^ FileSourceScanExecTransformer parquet  (1)
                                                                   +- ^ InputIteratorTransformer (9)
                                                                      +- BroadcastQueryStage (7)
                                                                         +- ColumnarBroadcastExchange (6)
                                                                            +- ^ FilterExecTransformer (4)
-                                                                              +- ^ ScanTransformer parquet  (3)
+                                                                              +- ^ FileSourceScanExecTransformer parquet  (3)
 +- == Initial Plan ==
    Sort (58)
    +- Exchange (57)
@@ -53,7 +53,7 @@ AdaptiveSparkPlan (59)
                                     +- Scan parquet (46)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [2]: [ps_partkey#X, ps_suppkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -64,7 +64,7 @@ ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint>
 Input [2]: [ps_partkey#X, ps_suppkey#X]
 Arguments: isnotnull(ps_partkey#X)
 
-(3) ScanTransformer parquet 
+(3) FileSourceScanExecTransformer parquet 
 Output [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -119,7 +119,7 @@ Arguments: false
 
 (15) VeloxResizeBatches
 Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (16) ColumnarExchange
 Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
@@ -159,7 +159,7 @@ Arguments: false
 
 (24) VeloxResizeBatches
 Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, count#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (25) ColumnarExchange
 Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, count#X]
@@ -188,7 +188,7 @@ Arguments: false
 
 (31) VeloxResizeBatches
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (32) ColumnarExchange
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]

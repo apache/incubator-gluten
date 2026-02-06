@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.expression.{AttributeReferenceTransformer, ExpressionConverter}
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
@@ -133,7 +134,8 @@ object JoinUtils {
   private def getDirectJoinOutput(
       joinType: JoinType,
       leftOutput: Seq[Attribute],
-      rightOutput: Seq[Attribute]): (Seq[Attribute], Seq[Attribute]) = {
+      rightOutput: Seq[Attribute],
+      callerClassName: String = null): (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
       case _: InnerLike =>
         (leftOutput, rightOutput)
@@ -148,16 +150,22 @@ object JoinUtils {
       case LeftExistence(_) =>
         // LeftSemi | LeftAnti | ExistenceJoin.
         (leftOutput, Nil)
+      // LeftSingle is a Spark 4.0+ join type with same output schema as LeftOuter.
+      // The join will fallback to Spark execution because substraitJoinType returns UNRECOGNIZED.
+      case leftSingle if SparkShimLoader.getSparkShims.isLeftSingleJoinType(leftSingle) =>
+        (leftOutput, rightOutput.map(_.withNullability(true)))
       case x =>
-        throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
+        val joinClass = Option(callerClassName).getOrElse(this.getClass.getSimpleName)
+        throw new IllegalArgumentException(s"$joinClass not take $x as the JoinType")
     }
   }
 
-  private def getDirectJoinOutputSeq(
+  def getDirectJoinOutputSeq(
       joinType: JoinType,
       leftOutput: Seq[Attribute],
-      rightOutput: Seq[Attribute]): Seq[Attribute] = {
-    val (left, right) = getDirectJoinOutput(joinType, leftOutput, rightOutput)
+      rightOutput: Seq[Attribute],
+      joinClassName: String = null): Seq[Attribute] = {
+    val (left, right) = getDirectJoinOutput(joinType, leftOutput, rightOutput, joinClassName)
     left ++ right
   }
 
@@ -300,20 +308,6 @@ object JoinUtils {
       operatorId,
       directJoinOutputs.size
     )
-  }
-
-  def createTransformContext(
-      exchangeTable: Boolean,
-      output: Seq[Attribute],
-      rel: RelNode,
-      inputStreamedOutput: Seq[Attribute],
-      inputBuildOutput: Seq[Attribute]): TransformContext = {
-    val inputAttributes = if (exchangeTable) {
-      inputBuildOutput ++ inputStreamedOutput
-    } else {
-      inputStreamedOutput ++ inputBuildOutput
-    }
-    TransformContext(output, rel)
   }
 
   def createCrossRel(

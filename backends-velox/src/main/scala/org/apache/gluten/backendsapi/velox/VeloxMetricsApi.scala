@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.MetricsApi
+import org.apache.gluten.config.{GpuHashShuffleWriterType, HashShuffleWriterType, RssSortShuffleWriterType, ShuffleWriterType, SortShuffleWriterType}
 import org.apache.gluten.metrics._
 import org.apache.gluten.substrait.{AggregationParams, JoinParams}
 
@@ -41,7 +42,8 @@ class VeloxMetricsApi extends MetricsApi with Logging {
   override def genInputIteratorTransformerMetrics(
       child: SparkPlan,
       sparkContext: SparkContext,
-      forBroadcast: Boolean): Map[String, SQLMetric] = {
+      forBroadcast: Boolean,
+      forShuffle: Boolean): Map[String, SQLMetric] = {
     def metricsPlan(plan: SparkPlan): SparkPlan = {
       plan match {
         case ColumnarInputAdapter(child) => metricsPlan(child)
@@ -60,9 +62,20 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       )
     }
 
+    val wallNanosMetric = if (forShuffle) {
+      // For input from shuffle, the time of shuffle read is inclusive to the metrics.
+      SQLMetrics.createNanoTimingMetric(sparkContext, "time of reducer input")
+    } else if (forBroadcast) {
+      // For input from broadcast, the time of broadcasting is exclusive.
+      SQLMetrics.createNanoTimingMetric(sparkContext, "time of broadcast input")
+    } else {
+      // For other occasions, e.g. fallback, union, the time of the previous pipeline is inclusive.
+      SQLMetrics.createNanoTimingMetric(sparkContext, "time of operator input")
+    }
+
     Map(
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of input iterator")
+      "wallNanos" -> wallNanosMetric
     ) ++ outputMetrics
   }
 
@@ -82,9 +95,9 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
       "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of batch scan"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of scan and filter"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan time"),
+      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of scan"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
@@ -95,15 +108,25 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
+      "pageLoadTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "page load time"),
+      "dataSourceAddSplitTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source add split time"),
+      "dataSourceReadTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source read time"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "remaining filter time"),
-      "ioWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "io wait time"),
+      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time"),
       "storageReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "storage read bytes"),
       "localReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "local ssd read bytes"),
-      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes")
+      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genBatchScanTransformerMetricsUpdater(
@@ -136,6 +159,13 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
+      "pageLoadTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "page load time"),
+      "dataSourceAddSplitTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source add split time"),
+      "dataSourceReadTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source read time"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
@@ -144,7 +174,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time"),
       "storageReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "storage read bytes"),
       "localReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "local ssd read bytes"),
-      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes")
+      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genHiveTableScanTransformerMetricsUpdater(
@@ -177,6 +210,13 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
+      "pageLoadTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "page load time"),
+      "dataSourceAddSplitTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source add split time"),
+      "dataSourceReadTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "data source read time"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
@@ -185,7 +225,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time"),
       "storageReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "storage read bytes"),
       "localReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "local ssd read bytes"),
-      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes")
+      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(
@@ -201,7 +244,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of memory allocations")
+        "number of memory allocations"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genFilterTransformerMetricsUpdater(
@@ -219,7 +265,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of memory allocations")
+        "number of memory allocations"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genProjectTransformerMetricsUpdater(
@@ -249,6 +298,9 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "loadedToValueHook" -> SQLMetrics.createMetric(
         sparkContext,
         "number of pushdown aggregations"),
+      "bloomFilterBlocksByteSize" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "bloom filter blocks byte size"),
       "rowConstructionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "rowConstruction cpu wall time count"),
@@ -264,7 +316,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "finalOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of final output rows"),
       "finalOutputVectors" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of final output vectors")
+        "number of final output vectors"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genHashAggregateTransformerMetricsUpdater(
@@ -281,7 +336,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of memory allocations")
+        "number of memory allocations"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genExpandTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -292,7 +350,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
 
   override def genColumnarShuffleExchangeMetrics(
       sparkContext: SparkContext,
-      isSort: Boolean): Map[String, SQLMetric] = {
+      shuffleWriterType: ShuffleWriterType): Map[String, SQLMetric] = {
     val baseMetrics = Map(
       "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions"),
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
@@ -314,15 +372,25 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       // row buffer + sort buffer size.
       "peakBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak bytes allocated")
     )
-    if (isSort) {
-      baseMetrics ++ Map(
-        "sortTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle sort"),
-        "c2rTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle c2r")
-      )
-    } else {
-      baseMetrics ++ Map(
-        "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split")
-      )
+    shuffleWriterType match {
+      case HashShuffleWriterType | GpuHashShuffleWriterType =>
+        baseMetrics ++ Map(
+          "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
+          "avgDictionaryFields" -> SQLMetrics
+            .createAverageMetric(sparkContext, "avg dictionary fields"),
+          "dictionarySize" -> SQLMetrics.createSizeMetric(sparkContext, "dictionary size")
+        )
+      case SortShuffleWriterType =>
+        baseMetrics ++ Map(
+          "sortTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle sort"),
+          "c2rTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle c2r")
+        )
+      case RssSortShuffleWriterType =>
+        baseMetrics ++ Map(
+          "sortTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle sort")
+        )
+      case _ =>
+        baseMetrics
     }
   }
 
@@ -340,7 +408,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "spilledBytes" -> SQLMetrics.createSizeMetric(sparkContext, "bytes written for spilling"),
       "spilledRows" -> SQLMetrics.createMetric(sparkContext, "total rows written for spilling"),
       "spilledPartitions" -> SQLMetrics.createMetric(sparkContext, "total spilled partitions"),
-      "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files")
+      "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genWindowTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -370,7 +441,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of memory allocations")
+        "number of memory allocations"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genLimitTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -383,11 +457,22 @@ class VeloxMetricsApi extends MetricsApi with Logging {
         "number of written bytes"),
       "writeIONanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write IO"),
       "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write"),
-      "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")
+      "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
     new WriteFilesMetricsUpdater(metrics)
+
+  def genBatchWriteMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "numWrittenBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of written bytes"),
+      "writeIOTimeNs" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write IO"),
+      "writeWallNs" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write"),
+      "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")
+    )
 
   override def genSortTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
@@ -403,7 +488,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "spilledBytes" -> SQLMetrics.createSizeMetric(sparkContext, "bytes written for spilling"),
       "spilledRows" -> SQLMetrics.createMetric(sparkContext, "total rows written for spilling"),
       "spilledPartitions" -> SQLMetrics.createMetric(sparkContext, "total spilled partitions"),
-      "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files")
+      "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genSortTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -438,7 +526,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
         "postProject cpu wall time count"),
       "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "time of postProjection")
+        "time of postProjection"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genSortMergeJoinTransformerMetricsUpdater(
@@ -537,6 +628,9 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
         sparkContext,
         "number of hash probe dynamic filters produced"),
+      "bloomFilterBlocksByteSize" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "bloom filter blocks byte size"),
       "streamPreProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "stream preProject cpu wall time count"),
@@ -557,7 +651,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
         "time of postProjection"),
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "numOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "numOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes")
+      "numOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genHashJoinTransformerMetricsUpdater(
@@ -566,15 +663,66 @@ class VeloxMetricsApi extends MetricsApi with Logging {
   override def genNestedLoopJoinTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of NestedLoopJoin"),
-      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
+      "nestedLoopJoinBuildInputRows" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of memory allocations")
+        "number of nested loop join build input rows"),
+      "nestedLoopJoinBuildOutputRows" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join build output rows"),
+      "nestedLoopJoinBuildOutputVectors" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join build output vectors"),
+      "nestedLoopJoinBuildOutputBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "number of nested loop join build output bytes"),
+      "nestedLoopJoinBuildCpuCount" -> SQLMetrics.createMetric(
+        sparkContext,
+        "nested loop join build cpu wall time count"),
+      "nestedLoopJoinBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of nested loop join build"),
+      "nestedLoopJoinBuildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "nested loop join build peak memory bytes"),
+      "nestedLoopJoinBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join build memory allocations"),
+      "nestedLoopJoinProbeInputRows" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join probe input rows"),
+      "nestedLoopJoinProbeOutputRows" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join probe output rows"),
+      "nestedLoopJoinProbeOutputVectors" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join probe output vectors"),
+      "nestedLoopJoinProbeOutputBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "number of nested loop join probe output bytes"),
+      "nestedLoopJoinProbeCpuCount" -> SQLMetrics.createMetric(
+        sparkContext,
+        "nested loop join probe cpu wall time count"),
+      "nestedLoopJoinProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of nested loop join probe"),
+      "nestedLoopJoinProbePeakMemoryBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "nested loop join probe peak memory bytes"),
+      "nestedLoopJoinProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of nested loop join probe memory allocations"),
+      "postProjectionCpuCount" -> SQLMetrics.createMetric(
+        sparkContext,
+        "postProject cpu wall time count"),
+      "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of postProjection"),
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "numOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "numOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genNestedLoopJoinTransformerMetricsUpdater(
@@ -590,7 +738,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of memory allocations")
+        "number of memory allocations"),
+      "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of loading lazy vectors")
     )
 
   override def genSampleTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -601,7 +752,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
     "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
     "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
     "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of union"),
-    "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count")
+    "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+    "loadLazyVectorTime" -> SQLMetrics.createNanoTimingMetric(
+      sparkContext,
+      "time of loading lazy vectors")
   )
 
   override def genUnionTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =

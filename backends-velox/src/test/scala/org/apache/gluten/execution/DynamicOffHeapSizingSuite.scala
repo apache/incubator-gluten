@@ -16,45 +16,90 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.benchmarks.RandomParquetDataGenerator
-import org.apache.gluten.tags.SkipTest
+import org.apache.gluten.config.GlutenCoreConfig
+import org.apache.gluten.memory.memtarget.DynamicOffHeapSizingMemoryTarget
 
 import org.apache.spark.SparkConf
 
-@SkipTest
 class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
-  private val dataGenerator = RandomParquetDataGenerator(System.currentTimeMillis())
-  private val outputPath = getClass.getResource("/").getPath + "dynamicoffheapsizing_output.parquet"
-  private val AGG_SQL =
-    """select f_1, count(DISTINCT f_1)
-      |from tbl group
-      |group by 1""".stripMargin
-
   override def beforeAll(): Unit = {
     super.beforeAll()
+    createTPCHNotNullTables()
   }
+
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.executor.memory", "6GB")
-      .set("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction", "0.8")
-      .set("spark.gluten.memory.dynamic.offHeap.sizing.enabled", "true")
+      .set("spark.executor.memory", "2GB")
+      .set("spark.memory.offHeap.enabled", "false")
+      .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION.key, "0.95")
+      .set(GlutenCoreConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED.key, "true")
   }
 
-  def getRootCause(e: Throwable): Throwable = {
-    if (e.getCause == null) {
-      return e
+  test("Dynamic off-heap sizing without setting offheap") {
+    if (DynamicOffHeapSizingMemoryTarget.isJava9OrLater()) {
+      val query =
+        """
+          | select l_quantity, c_acctbal, o_orderdate, p_type, n_name, s_suppkey
+          | from customer, orders, lineitem, part, supplier, nation
+          | where c_custkey = o_custkey and o_orderkey = l_orderkey and l_partkey = p_partkey
+          | and l_suppkey = s_suppkey and s_nationkey = n_nationkey
+          | order by c_acctbal desc, o_orderdate, s_suppkey, n_name, p_type, l_quantity
+          | limit 1
+      """.stripMargin
+      var totalMemory = Runtime.getRuntime().totalMemory()
+      var freeMemory = Runtime.getRuntime().freeMemory()
+      // Ensure that the JVM memory is not too small to trigger dynamic off-heap sizing.
+      while (!DynamicOffHeapSizingMemoryTarget.canShrinkJVMMemory(totalMemory, freeMemory)) {
+        withSQLConf(("spark.gluten.enabled", "false")) {
+          spark.sql(query).collect()
+        }
+        totalMemory = Runtime.getRuntime().totalMemory()
+        freeMemory = Runtime.getRuntime().freeMemory()
+      }
+      val newTotalMemory =
+        DynamicOffHeapSizingMemoryTarget.shrinkOnHeapMemory(totalMemory, freeMemory, false)
+      assert(DynamicOffHeapSizingMemoryTarget.getTotalExplicitGCCount() > 0)
+      // Verify that the total memory is reduced after shrink.
+      assert(newTotalMemory < totalMemory)
+      // Verify that the query can run with dynamic off-heap sizing enabled.
+      runAndCompare(query)
     }
-    getRootCause(e.getCause)
   }
 
-  test("Dynamic off-heap sizing") {
-    System.gc()
-    dataGenerator.generateRandomData(spark, Some(outputPath))
-    spark.read.format("parquet").load(outputPath).createOrReplaceTempView("tbl")
-    spark.sql(AGG_SQL)
+  test("Dynamic off-heap sizing with setting offheap") {
+    withSQLConf(GlutenCoreConfig.SPARK_OFFHEAP_SIZE_KEY -> "1GB") {
+      if (DynamicOffHeapSizingMemoryTarget.isJava9OrLater()) {
+        val query =
+          """
+            | select l_quantity, c_acctbal, o_orderdate, p_type, n_name, s_suppkey
+            | from customer, orders, lineitem, part, supplier, nation
+            | where c_custkey = o_custkey and o_orderkey = l_orderkey and l_partkey = p_partkey
+            | and l_suppkey = s_suppkey and s_nationkey = n_nationkey
+            | order by c_acctbal desc, o_orderdate, s_suppkey, n_name, p_type, l_quantity
+            | limit 1
+      """.stripMargin
+        var totalMemory = Runtime.getRuntime().totalMemory()
+        var freeMemory = Runtime.getRuntime().freeMemory()
+        // Ensure that the JVM memory is not too small to trigger dynamic off-heap sizing.
+        while (!DynamicOffHeapSizingMemoryTarget.canShrinkJVMMemory(totalMemory, freeMemory)) {
+          withSQLConf(("spark.gluten.enabled", "false")) {
+            spark.sql(query).collect()
+          }
+          totalMemory = Runtime.getRuntime().totalMemory()
+          freeMemory = Runtime.getRuntime().freeMemory()
+        }
+        val newTotalMemory =
+          DynamicOffHeapSizingMemoryTarget.shrinkOnHeapMemory(totalMemory, freeMemory, false)
+        assert(DynamicOffHeapSizingMemoryTarget.getTotalExplicitGCCount() > 0)
+        // Verify that the total memory is reduced after shrink.
+        assert(newTotalMemory < totalMemory)
+        // Verify that the query can run with dynamic off-heap sizing enabled.
+        runAndCompare(query)
+      }
+    }
   }
 }

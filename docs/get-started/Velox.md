@@ -9,7 +9,7 @@ parent: Getting-Started
 
 | Type  | Version                      |
 |-------|------------------------------|
-| Spark | 3.2.2, 3.3.1, 3.4.4, 3.5.2   |
+| Spark | 3.2.2, 3.3.1, 3.4.4, 3.5.5   |
 | OS    | Ubuntu20.04/22.04, Centos7/8 |
 | jdk   | openjdk8/jdk17               |
 | scala | 2.12                         |
@@ -18,7 +18,7 @@ parent: Getting-Started
 
 Currently, with static build Gluten+Velox backend supports all the Linux OSes, but is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**. With dynamic build, Gluten+Velox backend support **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8** and their variants.
 
-Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.4 and 3.5.2.
+Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.4 and 3.5.5.
 
 We need to set up the `JAVA_HOME` env. Currently, Gluten supports **java 8** and **java 17**.
 
@@ -108,6 +108,18 @@ After the above build process, the Jar file will be generated under `package/tar
 
 Alternatively you may refer to [build in docker](../developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
 
+## Build Gluten with Velox Enhanced Features
+
+There are several Velox PRs essential to Gluten that have not yet been merged upstream. Since upstream Velox lacks CI coverage for Gluten, any upstream PR could potentially break Gluten’s compilation or unit tests. As a result, Gluten cannot directly rely on upstream Velox. Instead, Gluten maintains its own fork of Velox at [ibm/velox](https://github.com/IBM/velox), which is rebased against upstream Velox on a per-PR basis. Due to the slow review process in upstream Velox, many features that would benefit Gluten remain unmerged. A typical example is [PR7066](https://github.com/facebookincubator/velox/pull/7066), which improves TPC-DS Q95 performance but has been pending for over two years. To address this, in addition to essential features, we selectively include pending upstream PRs in our fork and tag them with the format `ibm-yyyy_mm_dd`. The diagram below illustrates this relationship. To enable these additional features, we introduced a build option: `enable_enhanced_features`.
+
+<img width="900" height="255" alt="image" src="https://github.com/user-attachments/assets/1b9a723f-2851-4847-b48c-87571fbd2a9c" />
+
+The commands:
+
+```bash
+./dev/buildbundle-veloxbe.sh --enable_enhanced_features=ON 
+```
+
 ## Dependency library deployment
 
 With build option `enable_vcpkg=ON`, all dependency libraries will be statically linked to `libvelox.so` and `libgluten.so` which are packed into the gluten-jar.
@@ -129,7 +141,7 @@ To enable this functionality, you must set the JAVA_HOME and HADOOP_HOME environ
 
 ### Build libhdfs3
 
-If you want to run Gluten with libhdfs3.so, you need to manually compile libhdfs3 to obtain the libhdfs3.so file. We provide the script dev/build_libhdfs3.sh in Gluten to help you compile libhdfs3.so.
+If you want to run Gluten with libhdfs3.so, you need to manually compile libhdfs3 to obtain the libhdfs3.so file. We provide the script dev/build-libhdfs3.sh in Gluten to help you compile libhdfs3.so.
 
 ### Build with HDFS support
 
@@ -161,7 +173,7 @@ cp /path/to/hdfs-client.xml hdfs-client.xml
 
 One typical deployment on Spark/HDFS cluster is to enable [short-circuit reading](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/ShortCircuitLocalReads.html). Short-circuit reads provide a substantial performance boost to many applications.
 
-By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build_velox.sh](https://github.com/apache/incubator-gluten/blob/main/ep/build-velox/src/build_velox.sh) So we need to make sure the folder existed and user has write access as below script.
+By default libhdfs3 does not set the default hdfs domain socket path to support HDFS short-circuit read. If this feature is required in HDFS setup, users may need to setup the domain socket path correctly by patching the libhdfs3 source code or by setting the correct config environment. In Gluten the short-circuit domain socket path is set to "/var/lib/hadoop-hdfs/dn_socket" in [build-velox.sh](https://github.com/apache/incubator-gluten/blob/main/ep/build-velox/src/build-velox.sh) So we need to make sure the folder existed and user has write access as below script.
 
 ```
 sudo mkdir -p /var/lib/hadoop-hdfs/
@@ -247,12 +259,12 @@ When compiling the Gluten Java module, it's required to enable `celeborn` profil
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pceleborn -DskipTests
 ```
 
-Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath (usually add them into `$SPARK_HOME/jars`).
 
 - Celeborn: celeborn-client-spark-3-shaded_2.12-[celebornVersion].jar
-- Gluten: gluten-velox-bundle-spark3.x_2.12-xx_xx_xx-SNAPSHOT.jar (The bundled Gluten Jar. Make sure -Pceleborn is specified when it is built.)
+- Gluten: gluten-velox-bundle-spark3.x_2.12-xxx.jar (The bundled Gluten JAR built with the -Pceleborn profile specified)
 
-Currently to use Gluten following configurations are required in `spark-defaults.conf`
+Currently, to use Gluten, the following configurations are required in `spark-defaults.conf`
 
 ```
 spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
@@ -284,6 +296,14 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 spark.dynamicAllocation.enabled false
 ```
 
+Additionally, for sort-based shuffle, Celeborn supports two types of shuffle writers: the default row-based sort shuffle writer and the RSS sort shuffle writer.
+By default, Celeborn uses the RSS sort shuffle writer. You can switch to the default row-based sort shuffle writer
+by setting the following configuration:
+
+```
+spark.gluten.sql.columnar.shuffle.celeborn.useRssSort false
+```
+
 ## Uniffle support
 
 Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.9.2`.
@@ -296,12 +316,12 @@ When compiling the Gluten Java module, it's required to enable `uniffle` profile
 mvn clean package -Pbackends-velox -Pspark-3.3 -Puniffle -DskipTests
 ```
 
-Then add the Uniffle and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+Then add the Uniffle and Spark Celeborn Client packages to your Spark application's classpath (usually add them into `$SPARK_HOME/jars`).
 
 - Uniffle: rss-client-spark3-shaded-[uniffleVersion].jar
-- Gluten: gluten-velox-bundle-spark3.x_2.12-xx_xx_xx-SNAPSHOT.jar (The bundled Gluten Jar. Make sure -Puniffle is specified when it is built.)
+- Gluten: gluten-velox-bundle-spark3.x_2.12-xxx.jar (The bundled Gluten JAR built with the -Puniffle profile specified)
 
-Currently to use Gluten following configurations are required in `spark-defaults.conf`
+Currently, to use Gluten, the following configurations are required in `spark-defaults.conf`
 
 ```
 spark.shuffle.manager org.apache.spark.shuffle.gluten.uniffle.UniffleShuffleManager
@@ -359,6 +379,20 @@ Once built successfully, iceberg features will be included in gluten-velox-bundl
 
 Gluten with velox backend supports [Hudi](https://hudi.apache.org/) table. Currently, only reading COW (Copy-On-Write) tables is supported.
 
+## Paimon Support
+
+Gluten with velox backend supports [Paimon](https://paimon.apache.org/) table. Currently, only non-pk table is supported, and the Spark version needs to be >= 3.3.
+
+### How to use
+
+Compile gluten-paimon module by a `paimon` profile, as follows:
+
+```
+mvn clean package -Pbackends-velox -Pspark-3.5 -Ppaimon -DskipTests
+```
+
+Once built successfully, paimon features will be included in gluten-velox-bundle-X jar. Then you can query paimon non-pk table by gluten/velox without scan's fallback.
+
 ### How to use
 
 First of all, compile gluten-hudi module by a `hudi` profile, as follows:
@@ -396,7 +430,7 @@ With above steps, you will get a physical plan output like:
     +- VeloxColumnarToRowExec (5)
       +- ^ ProjectExecTransformer (3)
         +- GlutenRowToArrowColumnar (2)
-          +- Scan hive default.extracted_db_pins (1)
+          +- Scan hive default.table (1)
 
 ```
 
@@ -424,8 +458,8 @@ Using the following configuration options to customize spilling:
 | spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled              | true          | Whether spill is enabled on sorts                                                                                                                                                 |
 | spark.gluten.sql.columnar.backend.velox.maxSpillLevel                    | 4             | The max allowed spilling level with zero being the initial spilling level                                                                                                         |
 | spark.gluten.sql.columnar.backend.velox.maxSpillFileSize                 | 1GB           | The max allowed spill file size. If it is zero, then there is no limit                                                                                                            |
-| spark.gluten.sql.columnar.backend.velox.spillStartPartitionBit           | 29            | The start partition bit which is used with 'spillPartitionBits' together to calculate the spilling partition number                                                               |
-| spark.gluten.sql.columnar.backend.velox.spillPartitionBits               | 2             | The number of bits used to calculate the spilling partition number. The number of spilling partitions will be power of two                                                        |
+| spark.gluten.sql.columnar.backend.velox.spillStartPartitionBit           | 48            | The start partition bit which is used with 'spillPartitionBits' together to calculate the spilling partition number                                                               |
+| spark.gluten.sql.columnar.backend.velox.spillPartitionBits               | 3             | The number of bits used to calculate the spilling partition number. The number of spilling partitions will be power of two                                                        |
 | spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct    | 25            | The spillable memory reservation growth percentage of the previous memory reservation size                                                                                        |
 | spark.gluten.sql.columnar.backend.velox.spillThreadNum                   | 0             | (Experimental) The thread num of a dedicated thread pool to do spill
 
@@ -439,8 +473,8 @@ All TPC-H and TPC-DS queries are supported in Gluten Velox backend. You may refe
 
 ## Data preparation
 
-The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
-[TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
+The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch-datagen-parquet.sh) and
+[TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds-datagen-parquet.sh).
 
 The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../tools/gluten-it/common/src/main/resources/tpcds-queries)
 and [TPC-H queries](../../tools/gluten-it/common/src/main/resources/tpch-queries).
@@ -531,8 +565,10 @@ Native Plan:
 
 ## Native Plan with Stats
 
-Gluten supports print native plan with stats to executor system output stream by setting `--conf spark.gluten.sql.debug=true`.
-Note that, the plan string with stats is task level which may cause executor log size big. Here is an example, how Gluten show the native plan string with stats.
+Gluten supports print native plan with statistics to executor system output stream by setting 
+`--conf spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished=true` or `--conf spark.gluten.sql.debug=true`.
+Note that the plan string with statistics is task level, which may increase the size of the executor logs.
+Below is an example of how Gluten displays the native plan string with statistics.
 
 ```
 I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan with stats for: [Stage: 1 TID: 16]
@@ -570,4 +606,4 @@ This feature has been tested through a series of tests, and we are collecting mo
 
 # Accelerators
 
-Please refer [HBM](VeloxHBM.md) [QAT](VeloxQAT.md) [IAA](VeloxIAA.md) for details
+Please refer [QAT](VeloxQAT.md) for details

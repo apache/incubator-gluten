@@ -15,10 +15,7 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache</groupId>
@@ -27,23 +24,17 @@
   </parent>
   <groupId>org.apache.gluten</groupId>
   <artifactId>gluten-parent</artifactId>
-  <version>1.5.0-SNAPSHOT</version>
+  <version>1.6.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
-  <url>https://github.com/apache/incubator-gluten.git</url>
   <description>Apache Gluten(incubating)</description>
+  <url>https://github.com/apache/incubator-gluten.git</url>
 
   <organization>
-    <name>Apache</name>
-    <url>https://gluten.apache.org</url>
+    <name>Apache Software Foundation</name>
+    <url>https://www.apache.org</url>
   </organization>
-
-  <scm>
-    <connection>scm:git:git://github.com/apache/incubator-gluten.git</connection>
-    <developerConnection>scm:git:ssh://github.com:apache/incubator-gluten.git</developerConnection>
-    <url>https://github.com/apache/incubator-gluten/tree/main</url>
-  </scm>
 
   <licenses>
     <license>
@@ -61,6 +52,12 @@
     <module>gluten-ras</module>
   </modules>
 
+  <scm>
+    <connection>scm:git:git://github.com/apache/incubator-gluten.git</connection>
+    <developerConnection>scm:git:ssh://github.com:apache/incubator-gluten.git</developerConnection>
+    <url>https://github.com/apache/incubator-gluten/tree/main</url>
+  </scm>
+
   <properties>
     <java.version>1.8</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -68,22 +65,26 @@
     <caffeine.version>2.9.3</caffeine.version>
     <scala.binary.version>2.12</scala.binary.version>
     <scala.version>2.12.15</scala.version>
+    <scala-xml.version>2.1.0</scala-xml.version>
+    <javax.servlet.version>3.1.0</javax.servlet.version>
     <spark.major.version>3</spark.major.version>
-    <sparkbundle.version>3.4</sparkbundle.version>
-    <spark.version>3.4.4</spark.version>
-    <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
-    <iceberg.version>1.5.0</iceberg.version>
-    <delta.package.name>delta-core</delta.package.name>
-    <delta.version>2.4.0</delta.version>
-    <delta.binary.version>24</delta.binary.version>
-    <celeborn.version>0.5.4</celeborn.version>
-    <uniffle.version>0.9.2</uniffle.version>
+    <sparkbundle.version>3.5</sparkbundle.version>
+    <spark.plain.version>35</spark.plain.version>
+    <spark.version>3.5.5</spark.version>
+    <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
+    <iceberg.version>1.10.0</iceberg.version>
+    <iceberg.binary.version>10</iceberg.binary.version>
+    <paimon.version>1.2.0</paimon.version>
+    <delta.package.name>delta-spark</delta.package.name>
+    <delta.version>3.3.2</delta.version>
+    <delta.binary.version>33</delta.binary.version>
+    <aws-java-sdk-dynamodb.version>1.12.262</aws-java-sdk-dynamodb.version>
+    <celeborn.version>0.6.1</celeborn.version>
+    <uniffle.version>0.10.0</uniffle.version>
     <arrow.version>15.0.0</arrow.version>
     <arrow-gluten.version>15.0.0-gluten</arrow-gluten.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>2.7.4</hadoop.version>
-    <slf4j.version>2.0.7</slf4j.version>
-    <log4j.version>2.20.0</log4j.version>
     <antlr4.version>4.9.3</antlr4.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -98,8 +99,12 @@
     <!-- To build built-in backend c++ codes -->
     <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
-    <fasterxml.version>2.13.5</fasterxml.version>
+    <fasterxml.version>2.15.0</fasterxml.version>
     <junit.version>4.13.1</junit.version>
+    <!-- Maven version for build/mvn wrapper script -->
+    <maven.version>3.9.12</maven.version>
+    <junit5.version>5.11.4</junit5.version>
+    <flexmark.version>0.62.2</flexmark.version>
 
     <!-- Package name to use when relocating shaded classes -->
     <gluten.shade.packageName>org.apache.gluten.shaded</gluten.shade.packageName>
@@ -109,8 +114,10 @@
     <guava.version>32.0.1-jre</guava.version>
     <!--spotless-->
     <spotless.version>2.27.2</spotless.version>
+    <googlejavaformat.version>1.7</googlejavaformat.version>
     <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
+    <!-- spotless:off -->
     <spotless.license.header>
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -129,17 +136,20 @@
  * limitations under the License.
  */
     </spotless.license.header>
+    <!-- spotless:on -->
 
     <!-- plugin version-->
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <scala.compiler.version>4.8.0</scala.compiler.version>
-    <maven.compiler.plugin>3.12.1</maven.compiler.plugin>
+    <maven.compiler.plugin>3.14.1</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
-    <argLine/> <!-- Required since there is extensive setting of spark home through argLine-->
+    <argLine/>
+    <!-- Required since there is extensive setting of spark home through argLine-->
     <extraJavaTestArgs>
-      -XX:+IgnoreUnrecognizedVMOptions <!-- For compatibility with java 8 and 11-->
+      -XX:+IgnoreUnrecognizedVMOptions
+      <!-- For compatibility with java 8 and 11-->
       --add-opens=java.base/java.lang=ALL-UNNAMED
       --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
       --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
@@ -160,6 +170,809 @@
     <log4j.conf>file:src/test/resources/log4j2.properties</log4j.conf>
   </properties>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.github.ben-manes.caffeine</groupId>
+        <artifactId>caffeine</artifactId>
+        <version>${caffeine.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-sql_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-vector</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-recipes</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-hive_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-core_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-recipes</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-yarn_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <!-- test dependencies -->
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${junit5.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-core_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.curator</groupId>
+            <artifactId>curator-recipes</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-sql_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-hive_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-tags_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-client</artifactId>
+        <version>${hadoop.version}</version>
+        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>io.delta</groupId>
+        <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
+        <version>${delta.version}</version>
+        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.antlr</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.scalatest</groupId>
+        <artifactId>scalatest_${scala.binary.version}</artifactId>
+        <version>3.2.16</version>
+        <scope>test</scope>
+      </dependency>
+      <!-- Fasterxml -->
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-annotations</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-guava</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.scala-lang.modules</groupId>
+        <artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
+        <version>2.11.0</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-all</artifactId>
+        <version>${flexmark.version}</version>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <!-- Use Google Cloud Storage mirror for faster Maven Central downloads -->
+  <repositories>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>gcs-maven-central-mirror</id>
+      <name>GCS Maven Central mirror</name>
+      <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
+    </repository>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>Maven Central</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>gcs-maven-central-mirror</id>
+      <name>GCS Maven Central mirror</name>
+      <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
+    </pluginRepository>
+    <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>Maven Plugin Repository</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </pluginRepository>
+  </pluginRepositories>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>${project.basedir}/src/main/resources</directory>
+      </resource>
+    </resources>
+    <testResources>
+      <testResource>
+        <directory>${project.basedir}/src/test/resources</directory>
+      </testResource>
+    </testResources>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>${maven.jar.plugin}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+              <configuration>
+                <classifier>${scala.binary.version}</classifier>
+                <classifier>${sparkbundle.version}</classifier>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>${maven.compiler.plugin}</version>
+          <configuration>
+            <encoding>UTF-8</encoding>
+            <maxmem>1024m</maxmem>
+            <fork>true</fork>
+            <compilerArgs>
+              <arg>-Xlint:all,-serial,-path</arg>
+            </compilerArgs>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.3.0</version>
+          <configuration>
+            <argLine>${argLine} ${extraJavaTestArgs}</argLine>
+            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.scalatest</groupId>
+          <artifactId>scalatest-maven-plugin</artifactId>
+          <version>${scalatest-maven-plugin.version}</version>
+          <configuration>
+            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+            <testFailureIgnore>${maven.test.failure.ignore}</testFailureIgnore>
+            <junitxml>.</junitxml>
+            <argLine>${argLine} ${extraJavaTestArgs}</argLine>
+            <systemProperties>
+              <log4j.configurationFile>${log4j.conf}</log4j.configurationFile>
+            </systemProperties>
+          </configuration>
+          <executions>
+            <execution>
+              <id>test</id>
+              <goals>
+                <goal>test</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>net.alchim31.maven</groupId>
+          <artifactId>scala-maven-plugin</artifactId>
+          <version>${scala.compiler.version}</version>
+          <configuration>
+            <compilerPlugins>
+              <compilerPlugin>
+                <groupId>org.wartremover</groupId>
+                <artifactId>wartremover_${scala.binary.version}</artifactId>
+                <version>3.0.6</version>
+              </compilerPlugin>
+            </compilerPlugins>
+            <dependencies>
+              <dependency>
+                <groupId>io.github.zhztheplayer.scalawarts</groupId>
+                <artifactId>scalawarts_${scala.binary.version}</artifactId>
+                <version>0.1.2</version>
+              </dependency>
+            </dependencies>
+            <recompileMode>${scala.recompile.mode}</recompileMode>
+            <args>
+              <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
+              <arg>-Ywarn-unused:imports</arg>
+              <arg>-deprecation</arg>
+              <arg>-feature</arg>
+              <arg>-Wconf:cat=deprecation:wv,any:e</arg>
+              <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+            </args>
+          </configuration>
+          <executions>
+            <execution>
+              <id>scala-compile-first</id>
+              <goals>
+                <goal>add-source</goal>
+                <goal>compile</goal>
+              </goals>
+              <phase>process-resources</phase>
+            </execution>
+            <execution>
+              <id>scala-test-compile-first</id>
+              <goals>
+                <goal>testCompile</goal>
+              </goals>
+              <phase>process-test-resources</phase>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>3.1.1</version>
+          <configuration>
+            <failOnViolation>true</failOnViolation>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <sourceDirectories>
+              <directory>${project.basedir}/src/main/java</directory>
+              <directory>${project.basedir}/src/main/scala</directory>
+            </sourceDirectories>
+            <testSourceDirectories>
+              <directory>${project.basedir}/src/test/java</directory>
+            </testSourceDirectories>
+            <configLocation>dev/checkstyle.xml</configLocation>
+            <outputFile>${project.basedir}/target/checkstyle-output.xml</outputFile>
+            <inputEncoding>UTF-8</inputEncoding>
+            <outputEncoding>UTF-8</outputEncoding>
+          </configuration>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>8.29</version>
+            </dependency>
+          </dependencies>
+          <executions>
+            <execution>
+              <goals>
+                <goal>check</goal>
+              </goals>
+              <phase>validate</phase>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.scalastyle</groupId>
+          <artifactId>scalastyle-maven-plugin</artifactId>
+          <version>${scalastyle.version}</version>
+          <configuration>
+            <verbose>false</verbose>
+            <failOnViolation>true</failOnViolation>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <failOnWarning>false</failOnWarning>
+            <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
+            <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
+            <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
+            <outputEncoding>UTF-8</outputEncoding>
+            <configLocation>dev/scalastyle-config.xml</configLocation>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>check</goal>
+              </goals>
+              <phase>validate</phase>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>3.3.0</version>
+          <configuration>
+            <descriptorRefs>
+              <descriptorRef>jar-with-dependencies</descriptorRef>
+            </descriptorRefs>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.0.1</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>3.1.0</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>3.6.1</version>
+          <configuration>
+            <createDependencyReducedPom>false</createDependencyReducedPom>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>3.1.0</version>
+        </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${spotless.version}</version>
+          <configuration>
+            <java>
+              <toggleOffOn/>
+              <googleJavaFormat>
+                <version>${googlejavaformat.version}</version>
+              </googleJavaFormat>
+
+              <!-- \# refers to the static imports -->
+              <importOrder>
+                <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
+              </importOrder>
+
+              <removeUnusedImports/>
+              <licenseHeader>
+                <content>${spotless.license.header}</content>
+                <delimiter>${spotless.delimiter}</delimiter>
+              </licenseHeader>
+              <includes>
+                <include>src/main/java/**/*.java</include>
+                <include>src/test/java/**/*.java</include>
+                <include>src-*/main/java/**/*.java</include>
+                <include>src-*/test/java/**/*.java</include>
+              </includes>
+            </java>
+            <scala>
+              <toggleOffOn/>
+              <scalafmt>
+                <version>${spotless.scalafmt.version}</version>
+                <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
+                <file>.scalafmt.conf</file>
+              </scalafmt>
+              <licenseHeader>
+                <content>${spotless.license.header}</content>
+                <delimiter>${spotless.delimiter}</delimiter>
+              </licenseHeader>
+              <includes>
+                <include>src/main/scala/**/*.scala</include>
+                <include>src/test/scala/**/*.scala</include>
+                <include>src-*/main/scala/**/*.scala</include>
+                <include>src-*/test/scala/**/*.scala</include>
+              </includes>
+            </scala>
+            <pom>
+              <toggleOffOn>
+                <off>spotless:off</off>
+                <on>spotless:on</on>
+              </toggleOffOn>
+              <includes>
+                <include>pom.xml</include>
+              </includes>
+              <sortPom>
+                <encoding>UTF-8</encoding>
+                <keepBlankLines>true</keepBlankLines>
+                <nrOfIndentSpace>2</nrOfIndentSpace>
+                <indentBlankLines>false</indentBlankLines>
+                <expandEmptyElements>false</expandEmptyElements>
+              </sortPom>
+            </pom>
+          </configuration>
+          <executions>
+            <execution>
+              <id>spotless-check</id>
+              <goals>
+                <goal>check</goal>
+              </goals>
+              <phase>validate</phase>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>${build-helper-maven-plugin.version}</version>
+          <!--We use build-helper-maven-plugin rather than maven-resources-plugin-->
+          <!--to add base resources (generated-resources and other common extended resource folders).-->
+          <!--So submodules could easily add their own resources through maven-resources-plugin-->
+          <!--which is more compatible with Intellij IDEA (E.g., `targetPath` can be respected by-->
+          <!--IDEA with maven-resources-plugin while it is not working with build-helper-maven-plugin).-->
+          <executions>
+            <execution>
+              <id>add-common-sources</id>
+              <goals>
+                <goal>add-source</goal>
+              </goals>
+              <phase>generate-sources</phase>
+              <configuration>
+                <sources>
+                  <source>${project.basedir}/src-spark${spark.plain.version}/main/java</source>
+                  <source>${project.basedir}/src-spark${spark.plain.version}/main/scala</source>
+                </sources>
+              </configuration>
+            </execution>
+            <execution>
+              <id>add-common-resources</id>
+              <goals>
+                <goal>add-resource</goal>
+              </goals>
+              <phase>generate-resources</phase>
+              <configuration>
+                <resources>
+                  <resource>
+                    <directory>${project.basedir}/src-spark${spark.plain.version}/main/resources</directory>
+                  </resource>
+                </resources>
+              </configuration>
+            </execution>
+            <execution>
+              <id>add-common-test-sources</id>
+              <goals>
+                <goal>add-test-source</goal>
+              </goals>
+              <phase>generate-test-sources</phase>
+              <configuration>
+                <sources>
+                  <source>${project.basedir}/src-spark${spark.plain.version}/test/scala</source>
+                  <source>${project.basedir}/src-spark${spark.plain.version}/test/java</source>
+                </sources>
+              </configuration>
+            </execution>
+            <execution>
+              <id>add-common-test-resources</id>
+              <goals>
+                <goal>add-test-resource</goal>
+              </goals>
+              <phase>generate-test-resources</phase>
+              <configuration>
+                <resources>
+                  <resource>
+                    <directory>${project.basedir}/src-spark${spark.plain.version}/test/resources</directory>
+                  </resource>
+                </resources>
+              </configuration>
+            </execution>
+            <execution>
+              <id>add-generated-resources</id>
+              <goals>
+                <goal>add-resource</goal>
+              </goals>
+              <phase>generate-resources</phase>
+              <configuration>
+                <resources>
+                  <resource>
+                    <!-- Include the properties file to provide the build information. -->
+                    <directory>${project.build.directory}/generated-resources</directory>
+                  </resource>
+                </resources>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.xolstice.maven.plugins</groupId>
+          <artifactId>protobuf-maven-plugin</artifactId>
+          <version>0.5.1</version>
+        </plugin>
+        <plugin>
+          <groupId>org.antlr</groupId>
+          <artifactId>antlr4-maven-plugin</artifactId>
+          <version>${antlr4.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>3.3.0</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-versions</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>3.6.3</version>
+                </requireMavenVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.2.1</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>versions-maven-plugin</artifactId>
+        <version>2.15.0</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+    <extensions>
+      <!-- provides os.detected.classifier (i.e. linux-x86_64, osx-x86_64) property -->
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${os-maven-plugin.version}</version>
+      </extension>
+    </extensions>
+  </build>
+
   <profiles>
     <profile>
       <id>scala-2.12</id>
@@ -178,7 +991,7 @@
     <profile>
       <id>scala-2.13</id>
       <properties>
-        <scala.version>2.13.8</scala.version>
+        <scala.version>2.13.17</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
         <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
       </properties>
@@ -189,12 +1002,11 @@
               <groupId>net.alchim31.maven</groupId>
               <artifactId>scala-maven-plugin</artifactId>
               <configuration>
-                <!-- TODO: Fix the plugin scalawarts to support scala 2.13 in IDEA
                 <compilerPlugins>
                   <compilerPlugin>
                     <groupId>org.wartremover</groupId>
                     <artifactId>wartremover_${scala.binary.version}</artifactId>
-                    <version>3.1.6</version>
+                    <version>3.2.0</version>
                   </compilerPlugin>
                 </compilerPlugins>
                 <dependencies>
@@ -203,21 +1015,20 @@
                     <artifactId>scalawarts_${scala.binary.version}</artifactId>
                     <version>0.1.2</version>
                   </dependency>
-                </dependencies> -->
+                </dependencies>
                 <recompileMode>${scala.recompile.mode}</recompileMode>
                 <args>
                   <arg>-unchecked</arg>
                   <arg>-deprecation</arg>
                   <arg>-feature</arg>
                   <arg>-explaintypes</arg>
-                  <arg>-target:jvm-1.8</arg>
+                  <arg>-release:${java.version}</arg>
                   <arg>-Wconf:cat=deprecation:wv,any:e</arg>
                   <arg>-Wunused:imports</arg>
                   <!--
                     TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed
                   -->
                   <arg>-Wconf:cat=scaladoc:wv</arg>
-                  <arg>-Wconf:cat=lint-multiarg-infix:wv</arg>
                   <arg>-Wconf:cat=other-nullary-override:wv</arg>
                   <!--
                     SPARK-33775 Suppress compilation warnings that contain the following contents.
@@ -245,26 +1056,24 @@
                   <arg>-Wconf:cat=unchecked&amp;msg=outer reference:s</arg>
                   <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
                   <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
-                  <!--
                   <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
-                  -->
                 </args>
               </configuration>
               <executions>
                 <execution>
                   <id>scala-compile-first</id>
-                  <phase>process-resources</phase>
                   <goals>
                     <goal>add-source</goal>
                     <goal>compile</goal>
                   </goals>
+                  <phase>process-resources</phase>
                 </execution>
                 <execution>
                   <id>scala-test-compile-first</id>
-                  <phase>process-test-resources</phase>
                   <goals>
                     <goal>testCompile</goal>
                   </goals>
+                  <phase>process-test-resources</phase>
                 </execution>
               </executions>
             </plugin>
@@ -302,61 +1111,130 @@
       </properties>
     </profile>
     <profile>
-      <id>spark-3.2</id>
+      <id>java-21</id>
+      <activation>
+        <jdk>21</jdk>
+      </activation>
       <properties>
-        <sparkbundle.version>3.2</sparkbundle.version>
-        <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
-        <spark.version>3.2.2</spark.version>
-        <iceberg.version>1.3.1</iceberg.version>
-        <delta.package.name>delta-core</delta.package.name>
-        <delta.version>2.0.1</delta.version>
-        <delta.binary.version>20</delta.binary.version>
-        <antlr4.version>4.8</antlr4.version>
-        <hudi.version>0.15.0</hudi.version>
+        <java.version>21</java.version>
+        <caffeine.version>3.1.8</caffeine.version>
+        <spotless.version>2.44.2</spotless.version>
+        <googlejavaformat.version>1.17.0</googlejavaformat.version>
       </properties>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
+        <spark.plain.version>33</spark.plain.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
         <spark.version>3.3.1</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
+        <iceberg.binary.version>5</iceberg.binary.version>
         <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.3.0</delta.version>
         <delta.binary.version>23</delta.binary.version>
         <antlr4.version>4.8</antlr4.version>
         <hudi.version>0.15.0</hudi.version>
+        <slf4j.version>1.7.32</slf4j.version>
+        <log4j.version>2.17.2</log4j.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-core</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-3.4</id>
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
+        <spark.plain.version>34</spark.plain.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
         <spark.version>3.4.4</spark.version>
-        <iceberg.version>1.7.1</iceberg.version>
+        <iceberg.version>1.10.0</iceberg.version>
         <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
         <antlr4.version>4.9.3</antlr4.version>
         <hudi.version>0.15.0</hudi.version>
+        <slf4j.version>2.0.6</slf4j.version>
+        <log4j.version>2.19.0</log4j.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-core</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>spark-3.5</id>
       <properties>
         <sparkbundle.version>3.5</sparkbundle.version>
+        <spark.plain.version>35</spark.plain.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
-        <spark.version>3.5.2</spark.version>
-        <iceberg.version>1.5.0</iceberg.version>
+        <spark.version>3.5.5</spark.version>
+        <iceberg.version>1.10.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
-        <delta.version>3.2.0</delta.version>
-        <delta.binary.version>32</delta.binary.version>
+        <delta.version>3.3.2</delta.version>
+        <delta.binary.version>33</delta.binary.version>
         <hudi.version>0.15.0</hudi.version>
         <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
         <antlr4.version>4.9.3</antlr4.version>
+        <slf4j.version>2.0.7</slf4j.version>
+        <log4j.version>2.20.0</log4j.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>${slf4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j2-impl</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-core</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>spark-4.0</id>
+      <properties>
+        <sparkbundle.version>4.0</sparkbundle.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-spark40</sparkshim.artifactId>
+        <spark.version>4.0.1</spark.version>
+        <iceberg.version>1.10.0</iceberg.version>
+        <delta.package.name>delta-spark</delta.package.name>
+        <delta.version>4.0.0</delta.version>
+        <delta.binary.version>40</delta.binary.version>
+        <hudi.version>1.1.0</hudi.version>
+        <paimon.version>1.3.0</paimon.version>
+        <fasterxml.version>2.18.2</fasterxml.version>
+        <fasterxml.jackson.version>2.18.2</fasterxml.jackson.version>
+        <fasterxml.jackson.databind.version>2.18.2</fasterxml.jackson.databind.version>
+        <hadoop.version>3.4.1</hadoop.version>
+        <antlr4.version>4.13.1</antlr4.version>
+        <guava.version>33.4.0-jre</guava.version>
+        <slf4j.version>2.0.16</slf4j.version>
+        <log4j.version>2.24.3</log4j.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
+        <arrow.version>18.1.0</arrow.version>
+        <arrow-gluten.version>18.1.0</arrow-gluten.version>
       </properties>
       <dependencies>
         <dependency>
@@ -372,6 +1250,127 @@
           <scope>provided</scope>
         </dependency>
       </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>enforce-java-17+</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireActiveProfile>
+                      <!-- Spark 4.0 requires Java 17+ -->
+                      <profiles>java-17,java-21</profiles>
+                      <all>false</all>
+                      <message>"-P spark-4.0" requires JDK 17+</message>
+                    </requireActiveProfile>
+                  </rules>
+                </configuration>
+              </execution>
+              <execution>
+                <id>enforce-scala-213</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireActiveProfile>
+                      <!-- Spark 4.0 requires Scala 2.13 -->
+                      <profiles>scala-2.13</profiles>
+                      <message>"-P spark-4.0" requires Scala 2.13</message>
+                    </requireActiveProfile>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>spark-4.1</id>
+      <properties>
+        <sparkbundle.version>4.1</sparkbundle.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-spark41</sparkshim.artifactId>
+        <spark.version>4.1.1</spark.version>
+        <iceberg.version>1.10.0</iceberg.version>
+        <delta.package.name>delta-spark</delta.package.name>
+        <delta.version>4.0.0</delta.version>
+        <delta.binary.version>40</delta.binary.version>
+        <hudi.version>1.1.0</hudi.version>
+        <paimon.version>1.3.0</paimon.version>
+        <fasterxml.version>2.18.2</fasterxml.version>
+        <fasterxml.jackson.version>2.18.2</fasterxml.jackson.version>
+        <fasterxml.jackson.databind.version>2.18.2</fasterxml.jackson.databind.version>
+        <hadoop.version>3.4.1</hadoop.version>
+        <antlr4.version>4.13.1</antlr4.version>
+        <guava.version>33.4.0-jre</guava.version>
+        <slf4j.version>2.0.16</slf4j.version>
+        <log4j.version>2.24.3</log4j.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
+        <arrow.version>18.1.0</arrow.version>
+        <arrow-gluten.version>18.1.0</arrow-gluten.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>${slf4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j2-impl</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>enforce-java-17+</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireActiveProfile>
+                      <!-- Spark 4.1 requires Java 17+ -->
+                      <profiles>java-17,java-21</profiles>
+                      <all>false</all>
+                      <message>"-P spark-4.1" requires JDK 17+</message>
+                    </requireActiveProfile>
+                  </rules>
+                </configuration>
+              </execution>
+              <execution>
+                <id>enforce-scala-213</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireActiveProfile>
+                      <!-- Spark 4.1 requires Scala 2.13 -->
+                      <profiles>scala-2.13</profiles>
+                      <message>"-P spark-4.1" requires Scala 2.13</message>
+                    </requireActiveProfile>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <profile>
       <id>hadoop-2.7.4</id>
@@ -452,54 +1451,64 @@
             <executions>
               <execution>
                 <id>add-celeborn-sources</id>
-                <phase>generate-sources</phase>
                 <goals>
                   <goal>add-source</goal>
                 </goals>
+                <phase>generate-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-celeborn/main/scala</source>
                     <source>${project.basedir}/src-celeborn/main/java</source>
+                    <source>${project.basedir}/src-celeborn-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-celeborn-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-celeborn-resources</id>
-                <phase>generate-resources</phase>
                 <goals>
                   <goal>add-resource</goal>
                 </goals>
+                <phase>generate-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-celeborn/main/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-celeborn-spark${spark.plain.version}/main/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-celeborn-test-sources</id>
-                <phase>generate-test-sources</phase>
                 <goals>
                   <goal>add-test-source</goal>
                 </goals>
+                <phase>generate-test-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-celeborn/test/scala</source>
                     <source>${project.basedir}/src-celeborn/test/java</source>
+                    <source>${project.basedir}/src-celeborn-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-celeborn-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-celeborn-test-resources</id>
-                <phase>generate-test-resources</phase>
                 <goals>
                   <goal>add-test-resource</goal>
                 </goals>
+                <phase>generate-test-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-celeborn/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-celeborn-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -525,54 +1534,64 @@
             <executions>
               <execution>
                 <id>add-uniffle-sources</id>
-                <phase>generate-sources</phase>
                 <goals>
                   <goal>add-source</goal>
                 </goals>
+                <phase>generate-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-uniffle/main/scala</source>
                     <source>${project.basedir}/src-uniffle/main/java</source>
+                    <source>${project.basedir}/src-uniffle-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-uniffle-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-uniffle-resources</id>
-                <phase>generate-resources</phase>
                 <goals>
                   <goal>add-resource</goal>
                 </goals>
+                <phase>generate-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-uniffle/main/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-uniffle-spark${spark.plain.version}/main/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-uniffle-test-sources</id>
-                <phase>generate-test-sources</phase>
                 <goals>
                   <goal>add-test-source</goal>
                 </goals>
+                <phase>generate-test-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-uniffle/test/scala</source>
                     <source>${project.basedir}/src-uniffle/test/java</source>
+                    <source>${project.basedir}/src-uniffle-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-uniffle-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-uniffle-test-resources</id>
-                <phase>generate-test-resources</phase>
                 <goals>
                   <goal>add-test-resource</goal>
                 </goals>
+                <phase>generate-test-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-uniffle/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-uniffle-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -598,25 +1617,29 @@
             <executions>
               <execution>
                 <id>add-delta-sources</id>
-                <phase>generate-sources</phase>
                 <goals>
                   <goal>add-source</goal>
                 </goals>
+                <phase>generate-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-delta/main/scala</source>
                     <source>${project.basedir}/src-delta/main/java</source>
-                    <source>${project.basedir}/src-delta-${delta.binary.version}/main/scala</source>
-                    <source>${project.basedir}/src-delta-${delta.binary.version}/main/java</source>
+                    <source>${project.basedir}/src-delta-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-delta-spark${spark.plain.version}/main/java</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}/main/scala</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}/main/java</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-delta-resources</id>
-                <phase>generate-resources</phase>
                 <goals>
                   <goal>add-resource</goal>
                 </goals>
+                <phase>generate-resources</phase>
                 <configuration>
                   <resources>
                     <!--Don't place multiple `directory` lines under the same `resource` entry.-->
@@ -625,39 +1648,55 @@
                       <directory>${project.basedir}/src-delta/main/resources</directory>
                     </resource>
                     <resource>
-                      <directory>${project.basedir}/src-delta-${delta.binary.version}/main/resources</directory>
+                      <directory>${project.basedir}/src-delta-spark${spark.plain.version}/main/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-delta${delta.binary.version}/main/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/main/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-delta-test-sources</id>
-                <phase>generate-test-sources</phase>
                 <goals>
                   <goal>add-test-source</goal>
                 </goals>
+                <phase>generate-test-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-delta/test/scala</source>
                     <source>${project.basedir}/src-delta/test/java</source>
-                    <source>${project.basedir}/src-delta-${delta.binary.version}/test/scala</source>
-                    <source>${project.basedir}/src-delta-${delta.binary.version}/test/java</source>
+                    <source>${project.basedir}/src-delta-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-delta-spark${spark.plain.version}/test/java</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}/test/scala</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}/test/java</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-delta-test-resources</id>
-                <phase>generate-test-resources</phase>
                 <goals>
                   <goal>add-test-resource</goal>
                 </goals>
+                <phase>generate-test-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-delta/test/resources</directory>
                     </resource>
                     <resource>
-                      <directory>${project.basedir}/src-delta-${delta.binary.version}/test/resources</directory>
+                      <directory>${project.basedir}/src-delta-spark${spark.plain.version}/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-delta${delta.binary.version}/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-delta${delta.binary.version}-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -683,23 +1722,27 @@
             <executions>
               <execution>
                 <id>add-iceberg-sources</id>
-                <phase>generate-sources</phase>
                 <goals>
                   <goal>add-source</goal>
                 </goals>
+                <phase>generate-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-iceberg/main/scala</source>
                     <source>${project.basedir}/src-iceberg/main/java</source>
+                    <source>${project.basedir}/src-iceberg${iceberg.binary.version}/main/scala</source>
+                    <source>${project.basedir}/src-iceberg${iceberg.binary.version}/main/java</source>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-iceberg-resources</id>
-                <phase>generate-resources</phase>
                 <goals>
                   <goal>add-resource</goal>
                 </goals>
+                <phase>generate-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
@@ -710,27 +1753,76 @@
               </execution>
               <execution>
                 <id>add-iceberg-test-sources</id>
-                <phase>generate-test-sources</phase>
                 <goals>
                   <goal>add-test-source</goal>
                 </goals>
+                <phase>generate-test-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-iceberg/test/scala</source>
                     <source>${project.basedir}/src-iceberg/test/java</source>
+                    <source>${project.basedir}/src-iceberg${iceberg.binary.version}/test/scala</source>
+                    <source>${project.basedir}/src-iceberg${iceberg.binary.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-iceberg-test-resources</id>
-                <phase>generate-test-resources</phase>
                 <goals>
                   <goal>add-test-resource</goal>
                 </goals>
+                <phase>generate-test-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-iceberg/test/resources</directory>
+                      <directory>${project.basedir}/src-iceberg${iceberg.binary.version}/test/resources</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>iceberg-test</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <hadoop.version>3.4.1</hadoop.version>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>add-iceberg-test-sources</id>
+                <goals>
+                  <goal>add-test-source</goal>
+                </goals>
+                <phase>generate-test-sources</phase>
+                <configuration>
+                  <sources>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/java</source>
+                  </sources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-iceberg-test-resources</id>
+                <goals>
+                  <goal>add-test-resource</goal>
+                </goals>
+                <phase>generate-test-resources</phase>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/src-iceberg-spark${spark.plain.version}/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -756,54 +1848,137 @@
             <executions>
               <execution>
                 <id>add-hudi-sources</id>
-                <phase>generate-sources</phase>
                 <goals>
                   <goal>add-source</goal>
                 </goals>
+                <phase>generate-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-hudi/main/scala</source>
                     <source>${project.basedir}/src-hudi/main/java</source>
+                    <source>${project.basedir}/src-hudi-spark${spark.plain.version}/main/scala</source>
+                    <source>${project.basedir}/src-hudi-spark${spark.plain.version}/main/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-hudi-resources</id>
-                <phase>generate-resources</phase>
                 <goals>
                   <goal>add-resource</goal>
                 </goals>
+                <phase>generate-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-hudi/main/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-hudi-spark${spark.plain.version}/main/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-hudi-test-sources</id>
-                <phase>generate-test-sources</phase>
                 <goals>
                   <goal>add-test-source</goal>
                 </goals>
+                <phase>generate-test-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-hudi/test/scala</source>
                     <source>${project.basedir}/src-hudi/test/java</source>
+                    <source>${project.basedir}/src-hudi-spark${spark.plain.version}/test/scala</source>
+                    <source>${project.basedir}/src-hudi-spark${spark.plain.version}/test/java</source>
                   </sources>
                 </configuration>
               </execution>
               <execution>
                 <id>add-hudi-test-resources</id>
-                <phase>generate-test-resources</phase>
                 <goals>
                   <goal>add-test-resource</goal>
                 </goals>
+                <phase>generate-test-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-hudi/test/resources</directory>
+                    </resource>
+                    <resource>
+                      <directory>${project.basedir}/src-hudi-spark${spark.plain.version}/test/resources</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>paimon</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-paimon</module>
+      </modules>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>add-paimon-sources</id>
+                <goals>
+                  <goal>add-source</goal>
+                </goals>
+                <phase>generate-sources</phase>
+                <configuration>
+                  <sources>
+                    <source>${project.basedir}/src-paimon/main/scala</source>
+                    <source>${project.basedir}/src-paimon/main/java</source>
+                  </sources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-paimon-resources</id>
+                <goals>
+                  <goal>add-resource</goal>
+                </goals>
+                <phase>generate-resources</phase>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/src-paimon/main/resources</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-paimon-test-sources</id>
+                <goals>
+                  <goal>add-test-source</goal>
+                </goals>
+                <phase>generate-test-sources</phase>
+                <configuration>
+                  <sources>
+                    <source>${project.basedir}/src-paimon/test/scala</source>
+                    <source>${project.basedir}/src-paimon/test/java</source>
+                  </sources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-paimon-test-resources</id>
+                <goals>
+                  <goal>add-test-resource</goal>
+                </goals>
+                <phase>generate-test-resources</phase>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/src-paimon/test/resources</directory>
                     </resource>
                   </resources>
                 </configuration>
@@ -842,10 +2017,10 @@
             <executions>
               <execution>
                 <id>add-kafka-sources</id>
-                <phase>generate-sources</phase>
                 <goals>
                   <goal>add-source</goal>
                 </goals>
+                <phase>generate-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-kafka/main/scala</source>
@@ -855,10 +2030,10 @@
               </execution>
               <execution>
                 <id>add-kafka-resources</id>
-                <phase>generate-resources</phase>
                 <goals>
                   <goal>add-resource</goal>
                 </goals>
+                <phase>generate-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
@@ -869,10 +2044,10 @@
               </execution>
               <execution>
                 <id>add-kafka-test-sources</id>
-                <phase>generate-test-sources</phase>
                 <goals>
                   <goal>add-test-source</goal>
                 </goals>
+                <phase>generate-test-sources</phase>
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-kafka/test/scala</source>
@@ -882,10 +2057,10 @@
               </execution>
               <execution>
                 <id>add-kafka-test-resources</id>
-                <phase>generate-test-resources</phase>
                 <goals>
                   <goal>add-test-resource</goal>
                 </goals>
+                <phase>generate-test-resources</phase>
                 <configuration>
                   <resources>
                     <resource>
@@ -933,18 +2108,16 @@
             <executions>
               <execution>
                 <id>source-release-assembly</id>
-                <phase>none</phase>
                 <goals>
                   <goal>single</goal>
                 </goals>
+                <phase>none</phase>
                 <configuration>
                   <tarLongFileMode>gnu</tarLongFileMode>
                   <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
                   <appendAssemblyId>true</appendAssemblyId>
                   <descriptors>
-                    <descriptor>
-                      src/assembly/source-assembly.xml
-                    </descriptor>
+                    <descriptor>src/assembly/source-assembly.xml</descriptor>
                   </descriptors>
                   <finalName>apache-gluten-${project.version}</finalName>
                 </configuration>
@@ -1013,658 +2186,4 @@
       </properties>
     </profile>
   </profiles>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>com.github.ben-manes.caffeine</groupId>
-        <artifactId>caffeine</artifactId>
-        <version>${caffeine.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-sql_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-        <scope>provided</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-vector</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client-runtime</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.curator</groupId>
-            <artifactId>curator-recipes</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>protobuf-java</artifactId>
-            <groupId>com.google.protobuf</groupId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-hive_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-        <scope>provided</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client-runtime</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>protobuf-java</artifactId>
-            <groupId>com.google.protobuf</groupId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-core_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-        <scope>provided</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client-runtime</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.curator</groupId>
-            <artifactId>curator-recipes</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>protobuf-java</artifactId>
-            <groupId>com.google.protobuf</groupId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-yarn_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <!-- test dependencies -->
-      <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>${junit.version}</version>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-core_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-        <type>test-jar</type>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client-runtime</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.curator</groupId>
-            <artifactId>curator-recipes</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>protobuf-java</artifactId>
-            <groupId>com.google.protobuf</groupId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
-        <type>test-jar</type>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-sql_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>protobuf-java</artifactId>
-            <groupId>com.google.protobuf</groupId>
-          </exclusion>
-        </exclusions>
-        <type>test-jar</type>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.spark</groupId>
-        <artifactId>spark-hive_${scala.binary.version}</artifactId>
-        <version>${spark.version}</version>
-        <type>test-jar</type>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-client</artifactId>
-        <version>${hadoop.version}</version>
-        <scope>provided</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>protobuf-java</artifactId>
-            <groupId>com.google.protobuf</groupId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>io.delta</groupId>
-        <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
-        <version>${delta.version}</version>
-        <scope>provided</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.antlr</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest_${scala.binary.version}</artifactId>
-        <version>3.2.16</version>
-        <scope>test</scope>
-      </dependency>
-      <!-- Fasterxml -->
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-annotations</artifactId>
-        <version>${fasterxml.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-core</artifactId>
-        <version>${fasterxml.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>${fasterxml.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.datatype</groupId>
-        <artifactId>jackson-datatype-jsr310</artifactId>
-        <version>${fasterxml.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.datatype</groupId>
-        <artifactId>jackson-datatype-guava</artifactId>
-        <version>${fasterxml.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.module</groupId>
-        <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
-        <version>${fasterxml.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.scala-lang.modules</groupId>
-        <artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
-        <version>2.11.0</version>
-        <scope>test</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
-  <build>
-    <resources>
-      <resource>
-        <directory>${project.basedir}/src/main/resources</directory>
-      </resource>
-    </resources>
-    <testResources>
-      <testResource>
-        <directory>${project.basedir}/src/test/resources</directory>
-      </testResource>
-    </testResources>
-    <extensions>
-      <!-- provides os.detected.classifier (i.e. linux-x86_64, osx-x86_64) property -->
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${os-maven-plugin.version}</version>
-      </extension>
-    </extensions>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-jar-plugin</artifactId>
-          <version>${maven.jar.plugin}</version>
-          <executions>
-            <execution>
-              <goals>
-                <goal>jar</goal>
-              </goals>
-              <configuration>
-                <classifier>${scala.binary.version}</classifier>
-                <classifier>${sparkbundle.version}</classifier>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>${maven.compiler.plugin}</version>
-          <configuration>
-            <encoding>UTF-8</encoding>
-            <maxmem>1024m</maxmem>
-            <fork>true</fork>
-            <compilerArgs>
-              <arg>-Xlint:all,-serial,-path</arg>
-            </compilerArgs>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.3.0</version>
-        </plugin>
-        <plugin>
-          <groupId>org.scalatest</groupId>
-          <artifactId>scalatest-maven-plugin</artifactId>
-          <version>${scalatest-maven-plugin.version}</version>
-          <configuration>
-            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-            <testFailureIgnore>${maven.test.failure.ignore}</testFailureIgnore>
-            <junitxml>.</junitxml>
-            <argLine>${argLine} ${extraJavaTestArgs}</argLine>
-            <systemProperties>
-              <log4j.configurationFile>${log4j.conf}</log4j.configurationFile>
-            </systemProperties>
-          </configuration>
-          <executions>
-            <execution>
-              <id>test</id>
-              <goals>
-                <goal>test</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>net.alchim31.maven</groupId>
-          <artifactId>scala-maven-plugin</artifactId>
-          <version>${scala.compiler.version}</version>
-          <configuration>
-            <compilerPlugins>
-              <compilerPlugin>
-                <groupId>org.wartremover</groupId>
-                <artifactId>wartremover_${scala.binary.version}</artifactId>
-                <version>3.1.6</version>
-              </compilerPlugin>
-            </compilerPlugins>
-            <dependencies>
-              <dependency>
-                <groupId>io.github.zhztheplayer.scalawarts</groupId>
-                <artifactId>scalawarts_${scala.binary.version}</artifactId>
-                <version>0.1.2</version>
-              </dependency>
-            </dependencies>
-            <recompileMode>${scala.recompile.mode}</recompileMode>
-            <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
-              <arg>-Ywarn-unused:imports</arg>
-              <arg>-deprecation</arg>
-              <arg>-feature</arg>
-              <arg>-Wconf:cat=deprecation:wv,any:e</arg>
-              <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
-            </args>
-          </configuration>
-          <executions>
-            <execution>
-              <id>scala-compile-first</id>
-              <phase>process-resources</phase>
-              <goals>
-                <goal>add-source</goal>
-                <goal>compile</goal>
-              </goals>
-            </execution>
-            <execution>
-              <id>scala-test-compile-first</id>
-              <phase>process-test-resources</phase>
-              <goals>
-                <goal>testCompile</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>3.1.1</version>
-          <configuration>
-            <failOnViolation>true</failOnViolation>
-            <includeTestSourceDirectory>true</includeTestSourceDirectory>
-            <sourceDirectories>
-              <directory>${project.basedir}/src/main/java</directory>
-              <directory>${project.basedir}/src/main/scala</directory>
-            </sourceDirectories>
-            <testSourceDirectories>
-              <directory>${project.basedir}/src/test/java</directory>
-            </testSourceDirectories>
-            <configLocation>dev/checkstyle.xml</configLocation>
-            <outputFile>${project.basedir}/target/checkstyle-output.xml</outputFile>
-            <inputEncoding>UTF-8</inputEncoding>
-            <outputEncoding>UTF-8</outputEncoding>
-          </configuration>
-          <dependencies>
-            <dependency>
-              <groupId>com.puppycrawl.tools</groupId>
-              <artifactId>checkstyle</artifactId>
-              <version>8.29</version>
-            </dependency>
-          </dependencies>
-          <executions>
-            <execution>
-              <phase>validate</phase>
-              <goals>
-                <goal>check</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.scalastyle</groupId>
-          <artifactId>scalastyle-maven-plugin</artifactId>
-          <version>${scalastyle.version}</version>
-          <configuration>
-            <verbose>false</verbose>
-            <failOnViolation>true</failOnViolation>
-            <includeTestSourceDirectory>true</includeTestSourceDirectory>
-            <failOnWarning>false</failOnWarning>
-            <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
-            <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
-            <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
-            <outputEncoding>UTF-8</outputEncoding>
-            <configLocation>dev/scalastyle-config.xml</configLocation>
-          </configuration>
-          <executions>
-            <execution>
-              <phase>validate</phase>
-              <goals>
-                <goal>check</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <artifactId>maven-assembly-plugin</artifactId>
-          <version>3.3.0</version>
-          <configuration>
-            <descriptorRefs>
-              <descriptorRef>jar-with-dependencies</descriptorRef>
-            </descriptorRefs>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-resources-plugin</artifactId>
-          <version>3.0.1</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-antrun-plugin</artifactId>
-          <version>3.1.0</version>
-        </plugin>
-        <plugin>
-          <artifactId>maven-shade-plugin</artifactId>
-          <version>3.4.1</version>
-          <configuration>
-            <createDependencyReducedPom>false</createDependencyReducedPom>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>exec-maven-plugin</artifactId>
-          <version>3.1.0</version>
-        </plugin>
-        <plugin>
-          <groupId>com.diffplug.spotless</groupId>
-          <artifactId>spotless-maven-plugin</artifactId>
-          <version>${spotless.version}</version>
-          <configuration>
-            <java>
-              <toggleOffOn/>
-              <googleJavaFormat>
-                <version>1.7</version>
-              </googleJavaFormat>
-
-              <!-- \# refers to the static imports -->
-              <importOrder>
-                <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
-              </importOrder>
-
-              <removeUnusedImports/>
-              <licenseHeader>
-                <content>${spotless.license.header}</content>
-                <delimiter>${spotless.delimiter}</delimiter>
-              </licenseHeader>
-            </java>
-            <scala>
-              <!--  make it works `// spotless:off `  -->
-              <toggleOffOn/>
-              <scalafmt>
-                <version>${spotless.scalafmt.version}</version>
-                <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
-                <file>.scalafmt.conf</file>
-              </scalafmt>
-              <licenseHeader>
-                <content>${spotless.license.header}</content>
-                <delimiter>${spotless.delimiter}</delimiter>
-              </licenseHeader>
-            </scala>
-          </configuration>
-          <executions>
-            <execution>
-              <id>spotless-check</id>
-              <phase>validate</phase>
-              <goals>
-                <goal>check</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>${build-helper-maven-plugin.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.xolstice.maven.plugins</groupId>
-          <artifactId>protobuf-maven-plugin</artifactId>
-          <version>0.5.1</version>
-        </plugin>
-        <plugin>
-          <groupId>org.antlr</groupId>
-          <artifactId>antlr4-maven-plugin</artifactId>
-          <version>${antlr4.version}</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-enforcer-plugin</artifactId>
-          <version>3.3.0</version>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>enforce-versions</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <requireMavenVersion>
-                  <version>3.6.3</version>
-                </requireMavenVersion>
-              </rules>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <version>3.2.1</version>
-        <executions>
-          <execution>
-            <id>attach-sources</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>jar-no-fork</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>versions-maven-plugin</artifactId>
-        <version>2.15.0</version>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <!--We use build-helper-maven-plugin rather than maven-resources-plugin-->
-        <!--to add base resources (generated-resources and other common extended resource folders).-->
-        <!--So submodules could easily add their own resources through maven-resources-plugin-->
-        <!--which is more compatible with Intellij IDEA (E.g., `targetPath` can be respected by-->
-        <!--IDEA with maven-resources-plugin while it is not working with build-helper-maven-plugin).-->
-        <executions>
-          <execution>
-          </execution>
-          <execution>
-            <id>add-generated-resources</id>
-            <phase>generate-resources</phase>
-            <goals>
-              <goal>add-resource</goal>
-            </goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <!-- Include the properties file to provide the build information. -->
-                  <directory>${project.build.directory}/generated-resources</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <skipTests>true</skipTests>
-        </configuration>
-      </plugin>
-
-    </plugins>
-  </build>
 </project>

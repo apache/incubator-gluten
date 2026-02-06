@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.MetricsApi
+import org.apache.gluten.config.ShuffleWriterType
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics._
 import org.apache.gluten.substrait.{AggregationParams, JoinParams}
@@ -42,7 +43,8 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   override def genInputIteratorTransformerMetrics(
       child: SparkPlan,
       sparkContext: SparkContext,
-      forBroadcast: Boolean): Map[String, SQLMetric] = {
+      forBroadcast: Boolean,
+      forShuffle: Boolean): Map[String, SQLMetric] = {
     def metricsPlan(plan: SparkPlan): SparkPlan = {
       plan match {
         case ColumnarInputAdapter(child) => metricsPlan(child)
@@ -251,7 +253,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genColumnarShuffleExchangeMetrics(
       sparkContext: SparkContext,
-      isSort: Boolean): Map[String, SQLMetric] =
+      shuffleWriterType: ShuffleWriterType): Map[String, SQLMetric] =
     Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
@@ -469,5 +471,9 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater = {
     new WriteFilesMetricsUpdater(metrics)
+  }
+
+  override def genBatchWriteMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
+    throw new UnsupportedOperationException("BatchWrite is not supported in CH backend")
   }
 }

@@ -170,7 +170,7 @@
                           },
                           "localFiles": {
                             "items": [{
-                              "uriFile": "file:///basePath/tpch-data/lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet",
+                              "uriFile": "file:///basePath/lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet",
                               "length": "17777735",
                               "parquet": {
                               }

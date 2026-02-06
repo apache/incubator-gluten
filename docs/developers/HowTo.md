@@ -20,8 +20,7 @@ The Gluten is responsible for validating whether the operators of the Spark plan
 transforms Spark plan to Substrait plan, and then send the Substrait plan to the native engine.
 
 The Gluten codes consist of two parts: the C++ codes and the Java/Scala codes. 
-1. All C++ codes are placed under the directory of `${GLUTEN_HOME}/cpp`, the Java/Scala codes are placed under several directories, such as
-  `${GLUTEN_HOME}/gluten-substrait` `${GLUTEN_HOME}/gluten-data` `${GLUTEN_HOME}/backends-velox`.
+1. All C++ codes are placed under the directory of `${GLUTEN_HOME}/cpp`, the Java/Scala codes are located elsewhere.
 2. The Java/Scala codes are responsible for validating and transforming the execution plan. Source data should also be provided, the source data may
   come from files or other forms such as networks.
 3. The C++ codes take the Substrait plan and the source data as inputs and transform the Substrait plan to the corresponding backend plan. If the backend
@@ -126,6 +125,19 @@ mvn test -Pspark-3.5 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/p
 ```
 
 Please set `wildcardSuites` with a fully qualified class name. `spark.test.home` is optional to set. It is only required for some test suites to use Spark resources.
+If you are specifying the `spark.test.home` arg, it should be set to either:
+* The path a directory containing Spark source code, which has already been built
+* Or use the `install-spark-resources.sh` script to get a directory with the necessary resource files:
+  ```
+  # Define a directory to use for the Spark files and the Spark version
+  export spark_dir=/tmp/spark
+  export spark_version=3.5
+
+  # Run the install-spark-resources.sh script
+  .github/workflows/util/install-spark-resources.sh ${spark_version} ${spark_dir}
+  ```
+  After running the `install-spark-resources.sh`, define the `spark.test.home` directory like:
+  `-DargLine="-Dspark.test.home=${spark_dir}/shims/spark35/spark_home"` when running unit tests.
 
 For most cases, please make sure Gluten native build is done before running a Scala/Java test.
 
@@ -173,17 +185,17 @@ Here we will explain how to run TPC-H on Velox backend with the Parquet file for
     var gluten_root = "/home/gluten"
     ```
 
-  - Modify `${GLUTEN_HOME}/tools/workload/tpch/run_tpch/tpch_parquet.sh`.
+  - Modify `${GLUTEN_HOME}/tools/workload/tpch/run_tpch/tpch-parquet.sh`.
     - Set `GLUTEN_JAR` correctly. Please refer to the section of [Build Gluten with Velox Backend](../get-started/Velox.md#build-gluten-with-velox-backend)
     - Set `SPARK_HOME` correctly.
     - Set the memory configurations appropriately.
-  - Execute `tpch_parquet.sh` using the below command.
+  - Execute `tpch-parquet.sh` using the below command.
     - `cd ${GLUTEN_HOME}/tools/workload/tpch/run_tpch/`
-    - `./tpch_parquet.sh`
+    - `./tpch-parquet.sh`
 
 # How to run TPC-DS
 
-wait to add
+Please refer to `${GLUTEN_HOME}/tools/workload/tpcds/README.md`.
 
 # How to track the memory exhaust problem
 

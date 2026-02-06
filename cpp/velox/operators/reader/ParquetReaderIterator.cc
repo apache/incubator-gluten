@@ -39,11 +39,11 @@ std::shared_ptr<facebook::velox::common::ScanSpec> makeScanSpec(const facebook::
 ParquetReaderIterator::ParquetReaderIterator(
     const std::string& path,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : FileReaderIterator(path), pool_(pool), batchSize_(batchSize) {}
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool)
+    : FileReaderIterator(path), pool_(std::move(pool)), batchSize_(batchSize) {}
 
 void ParquetReaderIterator::createRowReader() {
-  facebook::velox::dwio::common::ReaderOptions readerOptions{pool_};
+  facebook::velox::dwio::common::ReaderOptions readerOptions{pool_.get()};
   auto reader = createReader(path_, readerOptions);
 
   rowType_ = reader->rowType();
@@ -60,8 +60,8 @@ void ParquetReaderIterator::createRowReader() {
 ParquetStreamReaderIterator::ParquetStreamReaderIterator(
     const std::string& path,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : ParquetReaderIterator(path, batchSize, pool) {
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool)
+    : ParquetReaderIterator(path, batchSize, std::move(pool)) {
   createRowReader();
 }
 
@@ -70,7 +70,7 @@ std::shared_ptr<gluten::ColumnarBatch> ParquetStreamReaderIterator::next() {
 
   static constexpr int32_t kBatchSize = 4096;
 
-  auto result = facebook::velox::BaseVector::create(rowType_, kBatchSize, pool_);
+  auto result = facebook::velox::BaseVector::create(rowType_, kBatchSize, pool_.get());
   auto numRows = rowReader_->next(kBatchSize, result);
 
   if (numRows == 0) {
@@ -91,8 +91,8 @@ std::shared_ptr<gluten::ColumnarBatch> ParquetStreamReaderIterator::next() {
 ParquetBufferedReaderIterator::ParquetBufferedReaderIterator(
     const std::string& path,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : ParquetReaderIterator(path, batchSize, pool) {
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool)
+    : ParquetReaderIterator(path, batchSize, std::move(pool)) {
   createRowReader();
   collectBatches();
 }
@@ -111,7 +111,7 @@ void ParquetBufferedReaderIterator::collectBatches() {
 
   uint64_t numRows = 0;
   while (true) {
-    auto result = facebook::velox::BaseVector::create(rowType_, kBatchSize, pool_);
+    auto result = facebook::velox::BaseVector::create(rowType_, kBatchSize, pool_.get());
     numRows = rowReader_->next(kBatchSize, result);
     if (numRows == 0) {
       break;

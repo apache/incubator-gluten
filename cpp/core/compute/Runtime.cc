@@ -58,4 +58,11 @@ std::optional<std::string>* Runtime::localWriteFilesTempPath() {
   return &path;
 }
 
+std::optional<std::string>* Runtime::localWriteFileName() {
+  // This is thread-local to conform to Java side ColumnarWriteFilesExec's design.
+  // FIXME: Pass the path through relevant member functions.
+  static thread_local std::optional<std::string> fileName;
+  return &fileName;
+}
+
 } // namespace gluten

@@ -21,7 +21,7 @@ public class GlutenSplitResult {
   private final long totalWriteTime;
   private final long totalEvictTime;
   private final long totalCompressTime; // overlaps with totalEvictTime and totalWriteTime
-  private final long totalBytesWritten;
+  private final long bytesWritten;
   private final long totalBytesEvicted;
   private final long[] partitionLengths;
   private final long[] rawPartitionLengths;
@@ -29,6 +29,8 @@ public class GlutenSplitResult {
   private final long peakBytes;
   private final long sortTime;
   private final long c2rTime;
+  private final double avgDictionaryFields;
+  private final long dictionarySize;
 
   public GlutenSplitResult(
       long totalComputePidTime,
@@ -37,17 +39,19 @@ public class GlutenSplitResult {
       long totalCompressTime,
       long totalSortTime,
       long totalC2RTime,
-      long totalBytesWritten,
+      long bytesWritten,
       long totalBytesEvicted,
       long totalBytesToEvict, // In-memory bytes(uncompressed) before spill.
       long peakBytes,
+      double avgDictionaryFields,
+      long dictionarySize,
       long[] partitionLengths,
       long[] rawPartitionLengths) {
     this.totalComputePidTime = totalComputePidTime;
     this.totalWriteTime = totalWriteTime;
     this.totalEvictTime = totalEvictTime;
     this.totalCompressTime = totalCompressTime;
-    this.totalBytesWritten = totalBytesWritten;
+    this.bytesWritten = bytesWritten;
     this.totalBytesEvicted = totalBytesEvicted;
     this.partitionLengths = partitionLengths;
     this.rawPartitionLengths = rawPartitionLengths;
@@ -55,6 +59,8 @@ public class GlutenSplitResult {
     this.peakBytes = peakBytes;
     this.sortTime = totalSortTime;
     this.c2rTime = totalC2RTime;
+    this.avgDictionaryFields = avgDictionaryFields;
+    this.dictionarySize = dictionarySize;
   }
 
   public long getTotalComputePidTime() {
@@ -73,8 +79,8 @@ public class GlutenSplitResult {
     return totalCompressTime;
   }
 
-  public long getTotalBytesWritten() {
-    return totalBytesWritten;
+  public long getBytesWritten() {
+    return bytesWritten;
   }
 
   public long getTotalBytesSpilled() {
@@ -107,5 +113,13 @@ public class GlutenSplitResult {
 
   public long getC2RTime() {
     return c2rTime;
+  }
+
+  public double getAvgDictionaryFields() {
+    return avgDictionaryFields;
+  }
+
+  public long getDictionarySize() {
+    return dictionarySize;
   }
 }

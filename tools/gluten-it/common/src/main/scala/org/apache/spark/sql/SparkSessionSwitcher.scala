@@ -26,8 +26,6 @@ import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.hadoop.fs.LocalFileSystem
 
 class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends AutoCloseable {
-  private val sessionMap: java.util.Map[SessionToken, SparkConf] =
-    new java.util.HashMap[SessionToken, SparkConf]
 
   private val testDefaults = new SparkConf(false)
     .setWarningOnOverriding("spark.hadoop.fs.file.impl", classOf[LocalFileSystem].getName)
@@ -45,19 +43,28 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     StaticSQLConf.WAREHOUSE_PATH.key,
     testDefaults.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
 
+  private val sessionMap: java.util.Map[SessionToken, SparkConf] =
+    new java.util.HashMap[SessionToken, SparkConf]
+
+  private val extraConf = new SparkConf(false)
+
   private var _spark: SparkSession = _
   private var _activeSessionDesc: SessionDesc = SparkSessionSwitcher.NONE
 
-  def defaultConf(): SparkConf = {
-    testDefaults
+  def addDefaultConf(key: String, value: String): Unit = {
+    testDefaults.setWarningOnOverriding(key, value)
   }
 
-  def registerSession(name: String, conf: SparkConf): SessionToken = synchronized {
+  def addExtraConf(key: String, value: String): Unit = {
+    extraConf.setWarningOnOverriding(key, value)
+  }
+
+  def registerSession(name: String, sessionConf: SparkConf): SessionToken = synchronized {
     val token = SessionToken(name)
     if (sessionMap.containsKey(token)) {
       throw new IllegalArgumentException(s"Session name already registered: $name")
     }
-    sessionMap.put(token, conf)
+    sessionMap.put(token, new SparkConf(false).setAllWarningOnOverriding(sessionConf.getAll))
     return token
   }
 
@@ -85,8 +92,9 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     println(s"Switching to $desc session... ")
     stopActiveSession()
     val conf = new SparkConf(false)
-      .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
       .setAllWarningOnOverriding(testDefaults.getAll)
+      .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
+      .setAllWarningOnOverriding(extraConf.getAll)
     activateSession(conf, desc.appName)
     _activeSessionDesc = desc
     println(s"Successfully switched to $desc session. ")
@@ -97,7 +105,6 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
   }
 
   private def activateSession(conf: SparkConf, appName: String): Unit = {
-    SparkSession.cleanupAnyExistingSession()
     if (hasActiveSession()) {
       stopActiveSession()
     }
@@ -127,7 +134,8 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     if (hasActiveSession()) {
       throw new IllegalStateException()
     }
-    _spark = new SparkSession(new SparkContext(masterUrl, appName, conf))
+    _spark =
+      SparkSession.builder().sparkContext(new SparkContext(masterUrl, appName, conf)).getOrCreate()
     _spark.sparkContext.setLogLevel(logLevel)
   }
 

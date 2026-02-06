@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
@@ -27,12 +29,6 @@ import org.apache.spark.sql.types._
 import java.nio.file.Files
 
 class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite with Logging {
-  protected val tablesPath: String = basePath + "/tpch-data"
-  protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  protected val queriesResults: String = rootPath + "queries-output"
-
-  private var parquetPath: String = _
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -51,13 +47,13 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.gluten.supported.scala.udfs", "compare_substrings:compare_substrings")
+      .set(GlutenConfig.GLUTEN_SUPPORTED_SCALA_UDFS.key, "compare_substrings:compare_substrings")
       .set(
         SQLConf.OPTIMIZER_EXCLUDED_RULES.key,
         ConstantFolding.ruleName + "," + NullPropagation.ruleName)
@@ -77,11 +73,11 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
 
     val schema1 = StructType(
       Array(
-        StructField("k1", IntegerType, true),
-        StructField("k2", IntegerType, true),
-        StructField("v1", IntegerType, true),
-        StructField("v2", IntegerType, true),
-        StructField("v3", IntegerType, true)
+        StructField("k1", IntegerType, nullable = true),
+        StructField("k2", IntegerType, nullable = true),
+        StructField("v1", IntegerType, nullable = true),
+        StructField("v2", IntegerType, nullable = true),
+        StructField("v3", IntegerType, nullable = true)
       )
     )
 
@@ -188,7 +184,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
         |) t2 on t1.k1 = t2.k1 and t1.k2 = t2.k2
         |order by t1.k1, t1.k2, t2.k1, t2.k2
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, true)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
 }

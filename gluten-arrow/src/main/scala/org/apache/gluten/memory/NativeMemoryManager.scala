@@ -53,15 +53,16 @@ object NativeMemoryManager {
       rl,
       ConfigUtil.serialize(
         GlutenConfig
-          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
+          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs))
+          .asJava)
     )
     spillers.append(new Spiller() {
-      override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-        if (!Spillers.PHASE_SET_SHRINK_ONLY.contains(phase)) {
-          // Only respond for shrinking.
-          return 0L
-        }
-        NativeMemoryManagerJniWrapper.shrink(handle, size)
+      override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = phase match {
+        case Spiller.Phase.SHRINK => // Only respond for shrinking.
+          val shrunk = NativeMemoryManagerJniWrapper.shrink(handle, size)
+          LOGGER.info(s"NativeMemoryManager: Shrunk $shrunk / $size bytes of data.")
+          shrunk
+        case _ => 0L
       }
     })
     mutableStats += "single" -> new MemoryUsageStatsBuilder {
@@ -111,8 +112,8 @@ object NativeMemoryManager {
     }
     override def priority(): Int = {
       // Memory managers should be released after all runtimes are released.
-      // So lower the priority to 0.
-      0
+      // So set the priority lower than runtime resources.
+      10
     }
     override def resourceName(): String = "nmm"
   }

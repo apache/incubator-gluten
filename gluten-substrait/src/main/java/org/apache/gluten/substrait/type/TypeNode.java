@@ -18,6 +18,18 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-public interface TypeNode {
-  Type toProtobuf();
+import java.io.Serializable;
+
+public abstract class TypeNode implements Serializable {
+  protected final Boolean nullable;
+
+  protected TypeNode(Boolean nullable) {
+    this.nullable = nullable;
+  }
+
+  public abstract Type toProtobuf();
+
+  public Boolean nullable() {
+    return nullable;
+  }
 }

@@ -18,13 +18,10 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class FP32TypeNode implements TypeNode, Serializable {
-  private final Boolean nullable;
+public class FP32TypeNode extends TypeNode {
 
   public FP32TypeNode(Boolean nullable) {
-    this.nullable = nullable;
+    super(nullable);
   }
 
   @Override

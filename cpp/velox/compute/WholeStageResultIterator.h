@@ -18,7 +18,7 @@
 
 #include "compute/Runtime.h"
 #include "iceberg/IcebergPlanConverter.h"
-#include "memory/ColumnarBatchIterator.h"
+#include "memory/SplitAwareColumnarBatchIterator.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
@@ -27,10 +27,13 @@
 #include "velox/connectors/hive/iceberg/IcebergSplit.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
+#ifdef GLUTEN_ENABLE_GPU
+#include "cudf/GpuLock.h"
+#endif
 
 namespace gluten {
 
-class WholeStageResultIterator : public ColumnarBatchIterator {
+class WholeStageResultIterator : public SplitAwareColumnarBatchIterator {
  public:
   WholeStageResultIterator(
       VeloxMemoryManager* memoryManager,
@@ -39,7 +42,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       const std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
       const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
       const std::string spillDir,
-      const std::unordered_map<std::string, std::string>& confMap,
+      const std::shared_ptr<facebook::velox::config::ConfigBase>& veloxCfg,
       const SparkTaskInfo& taskInfo);
 
   virtual ~WholeStageResultIterator() {
@@ -47,6 +50,11 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       // calling .wait() may take no effect in single thread execution mode
       task_->requestCancel().wait();
     }
+#ifdef GLUTEN_ENABLE_GPU
+    if (enableCudf_) {
+      unlockGpu();
+    }
+#endif
   }
 
   std::shared_ptr<ColumnarBatch> next() override;
@@ -61,13 +69,21 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
     return metrics_.get();
   }
 
-  const facebook::velox::exec::Task* task() const {
-    return task_.get();
-  }
-
   const facebook::velox::core::PlanNode* veloxPlan() const {
     return veloxPlan_.get();
   }
+
+  /// Get the underlying Velox task for direct manipulation
+  facebook::velox::exec::Task* task() {
+    return task_.get();
+  }
+
+  /// Add iterator-based splits from input iterators
+  void addIteratorSplits(const std::vector<std::shared_ptr<ResultIterator>>& inputIterators) override;
+
+  /// Signal that no more splits will be added.
+  /// This is required for proper task completion and enables future barrier support.
+  void noMoreSplits() override;
 
  private:
   /// Get the Spark confs to Velox query context.
@@ -81,16 +97,10 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       const std::shared_ptr<const facebook::velox::core::PlanNode>&,
       std::vector<facebook::velox::core::PlanNodeId>& nodeIds);
 
-  /// Create connector config.
-  std::shared_ptr<facebook::velox::config::ConfigBase> createConnectorConfig();
-
   /// Construct partition columns.
   void constructPartitionColumns(
       std::unordered_map<std::string, std::optional<std::string>>&,
       const std::unordered_map<std::string, std::string>&);
-
-  /// Add splits to task. Skip if already added.
-  void tryAddSplitsToTask();
 
   /// Collect Velox metrics.
   void collectMetrics();
@@ -105,7 +115,10 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   VeloxMemoryManager* memoryManager_;
 
   /// Config, task and plan.
-  std::shared_ptr<config::ConfigBase> veloxCfg_;
+  const std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_;
+#ifdef GLUTEN_ENABLE_GPU
+  const bool enableCudf_;
+#endif
   const SparkTaskInfo taskInfo_;
   std::shared_ptr<facebook::velox::exec::Task> task_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
@@ -126,7 +139,9 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   std::vector<std::shared_ptr<SplitInfo>> scanInfos_;
   std::vector<facebook::velox::core::PlanNodeId> streamIds_;
   std::vector<std::vector<facebook::velox::exec::Split>> splits_;
-  bool noMoreSplits_ = false;
+  bool allSplitsAdded = false;
+
+  int64_t loadLazyVectorTime_ = 0;
 };
 
 } // namespace gluten

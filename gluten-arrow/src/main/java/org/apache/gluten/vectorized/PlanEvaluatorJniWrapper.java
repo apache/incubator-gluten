@@ -41,7 +41,7 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public static native void injectWriteFilesTempPath(byte[] path);
+  public static native void injectWriteFilesTempPath(byte[] path, byte[] fileName);
 
   /**
    * Validate the Substrait plan in native compute engine.
@@ -51,11 +51,22 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
    */
   native NativePlanValidationInfo nativeValidateWithFailureReason(byte[] subPlan);
 
+  /**
+   * Validate the expression in native compute engine.
+   *
+   * @param expression the expression in binary format
+   * @return whether the expression is supported in native
+   */
+  native boolean nativeValidateExpression(byte[] expression, byte[] inputType, byte[][] mapping);
+
   public native String nativePlanString(byte[] substraitPlan, Boolean details);
 
   /**
-   * Create a native compute kernel and return a columnar result iterator.
+   * Create a native compute kernel and return a columnar result iterator. Supports both
+   * creation-time splits (splitInfo, batchItr) and runtime splits (via addSplits).
    *
+   * @param splitInfo optional file-based splits to add at creation time (can be null)
+   * @param batchItr optional iterator-based splits to add at creation time (can be null)
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(
@@ -65,7 +76,7 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
       int stageId,
       int partitionId,
       long taskId,
-      boolean saveInputToFile,
+      boolean enableDumping,
       String spillDir)
       throws RuntimeException;
 }

@@ -16,18 +16,18 @@
  */
 package org.apache.gluten.config
 
-import org.apache.gluten.config.GlutenConfig.{buildConf, buildStaticConf, COLUMNAR_MAX_BATCH_SIZE}
-
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/*
+ * Note: Gluten configiguration.md is automatically generated from this code.
+ * Make sure to run dev/gen-all-config-docs.sh after making changes to this file.
+ */
 class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   import VeloxConfig._
-
-  def veloxColumnarWindowType: String = getConf(COLUMNAR_VELOX_WINDOW_TYPE)
 
   def veloxSpillFileSystem: String = getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
 
@@ -44,7 +44,7 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   }
 
   def veloxResizeBatchesShuffleInputOutputRange: ResizeRange = {
-    val standardSize = getConf(COLUMNAR_MAX_BATCH_SIZE)
+    val standardSize = getConf(GlutenConfig.COLUMNAR_MAX_BATCH_SIZE)
     val defaultMinSize: Int = (0.25 * standardSize).toInt.max(1)
     val minSize = getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_OUTPUT_MIN_SIZE)
       .getOrElse(defaultMinSize)
@@ -64,136 +64,130 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def veloxOrcScanEnabled: Boolean =
     getConf(VELOX_ORC_SCAN_ENABLED)
 
-  def enablePropagateIgnoreNullKeys: Boolean =
-    getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
-
   def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
+
+  def enableRewriteCastArrayToString: Boolean =
+    getConf(ENABLE_REWRITE_CAST_ARRAY_TO_STRING)
+
+  def enableRewriteUnboundedWindow: Boolean = getConf(ENABLE_REWRITE_UNBOUNDED_WINDOW)
+
+  def enableEnhancedFeatures(): Boolean = ConfigJniWrapper.isEnhancedFeaturesEnabled &&
+    getConf(ENABLE_ENHANCED_FEATURES)
+
+  def veloxPreferredBatchBytes: Long = getConf(COLUMNAR_VELOX_PREFERRED_BATCH_BYTES)
+
+  def cudfEnableTableScan: Boolean = getConf(CUDF_ENABLE_TABLE_SCAN)
+
+  def cudfEnableValidation: Boolean = getConf(CUDF_ENABLE_VALIDATION)
+
+  def cudfBatchSize: Int = getConf(CUDF_BATCH_SIZE)
+
+  def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
+
+  def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
+
+  def hashProbeBloomFilterPushdownMaxSize: Long = getConf(HASH_PROBE_BLOOM_FILTER_PUSHDOWN_MAX_SIZE)
+
+  def hashProbeDynamicFilterPushdownEnabled: Boolean =
+    getConf(HASH_PROBE_DYNAMIC_FILTER_PUSHDOWN_ENABLED)
 }
 
-object VeloxConfig {
-
-  def get: VeloxConfig = {
+object VeloxConfig extends ConfigRegistry {
+  override def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
   }
-
-  val COLUMNAR_VELOX_WINDOW_TYPE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.window.type")
-      .internal()
-      .doc(
-        "Velox backend supports both SortWindow and" +
-          " StreamingWindow operators." +
-          " The StreamingWindow operator skips the sorting step" +
-          " in the input but does not support spill." +
-          " On the other hand, the SortWindow operator is " +
-          "responsible for sorting the input data within the" +
-          " Window operator and also supports spill.")
-      .stringConf
-      .checkValues(Set("streaming", "sort"))
-      .createWithDefault("streaming")
 
   // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
-      .internal()
-      .doc("Enable Velox cache, default off")
+      .doc(
+        "Enable Velox cache, default off. It's recommended to enable" +
+          "soft-affinity as well when enable velox cache.")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_MEM_CACHE_SIZE =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.memCacheSize")
-      .internal()
       .doc("The memory cache size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
 
   val COLUMNAR_VELOX_MEM_INIT_CAPACITY =
     buildConf("spark.gluten.sql.columnar.backend.velox.memInitCapacity")
-      .internal()
       .doc("The initial memory capacity to reserve for a newly created Velox query memory pool.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8MB")
 
   val COLUMNAR_VELOX_MEM_RECLAIM_MAX_WAIT_MS =
     buildConf("spark.gluten.sql.columnar.backend.velox.reclaimMaxWaitMs")
-      .internal()
       .doc("The max time in ms to wait for memory reclaim.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefault(TimeUnit.MINUTES.toMillis(60))
 
   val COLUMNAR_VELOX_MEMORY_POOL_CAPACITY_TRANSFER_ACROSS_TASKS =
     buildConf("spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks")
-      .internal()
       .doc("Whether to allow memory capacity transfer between memory pools from different tasks.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
-      .internal()
       .doc("The folder to store the cache files, better on SSD")
       .stringConf
       .createWithDefault("/tmp")
 
   val COLUMNAR_VELOX_SSD_CACHE_SIZE =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCacheSize")
-      .internal()
       .doc("The SSD cache size, will do memory caching only if this value = 0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
 
   val COLUMNAR_VELOX_SSD_CACHE_SHARDS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCacheShards")
-      .internal()
       .doc("The cache shards")
       .intConf
       .createWithDefault(1)
 
   val COLUMNAR_VELOX_SSD_CACHE_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads")
-      .internal()
       .doc("The IO threads for cache promoting")
       .intConf
       .createWithDefault(1)
 
   val COLUMNAR_VELOX_SSD_ODIRECT_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdODirect")
-      .internal()
       .doc("The O_DIRECT flag for cache writing")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_SSD_CHCEKPOINT_DISABLE_FILE_COW =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdDisableFileCow")
-      .internal()
       .doc("True if copy on write should be disabled.")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_SSD_CHCEKPOINT_CHECKSUM_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdChecksumEnabled")
-      .internal()
       .doc("If true, checksum write to SSD is enabled.")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_SSD_CHCEKPOINT_CHECKSUM_READ_VERIFICATION_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdChecksumReadVerificationEnabled")
-      .internal()
       .doc("If true, checksum read verification from SSD is enabled.")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_SSD_CHCEKPOINT_INTERVAL_SIZE =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCheckpointIntervalBytes")
-      .internal()
-      .doc("Checkpoint after every 'checkpointIntervalBytes' for SSD cache. " +
-        "0 means no checkpointing.")
+      .doc(
+        "Checkpoint after every 'checkpointIntervalBytes' for SSD cache. " +
+          "0 means no checkpointing.")
       .intConf
       .createWithDefault(0)
 
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
-      .internal()
       .doc(
         "The Size of the IO thread pool in the Connector. " +
           "This thread pool is used for split preloading and DirectBufferedInput. " +
@@ -203,7 +197,6 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
-      .internal()
       .doc(
         "Timeout for asynchronous execution when task is being stopped in Velox backend. " +
           "It's recommended to set to a number larger than network connection timeout that the " +
@@ -213,7 +206,6 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
     buildConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
-      .internal()
       .doc("The split preload per task")
       .intConf
       .createWithDefault(2)
@@ -234,7 +226,6 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
-      .internal()
       .doc("none: Disable spill on Velox backend; " +
         "auto: Let Spark memory manager manage Velox's spilling")
       .stringConf
@@ -244,21 +235,18 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_MAX_SPILL_LEVEL =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillLevel")
-      .internal()
       .doc("The max allowed spilling level with zero being the initial spilling level")
       .intConf
       .createWithDefault(4)
 
   val COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillFileSize")
-      .internal()
       .doc("The maximum size of a single spill file created")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
 
   val COLUMNAR_VELOX_SPILL_FILE_SYSTEM =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillFileSystem")
-      .internal()
       .doc(
         "The filesystem used to store spill data. local: The local file system. " +
           "heap-over-local: Write file to JVM heap if having extra heap space. " +
@@ -269,21 +257,18 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_MAX_SPILL_RUN_ROWS =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillRunRows")
-      .internal()
       .doc("The maximum row size of a single spill run")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("3M")
 
   val COLUMNAR_VELOX_MAX_SPILL_BYTES =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillBytes")
-      .internal()
       .doc("The maximum file size of a query")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("100G")
 
   val MAX_PARTITION_PER_WRITERS_SESSION =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession")
-      .internal()
       .doc("Maximum number of partitions per a single table writer instance.")
       .intConf
       .checkValue(_ > 0, "must be a positive number")
@@ -291,23 +276,24 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput")
-      .internal()
-      .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
-        s"The default minimum output batch size is equal to 0.25 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
+      .doc(
+        s"If true, combine small columnar batches together before sending to shuffle. " +
+          s"The default minimum output batch size is equal to 0.25 * " +
+          s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_OUTPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleOutput")
-      .internal()
-      .doc(s"If true, combine small columnar batches together right after shuffle read. " +
-        s"The default minimum output batch size is equal to 0.25 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
+      .doc(
+        s"If true, combine small columnar batches together right after shuffle read. " +
+          s"The default minimum output batch size is equal to 0.25 * " +
+          s"${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.minSize")
-      .internal()
       .doc(
         s"The minimum batch size for shuffle. If size of an input batch is " +
           s"smaller than the value, it will be combined with other " +
@@ -319,7 +305,6 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_OUTPUT_MIN_SIZE =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInputOuptut.minSize")
-      .internal()
       .doc(
         s"The minimum batch size for shuffle input and output. " +
           s"If size of an input batch is " +
@@ -341,14 +326,21 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_SHOW_TASK_METRICS_WHEN_FINISHED =
     buildConf("spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished")
-      .internal()
       .doc("Show velox full task metrics when finished.")
       .booleanConf
       .createWithDefault(false)
 
+  val COLUMNAR_VELOX_TASK_METRICS_TO_EVENT_LOG_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.backend.velox.taskMetricsToEventLog.threshold")
+      .internal()
+      .doc("Sets the threshold in seconds for writing task statistics to the event log if the " +
+        "task runs longer than this value. Configuring the value >=0 can enable the feature. " +
+        "0 means all tasks report and save the metrics to eventlog. value <0 disable the feature.")
+      .timeConf(TimeUnit.SECONDS)
+      .createOptional
+
   val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
     buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")
-      .internal()
       .doc("Use explicit huge pages for Velox memory allocation.")
       .booleanConf
       .createWithDefault(false)
@@ -362,7 +354,6 @@ object VeloxConfig {
 
   val VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED =
     buildConf("spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation")
-      .internal()
       .doc(
         "Enable flushable aggregation. If true, Gluten will try converting regular aggregation " +
           "into Velox's flushable aggregation when applicable. A flushable aggregation could " +
@@ -373,7 +364,6 @@ object VeloxConfig {
 
   val MAX_PARTIAL_AGGREGATION_MEMORY =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemory")
-      .internal()
       .doc(
         "Set the max memory of partial aggregation in bytes. When this option is set to a " +
           "value greater than 0, it will override spark.gluten.sql.columnar.backend.velox." +
@@ -386,7 +376,6 @@ object VeloxConfig {
 
   val MAX_PARTIAL_AGGREGATION_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio")
-      .internal()
       .doc(
         "Set the max memory of partial aggregation as "
           + "maxPartialAggregationMemoryRatio of offheap size. Note: this option only works when " +
@@ -396,9 +385,20 @@ object VeloxConfig {
       .doubleConf
       .createWithDefault(0.1)
 
+  val MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemory")
+      .doc(
+        "Set the max extended memory of partial aggregation in bytes. When this option is set " +
+          "to a value greater than 0, it will override spark.gluten.sql.columnar.backend.velox." +
+          "maxExtendedPartialAggregationMemoryRatio. Note: this option only works when " +
+          "flushable partial aggregation is enabled. Ignored when " +
+          "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false."
+      )
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
   val MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio")
-      .internal()
       .doc(
         "Set the max extended memory of partial aggregation as "
           + "maxExtendedPartialAggregationMemoryRatio of offheap size. Note: this option only " +
@@ -410,7 +410,6 @@ object VeloxConfig {
 
   val ABANDON_PARTIAL_AGGREGATION_MIN_PCT =
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct")
-      .internal()
       .doc(
         "If partial aggregation aggregationPct greater than this value, "
           + "partial aggregation may be early abandoned. Note: this option only works when " +
@@ -421,7 +420,6 @@ object VeloxConfig {
 
   val ABANDON_PARTIAL_AGGREGATION_MIN_ROWS =
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows")
-      .internal()
       .doc(
         "If partial aggregation input rows number greater than this value, "
           + " partial aggregation may be early abandoned. Note: this option only works when " +
@@ -432,60 +430,80 @@ object VeloxConfig {
 
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
-      .internal()
-      .doc("The default number of expected items for the velox bloomfilter: " +
-        "'spark.bloom_filter.expected_num_items'")
+      .doc(
+        "The default number of expected items for the velox bloomfilter: " +
+          "'spark.bloom_filter.expected_num_items'")
       .longConf
       .createWithDefault(1000000L)
 
   val COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits")
-      .internal()
-      .doc("The default number of bits to use for the velox bloom filter: " +
-        "'spark.bloom_filter.num_bits'")
+      .doc(
+        "The default number of bits to use for the velox bloom filter: " +
+          "'spark.bloom_filter.num_bits'")
       .longConf
       .createWithDefault(8388608L)
 
   val COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits")
-      .internal()
-      .doc("The max number of bits to use for the velox bloom filter: " +
-        "'spark.bloom_filter.max_num_bits'")
+      .doc(
+        "The max number of bits to use for the velox bloom filter: " +
+          "'spark.bloom_filter.max_num_bits'")
       .longConf
       .createWithDefault(4194304L)
 
+  val HASH_PROBE_BLOOM_FILTER_PUSHDOWN_MAX_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.hashProbe.bloomFilterPushdown.maxSize")
+      .doc("The maximum byte size of Bloom filter that can be generated from hash probe. When " +
+        "set to 0, no Bloom filter will be generated. To achieve optimal performance, this should" +
+        " not be too larger than the CPU cache size on the host.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(0)
+
+  val HASH_PROBE_DYNAMIC_FILTER_PUSHDOWN_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.hashProbe.dynamicFilterPushdown.enabled")
+      .doc(
+        "Whether hash probe can generate any dynamic filter (including Bloom filter) and push" +
+          " down to upstream operators.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled")
-      .internal()
-      .doc("Disables caching if false. File handle cache should be disabled " +
-        "if files are mutable, i.e. file content may change while file path stays the same.")
+      .doc(
+        "Disables caching if false. File handle cache should be disabled " +
+          "if files are mutable, i.e. file content may change while file path stays the same.")
       .booleanConf
       .createWithDefault(false)
 
   val DIRECTORY_SIZE_GUESS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
-      .internal()
-      .doc("Set the directory size guess for velox file scan")
+      .doc("Deprecated, rename to spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("32KB")
+
+  val FOOTER_ESTIMATED_SIZE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.footerEstimatedSize")
+      .doc("Set the footer estimated size for velox file scan, " +
+        "refer to Velox's footer-estimated-size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("32KB")
 
   val FILE_PRELOAD_THRESHOLD =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold")
-      .internal()
-      .doc("Set the file preload threshold for velox file scan")
+      .doc("Set the file preload threshold for velox file scan, " +
+        "refer to Velox's file-preload-threshold")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
   val PREFETCH_ROW_GROUPS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.prefetchRowGroups")
-      .internal()
       .doc("Set the prefetch row groups for velox file scan")
       .intConf
       .createWithDefault(1)
 
   val LOAD_QUANTUM =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.loadQuantum")
-      .internal()
       .doc("Set the load quantum for velox file scan, recommend to use the default value (256MB) " +
         "for performance consideration. If Velox cache is enabled, it can be 8MB at most.")
       .bytesConf(ByteUnit.BYTE)
@@ -493,21 +511,18 @@ object VeloxConfig {
 
   val MAX_COALESCED_DISTANCE_BYTES =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedDistance")
-      .internal()
       .doc(" Set the max coalesced distance bytes for velox file scan")
       .stringConf
       .createWithDefaultString("512KB")
 
   val MAX_COALESCED_BYTES =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes")
-      .internal()
       .doc("Set the max coalesced bytes for velox file scan")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64MB")
 
   val CACHE_PREFETCH_MINPCT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct")
-      .internal()
       .doc("Set prefetch cache min pct for velox file scan")
       .intConf
       .createWithDefault(0)
@@ -528,21 +543,18 @@ object VeloxConfig {
 
   val AWS_S3_CONNECT_TIMEOUT =
     buildConf("spark.gluten.velox.fs.s3a.connect.timeout")
-      .internal()
       .doc("Timeout for AWS s3 connection.")
       .stringConf
       .createWithDefault("200s")
 
   val VELOX_ORC_SCAN_ENABLED =
     buildConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
-      .internal()
       .doc("Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
       .booleanConf
       .createWithDefault(true)
 
   val CAST_FROM_VARCHAR_ADD_TRIM_NODE =
     buildConf("spark.gluten.velox.castFromVarcharAddTrimNode")
-      .internal()
       .doc(
         "If true, will add a trim node " +
           "which has the same sementic as vanilla Spark to CAST-from-varchar." +
@@ -552,63 +564,69 @@ object VeloxConfig {
 
   val VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP =
     buildConf("spark.gluten.velox.offHeapBroadcastBuildRelation.enabled")
-      .internal()
+      .experimental()
       .doc("Experimental: If enabled, broadcast build relation will use offheap memory. " +
         "Otherwise, broadcast build relation will use onheap memory.")
       .booleanConf
       .createWithDefault(false)
 
+  val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_ROWS =
+    buildConf("spark.gluten.velox.abandonDedupHashMap.minRows")
+      .experimental()
+      .doc("Experimental: abandon hashmap build if duplicated rows more than this number.")
+      .intConf
+      .createWithDefault(100000)
+
+  val VELOX_HASHMAP_ABANDON_BUILD_DUPHASH_MIN_PCT =
+    buildConf("spark.gluten.velox.abandonDedupHashMap.minPct")
+      .experimental()
+      .doc(
+        "Experimental: abandon hashmap build if duplicated rows are more than this percentile. " +
+          "Value is integer based and range is [0, 100].")
+      .intConf
+      .createWithDefault(0)
+
   val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
     .doc("Enable query tracing flag.")
-    .internal()
     .booleanConf
     .createWithDefault(false)
 
   val QUERY_TRACE_DIR = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceDir")
-    .doc("Base dir of a query to store tracing data.")
     .internal()
+    .doc("Base dir of a query to store tracing data.")
     .stringConf
     .createWithDefault("")
 
   val QUERY_TRACE_NODE_IDS = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds")
+    .internal()
     .doc("A comma-separated list of plan node ids whose input data will be traced. " +
       "Empty string if only want to trace the query metadata.")
-    .internal()
     .stringConf
     .createWithDefault("")
 
   val QUERY_TRACE_MAX_BYTES =
     buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes")
-      .doc("The max trace bytes limit. Tracing is disabled if zero.")
       .internal()
+      .doc("The max trace bytes limit. Tracing is disabled if zero.")
       .longConf
       .createWithDefault(0)
 
   val QUERY_TRACE_TASK_REG_EXP =
     buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp")
-      .doc("The regexp of traced task id. We only enable trace on a task if its id matches.")
       .internal()
+      .doc("The regexp of traced task id. We only enable trace on a task if its id matches.")
       .stringConf
       .createWithDefault("")
 
   val OP_TRACE_DIRECTORY_CREATE_CONFIG =
     buildConf("spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig")
+      .internal()
       .doc(
         "Config used to create operator trace directory. This config is provided to" +
           " underlying file system and the config is free form. The form should be " +
           "defined by the underlying file system.")
-      .internal()
       .stringConf
       .createWithDefault("")
-
-  val VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.velox.propagateIgnoreNullKeys")
-      .doc(
-        "If enabled, we will identify aggregation followed by an inner join " +
-          "on the grouping keys, and mark the ignoreNullKeys flag to true to " +
-          "avoid unnecessary aggregation on null keys.")
-      .booleanConf
-      .createWithDefault(true)
 
   val FLOATING_POINT_MODE =
     buildConf("spark.gluten.sql.columnar.backend.velox.floatingPointMode")
@@ -616,15 +634,104 @@ object VeloxConfig {
         "Config used to control the tolerance of floating point operations alignment with Spark. " +
           "When the mode is set to strict, flushing is disabled for sum(float/double)" +
           "and avg(float/double). When set to loose, flushing will be enabled.")
-      .internal()
       .stringConf
       .checkValues(Set("loose", "strict"))
       .createWithDefault("loose")
 
   val COLUMNAR_VELOX_MEMORY_CHECK_USAGE_LEAK =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.checkUsageLeak")
-      .internal()
       .doc("Enable check memory usage leak.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CUDF_MEMORY_RESOURCE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.memoryResource")
+      .doc("GPU RMM memory resource.")
+      .stringConf
+      .checkValues(Set("cuda", "pool", "async", "arena", "managed", "managed_pool"))
+      .createWithDefault("async")
+
+  val CUDF_MEMORY_PERCENT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.memoryPercent")
+      .doc("The initial percent of GPU memory to allocate for memory resource for one thread.")
+      .intConf
+      .createWithDefault(50)
+
+  val CUDF_ENABLE_TABLE_SCAN =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan")
+      .doc("Enable cudf table scan")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CUDF_ENABLE_VALIDATION =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableValidation")
+      .doc(
+        "Heuristics you can apply to validate a cuDF/GPU plan and only offload when " +
+          "the entire stage can be fully and profitably executed on GPU")
+      .booleanConf
+      .createWithDefault(true)
+
+  val CUDF_BATCH_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.cudf.batchSize")
+      .doc("Cudf input batch size after shuffle reader")
+      .intConf
+      .createWithDefault(Integer.MAX_VALUE)
+
+  val MEMORY_DUMP_ON_EXIT =
+    buildConf("spark.gluten.monitor.memoryDumpOnExit")
+      .internal()
+      .doc(
+        "Whether to trigger native memory dump when executor exits. Currently it uses jemalloc" +
+          " for memory profiling, so if you want to enable it, also need to  build gluten" +
+          " with `--enable_jemalloc_stats=ON`.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val ENABLE_REWRITE_CAST_ARRAY_TO_STRING =
+    buildConf("spark.gluten.sql.rewrite.castArrayToString")
+      .doc(
+        "When true, rewrite `cast(array as String)` to" +
+          " `concat('[', array_join(array, ', ', null), ']')` to allow offloading to Velox.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_REWRITE_UNBOUNDED_WINDOW =
+    buildConf("spark.gluten.sql.rewrite.unboundedWindow")
+      .internal()
+      .doc("When true, rewrite unbounded window to an equivalent aggregate join operation" +
+        " to avoid OOM.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val ENABLE_ENHANCED_FEATURES =
+    buildConf("spark.gluten.sql.enable.enhancedFeatures")
+      .doc("Enable some features including iceberg native write and other features.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_VELOX_PREFERRED_BATCH_BYTES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.preferredBatchBytes")
+      .internal()
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("10MB")
+
+  val VELOX_MAX_COMPILED_REGEXES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes")
+      .doc(
+        "Controls maximum number of compiled regular expression patterns per function " +
+          "instance per thread of execution.")
+      .intConf
+      .createWithDefault(100)
+
+  val ORC_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.orcUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for ORC files.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val PARQUET_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.parquetUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for Parquet files.")
       .booleanConf
       .createWithDefault(true)
 }

@@ -28,7 +28,10 @@ namespace gluten {
 
 class ParquetReaderIterator : public FileReaderIterator {
  public:
-  explicit ParquetReaderIterator(const std::string& path, int64_t batchSize, facebook::velox::memory::MemoryPool* pool);
+  explicit ParquetReaderIterator(
+      const std::string& path,
+      int64_t batchSize,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
 
   facebook::velox::RowTypePtr getRowType() const {
     return rowType_;
@@ -37,7 +40,7 @@ class ParquetReaderIterator : public FileReaderIterator {
  protected:
   void createRowReader();
 
-  facebook::velox::memory::MemoryPool* pool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
 
   facebook::velox::RowTypePtr rowType_;
   std::unique_ptr<facebook::velox::dwio::common::RowReader> rowReader_;
@@ -47,7 +50,10 @@ class ParquetReaderIterator : public FileReaderIterator {
 
 class ParquetStreamReaderIterator final : public ParquetReaderIterator {
  public:
-  ParquetStreamReaderIterator(const std::string& path, int64_t batchSize, facebook::velox::memory::MemoryPool* pool);
+  ParquetStreamReaderIterator(
+      const std::string& path,
+      int64_t batchSize,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
 
   std::shared_ptr<ColumnarBatch> next() override;
 };
@@ -57,7 +63,7 @@ class ParquetBufferedReaderIterator final : public ParquetReaderIterator {
   explicit ParquetBufferedReaderIterator(
       const std::string& path,
       int64_t batchSize,
-      facebook::velox::memory::MemoryPool* pool);
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
 
   std::shared_ptr<ColumnarBatch> next() override;
 

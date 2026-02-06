@@ -20,6 +20,7 @@ import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.internal.SparkConfigUtil._
 
 import org.apache.commons.lang3.StringUtils
 
@@ -58,19 +59,19 @@ object UDFMappings extends Logging {
   }
 
   def loadFromSparkConf(conf: SparkConf): Unit = {
-    val strHiveUDFs = conf.get(GlutenConfig.GLUTEN_SUPPORTED_HIVE_UDFS.key, "")
+    val strHiveUDFs = conf.get(GlutenConfig.GLUTEN_SUPPORTED_HIVE_UDFS)
     if (!StringUtils.isBlank(strHiveUDFs)) {
       parseStringToMap(strHiveUDFs, hiveUDFMap)
       logDebug(s"loaded hive udf mappings:${hiveUDFMap.toString}")
     }
 
-    val strPythonUDFs = conf.get(GlutenConfig.GLUTEN_SUPPORTED_PYTHON_UDFS.key, "")
+    val strPythonUDFs = conf.get(GlutenConfig.GLUTEN_SUPPORTED_PYTHON_UDFS)
     if (!StringUtils.isBlank(strPythonUDFs)) {
       parseStringToMap(strPythonUDFs, pythonUDFMap)
       logDebug(s"loaded python udf mappings:${pythonUDFMap.toString}")
     }
 
-    val strScalaUDFs = conf.get(GlutenConfig.GLUTEN_SUPPORTED_SCALA_UDFS.key, "")
+    val strScalaUDFs = conf.get(GlutenConfig.GLUTEN_SUPPORTED_SCALA_UDFS)
     if (!StringUtils.isBlank(strScalaUDFs)) {
       parseStringToMap(strScalaUDFs, scalaUDFMap)
       logDebug(s"loaded scala udf mappings:${scalaUDFMap.toString}")

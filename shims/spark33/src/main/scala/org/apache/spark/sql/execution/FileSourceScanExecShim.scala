@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.metrics.GlutenTimeMetric
 
+import org.apache.spark.Partition
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceMetadataAttribute, PlanExpression, Predicate}
@@ -128,28 +129,27 @@ abstract class FileSourceScanExecShim(
     }(t => driverMetrics("metadataTime") = NANOSECONDS.toMillis(t + optimizerMetadataTimeNs))
   }.toArray
 
-  private def isDynamicPruningFilter(e: Expression): Boolean =
+  protected def isDynamicPruningFilter(e: Expression): Boolean =
     e.exists(_.isInstanceOf[PlanExpression[_]])
 
   // We can only determine the actual partitions at runtime when a dynamic partition filter is
   // present. This is because such a filter relies on information that is only available at run
   // time (for instance the keys used in the other side of a join).
-  @transient lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
+  @transient private lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
     val dynamicPartitionFilters =
       partitionFilters.filter(isDynamicPruningFilter)
     val selected = if (dynamicPartitionFilters.nonEmpty) {
       GlutenTimeMetric.withMillisTime {
         // call the file index for the files matching all filters except dynamic partition filters
-        val predicate = dynamicPartitionFilters.reduce(And)
-        val partitionColumns = relation.partitionSchema
-        val boundPredicate = Predicate.create(
-          predicate.transform {
-            case a: AttributeReference =>
-              val index = partitionColumns.indexWhere(a.name == _.name)
-              BoundReference(index, partitionColumns(index).dataType, nullable = true)
-          },
-          Nil
-        )
+        val boundedFilters = dynamicPartitionFilters.map {
+          dynamicPartitionFilter =>
+            dynamicPartitionFilter.transform {
+              case a: AttributeReference =>
+                val index = relation.partitionSchema.indexWhere(a.name == _.name)
+                BoundReference(index, relation.partitionSchema(index).dataType, nullable = true)
+            }
+        }
+        val boundPredicate = Predicate.create(boundedFilters.reduce(And), Nil)
         val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
         setFilesNumAndSizeMetric(ret, static = false)
         ret
@@ -159,6 +159,14 @@ abstract class FileSourceScanExecShim(
     }
     sendDriverMetrics()
     selected
+  }
+
+  def getPartitionArray: Array[PartitionDirectory] = {
+    dynamicallySelectedPartitions
+  }
+
+  def getPartitionsSeq(): Seq[Partition] = {
+    Seq()
   }
 }
 

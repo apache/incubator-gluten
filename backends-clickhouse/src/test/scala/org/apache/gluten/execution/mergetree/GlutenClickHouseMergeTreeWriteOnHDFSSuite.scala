@@ -16,40 +16,23 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig, RuntimeSettings}
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution.{CreateMergeTreeSuite, FileSourceScanExecTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, SaveMode}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types._
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, Path}
-
 import scala.concurrent.duration.DurationInt
 
-class GlutenClickHouseMergeTreeWriteOnHDFSSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
+class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -57,18 +40,15 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
   }
 
+  private val remotePath: String = hdfsHelper.independentHdfsURL("test")
   override protected def beforeEach(): Unit = {
     super.beforeEach()
-    val conf = new Configuration
-    conf.set("fs.defaultFS", HDFS_URL)
-    val fs = FileSystem.get(conf)
-    fs.delete(new org.apache.hadoop.fs.Path(HDFS_URL), true)
+    hdfsHelper.deleteDir(remotePath)
     hdfsHelper.resetMeta()
   }
 
@@ -103,7 +83,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
 
@@ -113,7 +93,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |""".stripMargin)
     hdfsHelper.resetMeta()
 
-    runTPCHQueryBySQL(1, q1("lineitem_mergetree_hdfs")) {
+    customCheckQuery(q1("lineitem_mergetree_hdfs")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -121,7 +101,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -168,7 +148,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='l_shipdate,l_orderkey',
                  |               primaryKey='l_shipdate')
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_orderbykey_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_orderbykey_hdfs'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -176,7 +156,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1("lineitem_mergetree_orderbykey_hdfs")) {
+    customCheckQuery(q1("lineitem_mergetree_orderbykey_hdfs")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -184,7 +164,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -235,7 +215,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='l_orderkey',
                  |               primaryKey='l_orderkey')
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_partition_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_partition_hdfs'
                  |""".stripMargin)
 
     // dynamic partitions
@@ -309,7 +289,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |  where l_returnflag = 'A'
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1("lineitem_mergetree_partition_hdfs"), compareResult = false) {
+    customCheckQuery(q1("lineitem_mergetree_partition_hdfs"), compare = false) {
       df =>
         val result = df.collect()
         assertResult(4)(result.length)
@@ -327,7 +307,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
         assertResult(6)(mergetreeScan.metrics("numFiles").value)
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -397,10 +377,11 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='c1',
                  |               primaryKey='c1')
-                 |LOCATION '$HDFS_URL/test/partition_escape'
+                 |LOCATION '$remotePath/partition_escape'
                  |""".stripMargin)
 
     spark.sql("insert into partition_escape select * from origin_table")
+    spark.sql("cache data select * from partition_escape")
     spark.sql("select * from partition_escape").show()
   }
 
@@ -433,7 +414,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_orderkey)
                  |${if (spark32) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_bucket_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_bucket_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
 
@@ -442,7 +423,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1("lineitem_mergetree_bucket_hdfs")) {
+    customCheckQuery(q1("lineitem_mergetree_bucket_hdfs")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -450,7 +431,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -482,7 +463,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
   }
 
   testSparkVersionLE33("test mergetree write with the path based bucket table") {
-    val dataPath = s"$HDFS_URL/test/lineitem_mergetree_bucket_hdfs"
+    val dataPath = s"$remotePath/lineitem_mergetree_bucket_hdfs"
 
     val sourceDF = spark.sql(s"""
                                 |select * from lineitem
@@ -499,7 +480,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
       .option("clickhouse.storage_policy", "__hdfs_main")
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
+    customCheckQuery(q1(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -507,7 +488,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -538,12 +519,12 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 
   test("test mergetree insert with optimize basic") {
     val tableName = "lineitem_mergetree_insert_optimize_basic_hdfs"
-    val dataPath = s"$HDFS_URL/test/$tableName"
+    val dataPath = s"$remotePath/$tableName"
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      CHConfig.runtimeSettings("mergetree.merge_after_insert") -> "true",
-      CHConfig.runtimeSettings("mergetree.insert_without_local_storage") -> "true",
+      RuntimeSettings.MERGE_AFTER_INSERT.key -> "true",
+      RuntimeSettings.INSERT_WITHOUT_LOCAL_STORAGE.key -> "true",
       RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key -> "10000"
     ) {
       spark.sql(s"""
@@ -560,17 +541,9 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 
       val ret = spark.sql(s"select count(*) from $tableName").collect()
       assertResult(600572)(ret.apply(0).get(0))
-      val conf = new Configuration
-      conf.set("fs.defaultFS", HDFS_URL)
-      val fs = FileSystem.get(conf)
 
       eventually(timeout(60.seconds), interval(2.seconds)) {
-        val it = fs.listFiles(new Path(dataPath), true)
-        var files = 0
-        while (it.hasNext) {
-          it.next()
-          files += 1
-        }
+        val files = hdfsHelper.countDir(dataPath)
         assertResult(4)(files)
       }
     }

@@ -12,30 +12,128 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>org.apache.gluten</groupId>
-    <artifactId>gluten-parent</artifactId>
-    <version>1.4.0-SNAPSHOT</version>
-    <relativePath>../pom.xml</relativePath>
-  </parent>
-
+  <groupId>org.apache.gluten</groupId>
   <artifactId>gluten-flink</artifactId>
-  <name>Gluten Flink</name>
+  <version>1.6.0-SNAPSHOT</version>
   <packaging>pom</packaging>
+  <name>Gluten Flink</name>
 
   <modules>
     <module>planner</module>
     <module>loader</module>
     <module>runtime</module>
+    <module>ut</module>
   </modules>
 
   <properties>
     <flink.version>1.19.2</flink.version>
     <velox4j.version>0.1.0-SNAPSHOT</velox4j.version>
+    <scala.binary.version>2.12</scala.binary.version>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+    <spotless.version>2.27.2</spotless.version>
+    <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
+    <spotless.delimiter>package</spotless.delimiter>
+    <!-- spotless:off -->
+    <spotless.license.header>
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+    </spotless.license.header>
+    <!-- spotless:on -->
   </properties>
-  </project>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless.version}</version>
+        <configuration>
+          <java>
+            <toggleOffOn/>
+            <googleJavaFormat>
+              <version>1.15.0</version>
+            </googleJavaFormat>
+
+            <!-- \# refers to the static imports -->
+            <importOrder>
+              <order>org.apache.gluten,io.github.zhztheplayer.velox4j,org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>
+            </importOrder>
+            <licenseHeader>
+              <content>${spotless.license.header}</content>
+              <delimiter>${spotless.delimiter}</delimiter>
+            </licenseHeader>
+            <excludes>
+              <exclude>org.apache.flink.shaded/*.java</exclude>
+            </excludes>
+            <removeUnusedImports/>
+          </java>
+          <scala>
+            <toggleOffOn/>
+            <scalafmt>
+              <version>${spotless.scalafmt.version}</version>
+              <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
+              <file>.scalafmt.conf</file>
+            </scalafmt>
+          </scala>
+          <pom>
+            <toggleOffOn>
+              <off>spotless:off</off>
+              <on>spotless:on</on>
+            </toggleOffOn>
+            <includes>
+              <include>pom.xml</include>
+            </includes>
+            <sortPom>
+              <encoding>UTF-8</encoding>
+              <keepBlankLines>true</keepBlankLines>
+              <nrOfIndentSpace>2</nrOfIndentSpace>
+              <indentBlankLines>false</indentBlankLines>
+              <expandEmptyElements>false</expandEmptyElements>
+            </sortPom>
+          </pom>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotless-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>java-17</id>
+      <activation>
+        <jdk>17</jdk>
+      </activation>
+      <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+      </properties>
+    </profile>
+  </profiles>
+
+</project>

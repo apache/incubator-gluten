@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformerSuite}
 import org.apache.gluten.utils.BackendTestUtils
 
@@ -31,7 +32,7 @@ class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
       .set("spark.sql.adaptive.enabled", "false")
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
-        .set("spark.gluten.sql.enable.native.validation", "false")
+        .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
     }
     conf
   }
@@ -84,8 +85,8 @@ class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
         noFallBack = noFallback
       )(
         df => {
-          checkGlutenOperatorCount[ProjectExecTransformer](df, expectedProjectCount)
-          checkGlutenOperatorCount[HashAggregateExecBaseTransformer](df, 4)
+          checkGlutenPlanCount[ProjectExecTransformer](df, expectedProjectCount)
+          checkGlutenPlanCount[HashAggregateExecBaseTransformer](df, 4)
         })
     }
   }

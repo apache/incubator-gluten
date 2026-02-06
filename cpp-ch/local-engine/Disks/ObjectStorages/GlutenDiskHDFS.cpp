@@ -18,6 +18,7 @@
 #include "GlutenDiskHDFS.h"
 #include <ranges>
 #include <Disks/ObjectStorages/CompactObjectStorageDiskTransaction.h>
+#include <Interpreters/Context.h>
 #include <Common/QueryContext.h>
 #include <Common/Throttler.h>
 
@@ -89,7 +90,7 @@ std::unique_ptr<DB::WriteBufferFromFileBase> GlutenDiskHDFS::writeFile(
     const DB::WriteSettings & settings)
 {
     if (throttler)
-        throttler->add(1);
+        throttler->throttle(1);
     return DiskObjectStorage::writeFile(path, buf_size, mode, settings);
 }
 }

@@ -18,13 +18,10 @@ package org.apache.gluten.substrait.type;
 
 import io.substrait.proto.Type;
 
-import java.io.Serializable;
-
-public class I16TypeNode implements TypeNode, Serializable {
-  private final Boolean nullable;
+public class I16TypeNode extends TypeNode {
 
   public I16TypeNode(Boolean nullable) {
-    this.nullable = nullable;
+    super(nullable);
   }
 
   @Override

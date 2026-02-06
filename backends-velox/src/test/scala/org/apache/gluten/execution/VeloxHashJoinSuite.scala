@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.VeloxConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
@@ -42,7 +42,8 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.adaptive.enabled", "false"),
-      ("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")) {
+      (GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
+    ) {
       createTPCHNotNullTables()
       val df = spark.sql("""select l_partkey from
                            | lineitem join part join partsupp
@@ -73,11 +74,11 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  testWithMinSparkVersion("generate hash join plan - v2", "3.2") {
+  test("generate hash join plan - v2") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.adaptive.enabled", "false"),
-      ("spark.gluten.sql.columnar.forceShuffledHashJoin", "true"),
+      (GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true"),
       ("spark.sql.sources.useV1SourceList", "avro")
     ) {
       createTPCHNotNullTables()
@@ -91,12 +92,14 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
 
       // The computing is combined into one single whole stage transformer.
       val wholeStages = plan.collect { case wst: WholeStageTransformer => wst }
-      if (SparkShimLoader.getSparkVersion.startsWith("3.2.")) {
-        assert(wholeStages.length == 1)
-      } else if (SparkShimLoader.getSparkVersion.startsWith("3.5.")) {
-        assert(wholeStages.length == 5)
-      } else {
+
+      if (
+        SparkShimLoader.getSparkVersion.startsWith("3.3.") ||
+        SparkShimLoader.getSparkVersion.startsWith("3.4.")
+      ) {
         assert(wholeStages.length == 3)
+      } else {
+        assert(wholeStages.length == 5)
       }
 
       // Join should be in `TransformContext`
@@ -106,11 +109,8 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
           case _: ShuffledHashJoinExecTransformer => 1
         }.getOrElse(0)
       }.sum
-      if (SparkShimLoader.getSparkVersion.startsWith("3.2.")) {
-        assert(countSHJ == 1)
-      } else {
-        assert(countSHJ == 2)
-      }
+
+      assert(countSHJ == 2)
     }
   }
 
@@ -150,6 +150,40 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
             assert(collect(df.queryExecution.executedPlan) {
               case r @ ReusedExchangeExec(_, _: ColumnarBroadcastExchangeExec) => r
             }.size == 1)
+          }
+        })
+  }
+
+  test("ColumnarBuildSideRelation with small columnar to row memory") {
+    Seq("true", "false").foreach(
+      enabledOffheapBroadcast =>
+        withSQLConf(
+          GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key -> "16",
+          VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key -> enabledOffheapBroadcast) {
+          withTable("t1", "t2") {
+            spark.sql("""
+                        |CREATE TABLE t1 USING PARQUET
+                        |AS SELECT id as c1, id as c2 FROM range(10)
+                        |""".stripMargin)
+
+            spark.sql("""
+                        |CREATE TABLE t2 USING PARQUET PARTITIONED BY (c1)
+                        |AS SELECT id as c1, id as c2 FROM range(30)
+                        |""".stripMargin)
+
+            val df = spark.sql("""
+                                 |SELECT t1.c2
+                                 |FROM t1, t2
+                                 |WHERE t1.c1 = t2.c1
+                                 |AND t1.c2 < 4
+                                 |""".stripMargin)
+
+            checkAnswer(df, Row(0) :: Row(1) :: Row(2) :: Row(3) :: Nil)
+
+            val subqueryBroadcastExecs = collectWithSubqueries(df.queryExecution.executedPlan) {
+              case subqueryBroadcast: ColumnarSubqueryBroadcastExec => subqueryBroadcast
+            }
+            assert(subqueryBroadcastExecs.size == 1)
           }
         })
   }
@@ -259,6 +293,52 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
             val aliases = projects.last.projectList.collect { case a: Alias => a }
             assert(aliases.size == 1)
           }
+      }
+
+      // Test HashProbe operation when projecting a column multiple times without using an alias.
+      val q5 =
+        """
+          |select tt1.* from
+          |(select c1, c2, c2 from t1) tt1
+          |left join t2
+          |on tt1.c1 = t2.c1
+          |""".stripMargin
+      runQueryAndCompare(q5) { _ => }
+    }
+  }
+
+  test("Hash probe dynamic filter pushdown") {
+    withSQLConf(
+      VeloxConfig.HASH_PROBE_DYNAMIC_FILTER_PUSHDOWN_ENABLED.key -> "true",
+      VeloxConfig.HASH_PROBE_BLOOM_FILTER_PUSHDOWN_MAX_SIZE.key -> "1048576"
+    ) {
+      withTable("probe_table", "build_table") {
+        spark.sql("""
+        CREATE TABLE probe_table USING PARQUET
+        AS SELECT id as a FROM range(110001)
+      """)
+
+        spark.sql("""
+        CREATE TABLE build_table USING PARQUET
+        AS SELECT id * 1000 as b FROM range(220002)
+      """)
+
+        runQueryAndCompare(
+          "SELECT a FROM probe_table JOIN build_table ON a = b"
+        ) {
+          df =>
+            val join = find(df.queryExecution.executedPlan) {
+              case _: BroadcastHashJoinExecTransformer => true
+              case _ => false
+            }
+            assert(join.isDefined)
+            val metrics = join.get.metrics
+            assert(metrics.contains("bloomFilterBlocksByteSize"))
+            assert(metrics("bloomFilterBlocksByteSize").value > 0)
+
+            assert(metrics.contains("hashProbeDynamicFiltersProduced"))
+            assert(metrics("hashProbeDynamicFiltersProduced").value == 1)
+        }
       }
     }
   }

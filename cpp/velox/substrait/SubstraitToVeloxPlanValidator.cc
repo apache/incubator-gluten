@@ -56,10 +56,11 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "regexp_extract",
     "regexp_extract_all",
     "regexp_replace",
-    "rlike"};
+    "rlike",
+    "split"};
 
 const std::unordered_set<std::string> kBlackList =
-    {"split_part", "factorial", "trunc", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
+    {"split_part", "sequence", "approx_percentile", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
@@ -133,10 +134,22 @@ bool SubstraitToVeloxPlanValidator::validateRound(
   // Velox has different result with Spark on negative scale.
   auto typeCase = arguments[1].value().literal().literal_type_case();
   switch (typeCase) {
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI32:
-      return (arguments[1].value().literal().i32() >= 0);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI64:
-      return (arguments[1].value().literal().i64() >= 0);
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI32: {
+      int32_t scale = arguments[1].value().literal().i32();
+      if (scale < 0) {
+        LOG_VALIDATION_MSG("Round scale validation failed: scale " + std::to_string(scale) + " is negative.");
+        return false;
+      }
+      return true;
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI64: {
+      int64_t scale = arguments[1].value().literal().i64();
+      if (scale < 0) {
+        LOG_VALIDATION_MSG("Round scale validation failed: scale " + std::to_string(scale) + " is negative.");
+        return false;
+      }
+      return true;
+    }
     default:
       LOG_VALIDATION_MSG("Round scale validation is not supported for type case " + std::to_string(typeCase));
       return false;
@@ -199,7 +212,7 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
 
   const auto& function =
-      SubstraitParser::findFunctionSpec(planConverter_.getFunctionMap(), scalarFunction.function_reference());
+      SubstraitParser::findFunctionSpec(planConverter_->getFunctionMap(), scalarFunction.function_reference());
   const auto& name = SubstraitParser::getNameBeforeDelimiter(function);
   std::vector<std::string> types = SubstraitParser::getSubFunctionTypes(function);
 
@@ -208,15 +221,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
   if (name == "extract") {
     return validateExtractExpr(params);
-  }
-  if (name == "concat") {
-    for (const auto& type : types) {
-      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
-          type.find("list") != std::string::npos) {
-        LOG_VALIDATION_MSG(type + " is not supported in concat.");
-        return false;
-      }
-    }
   }
 
   // Validate regex functions.
@@ -230,22 +234,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
 
   return true;
-}
-
-bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
-  static const std::unordered_set<TypeKind> kAllowedArrayElementKinds = {
-      TypeKind::DOUBLE,
-      TypeKind::BOOLEAN,
-      TypeKind::TIMESTAMP,
-  };
-
-  // https://github.com/apache/incubator-gluten/issues/9392
-  // is currently WIP to add support for other types.
-  if (toType->isVarchar()) {
-    return kAllowedArrayElementKinds.count(fromType->kind()) > 0;
-  }
-
-  return false;
 }
 
 bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const TypePtr& toType) {
@@ -296,6 +284,9 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
     if (fromType->isVarchar()) {
       return true;
     }
+    if (fromType->isBoolean()) {
+      return true;
+    }
     if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
         fromType->isDouble() || fromType->isReal()) {
       return true;
@@ -303,19 +294,42 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
     return false;
   }
 
+  // For complex types recursively check that their children can be cast.
   if (fromType->isArray() && toType->isArray()) {
     const auto& toElem = toType->asArray().elementType();
     const auto& fromElem = fromType->asArray().elementType();
 
-    if (!isAllowedCast(fromElem, toElem)) {
-      return false;
-    }
-
-    return isSupportedArrayCast(fromElem, toElem);
+    return isAllowedCast(fromElem, toElem);
   }
 
-  // Limited support for Complex types.
-  if (fromType->isArray() || fromType->isMap() || fromType->isRow()) {
+  if (fromType->isMap() && toType->isMap()) {
+      const auto& fromKey = fromType->asMap().keyType();
+      const auto& fromValue = fromType->asMap().valueType();
+      const auto& toKey = toType->asMap().keyType();
+      const auto& toValue = toType->asMap().valueType();
+
+      return isAllowedCast(fromKey, toKey) && isAllowedCast(fromValue, toValue);
+  }
+
+  if (fromType->isRow() && toType->isRow()) {
+      const auto& fromChildren = fromType->asRow().children();
+      const auto& toChildren = toType->asRow().children();
+
+      if (fromChildren.size() != toChildren.size()) {
+        return false;
+      }
+
+      for (size_t childIdx = 0; childIdx < fromChildren.size(); ++childIdx) {
+        if (!isAllowedCast(fromChildren[childIdx], toChildren[childIdx])) {
+          return false;
+        }
+      }
+
+      return true;
+  }
+
+  // Casting a complex type to/from any other type is not allowed.
+  if (fromType->isArray() || fromType->isMap() || fromType->isRow() || toType->isArray() || toType->isMap() || toType->isRow()) {
     return false;
   }
 
@@ -425,7 +439,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
           default:
             LOG_VALIDATION_MSG(
                 "Validation failed for input type validation in WriteRel, not support partition column type: " +
-                mapTypeKindToName(types[i]->kind()));
+                std::string(TypeKindName::toName(types[i]->kind())));
             return false;
         }
       }
@@ -488,7 +502,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::TopNRel& topNRel
     return false;
   }
 
-  auto [sortingKeys, sortingOrders] = planConverter_.processSortField(topNRel.sorts(), rowType);
+  auto [sortingKeys, sortingOrders] = planConverter_->processSortField(topNRel.sorts(), rowType);
   folly::F14FastSet<std::string> sortingKeyNames;
   for (const auto& sortingKey : sortingKeys) {
     auto result = sortingKeyNames.insert(sortingKey->name());
@@ -655,7 +669,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   funcSpecs.reserve(windowRel.measures().size());
   for (const auto& smea : windowRel.measures()) {
     const auto& windowFunction = smea.measure();
-    funcSpecs.emplace_back(planConverter_.findFuncSpec(windowFunction.function_reference()));
+    funcSpecs.emplace_back(planConverter_->findFuncSpec(windowFunction.function_reference()));
     SubstraitParser::parseType(windowFunction.output_type());
     for (const auto& arg : windowFunction.arguments()) {
       auto typeCase = arg.value().rex_type_case();
@@ -1056,7 +1070,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
 
   if (joinRel.has_expression()) {
     std::vector<const ::substrait::Expression::FieldReference*> leftExprs, rightExprs;
-    planConverter_.extractJoinKeys(joinRel.expression(), leftExprs, rightExprs);
+    planConverter_->extractJoinKeys(joinRel.expression(), leftExprs, rightExprs);
   }
 
   if (joinRel.has_post_join_filter()) {
@@ -1086,14 +1100,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
   switch (crossRel.type()) {
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT_SEMI:
       break;
-    case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
-      if (crossRel.has_expression()) {
-        LOG_VALIDATION_MSG("Full outer join type with condition is not supported in CrossRel");
-        return false;
-      } else {
-        break;
-      }
     default:
       LOG_VALIDATION_MSG("Unsupported Join type in CrossRel");
       return false;
@@ -1130,8 +1138,8 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
 
   for (const auto& smea : aggRel.measures()) {
     const auto& aggFunction = smea.measure();
-    const auto& funcStep = planConverter_.toAggregationFunctionStep(aggFunction);
-    auto funcSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
+    const auto& funcStep = planConverter_->toAggregationFunctionStep(aggFunction);
+    auto funcSpec = planConverter_->findFuncSpec(aggFunction.function_reference());
     std::vector<TypePtr> types;
     bool isDecimal = false;
     types = SubstraitParser::sigToTypes(funcSpec);
@@ -1142,7 +1150,8 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     }
     auto baseFuncName =
         SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
-    auto funcName = planConverter_.toAggregationFunctionName(baseFuncName, funcStep);
+    auto resultType = SubstraitParser::parseType(aggFunction.output_type());
+    auto funcName = planConverter_->toAggregationFunctionName(baseFuncName, funcStep, resultType);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
       LOG_VALIDATION_MSG("can not find function signature for " + funcName + " in AggregateRel.");
@@ -1153,8 +1162,23 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     for (const auto& signature : signaturesOpt.value()) {
       exec::SignatureBinder binder(*signature, types);
       if (binder.tryBind()) {
-        auto resolveType = binder.tryResolveType(
-            exec::isPartialOutput(funcStep) ? signature->intermediateType() : signature->returnType());
+        TypePtr resolveType = nullptr;
+        try {
+          resolveType = binder.tryResolveType(
+              exec::isPartialOutput(funcStep) ? signature->intermediateType() : signature->returnType());
+        } catch (const VeloxException& e) {
+          if (!exec::isPartialOutput(funcStep) && funcName.find("merge_extract") != std::string::npos) {
+            // For the merge_extract companion function, result
+            // types may not always be inferable from the intermediate types. As a
+            // result, an exception might be thrown during the type resolution process.  More
+            // details can be found in
+            // https://github.com/facebookincubator/velox/pull/11999#issuecomment-3274577979
+            // and https://github.com/facebookincubator/velox/issues/12830.
+            resolved = true;
+            break;
+          }
+        }
+
         if (resolveType == nullptr) {
           LOG_VALIDATION_MSG("Validation failed for function " + funcName + " resolve type in AggregateRel.");
           return false;
@@ -1226,7 +1250,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
     }
 
     const auto& aggFunction = smea.measure();
-    const auto& functionSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
+    const auto& functionSpec = planConverter_->findFuncSpec(aggFunction.function_reference());
     funcSpecs.emplace_back(functionSpec);
     SubstraitParser::parseType(aggFunction.output_type());
     // Validate the size of arguments.
@@ -1318,7 +1342,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel) {
-  planConverter_.toVeloxPlan(readRel);
+  planConverter_->toVeloxPlan(readRel);
 
   // Validate filter in ReadRel.
   if (readRel.has_filter()) {
@@ -1409,8 +1433,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::RelRoot& relRoot
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
   try {
     // Create plan converter and expression converter to help the validation.
-    planConverter_.constructFunctionMap(plan);
-    exprConverter_ = planConverter_.getExprConverter();
+    planConverter_->constructFunctionMap(plan);
+    exprConverter_ = planConverter_->getExprConverter();
 
     for (const auto& rel : plan.relations()) {
       if (rel.has_root()) {
@@ -1424,6 +1448,28 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
     return false;
   } catch (const VeloxException& err) {
     LOG_VALIDATION_MSG_FROM_EXCEPTION(err);
+    return false;
+  }
+}
+
+bool SubstraitToVeloxPlanValidator::validate(
+    const ::substrait::Expression& expression,
+    const RowTypePtr& inputType,
+    std::unordered_map<uint64_t, std::string> functionMappings) {
+  try {
+    // Create plan converter and expression converter to help the validation.
+    planConverter_->constructFunctionMap(std::move(functionMappings));
+    exprConverter_ = planConverter_->getExprConverter();
+
+    if (!validateExpression(expression, inputType)) {
+      return false;
+    }
+    std::vector<core::TypedExprPtr> expressions{exprConverter_->toVeloxExpr(expression, inputType)};
+    // Try to compile the expressions. If there is any unregistered function or
+    // mismatched type, exception will be thrown.
+    exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
+    return true;
+  } catch (const VeloxException& err) {
     return false;
   }
 }

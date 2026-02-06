@@ -24,11 +24,11 @@ import sys.process._
 var parquet_file_path = "/PATH/TO/TPCH_PARQUET_PATH"
 var gluten_root = "/PATH/TO/GLUTEN"
 
-def time[R](block: => R): R = {
+def time[R](fileName: String)(block: => R): R = {
     val t0 = System.nanoTime()
     val result = block    // call-by-name
     val t1 = System.nanoTime()
-    println("Elapsed time: " + (t1 - t0)/1000000000.0 + " seconds")
+    println(s"$fileName, elapsed time: " + (t1 - t0)/1000000000.0 + " seconds")
     result
 }
 
@@ -78,14 +78,16 @@ val sorted = fileLists.sortBy {
 
 // Main program to run TPC-H testing
 for (t <- sorted) {
-  println(t)
-  val fileContents = Source.fromFile(t).getLines.filter(!_.startsWith("--")).mkString(" ")
-  println(fileContents)
-  try {
-    time{spark.sql(fileContents).show}
-    //spark.sql(fileContents).explain
-    Thread.sleep(2000)
-  } catch {
-    case e: Exception => None
+  val fileContents = {
+    val src = Source.fromFile(t)
+    try {
+      src.getLines().filter(!_.startsWith("--")).mkString(" ")
+    } finally {
+      src.close()
+    }
   }
+  println(t)
+  println(fileContents)
+  time(t.getName){spark.sql(fileContents).collectAsList()}
+  Thread.sleep(2000)
 }

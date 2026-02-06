@@ -18,12 +18,10 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.backendsapi._
-import org.apache.gluten.columnarbatch.CHBatch
-import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.substrait.rel.LocalFilesNode
@@ -54,8 +52,12 @@ import scala.util.control.Breaks.{break, breakable}
 class CHBackend extends SubstraitBackend {
   import CHBackend._
   override def name(): String = CHConfig.BACKEND_NAME
-  override def buildInfo(): BuildInfo =
-    BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
+  override def info(): Map[String, String] = {
+    Map(
+      "ch_branch" -> CH_BRANCH,
+      "ch_revision" -> CH_COMMIT
+    )
+  }
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
@@ -72,15 +74,15 @@ object CHBackend {
   private class ConvFunc() extends ConventionFunc.Override {
     override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
       case a: AdaptiveSparkPlanExec if a.supportsColumnar =>
-        CHBatch
+        CHBatchType
     }
   }
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
-  override def primaryBatchType: Convention.BatchType = CHBatch
+  override def primaryBatchType: Convention.BatchType = CHBatchType
 
-  private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
+  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
 
   // experimental: when the files count per partition exceeds this threshold,
@@ -113,7 +115,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   private val GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("lz4", "zstd", "snappy")
 
   // The algorithm for hash partition of the shuffle
-  private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM: String =
+  val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM: String =
     CHConfig.prefixOf("shuffle.hash.algorithm")
   // valid values are: cityHash64 or sparkMurmurHash3_32
   private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM_DEFAULT = "sparkMurmurHash3_32"
@@ -166,6 +168,10 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_ELIMINATE_DEDUPLICATE_AGGREGATE_WITH_ANY_JOIN: String =
     CHConfig.prefixOf("eliminate_deduplicate_aggregate_with_any_join")
 
+  // If the partition keys are high cardinality, the aggregation method is slower.
+  val GLUTEN_ENABLE_WINDOW_GROUP_LIMIT_TO_AGGREGATE: String =
+    CHConfig.prefixOf("runtime_settings.enable_window_group_limit_to_aggregate")
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -178,9 +184,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
+      dataSchema: StructType,
       rootPaths: Seq[String],
       properties: Map[String, String],
-      hadoopConf: Configuration): ValidationResult = {
+      hadoopConf: Configuration,
+      partitionFileFormats: Set[ReadFileFormat]): ValidationResult = {
 
     // Validate if all types are supported.
     def hasComplexType: Boolean = {
@@ -199,20 +207,29 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       }
       !unsupportedDataTypes.isEmpty
     }
-    format match {
-      case ParquetReadFormat => ValidationResult.succeeded
-      case OrcReadFormat => ValidationResult.succeeded
-      case MergeTreeReadFormat => ValidationResult.succeeded
-      case TextReadFormat =>
-        if (!hasComplexType) {
-          ValidationResult.succeeded
-        } else {
-          ValidationResult.failed("Has complex type.")
-        }
-      case JsonReadFormat => ValidationResult.succeeded
-      case KafkaReadFormat => ValidationResult.succeeded
-      case _ => ValidationResult.failed(s"Unsupported file format $format")
-    }
+
+    def checkFormat(format: ReadFileFormat): ValidationResult =
+      format match {
+        case ParquetReadFormat => ValidationResult.succeeded
+        case OrcReadFormat => ValidationResult.succeeded
+        case MergeTreeReadFormat => ValidationResult.succeeded
+        case TextReadFormat =>
+          if (!hasComplexType) {
+            ValidationResult.succeeded
+          } else {
+            ValidationResult.failed("Has complex type.")
+          }
+        case JsonReadFormat => ValidationResult.succeeded
+        case KafkaReadFormat => ValidationResult.succeeded
+        case _ => ValidationResult.failed(s"Unsupported file format $format")
+      }
+
+    val distinctFileFormats = partitionFileFormats + format
+    distinctFileFormats
+      .collectFirst {
+        case format if !checkFormat(format).ok() => checkFormat(format)
+      }
+      .getOrElse(ValidationResult.succeeded)
   }
 
   override def getSubstraitReadFileFormatV1(
@@ -393,14 +410,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def enablePreProjectionForJoinConditions(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       CHConfig.runtimeConfig("enable_pre_projection_for_join_conditions"),
-      defaultValue = true
-    )
-  }
-
-  // If the partition keys are high cardinality, the aggregation method is slower.
-  def enableConvertWindowGroupLimitToAggregate(): Boolean = {
-    SparkEnv.get.conf.getBoolean(
-      CHConfig.runtimeConfig("enable_window_group_limit_to_aggregate"),
       defaultValue = true
     )
   }

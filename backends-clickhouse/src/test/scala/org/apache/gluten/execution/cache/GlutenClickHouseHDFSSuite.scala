@@ -21,16 +21,16 @@ import org.apache.hadoop.fs.Path
 
 class GlutenClickHouseHDFSSuite extends GlutenClickHouseCacheBaseTestSuite {
 
-  override protected val tablesPath: String = hdfsHelper.getHdfsUrl("tpch-data")
+  override protected val remotePath: String = hdfsHelper.hdfsURL("tpch-data")
 
   override protected def copyDataIfNeeded(): Unit = {
-    val targetFile = new Path(s"$tablesPath/lineitem")
+    val targetFile = new Path(s"$remotePath/lineitem")
     val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
     val existed = fs.exists(targetFile)
     // If the 'lineitem' directory doesn't exist in HDFS,
     // upload the 'lineitem' data from the local system.
     if (!existed) {
-      val localDataDir = new Path(s"$absoluteParquetPath/lineitem")
+      val localDataDir = new Path(s"$testParquetAbsolutePath/lineitem")
       val localFs = localDataDir.getFileSystem(spark.sessionState.newHadoopConf())
       FileUtil.copy(
         localFs,

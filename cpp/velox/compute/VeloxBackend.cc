@@ -27,24 +27,30 @@
 #ifdef GLUTEN_ENABLE_QAT
 #include "utils/qat/QatCodec.h"
 #endif
-#ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/QplCodec.h"
-#endif
 #ifdef GLUTEN_ENABLE_GPU
+#include "operators/plannodes/CudfVectorStream.h"
+#include "velox/experimental/cudf/CudfConfig.h"
+#include "velox/experimental/cudf/connectors/hive/CudfHiveConnector.h"
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
+
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
+#include "memory/GlutenBufferedInputBuilder.h"
 #include "operators/functions/SparkExprToSubfieldFilterParser.h"
+#include "shuffle/ArrowShuffleDictionaryWriter.h"
 #include "udf/UdfLoader.h"
 #include "utils/Exception.h"
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/file/FileSystems.h"
+#include "velox/connectors/hive/BufferedInputBuilder.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
+#include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/gcs/RegisterGcsFileSystem.h" // @manual
+#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h" // @manual
 #include "velox/dwio/orc/reader/OrcReader.h"
@@ -144,6 +150,8 @@ void VeloxBackend::init(
   // Set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
+  auto hiveConf = createHiveConnectorConfig(backendConf_);
+
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
@@ -158,25 +166,34 @@ void VeloxBackend::init(
 #endif
 #ifdef ENABLE_ABFS
   velox::filesystems::registerAbfsFileSystem();
+  velox::filesystems::registerAzureClientProvider(*hiveConf);
 #endif
 
 #ifdef GLUTEN_ENABLE_GPU
-  FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
   if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    std::unordered_map<std::string, std::string> options = {
+        {velox::cudf_velox::CudfConfig::kCudfEnabled, "true"},
+        {velox::cudf_velox::CudfConfig::kCudfDebugEnabled, backendConf_->get(kDebugCudf, kDebugCudfDefault)},
+        {velox::cudf_velox::CudfConfig::kCudfMemoryResource,
+         backendConf_->get(kCudfMemoryResource, kCudfMemoryResourceDefault)},
+        {velox::cudf_velox::CudfConfig::kCudfMemoryPercent,
+         backendConf_->get(kCudfMemoryPercent, kCudfMemoryPercentDefault)}};
+    auto& cudfConfig = velox::cudf_velox::CudfConfig::getInstance();
+    cudfConfig.initialize(std::move(options));
     velox::cudf_velox::registerCudf();
+    velox::exec::Operator::registerOperator(std::make_unique<CudfVectorStreamOperatorTranslator>());
   }
-
 #endif
 
   initJolFilesystem();
-  initConnector();
+  initConnector(hiveConf);
 
   velox::dwio::common::registerFileSinks();
   velox::parquet::registerParquetReaderFactory();
   velox::parquet::registerParquetWriterFactory();
   velox::orc::registerOrcReaderFactory();
-  velox::exec::ExprToSubfieldFilterParser::registerParserFactory(
-      []() { return std::make_shared<SparkExprToSubfieldFilterParser>(); });
+  velox::exec::ExprToSubfieldFilterParser::registerParser(std::make_unique<SparkExprToSubfieldFilterParser>());
+  velox::connector::hive::BufferedInputBuilder::registerBuilder(std::make_shared<GlutenBufferedInputBuilder>());
 
   // Register Velox functions
   registerAllFunctions();
@@ -188,7 +205,6 @@ void VeloxBackend::init(
     // RSS shuffle serde.
     facebook::velox::serializer::presto::PrestoVectorSerde::registerNamedVectorSerde();
   }
-  velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
   initUdf();
 
@@ -198,7 +214,7 @@ void VeloxBackend::init(
   // Spark off-heap memory pool will be conducted to cause unexpected OOMs.
   auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
   int64_t memoryManagerCapacity;
-  if (sparkOverhead.hasValue()) {
+  if (sparkOverhead.has_value()) {
     // 0.75 * total overhead memory is used for Velox global memory manager.
     // FIXME: Make this configurable.
     memoryManagerCapacity = sparkOverhead.value() * 0.75;
@@ -206,11 +222,17 @@ void VeloxBackend::init(
     memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
-  facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
+  facebook::velox::memory::MemoryManager::Options options;
+  options.allocatorCapacity = memoryManagerCapacity;
+  facebook::velox::memory::initializeMemoryManager(options);
 
   // local cache persistent relies on the cache pool from root memory pool so we need to init this
   // after the memory manager instanced
   initCache();
+
+  registerShuffleDictionaryWriterFactory([](MemoryManager* memoryManager, arrow::util::Codec* codec) {
+    return std::make_unique<ArrowShuffleDictionaryWriter>(memoryManager, codec);
+  });
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -285,9 +307,7 @@ void VeloxBackend::initCache() {
   }
 }
 
-void VeloxBackend::initConnector() {
-  auto hiveConf = getHiveConfig(backendConf_);
-
+void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase>& hiveConf) {
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   GLUTEN_CHECK(
       ioThreads >= 0,
@@ -297,6 +317,18 @@ void VeloxBackend::initConnector() {
   }
   velox::connector::registerConnector(
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
+  
+  // Register value-stream connector for runtime iterator-based inputs
+  velox::connector::registerConnector(std::make_shared<ValueStreamConnector>(kIteratorConnectorId, hiveConf));
+  
+#ifdef GLUTEN_ENABLE_GPU
+  if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
+      backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    facebook::velox::cudf_velox::connector::hive::CudfHiveConnectorFactory factory;
+    auto hiveConnector = factory.newConnector(kCudfHiveConnectorId, hiveConf, ioExecutor_.get());
+    facebook::velox::connector::registerConnector(hiveConnector);
+  }
+#endif
 }
 
 void VeloxBackend::initUdf() {
@@ -323,4 +355,31 @@ VeloxBackend* VeloxBackend::get() {
   }
   return instance_.get();
 }
+
+void VeloxBackend::tearDown() {
+#ifdef ENABLE_HDFS
+  for (const auto& [_, filesystem] : facebook::velox::filesystems::registeredFilesystems) {
+    filesystem->close();
+  }
+#endif
+
+  // Destruct IOThreadPoolExecutor will join all threads.
+  // On threads exit, thread local variables can be constructed with referencing global variables.
+  // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
+  ioExecutor_.reset();
+  globalMemoryManager_.reset();
+
+  // dump cache stats on exit if enabled
+  if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
+    LOG(INFO) << asyncDataCache_->toString();
+    for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
+      if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
+        LOG(INFO) << "Removing cache file " << entry.path().filename().string();
+        std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
+      }
+    }
+    asyncDataCache_->shutdown();
+  }
+}
+
 } // namespace gluten

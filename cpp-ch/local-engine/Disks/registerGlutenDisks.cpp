@@ -14,12 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "registerGlutenDisks.h"
 #include "config.h"
+
 #include <Disks/DiskFactory.h>
-#include <Interpreters/Context.h>
 #include <Disks/ObjectStorages/DiskObjectStorage.h>
 #include <Disks/ObjectStorages/MetadataStorageFactory.h>
 #include <Disks/ObjectStorages/ObjectStorageFactory.h>
+#include <Common/GlutenConfig.h>
 
 #if USE_HDFS
 #include <Disks/ObjectStorages/GlutenDiskHDFS.h>
@@ -32,8 +34,6 @@
 #if USE_ROCKSDB
 #include <Disks/ObjectStorages/MetadataStorageFromRocksDB.h>
 #endif
-
-#include "registerGlutenDisks.h"
 
 namespace local_engine
 {
@@ -87,13 +87,14 @@ void registerGlutenDisks(bool global_skip_access_check)
             config_prefix,
             object_storage_creator);
 
-        disk->startup(context, skip_access_check);
+        disk->startup(skip_access_check);
         return disk;
     };
 
 
     registerGlutenS3ObjectStorage(object_factory);
-    factory.registerDiskType("s3_gluten", creator); /// For compatibility
+
+    factory.registerDiskType(GlutenObjectStorageConfig::S3_DISK_TYPE, creator); /// For compatibility
 #endif
 
 #if USE_HDFS
@@ -112,7 +113,7 @@ void registerGlutenDisks(bool global_skip_access_check)
         { return DB::ObjectStorageFactory::instance().create(name, conf, config_prefix, ctx, skip_access_check); };
         auto object_storage = object_storage_creator(config, context);
         DB::MetadataStoragePtr metadata_storage;
-        auto metadata_type = DB::MetadataStorageFactory::getMetadataType(config, config_prefix,  "local");
+        auto metadata_type = DB::MetadataStorageFactory::getMetadataType(config, config_prefix, "local");
         if (metadata_type == "rocksdb")
         {
 #if USE_ROCKSDB
@@ -133,12 +134,12 @@ void registerGlutenDisks(bool global_skip_access_check)
             config_prefix,
             object_storage_creator);
 
-        disk->startup(context, skip_access_check);
+        disk->startup(skip_access_check);
         return disk;
     };
 
     registerGlutenHDFSObjectStorage(object_factory);
-    factory.registerDiskType("hdfs_gluten", hdfs_creator); /// For compatibility
+    factory.registerDiskType(GlutenObjectStorageConfig::HDFS_DISK_TYPE, hdfs_creator); /// For compatibility
 #endif
 }
 }

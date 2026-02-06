@@ -72,7 +72,11 @@ fi
 installed_automake_version="$(aclocal --version | sed -En "1s/^.* ([1-9\.]*)$/\1/p")"
 if [ "$(semver "$installed_automake_version")" -lt "$(semver 1.14)" ]; then
   mkdir -p /tmp/automake
-  wget -O - http://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz | tar -x --xz -C /tmp/automake --strip-components=1
+  AUTOMAKE_URL1="https://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
+  AUTOMAKE_URL2="https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
+  wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL1" || wget -O /tmp/automake.tar.xz "$AUTOMAKE_URL2"
+  tar -xf /tmp/automake.tar.xz -C /tmp/automake --strip-components=1
+  rm -f /tmp/automake.tar.xz
   cd /tmp/automake
   ./configure
   make install -j

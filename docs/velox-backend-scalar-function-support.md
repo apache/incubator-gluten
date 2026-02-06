@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 233 functions and partially supports 20 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 241 functions and partially supports 25 functions.**
 
 ## Array Functions
 
@@ -8,7 +8,7 @@
 |-------------------|---------------------|----------|----------------|
 | array             | CreateArray         | S        |                |
 | array_append      | ArrayAppend         | S        |                |
-| array_compact     | ArrayCompact        |          |                |
+| array_compact     | ArrayCompact        | S        |                |
 | array_contains    | ArrayContains       | S        |                |
 | array_distinct    | ArrayDistinct       | S        |                |
 | array_except      | ArrayExcept         | S        |                |
@@ -51,7 +51,7 @@
 |-------------------|---------------------|----------|----------------|
 | array_size        | ArraySize           | S        |                |
 | cardinality       | Size                | S        |                |
-| concat            | Concat              | PS       |                |
+| concat            | Concat              | S        |                |
 | reverse           | Reverse             | S        |                |
 | size              | Size                | S        |                |
 
@@ -110,7 +110,7 @@
 | date_from_unix_date | DateFromUnixDate                     | S        |                |
 | date_part           | DatePartExpressionBuilder            |          |                |
 | date_sub            | DateSub                              | S        |                |
-| date_trunc          | TruncTimestamp                       |          |                |
+| date_trunc          | TruncTimestamp                       | S        |                |
 | dateadd             | DateAdd                              | S        |                |
 | datediff            | DateDiff                             | S        |                |
 | datepart            | DatePartExpressionBuilder            |          |                |
@@ -133,7 +133,7 @@
 | make_ym_interval    | MakeYMInterval                       | S        |                |
 | minute              | Minute                               | S        |                |
 | month               | Month                                | S        |                |
-| months_between      | MonthsBetween                        |          |                |
+| months_between      | MonthsBetween                        | S        |                |
 | next_day            | NextDay                              | S        |                |
 | now                 | Now                                  |          |                |
 | quarter             | Quarter                              | S        |                |
@@ -141,14 +141,14 @@
 | session_window      | SessionWindow                        |          |                |
 | timestamp_micros    | MicrosToTimestamp                    | S        |                |
 | timestamp_millis    | MillisToTimestamp                    | S        |                |
-| timestamp_seconds   | SecondsToTimestamp                   |          |                |
+| timestamp_seconds   | SecondsToTimestamp                   | PS       |                |
 | to_date             | ParseToDate                          |          |                |
 | to_timestamp        | ParseToTimestamp                     |          |                |
 | to_timestamp_ltz    | ParseToTimestampLTZExpressionBuilder |          |                |
 | to_timestamp_ntz    | ParseToTimestampNTZExpressionBuilder |          |                |
 | to_unix_timestamp   | ToUnixTimestamp                      | PS       |                |
 | to_utc_timestamp    | ToUTCTimestamp                       | S        |                |
-| trunc               | TruncDate                            |          |                |
+| trunc               | TruncDate                            | S        |                |
 | try_to_timestamp    | TryToTimestampExpressionBuilder      |          |                |
 | unix_date           | UnixDate                             | S        |                |
 | unix_micros         | UnixMicros                           | S        |                |
@@ -175,15 +175,15 @@
 
 ## JSON Functions
 
-| Spark Functions   | Spark Expressions   | Status   | Restrictions   |
-|-------------------|---------------------|----------|----------------|
-| from_json         | JsonToStructs       | S        |                |
-| get_json_object   | GetJsonObject       | S        |                |
-| json_array_length | LengthOfJsonArray   | S        |                |
-| json_object_keys  | JsonObjectKeys      | S        |                |
-| json_tuple        | JsonTuple           | S        |                |
-| schema_of_json    | SchemaOfJson        |          |                |
-| to_json           | StructsToJson       |          |                |
+| Spark Functions   | Spark Expressions   | Status   | Restrictions                                                                                                                                                                                                                                                                                                                                         |
+|-------------------|---------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| from_json         | JsonToStructs       | PS       | from_json with 'spark.sql.caseSensitive = true' is not supported in Velox<br>from_json with 'spark.sql.json.enablePartialResults = false' is not supported in Velox<br>from_json with column corrupt record is not supported in Velox<br>from_json with duplicate keys is not supported in Velox<br>from_json with options is not supported in Velox |
+| get_json_object   | GetJsonObject       | S        |                                                                                                                                                                                                                                                                                                                                                      |
+| json_array_length | LengthOfJsonArray   | S        |                                                                                                                                                                                                                                                                                                                                                      |
+| json_object_keys  | JsonObjectKeys      | S        |                                                                                                                                                                                                                                                                                                                                                      |
+| json_tuple        | JsonTuple           | S        |                                                                                                                                                                                                                                                                                                                                                      |
+| schema_of_json    | SchemaOfJson        |          |                                                                                                                                                                                                                                                                                                                                                      |
+| to_json           | StructsToJson       | PS       | When 'spark.sql.caseSensitive = false', to_json produces unexpected result for struct field with uppercase name<br>to_json with options is not supported in Velox                                                                                                                                                                                    |
 
 ## Lambda Functions
 
@@ -204,19 +204,19 @@
 
 ## Map Functions
 
-| Spark Functions   | Spark Expressions   | Status   | Restrictions   |
-|-------------------|---------------------|----------|----------------|
-| element_at        | ElementAt           | S        |                |
-| map               | CreateMap           | PS       |                |
-| map_concat        | MapConcat           | PS       |                |
-| map_contains_key  | MapContainsKey      | S        |                |
-| map_entries       | MapEntries          | S        |                |
-| map_from_arrays   | MapFromArrays       |          |                |
-| map_from_entries  | MapFromEntries      |          |                |
-| map_keys          | MapKeys             | S        |                |
-| map_values        | MapValues           | S        |                |
-| str_to_map        | StringToMap         | S        |                |
-| try_element_at    | TryElementAt        |          |                |
+| Spark Functions   | Spark Expressions   | Status   | Restrictions                                                                |
+|-------------------|---------------------|----------|-----------------------------------------------------------------------------|
+| element_at        | ElementAt           | S        |                                                                             |
+| map               | CreateMap           | PS       |                                                                             |
+| map_concat        | MapConcat           | PS       |                                                                             |
+| map_contains_key  | MapContainsKey      | S        |                                                                             |
+| map_entries       | MapEntries          | S        |                                                                             |
+| map_from_arrays   | MapFromArrays       |          |                                                                             |
+| map_from_entries  | MapFromEntries      |          |                                                                             |
+| map_keys          | MapKeys             | S        |                                                                             |
+| map_values        | MapValues           | S        |                                                                             |
+| str_to_map        | StringToMap         | PS       | Only spark.sql.mapKeyDedupPolicy = EXCEPTION is supported for Velox backend |
+| try_element_at    | TryElementAt        |          |                                                                             |
 
 ## Mathematical Functions
 
@@ -237,7 +237,7 @@
 | atanh             | Atanh                  | S        |                |
 | bin               | Bin                    | S        |                |
 | bround            | BRound                 |          |                |
-| cbrt              | Cbrt                   |          |                |
+| cbrt              | Cbrt                   | S        |                |
 | ceil              | CeilExpressionBuilder  | PS       |                |
 | ceiling           | CeilExpressionBuilder  | PS       |                |
 | conv              | Conv                   | S        |                |
@@ -246,11 +246,11 @@
 | cot               | Cot                    | S        |                |
 | csc               | Csc                    | S        |                |
 | degrees           | ToDegrees              | S        |                |
-| div               | IntegralDivide         |          |                |
+| div               | IntegralDivide         | S        |                |
 | e                 | EulerNumber            | S        |                |
 | exp               | Exp                    | S        |                |
 | expm1             | Expm1                  | S        |                |
-| factorial         | Factorial              |          |                |
+| factorial         | Factorial              | S        |                |
 | floor             | FloorExpressionBuilder | PS       |                |
 | greatest          | Greatest               | S        |                |
 | hex               | Hex                    | S        |                |
@@ -280,7 +280,7 @@
 | signum            | Signum                 | S        |                |
 | sin               | Sin                    |          |                |
 | sinh              | Sinh                   | S        |                |
-| sqrt              | Sqrt                   |          |                |
+| sqrt              | Sqrt                   | S        |                |
 | tan               | Tan                    |          |                |
 | tanh              | Tanh                   |          |                |
 | try_add           | TryAdd                 | PS       |                |
@@ -352,73 +352,73 @@
 
 ## String Functions
 
-| Spark Functions    | Spark Expressions           | Status   | Restrictions           |
-|--------------------|-----------------------------|----------|------------------------|
-| ascii              | Ascii                       | S        |                        |
-| base64             | Base64                      | S        |                        |
-| bit_length         | BitLength                   | S        |                        |
-| btrim              | StringTrimBoth              | S        |                        |
-| char               | Chr                         | S        |                        |
-| char_length        | Length                      | S        |                        |
-| character_length   | Length                      | S        |                        |
-| chr                | Chr                         | S        |                        |
-| concat_ws          | ConcatWs                    | S        |                        |
-| contains           | ContainsExpressionBuilder   | PS       | BinaryType unsupported |
-| decode             | Decode                      |          |                        |
-| elt                | Elt                         |          |                        |
-| encode             | Encode                      |          |                        |
-| endswith           | EndsWithExpressionBuilder   | PS       | BinaryType unsupported |
-| find_in_set        | FindInSet                   | S        |                        |
-| format_number      | FormatNumber                |          |                        |
-| format_string      | FormatString                |          |                        |
-| initcap            | InitCap                     |          |                        |
-| instr              | StringInstr                 | S        |                        |
-| lcase              | Lower                       | S        |                        |
-| left               | Left                        | S        |                        |
-| len                | Length                      | S        |                        |
-| length             | Length                      | S        |                        |
-| levenshtein        | Levenshtein                 | S        |                        |
-| locate             | StringLocate                | S        |                        |
-| lower              | Lower                       | S        |                        |
-| lpad               | LPadExpressionBuilder       | PS       | BinaryType unsupported |
-| ltrim              | StringTrimLeft              | S        |                        |
-| luhn_check         | Luhncheck                   |          |                        |
-| mask               | MaskExpressionBuilder       | S        |                        |
-| octet_length       | OctetLength                 |          |                        |
-| overlay            | Overlay                     | S        |                        |
-| position           | StringLocate                | S        |                        |
-| printf             | FormatString                |          |                        |
-| regexp_count       | RegExpCount                 |          |                        |
-| regexp_extract     | RegExpExtract               | PS       | Lookaround unsupported |
-| regexp_extract_all | RegExpExtractAll            | PS       | Lookaround unsupported |
-| regexp_instr       | RegExpInStr                 |          |                        |
-| regexp_replace     | RegExpReplace               | PS       | Lookaround unsupported |
-| regexp_substr      | RegExpSubStr                |          |                        |
-| repeat             | StringRepeat                | S        |                        |
-| replace            | StringReplace               | S        |                        |
-| right              | Right                       | S        |                        |
-| rpad               | RPadExpressionBuilder       | PS       | BinaryType unsupported |
-| rtrim              | StringTrimRight             | S        |                        |
-| sentences          | Sentences                   |          |                        |
-| soundex            | SoundEx                     | S        |                        |
-| space              | StringSpace                 |          |                        |
-| split              | StringSplit                 | S        |                        |
-| split_part         | SplitPart                   | S        |                        |
-| startswith         | StartsWithExpressionBuilder | PS       | BinaryType unsupported |
-| substr             | Substring                   | PS       |                        |
-| substring          | Substring                   | PS       |                        |
-| substring_index    | SubstringIndex              | S        |                        |
-| to_binary          | ToBinary                    |          |                        |
-| to_char            | ToCharacter                 |          |                        |
-| to_number          | ToNumber                    |          |                        |
-| to_varchar         | ToCharacter                 |          |                        |
-| translate          | StringTranslate             | S        |                        |
-| trim               | StringTrim                  | S        |                        |
-| try_to_binary      | TryToBinary                 |          |                        |
-| try_to_number      | TryToNumber                 |          |                        |
-| ucase              | Upper                       | S        |                        |
-| unbase64           | UnBase64                    |          |                        |
-| upper              | Upper                       | S        |                        |
+| Spark Functions    | Spark Expressions           | Status   | Restrictions                                            |
+|--------------------|-----------------------------|----------|---------------------------------------------------------|
+| ascii              | Ascii                       | S        |                                                         |
+| base64             | Base64                      | PS       | base64 with chunkBase64String disabled is not supported |
+| bit_length         | BitLength                   | S        |                                                         |
+| btrim              | StringTrimBoth              | S        |                                                         |
+| char               | Chr                         | S        |                                                         |
+| char_length        | Length                      | S        |                                                         |
+| character_length   | Length                      | S        |                                                         |
+| chr                | Chr                         | S        |                                                         |
+| concat_ws          | ConcatWs                    | S        |                                                         |
+| contains           | ContainsExpressionBuilder   | PS       | BinaryType unsupported                                  |
+| decode             | Decode                      |          |                                                         |
+| elt                | Elt                         |          |                                                         |
+| encode             | Encode                      |          |                                                         |
+| endswith           | EndsWithExpressionBuilder   | PS       | BinaryType unsupported                                  |
+| find_in_set        | FindInSet                   | S        |                                                         |
+| format_number      | FormatNumber                |          |                                                         |
+| format_string      | FormatString                |          |                                                         |
+| initcap            | InitCap                     | S        |                                                         |
+| instr              | StringInstr                 | S        |                                                         |
+| lcase              | Lower                       | S        |                                                         |
+| left               | Left                        | S        |                                                         |
+| len                | Length                      | S        |                                                         |
+| length             | Length                      | S        |                                                         |
+| levenshtein        | Levenshtein                 | S        |                                                         |
+| locate             | StringLocate                | S        |                                                         |
+| lower              | Lower                       | S        |                                                         |
+| lpad               | LPadExpressionBuilder       | PS       | BinaryType unsupported                                  |
+| ltrim              | StringTrimLeft              | S        |                                                         |
+| luhn_check         | Luhncheck                   | S        |                                                         |
+| mask               | MaskExpressionBuilder       | S        |                                                         |
+| octet_length       | OctetLength                 |          |                                                         |
+| overlay            | Overlay                     | S        |                                                         |
+| position           | StringLocate                | S        |                                                         |
+| printf             | FormatString                |          |                                                         |
+| regexp_count       | RegExpCount                 |          |                                                         |
+| regexp_extract     | RegExpExtract               | PS       | Lookaround unsupported                                  |
+| regexp_extract_all | RegExpExtractAll            | PS       | Lookaround unsupported                                  |
+| regexp_instr       | RegExpInStr                 |          |                                                         |
+| regexp_replace     | RegExpReplace               | PS       | Lookaround unsupported                                  |
+| regexp_substr      | RegExpSubStr                |          |                                                         |
+| repeat             | StringRepeat                | S        |                                                         |
+| replace            | StringReplace               | S        |                                                         |
+| right              | Right                       | S        |                                                         |
+| rpad               | RPadExpressionBuilder       | PS       | BinaryType unsupported                                  |
+| rtrim              | StringTrimRight             | S        |                                                         |
+| sentences          | Sentences                   |          |                                                         |
+| soundex            | SoundEx                     | S        |                                                         |
+| space              | StringSpace                 |          |                                                         |
+| split              | StringSplit                 | S        |                                                         |
+| split_part         | SplitPart                   | S        |                                                         |
+| startswith         | StartsWithExpressionBuilder | PS       | BinaryType unsupported                                  |
+| substr             | Substring                   | PS       |                                                         |
+| substring          | Substring                   | PS       |                                                         |
+| substring_index    | SubstringIndex              | S        |                                                         |
+| to_binary          | ToBinary                    |          |                                                         |
+| to_char            | ToCharacter                 |          |                                                         |
+| to_number          | ToNumber                    |          |                                                         |
+| to_varchar         | ToCharacter                 |          |                                                         |
+| translate          | StringTranslate             | S        |                                                         |
+| trim               | StringTrim                  | S        |                                                         |
+| try_to_binary      | TryToBinary                 |          |                                                         |
+| try_to_number      | TryToNumber                 |          |                                                         |
+| ucase              | Upper                       | S        |                                                         |
+| unbase64           | UnBase64                    | PS       | unbase64 with failOnError is not supported              |
+| upper              | Upper                       | S        |                                                         |
 
 ## Struct Functions
 

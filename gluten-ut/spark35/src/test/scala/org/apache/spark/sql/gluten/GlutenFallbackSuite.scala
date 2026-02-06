@@ -38,7 +38,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
   override def sparkConf: SparkConf = {
     super.sparkConf
       .set(GlutenConfig.RAS_ENABLED.key, "false")
-      .set("spark.gluten.ui.enabled", "true")
+      .set(GlutenConfig.GLUTEN_UI_ENABLED.key, "true")
       // The gluten ui event test suite expects the spark ui to be enable
       .set(UI_ENABLED, true)
   }
@@ -121,7 +121,10 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
       val id = runExecution("SELECT * FROM t1 FULL OUTER JOIN t2")
       val execution = glutenStore.execution(id)
       if (BackendTestUtils.isVeloxBackendLoaded()) {
-        assert(execution.get.numFallbackNodes == 0)
+        assert(execution.get.numFallbackNodes == 1)
+        assert(
+          execution.get.fallbackNodeToReason.head._2
+            .contains("FullOuter join is not supported with BroadcastNestedLoopJoin"))
       } else {
         assert(execution.get.numFallbackNodes == 2)
       }

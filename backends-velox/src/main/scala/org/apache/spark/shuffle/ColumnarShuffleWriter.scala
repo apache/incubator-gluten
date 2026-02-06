@@ -18,15 +18,14 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.ReservedKeys
-import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.config.{GlutenConfig, GpuHashShuffleWriterType, HashShuffleWriterType, SortShuffleWriterType}
+import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_DISK_WRITE_BUFFER_SIZE, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
+import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_DISK_WRITE_BUFFER_SIZE, SHUFFLE_FILE_BUFFER_SIZE, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -38,12 +37,24 @@ class ColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
     handle: BaseShuffleHandle[K, V, V],
     mapId: Long,
-    writeMetrics: ShuffleWriteMetricsReporter,
-    isSort: Boolean)
+    writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
   with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
+
+  dep.shuffleWriterType match {
+    case HashShuffleWriterType | SortShuffleWriterType | GpuHashShuffleWriterType =>
+    // Valid shuffle writer types
+    case _ =>
+      throw new IllegalArgumentException(
+        s"Unsupported shuffle writer type: ${dep.shuffleWriterType.name}, " +
+          s"expected one of: ${HashShuffleWriterType.name}, ${SortShuffleWriterType.name}")
+  }
+
+  protected val isSort: Boolean = dep.shuffleWriterType == SortShuffleWriterType
+
+  private val numPartitions: Int = dep.partitioner.numPartitions
 
   private val conf = SparkEnv.get.conf
 
@@ -76,19 +87,12 @@ class ColumnarShuffleWriter[K, V](
     }
   }
 
-  private val nativeMergeBufferSize = GlutenConfig.get.maxBatchSize
-
-  private val nativeMergeThreshold = GlutenConfig.get.columnarShuffleMergeThreshold
-
   private val compressionCodec: Option[String] =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
       Some(GlutenShuffleUtils.getCompressionCodec(conf))
     } else {
       None
     }
-
-  private val compressionCodecBackend: Option[String] =
-    GlutenConfig.get.columnarShuffleCodecBackend
 
   private val compressionLevel = {
     compressionCodec
@@ -102,14 +106,13 @@ class ColumnarShuffleWriter[K, V](
       .getOrElse(0)
   }
 
-  private val bufferCompressThreshold =
-    GlutenConfig.get.columnarShuffleCompressionThreshold
-
   private val reallocThreshold = GlutenConfig.get.columnarShuffleReallocThreshold
 
   private val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleWriter")
 
-  private val jniWrapper = ShuffleWriterJniWrapper.create(runtime)
+  private val partitionWriterJniWrapper = LocalPartitionWriterJniWrapper.create(runtime)
+
+  private val shuffleWriterJniWrapper = ShuffleWriterJniWrapper.create(runtime)
 
   private var nativeShuffleWriter: Long = -1L
 
@@ -118,9 +121,6 @@ class ColumnarShuffleWriter[K, V](
   private var partitionLengths: Array[Long] = _
 
   private val taskContext: TaskContext = TaskContext.get()
-
-  private val shuffleWriterType: String =
-    if (isSort) ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER else ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
 
   private def availableOffHeapPerTask(): Long = {
     val perTask =
@@ -135,61 +135,94 @@ class ColumnarShuffleWriter[K, V](
       return
     }
 
-    val dataTmp = Utils.tempFileWith(shuffleBlockResolver.getDataFile(dep.shuffleId, mapId))
+    val tempDataFile = Utils.tempFileWith(shuffleBlockResolver.getDataFile(dep.shuffleId, mapId))
 
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        val rows = cb.numRows()
-        val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
         if (nativeShuffleWriter == -1L) {
-          nativeShuffleWriter = jniWrapper.make(
-            dep.nativePartitioning.getShortName,
-            dep.nativePartitioning.getNumPartitions,
-            nativeBufferSize,
-            nativeMergeBufferSize,
-            nativeMergeThreshold,
+          val partitionWriterHandle = partitionWriterJniWrapper.createPartitionWriter(
+            numPartitions,
             compressionCodec.orNull,
-            compressionCodecBackend.orNull,
+            GlutenConfig.get.columnarShuffleCodecBackend.orNull,
             compressionLevel,
             compressionBufferSize,
-            conf.get(SHUFFLE_DISK_WRITE_BUFFER_SIZE).toInt,
-            bufferCompressThreshold,
-            GlutenConfig.get.columnarShuffleCompressionMode,
-            conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
-            conf.get(SHUFFLE_SORT_USE_RADIXSORT),
-            dataTmp.getAbsolutePath,
+            GlutenConfig.get.columnarShuffleCompressionThreshold,
+            nativeBufferSize,
+            GlutenConfig.get.columnarShuffleMergeThreshold,
             blockManager.subDirsPerLocalDir,
+            conf.get(SHUFFLE_FILE_BUFFER_SIZE).toInt,
+            tempDataFile.getAbsolutePath,
             localDirs,
-            reallocThreshold,
-            handle,
-            taskContext.taskAttemptId(),
-            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId),
-            shuffleWriterType
+            GlutenConfig.get.columnarShuffleEnableDictionary
           )
+
+          nativeShuffleWriter = if (isSort) {
+            shuffleWriterJniWrapper.createSortShuffleWriter(
+              numPartitions,
+              dep.nativePartitioning.getShortName,
+              GlutenShuffleUtils.getStartPartitionId(
+                dep.nativePartitioning,
+                taskContext.partitionId),
+              conf.get(SHUFFLE_DISK_WRITE_BUFFER_SIZE).toInt,
+              conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
+              conf.get(SHUFFLE_SORT_USE_RADIXSORT),
+              partitionWriterHandle
+            )
+          } else if (dep.shuffleWriterType == GpuHashShuffleWriterType) {
+            shuffleWriterJniWrapper.createGpuHashShuffleWriter(
+              numPartitions,
+              dep.nativePartitioning.getShortName,
+              GlutenShuffleUtils.getStartPartitionId(
+                dep.nativePartitioning,
+                taskContext.partitionId),
+              nativeBufferSize,
+              reallocThreshold,
+              partitionWriterHandle
+            )
+          } else {
+            shuffleWriterJniWrapper.createHashShuffleWriter(
+              numPartitions,
+              dep.nativePartitioning.getShortName,
+              GlutenShuffleUtils.getStartPartitionId(
+                dep.nativePartitioning,
+                taskContext.partitionId),
+              nativeBufferSize,
+              reallocThreshold,
+              partitionWriterHandle
+            )
+          }
+
           runtime
             .memoryManager()
             .addSpiller(new Spiller() {
-              override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-                if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-                  return 0L
+              override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long =
+                phase match {
+                  case Spiller.Phase.SPILL =>
+                    logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+                    val spilled = shuffleWriterJniWrapper.reclaim(nativeShuffleWriter, size)
+                    logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+                    spilled
+                  case _ => 0L
                 }
-                logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-                // fixme pass true when being called by self
-                val spilled =
-                  jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
-                logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-                spilled
-              }
             })
         }
+
+        val rows = cb.numRows()
+        val columnarBatchHandle =
+          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
         val startTime = System.nanoTime()
-        jniWrapper.write(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
+        val bytesWritten = shuffleWriterJniWrapper.write(
+          nativeShuffleWriter,
+          rows,
+          columnarBatchHandle,
+          availableOffHeapPerTask())
         dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
+        writeMetrics.incBytesWritten(bytesWritten)
         // This metric is important, AQE use it to decide if EliminateLimit
         writeMetrics.incRecordsWritten(rows)
       }
@@ -203,7 +236,7 @@ class ColumnarShuffleWriter[K, V](
 
     val startTime = System.nanoTime()
     assert(nativeShuffleWriter != -1L)
-    splitResult = jniWrapper.stop(nativeShuffleWriter)
+    splitResult = shuffleWriterJniWrapper.stop(nativeShuffleWriter)
     closeShuffleWriter()
     dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
     if (!isSort) {
@@ -213,6 +246,8 @@ class ColumnarShuffleWriter[K, V](
           dep.metrics("shuffleWallTime").value - splitResult.getTotalSpillTime -
             splitResult.getTotalWriteTime -
             splitResult.getTotalCompressTime)
+      dep.metrics("avgDictionaryFields").set(splitResult.getAvgDictionaryFields)
+      dep.metrics("dictionarySize").add(splitResult.getDictionarySize)
     } else {
       dep.metrics("sortTime").add(splitResult.getSortTime)
       dep.metrics("c2rTime").add(splitResult.getC2RTime)
@@ -222,7 +257,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("peakBytes").add(splitResult.getPeakBytes)
-    writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
+    writeMetrics.incBytesWritten(splitResult.getBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
     taskContext.taskMetrics().incMemoryBytesSpilled(splitResult.getBytesToEvict)
     taskContext.taskMetrics().incDiskBytesSpilled(splitResult.getTotalBytesSpilled)
@@ -234,10 +269,10 @@ class ColumnarShuffleWriter[K, V](
         mapId,
         partitionLengths,
         Array[Long](),
-        dataTmp)
+        tempDataFile)
     } finally {
-      if (dataTmp.exists() && !dataTmp.delete()) {
-        logError(s"Error while deleting temp file ${dataTmp.getAbsolutePath}")
+      if (tempDataFile.exists() && !tempDataFile.delete()) {
+        logError(s"Error while deleting temp file ${tempDataFile.getAbsolutePath}")
       }
     }
 
@@ -268,7 +303,7 @@ class ColumnarShuffleWriter[K, V](
     if (nativeShuffleWriter == -1L) {
       return
     }
-    jniWrapper.close(nativeShuffleWriter)
+    shuffleWriterJniWrapper.close(nativeShuffleWriter)
     nativeShuffleWriter = -1L
   }
 

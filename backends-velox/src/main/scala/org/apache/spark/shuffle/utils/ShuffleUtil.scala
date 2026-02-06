@@ -16,7 +16,8 @@
  */
 package org.apache.spark.shuffle.utils
 
-import org.apache.spark.shuffle.{ColumnarShuffleWriter, GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle._
+import org.apache.spark.shuffle.sort.{ColumnarShuffleHandle, ColumnarShuffleManager}
 
 object ShuffleUtil {
 
@@ -27,7 +28,29 @@ object ShuffleUtil {
         parameters.shuffleBlockResolver,
         parameters.columnarShuffleHandle,
         parameters.mapId,
-        parameters.metrics,
-        parameters.isSort))
+        parameters.metrics))
+  }
+
+  def genColumnarShuffleReader[K, C](
+      parameters: GenShuffleReaderParameters[K, C]): GlutenShuffleReaderWrapper[K, C] = {
+    val reader = if (parameters.handle.isInstanceOf[ColumnarShuffleHandle[_, _]]) {
+      new ColumnarShuffleReader[K, C](
+        parameters.handle,
+        parameters.blocksByAddress,
+        parameters.context,
+        parameters.readMetrics,
+        ColumnarShuffleManager.bypassDecompressionSerializerManger,
+        shouldBatchFetch = parameters.shouldBatchFetch
+      )
+    } else {
+      new BlockStoreShuffleReader(
+        parameters.handle,
+        parameters.blocksByAddress,
+        parameters.context,
+        parameters.readMetrics,
+        shouldBatchFetch = parameters.shouldBatchFetch
+      )
+    }
+    GlutenShuffleReaderWrapper(reader)
   }
 }

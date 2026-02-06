@@ -16,16 +16,20 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.ColumnarPartialProjectExec
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.execution.{ColumnarPartialGenerateExec, ColumnarPartialProjectExec, GlutenQueryComparisonTest}
 import org.apache.gluten.expression.UDFMappings
-import org.apache.gluten.udf.CustomerUDF
+import org.apache.gluten.udf.{CustomerUDF, DuplicateArray}
+import org.apache.gluten.udtf.{ConditionalOutputUDTF, CustomerUDTF, NoInputUDTF, SimpleUDTF}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.UI.UI_ENABLED
-import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.classic.ClassicTypes._
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.test.SQLTestUtils
@@ -35,13 +39,14 @@ import java.io.File
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
+class GlutenHiveUDFSuite extends GlutenQueryComparisonTest with SQLTestUtils {
   private var _spark: SparkSession = _
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
 
     if (_spark == null) {
+      // By default, the classic SparkSession is constructed.
       _spark = SparkSession.builder().config(sparkConf).enableHiveSupport().getOrCreate()
     }
 
@@ -54,7 +59,7 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
     super.afterAll()
   }
 
-  override protected def spark: SparkSession = _spark
+  override protected def spark: ClassicSparkSession = _spark.asInstanceOf[ClassicSparkSession]
 
   protected def defaultSparkConf: SparkConf = {
     val conf = new SparkConf()
@@ -89,7 +94,7 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
-      .set("spark.gluten.sql.native.writer.enabled", "true")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
   }
 
   private def withTempFunction(funcName: String)(f: => Unit): Unit = {
@@ -116,6 +121,76 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
       val df = sql("select l_partkey, testUDF(l_comment) from lineitem")
       df.show()
       checkOperatorMatch[ColumnarPartialProjectExec](df)
+    }
+  }
+
+  test("customer udtf") {
+    withTempFunction("testUDTF") {
+      sql(s"CREATE TEMPORARY FUNCTION testUDTF AS '${classOf[CustomerUDTF].getName}';")
+      runQueryAndCompare(
+        "select l_partkey, col0, col1 from lineitem lateral view" +
+          " testUDTF(l_partkey, l_comment) as col0, col1") {
+        checkOperatorMatch[ColumnarPartialGenerateExec]
+      }
+    }
+  }
+
+  test("simple udtf") {
+    withTempFunction("simpleUDTF") {
+      sql(s"CREATE TEMPORARY FUNCTION simpleUDTF AS '${classOf[SimpleUDTF].getName}'")
+      runQueryAndCompare(
+        "select l_partkey, col0 from lineitem lateral view" +
+          " simpleUDTF(l_orderkey) as col0") {
+        checkOperatorMatch[ColumnarPartialGenerateExec]
+      }
+    }
+  }
+
+  test("no argument udtf") {
+    withTempFunction("noInputUDTF") {
+      sql(s"CREATE TEMPORARY FUNCTION noInputUDTF AS '${classOf[NoInputUDTF].getName}'")
+      runQueryAndCompare(
+        "select l_partkey, col0 from lineitem lateral view" +
+          " noInputUDTF() as col0") {
+        checkOperatorMatch[ColumnarPartialGenerateExec]
+      }
+    }
+  }
+
+  test("lateral view outer udtf") {
+    withTempFunction("conditionalOutputUDTF") {
+      sql(
+        s"CREATE TEMPORARY FUNCTION conditionalOutputUDTF" +
+          s" AS '${classOf[ConditionalOutputUDTF].getName}'")
+      runQueryAndCompare(
+        "select l_partkey, col0 from lineitem lateral view outer" +
+          " conditionalOutputUDTF(l_orderkey) as col0") {
+        checkOperatorMatch[ColumnarPartialGenerateExec]
+      }
+    }
+  }
+
+  test("child of GenerateExec is not offloadable") {
+    withTempFunction("testUDTF") {
+      val plusOne = udf((x: Long) => x + 1)
+      spark.udf.register("plus_one", plusOne)
+      withSQLConf(
+        GlutenConfig.ENABLE_COLUMNAR_PARTIAL_PROJECT.key -> "false"
+      ) {
+        sql(s"CREATE TEMPORARY FUNCTION testUDTF AS '${classOf[CustomerUDTF].getName}'")
+        runQueryAndCompare(
+          "select col0, col1 from (select plus_one(l_partkey) as " +
+            "l_partkey, l_comment from lineitem) lateral view" +
+            " testUDTF(l_partkey, l_comment) as col0, col1",
+          noFallBack = false
+        ) {
+          df =>
+            assert(
+              df.queryExecution.executedPlan
+                .find(_.isInstanceOf[ColumnarPartialGenerateExec])
+                .isEmpty)
+        }
+      }
     }
   }
 
@@ -226,7 +301,7 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
                                     |FROM lineitem WHERE l_partkey <= 5 and l_orderkey <1000
                                     |""".stripMargin)
               val executedPlan = getExecutedPlan(df)
-              checkGlutenOperatorMatch[ColumnarPartialProjectExec](df)
+              checkGlutenPlan[ColumnarPartialProjectExec](df)
               val partialProject = executedPlan
                 .filter {
                   _ match {
@@ -248,6 +323,59 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
               }
           }
         }
+      }
+    }
+  }
+
+  test("udf with map with null values") {
+    withTempFunction("udf_map_values") {
+      sql("""
+            |CREATE TEMPORARY FUNCTION udf_map_values AS
+            |'org.apache.hadoop.hive.ql.udf.generic.GenericUDFMapValues';
+            |""".stripMargin)
+
+      runQueryAndCompare("""
+                           |SELECT
+                           |  l_partkey,
+                           |  udf_map_values(map_data)
+                           |FROM (
+                           | SELECT l_partkey,
+                           | map(
+                           |   concat('hello', l_orderkey % 2),
+                           |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END,
+                           |   concat('world', l_orderkey % 2),
+                           |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END
+                           | ) as map_data
+                           | FROM lineitem
+                           |)
+                           |""".stripMargin) {
+        checkOperatorMatch[ColumnarPartialProjectExec]
+      }
+    }
+  }
+
+  test("udf with array with null values") {
+    withTempFunction("udf_array_distinct") {
+      sql(s"""
+             |CREATE TEMPORARY FUNCTION udf_array_distinct AS '${classOf[DuplicateArray].getName}'
+             |""".stripMargin)
+
+      runQueryAndCompare("""
+                           |SELECT
+                           |  l_partkey,
+                           |  udf_array_distinct(map_data)
+                           |FROM (
+                           | SELECT l_partkey,
+                           | array(
+                           |   l_orderkey % 2,
+                           |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END,
+                           |   l_orderkey % 2,
+                           |   CASE WHEN l_orderkey % 2 == 0 THEN l_orderkey ELSE null END
+                           | ) as map_data
+                           | FROM lineitem
+                           |)
+                           |""".stripMargin) {
+        checkOperatorMatch[ColumnarPartialProjectExec]
       }
     }
   }

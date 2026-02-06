@@ -31,14 +31,15 @@
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
 #include "operators/reader/FileReaderIterator.h"
-#include "operators/writer/VeloxArrowWriter.h"
+#include "operators/writer/VeloxColumnarBatchWriter.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
+#include "tests/utils/LocalRssClient.h"
+#include "tests/utils/TestAllocationListener.h"
+#include "tests/utils/TestStreamReader.h"
 #include "utils/Exception.h"
-#include "utils/LocalRssClient.h"
 #include "utils/StringUtil.h"
-#include "utils/TestAllocationListener.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/exec/PlanNodeStats.h"
@@ -58,11 +59,9 @@ DEFINE_string(
     "rr",
     "Short partitioning name. Valid options are rr, hash, range, single, random (only for test purpose)");
 DEFINE_bool(rss, false, "Mocking rss.");
-DEFINE_string(
-    compression,
-    "lz4",
-    "Specify the compression codec. Valid options are lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
+DEFINE_string(compression, "lz4", "Specify the compression codec. Valid options are none, lz4, zstd");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
+DEFINE_bool(shuffle_dictionary, false, "Whether to enable dictionary encoding for shuffle write.");
 
 DEFINE_string(plan, "", "Path to input json file of the substrait plan.");
 DEFINE_string(
@@ -163,69 +162,84 @@ void cleanupLocalDirs(const std::vector<std::string>& localDirs) {
   }
 }
 
-PartitionWriterOptions createPartitionWriterOptions() {
-  PartitionWriterOptions partitionWriterOptions{};
-  // Disable writer's merge.
-  partitionWriterOptions.mergeThreshold = 0;
-
-  // Configure compression.
-  if (FLAGS_compression == "lz4") {
-    partitionWriterOptions.codecBackend = CodecBackend::NONE;
-    partitionWriterOptions.compressionType = arrow::Compression::LZ4_FRAME;
+void setCompressionTypeFromFlag(arrow::Compression::type& compressionType, CodecBackend& codecBackend) {
+  codecBackend = CodecBackend::NONE;
+  if (FLAGS_compression == "none") {
+    compressionType = arrow::Compression::UNCOMPRESSED;
+  } else if (FLAGS_compression == "lz4") {
+    compressionType = arrow::Compression::LZ4_FRAME;
   } else if (FLAGS_compression == "zstd") {
-    partitionWriterOptions.codecBackend = CodecBackend::NONE;
-    partitionWriterOptions.compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "qat_gzip") {
-    partitionWriterOptions.codecBackend = CodecBackend::QAT;
-    partitionWriterOptions.compressionType = arrow::Compression::GZIP;
-  } else if (FLAGS_compression == "qat_zstd") {
-    partitionWriterOptions.codecBackend = CodecBackend::QAT;
-    partitionWriterOptions.compressionType = arrow::Compression::ZSTD;
-  } else if (FLAGS_compression == "iaa_gzip") {
-    partitionWriterOptions.codecBackend = CodecBackend::IAA;
-    partitionWriterOptions.compressionType = arrow::Compression::GZIP;
+    compressionType = arrow::Compression::ZSTD;
+  } else {
+    throw GlutenException("Unrecognized compression type: " + FLAGS_compression);
   }
-  return partitionWriterOptions;
 }
 
-std::unique_ptr<PartitionWriter> createPartitionWriter(
-    Runtime* runtime,
-    PartitionWriterOptions options,
-    const std::string& dataFile,
-    const std::vector<std::string>& localDirs) {
+std::unique_ptr<arrow::util::Codec> createCodec() {
+  // Configure compression.
+  if (FLAGS_compression == "none") {
+    return nullptr;
+  }
+
+  arrow::Compression::type compressionType;
+  CodecBackend codecBackend;
+
+  setCompressionTypeFromFlag(compressionType, codecBackend);
+
+  return createCompressionCodec(compressionType, codecBackend);
+}
+
+std::shared_ptr<PartitionWriter>
+createPartitionWriter(Runtime* runtime, const std::string& dataFile, const std::vector<std::string>& localDirs) {
   std::unique_ptr<PartitionWriter> partitionWriter;
   if (FLAGS_rss) {
+    auto options = std::make_shared<RssPartitionWriterOptions>();
     auto rssClient = std::make_unique<LocalRssClient>(dataFile);
-    partitionWriter = std::make_unique<RssPartitionWriter>(
-        FLAGS_shuffle_partitions,
-        std::move(options),
-        runtime->memoryManager()->getArrowMemoryPool(),
-        std::move(rssClient));
-  } else {
-    partitionWriter = std::make_unique<LocalPartitionWriter>(
-        FLAGS_shuffle_partitions,
-        std::move(options),
-        runtime->memoryManager()->getArrowMemoryPool(),
-        dataFile,
-        localDirs);
+    return std::make_shared<RssPartitionWriter>(
+        FLAGS_shuffle_partitions, createCodec(), runtime->memoryManager(), options, std::move(rssClient));
   }
-  return partitionWriter;
+
+  auto options = std::make_shared<LocalPartitionWriterOptions>();
+  options->enableDictionary = FLAGS_shuffle_dictionary;
+  return std::make_unique<LocalPartitionWriter>(
+      FLAGS_shuffle_partitions, createCodec(), runtime->memoryManager(), options, dataFile, localDirs);
+}
+
+std::shared_ptr<ShuffleWriterOptions> createShuffleWriterOptions() {
+  std::shared_ptr<ShuffleWriterOptions> options;
+
+  switch (ShuffleWriter::stringToType(FLAGS_shuffle_writer)) {
+    case ShuffleWriterType::kHashShuffle:
+      options = std::make_shared<HashShuffleWriterOptions>();
+      break;
+    case ShuffleWriterType::kSortShuffle:
+      options = std::make_shared<SortShuffleWriterOptions>();
+      break;
+    case ShuffleWriterType::kRssSortShuffle:
+      options = std::make_shared<RssSortShuffleWriterOptions>();
+      break;
+    default:
+      throw GlutenException("Unsupported shuffle writer type: " + FLAGS_shuffle_writer);
+  }
+
+  options->partitioning = toPartitioning(FLAGS_partitioning);
+  return options;
 }
 
 std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
     Runtime* runtime,
-    std::unique_ptr<PartitionWriter> partitionWriter) {
-  auto options = ShuffleWriterOptions{};
-  options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
-  if (FLAGS_rss || FLAGS_shuffle_writer == "rss_sort") {
-    options.shuffleWriterType = gluten::ShuffleWriterType::kRssSortShuffle;
-  } else if (FLAGS_shuffle_writer == "sort") {
-    options.shuffleWriterType = gluten::ShuffleWriterType::kSortShuffle;
-  }
+    std::shared_ptr<PartitionWriter> partitionWriter) {
+  auto shuffleWriterOptions = createShuffleWriterOptions();
   auto shuffleWriter =
-      runtime->createShuffleWriter(FLAGS_shuffle_partitions, std::move(partitionWriter), std::move(options));
+      runtime->createShuffleWriter(FLAGS_shuffle_partitions, std::move(partitionWriter), shuffleWriterOptions);
+  return std::dynamic_pointer_cast<VeloxShuffleWriter>(shuffleWriter);
+}
 
-  return std::reinterpret_pointer_cast<VeloxShuffleWriter>(shuffleWriter);
+std::shared_ptr<ShuffleReader> createShuffleReader(Runtime* runtime, const std::shared_ptr<arrow::Schema>& schema) {
+  auto readerOptions = ShuffleReaderOptions{};
+  readerOptions.shuffleWriterType = ShuffleWriter::stringToType(FLAGS_shuffle_writer),
+  setCompressionTypeFromFlag(readerOptions.compressionType, readerOptions.codecBackend);
+  return runtime->createShuffleReader(schema, readerOptions);
 }
 
 void populateWriterMetrics(
@@ -241,7 +255,7 @@ void populateWriterMetrics(
   }
   metrics.dataSize +=
       std::accumulate(shuffleWriter->rawPartitionLengths().begin(), shuffleWriter->rawPartitionLengths().end(), 0LL);
-  metrics.bytesWritten += shuffleWriter->totalBytesWritten();
+  metrics.bytesWritten += shuffleWriter->bytesWritten();
   metrics.bytesSpilled += shuffleWriter->totalBytesEvicted();
 }
 
@@ -266,8 +280,7 @@ void runShuffle(
     const std::string& dataFileDir) {
   GLUTEN_ASSIGN_OR_THROW(auto dataFile, gluten::createTempShuffleFile(dataFileDir));
 
-  auto partitionWriterOptions = createPartitionWriterOptions();
-  auto partitionWriter = createPartitionWriter(runtime, partitionWriterOptions, dataFile, localDirs);
+  auto partitionWriter = createPartitionWriter(runtime, dataFile, localDirs);
   auto shuffleWriter = createShuffleWriter(runtime, std::move(partitionWriter));
   listener->setShuffleWriter(shuffleWriter.get());
 
@@ -287,19 +300,14 @@ void runShuffle(
 
   populateWriterMetrics(shuffleWriter, totalTime, writerMetrics);
 
-  if (readAfterWrite && cSchema) {
-    auto readerOptions = ShuffleReaderOptions{};
-    readerOptions.shuffleWriterType = shuffleWriter->options().shuffleWriterType;
-    readerOptions.compressionType = partitionWriterOptions.compressionType;
-    readerOptions.codecBackend = partitionWriterOptions.codecBackend;
-
-    std::shared_ptr<arrow::Schema> schema =
-        gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema.get())));
-    auto reader = runtime->createShuffleReader(schema, readerOptions);
+  if (readAfterWrite && cSchema != nullptr) {
+    const auto schema = arrowGetOrThrow(arrow::ImportSchema(cSchema.get()));
+    const auto reader = createShuffleReader(runtime, schema);
 
     GLUTEN_ASSIGN_OR_THROW(auto in, arrow::io::ReadableFile::Open(dataFile));
+    auto streamReader = std::make_shared<TestStreamReader>(std::move(in));
     // Read all partitions.
-    auto iter = reader->readStream(in);
+    auto iter = reader->read(streamReader);
     while (iter->hasNext()) {
       // Read and discard.
       auto cb = iter->next();
@@ -368,9 +376,6 @@ void setQueryTraceConfig(std::unordered_map<std::string, std::string>& configs) 
   if (FLAGS_query_trace_max_bytes) {
     configs[kQueryTraceMaxBytes] = std::to_string(FLAGS_query_trace_max_bytes);
   }
-  if (FLAGS_query_trace_node_ids != "") {
-    configs[kQueryTraceNodeIds] = FLAGS_query_trace_node_ids;
-  }
   if (FLAGS_query_trace_task_reg_exp != "") {
     configs[kQueryTraceTaskRegExp] = FLAGS_query_trace_task_reg_exp;
   }
@@ -397,6 +402,7 @@ auto BM_Generic = [](::benchmark::State& state,
 
   auto plan = getPlanFromFile("Plan", planFile);
   std::vector<std::string> splits{};
+  splits.reserve(splitFiles.size());
   for (const auto& splitFile : splitFiles) {
     splits.push_back(getPlanFromFile("ReadRel.LocalFiles", splitFile));
   }
@@ -423,11 +429,12 @@ auto BM_Generic = [](::benchmark::State& state,
     ScopedTimer timer(&elapsedTime);
     for (auto _ : state) {
       std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
+      inputIters.reserve(dataFiles.size());
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
           inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
-              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get()));
+              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
         }
         std::transform(
             inputIters.begin(),
@@ -438,13 +445,14 @@ auto BM_Generic = [](::benchmark::State& state,
             });
       }
       *Runtime::localWriteFilesTempPath() = FLAGS_write_path;
-      runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), false);
+      runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
       for (auto i = 0; i < splits.size(); i++) {
         auto split = splits[i];
-        runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), i, false);
+        runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), i);
       }
 
-      auto resultIter = runtime->createResultIterator(veloxSpillDir, std::move(inputIters), runtime->getConfMap());
+      auto resultIter = runtime->createResultIterator(veloxSpillDir, std::move(inputIters));
+      runtime->noMoreSplits(resultIter.get());
       listenerPtr->setIterator(resultIter.get());
 
       if (FLAGS_with_shuffle) {
@@ -452,38 +460,33 @@ auto BM_Generic = [](::benchmark::State& state,
             runtime, listenerPtr, resultIter, writerMetrics, readerMetrics, false, shuffleSpillDirs, dataFileDir);
       } else {
         // May write the output into file.
-        auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
-
-        ArrowSchema cSchema;
-        toArrowSchema(veloxPlan->outputType(), runtime->memoryManager()->getLeafMemoryPool().get(), &cSchema);
-        GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
-        auto writer = std::make_shared<VeloxArrowWriter>(
-            FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get());
-        state.PauseTiming();
-        if (!FLAGS_save_output.empty()) {
-          GLUTEN_THROW_NOT_OK(writer->initWriter(*(outputSchema.get())));
-        }
-        state.ResumeTiming();
+        std::shared_ptr<VeloxColumnarBatchWriter> writer{nullptr};
 
         while (resultIter->hasNext()) {
-          auto array = resultIter->next()->exportArrowArray();
+          auto cb = resultIter->next();
+
           state.PauseTiming();
-          auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
-          if (!maybeBatch.ok()) {
-            state.SkipWithError(maybeBatch.status().message().c_str());
-            return;
-          }
-          if (FLAGS_print_result) {
-            LOG(WARNING) << maybeBatch.ValueOrDie()->ToString();
-          }
+
           if (!FLAGS_save_output.empty()) {
-            GLUTEN_THROW_NOT_OK(writer->writeInBatches(maybeBatch.ValueOrDie()));
+            if (writer == nullptr) {
+              writer = std::make_shared<VeloxColumnarBatchWriter>(
+                  FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getAggregateMemoryPool());
+            }
+            GLUTEN_THROW_NOT_OK(writer->write(cb));
           }
+
+          if (FLAGS_print_result) {
+            auto rowVector =
+                VeloxColumnarBatch::from(runtime->memoryManager()->getLeafMemoryPool().get(), cb)->getRowVector();
+            LOG(WARNING) << rowVector->toString(0, 20);
+          }
+
+          state.ResumeTiming();
         }
 
         state.PauseTiming();
         if (!FLAGS_save_output.empty()) {
-          GLUTEN_THROW_NOT_OK(writer->closeWriter());
+          GLUTEN_THROW_NOT_OK(writer->close());
         }
         state.ResumeTiming();
       }
@@ -533,7 +536,7 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
     ScopedTimer timer(&elapsedTime);
     for (auto _ : state) {
       auto resultIter = FileReaderIterator::getInputIteratorFromFileReader(
-          readerType, inputFile, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get());
+          readerType, inputFile, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool());
       runShuffle(
           runtime,
           listenerPtr,
@@ -631,7 +634,7 @@ int main(int argc, char** argv) {
   setQueryTraceConfig(backendConf);
 
   initVeloxBackend(backendConf);
-  memory::MemoryManager::testingSetInstance({});
+  memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
 
   // Parse substrait plan, split file and data files.
   std::string substraitJsonFile = FLAGS_plan;

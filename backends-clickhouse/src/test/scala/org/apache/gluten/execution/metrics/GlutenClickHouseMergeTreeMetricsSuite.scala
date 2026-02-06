@@ -16,19 +16,16 @@
  */
 package org.apache.gluten.execution.metrics
 
-import org.apache.gluten.execution.{ColumnarNativeIterator, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution.{ColumnarNativeIterator, GlutenClickHouseWholeStageTransformerSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
 
 import scala.collection.JavaConverters._
 
-class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
+class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
-  override protected val tablesPath: String = basePath + "/tpch-data-ch"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "queries-output"
-  protected val substraitPlansDatPath: String = rootPath + "substrait-plans"
+  protected val substraitPlansDatPath: String = resPath + "substrait-plans"
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -48,13 +45,13 @@ class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseTPCHAbstract
     val nativeMetricsList = GlutenClickHouseMetricsUTUtils
       .executeSubstraitPlan(
         substraitPlansDatPath + "/tpch-q2-in-one-wholestage.json",
-        basePath,
+        dataHome,
         inBatchIters,
         outputAttributes
       )
 
     assert(nativeMetricsList.size == 1)
-    val nativeMetricsData = nativeMetricsList(0)
+    val nativeMetricsData = nativeMetricsList.head
     assert(nativeMetricsData.metricsDataList.size() == 44)
 
     assert(nativeMetricsData.metricsDataList.get(42).getName.equals("kSort"))
@@ -182,13 +179,13 @@ class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseTPCHAbstract
     val nativeMetricsList = GlutenClickHouseMetricsUTUtils
       .executeSubstraitPlan(
         substraitPlansDatPath + "/tpch-q1-final-agg-stage.json",
-        basePath,
+        dataHome,
         inBatchIters,
         outputAttributes
       )
 
     assert(nativeMetricsList.size == 1)
-    val nativeMetricsData = nativeMetricsList(0)
+    val nativeMetricsData = nativeMetricsList.head
     assert(nativeMetricsData.metricsDataList.size() == 3)
 
     // Post Projection
@@ -216,13 +213,13 @@ class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseTPCHAbstract
     val nativeMetricsList = GlutenClickHouseMetricsUTUtils
       .executeSubstraitPlan(
         substraitPlansDatPath + "/tpch-q4-shj-stage.json",
-        basePath,
+        dataHome,
         inBatchIters,
         outputAttributes
       )
 
     assert(nativeMetricsList.size == 1)
-    val nativeMetricsData = nativeMetricsList(0)
+    val nativeMetricsData = nativeMetricsList.head
     assert(nativeMetricsData.metricsDataList.size() == 6)
 
     assert(nativeMetricsData.metricsDataList.get(5).getName.equals("kAggregate"))

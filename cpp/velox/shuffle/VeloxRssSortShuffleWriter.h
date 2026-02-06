@@ -44,19 +44,19 @@
 #include "shuffle/Utils.h"
 
 #include "utils/Print.h"
+#include "utils/VeloxArrowUtils.h"
 
 namespace gluten {
 
-enum SortState { kSortInit, kSort, kSortStop };
+enum RssSortState { kSortInit, kSort, kSortStop };
 
 class VeloxRssSortShuffleWriter final : public VeloxShuffleWriter {
  public:
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* arrowPool);
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<ShuffleWriterOptions>& options,
+      MemoryManager* memoryManager);
 
   arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
 
@@ -66,26 +66,42 @@ class VeloxRssSortShuffleWriter final : public VeloxShuffleWriter {
 
   arrow::Status evictRowVector(uint32_t partitionId) override;
 
+  // Only for test.
+  uint32_t getInputColumnBytes() const;
+
+  // Public for test.
+  void resetBatches();
+
  private:
   VeloxRssSortShuffleWriter(
       uint32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* pool)
-      : VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), std::move(veloxPool), pool) {}
+      const std::shared_ptr<PartitionWriter>& partitionWriter,
+      const std::shared_ptr<RssSortShuffleWriterOptions>& options,
+      MemoryManager* memoryManager)
+      : VeloxShuffleWriter(numPartitions, partitionWriter, options, memoryManager),
+        splitBufferSize_(options->splitBufferSize),
+        sortBufferMaxSize_(options->sortBufferMaxSize),
+        compressionKind_(arrowCompressionTypeToVelox(options->compressionType)) {}
 
   arrow::Status init();
 
   arrow::Status initFromRowVector(const facebook::velox::RowVector& rv);
 
-  void setSortState(SortState state);
+  void setSortState(RssSortState state);
 
   arrow::Status doSort(facebook::velox::RowVectorPtr rv, int64_t /* memLimit */);
 
   arrow::Status evictBatch(uint32_t partitionId);
 
   void stat() const;
+
+  void calculateBatchesSize(const facebook::velox::RowVectorPtr& vector);
+
+  void deduplicateStrBuffer(const facebook::velox::VectorPtr& vector);
+
+  int32_t splitBufferSize_;
+  int64_t sortBufferMaxSize_;
+  facebook::velox::common::CompressionKind compressionKind_;
 
   facebook::velox::RowTypePtr rowType_;
 
@@ -101,7 +117,11 @@ class VeloxRssSortShuffleWriter final : public VeloxShuffleWriter {
 
   uint32_t currentInputColumnBytes_ = 0;
 
-  SortState sortState_{kSortInit};
+  RssSortState sortState_{kSortInit};
+
+  // The existing string buffers in the current batches.
+  folly::F14FastSet<facebook::velox::Buffer*> stringBuffers_;
+
   bool stopped_{false};
 }; // class VeloxSortBasedShuffleWriter
 

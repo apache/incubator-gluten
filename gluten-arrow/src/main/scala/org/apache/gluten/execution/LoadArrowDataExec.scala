@@ -16,16 +16,23 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
+import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.{ArrowJavaBatchType, ArrowNativeBatchType}
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-/** Converts input data with batch type [[ArrowNativeBatch]] to type [[ArrowJavaBatch]]. */
+/** Converts input data with batch type [[ArrowNativeBatchType]] to type [[ArrowJavaBatchType]]. */
 case class LoadArrowDataExec(override val child: SparkPlan)
-  extends ColumnarToColumnarExec(ArrowNativeBatch, ArrowJavaBatch) {
+  extends ColumnarToColumnarExec(child)
+  with GlutenColumnarToColumnarTransition {
+
+  override protected val from: Convention.BatchType = ArrowNativeBatchType
+
+  override protected val to: Convention.BatchType = ArrowJavaBatchType
+
   override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     in.map(b => ColumnarBatches.load(ArrowBufferAllocators.contextInstance, b))
   }

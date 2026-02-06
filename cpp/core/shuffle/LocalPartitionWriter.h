@@ -29,22 +29,28 @@ class LocalPartitionWriter : public PartitionWriter {
  public:
   explicit LocalPartitionWriter(
       uint32_t numPartitions,
-      PartitionWriterOptions options,
-      arrow::MemoryPool* pool,
+      std::unique_ptr<arrow::util::Codec> codec,
+      MemoryManager* memoryManager,
+      const std::shared_ptr<LocalPartitionWriterOptions>& options,
       const std::string& dataFile,
-      const std::vector<std::string>& localDirs);
+      std::vector<std::string> localDirs);
 
   arrow::Status hashEvict(
       uint32_t partitionId,
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
-      bool reuseBuffers) override;
+      bool reuseBuffers,
+      int64_t& evictBytes) override;
 
-  arrow::Status sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal)
-      override;
+  arrow::Status sortEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      bool isFinal,
+      int64_t& evictBytes) override;
 
   // This code path is not used by LocalPartitionWriter, Not implement it by default.
-  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) override {
+  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop, int64_t& evictBytes)
+      override {
     return arrow::Status::NotImplemented("Invalid code path for local shuffle writer.");
   }
 
@@ -67,7 +73,7 @@ class LocalPartitionWriter : public PartitionWriter {
   /// If spill is triggered by 2.c, cached payloads of the remaining unmerged partitions will be spilled.
   /// In both cases, if the cached payload size doesn't free enough memory,
   /// it will shrink partition buffers to free more memory.
-  arrow::Status stop(ShuffleWriterMetrics* metrics) override;
+  arrow::Status stop(ShuffleWriterMetrics* metrics, int64_t& evictBytes) override;
 
   // Spill source:
   // 1. Other op.
@@ -75,29 +81,32 @@ class LocalPartitionWriter : public PartitionWriter {
   // 3. After stop() called,
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
+ protected:
   class LocalSpiller;
 
   class PayloadMerger;
 
   class PayloadCache;
 
- private:
   void init();
 
   arrow::Status requestSpill(bool isFinal);
 
   arrow::Status finishSpill();
 
+  arrow::Status finishMerger();
+
   std::string nextSpilledFileDir();
 
-  arrow::Result<std::shared_ptr<arrow::io::OutputStream>> openFile(const std::string& file);
+  arrow::Result<int64_t> mergeSpills(uint32_t partitionId, arrow::io::OutputStream* os);
 
-  arrow::Result<int64_t> mergeSpills(uint32_t partitionId);
+  arrow::Status writeCachedPayloads(uint32_t partitionId, arrow::io::OutputStream* os) const;
 
   arrow::Status clearResource();
 
   arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
 
+  std::shared_ptr<LocalPartitionWriterOptions> options_;
   std::string dataFile_;
   std::vector<std::string> localDirs_;
 
@@ -111,10 +120,11 @@ class LocalPartitionWriter : public PartitionWriter {
   // configured local dirs for spilled file
   int32_t dirSelection_{0};
   std::vector<int32_t> subDirSelection_;
-  std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
+  std::shared_ptr<arrow::io::OutputStream> dataFileOs_{nullptr};
 
   int64_t totalBytesToEvict_{0};
   int64_t totalBytesEvicted_{0};
+  int64_t totalBytesWritten_{0};
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
 

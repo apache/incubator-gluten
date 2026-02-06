@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, ProjectExecTransformer, WholeStageTransformer}
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -67,7 +68,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchma
   override def getSparkSession: SparkSession = {
     beforeAll()
     val conf = getSparkConf
-      .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")
+      .set(CHBackendSettings.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "false")
       .setIfMissing("spark.sql.shuffle.partitions", shufflePartition)
       .setIfMissing("spark.shuffle.manager", "sort")
       .setIfMissing("spark.io.compression.codec", "SNAPPY")
@@ -155,7 +156,10 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchma
     // Get the `FileSourceScanExecTransformer`
     val fileScan = executedPlan.collect { case scan: FileSourceScanExecTransformer => scan }.head
     val scanStage = WholeStageTransformer(fileScan)(
-      ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
+      ColumnarCollapseTransformStages
+        .getTransformStageCounter(fileScan)
+        .incrementAndGet()
+    )
     val scanStageRDD = scanStage.executeColumnar()
 
     // Get the total row count
@@ -199,7 +203,9 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchma
     val projectFilter = executedPlan.collect { case project: ProjectExecTransformer => project }
     if (projectFilter.nonEmpty) {
       val projectFilterStage = WholeStageTransformer(projectFilter.head)(
-        ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet())
+        ColumnarCollapseTransformStages
+          .getTransformStageCounter(projectFilter.head)
+          .incrementAndGet())
       val projectFilterStageRDD = projectFilterStage.executeColumnar()
 
       chAllStagesBenchmark.addCase(s"Project Stage", executedCnt) {

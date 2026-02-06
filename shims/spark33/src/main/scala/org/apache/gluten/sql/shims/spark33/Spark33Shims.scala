@@ -27,6 +27,7 @@ import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
@@ -35,12 +36,12 @@ import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
+import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, TimestampFormatter}
 import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
-import org.apache.spark.sql.catalyst.util.TimestampFormatter
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
+import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, QueryExecution, SparkPlan, SparkPlanner}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
@@ -50,18 +51,18 @@ import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.{DecimalType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
+import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.parquet.crypto.ParquetCryptoRuntimeException
-import org.apache.parquet.hadoop.ParquetFileReader
+import org.apache.parquet.hadoop.metadata.ParquetMetadata
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap, Properties}
+
+import scala.collection.mutable
 
 class Spark33Shims extends SparkShims {
   override def getDistribution(
@@ -78,6 +79,7 @@ class Spark33Shims extends SparkShims {
       Sig[KnownNullable](KNOWN_NULLABLE),
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
       Sig[TimestampAdd](TIMESTAMP_ADD),
+      Sig[TimestampDiff](ExpressionNames.TIMESTAMP_DIFF),
       Sig[RoundFloor](FLOOR),
       Sig[RoundCeil](CEIL)
     )
@@ -225,27 +227,25 @@ class Spark33Shims extends SparkShims {
 
   override def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String]): JMap[String, String] = {
-    val metadataColumn = new JHashMap[String, String]()
+      metadataColumnNames: Seq[String]): Map[String, String] = {
+    val originMetadataColumn = super.generateMetadataColumns(file, metadataColumnNames)
+    val metadataColumn: mutable.Map[String, String] = mutable.Map(originMetadataColumn.toSeq: _*)
     val path = new Path(file.filePath)
     for (columnName <- metadataColumnNames) {
       columnName match {
-        case FileFormat.FILE_PATH => metadataColumn.put(FileFormat.FILE_PATH, path.toString)
-        case FileFormat.FILE_NAME => metadataColumn.put(FileFormat.FILE_NAME, path.getName)
+        case FileFormat.FILE_PATH => metadataColumn += (FileFormat.FILE_PATH -> path.toString)
+        case FileFormat.FILE_NAME => metadataColumn += (FileFormat.FILE_NAME -> path.getName)
         case FileFormat.FILE_SIZE =>
-          metadataColumn.put(FileFormat.FILE_SIZE, file.fileSize.toString)
+          metadataColumn += (FileFormat.FILE_SIZE -> file.fileSize.toString)
         case FileFormat.FILE_MODIFICATION_TIME =>
           val fileModifyTime = TimestampFormatter
             .getFractionFormatter(ZoneOffset.UTC)
             .format(file.modificationTime * 1000L)
-          metadataColumn.put(FileFormat.FILE_MODIFICATION_TIME, fileModifyTime)
+          metadataColumn += (FileFormat.FILE_MODIFICATION_TIME -> fileModifyTime)
         case _ =>
       }
     }
-    metadataColumn.put(InputFileName().prettyName, file.filePath)
-    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
-    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
-    metadataColumn
+    metadataColumn.toMap
   }
 
   private def invalidBucketFile(path: String): Throwable = {
@@ -257,10 +257,6 @@ class Spark33Shims extends SparkShims {
 
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(session => GlutenFormatFactory.getExtendedColumnarPostRule(session))
-  }
-
-  override def createTestTaskContext(properties: Properties): TaskContext = {
-    TaskContextUtils.createTestTaskContext(properties)
   }
 
   def setJobDescriptionOrTagForBroadcastExchange(
@@ -349,8 +345,6 @@ class Spark33Shims extends SparkShims {
     }
   }
 
-  override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
-
   override def dateTimestampFormatInReadIsDefaultValue(
       csvOptions: CSVOptions,
       timeZone: String): Boolean = {
@@ -387,11 +381,9 @@ class Spark33Shims extends SparkShims {
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
     plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
-  override def isParquetFileEncrypted(
-      fileStatus: LocatedFileStatus,
-      conf: Configuration): Boolean = {
+  override def isParquetFileEncrypted(footer: ParquetMetadata): Boolean = {
     try {
-      ParquetFileReader.readFooter(new Configuration(), fileStatus.getPath).toString
+      footer.toString
       false
     } catch {
       case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
@@ -402,4 +394,38 @@ class Spark33Shims extends SparkShims {
     }
   }
 
+  override def extractExpressionTimestampDiffUnit(exp: Expression): Option[String] = {
+    exp match {
+      case timestampDiff: TimestampDiff =>
+        Some(timestampDiff.unit)
+      case _ => Option.empty
+    }
+  }
+
+  override def widerDecimalType(d1: DecimalType, d2: DecimalType): DecimalType = {
+    DecimalPrecision.widerDecimalType(d1, d2)
+  }
+
+  override def getErrorMessage(raiseError: RaiseError): Option[Expression] = {
+    Some(raiseError.child)
+  }
+
+  /**
+   * Shim layer for QueryExecution to maintain compatibility across different Spark versions.
+   *
+   * @since Spark
+   *   4.1
+   */
+  override def createSparkPlan(
+      sparkSession: SparkSession,
+      planner: SparkPlanner,
+      plan: LogicalPlan): SparkPlan =
+    QueryExecution.createSparkPlan(sparkSession, planner, plan)
+
+  override def isFinalAdaptivePlan(p: AdaptiveSparkPlanExec): Boolean = {
+    val args = p.argString(Int.MaxValue)
+    val index = args.indexOf("isFinalPlan=")
+    assert(index >= 0)
+    args.substring(index + "isFinalPlan=".length).trim.toBoolean
+  }
 }

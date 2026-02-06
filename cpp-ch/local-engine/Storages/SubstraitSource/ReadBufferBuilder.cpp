@@ -79,6 +79,9 @@ extern const SettingsMaxThreads max_download_threads;
 extern const SettingsUInt64 max_download_buffer_size;
 extern const SettingsBool input_format_allow_seeks;
 extern const SettingsUInt64 max_read_buffer_size;
+extern const SettingsBool s3_slow_all_threads_after_network_error;
+extern const SettingsBool s3_slow_all_threads_after_retryable_error;
+extern const SettingsBool enable_s3_requests_logging;
 }
 namespace ErrorCodes
 {
@@ -547,12 +550,15 @@ private:
         }
         // for AWS CN, the endpoint is like: https://s3.cn-north-1.amazonaws.com.cn, can still work
 
+        unsigned int s3_retry_attempts = static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_retry_attempts]);
         DB::S3::PocoHTTPClientConfiguration client_configuration = DB::S3::ClientFactory::instance().createClientConfiguration(
             region_name,
             context->getRemoteHostFilter(),
             static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_max_redirects]),
-            static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_retry_attempts]),
-            false,
+            S3::PocoHTTPClientConfiguration::RetryStrategy{.max_retries = s3_retry_attempts},
+            context->getSettingsRef()[DB::Setting::s3_slow_all_threads_after_network_error],
+            context->getSettingsRef()[Setting::s3_slow_all_threads_after_retryable_error],
+            context->getSettingsRef()[DB::Setting::enable_s3_requests_logging],
             false,
             nullptr,
             nullptr);
@@ -595,7 +601,7 @@ private:
                     .use_environment_credentials = true,
                     .use_insecure_imds_request = false,
                     .role_arn = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE),
-                    .session_name = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_SESSION_NAME),
+                    .role_session_name = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_SESSION_NAME),
                     .external_id = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_EXTERNAL_ID)});
 
             //TODO: support online change config for cached per_bucket_clients
@@ -650,11 +656,11 @@ private:
         const std::string config_prefix = "blob";
         const Poco::Util::AbstractConfiguration & config = context->getConfigRef();
         bool is_client_for_disk = false;
-        auto new_settings = DB::AzureBlobStorage::getRequestSettings(config, config_prefix, context);
+        auto new_settings = DB::AzureBlobStorage::getRequestSettings(config, config_prefix, context->getSettingsRef());
         DB::AzureBlobStorage::ConnectionParams params{
             .endpoint = DB::AzureBlobStorage::processEndpoint(config, config_prefix),
             .auth_method = DB::AzureBlobStorage::getAuthMethod(config, config_prefix),
-            .client_options = DB::AzureBlobStorage::getClientOptions(*new_settings, is_client_for_disk),
+            .client_options = DB::AzureBlobStorage::getClientOptions(context, context->getSettingsRef(), *new_settings, is_client_for_disk),
         };
 
         shared_client = DB::AzureBlobStorage::getContainerClient(params, true);
@@ -811,7 +817,7 @@ ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
     if (!file_cache)
     {
         DB::FileCacheSettings file_cache_settings;
-        file_cache_settings.loadFromConfig(config, GlutenCacheConfig::PREFIX);
+        file_cache_settings.loadFromConfig(config, GlutenCacheConfig::PREFIX, DB::getPathPrefixForRelativeCachePath(context), "");
 
         auto & base_path = file_cache_settings[FileCacheSetting::path].value;
         if (std::filesystem::path(base_path).is_relative())

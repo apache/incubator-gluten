@@ -42,7 +42,7 @@ object RasGroup {
       override val id: Int,
       override val constraintSet: PropertySet[T])
     extends RasGroup[T] {
-    private val groupLeaf: T = ras.planModel.newGroupLeaf(id, clusterKey.metadata, constraintSet)
+    private val groupLeaf: T = ras.newGroupLeaf(id, clusterKey.metadata, constraintSet)
 
     override def clusterKey(): RasClusterKey = clusterKey
     override def self(): T = groupLeaf

@@ -30,10 +30,9 @@ BUILD:
   - changed-files:
     - any-glob-to-any-file: [
       'dev/**/*',
-      'cpp/compile.sh',
-      'ep/build-velox/src/get_velox.sh',
-      'ep/build-velox/src/build_velox.sh',
-      'ep/build-clickhouse/src/build_clickhouse.sh'
+      'ep/build-velox/src/get-velox.sh',
+      'ep/build-velox/src/build-velox.sh',
+      'ep/build-clickhouse/src/build-clickhouse.sh'
     ]
 
 DOCS:
@@ -93,5 +92,10 @@ TOOLS:
   - changed-files:
     - any-glob-to-any-file: [
       'tools/**/*'
-     ]
+    ]
 
+FLINK:
+  - changed-files:
+    - any-glob-to-any-file: [
+      'gluten-flink/**/*'
+    ]

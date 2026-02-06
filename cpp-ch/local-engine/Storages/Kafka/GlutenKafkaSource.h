@@ -18,6 +18,7 @@
 #pragma once
 
 
+#include <Interpreters/Context_fwd.h>
 #include <Processors/ISource.h>
 #include <Storages/Kafka/KafkaConsumer.h>
 #include <Storages/Kafka/KafkaSettings.h>
@@ -29,7 +30,7 @@ class GlutenKafkaSource : public DB::ISource
 {
 public:
     GlutenKafkaSource(
-        const DB::Block & result_header_,
+        const DB::SharedHeader & result_header_,
         const DB::ContextPtr & context_,
         const DB::Names & topics_,
         const size_t & partition_,
@@ -70,7 +71,7 @@ private:
     UInt64 max_block_size;
     std::shared_ptr<DB::KafkaConsumer> consumer;
 
-    DB::Block result_header;
+    DB::SharedHeader result_header;
     DB::Block virtual_header;
     DB::Block non_virtual_header;
     std::shared_ptr<DB::KafkaSettings> kafka_settings;
@@ -84,6 +85,7 @@ private:
     const size_t end_offset;
     String client_id;
     bool finished = false;
+    size_t total_rows = 0;
 };
 
 }

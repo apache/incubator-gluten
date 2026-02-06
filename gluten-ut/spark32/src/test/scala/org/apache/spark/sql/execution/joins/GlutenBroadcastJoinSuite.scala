@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.joins
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, BroadcastNestedLoopJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
 import org.apache.gluten.utils.BackendTestUtils
 
@@ -86,7 +87,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       sparkBuilder
         .config("spark.io.compression.codec", "LZ4")
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-        .config("spark.gluten.sql.enable.native.validation", "false")
+        .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
         .config("spark.sql.files.openCostInBytes", "134217728")
         .config("spark.unsafe.exceptionOnMemoryLeak", "true")
         .getOrCreate()
@@ -142,12 +143,9 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         // INNER JOIN && t1Size < t2Size => BuildLeft
         assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 JOIN t2", blt, BuildLeft)
         // FULL JOIN && t1Size < t2Size => BuildLeft
-        assertJoinBuildSide(
-          "SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 FULL JOIN t2 ON t1.key < t2.key",
-          bl,
-          BuildLeft)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 FULL JOIN t2", bl, BuildLeft)
         // FULL OUTER && t1Size < t2Size => BuildLeft
-        assertJoinBuildSide("SELECT * FROM t1 FULL OUTER JOIN t2 ON t1.key < t2.key", bl, BuildLeft)
+        assertJoinBuildSide("SELECT * FROM t1 FULL OUTER JOIN t2", bl, BuildLeft)
         // LEFT JOIN => BuildRight
         assertJoinBuildSide("SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 LEFT JOIN t2", blt, BuildRight)
         // RIGHT JOIN => BuildLeft
@@ -159,13 +157,10 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         // INNER JOIN && broadcast(t2) => BuildRight
         assertJoinBuildSide("SELECT /*+ MAPJOIN(t2) */ * FROM t1 JOIN t2", blt, BuildRight)
         // FULL OUTER && broadcast(t1) => BuildLeft
-        assertJoinBuildSide(
-          "SELECT /*+ MAPJOIN(t1) */ * FROM t1 FULL OUTER JOIN t2 on t1.key < t2.key",
-          bl,
-          BuildLeft)
+        assertJoinBuildSide("SELECT /*+ MAPJOIN(t1) */ * FROM t1 FULL OUTER JOIN t2", bl, BuildLeft)
         // FULL OUTER && broadcast(t2) => BuildRight
         assertJoinBuildSide(
-          "SELECT /*+ MAPJOIN(t2) */ * FROM t1 FULL OUTER JOIN t2 on t1.key < t2.key",
+          "SELECT /*+ MAPJOIN(t2) */ * FROM t1 FULL OUTER JOIN t2",
           bl,
           BuildRight)
         // LEFT JOIN && broadcast(t1) => BuildLeft
@@ -199,11 +194,8 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       /* ######## test cases for non-equal join ######### */
       withSQLConf(SQLConf.CROSS_JOINS_ENABLED.key -> "true") {
         // For full outer join, prefer to broadcast the smaller side.
-        assertJoinBuildSide("SELECT * FROM t1 FULL OUTER JOIN t2 on t1.key < t2.key", bl, BuildLeft)
-        assertJoinBuildSide(
-          "SELECT * FROM t2 FULL OUTER JOIN t1 on t1.key < t2.key",
-          bl,
-          BuildRight)
+        assertJoinBuildSide("SELECT * FROM t1 FULL OUTER JOIN t2", bl, BuildLeft)
+        assertJoinBuildSide("SELECT * FROM t2 FULL OUTER JOIN t1", bl, BuildRight)
 
         // For inner join, prefer to broadcast the smaller side, if broadcast-able.
         withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> (t2Size + 1).toString()) {

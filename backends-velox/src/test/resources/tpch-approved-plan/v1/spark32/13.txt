@@ -23,14 +23,14 @@ AdaptiveSparkPlan (57)
                                                    :     +- ColumnarExchange (5)
                                                    :        +- VeloxResizeBatches (4)
                                                    :           +- ^ ProjectExecTransformer (2)
-                                                   :              +- ^ ScanTransformer parquet  (1)
+                                                   :              +- ^ FileSourceScanExecTransformer parquet  (1)
                                                    +- ^ InputIteratorTransformer (17)
                                                       +- ShuffleQueryStage (15)
                                                          +- ColumnarExchange (14)
                                                             +- VeloxResizeBatches (13)
                                                                +- ^ ProjectExecTransformer (11)
                                                                   +- ^ FilterExecTransformer (10)
-                                                                     +- ^ ScanTransformer parquet  (9)
+                                                                     +- ^ FileSourceScanExecTransformer parquet  (9)
 +- == Initial Plan ==
    Sort (56)
    +- Exchange (55)
@@ -51,7 +51,7 @@ AdaptiveSparkPlan (57)
                                        +- Scan parquet (43)
 
 
-(1) ScanTransformer parquet 
+(1) FileSourceScanExecTransformer parquet 
 Output [1]: [c_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -67,7 +67,7 @@ Arguments: false
 
 (4) VeloxResizeBatches
 Input [2]: [hash_partition_key#X, c_custkey#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (5) ColumnarExchange
 Input [2]: [hash_partition_key#X, c_custkey#X]
@@ -83,7 +83,7 @@ Input [1]: [c_custkey#X]
 (8) InputIteratorTransformer
 Input [1]: [c_custkey#X]
 
-(9) ScanTransformer parquet 
+(9) FileSourceScanExecTransformer parquet 
 Output [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -104,7 +104,7 @@ Arguments: false
 
 (13) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, o_orderkey#X, o_custkey#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (14) ColumnarExchange
 Input [3]: [hash_partition_key#X, o_orderkey#X, o_custkey#X]
@@ -157,7 +157,7 @@ Arguments: false
 
 (25) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (26) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
@@ -186,7 +186,7 @@ Arguments: false
 
 (32) VeloxResizeBatches
 Input [2]: [c_count#X, custdist#X]
-Arguments: X, X
+Arguments: X, X, X
 
 (33) ColumnarExchange
 Input [2]: [c_count#X, custdist#X]

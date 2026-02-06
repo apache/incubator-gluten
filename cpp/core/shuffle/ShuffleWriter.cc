@@ -24,6 +24,7 @@ namespace {
 const std::string kHashShuffleName = "hash";
 const std::string kSortShuffleName = "sort";
 const std::string kRssSortShuffleName = "rss_sort";
+const std::string kGpuHashShuffleName = "gpu_hash";
 } // namespace
 
 ShuffleWriterType ShuffleWriter::stringToType(const std::string& typeString) {
@@ -36,6 +37,9 @@ ShuffleWriterType ShuffleWriter::stringToType(const std::string& typeString) {
   if (typeString == kRssSortShuffleName) {
     return ShuffleWriterType::kRssSortShuffle;
   }
+  if (typeString == kGpuHashShuffleName) {
+    return ShuffleWriterType::kGpuHashShuffle;
+  }
   throw GlutenException("Unrecognized shuffle writer type: " + typeString);
 }
 
@@ -47,6 +51,8 @@ std::string ShuffleWriter::typeToString(ShuffleWriterType type) {
       return kSortShuffleName;
     case ShuffleWriterType::kRssSortShuffle:
       return kRssSortShuffleName;
+    case ShuffleWriterType::kGpuHashShuffle:
+      return kGpuHashShuffleName;
   }
   GLUTEN_UNREACHABLE();
 }
@@ -55,12 +61,8 @@ int32_t ShuffleWriter::numPartitions() const {
   return numPartitions_;
 }
 
-ShuffleWriterOptions& ShuffleWriter::options() {
-  return options_;
-}
-
-int64_t ShuffleWriter::totalBytesWritten() const {
-  return metrics_.totalBytesWritten;
+int64_t ShuffleWriter::bytesWritten() const {
+  return writtenBytes_;
 }
 
 int64_t ShuffleWriter::totalBytesEvicted() const {
@@ -83,16 +85,20 @@ int64_t ShuffleWriter::totalCompressTime() const {
   return metrics_.totalCompressTime;
 }
 
-int64_t ShuffleWriter::peakBytesAllocated() const {
-  return pool_->max_memory();
-}
-
 int64_t ShuffleWriter::totalSortTime() const {
   return 0;
 }
 
 int64_t ShuffleWriter::totalC2RTime() const {
   return 0;
+}
+
+double ShuffleWriter::avgDictionaryFields() const {
+  return metrics_.avgDictionaryFields;
+}
+
+int64_t ShuffleWriter::dictionarySize() const {
+  return metrics_.dictionarySize;
 }
 
 const std::vector<int64_t>& ShuffleWriter::partitionLengths() const {
@@ -103,6 +109,6 @@ const std::vector<int64_t>& ShuffleWriter::rawPartitionLengths() const {
   return metrics_.rawPartitionLengths;
 }
 
-ShuffleWriter::ShuffleWriter(int32_t numPartitions, ShuffleWriterOptions options, arrow::MemoryPool* pool)
-    : numPartitions_(numPartitions), options_(std::move(options)), pool_(pool) {}
+ShuffleWriter::ShuffleWriter(int32_t numPartitions, Partitioning partitioning)
+    : numPartitions_(numPartitions), partitioning_(partitioning) {}
 } // namespace gluten

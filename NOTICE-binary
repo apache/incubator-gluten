@@ -18,6 +18,11 @@ Copyright 2022-2024 The Apache Software Foundation.
 
 ---------------------------------------------------------
 
+Apache DataFusion
+Copyright 2019-2025 The Apache Software Foundation
+
+---------------------------------------------------------
+
 Apache Uniffle (incubating)
 Copyright 2022 and onwards The Apache Software Foundation.
 
@@ -40,6 +45,36 @@ Copyright 2013 and onwards The Apache Software Foundation.
 
 Apache Thrift
 Copyright (C) 2006 - 2019, The Apache Software Foundation.
+
+---------------------------------------------------------
+
+Delta Lake
+Copyright (2021) The Delta Lake Project Authors.
+
+---------------------------------------------------------
+
+Apache Hudi
+Copyright 2019-2020 The Apache Software Foundation.
+
+---------------------------------------------------------
+
+Apache Paimon
+Copyright 2023-2025 The Apache Software Foundation.
+
+---------------------------------------------------------
+
+The Velox Project
+Copyright © 2024 Meta Platforms, Inc.
+
+---------------------------------------------------------
+
+ClickHouse
+Copyright 2016-2025 ClickHouse, Inc.
+
+---------------------------------------------------------
+
+OkHttp
+Copyright 2019 Square, Inc.
 
 ---------------------------------------------------------
 

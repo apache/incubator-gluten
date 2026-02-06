@@ -16,11 +16,9 @@
  */
 #include "DeltaReader.h"
 
-#include <rapidjson/document.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
 #include <Storages/Parquet/ParquetMeta.h>
-#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
 
 namespace DB
 {
@@ -43,29 +41,13 @@ std::unique_ptr<DeltaReader> DeltaReader::create(
     const String & row_index_ids_encoded,
     const String & row_index_filter_type)
 {
-    std::shared_ptr<DeltaDVBitmapConfig> bitmap_config_;
+    std::shared_ptr<DeltaVirtualMeta::DeltaDVBitmapConfig> bitmap_config_;
     if (!row_index_ids_encoded.empty() && !row_index_filter_type.empty())
     {
-        if (row_index_filter_type != DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_TYPE_IF_CONTAINED)
+        if (row_index_filter_type != DeltaVirtualMeta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_TYPE_IF_CONTAINED)
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Row index filter type does not support : {}", row_index_filter_type);
 
-        bitmap_config_ = std::make_shared<DeltaDVBitmapConfig>();
-        rapidjson::Document doc;
-        doc.Parse(row_index_ids_encoded.c_str());
-        if (doc.HasParseError())
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid JSON in row_index_ids_encoded: {}", doc.GetParseError());
-        if (doc.HasMember("storageType") && doc["storageType"].IsString())
-            bitmap_config_->storage_type = doc["storageType"].GetString();
-        if (doc.HasMember("pathOrInlineDv") && doc["pathOrInlineDv"].IsString())
-            bitmap_config_->path_or_inline_dv = doc["pathOrInlineDv"].GetString();
-        if (doc.HasMember("offset") && doc["offset"].IsInt())
-            bitmap_config_->offset = doc["offset"].GetInt();
-        if (doc.HasMember("sizeInBytes") && doc["sizeInBytes"].IsInt())
-            bitmap_config_->size_in_bytes = doc["sizeInBytes"].GetInt();
-        if (doc.HasMember("cardinality") && doc["cardinality"].IsInt64())
-            bitmap_config_->cardinality = doc["cardinality"].GetInt64();
-        if (doc.HasMember("maxRowIndex") && doc["maxRowIndex"].IsInt64())
-            bitmap_config_->max_row_index = doc["maxRowIndex"].GetInt64();
+        bitmap_config_ = DeltaVirtualMeta::DeltaDVBitmapConfig::parse_config(row_index_ids_encoded);
     }
     return std::make_unique<DeltaReader>(file_, to_read_header_, output_header_, input_format_, bitmap_config_);
 }
@@ -75,7 +57,7 @@ DeltaReader::DeltaReader(
     const Block & to_read_header_,
     const Block & output_header_,
     const FormatFile::InputFormatPtr & input_format_,
-    const std::shared_ptr<DeltaDVBitmapConfig> & bitmap_config_)
+    const std::shared_ptr<DeltaVirtualMeta::DeltaDVBitmapConfig> & bitmap_config_)
     : NormalFileReader(file_, to_read_header_, output_header_, input_format_)
     , bitmap_config(bitmap_config_)
 {
@@ -104,9 +86,9 @@ Chunk DeltaReader::doPull()
 void DeltaReader::deleteRowsByDV(Chunk & chunk) const
 {
     size_t num_rows = chunk.getNumRows();
-    size_t deleted_row_pos = readHeader.getPositionByName(DeltaParquetVirtualMeta::DELTA_INTERNAL_IS_ROW_DELETED);
-    DB::DataTypePtr deleted_row_type = DeltaParquetVirtualMeta::getMetaColumnType(readHeader);
-    auto deleted_row_column_nest = DB::ColumnInt8::create(num_rows);
+    size_t deleted_row_pos = readHeader.getPositionByName(DeltaVirtualMeta::DELTA_INTERNAL_IS_ROW_DELETED);
+    DB::DataTypePtr deleted_row_type = DeltaVirtualMeta::getMetaColumnType(readHeader);
+    auto deleted_row_column_nest = DB::ColumnUInt8::create(num_rows);
     auto & vec = deleted_row_column_nest->getData();
 
     if (bitmap_array)

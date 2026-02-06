@@ -23,34 +23,73 @@ import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
-import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
+import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSeq, BindReferences, BoundReference, Expression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
-import org.apache.spark.sql.catalyst.plans.physical.IdentityBroadcastMode
-import org.apache.spark.sql.execution.joins.BuildSideRelation
-import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
+import org.apache.spark.util.KnownSizeEstimation
 
 import org.apache.arrow.c.ArrowSchema
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
+object ColumnarBuildSideRelation {
+  // Keep constructor with BroadcastMode for compatibility
+  def apply(
+      output: Seq[Attribute],
+      batches: Array[Array[Byte]],
+      mode: BroadcastMode): ColumnarBuildSideRelation = {
+    val boundMode = mode match {
+      case HashedRelationBroadcastMode(keys, isNullAware) =>
+        // Bind each key to the build-side output so simple cols become BoundReference
+        val boundKeys: Seq[Expression] =
+          keys.map(k => BindReferences.bindReference(k, AttributeSeq(output)))
+        HashedRelationBroadcastMode(boundKeys, isNullAware)
+      case m =>
+        m // IdentityBroadcastMode, etc.
+    }
+    new ColumnarBuildSideRelation(output, batches, BroadcastModeUtils.toSafe(boundMode))
+  }
+}
+
 case class ColumnarBuildSideRelation(
     output: Seq[Attribute],
     batches: Array[Array[Byte]],
-    mode: BroadcastMode)
-  extends BuildSideRelation {
+    safeBroadcastMode: SafeBroadcastMode)
+  extends BuildSideRelation
+  with KnownSizeEstimation {
 
-  private def transformProjection: UnsafeProjection = {
-    mode match {
-      case HashedRelationBroadcastMode(k, _) => UnsafeProjection.create(k)
-      case IdentityBroadcastMode => UnsafeProjection.create(output, output)
-    }
+  // Rebuild the real BroadcastMode on demand; never serialize it.
+  @transient override lazy val mode: BroadcastMode =
+    BroadcastModeUtils.fromSafe(safeBroadcastMode, output)
+
+  // If we stored expression bytes, deserialize once and cache locally (not serialized).
+  @transient private lazy val exprKeysFromBytes: Option[Seq[Expression]] = safeBroadcastMode match {
+    case HashExprSafeBroadcastMode(bytes, _) =>
+      Some(BroadcastModeUtils.deserializeExpressions(bytes))
+    case _ => None
+  }
+
+  private def transformProjection: UnsafeProjection = safeBroadcastMode match {
+    case IdentitySafeBroadcastMode =>
+      UnsafeProjection.create(output, output)
+    case HashSafeBroadcastMode(ords, _) =>
+      val bound = ords.map(i => BoundReference(i, output(i).dataType, output(i).nullable))
+      UnsafeProjection.create(bound)
+    case HashExprSafeBroadcastMode(_, _) =>
+      exprKeysFromBytes match {
+        case Some(keys) => UnsafeProjection.create(keys)
+        case None =>
+          throw new IllegalStateException(
+            "Failed to deserialize expressions for HashExprSafeBroadcastMode"
+          )
+      }
   }
 
   override def deserialized: Iterator[ColumnarBatch] = {
@@ -156,27 +195,32 @@ case class ColumnarBuildSideRelation(
           } else {
             val cols = batch.numCols()
             val rows = batch.numRows()
-            var info =
-              jniWrapper.nativeColumnarToRowConvert(
-                c2rId,
-                ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch),
-                0)
-            batch.close()
+            var info: NativeColumnarToRowInfo = null
 
             new Iterator[InternalRow] {
               var rowId = 0
               var baseLength = 0
               val row = new UnsafeRow(cols)
+              var closed = false
 
               override def hasNext: Boolean = {
-                rowId < rows
+                val hasNext = rowId < rows
+                if (!hasNext && !closed) {
+                  batch.close()
+                  closed = true
+                }
+                hasNext
               }
 
               override def next: UnsafeRow = {
                 if (rowId >= rows) throw new NoSuchElementException
-                if (rowId == baseLength + info.lengths.length) {
-                  baseLength += info.lengths.length
-                  info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId, rowId)
+                if (rowId == 0 || rowId == baseLength + info.lengths.length) {
+                  baseLength = if (info == null) {
+                    baseLength
+                  } else {
+                    baseLength + info.lengths.length
+                  }
+                  info = jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, rowId)
                 }
                 val (offset, length) =
                   (info.offsets(rowId - baseLength), info.lengths(rowId - baseLength))
@@ -193,5 +237,12 @@ case class ColumnarBuildSideRelation(
       Iterator.empty
     }
     iterator.toArray
+  }
+  override def estimatedSize: Long = {
+    if (batches != null) {
+      batches.map(_.length.toLong).sum
+    } else {
+      0L
+    }
   }
 }

@@ -66,15 +66,15 @@ object Memo {
       if (cache.contains(cacheKey)) {
         cache(cacheKey)
       } else {
-        // Node not yet added to cluster.
+        // Node was not yet added to a cluster.
         val cluster = newCluster(metadata)
         cache += (cacheKey -> cluster)
         cluster
       }
     }
 
-    private def dummyGroupOf(clusterKey: RasClusterKey): RasGroup[T] = {
-      memoTable.getDummyGroup(clusterKey)
+    private def hubGroupOf(clusterKey: RasClusterKey): RasGroup[T] = {
+      memoTable.getHubGroup(clusterKey)
     }
 
     private def toCacheKey(n: T): MemoCacheKey[T] = {
@@ -91,7 +91,7 @@ object Memo {
 
       val keyUnsafe = ras.withNewChildren(
         n,
-        childrenPrepares.map(childPrepare => dummyGroupOf(childPrepare.clusterKey()).self()))
+        childrenPrepares.map(childPrepare => hubGroupOf(childPrepare.clusterKey()).self()))
 
       val cacheKey = toCacheKey(keyUnsafe)
 
@@ -128,13 +128,14 @@ object Memo {
       // TODO: Traverse up the tree to do more merges.
       private def prepareInsert(node: T): Prepare[T] = {
         if (ras.isGroupLeaf(node)) {
+          // This mainly serves the group reduction case.
           val group = parent.memoTable.getGroup(ras.planModel.getGroupId(node))
           val residentCluster = group.clusterKey()
 
           if (residentCluster == targetCluster) {
             return Prepare.cluster(parent, targetCluster)
           }
-          // The resident cluster of group leaf is not the same with target cluster.
+          // The resident cluster of group leaf is different with target cluster.
           // Merge.
           parent.memoTable.mergeClusters(residentCluster, targetCluster)
           return Prepare.cluster(parent, targetCluster)
@@ -146,13 +147,13 @@ object Memo {
         val keyUnsafe = ras.withNewChildren(
           node,
           childrenPrepares.map {
-            childPrepare => parent.dummyGroupOf(childPrepare.clusterKey()).self()
+            childPrepare => parent.hubGroupOf(childPrepare.clusterKey()).self()
           })
 
         val cacheKey = parent.toCacheKey(keyUnsafe)
 
         if (!parent.cache.contains(cacheKey)) {
-          // The new node was not added to memo yet. Add it to the target cluster.
+          // The new node was not added to the memo yet. Add it to the target cluster.
           parent.cache += (cacheKey -> targetCluster)
           return Prepare.tree(parent, targetCluster, childrenPrepares)
         }
@@ -163,7 +164,7 @@ object Memo {
           // The new node already memorized to memo and in the target cluster.
           return Prepare.tree(parent, targetCluster, childrenPrepares)
         }
-        // The new node already memorized to memo, but in the different cluster.
+        // The new node already memorized to memo, but in a different cluster.
         // Merge the two clusters.
         parent.memoTable.mergeClusters(cachedCluster, targetCluster)
         Prepare.tree(parent, targetCluster, childrenPrepares)
@@ -203,7 +204,7 @@ object Memo {
           assert(!ras.isGroupLeaf(node))
           val childrenGroups = children
             .zip(ras.planModel.childrenOf(node))
-            .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
+            .zip(ras.childrenConstraintSets(node, constraintSet))
             .map {
               case ((childPrepare, child), childConstraintSet) =>
                 childPrepare.doInsert(child, childConstraintSet)
@@ -233,9 +234,13 @@ object Memo {
   }
 
   private object MemoCacheKey {
+    private def apply[T <: AnyRef](delegate: UnsafeHashKey[T]): MemoCacheKey[T] = {
+      throw new UnsupportedOperationException()
+    }
+
     def apply[T <: AnyRef](ras: Ras[T], self: T): MemoCacheKey[T] = {
       assert(ras.isCanonical(self))
-      MemoCacheKey[T](ras.toHashKey(self))
+      new MemoCacheKey[T](ras.toHashKey(self))
     }
   }
 
@@ -244,7 +249,7 @@ object Memo {
 
 trait MemoStore[T <: AnyRef] {
   def getCluster(key: RasClusterKey): RasCluster[T]
-  def getDummyGroup(key: RasClusterKey): RasGroup[T]
+  def getHubGroup(key: RasClusterKey): RasGroup[T]
   def getGroup(id: Int): RasGroup[T]
 }
 
@@ -259,7 +264,7 @@ object MemoStore {
 trait MemoState[T <: AnyRef] extends MemoStore[T] {
   def ras(): Ras[T]
   def clusterLookup(): Map[RasClusterKey, RasCluster[T]]
-  def clusterDummyGroupLookup(): Map[RasClusterKey, RasGroup[T]]
+  def clusterHubGroupLookup(): Map[RasClusterKey, RasGroup[T]]
   def allClusters(): Iterable[RasCluster[T]]
   def allGroups(): Seq[RasGroup[T]]
 }

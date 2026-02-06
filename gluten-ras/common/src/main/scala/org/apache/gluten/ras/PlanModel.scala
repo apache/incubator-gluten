@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.ras
 
-import org.apache.gluten.ras.property.PropertySet
-
 trait PlanModel[T <: AnyRef] {
   // Trivial tree operations.
   def childrenOf(node: T): Seq[T]
@@ -26,7 +24,20 @@ trait PlanModel[T <: AnyRef] {
   def equals(one: T, other: T): Boolean
 
   // Group operations.
-  def newGroupLeaf(groupId: Int, meta: Metadata, constraintSet: PropertySet[T]): T
+  def newGroupLeaf(groupId: Int): GroupLeafBuilder[T]
   def isGroupLeaf(node: T): Boolean
   def getGroupId(node: T): Int
+}
+
+object PlanModel {
+  implicit class PlanModelImplicits[T <: AnyRef](model: PlanModel[T]) {
+    def isLeaf(node: T): Boolean = {
+      model.childrenOf(node).isEmpty
+    }
+  }
+}
+
+trait GroupLeafBuilder[T <: AnyRef] {
+  def id(): Int
+  def build(): T
 }

@@ -53,14 +53,6 @@ object ConverterUtils extends Logging {
     if (caseSensitive) name else name.toLowerCase(Locale.ROOT)
   }
 
-  def normalizeStructFieldName(name: String): String = {
-    if (BackendsApiManager.getSettings.structFieldToLowerCase()) {
-      normalizeColName(name)
-    } else {
-      name
-    }
-  }
-
   def getShortAttributeName(attr: Attribute): String = {
     val name = normalizeColName(attr.name)
     val subIndex = name.indexOf("(")
@@ -111,20 +103,22 @@ object ConverterUtils extends Logging {
 
   private def collectAttributeNamesDFS(attributes: Seq[Attribute])(
       f: Attribute => String): JList[String] = {
-    val nameList = new JArrayList[String]()
-    attributes.foreach(
-      attr => {
-        nameList.add(f(attr))
-        if (BackendsApiManager.getSettings.supportStructType()) {
+    if (BackendsApiManager.getSettings.supportStructType()) {
+      val nameList = new JArrayList[String]()
+      attributes.foreach {
+        attr =>
+          nameList.add(f(attr))
           attr.dataType match {
             case struct: StructType =>
               val nestedNames = collectStructFieldNames(struct)
               nameList.addAll(nestedNames)
             case _ =>
           }
-        }
-      })
-    nameList
+      }
+      nameList
+    } else {
+      attributes.map(f(_)).asJava
+    }
   }
 
   def collectStructFieldNames(dataType: DataType): JList[String] = {
@@ -166,8 +160,8 @@ object ConverterUtils extends Logging {
         (StringType, isNullable(substraitType.getString.getNullability))
       case Type.KindCase.BINARY =>
         (BinaryType, isNullable(substraitType.getBinary.getNullability))
-      case Type.KindCase.TIMESTAMP =>
-        (TimestampType, isNullable(substraitType.getTimestamp.getNullability))
+      case Type.KindCase.TIMESTAMP_TZ =>
+        (TimestampType, isNullable(substraitType.getTimestampTz.getNullability))
       case Type.KindCase.DATE =>
         (DateType, isNullable(substraitType.getDate.getNullability))
       case Type.KindCase.DECIMAL =>
@@ -240,15 +234,66 @@ object ConverterUtils extends Logging {
       case a: ArrayType =>
         TypeBuilder.makeList(nullable, getTypeNode(a.elementType, a.containsNull))
       case s: StructType =>
-        val fieldNodes = new JArrayList[TypeNode]
-        val fieldNames = new JArrayList[String]
-        for (structField <- s.fields) {
-          fieldNodes.add(getTypeNode(structField.dataType, structField.nullable))
-          fieldNames.add(normalizeStructFieldName(structField.name))
-        }
-        TypeBuilder.makeStruct(nullable, fieldNodes, fieldNames)
+        val normalizeStructFieldName: String => String =
+          if (BackendsApiManager.getSettings.structFieldToLowerCase()) {
+            (name: String) => normalizeColName(name)
+          } else { (name: String) => name }
+        val (fieldNodes, fieldNames) = s.map {
+          f => (getTypeNode(f.dataType, f.nullable), normalizeStructFieldName(f.name))
+        }.unzip
+        TypeBuilder.makeStruct(nullable, fieldNodes.asJava, fieldNames.asJava)
       case _: NullType =>
         TypeBuilder.makeNothing()
+      case unknown =>
+        throw new GlutenNotSupportException(s"Type $unknown not supported.")
+    }
+  }
+
+  def parseFromTypeNode(typeNode: TypeNode): DataType = {
+    typeNode match {
+      case _: BooleanTypeNode =>
+        BooleanType
+      case _: FP32TypeNode =>
+        FloatType
+      case _: FP64TypeNode =>
+        DoubleType
+      case _: I64TypeNode =>
+        LongType
+      case _: I32TypeNode =>
+        IntegerType
+      case _: I16TypeNode =>
+        ShortType
+      case _: I8TypeNode =>
+        ByteType
+      case _: StringTypeNode =>
+        StringType
+      case _: BinaryTypeNode =>
+        BinaryType
+      case _: DateTypeNode =>
+        DateType
+      case _: IntervalYearTypeNode =>
+        YearMonthIntervalType.DEFAULT
+      case d: DecimalTypeNode =>
+        DecimalType(d.precision, d.scale)
+      case _: TimestampTypeNode =>
+        TimestampType
+      case m: MapNode =>
+        val keyType = parseFromTypeNode(m.getKeyType)
+        val valueType = parseFromTypeNode(m.getValueType)
+        val valueContainsNull = m.getValueType.nullable()
+        MapType(keyType, valueType, valueContainsNull)
+      case a: ListNode =>
+        val elementType = parseFromTypeNode(a.getNestedType)
+        ArrayType(elementType, a.getNestedType.nullable())
+      case s: StructNode =>
+        val fields = s.getFieldTypes.asScala.map({
+          typ =>
+            val field = parseFromTypeNode(typ)
+            StructField("", field, typ.nullable())
+        })
+        StructType(fields.toSeq)
+      case _: NothingNode =>
+        NullType
       case unknown =>
         throw new GlutenNotSupportException(s"Type $unknown not supported.")
     }

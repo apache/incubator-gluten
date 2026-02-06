@@ -132,6 +132,13 @@ object MetadataSuite {
       case other =>
         throw new UnsupportedOperationException()
     }
+
+    override def assignToGroup(group: GroupLeafBuilder[TestNode], meta: Metadata): Unit = {
+      (group, meta) match {
+        case (builder: Group.Builder, m: Metadata) =>
+          builder.withMetadata(m)
+      }
+    }
   }
 
   trait RowCount extends Metadata

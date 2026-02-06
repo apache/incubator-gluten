@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
@@ -49,6 +49,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
     val numOutputBatches = longMetric("numOutputBatches")
     val convertTime = longMetric("convertTime")
     val numRows = GlutenConfig.get.maxBatchSize
+    val numBytes = VeloxConfig.get.veloxPreferredBatchBytes
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = schema
@@ -60,7 +61,8 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
           numInputRows,
           numOutputBatches,
           convertTime,
-          numRows)
+          numRows,
+          numBytes)
     }
   }
 
@@ -69,6 +71,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
     val numOutputBatches = longMetric("numOutputBatches")
     val convertTime = longMetric("convertTime")
     val numRows = GlutenConfig.get.maxBatchSize
+    val numBytes = VeloxConfig.get.veloxPreferredBatchBytes
     val mode = BroadcastUtils.getBroadcastMode(outputPartitioning)
     val relation = child.executeBroadcast()
     BroadcastUtils.sparkToVeloxUnsafe(
@@ -83,7 +86,9 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
           numInputRows,
           numOutputBatches,
           convertTime,
-          numRows))
+          numRows,
+          numBytes)
+    )
   }
 
   // For spark 3.2.
@@ -96,7 +101,8 @@ object RowToVeloxColumnarExec {
   def toColumnarBatchIterator(
       it: Iterator[InternalRow],
       schema: StructType,
-      columnBatchSize: Int): Iterator[ColumnarBatch] = {
+      columnBatchSize: Int,
+      columnBatchBytes: Long): Iterator[ColumnarBatch] = {
     val numInputRows = new SQLMetric("numInputRows")
     val numOutputBatches = new SQLMetric("numOutputBatches")
     val convertTime = new SQLMetric("convertTime")
@@ -106,7 +112,8 @@ object RowToVeloxColumnarExec {
       numInputRows,
       numOutputBatches,
       convertTime,
-      columnBatchSize)
+      columnBatchSize,
+      columnBatchBytes)
   }
 
   def toColumnarBatchIterator(
@@ -115,7 +122,8 @@ object RowToVeloxColumnarExec {
       numInputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       convertTime: SQLMetric,
-      columnBatchSize: Int): Iterator[ColumnarBatch] = {
+      columnBatchSize: Int,
+      columnBatchBytes: Long): Iterator[ColumnarBatch] = {
     if (it.isEmpty) {
       return Iterator.empty
     }
@@ -156,9 +164,6 @@ object RowToVeloxColumnarExec {
       }
 
       override def next(): ColumnarBatch = {
-        val firstRow = it.next()
-        val start = System.currentTimeMillis()
-        val row = convertToUnsafeRow(firstRow)
         var arrowBuf: ArrowBuf = null
         TaskResources.addRecycler("RowToColumnar_arrowBuf", 100) {
           if (arrowBuf != null && arrowBuf.refCnt() != 0) {
@@ -168,37 +173,41 @@ object RowToVeloxColumnarExec {
         val rowLength = new ListBuffer[Long]()
         var rowCount = 0
         var offset = 0L
-        val sizeInBytes = row.getSizeInBytes
-        // allocate buffer based on 1st row, but if first row is very big, this will cause OOM
-        // maybe we should optimize to list ArrayBuf to native to avoid buf close and allocate
-        // 31760L origins from BaseVariableWidthVector.lastValueAllocationSizeInBytes
-        // experimental value
-        val estimatedBufSize = Math.max(
-          Math.min(sizeInBytes.toDouble * columnBatchSize * 1.2, 31760L * columnBatchSize),
-          sizeInBytes.toDouble * 10)
-        arrowBuf = arrowAllocator.buffer(estimatedBufSize.toLong)
-        Platform.copyMemory(
-          row.getBaseObject,
-          row.getBaseOffset,
-          null,
-          arrowBuf.memoryAddress() + offset,
-          sizeInBytes)
-        offset += sizeInBytes
-        rowLength += sizeInBytes.toLong
-        rowCount += 1
-
-        convertTime += System.currentTimeMillis() - start
-        while (rowCount < columnBatchSize && !finished) {
-          val iterHasNext = it.hasNext
-          if (!iterHasNext) {
+        while (rowCount < columnBatchSize && offset < columnBatchBytes && !finished) {
+          if (!it.hasNext) {
             finished = true
           } else {
             val row = it.next()
-            val start2 = System.currentTimeMillis()
+            val start = System.currentTimeMillis()
             val unsafeRow = convertToUnsafeRow(row)
             val sizeInBytes = unsafeRow.getSizeInBytes
+
+            // allocate buffer based on first row
+            if (rowCount == 0) {
+              // allocate buffer based on 1st row, but if first row is very big, this will cause OOM
+              // maybe we should optimize to list ArrayBuf to native to avoid buf close and allocate
+              // 31760L origins from BaseVariableWidthVector.lastValueAllocationSizeInBytes
+              // experimental value
+              val estimatedBufSize = Math.min(
+                Math.max(
+                  Math.min(sizeInBytes.toDouble * columnBatchSize * 1.2, 31760L * columnBatchSize),
+                  sizeInBytes.toDouble * 10),
+                // Limit the size of the buffer to columnBatchBytes or the size of the first row,
+                // whichever is greater so we always have enough space for the first row.
+                Math.max(columnBatchBytes, sizeInBytes)
+              )
+              arrowBuf = arrowAllocator.buffer(estimatedBufSize.toLong)
+            }
+
             if ((offset + sizeInBytes) > arrowBuf.capacity()) {
-              val tmpBuf = arrowAllocator.buffer((offset + sizeInBytes) * 2)
+              val bufSize = if (offset + sizeInBytes > columnBatchBytes) {
+                // If adding the current row causes the batch size to exceed columnBatchBytes add
+                // just enough space to add the current row.
+                offset + sizeInBytes
+              } else {
+                Math.min((offset + sizeInBytes * 2), columnBatchBytes)
+              }
+              val tmpBuf = arrowAllocator.buffer(bufSize)
               tmpBuf.setBytes(0, arrowBuf, 0, offset)
               arrowBuf.close()
               arrowBuf = tmpBuf
@@ -212,7 +221,7 @@ object RowToVeloxColumnarExec {
             offset += sizeInBytes
             rowLength += sizeInBytes.toLong
             rowCount += 1
-            convertTime += System.currentTimeMillis() - start2
+            convertTime += System.currentTimeMillis() - start
           }
         }
         numInputRows += rowCount

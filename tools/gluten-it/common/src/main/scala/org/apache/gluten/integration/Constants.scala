@@ -162,12 +162,12 @@ object Constants {
       }
     }
 
-  @deprecated
   val TYPE_MODIFIER_DECIMAL_AS_DOUBLE: TypeModifier =
     new TypeModifier(TypeUtils.decimalAccepts, DoubleType) {
       override def modValue(from: Any): Any = {
         from match {
           case v: java.math.BigDecimal => v.doubleValue()
+          case v: scala.math.BigDecimal => v.toDouble
         }
       }
     }

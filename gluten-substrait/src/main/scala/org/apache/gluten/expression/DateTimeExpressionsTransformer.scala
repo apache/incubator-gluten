@@ -56,8 +56,7 @@ case class MonthsBetweenTransformer(
     original: MonthsBetween)
   extends ExpressionTransformer {
   override def children: Seq[ExpressionTransformer] = {
-    val timeZoneId = original.timeZoneId.map(timeZoneId => LiteralTransformer(timeZoneId))
-    Seq(date1, date2, roundOff) ++ timeZoneId
+    Seq(date1, date2, roundOff)
   }
 }
 
@@ -66,11 +65,22 @@ case class TimestampAddTransformer(
     unit: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
-    timeZoneId: String,
     original: Expression)
   extends ExpressionTransformer {
   override def children: Seq[ExpressionTransformer] = {
-    Seq(LiteralTransformer(unit), left, right, LiteralTransformer(timeZoneId))
+    Seq(LiteralTransformer(unit), left, right)
+  }
+}
+
+case class TimestampDiffTransformer(
+    substraitExprName: String,
+    unit: String,
+    startTimestamp: ExpressionTransformer,
+    endTimestamp: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = {
+    Seq(LiteralTransformer(unit), startTimestamp, endTimestamp)
   }
 }
 

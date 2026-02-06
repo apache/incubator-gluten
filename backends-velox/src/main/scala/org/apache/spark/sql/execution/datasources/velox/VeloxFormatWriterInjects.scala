@@ -20,6 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.datasource.{VeloxDataSourceJniWrapper, VeloxDataSourceUtil}
 import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.execution.BatchCarrierRow
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
@@ -31,6 +32,7 @@ import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.{FileStatus, Path}
@@ -73,15 +75,17 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
-        val batch = row.asInstanceOf[FakeRow].batch
-        ColumnarBatches.checkOffloaded(batch)
-        ColumnarBatches.retain(batch)
-        val batchHandle = {
-          ColumnarBatches.checkOffloaded(batch)
-          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
+        BatchCarrierRow.unwrap(row).foreach {
+          batch =>
+            ColumnarBatches.checkOffloaded(batch)
+            ColumnarBatches.retain(batch)
+            val batchHandle = {
+              ColumnarBatches.checkOffloaded(batch)
+              ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
+            }
+            datasourceJniWrapper.writeBatch(dsHandle, batchHandle)
+            batch.close()
         }
-        datasourceJniWrapper.writeBatch(dsHandle, batchHandle)
-        batch.close()
       }
 
       override def close(): Unit = {
@@ -105,18 +109,16 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
 class VeloxRowSplitter extends GlutenRowSplitter {
   def splitBlockByPartitionAndBucket(
-      row: FakeRow,
+      batch: ColumnarBatch,
       partitionColIndice: Array[Int],
       hasBucket: Boolean,
-      reserve_partition_columns: Boolean = false): BlockStripes = {
-    val handler = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, row.batch)
+      reservePartitionColumns: Boolean = false): BlockStripes = {
+    val handler = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
     val runtime =
-      Runtimes.contextInstance(BackendsApiManager.getBackendName, "VeloxPartitionWriter")
+      Runtimes.contextInstance(BackendsApiManager.getBackendName, "VeloxRowSplitter")
     val datasourceJniWrapper = VeloxDataSourceJniWrapper.create(runtime)
-    val originalColumns: Array[Int] = Array.range(0, row.batch.numCols())
-    val dataColIndice = originalColumns.filterNot(partitionColIndice.contains(_))
     new VeloxBlockStripes(
       datasourceJniWrapper
-        .splitBlockByPartitionAndBucket(handler, dataColIndice, hasBucket))
+        .splitBlockByPartitionAndBucket(handler, partitionColIndice, hasBucket))
   }
 }

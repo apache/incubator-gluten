@@ -19,18 +19,14 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
-import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
+import org.apache.spark.Partition
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.NamedStruct
@@ -41,9 +37,46 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   import org.apache.spark.sql.catalyst.util._
 
   /** Returns the filters that can be pushed down to native file scan */
-  def filterExprs(): Seq[Expression]
+  final def filterExprs(): Seq[Expression] = {
+    if (pushDownFilters.nonEmpty) {
+      val (_, scanFiltersNotInPushDownFilters) =
+        scanFilters.partition(pushDownFilters.get.contains(_))
+      // For filters that only exists in scan, we need to check if they are supported.
+      val unsupportedFilters = scanFiltersNotInPushDownFilters.filter(
+        !BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
+      if (unsupportedFilters.nonEmpty) {
+        throw new UnsupportedOperationException(
+          "Found unsupported filter in scan " + unsupportedFilters.mkString(", "))
+      }
+      val supportedPushDownFilters = pushDownFilters.get
+        .filter(BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
+      FilterHandler.combineFilters(supportedPushDownFilters, scanFiltersNotInPushDownFilters)
+    } else {
+      // todo: When PushDownFilterToScan is not performed, find a way to throw an
+      //  exception to trigger scan fallback when encountering unsupported scan filters,
+      //  instead of simply filtering them out.
+      scanFilters.filter(
+        BackendsApiManager.getSparkPlanExecApiInstance.isSupportedScanFilter(_, this))
+    }
+  }
 
-  def outputAttributes(): Seq[Attribute]
+  /** Returns the filters that already exists in scan. */
+  def scanFilters: Seq[Expression]
+
+  /** Whether the scan supports push down filters. */
+  def supportPushDownFilters: Boolean = true
+
+  /**
+   * Returns the filters that pushed by
+   * [[org.apache.gluten.extension.columnar.PushDownFilterToScan]].
+   */
+  def pushDownFilters: Option[Seq[Expression]]
+
+  /** Copy the scan with filters that pushed by filterNode. */
+  def withNewPushdownFilters(filters: Seq[Expression]): BasicScanExecTransformer = {
+    throw new UnsupportedOperationException(
+      s"${getClass.toString} does not support push down filters.")
+  }
 
   def getMetadataColumns(): Seq[AttributeReference]
 
@@ -61,42 +94,46 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   /** Returns the file format properties. */
   def getProperties: Map[String, String] = Map.empty
 
-  /** Returns the split infos that will be processed by the underlying native engine. */
   override def getSplitInfos: Seq[SplitInfo] = {
-    getSplitInfosFromPartitions(getPartitions)
+    getSplitInfosFromPartitions(getPartitionWithReadFileFormats)
   }
 
-  def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
-    partitions.map(
-      BackendsApiManager.getIteratorApiInstance
-        .genSplitInfo(
-          _,
-          getPartitionSchema,
-          fileFormat,
-          getMetadataColumns().map(_.name),
-          getProperties))
+  def getSplitInfosFromPartitions(partitions: Seq[(Partition, ReadFileFormat)]): Seq[SplitInfo] = {
+    partitions.map {
+      case (partition, readFileFormat) => partitionToSplitInfo(partition, readFileFormat)
+    }
+  }
+
+  private def partitionToSplitInfo(
+      partition: Partition,
+      readFileFormat: ReadFileFormat): SplitInfo = {
+    val part = partition match {
+      case sp: SparkDataSourceRDDPartition => sp.inputPartitions.map(_.asInstanceOf[Partition])
+      case _ => Seq(partition)
+    }
+
+    BackendsApiManager.getIteratorApiInstance
+      .genSplitInfo(
+        partition.index,
+        part,
+        getPartitionSchema,
+        getDataSchema,
+        readFileFormat,
+        getMetadataColumns().map(_.name),
+        getProperties)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    var fields = schema.fields
-
-    this match {
-      case transformer: FileSourceScanExecTransformer =>
-        fields = appendStringFields(transformer.relation.schema, fields)
-      case transformer: HiveTableScanExecTransformer =>
-        fields = appendStringFields(transformer.getDataSchema, fields)
-      case transformer: BatchScanExecTransformer =>
-        fields = appendStringFields(transformer.getDataSchema, fields)
-      case _ =>
-    }
-
     val validationResult = BackendsApiManager.getSettings
       .validateScanExec(
         fileFormat,
-        fields,
+        schema.fields,
+        getDataSchema,
         getRootFilePaths,
         getProperties,
-        sparkContext.hadoopConfiguration)
+        sparkContext.hadoopConfiguration,
+        getDistinctPartitionReadFileFormats
+      )
     if (!validationResult.ok()) {
       return validationResult
     }
@@ -107,55 +144,42 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     doNativeValidation(substraitContext, relNode)
   }
 
-  def appendStringFields(
-      schema: StructType,
-      existingFields: Array[StructField]): Array[StructField] = {
-    val stringFields = schema.fields.filter(_.dataType.isInstanceOf[StringType])
-    if (stringFields.nonEmpty) {
-      (existingFields ++ stringFields).distinct
+  private def makeColumnTypeNode(attr: Attribute): ColumnTypeNode = {
+    if (getPartitionSchema.exists(_.name.equals(attr.name))) {
+      new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL)
+    } else if (BackendsApiManager.getSparkPlanExecApiInstance.isRowIndexMetadataColumn(attr.name)) {
+      new ColumnTypeNode(NamedStruct.ColumnType.ROWINDEX_COL)
+    } else if (attr.isMetadataCol) {
+      new ColumnTypeNode(NamedStruct.ColumnType.METADATA_COL)
     } else {
-      existingFields
+      new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)
     }
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val output = outputAttributes()
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
-    val columnTypeNodes = output.map {
-      attr =>
-        if (getPartitionSchema.exists(_.name.equals(attr.name))) {
-          new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL)
-        } else if (SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)) {
-          new ColumnTypeNode(NamedStruct.ColumnType.ROWINDEX_COL)
-        } else if (attr.isMetadataCol) {
-          new ColumnTypeNode(NamedStruct.ColumnType.METADATA_COL)
-        } else {
-          new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)
-        }
-    }.asJava
+    val columnTypeNodes = output.map(makeColumnTypeNode).asJava
     // Will put all filter expressions into an AND expression
-    val transformer = filterExprs()
+    val exprNode = filterExprs()
       .map(ExpressionConverter.replaceAttributeReference)
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
-    val filterNodes = transformer.map(_.doTransform(context))
-    val exprNode = filterNodes.orNull
+      .map(_.doTransform(context))
+      .orNull
 
     // used by CH backend
-    val optimizationContent =
-      s"isMergeTree=${if (this.fileFormat == ReadFileFormat.MergeTreeReadFormat) "1" else "0"}\n"
-
+    val mergeTreeFlag = if (this.fileFormat == ReadFileFormat.MergeTreeReadFormat) "1" else "0"
     val optimization =
       BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder.setValue(optimizationContent).build)
+        StringValue.newBuilder.setValue(s"isMergeTree=$mergeTreeFlag\n").build)
     val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
 
     val readNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
-      columnTypeNodes,
       exprNode,
+      columnTypeNodes,
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))

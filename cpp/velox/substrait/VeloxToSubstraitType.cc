@@ -88,9 +88,9 @@ const ::substrait::Type& VeloxToSubstraitTypeConvertor::toSubstraitType(
       break;
     }
     case velox::TypeKind::TIMESTAMP: {
-      auto substraitTimestamp = google::protobuf::Arena::CreateMessage<::substrait::Type_Timestamp>(&arena);
-      substraitTimestamp->set_nullability(::substrait::Type_Nullability_NULLABILITY_NULLABLE);
-      substraitType->set_allocated_timestamp(substraitTimestamp);
+      auto substraitTimestampTZ = google::protobuf::Arena::CreateMessage<::substrait::Type_TimestampTZ>(&arena);
+      substraitTimestampTZ->set_nullability(::substrait::Type_Nullability_NULLABILITY_NULLABLE);
+      substraitType->set_allocated_timestamp_tz(substraitTimestampTZ);
       break;
     }
     case velox::TypeKind::ARRAY: {

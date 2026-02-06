@@ -20,7 +20,6 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.rel.RelNode
@@ -40,8 +39,7 @@ abstract class HashAggregateExecBaseTransformer(
     aggregateAttributes: Seq[Attribute],
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
-    child: SparkPlan,
-    ignoreNullKeys: Boolean = false)
+    child: SparkPlan)
   extends BaseAggregateExec
   with UnaryTransformSupport {
 
@@ -88,13 +86,11 @@ abstract class HashAggregateExecBaseTransformer(
       s"HashAggregateTransformer(keys=$keyString, " +
         s"functions=$functionString, " +
         s"isStreamingAgg=$isCapableForStreamingAggregation, " +
-        s"ignoreNullKeys=$ignoreNullKeys, " +
         s"output=$outputString)"
     } else {
       s"HashAggregateTransformer(keys=$keyString, " +
         s"functions=$functionString, " +
-        s"isStreamingAgg=$isCapableForStreamingAggregation, " +
-        s"ignoreNullKeys=$ignoreNullKeys)"
+        s"isStreamingAgg=$isCapableForStreamingAggregation)"
     }
   }
 

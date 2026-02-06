@@ -17,6 +17,8 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse._
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -29,11 +31,6 @@ import org.apache.spark.sql.types._
 import java.nio.file.Files
 
 class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuite with Logging {
-
-  protected val tablesPath: String = basePath + "/tpch-data"
-  protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  protected val queriesResults: String = rootPath + "queries-output"
 
   private var parquetPath: String = _
 
@@ -54,15 +51,16 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.gluten.supported.scala.udfs", "compare_substrings:compare_substrings")
+      .set(GlutenConfig.GLUTEN_SUPPORTED_SCALA_UDFS.key, "compare_substrings:compare_substrings")
       .set(CHConfig.runtimeSettings("max_memory_usage_ratio_for_streaming_aggregating"), "0.01")
       .set(CHConfig.runtimeSettings("high_cardinality_threshold_for_streaming_aggregating"), "0.2")
+      .set(CHBackendSettings.GLUTEN_JOIN_AGGREGATE_TO_AGGREGATE_UNION, "true")
       .set(
         SQLConf.OPTIMIZER_EXCLUDED_RULES.key,
         ConstantFolding.ruleName + "," + NullPropagation.ruleName)
@@ -82,27 +80,28 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
 
     val schema1 = StructType(
       Array(
-        StructField("k1", IntegerType, true),
-        StructField("k2", IntegerType, true),
-        StructField("v1", IntegerType, true),
-        StructField("v2", IntegerType, true),
-        StructField("v3", IntegerType, true)
+        StructField("k1", IntegerType, nullable = true),
+        StructField("k2", IntegerType, nullable = true),
+        StructField("k3", StringType, nullable = true),
+        StructField("v1", IntegerType, nullable = true),
+        StructField("v2", IntegerType, nullable = true),
+        StructField("v3", IntegerType, nullable = true)
       )
     )
 
     val data1 = Seq(
-      Row(1, 1, 1, 1, 1),
-      Row(1, 1, null, 2, 1),
-      Row(1, 2, 1, 1, null),
-      Row(2, 1, 1, null, 1),
-      Row(2, 2, 1, 1, 1),
-      Row(2, 2, 1, null, 1),
-      Row(2, 2, 2, null, 3),
-      Row(2, 3, 0, null, 1),
-      Row(2, 4, 1, 2, 3),
-      Row(3, 1, 4, 5, 6),
-      Row(4, 2, 7, 8, 9),
-      Row(5, 3, 10, 11, 12)
+      Row(1, 1, "1", 1, 1, 1),
+      Row(1, 1, "1", null, 2, 1),
+      Row(1, 2, "2", 1, 1, null),
+      Row(2, 1, "1", 1, null, 1),
+      Row(2, 2, "1", 1, 1, 1),
+      Row(2, 2, "2", 1, null, 1),
+      Row(2, 2, "2", 2, null, 3),
+      Row(2, 3, "3", 0, null, 1),
+      Row(2, 4, "4", 1, 2, 3),
+      Row(3, 1, "1", 4, 5, 6),
+      Row(4, 2, "2", 7, 8, 9),
+      Row(5, 3, "3", 10, 11, 12)
     )
     createTable("t1", data1, schema1)
     createTable("t2", data1, schema1)
@@ -130,8 +129,34 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
+  }
+
+  test("Eliminate two aggregate joins with attribute reordered") {
+    val sql = """
+        select t1.k1, t1.k3, t2.k1, t2.k3, s1, s2 from (
+          select k1, k3, sum(v1) s1 from (
+            select * from t1 where k1 != 1
+          )group by k1, k3
+        ) t1 left join (
+          select k1, k3, count(v1) s2 from (
+            select * from t2 where k1 != 3
+          )group by k3, k1
+        ) t2 on t1.k1 = t2.k1 and t1.k3 = t2.k3
+        order by t1.k1, t1.k3, s1, s2
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.isEmpty)
+      })
+
   }
 
   test("Elimiate three aggreages join") {
@@ -160,7 +185,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -271,7 +296,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -296,7 +321,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
   test("aggregate min/max") {
@@ -320,7 +345,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -345,7 +370,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -370,7 +395,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -420,7 +445,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -445,7 +470,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -540,5 +565,45 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
 
     spark.sql("drop table t_9267_1")
     spark.sql("drop table t_9267_2")
+  }
+
+  test("right keys are in used") {
+    spark.sql("drop table if exists t_join_1")
+    spark.sql("drop table if exists t_join_2")
+    spark.sql("drop table if exists t_join_3")
+
+    spark.sql("create table t_join_1 (a bigint, b bigint) using parquet")
+    spark.sql("create table t_join_2 (a bigint, b bigint) using parquet")
+    spark.sql("create table t_join_3 (a bigint, b bigint) using parquet")
+
+    spark.sql("insert into t_join_1 select id % 10 as a, id as b from range(10)")
+    spark.sql("insert into t_join_2 select id % 7 as a, id as b from range(20)")
+    spark.sql("insert into t_join_3 select id % 10 as a, id as b from range(20)")
+
+    val sql =
+      """
+        |select a1, b, a2, a3, s2, s3 from (
+        |  select a as a1, b from t_join_1
+        |) t1 left join (
+        |  select a as a2, sum(b) as s2 from t_join_2 group by a
+        |) t2 on a1 = a2 left join (
+        |  select a as a3, sum(b) as s3 from t_join_3 group by a
+        |) t3 on a1 = a3
+        |order by a1, b, a2, a3, s2, s3
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.length == 1)
+      })
+
+    spark.sql("drop table t_join_1")
+    spark.sql("drop table t_join_2")
+    spark.sql("drop table t_join_3")
   }
 }

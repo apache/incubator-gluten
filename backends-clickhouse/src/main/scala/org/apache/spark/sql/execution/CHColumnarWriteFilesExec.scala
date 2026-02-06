@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.execution.WriteFilesExecTransformer
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.memory.CHThreadGroup
 
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
@@ -114,7 +114,8 @@ class CHColumnarWriteFilesRDD(
             // If we are writing an empty iterator, then gluten backend would do nothing.
             // Here we fallback to use vanilla Spark write files to generate an empty file for
             // metadata only.
-            Some(writeFilesForEmptyIterator(commitProtocol.taskAttemptContext, context.partitionId))
+            Some(
+              writeFilesForEmptyIterator(commitProtocol.getTaskAttemptContext, context.partitionId))
             // We have done commit task inside `writeFilesForEmptyIterator`.
           })
           .get
@@ -124,7 +125,7 @@ class CHColumnarWriteFilesRDD(
         catchBlock = {
           // If there is an error, abort the task
           commitProtocol.abortTask()
-          logError(s"Job ${commitProtocol.jobId} aborted.")
+          logError(s"Job ${commitProtocol.getJobId} aborted.")
         }
       )
     } catch {

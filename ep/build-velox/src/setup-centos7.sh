@@ -24,11 +24,13 @@ CPU_TARGET="${CPU_TARGET:-avx}"
 NPROC=$(getconf _NPROCESSORS_ONLN)
 FMT_VERSION=10.1.1
 BUILD_DUCKDB="${BUILD_DUCKDB:-true}"
+BUILD_GEOS="${BUILD_GEOS:-true}"
 export CFLAGS=$(get_cxx_flags $CPU_TARGET)  # Used by LZO.
 export CXXFLAGS=$CFLAGS  # Used by boost.
 export CPPFLAGS=$CFLAGS  # Used by LZO.
 export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
 FB_OS_VERSION="v2024.07.01.00"
+GEOS_VERSION="3.10.7"
 
 # shellcheck disable=SC2037
 SUDO="sudo -E"
@@ -58,7 +60,8 @@ function install_cmake {
 
 function install_ninja {
   cd "${DEPENDENCY_DIR}"
-  github_checkout ninja-build/ninja v1.11.1
+  github_checkout ninja-build/ninja v1.11.1 --depth 1
+  cd ninja
   ./configure.py --bootstrap
   cmake -Bbuild-cmake
   cmake --build build-cmake
@@ -68,9 +71,10 @@ function install_ninja {
 function install_folly {
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://github.com/facebook/folly/archive/refs/tags/${FB_OS_VERSION}.tar.gz folly
-  cmake_install folly -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON
+  cmake_install folly -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON -DFOLLY_NO_EXCEPTION_TRACER=ON
 }
 
+# not used
 function install_conda {
   cd "${DEPENDENCY_DIR}"
   mkdir -p conda && pushd conda
@@ -197,6 +201,13 @@ function install_duckdb {
   fi
 }
 
+function install_geos {
+  if [[ "$BUILD_GEOS" == "true" ]]; then
+    wget_and_untar https://github.com/libgeos/geos/archive/${GEOS_VERSION}.tar.gz geos
+    cmake_install_dir geos -DBUILD_TESTING=OFF
+  fi
+}
+
 function install_prerequisites {
   run_and_time install_lzo
   run_and_time install_boost
@@ -214,8 +225,8 @@ function install_velox_deps {
   run_and_time install_folly
   run_and_time install_protobuf
   run_and_time install_gtest
-  run_and_time install_conda
   run_and_time install_duckdb
+  run_and_time install_geos
 }
 
 $SUDO dnf makecache
@@ -226,11 +237,6 @@ dnf_install ccache wget which libevent-devel \
   yasm \
   openssl-devel libzstd-devel lz4-devel double-conversion-devel \
   curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel tzdata
-
-# Update tzdata, required by Velox at runtime.
-dnf_install python3-pip
-pip3 install tzdata
-cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
 
 $SUDO dnf remove -y gflags
 

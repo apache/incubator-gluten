@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.rdd.RDD
@@ -23,6 +24,8 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, UnaryNode}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.classic.ClassicConversions._
+import org.apache.spark.sql.classic.ClassicDataset
 import org.apache.spark.sql.execution.{SparkPlan, SparkStrategy, UnaryExecNode}
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -58,6 +61,10 @@ case class DummyFilterColumnarExec(child: SparkPlan) extends UnaryExecNode {
 }
 
 object DummyFilterColumnarStrategy extends SparkStrategy {
+  // TODO: remove this if we can suppress unused import error.
+  locally {
+    new ColumnConstructorExt(Column)
+  }
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
     case r: DummyFilterColumnar =>
       DummyFilterColumnarExec(planLater(r.child)) :: Nil
@@ -72,7 +79,7 @@ object DummyFilterColmnarHelper {
       case p => p
     }
 
-    Dataset.ofRows(spark, modifiedPlan)
+    ClassicDataset.ofRows(spark, modifiedPlan)
   }
 
   def withSession(builders: Seq[SparkSessionExtensionsProvider])(f: SparkSession => Unit): Unit = {
@@ -86,7 +93,7 @@ object DummyFilterColmnarHelper {
         .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         .config("spark.io.compression.codec", "LZ4")
-        .config("spark.gluten.sql.enable.native.validation", "false")
+        .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
     } else {
       SparkSession
         .builder()

@@ -22,14 +22,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.types.{DecimalType, StructType}
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
-
-class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
-
-  override protected val tablesPath: String = basePath + "/tpch-data-ch"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
+class GlutenClickHouseTPCHSuite extends MergeTreeSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -40,15 +33,34 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
   }
 
+  final override val testCases: Seq[Int] = Seq(
+    4, 6, 9, 10, 11, 12, 13, 15, 16, 19, 20, 21, 22
+  )
+  final override val testCasesWithConfig: Map[Int, Seq[(String, String)]] =
+    Map(
+      7 -> Seq(
+        ("spark.sql.shuffle.partitions", "1"),
+        ("spark.sql.autoBroadcastJoinThreshold", "-1")),
+      8 -> Seq(
+        ("spark.sql.shuffle.partitions", "1"),
+        ("spark.sql.autoBroadcastJoinThreshold", "-1")),
+      14 -> Seq(
+        ("spark.sql.shuffle.partitions", "1"),
+        ("spark.sql.autoBroadcastJoinThreshold", "-1")),
+      17 -> Seq(("spark.shuffle.sort.bypassMergeThreshold", "2")),
+      18 -> Seq(("spark.shuffle.sort.bypassMergeThreshold", "2"))
+    )
+  setupTestCase()
+
   test("TPCH Q1") {
-    runTPCHQuery(1) {
+    customCheck(1) {
       df =>
         val scanExec = df.queryExecution.executedPlan.collect {
           case scanExec: BasicScanExecTransformer => scanExec
         }
         assert(scanExec.size == 1)
 
-        assert(scanExec(0).nodeName.startsWith("ScanTransformer mergetree"))
+        assert(scanExec.head.nodeName.startsWith("FileSourceScanExecTransformer mergetree"))
 
         val sortExec = df.queryExecution.executedPlan.collect {
           case sortExec: SortExecTransformer => sortExec
@@ -58,7 +70,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("TPCH Q2") {
-    runTPCHQuery(2) {
+    customCheck(2) {
       df =>
         val scanExec = df.queryExecution.executedPlan.collect {
           case scanExec: BasicScanExecTransformer => scanExec
@@ -69,7 +81,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   test("TPCH Q3") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(3) {
+      customCheck(3) {
         df =>
           val shjBuildLeft = df.queryExecution.executedPlan.collect {
             case shj: ShuffledHashJoinExecTransformerBase if shj.joinBuildSide == BuildLeft => shj
@@ -83,13 +95,9 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
-  test("TPCH Q4") {
-    runTPCHQuery(4) { df => }
-  }
-
   test("TPCH Q5") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(5) {
+      customCheck(5) {
         df =>
           val bhjRes = df.queryExecution.executedPlan.collect {
             case bhj: BroadcastHashJoinExecTransformerBase => bhj
@@ -97,90 +105,6 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
           assert(bhjRes.isEmpty)
       }
     }
-  }
-
-  test("TPCH Q6") {
-    runTPCHQuery(6) { df => }
-  }
-
-  test("TPCH Q7") {
-    withSQLConf(
-      ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(7) { df => }
-    }
-  }
-
-  test("TPCH Q8") {
-    withSQLConf(
-      ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(8) { df => }
-    }
-  }
-
-  test("TPCH Q9") {
-    runTPCHQuery(9) { df => }
-  }
-
-  test("TPCH Q10") {
-    runTPCHQuery(10) { df => }
-  }
-
-  test("TPCH Q11") {
-    runTPCHQuery(11) { df => }
-  }
-
-  test("TPCH Q12") {
-    runTPCHQuery(12) { df => }
-  }
-
-  test("TPCH Q13") {
-    runTPCHQuery(13) { df => }
-  }
-
-  test("TPCH Q14") {
-    withSQLConf(
-      ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      runTPCHQuery(14) { df => }
-    }
-  }
-
-  test("TPCH Q15") {
-    runTPCHQuery(15) { df => }
-  }
-
-  test("TPCH Q16") {
-    runTPCHQuery(16) { df => }
-  }
-
-  test("TPCH Q17") {
-    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(17) { df => }
-    }
-  }
-
-  test("TPCH Q18") {
-    withSQLConf(("spark.shuffle.sort.bypassMergeThreshold", "2")) {
-      runTPCHQuery(18) { df => }
-    }
-  }
-
-  test("TPCH Q19") {
-    runTPCHQuery(19) { df => }
-  }
-
-  test("TPCH Q20") {
-    runTPCHQuery(20) { df => }
-  }
-
-  test("TPCH Q21") {
-    runTPCHQuery(21) { df => }
-  }
-
-  test("TPCH Q22") {
-    runTPCHQuery(22) { df => }
   }
 
   test("test 'select count(*) from table'") {
@@ -195,7 +119,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                           |select count(*) from lineitem
                           |where l_quantity < 24
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 275436L)
+    assert(result.head.getLong(0) == 275436L)
   }
 
   test("test 'select global/local limit'") {
@@ -213,7 +137,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                           |  select l_orderkey, explode(array(l_returnflag, l_linestatus)),
                           |  l_suppkey from lineitem);
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 1201144L)
+    assert(result.head.getLong(0) == 1201144L)
   }
 
   test("test 'function posexplode(array)'") {
@@ -222,7 +146,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                           |  select l_orderkey, posexplode(array(l_returnflag, l_linestatus)),
                           |  l_suppkey from lineitem);
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 1201144L)
+    assert(result.head.getLong(0) == 1201144L)
   }
 
   test("test 'lateral view explode(array)'") {
@@ -232,7 +156,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                           |  lateral view explode(array(l_returnflag, l_linestatus)) as col1
                           |  lateral view explode(array(l_shipmode, l_comment)) as col2)
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 2402288L)
+    assert(result.head.getLong(0) == 2402288L)
   }
 
   test("test 'lateral view posexplode(array)'") {
@@ -243,7 +167,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                |  lateral view posexplode(array(l_returnflag, l_linestatus)) as pos1, col1
                |  lateral view posexplode(array(l_shipmode, l_comment)) as pos2, col2)
                |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 2402288L)
+    assert(result.head.getLong(0) == 2402288L)
   }
 
   test("test 'function explode(map)'") {
@@ -253,7 +177,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                           |    explode(map('returnflag', l_returnflag, 'linestatus', l_linestatus)),
                           |    l_suppkey from lineitem);
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 1201144L)
+    assert(result.head.getLong(0) == 1201144L)
   }
 
   test("test 'function posexplode(map)'") {
@@ -264,7 +188,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                |    posexplode(map('returnflag', l_returnflag, 'linestatus', l_linestatus)),
                |    l_suppkey from lineitem);
                |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 1201144L)
+    assert(result.head.getLong(0) == 1201144L)
   }
 
   test("test 'lateral view explode(map)'") {
@@ -279,7 +203,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                           |    as k2, v2
                           |)
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 2402288L)
+    assert(result.head.getLong(0) == 2402288L)
   }
 
   test("test 'lateral view posexplode(map)'") {
@@ -295,7 +219,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                |    as p2, k2, v2
                |)
                |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 2402288L)
+    assert(result.head.getLong(0) == 2402288L)
   }
 
   test("test 'select count(1)'") {
@@ -303,28 +227,28 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                           |select count(1) from lineitem
                           |where l_quantity < 20
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 227302L)
+    assert(result.head.getLong(0) == 227302L)
   }
 
   test("test 'select count(1)' with empty columns to read") {
     val result = runSql("""
                           |select count(1) from lineitem
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 600572L)
+    assert(result.head.getLong(0) == 600572L)
   }
 
   test("test 'select count(*)' with empty columns to read") {
     val result = runSql("""
                           |select count(*) from lineitem
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 600572L)
+    assert(result.head.getLong(0) == 600572L)
   }
 
   test("test 'select sum(2)' with empty columns to read") {
     val result = runSql("""
                           |select sum(2) from lineitem
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 1201144L)
+    assert(result.head.getLong(0) == 1201144L)
   }
 
   test("test 'select 1' with empty columns to read") {
@@ -332,7 +256,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                           |select 1 from lineitem limit 2
                           |""".stripMargin) { _ => }
     assert(result.size == 2)
-    assert(result(0).getInt(0) == 1 && result(1).getInt(0) == 1)
+    assert(result.head.getInt(0) == 1 && result(1).getInt(0) == 1)
   }
 
   test("test 'order by'") {
@@ -387,10 +311,10 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
                           | space(3/3.00f)
                           | from lineitem limit 1
                           |""".stripMargin) { _ => }
-    assert(result(0).getString(0).equals("   "))
-    assert(result(0).getString(1).equals(""))
-    assert(result(0).getString(2) == null)
-    assert(result(0).getString(3).equals(" "))
+    assert(result.head.getString(0).equals("   "))
+    assert(result.head.getString(1).equals(""))
+    assert(result.head.getString(2) == null)
+    assert(result.head.getString(3).equals(" "))
   }
 
   test("test 'ISSUE https://github.com/Kyligence/ClickHouse/issues/225'") {
@@ -456,16 +380,17 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("test 'function json_tuple'") {
-    val result = runSql(
-      """
-        | select
-        | json_tuple('{"hello":"world", "hello1":"world1", "hello2":["a","b"]}', 'hello', 'hello1','hello2', 'hello3')
-        | from lineitem where l_linenumber = 3 and l_orderkey < 3 limit 1
-        |""".stripMargin) { _ => }
-    assert(result(0).getString(0).equals("world"))
-    assert(result(0).getString(1).equals("world1"))
-    assert(result(0).getString(2).equals("[\"a\",\"b\"]"))
-    assert(result(0).isNullAt(3))
+    val sql = """
+                | select
+                | json_tuple('{"hello":"world", "hello1":"world1", "hello2":["a","b"]}',
+                |            'hello', 'hello1','hello2', 'hello3')
+                | from lineitem where l_linenumber = 3 and l_orderkey < 3 limit 1
+                |""".stripMargin
+    val result = runSql(sql) { _ => }
+    assert(result.head.getString(0).equals("world"))
+    assert(result.head.getString(1).equals("world1"))
+    assert(result.head.getString(2).equals("[\"a\",\"b\"]"))
+    assert(result.head.isNullAt(3))
   }
 
   test("GLUTEN-3271: Bug fix arrayElement from split") {
@@ -473,12 +398,12 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       """
         | create table test_tbl_3271(id bigint, data string) using parquet;
         |""".stripMargin
-    val table_drop_sql = "drop table test_tbl_3271";
+    val table_drop_sql = "drop table test_tbl_3271"
     val data_insert_sql = "insert into test_tbl_3271 values(1, 'ab')"
     val select_sql_1 = "select id, split(data, ',')[1] from test_tbl_3271 where id = 1"
     val select_sql_2 = "select id, element_at(split(data, ','), 2) from test_tbl_3271 where id = 1"
     val select_sql_3 = "select id, element_at(map(id, data), 1) from test_tbl_3271 where id = 1"
-    spark.sql(table_create_sql);
+    spark.sql(table_create_sql)
     spark.sql(data_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
     compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
@@ -534,16 +459,29 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("gluten-7077 bug in cross broad cast join") {
-    spark.sql("create table cross_join_t(a bigint, b string, c string) using parquet");
+    spark.sql("create table cross_join_t(a bigint, b string, c string) using parquet")
     var sql = """
                 | insert into cross_join_t
                 | select id as a, cast(id as string) as b,
                 |   concat('1231231232323232322', cast(id as string)) as c
-                | from range(0, 100000)
+                | from range(0, 10000)
                 |""".stripMargin
     spark.sql(sql)
     sql = """
-            | select * from cross_join_t as t1 full join cross_join_t as t2 limit 10
+            | insert into cross_join_t
+            | select id as a, cast(id as string) as b,
+            |   concat('1231231232323232322', cast(id as string)) as c
+            | from range(10000, 20000)
+            |""".stripMargin
+    spark.sql(sql)
+    sql = """
+            |select * from (
+            | select a as a1, b as b1, c as c1 from cross_join_t
+            |) as t1 full join (
+            | select a as a2, b as b2, c as c2 from cross_join_t
+            |) as t2
+            |order by a1, b1, c1, a2, b2, c2
+            |limit 10
             |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
     spark.sql("drop table cross_join_t")
@@ -622,7 +560,5 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       )
       sql("drop table test_9317")
     }
-
   }
 }
-// scalastyle:off line.size.limit

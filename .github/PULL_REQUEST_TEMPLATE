@@ -1,13 +1,36 @@
-## What changes were proposed in this pull request?
+<!--
+Thank you for submitting a pull request! Here are some tips:
 
-(Please fill in changes proposed in this fix)
+1. For first-time contributors, please read our contributing guide:
+   https://github.com/apache/incubator-gluten/blob/main/CONTRIBUTING.md
+2. If necessary, create a GitHub issue for discussion beforehand to avoid duplicate work.
+3. If the PR is specific to a single backend, include [VL] or [CH] in the PR title to indicate the
+   Velox or ClickHouse backend, respectively.
+4. If the PR is not ready for review, please mark it as a draft.
+-->
 
-(Fixes: \#ISSUE-ID)
+## What changes are proposed in this pull request?
+
+<!--
+Provide a clear and concise description of the changes introduced in this PR.
+Ensure the PR description aligns with the code changes, especially after updates.
+If applicable, include "Fixes #<GitHub_Issue_ID>" to automatically close the corresponding issue
+when the PR is merged.
+-->
 
 ## How was this patch tested?
 
-(Please explain how this patch was tested. E.g. unit tests, integration tests, manual tests)
+<!--
+Describe how the changes were tested, if applicable.
+Include new tests to validate the functionality, if necessary.
+For UI-related changes, attach screenshots to demonstrate the updates.
+-->
 
+## Was this patch authored or co-authored using generative AI tooling?
 
-(If this patch involves UI changes, please attach a screenshot; otherwise, remove this)
-
+<!--
+If generative AI tooling has been used in the process of authoring this patch, please include the
+phrase: 'Generated-by: ' followed by the name of the tool and its version.
+If no, write 'No'.
+Please refer to the [ASF Generative Tooling Guidance](https://www.apache.org/legal/generative-tooling.html) for details.
+-->

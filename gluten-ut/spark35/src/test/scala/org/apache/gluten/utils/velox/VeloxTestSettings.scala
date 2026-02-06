@@ -36,6 +36,7 @@ import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, Glute
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins._
+import org.apache.spark.sql.execution.python._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.gluten.GlutenFallbackSuite
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
@@ -60,7 +61,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("ordering and partitioning reporting")
   enableSuite[GlutenDeleteFromTableSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
-    // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
+    // Rewritten
     .exclude("Fallback Parquet V2 to V1")
   enableSuite[GlutenKeyGroupedPartitioningSuite]
     // NEW SUITE: disable as they check vanilla spark plan
@@ -136,16 +137,24 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp exception mode")
     // Replaced by a gluten test to pass timezone through config.
     .exclude("from_unixtime")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("months_between")
+    // Vanilla Spark does not have a unified DST Timestamp fastTime. 1320570000000L and
+    // 1320566400000L both represent 2011-11-06 01:00:00.
+    .exclude("SPARK-42635: timestampadd near daylight saving transition")
     // https://github.com/facebookincubator/velox/pull/10563/files#diff-140dc50e6dac735f72d29014da44b045509df0dd1737f458de1fe8cfd33d8145
     .excludeGlutenTest("from_unixtime")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenDecimalPrecisionSuite]
+  enableSuite[GlutenGeneratorExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenJsonExpressionsSuite]
     // https://github.com/apache/incubator-gluten/issues/8102
     .exclude("$.store.book")
+    // https://github.com/apache/incubator-gluten/issues/10948
+    .exclude("$['key with spaces']")
     .exclude("$")
     .exclude("$.store.book[0]")
     .exclude("$.store.book[*]")
@@ -223,7 +232,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
@@ -235,18 +243,15 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
     // Flaky and already excluded in other cases
     .exclude("Gluten - test for FAILFAST parsing mode")
-
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
     // Early Filter and Projection Push-Down generated an invalid plan
     .exclude("SPARK-26208: write and read empty data to csv file with headers")
     // file cars.csv include null string, Arrow not support to read
-    .exclude("old csv data source name works")
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     .exclude("DDL test with tab separated file")
@@ -261,7 +266,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with schema")
     .exclude("save csv")
     .exclude("save csv with compression codec option")
-    .exclude("save csv with empty fields with user defined empty values")
     .exclude("save csv with quote")
     .exclude("SPARK-13543 Write the output as uncompressed via option()")
     // Arrow not support corrupt record
@@ -272,17 +276,10 @@ class VeloxTestSettings extends BackendTestSettings {
     // varchar
     .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenJsonV1Suite]
-    // FIXME: Array direct selection fails
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonV2Suite]
     // exception test
     .exclude("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern")
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
-    .exclude("Complex field and type inferring")
-    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenValidateRequirementsSuite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]
@@ -438,6 +435,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
+    .exclude("SPARK-38825: in and notIn filters")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
@@ -455,6 +453,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
+    .exclude("SPARK-38825: in and notIn filters")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
@@ -553,6 +552,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenPruneFileSourcePartitionsSuite]
   enableSuite[GlutenCSVReadSchemaSuite]
   enableSuite[GlutenHeaderCSVReadSchemaSuite]
+    .exclude("change column type from int to long")
   enableSuite[GlutenJsonReadSchemaSuite]
   enableSuite[GlutenOrcReadSchemaSuite]
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
@@ -580,6 +580,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
+    // Rewrite for Gluten. Change details are in the inline comments in individual tests.
     .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
@@ -678,7 +679,26 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("length check for input string values: nested in both map key and value")
     .exclude("length check for input string values: nested in array of struct")
     .exclude("length check for input string values: nested in array of array")
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
+    .exclude("length check for input string values: top-level columns")
+    .exclude("length check for input string values: partitioned columns")
+    .exclude("length check for input string values: nested in struct of array")
+    .exclude("length check for input string values: with implicit cast")
+    .exclude("char/varchar type values length check: partitioned columns of other types")
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    // Following tests are excluded as these are overridden in Gluten test suite..
+    // The overridden tests assert against Velox-specific error messages for char/varchar
+    // length validation, which differ from the original vanilla Spark tests.
+    .exclude("length check for input string values: top-level columns")
+    .exclude("length check for input string values: nested in array")
+    .exclude("length check for input string values: nested in struct of array")
+    .exclude("length check for input string values: nested in array of struct")
+    .exclude("length check for input string values: nested in array of array")
+    .exclude("length check for input string values: with implicit cast")
+    .exclude("char/varchar type values length check: partitioned columns of other types")
+    .exclude("SPARK-42611: check char/varchar length in reordered structs within arrays")
   enableSuite[GlutenColumnExpressionSuite]
     // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.
     // The final caught Spark exception's getCause().getMessage() contains 'errMsg' but does not
@@ -941,6 +961,30 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenTableLocationSuite]
   enableSuite[GlutenRemoveRedundantWindowGroupLimitsSuite]
   enableSuite[GlutenSQLCollectLimitExecSuite]
+  enableSuite[GlutenBatchEvalPythonExecSuite]
+    // Replaced with other tests that check for native operations
+    .exclude("Python UDF: push down deterministic FilterExec predicates")
+    .exclude("Nested Python UDF: push down deterministic FilterExec predicates")
+    .exclude("Python UDF: no push down on non-deterministic")
+    .exclude("Python UDF: push down on deterministic predicates after the first non-deterministic")
+  enableSuite[GlutenExtractPythonUDFsSuite]
+    // Replaced with test that check for native operations
+    .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V1")
+    .exclude("Chained Scalar Pandas UDFs should be combined to a single physical node")
+    .exclude("Mixed Batched Python UDFs and Pandas UDF should be separate physical node")
+    .exclude("Independent Batched Python UDFs and Scalar Pandas UDFs should be combined separately")
+    .exclude("Dependent Batched Python UDFs and Scalar Pandas UDFs should not be combined")
+    .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V2")
+  enableSuite[GlutenStreamingQuerySuite]
+    // requires test resources that don't exist in Gluten repo
+    .exclude("detect escaped path and report the migration guide")
+    .exclude("ignore the escaped path check when the flag is off")
+    .excludeByPrefix("SPARK-51187")
+  enableSuite[GlutenQueryExecutionSuite]
+    // Rewritten to set root logger level to INFO so that logs can be parsed
+    .exclude("Logging plan changes for execution")
+    // Rewrite for transformed plan
+    .exclude("dumping query execution info to a file - explainMode=formatted")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

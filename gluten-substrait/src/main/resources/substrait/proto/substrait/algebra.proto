@@ -146,9 +146,7 @@ message ReadRel {
       // The length in byte to read from this item
       uint64 length = 8;
 
-      message ParquetReadOptions {
-        bool enable_row_group_maxmin_index = 1;
-      }
+      message ParquetReadOptions {}
       message ArrowReadOptions {}
       message OrcReadOptions {}
       message DwrfReadOptions {}
@@ -875,6 +873,7 @@ message Expression {
     message Struct {
       // A possibly heterogeneously typed list of literals
       repeated Literal fields = 1;
+      repeated string names = 2;
     }
 
     message List {

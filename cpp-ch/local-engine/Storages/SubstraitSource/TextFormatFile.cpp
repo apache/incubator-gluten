@@ -22,8 +22,7 @@
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/IRowInputFormat.h>
 #include <Processors/Formats/Impl/HiveTextRowInputFormat.h>
-#include <Poco/URI.h>
-
+#include <Common/BlockTypeUtils.h>
 
 namespace local_engine
 {
@@ -34,7 +33,8 @@ TextFormatFile::TextFormatFile(
 {
 }
 
-FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr
+TextFormatFile::createInputFormat(const DB::Block & header, const std::shared_ptr<const DB::ActionsDAG> & /*filter_actions_dag*/)
 {
     auto read_buffer = read_buffer_builder->buildWithCompressionWrapper(file_info);
 
@@ -69,7 +69,7 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
         format_settings.csv.allow_single_quotes = false;
         format_settings.csv.allow_double_quotes = false;
     }
-    auto input = std::make_shared<DB::HiveTextRowInputFormat>(header, *read_buffer, params, format_settings);
+    auto input = std::make_shared<DB::HiveTextRowInputFormat>(toShared(header), *read_buffer, params, format_settings);
     return std::make_shared<InputFormat>(std::move(read_buffer), input);
 }
 

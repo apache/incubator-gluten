@@ -14,15 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.unsafe;
+package org.apache.spark.sql.execution.unsafe
+
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.memory.memtarget.ThrowOnOomMemoryTarget.OutOfMemoryException
 
 import org.apache.spark.{SparkConf, SparkEnv}
+import org.apache.spark.memory.GlobalOffHeapMemory
+import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.serializer.{JavaSerializer, KryoSerializer}
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.catalyst.plans.physical.IdentityBroadcastMode
 import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.test.SharedSparkSession
-import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.unsafe.Platform
+
+import java.util
+
+import scala.collection.mutable
+import scala.util.Random
 
 class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
   override protected def sparkConf: SparkConf = {
@@ -31,30 +42,80 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
       .set("spark.memory.offHeap.enabled", "true")
   }
 
-  var unsafeRelWithIdentityMode: UnsafeColumnarBuildSideRelation = null
-  var unsafeRelWithHashMode: UnsafeColumnarBuildSideRelation = null
+  var unsafeRelWithIdentityMode: UnsafeColumnarBuildSideRelation = _
+  var unsafeRelWithHashMode: UnsafeColumnarBuildSideRelation = _
+  var output: Seq[Attribute] = _
+  var sample1KBytes: Array[Byte] = _
+  var initialGlobalBytes: Long = _
+
+  private def toByteArray(unsafeByteArray: UnsafeByteArray): Array[Byte] = {
+    val byteArray = new Array[Byte](Math.toIntExact(unsafeByteArray.size()))
+    Platform.copyMemory(
+      null,
+      unsafeByteArray.address(),
+      byteArray,
+      Platform.BYTE_ARRAY_OFFSET,
+      byteArray.length)
+    byteArray
+  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val a = AttributeReference("a", StringType, nullable = false, null)()
-    val output = Seq(a)
-    val totalArraySize = 1
-    val perArraySize = new Array[Int](totalArraySize)
-    perArraySize(0) = 10
-    val bytesArray = UnsafeBytesBufferArray(
-      1,
-      perArraySize,
-      10
-    )
-    bytesArray.putBytesBuffer(0, "1234567890".getBytes())
-    unsafeRelWithIdentityMode = UnsafeColumnarBuildSideRelation(
+    // Trigger GC to clean up any residual memory from previous test suites,
+    // ensuring initialGlobalBytes is accurate.
+    System.gc()
+    Thread.sleep(1000)
+    initialGlobalBytes = GlobalOffHeapMemory.currentBytes()
+    output = Seq(AttributeReference("a", StringType, nullable = false, null)())
+    sample1KBytes = randomBytes(1024)
+    unsafeRelWithIdentityMode = newUnsafeRelationWithIdentityMode(2)
+    unsafeRelWithHashMode = newUnsafeRelationWithHashMode(2)
+  }
+
+  override protected def afterAll(): Unit = {
+    // Makes sure all the underlying UnsafeByteArray instances become GC non-reachable and
+    // be released after a full-GC.
+    unsafeRelWithIdentityMode = null
+    unsafeRelWithHashMode = null
+    System.gc()
+    Thread.sleep(1000)
+    // Since we trigger GC in beforeAll() to clean up residual memory from previous test suites,
+    // initialGlobalBytes should be accurate and this assertion should be stable.
+    assert(GlobalOffHeapMemory.currentBytes() == initialGlobalBytes)
+  }
+
+  private def randomBytes(size: Int): Array[Byte] = {
+    val array = new Array[Byte](size)
+    val random = new Random()
+    random.nextBytes(array)
+    array
+  }
+
+  private def sampleUnsafeByteArrayInKb(sizeInKb: Int): UnsafeByteArray = {
+    val sizeInBytes = sizeInKb * 1024
+    val buf = ArrowBufferAllocators.globalInstance().buffer(sizeInBytes)
+    for (i <- 0 until sizeInKb) {
+      buf.setBytes(i * 1024, sample1KBytes, 0, 1024)
+    }
+    try {
+      new UnsafeByteArray(buf, sizeInBytes)
+    } finally {
+      buf.close()
+    }
+  }
+
+  private def newUnsafeRelationWithIdentityMode(sizeInKb: Int): UnsafeColumnarBuildSideRelation = {
+    UnsafeColumnarBuildSideRelation(
       output,
-      bytesArray,
+      (0 until sizeInKb).map(_ => sampleUnsafeByteArrayInKb(1)),
       IdentityBroadcastMode
     )
-    unsafeRelWithHashMode = UnsafeColumnarBuildSideRelation(
+  }
+
+  private def newUnsafeRelationWithHashMode(sizeInKb: Int): UnsafeColumnarBuildSideRelation = {
+    UnsafeColumnarBuildSideRelation(
       output,
-      bytesArray,
+      (0 until sizeInKb).map(_ => sampleUnsafeByteArrayInKb(1)),
       HashedRelationBroadcastMode(output, isNullAware = false)
     )
   }
@@ -68,12 +129,20 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
     val obj = serializerInstance.deserialize[UnsafeColumnarBuildSideRelation](buffer)
     assert(obj != null)
     assert(obj.mode == IdentityBroadcastMode)
+    assert(
+      util.Arrays.deepEquals(
+        obj.getBatches().map(toByteArray).toArray[AnyRef],
+        Array(sample1KBytes, sample1KBytes).asInstanceOf[Array[AnyRef]]))
 
     // test unsafeRelWithHashMode
     val buffer2 = serializerInstance.serialize(unsafeRelWithHashMode)
     val obj2 = serializerInstance.deserialize[UnsafeColumnarBuildSideRelation](buffer2)
     assert(obj2 != null)
     assert(obj2.mode.isInstanceOf[HashedRelationBroadcastMode])
+    assert(
+      util.Arrays.deepEquals(
+        obj2.getBatches().map(toByteArray).toArray[AnyRef],
+        Array(sample1KBytes, sample1KBytes).asInstanceOf[Array[AnyRef]]))
   }
 
   test("Kryo serialization") {
@@ -85,12 +154,38 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
     val obj = serializerInstance.deserialize[UnsafeColumnarBuildSideRelation](buffer)
     assert(obj != null)
     assert(obj.mode == IdentityBroadcastMode)
+    assert(
+      util.Arrays.deepEquals(
+        obj.getBatches().map(toByteArray).toArray[AnyRef],
+        Array(sample1KBytes, sample1KBytes).asInstanceOf[Array[AnyRef]]))
 
     // test unsafeRelWithHashMode
     val buffer2 = serializerInstance.serialize(unsafeRelWithHashMode)
     val obj2 = serializerInstance.deserialize[UnsafeColumnarBuildSideRelation](buffer2)
     assert(obj2 != null)
     assert(obj2.mode.isInstanceOf[HashedRelationBroadcastMode])
+    assert(
+      util.Arrays.deepEquals(
+        obj2.getBatches().map(toByteArray).toArray[AnyRef],
+        Array(sample1KBytes, sample1KBytes).asInstanceOf[Array[AnyRef]]))
   }
 
+  test("Should throw OOM when off-heap memory is running out") {
+    // 500 MiB > 200 MiB so OOM should be thrown.
+    val relations = mutable.ListBuffer[UnsafeColumnarBuildSideRelation]()
+    assertThrows[OutOfMemoryException] {
+      for (i <- 0 until 10) {
+        relations += newUnsafeRelationWithHashMode(ByteUnit.MiB.toKiB(50).toInt)
+      }
+    }
+    relations.clear()
+  }
+
+  test("Should trigger GC before OOM") {
+    // 500 MiB > 200 MiB, but since we don't preserve the references to the created relations,
+    // GC will be triggered and OOM should not be thrown.
+    for (i <- 0 until 10) {
+      newUnsafeRelationWithHashMode(ByteUnit.MiB.toKiB(50).toInt)
+    }
+  }
 }
