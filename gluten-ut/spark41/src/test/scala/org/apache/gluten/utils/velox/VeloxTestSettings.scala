@@ -254,7 +254,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenUnwrapUDTExpressionSuite]
   enableSuite[GlutenV2ExpressionUtilsSuite]
   enableSuite[GlutenValidateExternalTypeSuite]
-  // TODO: 4.x enableSuite[GlutenXmlExpressionsSuite]  // 7 failures
+  enableSuite[GlutenXmlExpressionsSuite]
+    .exclude("from_xml- invalid data")
   // Generated suites for org.apache.spark.sql.connector
   enableSuite[GlutenDataSourceV2MetricsSuite]
   enableSuite[GlutenDataSourceV2OptionSuite]
