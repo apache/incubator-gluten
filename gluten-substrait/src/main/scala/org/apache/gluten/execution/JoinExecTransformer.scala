@@ -63,6 +63,9 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
     case _: InnerLike =>
       PartitioningCollection(Seq(left.outputPartitioning, right.outputPartitioning))
     case LeftOuter => left.outputPartitioning
+    // LeftSingle (Spark 4.0+) has same partitioning as LeftOuter
+    case leftSingle if SparkShimLoader.getSparkShims.isLeftSingleJoinType(leftSingle) =>
+      left.outputPartitioning
     case RightOuter => right.outputPartitioning
     case FullOuter => UnknownPartitioning(left.outputPartitioning.numPartitions)
     case LeftExistence(_) => left.outputPartitioning
@@ -157,6 +160,9 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
         case _: InnerLike => expandPartitioning(right.outputPartitioning)
         case RightOuter => right.outputPartitioning
         case LeftOuter => left.outputPartitioning
+        // LeftSingle (Spark 4.0+) - same as LeftOuter
+        case leftSingle if SparkShimLoader.getSparkShims.isLeftSingleJoinType(leftSingle) =>
+          left.outputPartitioning
         case FullOuter => UnknownPartitioning(left.outputPartitioning.numPartitions)
         case x =>
           throw new IllegalArgumentException(
@@ -166,6 +172,9 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
       joinType match {
         case _: InnerLike => expandPartitioning(left.outputPartitioning)
         case LeftOuter | LeftSemi | LeftAnti | _: ExistenceJoin => left.outputPartitioning
+        // LeftSingle (Spark 4.0+) - same as LeftOuter
+        case leftSingle if SparkShimLoader.getSparkShims.isLeftSingleJoinType(leftSingle) =>
+          left.outputPartitioning
         case RightOuter => right.outputPartitioning
         case FullOuter => UnknownPartitioning(right.outputPartitioning.numPartitions)
         case x =>

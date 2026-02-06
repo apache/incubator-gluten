@@ -787,7 +787,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenICUCollationsMapSuite]
   enableSuite[GlutenInlineTableParsingImprovementsSuite]
   enableSuite[GlutenJoinHintSuite]
-  // TODO: 4.x enableSuite[GlutenLogQuerySuite]  // 2 failures
+  enableSuite[GlutenLogQuerySuite]
+    // Overridden
+    .exclude("Query Spark logs with exception using SQL")
   enableSuite[GlutenPercentileQuerySuite]
   enableSuite[GlutenRandomDataGeneratorSuite]
   enableSuite[GlutenRowJsonSuite]
