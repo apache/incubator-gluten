@@ -40,84 +40,91 @@ val caffeineVersion: String by project
 val antlr4Version: String by project
 
 // Computed properties based on Spark version
-val sparkProperties = when (sparkVersion) {
-    "3.3" -> mapOf(
-        "sparkFullVersion" to "3.3.1",
-        "sparkPlainVersion" to "33",
-        "deltaVersion" to "2.3.0",
-        "deltaBinaryVersion" to "23",
-        "deltaPackageName" to "delta-core",
-        "icebergVersion" to "1.5.0",
-        "icebergBinaryVersion" to "5",
-        "antlr4Version" to "4.8",
-        "hudiVersion" to "0.15.0"
-    )
-    "3.4" -> mapOf(
-        "sparkFullVersion" to "3.4.4",
-        "sparkPlainVersion" to "34",
-        "deltaVersion" to "2.4.0",
-        "deltaBinaryVersion" to "24",
-        "deltaPackageName" to "delta-core",
-        "icebergVersion" to "1.10.0",
-        "icebergBinaryVersion" to "10",
-        "antlr4Version" to "4.9.3",
-        "hudiVersion" to "0.15.0"
-    )
-    "3.5" -> mapOf(
-        "sparkFullVersion" to "3.5.5",
-        "sparkPlainVersion" to "35",
-        "deltaVersion" to "3.3.2",
-        "deltaBinaryVersion" to "33",
-        "deltaPackageName" to "delta-spark",
-        "icebergVersion" to "1.10.0",
-        "icebergBinaryVersion" to "10",
-        "antlr4Version" to "4.9.3",
-        "hudiVersion" to "0.15.0",
-        "hadoopVersion" to "3.3.4"
-    )
-    "4.0" -> mapOf(
-        "sparkFullVersion" to "4.0.1",
-        "sparkPlainVersion" to "40",
-        "deltaVersion" to "4.0.0",
-        "deltaBinaryVersion" to "40",
-        "deltaPackageName" to "delta-spark",
-        "icebergVersion" to "1.10.0",
-        "icebergBinaryVersion" to "10",
-        "antlr4Version" to "4.13.1",
-        "hudiVersion" to "1.1.0",
-        "paimonVersion" to "1.3.0",
-        "hadoopVersion" to "3.4.1",
-        "arrowVersion" to "18.1.0"
-    )
-    "4.1" -> mapOf(
-        "sparkFullVersion" to "4.1.1",
-        "sparkPlainVersion" to "41",
-        "deltaVersion" to "4.0.0",
-        "deltaBinaryVersion" to "40",
-        "deltaPackageName" to "delta-spark",
-        "icebergVersion" to "1.10.0",
-        "icebergBinaryVersion" to "10",
-        "antlr4Version" to "4.13.1",
-        "hudiVersion" to "1.1.0",
-        "paimonVersion" to "1.3.0",
-        "hadoopVersion" to "3.4.1",
-        "arrowVersion" to "18.1.0"
-    )
-    else -> mapOf(
-        "sparkFullVersion" to "4.1.1",
-        "sparkPlainVersion" to "41",
-        "deltaVersion" to "4.0.0",
-        "deltaBinaryVersion" to "40",
-        "deltaPackageName" to "delta-spark",
-        "icebergVersion" to "1.10.0",
-        "icebergBinaryVersion" to "10",
-        "antlr4Version" to "4.13.1",
-        "hudiVersion" to "1.1.0",
-        "paimonVersion" to "1.3.0",
-        "hadoopVersion" to "3.4.1",
-        "arrowVersion" to "18.1.0"
-    )
-}
+val sparkProperties =
+    when (sparkVersion) {
+        "3.3" ->
+            mapOf(
+                "sparkFullVersion" to "3.3.1",
+                "sparkPlainVersion" to "33",
+                "deltaVersion" to "2.3.0",
+                "deltaBinaryVersion" to "23",
+                "deltaPackageName" to "delta-core",
+                "icebergVersion" to "1.5.0",
+                "icebergBinaryVersion" to "5",
+                "antlr4Version" to "4.8",
+                "hudiVersion" to "0.15.0",
+            )
+        "3.4" ->
+            mapOf(
+                "sparkFullVersion" to "3.4.4",
+                "sparkPlainVersion" to "34",
+                "deltaVersion" to "2.4.0",
+                "deltaBinaryVersion" to "24",
+                "deltaPackageName" to "delta-core",
+                "icebergVersion" to "1.10.0",
+                "icebergBinaryVersion" to "10",
+                "antlr4Version" to "4.9.3",
+                "hudiVersion" to "0.15.0",
+            )
+        "3.5" ->
+            mapOf(
+                "sparkFullVersion" to "3.5.5",
+                "sparkPlainVersion" to "35",
+                "deltaVersion" to "3.3.2",
+                "deltaBinaryVersion" to "33",
+                "deltaPackageName" to "delta-spark",
+                "icebergVersion" to "1.10.0",
+                "icebergBinaryVersion" to "10",
+                "antlr4Version" to "4.9.3",
+                "hudiVersion" to "0.15.0",
+                "hadoopVersion" to "3.3.4",
+            )
+        "4.0" ->
+            mapOf(
+                "sparkFullVersion" to "4.0.1",
+                "sparkPlainVersion" to "40",
+                "deltaVersion" to "4.0.0",
+                "deltaBinaryVersion" to "40",
+                "deltaPackageName" to "delta-spark",
+                "icebergVersion" to "1.10.0",
+                "icebergBinaryVersion" to "10",
+                "antlr4Version" to "4.13.1",
+                "hudiVersion" to "1.1.0",
+                "paimonVersion" to "1.3.0",
+                "hadoopVersion" to "3.4.1",
+                "arrowVersion" to "18.1.0",
+            )
+        "4.1" ->
+            mapOf(
+                "sparkFullVersion" to "4.1.1",
+                "sparkPlainVersion" to "41",
+                "deltaVersion" to "4.0.0",
+                "deltaBinaryVersion" to "40",
+                "deltaPackageName" to "delta-spark",
+                "icebergVersion" to "1.10.0",
+                "icebergBinaryVersion" to "10",
+                "antlr4Version" to "4.13.1",
+                "hudiVersion" to "1.1.0",
+                "paimonVersion" to "1.3.0",
+                "hadoopVersion" to "3.4.1",
+                "arrowVersion" to "18.1.0",
+            )
+        else ->
+            mapOf(
+                "sparkFullVersion" to "4.1.1",
+                "sparkPlainVersion" to "41",
+                "deltaVersion" to "4.0.0",
+                "deltaBinaryVersion" to "40",
+                "deltaPackageName" to "delta-spark",
+                "icebergVersion" to "1.10.0",
+                "icebergBinaryVersion" to "10",
+                "antlr4Version" to "4.13.1",
+                "hudiVersion" to "1.1.0",
+                "paimonVersion" to "1.3.0",
+                "hadoopVersion" to "3.4.1",
+                "arrowVersion" to "18.1.0",
+            )
+    }
 
 // Make properties available to subprojects
 extra["sparkProperties"] = sparkProperties
@@ -138,22 +145,24 @@ extra["effectivePaimonVersion"] = sparkProperties["paimonVersion"]
 val osName = System.getProperty("os.name").lowercase()
 val osArch = System.getProperty("os.arch")
 
-val platform = when {
-    osName.contains("linux") -> "linux"
-    osName.contains("mac") || osName.contains("darwin") -> "darwin"
-    osName.contains("windows") -> "windows"
-    else -> "unknown"
-}
+val platform =
+    when {
+        osName.contains("linux") -> "linux"
+        osName.contains("mac") || osName.contains("darwin") -> "darwin"
+        osName.contains("windows") -> "windows"
+        else -> "unknown"
+    }
 
-val arch = when (osArch) {
-    "amd64", "x86_64" -> "amd64"
-    "aarch64", "arm64" -> "arm64"
-    else -> osArch
-}
+val arch =
+    when (osArch) {
+        "amd64", "x86_64" -> "amd64"
+        "aarch64", "arm64" -> "arm64"
+        else -> osArch
+    }
 
 extra["platform"] = platform
 extra["arch"] = arch
-extra["osFullName"] = "${platform}_${arch}"
+extra["osFullName"] = "${platform}_$arch"
 
 // Validate version compatibility
 if (sparkVersion in listOf("4.0", "4.1")) {
@@ -200,7 +209,7 @@ subprojects {
             "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
             "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
             "-Djdk.reflect.useDirectMethodHandle=false",
-            "-Dio.netty.tryReflectionSetAccessible=true"
+            "-Dio.netty.tryReflectionSetAccessible=true",
         )
 
         testLogging {
@@ -216,7 +225,8 @@ tasks.register("printConfig") {
     group = "help"
     description = "Print the current build configuration"
     doLast {
-        println("""
+        println(
+            """
             |=== Gluten Build Configuration ===
             |Version: ${project.version}
             |Scala: $scalaVersion (binary: $scalaBinaryVersion)
@@ -233,6 +243,7 @@ tasks.register("printConfig") {
             |  paimon: ${providers.gradleProperty("paimon").getOrElse("false")}
             |  celeborn: ${providers.gradleProperty("celeborn").getOrElse("false")}
             |  uniffle: ${providers.gradleProperty("uniffle").getOrElse("false")}
-        """.trimMargin())
+            """.trimMargin(),
+        )
     }
 }

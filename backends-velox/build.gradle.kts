@@ -19,6 +19,7 @@ plugins {
     id("gluten.scala-library")
     id("gluten.protobuf")
     id("gluten.spotless")
+    id("gluten.scalatest")
 }
 
 val scalaBinaryVersion: String by project
@@ -89,6 +90,16 @@ dependencies {
     testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-tags_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+
+    // Spark common-utils needed for SparkBuildInfo (contains version info)
+    testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
+
+    // ScalaTest JUnit runner
+    testRuntimeOnly("org.scalatestplus:junit-4-13_$scalaBinaryVersion:3.2.16.0")
+
+    // JUnit 5 platform
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.3")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.9.3")
 }
 
 // Configure protobuf compilation
@@ -119,8 +130,10 @@ val buildNative by tasks.registering(Exec::class) {
 
     commandLine(
         "cmake",
-        "--build", "build",
-        "--parallel", Runtime.getRuntime().availableProcessors().toString()
+        "--build",
+        "build",
+        "--parallel",
+        Runtime.getRuntime().availableProcessors().toString(),
     )
 
     outputs.dir(cppReleasesDir)

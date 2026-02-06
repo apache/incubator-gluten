@@ -28,7 +28,7 @@ val effectiveSparkPlainVersion: String by rootProject.extra
 dependencies {
     // Project dependencies
     compileOnly(project(":shims-common"))
-    implementation(project(":shims-spark${effectiveSparkPlainVersion}"))
+    implementation(project(":shims-spark$effectiveSparkPlainVersion"))
 
     // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")

@@ -121,7 +121,7 @@ tasks.withType<ShadowJar>().configureEach {
 
     // Output naming - match Maven convention
     val sparkBundleVersion = sparkVersion.replace(".", "")
-    archiveBaseName.set("gluten-$backend-bundle-spark${sparkVersion}_${scalaBinaryVersion}-${platform}_${arch}")
+    archiveBaseName.set("gluten-$backend-bundle-spark${sparkVersion}_$scalaBinaryVersion-${platform}_$arch")
     archiveVersion.set(project.version.toString())
     archiveClassifier.set("")
 }
@@ -132,7 +132,7 @@ tasks.register<Copy>("copyBundleJar") {
     from(tasks.shadowJar.get().archiveFile)
     into(layout.buildDirectory.dir("libs"))
     rename { fileName ->
-        "gluten-$backend-bundle-spark${sparkVersion}_${scalaBinaryVersion}-${platform}_${arch}-${project.version}.jar"
+        "gluten-$backend-bundle-spark${sparkVersion}_$scalaBinaryVersion-${platform}_$arch-${project.version}.jar"
     }
 }
 

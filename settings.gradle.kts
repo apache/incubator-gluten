@@ -56,17 +56,18 @@ project(":shims-common").projectDir = file("shims/common")
 
 // Version-specific shims - included based on sparkVersion property
 val sparkVersion = providers.gradleProperty("sparkVersion").getOrElse("4.1")
-val sparkPlainVersion = when (sparkVersion) {
-    "3.3" -> "33"
-    "3.4" -> "34"
-    "3.5" -> "35"
-    "4.0" -> "40"
-    "4.1" -> "41"
-    else -> "41"
-}
+val sparkPlainVersion =
+    when (sparkVersion) {
+        "3.3" -> "33"
+        "3.4" -> "34"
+        "3.5" -> "35"
+        "4.0" -> "40"
+        "4.1" -> "41"
+        else -> "41"
+    }
 
-include("shims-spark${sparkPlainVersion}")
-project(":shims-spark${sparkPlainVersion}").projectDir = file("shims/spark${sparkPlainVersion}")
+include("shims-spark$sparkPlainVersion")
+project(":shims-spark$sparkPlainVersion").projectDir = file("shims/spark$sparkPlainVersion")
 
 // Backend selection
 val backend = providers.gradleProperty("backend").getOrElse("velox")
@@ -124,5 +125,5 @@ include("gluten-ut-test")
 project(":gluten-ut-test").projectDir = file("gluten-ut/test")
 
 // Spark version-specific UT modules
-include("gluten-ut-spark${sparkPlainVersion}")
-project(":gluten-ut-spark${sparkPlainVersion}").projectDir = file("gluten-ut/spark${sparkPlainVersion}")
+include("gluten-ut-spark$sparkPlainVersion")
+project(":gluten-ut-spark$sparkPlainVersion").projectDir = file("gluten-ut/spark$sparkPlainVersion")

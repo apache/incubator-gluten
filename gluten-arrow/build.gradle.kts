@@ -30,7 +30,7 @@ dependencies {
     // Project dependencies - use api to expose transitive dependencies
     api(project(":gluten-substrait"))
     implementation(project(":shims-common"))
-    implementation(project(":shims-spark${effectiveSparkPlainVersion}"))
+    implementation(project(":shims-spark$effectiveSparkPlainVersion"))
 
     // Arrow dependencies - use api to expose transitively
     api("org.apache.arrow:arrow-vector:$effectiveArrowVersion")

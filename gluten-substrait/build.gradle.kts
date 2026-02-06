@@ -33,7 +33,7 @@ dependencies {
     // Project dependencies - use api to expose transitive dependencies
     api(project(":gluten-core"))
     api(project(":shims-common"))
-    api(project(":shims-spark${effectiveSparkPlainVersion}"))
+    api(project(":shims-spark$effectiveSparkPlainVersion"))
     implementation(project(":gluten-ui"))
 
     // Test JAR from gluten-core
@@ -74,6 +74,8 @@ dependencies {
     testImplementation("junit:junit:4.13.1")
     testImplementation("org.scalatestplus:scalatestplus-mockito_$scalaBinaryVersion:1.0.0-M2")
     testImplementation("org.scalatestplus:scalatestplus-scalacheck_$scalaBinaryVersion:3.1.0.0-RC2")
+    testImplementation("com.vladsch.flexmark:flexmark-all:0.62.2")
+    testImplementation("com.github.javafaker:javafaker:1.0.2")
 
     // Spark test JARs
     testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")

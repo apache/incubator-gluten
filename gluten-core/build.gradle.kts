@@ -92,37 +92,43 @@ val generateBuildInfo by tasks.registering {
         val propsFile = outputDir.get().file("gluten-build-info.properties").asFile
         propsFile.parentFile.mkdirs()
 
-        val gitRevision = try {
-            val process = ProcessBuilder("git", "rev-parse", "HEAD")
-                .directory(projectDir)
-                .redirectErrorStream(true)
-                .start()
-            process.inputStream.bufferedReader().readText().trim()
-        } catch (e: Exception) {
-            "unknown"
-        }
+        val gitRevision =
+            try {
+                val process =
+                    ProcessBuilder("git", "rev-parse", "HEAD")
+                        .directory(projectDir)
+                        .redirectErrorStream(true)
+                        .start()
+                process.inputStream.bufferedReader().readText().trim()
+            } catch (e: Exception) {
+                "unknown"
+            }
 
-        val gitBranch = try {
-            val process = ProcessBuilder("git", "rev-parse", "--abbrev-ref", "HEAD")
-                .directory(projectDir)
-                .redirectErrorStream(true)
-                .start()
-            process.inputStream.bufferedReader().readText().trim()
-        } catch (e: Exception) {
-            "unknown"
-        }
+        val gitBranch =
+            try {
+                val process =
+                    ProcessBuilder("git", "rev-parse", "--abbrev-ref", "HEAD")
+                        .directory(projectDir)
+                        .redirectErrorStream(true)
+                        .start()
+                process.inputStream.bufferedReader().readText().trim()
+            } catch (e: Exception) {
+                "unknown"
+            }
 
-        propsFile.writeText("""
-            |gluten.version=${project.version}
-            |gluten.branch=$gitBranch
-            |gluten.revision=$gitRevision
-            |gluten.java.version=${System.getProperty("java.version")}
-            |gluten.scala.version=$scalaVersion
-            |gluten.spark.version=$effectiveSparkFullVersion
-            |gluten.hadoop.version=$effectiveHadoopVersion
-            |gluten.build.user=${System.getProperty("user.name")}
-            |gluten.build.date=${LocalDateTime.now()}
-        """.trimMargin())
+        propsFile.writeText(
+            """
+            |gluten_version=${project.version}
+            |branch=$gitBranch
+            |revision=$gitRevision
+            |java_version=${System.getProperty("java.version")}
+            |scala_version=$scalaVersion
+            |spark_version=$effectiveSparkFullVersion
+            |hadoop_version=$effectiveHadoopVersion
+            |build_user=${System.getProperty("user.name")}
+            |date=${LocalDateTime.now()}
+            """.trimMargin(),
+        )
     }
 }
 
