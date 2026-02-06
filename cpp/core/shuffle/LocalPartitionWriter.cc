@@ -681,12 +681,11 @@ arrow::Status LocalPartitionWriter::flushCachedPlayloads() {
   ARROW_ASSIGN_OR_RAISE(int64_t endInDataFile, dataFileOs_->Tell());
   for (auto pid = 0; pid < numPartitions_; ++pid) {
     auto startInDataFile = endInDataFile;
-    RETURN_NOT_OK(mergeSpills(pid, dataFileOs_.get()));
-    RETURN_NOT_OK(payloadCache_->writeIncremental(pid, dataFileOs_.get()));
-    ARROW_ASSIGN_OR_RAISE(endInDataFile, dataFileOs_->Tell());
-
-    auto bytesWritten = endInDataFile - startInDataFile;
-    if (bytesWritten > 0) {
+    ARROW_ASSIGN_OR_RAISE(int64_t spillWrittenBytes, mergeSpills(pid, dataFileOs_.get()));
+    ARROW_ASSIGN_OR_RAISE(bool cachePlayoadWritten, payloadCache_->writeIncremental(pid, dataFileOs_.get()));
+    if (spillWrittenBytes > 0 || cachePlayoadWritten) {
+      ARROW_ASSIGN_OR_RAISE(endInDataFile, dataFileOs_->Tell());
+      auto bytesWritten = endInDataFile - startInDataFile;
       partitionSegments_[pid].emplace_back(startInDataFile, bytesWritten);
       partitionLengths_[pid] += bytesWritten;
     }
