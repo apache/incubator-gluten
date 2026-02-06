@@ -117,26 +117,133 @@ sourceSets {
     }
 }
 
-// Task to build native libraries
-val buildNative by tasks.registering(Exec::class) {
-    group = "build"
-    description = "Build native C++ libraries using CMake"
+// ============================================================
+// Native C++ build tasks
+// ============================================================
 
-    workingDir = file("../cpp")
+val glutenDir = rootProject.projectDir
+val veloxHome = providers.gradleProperty("veloxHome")
+    .getOrElse("${glutenDir}/ep/build-velox/build/velox_ep")
+val buildType = providers.gradleProperty("nativeBuildType").getOrElse("Release")
+val numThreads = providers.gradleProperty("nativeThreads")
+    .getOrElse(Runtime.getRuntime().availableProcessors().toString())
+
+// Feature flags for native build (match dev/builddeps-veloxbe.sh defaults)
+val enableHdfs = providers.gradleProperty("enableHdfs").getOrElse("OFF")
+val enableS3 = providers.gradleProperty("enableS3").getOrElse("OFF")
+val enableGcs = providers.gradleProperty("enableGcs").getOrElse("OFF")
+val enableAbfs = providers.gradleProperty("enableAbfs").getOrElse("OFF")
+val enableQat = providers.gradleProperty("enableQat").getOrElse("OFF")
+val enableGpu = providers.gradleProperty("enableGpu").getOrElse("OFF")
+val buildTests = providers.gradleProperty("nativeBuildTests").getOrElse("OFF")
+val buildBenchmarks = providers.gradleProperty("nativeBuildBenchmarks").getOrElse("OFF")
+
+// Task 1: Fetch Velox source code
+val getVelox by tasks.registering(Exec::class) {
+    group = "native"
+    description = "Fetch Velox source code"
+
+    workingDir = file("${glutenDir}/ep/build-velox/src")
+
+    commandLine(
+        "bash", "./get-velox.sh",
+        "--velox_home=$veloxHome",
+        "--run_setup_script=OFF",
+    )
+
+    // Skip if velox source already present with correct commit
+    onlyIf {
+        !file("$veloxHome/CMakeLists.txt").exists()
+    }
+}
+
+// Task 2: Build Velox library
+val buildVelox by tasks.registering(Exec::class) {
+    group = "native"
+    description = "Build the Velox C++ library"
+    dependsOn(getVelox)
+
+    workingDir = file("${glutenDir}/ep/build-velox/src")
+
+    commandLine(
+        "bash", "./build-velox.sh",
+        "--build_type=$buildType",
+        "--velox_home=$veloxHome",
+        "--enable_hdfs=$enableHdfs",
+        "--enable_s3=$enableS3",
+        "--enable_gcs=$enableGcs",
+        "--enable_abfs=$enableAbfs",
+        "--enable_gpu=$enableGpu",
+        "--build_test_utils=$buildTests",
+        "--num_threads=$numThreads",
+    )
+
+    // Skip if Velox is already built
+    onlyIf {
+        val buildDir = if (buildType == "Debug") "debug" else "release"
+        !file("$veloxHome/_build/$buildDir/lib/libvelox.a").exists()
+    }
+}
+
+// Task 3: Configure CMake for Gluten C++
+val configureNative by tasks.registering(Exec::class) {
+    group = "native"
+    description = "Configure CMake for Gluten C++ build"
+    dependsOn(buildVelox)
+
+    workingDir = cppBuildDir
 
     doFirst {
-        file("../cpp/build").mkdirs()
+        cppBuildDir.mkdirs()
     }
+
+    commandLine(
+        "cmake",
+        "-DBUILD_VELOX_BACKEND=ON",
+        "-DCMAKE_BUILD_TYPE=$buildType",
+        "-DVELOX_HOME=$veloxHome",
+        "-DBUILD_TESTS=$buildTests",
+        "-DBUILD_BENCHMARKS=$buildBenchmarks",
+        "-DENABLE_HDFS=$enableHdfs",
+        "-DENABLE_S3=$enableS3",
+        "-DENABLE_GCS=$enableGcs",
+        "-DENABLE_ABFS=$enableAbfs",
+        "-DENABLE_QAT=$enableQat",
+        "-DENABLE_GPU=$enableGpu",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "..",
+    )
+
+    // Skip if CMake is already configured
+    onlyIf {
+        !file("${cppBuildDir}/CMakeCache.txt").exists()
+    }
+}
+
+// Task 4: Build Gluten C++ (libgluten.so + libvelox.so)
+val buildNative by tasks.registering(Exec::class) {
+    group = "native"
+    description = "Build native C++ libraries (libgluten.so + libvelox.so)"
+    dependsOn(configureNative)
+
+    workingDir = file("../cpp")
 
     commandLine(
         "cmake",
         "--build",
         "build",
         "--parallel",
-        Runtime.getRuntime().availableProcessors().toString(),
+        numThreads,
     )
 
     outputs.dir(cppReleasesDir)
+}
+
+// Convenience task: full native build pipeline
+val buildNativeAll by tasks.registering {
+    group = "native"
+    description = "Full native build: fetch Velox + build Velox + configure + build Gluten C++"
+    dependsOn(buildNative)
 }
 
 // Include native libraries in the JAR
