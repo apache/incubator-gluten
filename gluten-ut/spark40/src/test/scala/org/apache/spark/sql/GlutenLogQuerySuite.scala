@@ -16,4 +16,42 @@
  */
 package org.apache.spark.sql
 
-class GlutenLogQuerySuite extends LogQuerySuite with GlutenSQLTestsTrait {}
+import org.apache.spark.internal.{LogKeys, MDC}
+import org.apache.spark.util.LogUtils.SPARK_LOG_SCHEMA
+
+import java.util.Locale
+
+class GlutenLogQuerySuite extends LogQuerySuite with GlutenSQLTestsTrait {
+  private def createTempView(viewName: String): Unit = {
+    spark.read
+      .schema(SPARK_LOG_SCHEMA)
+      .json(logFile.getCanonicalPath)
+      .createOrReplaceTempView(viewName)
+  }
+
+  testGluten("Query Spark logs with exception using SQL") {
+    val msg = log"Task ${MDC(LogKeys.TASK_ID, "2")} failed."
+    val exception = new RuntimeException("OOM")
+    logError(msg, exception)
+
+    withTempView("logs") {
+      createTempView("logs")
+      val expectedMDC = Map(LogKeys.TASK_ID.name.toLowerCase(Locale.ROOT) -> "2")
+      checkAnswer(
+        spark.sql(
+          "SELECT level, msg, context, exception.class, exception.msg FROM logs " +
+            s"WHERE msg = '${msg.message}'"),
+        Row("ERROR", msg.message, expectedMDC, "java.lang.RuntimeException", "OOM") :: Nil
+      )
+
+      val stacktrace =
+        spark.sql(s"SELECT exception.stacktrace FROM logs WHERE msg = '${msg.message}'").collect()
+      assert(stacktrace.length == 1)
+      val topStacktraceArray = stacktrace.head.getSeq[Row](0).head
+      assert(topStacktraceArray.getString(0) == this.getClass.getName)
+      assert(topStacktraceArray.getString(1) != "")
+      assert(topStacktraceArray.getString(2) == this.getClass.getSimpleName + ".scala")
+      assert(topStacktraceArray.getString(3) != "")
+    }
+  }
+}
