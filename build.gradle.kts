@@ -25,11 +25,12 @@ version = providers.gradleProperty("glutenVersion").getOrElse("1.6.0-SNAPSHOT")
 
 val scalaBinaryVersion: String by project
 // Derive full Scala version from binary version to handle -PscalaBinaryVersion override
-val scalaVersion: String = when (scalaBinaryVersion) {
-    "2.12" -> "2.12.18"
-    "2.13" -> providers.gradleProperty("scalaVersion").getOrElse("2.13.17")
-    else -> providers.gradleProperty("scalaVersion").getOrElse("2.13.17")
-}
+val scalaVersion: String =
+    when (scalaBinaryVersion) {
+        "2.12" -> "2.12.18"
+        "2.13" -> providers.gradleProperty("scalaVersion").getOrElse("2.13.17")
+        else -> providers.gradleProperty("scalaVersion").getOrElse("2.13.17")
+    }
 val sparkVersion: String by project
 val sparkFullVersion: String by project
 val sparkPlainVersion: String by project
@@ -41,11 +42,12 @@ val arrowVersion: String by project
 val protobufVersion: String by project
 val guavaVersion: String by project
 val hadoopVersion: String by project
-val caffeineVersion: String = if ((javaVersion.toIntOrNull() ?: 17) >= 11) {
-    providers.gradleProperty("caffeineVersion").getOrElse("3.1.8")
-} else {
-    "2.9.3"
-}
+val caffeineVersion: String =
+    if ((javaVersion.toIntOrNull() ?: 17) >= 11) {
+        providers.gradleProperty("caffeineVersion").getOrElse("3.1.8")
+    } else {
+        "2.9.3"
+    }
 val antlr4Version: String by project
 
 // Computed properties based on Spark version

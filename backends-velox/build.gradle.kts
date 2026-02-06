@@ -122,11 +122,13 @@ sourceSets {
 // ============================================================
 
 val glutenDir = rootProject.projectDir
-val veloxHome = providers.gradleProperty("veloxHome")
-    .getOrElse("${glutenDir}/ep/build-velox/build/velox_ep")
+val veloxHome =
+    providers.gradleProperty("veloxHome")
+        .getOrElse("$glutenDir/ep/build-velox/build/velox_ep")
 val buildType = providers.gradleProperty("nativeBuildType").getOrElse("Release")
-val numThreads = providers.gradleProperty("nativeThreads")
-    .getOrElse(Runtime.getRuntime().availableProcessors().toString())
+val numThreads =
+    providers.gradleProperty("nativeThreads")
+        .getOrElse(Runtime.getRuntime().availableProcessors().toString())
 
 // Feature flags for native build (match dev/builddeps-veloxbe.sh defaults)
 val enableHdfs = providers.gradleProperty("enableHdfs").getOrElse("OFF")
@@ -143,10 +145,11 @@ val getVelox by tasks.registering(Exec::class) {
     group = "native"
     description = "Fetch Velox source code"
 
-    workingDir = file("${glutenDir}/ep/build-velox/src")
+    workingDir = file("$glutenDir/ep/build-velox/src")
 
     commandLine(
-        "bash", "./get-velox.sh",
+        "bash",
+        "./get-velox.sh",
         "--velox_home=$veloxHome",
         "--run_setup_script=OFF",
     )
@@ -163,7 +166,7 @@ val buildVelox by tasks.registering(Exec::class) {
     description = "Build the Velox C++ library"
     dependsOn(getVelox)
 
-    workingDir = file("${glutenDir}/ep/build-velox/src")
+    workingDir = file("$glutenDir/ep/build-velox/src")
 
     commandLine(
         "bash", "./build-velox.sh",
@@ -216,7 +219,7 @@ val configureNative by tasks.registering(Exec::class) {
 
     // Skip if CMake is already configured
     onlyIf {
-        !file("${cppBuildDir}/CMakeCache.txt").exists()
+        !file("$cppBuildDir/CMakeCache.txt").exists()
     }
 }
 
