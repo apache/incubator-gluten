@@ -109,11 +109,11 @@ Supports the option `spark.sql.extensions`, fallback the SQL command `CALL`.
 ### Runtime configuration
 The "Gluten Support" column is now ready to be populated with:
 
-✅ Supported
-❌ Not Supported
-⚠️ Partial Support
-🔄 In Progress
-🚫 Not applied or transparent to Gluten
+✅ Supported<br>
+❌ Not Supported<br>
+⚠️ Partial Support<br>
+🔄 In Progress<br>
+🚫 Not applied or transparent to Gluten<br>
 
 ### Spark SQL Options
 | Spark option | Default | Description | Gluten Support |
