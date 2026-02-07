@@ -159,7 +159,7 @@ The "Gluten Support" column is now ready to be populated with:
 
 | Spark option | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
-| write-format | Table write.format.default | File format to use for this write operation; parquet, avro, or orc | |
+| write-format | Table write.format.default | File format to use for this write operation; parquet, avro, or orc |⚠️ Parquet only|
 | target-file-size-bytes | As per table property | Overrides this table's write.target-file-size-bytes | |
 | check-nullability | true | Sets the nullable check on fields | |
 | snapshot-property.custom-key | null | Adds an entry with custom-key and corresponding value in the snapshot summary (the snapshot-property. prefix is only required for DSv2) | |
