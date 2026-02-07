@@ -113,6 +113,7 @@ The "Gluten Support" column is now ready to be populated with:
 ❌ Not Supported
 ⚠️ Partial Support
 🔄 In Progress
+🚫 Not applied or transparent to Gluten
 
 ### Spark SQL Options
 | Spark option | Default | Description | Gluten Support |
@@ -163,12 +164,12 @@ The "Gluten Support" column is now ready to be populated with:
 | target-file-size-bytes | As per table property | Overrides this table's write.target-file-size-bytes | |
 | check-nullability | true | Sets the nullable check on fields | |
 | snapshot-property.custom-key | null | Adds an entry with custom-key and corresponding value in the snapshot summary (the snapshot-property. prefix is only required for DSv2) | |
-| fanout-enabled | false | Overrides this table's write.spark.fanout.enabled | |
+| fanout-enabled | false | Overrides this table's write.spark.fanout.enabled |✅|
 | check-ordering | true | Checks if input schema and table schema are same | |
 | isolation-level | null | Desired isolation level for Dataframe overwrite operations. null => no checks (for idempotent writes), serializable => check for concurrent inserts or deletes in destination partitions, snapshot => checks for concurrent deletes in destination partitions. | |
 | validate-from-snapshot-id | null | If isolation level is set, id of base snapshot from which to check concurrent write conflicts into a table. Should be the snapshot before any reads from the table. Can be obtained via Table API or Snapshots table. If null, the table's oldest known snapshot is used. | |
 | compression-codec | Table write.(fileformat).compression-codec | Overrides this table's compression codec for this write | |
 | compression-level | Table write.(fileformat).compression-level | Overrides this table's compression level for Parquet and Avro tables for this write | |
 | compression-strategy | Table write.orc.compression-strategy | Overrides this table's compression strategy for ORC tables for this write | |
-| distribution-mode | See Spark Writes for defaults | Override this table's distribution mode for this write | |
+| distribution-mode | See Spark Writes for defaults | Override this table's distribution mode for this write |🚫|
 | delete-granularity | file | Override this table's delete granularity for this write | |
