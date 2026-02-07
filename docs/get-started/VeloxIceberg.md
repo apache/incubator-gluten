@@ -99,7 +99,7 @@ the added column name is same to the deleted column, the scan will fall back.
 
 ## Configuration
 ### Catalogs
-Supports all the catalog options, which is not used in native engine.
+All the catalog configurations are transparent to Gluten
 
 ### SQL Extensions
 Fallback
@@ -107,14 +107,68 @@ Fallback
 Supports the option `spark.sql.extensions`, fallback the SQL command `CALL`.
 
 ### Runtime configuration
-#### Read options
+The "Gluten Support" column is now ready to be populated with:
 
-| Spark option	         | Status      |
-|-----------------------|-------------|
-| snapshot-id           | Support     |
-| as-of-timestamp       | Support     |
-| split-size            | Support     |
-| lookback              | Support     |
-| file-open-cost        | Support     |
-| vectorization-enabled | Not Support |
-| batch-size            | Not Support |
+✅ Supported
+❌ Not Supported
+⚠️ Partial Support
+🔄 In Progress
+
+### Spark SQL Options
+| Spark option | Default | Description | Gluten Support |
+| --- | --- | --- | --- |
+| spark.sql.iceberg.vectorization.enabled | Table default | Enables vectorized reads of data files |❌|
+| spark.sql.iceberg.parquet.reader-type | ICEBERG | Sets Parquet reader implementation (ICEBERG,COMET) |✅ |
+| spark.sql.iceberg.check-nullability | true | Validate that the write schema's nullability matches the table's nullability |✅ |
+| spark.sql.iceberg.check-ordering | true | Validates the write schema column order matches the table schema order |✅ |
+| spark.sql.iceberg.planning.preserve-data-grouping | false | When true, co-locate scan tasks for the same partition in the same read split, used in Storage Partitioned Joins |✅ |
+| spark.sql.iceberg.aggregate-push-down.enabled | true | Enables pushdown of aggregate functions (MAX, MIN, COUNT) | |
+| spark.sql.iceberg.distribution-mode | See Spark Writes | Controls distribution strategy during writes | ✅ |
+| spark.wap.id | null | Write-Audit-Publish snapshot staging ID | |
+| spark.wap.branch | null | WAP branch name for snapshot commit | |
+| spark.sql.iceberg.compression-codec | Table default | Write compression codec (e.g., zstd, snappy) | |
+| spark.sql.iceberg.compression-level | Table default | Compression level for Parquet/Avro | |
+| spark.sql.iceberg.compression-strategy | Table default | Compression strategy for ORC | |
+| spark.sql.iceberg.data-planning-mode | AUTO | Scan planning mode for data files (AUTO, LOCAL, DISTRIBUTED) | |
+| spark.sql.iceberg.delete-planning-mode | AUTO | Scan planning mode for delete files (AUTO, LOCAL, DISTRIBUTED) | |
+| spark.sql.iceberg.advisory-partition-size | Table default | Advisory size (bytes) used for writing to the Table when Spark's Adaptive Query Execution is enabled. Used to size output files | |
+| spark.sql.iceberg.locality.enabled | false | Report locality information for Spark task placement on executors |✅ |
+| spark.sql.iceberg.executor-cache.enabled | true | Enables cache for executor-side (currently used to cache Delete Files) |❌|
+| spark.sql.iceberg.executor-cache.timeout | 10 | Timeout in minutes for executor cache entries |❌|
+| spark.sql.iceberg.executor-cache.max-entry-size | 67108864 (64MB) | Max size per cache entry (bytes) |❌|
+| spark.sql.iceberg.executor-cache.max-total-size | 134217728 (128MB) | Max total executor cache size (bytes) |❌|
+| spark.sql.iceberg.executor-cache.locality.enabled | false | Enables locality-aware executor cache usage |❌|
+| spark.sql.iceberg.merge-schema | false | Enables modifying the table schema to match the write schema. Only adds columns missing columns |✅|
+| spark.sql.iceberg.report-column-stats | true | Report Puffin Table Statistics if available to Spark's Cost Based Optimizer. CBO must be enabled for this to be effective |✅|
+
+#### Read options
+| Spark option | Default | Description | Gluten Support |
+| --- | --- | --- | --- |
+| snapshot-id | (latest) | Snapshot ID of the table snapshot to read |✅|
+| as-of-timestamp | (latest) | A timestamp in milliseconds; the snapshot used will be the snapshot current at this time. |✅|
+| split-size | As per table property | Overrides this table's read.split.target-size and read.split.metadata-target-size |✅|
+| lookback | As per table property | Overrides this table's read.split.planning-lookback |✅|
+| file-open-cost | As per table property | Overrides this table's read.split.open-file-cost |✅|
+| vectorization-enabled | As per table property | Overrides this table's read.parquet.vectorization.enabled |❌|
+| batch-size | As per table property | Overrides this table's read.parquet.vectorization.batch-size |❌|
+| stream-from-timestamp | (none) | A timestamp in milliseconds to stream from; if before the oldest known ancestor snapshot, the oldest will be used | |
+| streaming-max-files-per-micro-batch | INT_MAX | Maximum number of files per microbatch | |
+| streaming-max-rows-per-micro-batch | INT_MAX | Maximum number of rows per microbatch | |
+
+#### Write options
+
+| Spark option | Default | Description | Gluten Support |
+| --- | --- | --- | --- |
+| write-format | Table write.format.default | File format to use for this write operation; parquet, avro, or orc | |
+| target-file-size-bytes | As per table property | Overrides this table's write.target-file-size-bytes | |
+| check-nullability | true | Sets the nullable check on fields | |
+| snapshot-property.custom-key | null | Adds an entry with custom-key and corresponding value in the snapshot summary (the snapshot-property. prefix is only required for DSv2) | |
+| fanout-enabled | false | Overrides this table's write.spark.fanout.enabled | |
+| check-ordering | true | Checks if input schema and table schema are same | |
+| isolation-level | null | Desired isolation level for Dataframe overwrite operations. null => no checks (for idempotent writes), serializable => check for concurrent inserts or deletes in destination partitions, snapshot => checks for concurrent deletes in destination partitions. | |
+| validate-from-snapshot-id | null | If isolation level is set, id of base snapshot from which to check concurrent write conflicts into a table. Should be the snapshot before any reads from the table. Can be obtained via Table API or Snapshots table. If null, the table's oldest known snapshot is used. | |
+| compression-codec | Table write.(fileformat).compression-codec | Overrides this table's compression codec for this write | |
+| compression-level | Table write.(fileformat).compression-level | Overrides this table's compression level for Parquet and Avro tables for this write | |
+| compression-strategy | Table write.orc.compression-strategy | Overrides this table's compression strategy for ORC tables for this write | |
+| distribution-mode | See Spark Writes for defaults | Override this table's distribution mode for this write | |
+| delete-granularity | file | Override this table's delete granularity for this write | |
