@@ -829,7 +829,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
         " before using it",
       // Velox's collect_list / collect_set are by design declarative aggregate so plan check
-      // for ObjectHashAggregateExec will fail.
+      // for ObjectHashAggregateExec will fail. Overridden
       "SPARK-22223: ObjectHashAggregate should not introduce unnecessary shuffle",
       "SPARK-31620: agg with subquery (whole-stage-codegen = true)",
       "SPARK-31620: agg with subquery (whole-stage-codegen = false)"
