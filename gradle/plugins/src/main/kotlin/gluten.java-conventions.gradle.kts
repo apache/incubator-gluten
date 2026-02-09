@@ -38,6 +38,9 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.compilerArgs.addAll(listOf("-Xlint:all,-serial,-path"))
     options.isFork = true
+    options.forkOptions.jvmArgs = (options.forkOptions.jvmArgs ?: mutableListOf()).apply {
+        add("-Dfile.encoding=UTF-8")
+    }
 }
 
 tasks.withType<Javadoc>().configureEach {

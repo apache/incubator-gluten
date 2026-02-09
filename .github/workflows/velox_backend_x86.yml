@@ -40,10 +40,16 @@ on:
       - 'cpp/**'
       - 'dev/**'
       - 'build/mvn'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - '*.gradle.kts'
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   MVN_CMD: 'build/mvn -ntp'
+  GRADLE_CMD: './gradlew --no-daemon'
   WGET_CMD: 'wget -nv'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
   # spark.sql.ansi.enabled defaults to false.
@@ -190,10 +196,10 @@ jobs:
           echo "JAVA_HOME: $JAVA_HOME"
           case "${{ matrix.spark }}" in
             spark-4.0|spark-4.1)
-              $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
               ;;
             *)
-              $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
               ;;
           esac
           cd $GITHUB_WORKSPACE/tools/gluten-it
@@ -281,10 +287,10 @@ jobs:
           cd $GITHUB_WORKSPACE/
           case "${{ matrix.spark }}" in
             spark-4.0|spark-4.1)
-              $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
               ;;
             *)
-              $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
               ;;
           esac
           cd $GITHUB_WORKSPACE/tools/gluten-it
@@ -348,7 +354,7 @@ jobs:
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
             # Build gluten
-            build/mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+            bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
             # Build gluten-it
             cd /work/tools/gluten-it
             /work/build/mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
@@ -409,8 +415,8 @@ jobs:
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
-          cd $GITHUB_WORKSPACE/ 
-          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/
+          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
@@ -524,8 +530,8 @@ jobs:
           echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
-          cd $GITHUB_WORKSPACE/ 
-          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+          cd $GITHUB_WORKSPACE/
+          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
@@ -578,7 +584,7 @@ jobs:
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
+          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3 with uniffle-${{ matrix.uniffle }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
@@ -622,7 +628,7 @@ jobs:
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Pceleborn -DskipTests
+          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -Pceleborn -DskipTests
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3 with ${{ matrix.celeborn }}
         run: |
           EXTRA_PROFILE=""
@@ -696,7 +702,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.3 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.3 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark33/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
@@ -704,7 +710,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -712,6 +720,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
       - name: Upload golden files
@@ -745,7 +754,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.3 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.3 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark33/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -753,7 +762,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -761,6 +772,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -797,7 +809,7 @@ jobs:
           java -version
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l $SPARK_HOME
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Piceberg-test -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Piceberg-test -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest \
           -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
@@ -805,7 +817,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -813,6 +827,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
       - name: Upload golden files
@@ -847,7 +862,7 @@ jobs:
           java -version
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l $SPARK_HOME
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
           -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
@@ -855,7 +870,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -863,6 +880,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -899,7 +917,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
@@ -907,7 +925,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -915,6 +935,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
       - name: Upload golden files
@@ -957,7 +978,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.5 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Piceberg \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Piceberg \
           -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/shims/spark35-scala-2.13/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
@@ -965,7 +986,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -973,6 +996,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -1001,7 +1025,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -1009,7 +1033,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1017,6 +1043,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -1053,14 +1080,16 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1068,6 +1097,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -1096,14 +1126,16 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1111,6 +1143,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -1147,14 +1180,16 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.sql.columnar.forceShuffledHashJoin=false" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1162,6 +1197,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -1190,14 +1226,16 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.sql.columnar.forceShuffledHashJoin=false" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1205,6 +1243,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -1230,13 +1269,13 @@ jobs:
           cd ./cpp/build && ctest -V
       - name: Run CPP benchmark test
         run: |
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -pl backends-velox -am \
-          -DtagsToInclude="org.apache.gluten.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Dexec.skip
-          # This test depends on files generated by the above mvn test.
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pbackends-velox -pl -am \
+          -DtagsToInclude=org.apache.gluten.tags.GenerateExample -Dtest=none -DfailIfNoTests=false -Dexec.skip
+          # This test depends on files generated by the above gradle test.
           ./cpp/build/velox/benchmarks/generic_benchmark --with-shuffle --partitioning hash --threads 1 --iterations 1 \
-          --conf $(realpath backends-velox/generated-native-benchmark/conf_12_0_*.ini) \
-          --plan $(realpath backends-velox/generated-native-benchmark/plan_12_0_*.json) \
-          --data $(realpath backends-velox/generated-native-benchmark/data_12_0_*_0.parquet),$(realpath backends-velox/generated-native-benchmark/data_12_0_*_1.parquet)
+          --conf $(realpath backends-velox/build/generated-native-benchmark/conf_12_0_*.ini) \
+          --plan $(realpath backends-velox/build/generated-native-benchmark/plan_12_0_*.json) \
+          --data $(realpath backends-velox/build/generated-native-benchmark/data_12_0_*_0.parquet),$(realpath backends-velox/build/generated-native-benchmark/data_12_0_*_1.parquet)
       - name: Run UDF test
         run: |
           yum install -y java-17-openjdk-devel
@@ -1244,7 +1283,8 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
           # Depends on --build_example=ON.
-          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Pjava-17 -Piceberg -Pdelta -Ppaimon -DtagsToExclude=org.apache.gluten.tags.EnhancedFeaturesTest \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pbackends-velox -Pjava-17 -Piceberg -Pdelta -Ppaimon \
+          -DtagsToExclude=org.apache.gluten.tags.EnhancedFeaturesTest \
           -DtagsToInclude=org.apache.gluten.tags.UDFTest \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/"
       - name: Run CPP benchmark test for Spark 4.0
@@ -1253,18 +1293,20 @@ jobs:
           yum install -y java-17-openjdk-devel
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
-          $MVN_CMD clean test -Pspark-4.0 -Pjava-17 -Pscala-2.13 -Pbackends-velox -pl backends-velox -am \
-          -DtagsToInclude="org.apache.gluten.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Dexec.skip
-          # This test depends on files generated by the above mvn test.
+          bash dev/ci-gradle-build.sh -Pspark-4.0 -Pjava-17 -Pscala-2.13 -Pbackends-velox -pl -am \
+          -DtagsToInclude=org.apache.gluten.tags.GenerateExample -Dtest=none -DfailIfNoTests=false -Dexec.skip
+          # This test depends on files generated by the above gradle test.
           ./cpp/build/velox/benchmarks/generic_benchmark --with-shuffle --partitioning hash --threads 1 --iterations 1 \
-          --conf $(realpath backends-velox/generated-native-benchmark/conf_12_0_*.ini) \
-          --plan $(realpath backends-velox/generated-native-benchmark/plan_12_0_*.json) \
-          --data $(realpath backends-velox/generated-native-benchmark/data_12_0_*_0.parquet),$(realpath backends-velox/generated-native-benchmark/data_12_0_*_1.parquet)
+          --conf $(realpath backends-velox/build/generated-native-benchmark/conf_12_0_*.ini) \
+          --plan $(realpath backends-velox/build/generated-native-benchmark/plan_12_0_*.json) \
+          --data $(realpath backends-velox/build/generated-native-benchmark/data_12_0_*_0.parquet),$(realpath backends-velox/build/generated-native-benchmark/data_12_0_*_1.parquet)
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1310,7 +1352,7 @@ jobs:
           cd /work
           bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
           rm -rf ep/build-velox/build/velox_ep
-          build/mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
+          bash dev/ci-gradle-build.sh -Pbackends-velox -Pspark-3.4 -DskipTests
           ccache -s
           "
 
@@ -1352,7 +1394,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox \
+          bash dev/ci-gradle-build.sh -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox \
           -Pspark-ut -DargLine="-Dspark.test.home=/opt/shims/spark40/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
@@ -1360,7 +1402,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1368,6 +1412,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -1401,7 +1446,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-4.0 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark40/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -1409,7 +1454,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1417,6 +1464,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -1458,7 +1506,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-4.1 -Pscala-2.13 -Pjava-17 -Pbackends-velox \
+          bash dev/ci-gradle-build.sh -Pspark-4.1 -Pscala-2.13 -Pjava-17 -Pbackends-velox \
           -Pspark-ut -DargLine="-Dspark.test.home=/opt/shims/spark41/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest
       - name: Upload test report
@@ -1466,7 +1514,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1474,6 +1524,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
 
@@ -1507,7 +1558,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-4.1 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-4.1 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark41/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -1515,7 +1566,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -1523,5 +1576,6 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*

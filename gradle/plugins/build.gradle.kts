@@ -24,6 +24,19 @@ repositories {
     mavenCentral()
 }
 
+// spotless-plugin-gradle 6.25.0 publishes variants declaring Java 11 compatibility.
+// On JDK 8, Gradle's variant-aware resolution rejects it. Relax the Java version
+// attribute on resolvable configurations only (not consumable ones, which would
+// propagate the Java 11 requirement to consumers of this project).
+configurations.matching { it.isCanBeResolved && !it.isCanBeConsumed }.configureEach {
+    attributes {
+        attribute(
+            TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
+            JavaVersion.current().majorVersion.toInt().coerceAtLeast(11)
+        )
+    }
+}
+
 dependencies {
     implementation("com.diffplug.spotless:spotless-plugin-gradle:6.25.0")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.0")

@@ -29,6 +29,8 @@ plugins {
 val scalaBinaryVersion: String by project
 
 configure<SpotlessExtension> {
+    encoding("UTF-8")
+
     val licenseHeader = """
         /*
          * Licensed to the Apache Software Foundation (ASF) under one or more
