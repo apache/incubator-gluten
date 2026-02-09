@@ -23,19 +23,25 @@ plugins {
 group = "org.apache.gluten"
 version = providers.gradleProperty("glutenVersion").getOrElse("1.6.0-SNAPSHOT")
 
-val scalaBinaryVersion: String by project
-// Derive full Scala version from binary version to handle -PscalaBinaryVersion override
+val sparkVersion: String by project
+val sparkFullVersion: String by project
+val sparkPlainVersion: String by project
+val javaVersion: String by project
+val backend: String by project
+
+// Spark 3.x defaults to Scala 2.12, Spark 4.x defaults to Scala 2.13.
+// An explicit -PscalaBinaryVersion on the command line always wins because
+// Gradle command-line properties override gradle.properties values.
+val defaultScalaBinaryVersion = if (sparkVersion.startsWith("3.")) "2.12" else "2.13"
+val scalaBinaryVersion: String =
+    providers.gradleProperty("scalaBinaryVersion").getOrElse(defaultScalaBinaryVersion)
+// Derive full Scala version from binary version
 val scalaVersion: String =
     when (scalaBinaryVersion) {
         "2.12" -> "2.12.18"
         "2.13" -> providers.gradleProperty("scalaVersion").getOrElse("2.13.17")
         else -> providers.gradleProperty("scalaVersion").getOrElse("2.13.17")
     }
-val sparkVersion: String by project
-val sparkFullVersion: String by project
-val sparkPlainVersion: String by project
-val javaVersion: String by project
-val backend: String by project
 
 // Version properties for dependencies
 val arrowVersion: String by project
@@ -169,12 +175,24 @@ if (sparkVersion in listOf("4.0", "4.1")) {
 allprojects {
     group = rootProject.group
     version = rootProject.version
-    // Override scalaVersion and caffeineVersion for all projects so convention plugins pick up the correct value
+    // Override computed properties for all projects so convention plugins pick up the correct values
+    extra["scalaBinaryVersion"] = scalaBinaryVersion
     extra["scalaVersion"] = scalaVersion
     extra["caffeineVersion"] = caffeineVersion
 }
 
 subprojects {
+    // jackson-bom:2.13.4.1 (pulled by Spark 3.3's jackson-databind:2.13.4.1) does not
+    // exist on Maven Central. Substitute it with 2.13.5 which is the closest available version.
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "com.fasterxml.jackson" && requested.name == "jackson-bom" && requested.version == "2.13.4.1") {
+                useVersion("2.13.5")
+                because("jackson-bom:2.13.4.1 does not exist on Maven Central")
+            }
+        }
+    }
+
     // Configure test tasks
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
@@ -218,7 +236,7 @@ tasks.register("printConfig") {
             |=== Gluten Build Configuration ===
             |Version: ${project.version}
             |Scala: $scalaVersion (binary: $scalaBinaryVersion)
-            |Spark: $sparkVersion (full: ${extra["effectiveSparkFullVersion"]})
+            |Spark: $sparkVersion (full: ${project.extra["effectiveSparkFullVersion"]})
             |Java: $javaVersion
             |Backend: $backend
             |Platform: $platform

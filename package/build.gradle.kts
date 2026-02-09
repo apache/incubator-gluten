@@ -87,7 +87,7 @@ tasks.register<Copy>("copyBundleJar") {
     dependsOn(tasks.shadowJar)
     from(tasks.shadowJar.get().archiveFile)
     into(layout.buildDirectory.dir("libs"))
-    rename { fileName ->
+    rename { _ ->
         "gluten-$backend-bundle-spark${sparkVersion}_$scalaBinaryVersion-${platform}_$arch-${project.version}.jar"
     }
 }
