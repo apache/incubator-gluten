@@ -1323,7 +1323,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
 
   // Mark this as a stream-based split
   auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->isStream = true;
+  splitInfo->leafType = SplitInfo::LeafType::SPLIT_AWARE_STREAM;
   splitInfoMap_[tableScanNode->id()] = splitInfo;
 
   return tableScanNode;
@@ -1360,7 +1360,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructCudfValueStreamNode(
   auto node = std::make_shared<CudfValueStreamNode>(nextPlanNodeId(), outputType, std::move(iterator));
 
   auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->isStream = true;
+  splitInfo->leafType = SplitInfo::LeafType::TRIVIAL_LEAF;
   splitInfoMap_[node->id()] = splitInfo;
   return node;
 }
@@ -1381,7 +1381,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValuesNode(
   }
   auto node = std::make_shared<facebook::velox::core::ValuesNode>(nextPlanNodeId(), std::move(rowVectors));
   auto splitInfo = std::make_shared<SplitInfo>();
-  splitInfo->isStream = true;
+  splitInfo->leafType = SplitInfo::LeafType::TRIVIAL_LEAF;
   splitInfoMap_[node->id()] = splitInfo;
   return node;
 }
@@ -1412,6 +1412,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Otherwise, will create TableScan node for ReadRel.
   auto splitInfo = std::make_shared<SplitInfo>();
+  splitInfo->leafType = SplitInfo::LeafType::TABLE_SCAN;
   if (!validationMode_) {
     VELOX_CHECK_LT(splitInfoIdx_, splitInfos_.size(), "Plan must have readRel and related split info.");
     splitInfo = splitInfos_[splitInfoIdx_++];

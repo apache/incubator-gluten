@@ -137,11 +137,16 @@ void VeloxRuntime::getInfoAndIds(
     // 1. Streams follow "iterator:<idx>" in the substrait plan;
     // 2. Files follow the traversal order in the plan node tree.
     // FIXME: Why we didn't have a unified design?
-    if (splitInfo->isStream) {
+    switch (splitInfo->leafType) {
+    case SplitInfo::LeafType::SPLIT_AWARE_STREAM:
       streamIds.emplace_back(ValueStreamConnectorFactory::nodeIdOf(streamIdx++));
-    } else {
-      scanInfos.emplace_back(splitInfo);
+break;
+      case SplitInfo::LeafType::TABLE_SCAN:
+        scanInfos.emplace_back(splitInfo);
       scanIds.emplace_back(leafPlanNodeId);
+break;
+      case SplitInfo::LeafType::TRIVIAL_LEAF:
+break;
     }
   }
 }
