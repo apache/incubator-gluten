@@ -16,10 +16,12 @@
 
 LIBRDKAFKA_VERSION="v2.10.0"
 CPPKAFKA_VERSION="v0.4.1"
+FROCKSDB_VERSION="6.20.3"
 
 function wget_and_untar {
   local URL=$1
   local DIR=$2
+  local COMPRESSION_TYPE=$3
   mkdir -p "${DEPENDENCY_DIR}"
   pushd "${DEPENDENCY_DIR}"
   SUDO="${SUDO:-""}"
@@ -33,8 +35,13 @@ function wget_and_untar {
   fi
   mkdir -p "${DIR}"
   pushd "${DIR}"
-  curl ${CURL_OPTIONS} -L "${URL}" > $2.tar.gz
-  tar -xz --strip-components=1 -f $2.tar.gz
+  if [ ${COMPRESSION_TYPE} = "tar.gz" ]; then
+    curl ${CURL_OPTIONS} -L "${URL}" > $2.tar.gz
+    tar -xz --strip-components=1 -f $2.tar.gz
+  else
+    curl ${CURL_OPTIONS} -L "${URL}" > $2.zip
+    unzip $2.zip
+  fi
   popd
   popd
 }
@@ -60,7 +67,7 @@ function cmake_install {
   fi
 
   mkdir -p "${BINARY_DIR}"
-  COMPILER_FLAGS=$(get_cxx_flags)
+  COMPILER_FLAGS="-g -gdwarf-2"
   # Add platform specific CXX flags if any
   COMPILER_FLAGS+=${OS_CXXFLAGS}
 
@@ -84,18 +91,25 @@ function run_and_time {
 }
 
 function install_librdkafka {
-  wget_and_untar https://github.com/confluentinc/librdkafka/archive/refs/tags/${LIBRDKAFKA_VERSION}.tar.gz librdkafka
+  wget_and_untar https://github.com/confluentinc/librdkafka/archive/refs/tags/${LIBRDKAFKA_VERSION}.tar.gz librdkafka tar.gz
   cmake_install_dir librdkafka -DBUILD_TESTS=OFF
 }
 
 function install_cppkafka {
-  wget_and_untar https://github.com/mfontanini/cppkafka/archive/refs/tags/${CPPKAFKA_VERSION}.tar.gz cppkafka
+  wget_and_untar https://github.com/mfontanini/cppkafka/archive/refs/tags/${CPPKAFKA_VERSION}.tar.gz cppkafka tar.gz
   cmake_install_dir cppkafka -DBUILD_TESTS=OFF
+}
+
+function install_rocksdb {
+  wget_and_untar https://github.com/ververica/frocksdb/archive/refs/heads/FRocksDB-${FROCKSDB_VERSION}.zip "" zip
+  mv frocksdb-FRocksDB-${FROCKSDB_VERSION} rocksdb
+  cmake_install_dir rocksdb -DWITH_GFLAGS=OFF -DBUILD_TESTS=OFF
 }
 
 function install_velox_deps {
   run_and_time install_librdkafka
   run_and_time install_cppkafka
+  run_and_time install_rocksdb
 }
 
 install_velox_deps

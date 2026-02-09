@@ -48,7 +48,7 @@ As some features have not been committed to upstream, you have to use the follow
 ## fetch velox4j code
 git clone -b gluten-0530 https://github.com/bigo-sg/velox4j.git
 cd velox4j
-git reset --hard 288d181a1b05c47f1f17339eb498dd6375f7aec8
+git reset --hard 1189cf7a0ed1296b6647b6ed4e4af1df7c8201d8
 mvn clean install -DskipTests -Dgpg.skip -Dspotless.skip=true
 ```
 **Get gluten**
@@ -139,6 +139,31 @@ bin/sql-client.sh -f data-generator.sql
 ### Flink Yarn per job mode
 
 TODO
+
+### RocksDB State
+
+**Get & compile RocksDB**
+```bash
+wget https://github.com/ververica/frocksdb/archive/refs/heads/FRocksDB-6.20.3.zip
+unzip FRocksDB-6.20.3.zip
+mv frocksdb-FRocksDB-6.20.3 rocksdb && cd rocksdb
+make rocksdbjava -i
+```
+
+**Config RocksDB backend**
+- copy compiled jar package to `${FLINK_HOME}/gluten_lib` directory.
+    ```bash
+    cp ${ROCKSDB_COMPILE_DIR}/java/target/rocksdbjni-6.20.3-linux64.jar ${FLINK_HOME}/gluten_lib
+    ```
+- modify `${FLINK_HOME}/bin/config.sh` as follows
+    ```
+    GLUTEN_JAR="$FLINK_HOME/gluten_lib/gluten-flink-loader-1.6.0.jar:$FLINK_HOME/gluten_lib/velox4j-0.1.0-SNAPSHOT.jar:$FLINK_HOME/gluten_lib/gluten-flink-runtime-1.6.0.jar:$FLINK_HOME/gluten_lib/rocksdbjni-6.20.3-linux64.jar"
+    echo "$GLUTEN_JAR""$FLINK_CLASSPATH""$FLINK_DIST"
+    ```
+- set rocksdb config in `${FLINK_HOME}/conf/config.yaml`
+    ```
+    state.backend.type: rocksdb
+    ```
 
 ## Performance
 We are working on supporting the [Nexmark](https://github.com/nexmark/nexmark) benchmark for Flink.

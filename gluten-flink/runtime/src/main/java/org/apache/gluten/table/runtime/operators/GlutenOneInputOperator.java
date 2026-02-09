@@ -65,7 +65,7 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
   private transient GlutenSessionResource sessionResource;
   private transient Query query;
   private transient ExternalStreams.BlockingQueue inputQueue;
-  private transient SerialTask task;
+  protected transient SerialTask task;
   private final Class<IN> inClass;
   private final Class<OUT> outClass;
   private transient VectorInputBridge<IN> inputBridge;
@@ -260,8 +260,7 @@ public class GlutenOneInputOperator<IN, OUT> extends TableStreamOperator<OUT>
     if (task == null) {
       initSession();
     }
-    // TODO: implement it
-    task.initializeState(0);
+    task.initializeState(0, null);
     super.initializeState(context);
   }
 
