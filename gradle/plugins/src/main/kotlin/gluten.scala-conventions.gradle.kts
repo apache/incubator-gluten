@@ -80,6 +80,13 @@ tasks.withType<ScalaCompile>().configureEach {
 
         additionalParameters = commonArgs
     }
+    // Set encoding for the forked javac process that compiles Java sources
+    // during mixed Scala/Java compilation (zinc forks javac separately)
+    options.encoding = "UTF-8"
+    options.isFork = true
+    options.forkOptions.jvmArgs = (options.forkOptions.jvmArgs ?: mutableListOf()).apply {
+        add("-Dfile.encoding=UTF-8")
+    }
 }
 
 // Configure mixed Scala/Java compilation

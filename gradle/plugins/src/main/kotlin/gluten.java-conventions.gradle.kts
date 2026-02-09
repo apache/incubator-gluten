@@ -26,12 +26,26 @@ plugins {
 
 val javaVersion: String by project
 
+val javaVersionInt = javaVersion.toIntOrNull() ?: 17
+
 java {
-    val javaVersionInt = javaVersion.toIntOrNull() ?: 17
     sourceCompatibility = JavaVersion.toVersion(javaVersionInt)
     targetCompatibility = JavaVersion.toVersion(javaVersionInt)
 
     withSourcesJar()
+}
+
+// When the running JDK is newer than targetCompatibility (e.g. JDK 21 with target 17),
+// Gradle may publish outgoing variants declaring the JDK version instead of the target.
+// Explicitly set TargetJvmVersion on all configurations so inter-project dependencies
+// resolve correctly regardless of the build JDK.
+configurations.matching { it.isCanBeConsumed && !it.isCanBeResolved }.configureEach {
+    attributes {
+        attribute(
+            TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
+            javaVersionInt
+        )
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {
