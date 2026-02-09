@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.VeloxColumnarToRowExec
+
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.internal.SQLConf
 
