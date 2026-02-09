@@ -95,3 +95,7 @@ tasks.register<Copy>("copyBundleJar") {
 tasks.build {
     dependsOn("copyBundleJar")
 }
+
+// This is an assembly module (fat JAR); skip Maven publishing.
+tasks.withType<PublishToMavenLocal>().configureEach { enabled = false }
+tasks.withType<PublishToMavenRepository>().configureEach { enabled = false }

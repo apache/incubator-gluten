@@ -198,7 +198,6 @@ subprojects {
 
     // Configure test tasks
     tasks.withType<Test>().configureEach {
-        useJUnitPlatform()
         maxHeapSize = "4g"
 
         jvmArgs(

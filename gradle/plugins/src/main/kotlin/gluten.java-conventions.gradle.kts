@@ -22,6 +22,7 @@
 
 plugins {
     java
+    `maven-publish`
 }
 
 val javaVersion: String by project
@@ -36,15 +37,20 @@ java {
 }
 
 // When the running JDK is newer than targetCompatibility (e.g. JDK 21 with target 17),
-// Gradle may publish outgoing variants declaring the JDK version instead of the target.
-// Explicitly set TargetJvmVersion on all configurations so inter-project dependencies
-// resolve correctly regardless of the build JDK.
-configurations.matching { it.isCanBeConsumed && !it.isCanBeResolved }.configureEach {
-    attributes {
-        attribute(
-            TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
-            javaVersionInt
-        )
+// Gradle and its plugins (Java, Scala, etc.) stamp outgoing variants with the running
+// JDK version instead of the configured target. This causes variant resolution failures
+// between projects (e.g. shims-common@21 vs shims-spark41@17).
+// Override TargetJvmVersion on ALL configurations — including legacy ones like "archives"
+// and "default", and plugin-added ones like "incrementalScalaAnalysisElements" — so
+// inter-project dependencies resolve correctly regardless of the build JDK.
+afterEvaluate {
+    configurations.configureEach {
+        attributes {
+            attribute(
+                TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
+                javaVersionInt
+            )
+        }
     }
 }
 
@@ -68,5 +74,23 @@ tasks.withType<Javadoc>().configureEach {
 configurations {
     testImplementation {
         extendsFrom(configurations.compileOnly.get())
+    }
+}
+
+// Maven publishing — equivalent to "mvn install"
+// Usage: ./gradlew publishToMavenLocal
+// Shims modules use a "spark-sql-columnar-" prefix in Maven to match the Maven build.
+val mavenArtifactId = if (project.name.startsWith("shims-")) {
+    "spark-sql-columnar-${project.name}"
+} else {
+    project.name
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+            artifactId = mavenArtifactId
+        }
     }
 }
