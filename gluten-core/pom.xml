@@ -190,7 +190,6 @@
               <target>
                 <exec executable="bash" osfamily="unix">
                   <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
-                  <arg value="true"/>
                   <arg value="--version"/>
                   <arg value="${project.version}"/>
                   <arg value="--java"/>
@@ -201,6 +200,8 @@
                   <arg value="${spark.version}"/>
                   <arg value="--hadoop"/>
                   <arg value="${hadoop.version}"/>
+                  <arg value="--backend"/>
+                  <arg value="${backend_type}"/>
                   <arg value="--revision"/>
                   <arg value="true"/>
                 </exec>

@@ -216,30 +216,6 @@
 
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>build-info-with-backends</id>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <target>
-                <exec executable="bash" osfamily="unix">
-                  <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
-                  <arg value="false"/>
-                  <arg value="--backend"/>
-                  <arg value="${backend.type}"/>
-                  <arg value="${backend.home}"/>
-                </exec>
-              </target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <!-- compile proto buffer files using copied protoc binary -->
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
@@ -314,21 +290,4 @@
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
   </build>
-
-  <profiles>
-    <profile>
-      <id>backends-velox</id>
-      <properties>
-        <backend.type>velox</backend.type>
-        <backend.home>${project.basedir}/../ep/build-velox/build/velox_ep</backend.home>
-      </properties>
-    </profile>
-    <profile>
-      <id>backends-clickhouse</id>
-      <properties>
-        <backend.type>ch</backend.type>
-        <backend.home>${project.basedir}/../cpp-ch/ClickHouse</backend.home>
-      </properties>
-    </profile>
-  </profiles>
 </project>
