@@ -85,6 +85,11 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
 
   def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
+
+  def hashProbeBloomFilterPushdownMaxSize: Long = getConf(HASH_PROBE_BLOOM_FILTER_PUSHDOWN_MAX_SIZE)
+
+  def hashProbeDynamicFilterPushdownEnabled: Boolean =
+    getConf(HASH_PROBE_DYNAMIC_FILTER_PUSHDOWN_ENABLED)
 }
 
 object VeloxConfig extends ConfigRegistry {
@@ -446,6 +451,22 @@ object VeloxConfig extends ConfigRegistry {
           "'spark.bloom_filter.max_num_bits'")
       .longConf
       .createWithDefault(4194304L)
+
+  val HASH_PROBE_BLOOM_FILTER_PUSHDOWN_MAX_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.hashProbe.bloomFilterPushdown.maxSize")
+      .doc("The maximum byte size of Bloom filter that can be generated from hash probe. When " +
+        "set to 0, no Bloom filter will be generated. To achieve optimal performance, this should" +
+        " not be too larger than the CPU cache size on the host.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefault(0)
+
+  val HASH_PROBE_DYNAMIC_FILTER_PUSHDOWN_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.hashProbe.dynamicFilterPushdown.enabled")
+      .doc(
+        "Whether hash probe can generate any dynamic filter (including Bloom filter) and push" +
+          " down to upstream operators.")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled")

@@ -38,21 +38,16 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-      - name: Detect CPP file changes
+      - name: Detect C++ file changes
         id: filter
         run: |
-          BASE_SHA=$(python3 -c "
-          import json, os
-          with open(os.environ['GITHUB_EVENT_PATH']) as f:
-              event = json.load(f)
-              wr = event.get('workflow_run', {})
-              prs = wr.get('pull_requests', [])
-              if prs:
-                  print(prs[0]['base']['sha'])
-              else:
-                  print(wr.get('before', ''))
-          ")
           HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          git remote -v && git fetch origin main:main
+          # Finds the common ancestor for PR targeting the main branch only.
+          # We may need to update the base branch if PR is not targeting the main branch.
+          BASE_SHA=$(git merge-base main $HEAD_SHA)
+          echo "BASE_SHA: $BASE_SHA"
+          echo "HEAD_SHA: $HEAD_SHA"
           if git diff --name-only $BASE_SHA $HEAD_SHA | grep -E '^cpp/.*\.(cc|h)$'; then
             echo "cpp_changed=true" >> $GITHUB_OUTPUT
           else
@@ -60,7 +55,7 @@ jobs:
           fi
       - name: Download artifact from in-progress workflow
         if: steps.filter.outputs.cpp_changed == 'true'
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
           workflow: .github/workflows/velox_backend_x86.yml
@@ -71,6 +66,7 @@ jobs:
           search_artifacts: true
           if_no_artifact_found: fail
       - name: Check Clang Tidy
+        if: steps.filter.outputs.cpp_changed == 'true'
         run: |
           pip3 install regex
           yum install glibc-devel glibc-headers

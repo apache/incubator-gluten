@@ -370,7 +370,15 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
     val newShuffle = shuffle.outputPartitioning match {
       case HashPartitioning(exprs, _) =>
-        val hashExpr = new Murmur3Hash(exprs)
+        val hashExpr = if (exprs.isEmpty) {
+          // In Spark, a hash expression with empty input is not resolvable and an
+          // `WRONG_NUM_ARGS.WITHOUT_SUGGESTION` error will be reported when validating the project
+          // transformer. So we directly return the seed here, which is the intended hashed value
+          // for empty input given Spark's murmur3 hash logic.
+          Literal(new Murmur3Hash(Nil).seed, IntegerType)
+        } else {
+          new Murmur3Hash(exprs)
+        }
         val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
         val projectTransformer = ProjectExecTransformer(projectList, child)
         val validationResult = projectTransformer.doValidate()
@@ -1020,15 +1028,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       offset: Int): ColumnarCollectLimitBaseExec =
     ColumnarCollectLimitExec(limit, child, offset)
 
-  override def genColumnarRangeExec(
-      start: Long,
-      end: Long,
-      step: Long,
-      numSlices: Int,
-      numElements: BigInt,
-      outputAttributes: Seq[Attribute],
-      child: Seq[SparkPlan]): ColumnarRangeBaseExec =
-    ColumnarRangeExec(start, end, step, numSlices, numElements, outputAttributes, child)
+  override def genColumnarRangeExec(rangeExec: RangeExec): ColumnarRangeBaseExec =
+    ColumnarRangeExec(rangeExec.range)
 
   override def genColumnarTailExec(limit: Int, child: SparkPlan): ColumnarCollectTailBaseExec =
     ColumnarCollectTailExec(limit, child)

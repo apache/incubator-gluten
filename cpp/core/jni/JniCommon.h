@@ -233,6 +233,7 @@ class SafeNativeArray {
  public:
   virtual ~SafeNativeArray() {
     PrimitiveArray::release(env_, javaArray_, nativeArray_);
+    env_->DeleteLocalRef(javaArray_);
   }
 
   SafeNativeArray(const SafeNativeArray&) = delete;
@@ -255,7 +256,7 @@ class SafeNativeArray {
 
  private:
   SafeNativeArray(JNIEnv* env, JavaArrayType javaArray, JniNativeArrayType nativeArray)
-      : env_(env), javaArray_(javaArray), nativeArray_(nativeArray){};
+      : env_(env), javaArray_(static_cast<JavaArrayType>(env_->NewLocalRef(javaArray))), nativeArray_(nativeArray){};
 
   JNIEnv* env_;
   JavaArrayType javaArray_;
@@ -502,9 +503,12 @@ class JavaRssClient : public RssClient {
       return;
     }
     env->DeleteGlobalRef(javaRssShuffleWriter_);
-    jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
-    env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
-    env->DeleteGlobalRef(array_);
+    // array_ may be nullptr when failed to allocate new byte array in pushPartitionData
+    if (array_ != nullptr) {
+      jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
+      env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
+      env->DeleteGlobalRef(array_);
+    }
   }
 
   int32_t pushPartitionData(int32_t partitionId, const char* bytes, int64_t size) override {

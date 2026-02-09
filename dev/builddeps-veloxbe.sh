@@ -140,15 +140,15 @@ do
         shift # Remove argument name from processing
         ;;
         --build_arrow=*)
-        BUILD_ARROW=("${arg#*=}")
+        BUILD_ARROW="${arg#*=}"
         shift # Remove argument name from processing
         ;;
         --num_threads=*)
-        NUM_THREADS=("${arg#*=}")
+        NUM_THREADS="${arg#*=}"
         shift # Remove argument name from processing
         ;;
         --spark_version=*)
-        SPARK_VERSION=("${arg#*=}")
+        SPARK_VERSION="${arg#*=}"
         shift # Remove argument name from processing
         ;;
 	      *)
@@ -193,13 +193,16 @@ if [ "$ENABLE_VCPKG" = "ON" ]; then
     source ./dev/vcpkg/env.sh ${BUILD_OPTIONS}
 fi
 
-if [ "$SPARK_VERSION" = "3.2" ] || [ "$SPARK_VERSION" = "3.3" ] \
-  || [ "$SPARK_VERSION" = "3.4" ] || [ "$SPARK_VERSION" = "3.5" ] \
-  || [ "$SPARK_VERSION" = "4.0" ] \
-  || [ "$SPARK_VERSION" = "ALL" ]; then
+# Supported Spark versions
+SUPPORTED_SPARK_VERSIONS=("3.3" "3.4" "3.5" "4.0" "4.1" "ALL")
+
+# Check if SPARK_VERSION is in the supported list
+pattern=" $SPARK_VERSION "
+if [[ " ${SUPPORTED_SPARK_VERSIONS[*]} " =~ $pattern ]]; then
   echo "Building for Spark $SPARK_VERSION"
 else
   echo "Invalid Spark version: $SPARK_VERSION"
+  echo "Supported versions: 3.3 3.4 3.5 4.0 4.1 ALL"
   exit 1
 fi
 

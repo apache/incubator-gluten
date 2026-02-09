@@ -59,6 +59,8 @@ class VeloxRuntime final : public Runtime {
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {}) override;
 
+  void noMoreSplits(ResultIterator* iter) override;
+
   std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(int64_t column2RowMemThreshold) override;
 
   std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) override;
@@ -74,6 +76,9 @@ class VeloxRuntime final : public Runtime {
       int32_t format,
       const std::string& outputDirectory,
       facebook::velox::common::CompressionKind compressionKind,
+      int32_t partitionId,
+      int64_t taskId,
+      const std::string& operationId,
       std::shared_ptr<const facebook::velox::connector::hive::iceberg::IcebergPartitionSpec> spec,
       const gluten::IcebergNestedField& protoField,
       const std::unordered_map<std::string, std::string>& sparkConfs);

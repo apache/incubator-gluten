@@ -27,7 +27,7 @@
   <name>Gluten Flink UT</name>
 
   <properties>
-    <assertj.version>3.24.2</assertj.version>
+    <assertj.version>3.27.7</assertj.version>
     <argLine/>
     <extraJavaTestArgs>--add-opens=java.base/java.lang=ALL-UNNAMED
             --add-opens=java.base/java.lang.invoke=ALL-UNNAMED

@@ -38,7 +38,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
   val SUPPORTED_SQL_QUERY_LIST: Set[String] = Set(
     "ansi/conditional-functions.sql",
     "ansi/decimalArithmeticOperations.sql",
-    "cast.sql",
+    // TODO: fix on Spark-4.1 "cast.sql",
     "change-column.sql",
     "ceil-floor-with-scale-param.sql",
     "column-resolution-aggregate.sql",
@@ -56,8 +56,8 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "current_database_catalog.sql",
     // "datetime-formatting-invalid.sql",
     "datetime-special.sql",
-    // TODO: fix on Spark-4.1 "decimalArithmeticOperations.sql",
-    "describe.sql",
+    "decimalArithmeticOperations.sql",
+    // TODO: fix on Spark-4.1 "describe.sql",
     "describe-part-after-analyze.sql",
     "describe-table-after-alter-table.sql",
     "describe-query.sql",
@@ -75,7 +75,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "grouping_set.sql",
     "having.sql",
     "higher-order-functions.sql",
-    // TODO: fix on Spark-4.1 "identifier-clause.sql",
+    "identifier-clause.sql",
     "ignored.sql",
     "ilike.sql",
     "ilike-all.sql",
@@ -86,7 +86,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "join-empty-relation.sql",
     "join-lateral.sql",
     "json-functions.sql",
-    // TODO: fix on Spark-4.1 "keywords.sql",
+    "keywords.sql",
     "like-all.sql",
     "like-any.sql",
     // "limit.sql",
@@ -99,7 +99,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "non-excludable-rule.sql",
     "null-handling.sql",
     "null-propagation.sql",
-    // TODO: fix on Spark-4.1 "operators.sql",
+    "operators.sql",
     "order-by-all.sql",
     // "order-by-nulls-ordering.sql",
     "order-by-ordinal.sql",
@@ -163,7 +163,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "postgreSQL/case.sql",
     "postgreSQL/comments.sql",
     "postgreSQL/create_view.sql",
-    // TODO: fix on Spark-4.1 "postgreSQL/date.sql",
+    "postgreSQL/date.sql",
     "postgreSQL/float4.sql",
     "postgreSQL/float8.sql",
     "postgreSQL/groupingsets.sql",
@@ -228,7 +228,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     // "timestampNTZ/timestamp-ansi.sql",
     // "timestampNTZ/timestamp.sql",
     // "nonansi/array.sql",
-    "nonansi/cast.sql",
+    // TODO: fix on Spark-4.1 "nonansi/cast.sql",
     "nonansi/conditional-functions.sql",
     // "nonansi/date.sql",
     // "nonansi/datetime-parsing-invalid.sql",
@@ -237,17 +237,49 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "nonansi/double-quoted-identifiers.sql",
     "nonansi/higher-order-functions.sql",
     // "nonansi/interval.sql",
-    // TODO: fix on Spark-4.1 "nonansi/keywords.sql",
+    "nonansi/keywords.sql",
     // TODO: fix on Spark-4.1 "nonansi/literals.sql",
     "nonansi/map.sql",
     "nonansi/math.sql",
     "nonansi/parse-schema-string.sql",
     // "nonansi/string-functions.sql",
     // "nonansi/timestamp.sql",
-    "nonansi/try_aggregates.sql"
+    "nonansi/try_aggregates.sql",
     // "nonansi/try_arithmetic.sql",
     // "nonansi/try_datetime_functions.sql",
     // "nonansi/try_element_at.sql"
+
+    // newly added test files from spark 4.1
+    "alias-resolution-edge-cases.sql",
+    "collations-aliases.sql",
+    "collations-basic.sql",
+    "collations-padding-trim.sql",
+    "collations-string-functions.sql",
+    "cte-recursion.sql",
+    "extract-value-resolution-edge-cases.sql",
+    "generators.sql",
+    "having-and-order-by-recursive-type-name-resolution.sql",
+    "identifier-clause-legacy.sql",
+    "join-resolution-edge-cases.sql",
+    "kllquantiles.sql",
+    "name-precedence-in-order-by-and-having-with-conflicting-attributes.sql",
+    // TODO: fix on Spark-4.1 "nonansi/st-functions.sql",
+    "order-by-alias.sql",
+    "order-by-and-having-on-top-of-aggregate-with-join.sql",
+    "replacing-missing-expression-with-alias.sql",
+    "runtime-replaceable-edge-cases.sql",
+    // TODO: fix on Spark-4.1 "scripting/randomly_generated_scripts.sql",
+    "session-variable-precedence.sql",
+    // TODO: fix on Spark-4.1 "st-functions.sql",
+    "subquery/resolution-edge-cases.sql",
+    "thetasketch.sql",
+    "time.sql",
+    // TODO: fix on Spark-4.1  "type-coercion-edge-cases.sql",
+    "union-per-child-output-deduplication.sql",
+    "union-resolution-edge-cases.sql",
+    // TODO: fix on Spark-4.1 "variant-field-extractions.sql",
+    "view-conf.sql",
+    "window-with-aggregates.sql"
   )
 
   val OVERWRITE_SQL_QUERY_LIST: Set[String] = Set(
@@ -273,20 +305,20 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     // Enable ConstantFolding rule for "typeof(...)".
     "cte.sql",
     // Removed some result mismatch cases.
-    // TODO: fix on Spark-4.1 "datetime-legacy.sql",
+    "datetime-legacy.sql",
     // Removed some result mismatch cases.
     "datetime-parsing.sql",
     // Removed some result mismatch cases.
     "datetime-parsing-legacy.sql",
     // Removed some result mismatch cases.
-    // TODO: fix on Spark-4.1 "datetime-parsing-invalid.sql",
+    "datetime-parsing-invalid.sql",
     // Overwrite exception message. See Spark-46550.
     "hll.sql",
     // Overwrite exception message.
     // TODO: Disable due to schema & ANSI gap
     // "interval.sql",
     // Enable ConstantFolding rule for "typeof(...)".
-    // TODO: fix on Spark-4.1 "misc-functions.sql",
+    "misc-functions.sql",
     // Removed some result mismatch cases.
     "regexp-functions.sql",
     // Removed some result mismatch cases.

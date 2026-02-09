@@ -74,7 +74,7 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  testWithMinSparkVersion("generate hash join plan - v2", "3.2") {
+  test("generate hash join plan - v2") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.adaptive.enabled", "false"),
@@ -92,12 +92,14 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
 
       // The computing is combined into one single whole stage transformer.
       val wholeStages = plan.collect { case wst: WholeStageTransformer => wst }
-      if (isSparkVersionLE("3.2")) {
-        assert(wholeStages.length == 1)
-      } else if (isSparkVersionGE("3.5")) {
-        assert(wholeStages.length == 5)
-      } else {
+
+      if (
+        SparkShimLoader.getSparkVersion.startsWith("3.3.") ||
+        SparkShimLoader.getSparkVersion.startsWith("3.4.")
+      ) {
         assert(wholeStages.length == 3)
+      } else {
+        assert(wholeStages.length == 5)
       }
 
       // Join should be in `TransformContext`
@@ -107,11 +109,8 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
           case _: ShuffledHashJoinExecTransformer => 1
         }.getOrElse(0)
       }.sum
-      if (SparkShimLoader.getSparkVersion.startsWith("3.2.")) {
-        assert(countSHJ == 1)
-      } else {
-        assert(countSHJ == 2)
-      }
+
+      assert(countSHJ == 2)
     }
   }
 
@@ -305,6 +304,42 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
           |on tt1.c1 = t2.c1
           |""".stripMargin
       runQueryAndCompare(q5) { _ => }
+    }
+  }
+
+  test("Hash probe dynamic filter pushdown") {
+    withSQLConf(
+      VeloxConfig.HASH_PROBE_DYNAMIC_FILTER_PUSHDOWN_ENABLED.key -> "true",
+      VeloxConfig.HASH_PROBE_BLOOM_FILTER_PUSHDOWN_MAX_SIZE.key -> "1048576"
+    ) {
+      withTable("probe_table", "build_table") {
+        spark.sql("""
+        CREATE TABLE probe_table USING PARQUET
+        AS SELECT id as a FROM range(110001)
+      """)
+
+        spark.sql("""
+        CREATE TABLE build_table USING PARQUET
+        AS SELECT id * 1000 as b FROM range(220002)
+      """)
+
+        runQueryAndCompare(
+          "SELECT a FROM probe_table JOIN build_table ON a = b"
+        ) {
+          df =>
+            val join = find(df.queryExecution.executedPlan) {
+              case _: BroadcastHashJoinExecTransformer => true
+              case _ => false
+            }
+            assert(join.isDefined)
+            val metrics = join.get.metrics
+            assert(metrics.contains("bloomFilterBlocksByteSize"))
+            assert(metrics("bloomFilterBlocksByteSize").value > 0)
+
+            assert(metrics.contains("hashProbeDynamicFiltersProduced"))
+            assert(metrics("hashProbeDynamicFiltersProduced").value == 1)
+        }
+      }
     }
   }
 }

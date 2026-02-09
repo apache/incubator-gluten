@@ -458,7 +458,7 @@
         <dependency>
           <groupId>org.assertj</groupId>
           <artifactId>assertj-core</artifactId>
-          <version>3.26.3</version>
+          <version>3.27.7</version>
           <scope>test</scope>
         </dependency>
         <dependency>
@@ -537,6 +537,12 @@
           <groupId>io.delta</groupId>
           <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
           <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-dynamodb</artifactId>
+          <version>${aws-java-sdk-dynamodb.version}</version>
+          <scope>test</scope>
         </dependency>
       </dependencies>
     </profile>
