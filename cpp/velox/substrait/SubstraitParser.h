@@ -93,6 +93,17 @@ class SubstraitParser {
   /// @return Whether the config is set as true.
   static bool configSetInOptimization(const ::substrait::extensions::AdvancedExtension&, const std::string& config);
 
+  /// @brief Return whether a config is set as true in AdvancedExtension
+  /// optimization.
+  /// @param extension Substrait advanced extension.
+  /// @param config the key string of a config.
+  /// @param target function
+  /// @return Whether the target function is correct.
+  static bool checkWindowFunction(
+      const ::substrait::extensions::AdvancedExtension&,
+      const std::string& config,
+      const std::string& targetFunction);
+
   /// Extract input types from Substrait function signature.
   static std::vector<facebook::velox::TypePtr> sigToTypes(const std::string& functionSig);
 

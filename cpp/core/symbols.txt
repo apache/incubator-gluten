@@ -1,0 +1,11 @@
+# Exported symbols for macOS
+# Generated from symbols.map
+
+_ZN8protobuf*
+_ZN9substrait*
+_gluten::*
+
+# Note: The following are hidden (local in GNU ld):
+# *google::* (except protobuf)
+# glog and gflags symbols
+
