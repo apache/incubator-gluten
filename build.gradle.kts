@@ -67,6 +67,7 @@ val sparkProperties =
                 "icebergBinaryVersion" to "5",
                 "antlr4Version" to "4.8",
                 "hudiVersion" to "0.15.0",
+                "arrowVersion" to "15.0.0-gluten",
             )
         "3.4" ->
             mapOf(
@@ -79,6 +80,7 @@ val sparkProperties =
                 "icebergBinaryVersion" to "10",
                 "antlr4Version" to "4.9.3",
                 "hudiVersion" to "0.15.0",
+                "arrowVersion" to "15.0.0-gluten",
             )
         "3.5" ->
             mapOf(
@@ -92,6 +94,7 @@ val sparkProperties =
                 "antlr4Version" to "4.9.3",
                 "hudiVersion" to "0.15.0",
                 "hadoopVersion" to "3.3.4",
+                "arrowVersion" to "15.0.0-gluten",
             )
         "4.0" ->
             mapOf(
