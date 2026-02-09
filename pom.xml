@@ -97,7 +97,7 @@
     -->
     <os.full.name>unknown</os.full.name>
     <!-- To build built-in backend c++ codes -->
-    <scala.recompile.mode>all</scala.recompile.mode>
+    <scala.recompile.mode>incremental</scala.recompile.mode>
     <!-- For unit tests -->
     <fasterxml.version>2.15.0</fasterxml.version>
     <junit.version>4.13.1</junit.version>
@@ -140,7 +140,7 @@
 
     <!-- plugin version-->
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
-    <scala.compiler.version>4.8.0</scala.compiler.version>
+    <scala.compiler.version>4.9.2</scala.compiler.version>
     <maven.compiler.plugin>3.14.1</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
@@ -570,10 +570,11 @@
           <configuration>
             <encoding>UTF-8</encoding>
             <maxmem>1024m</maxmem>
-            <fork>true</fork>
-            <compilerArgs>
-              <arg>-Xlint:all,-serial,-path</arg>
-            </compilerArgs>
+            <!-- Skip javac entirely. In incremental mode (recompileMode=incremental),
+                 Zinc compiles both Scala and Java sources together, making
+                 maven-compiler-plugin redundant. Same approach as Apache Spark. -->
+            <skipMain>true</skipMain>
+            <skip>true</skip>
           </configuration>
         </plugin>
         <plugin>
@@ -634,6 +635,8 @@
               <arg>-feature</arg>
               <arg>-Wconf:cat=deprecation:wv,any:e</arg>
               <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+              <arg>-Ybackend-parallelism</arg>
+              <arg>8</arg>
             </args>
           </configuration>
           <executions>
@@ -1057,6 +1060,8 @@
                   <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
                   <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
                   <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                  <arg>-Ybackend-parallelism</arg>
+                  <arg>8</arg>
                 </args>
               </configuration>
               <executions>
