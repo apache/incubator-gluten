@@ -177,7 +177,7 @@ The "Gluten Support" column is now ready to be populated with:
 ### Iceberg Table Properties
 extracted from https://iceberg.apache.org/docs/latest/configuration/
 
-## READ Properties
+#### READ Properties
 
 | Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
@@ -190,7 +190,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 | read.orc.vectorization.enabled | false | Controls whether orc vectorized reads are used |  |
 | read.orc.vectorization.batch-size | 5000 | The batch size for orc vectorized reads |  |
 
-## WRITE Properties
+#### WRITE Properties
 
 | Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
@@ -242,7 +242,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 | write.merge.isolation-level | serializable | Isolation level for merge commands: serializable or snapshot |  |
 | write.delete.granularity | partition | Controls the granularity of generated delete files: partition or file |  |
 
-## COMMIT Properties
+#### COMMIT Properties
 
 | Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
@@ -258,7 +258,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 | commit.manifest.min-count-to-merge | 100 | Minimum number of manifests to accumulate before merging |  |
 | commit.manifest-merge.enabled | true | Controls whether to automatically merge manifests on writes |  |
 
-## HISTORY Properties
+#### HISTORY Properties
 
 | Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
@@ -267,7 +267,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 | history.expire.max-ref-age-ms | Long.MAX_VALUE (forever) | For snapshot references except the main branch, default max age of snapshot references to keep while expiring snapshots. The main branch never expires. |  |
 | format-version | 2 | Table's format version (can be 1 or 2) as defined in the Spec. Defaults to 2 since version 1.4.0. |  |
 
-## COMPATIBILITY Properties
+#### COMPATIBILITY Properties
 
 | Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
@@ -279,7 +279,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 | clients | 2 | client pool size |  |
 | cache-enabled | true | Whether to cache catalog entries |  |
 
-## CACHE Properties
+#### CACHE Properties
 
 | Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
@@ -287,7 +287,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 | metrics-reporter-impl | org.apache.iceberg.metrics.LoggingMetricsReporter | Custom MetricsReporter implementation to use in a catalog. See the Metrics reporting section for additional details |❌|
 | lock-impl | null | a custom implementation of the lock manager, the actual interface depends on the catalog used |❌|
 
-## LOCK Properties
+#### LOCK Properties
 
 | Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
@@ -297,7 +297,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 | lock.heartbeat-interval-ms | 3000 (3 s) | the interval to wait between each heartbeat after acquiring a lock |  |
 | lock.heartbeat-timeout-ms | 15000 (15 s) | the maximum time without a heartbeat to consider a lock expired |  |
 
-## ICEBERG Properties
+#### ICEBERG Properties
 
 | Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
