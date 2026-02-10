@@ -38,10 +38,15 @@ on:
       - 'cpp/**'
       - 'dev/**'
       - 'build/mvn'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - '*.gradle.kts'
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-  MVN_CMD: 'build/mvn -ntp'
+  GRADLE_CMD: './gradlew --no-daemon'
   WGET_CMD: 'wget -nv'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
 
@@ -127,7 +132,7 @@ jobs:
           java -version
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l $SPARK_HOME
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Piceberg-test -Pdelta -Phudi \
+          bash dev/ci-gradle-build.sh -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Piceberg-test -Pdelta -Phudi \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest \
           -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
@@ -135,7 +140,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -143,6 +150,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
       - name: Upload golden files
@@ -185,7 +193,7 @@ jobs:
           java -version
           export SPARK_HOME=/opt/shims/spark35/spark_home/
           ls -l $SPARK_HOME
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest \
           -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
@@ -193,7 +201,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -201,6 +211,7 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
       - name: Upload golden files
@@ -237,7 +248,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          bash dev/ci-gradle-build.sh -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -245,7 +256,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-report
-          path: '**/surefire-reports/TEST-*.xml'
+          path: |
+            **/surefire-reports/TEST-*.xml
+            **/build/test-results/test/TEST-*.xml
       - name: Upload unit tests log files
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
@@ -253,5 +266,6 @@ jobs:
           name: ${{ github.job }}-test-log
           path: |
             **/target/*.log
+            **/build/reports/tests/test/**
             **/gluten-ut/**/hs_err_*.log
             **/gluten-ut/**/core.*
