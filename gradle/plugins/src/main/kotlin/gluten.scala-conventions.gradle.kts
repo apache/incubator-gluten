@@ -119,6 +119,15 @@ sourceSets {
     }
 }
 
+// Merge test resources into the Scala test classes output directory.
+// Maven puts both compiled classes and resources in target/test-classes/, so
+// getClass.getResource("/").getPath + "some-resource" works. Gradle separates them
+// (build/classes/scala/test/ vs build/resources/test/), breaking that pattern.
+// Redirect processTestResources output to match Maven's layout.
+sourceSets.test.get().output.setResourcesDir(
+    sourceSets.test.get().scala.classesDirectory.get().asFile
+)
+
 // Handle potential duplicate class files
 tasks.withType<Jar>().configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
