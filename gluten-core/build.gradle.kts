@@ -32,36 +32,20 @@ val effectiveHadoopVersion: String by rootProject.extra
 val backend: String by project
 
 dependencies {
-    // Project dependencies - use api to expose transitive dependencies
     api(project(":gluten-ras-common"))
 
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-kvstore_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-network-common_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-network-shuffle_$scalaBinaryVersion:$effectiveSparkFullVersion")
 
-    // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$effectiveHadoopVersion")
 
-    // Protobuf (provided - will be shaded in final JAR)
     compileOnly("com.google.protobuf:protobuf-java:$protobufVersion")
 
-    // Test dependencies
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("org.scalacheck:scalacheck_$scalaBinaryVersion:1.17.0")
     testImplementation("org.mockito:mockito-core:2.23.4")
-    testImplementation("junit:junit:4.13.1")
     testImplementation("org.scalatestplus:scalatestplus-mockito_$scalaBinaryVersion:1.0.0-M2")
     testImplementation("org.scalatestplus:scalatestplus-scalacheck_$scalaBinaryVersion:3.1.0.0-RC2")
-
-    // Spark test JARs
-    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
 }
 
 sourceSets {

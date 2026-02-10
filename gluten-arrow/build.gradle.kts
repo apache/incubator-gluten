@@ -30,26 +30,17 @@ val effectiveArrowVersion: String by rootProject.extra
 val arrowMemoryArtifact = providers.gradleProperty("arrowMemoryArtifact").getOrElse("arrow-memory-unsafe")
 
 dependencies {
-    // Project dependencies - use api to expose transitive dependencies
     api(project(":gluten-substrait"))
     implementation(project(":shims-common"))
     implementation(project(":shims-spark$effectiveSparkPlainVersion"))
 
-    // Arrow dependencies - use api to expose transitively
     api("org.apache.arrow:arrow-vector:$effectiveArrowVersion")
     api("org.apache.arrow:arrow-memory-core:$effectiveArrowVersion")
     implementation("org.apache.arrow:$arrowMemoryArtifact:$effectiveArrowVersion")
     api("org.apache.arrow:arrow-c-data:$effectiveArrowVersion")
     api("org.apache.arrow:arrow-dataset:$effectiveArrowVersion")
 
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-network-common_$scalaBinaryVersion:$effectiveSparkFullVersion")
 
-    // Test dependencies
     testImplementation(project(":gluten-core", "testArtifacts"))
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
-    testImplementation("junit:junit:4.13.1")
 }

@@ -20,8 +20,6 @@ plugins {
     id("gluten.spotless")
 }
 
-val scalaBinaryVersion: String by project
-val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
 val uniffleVersion: String by project
 
@@ -54,19 +52,7 @@ sourceSets {
 }
 
 dependencies {
-    // Project dependencies
     implementation(project(":gluten-substrait"))
 
-    // Uniffle (provided)
     compileOnly("org.apache.uniffle:rss-client-spark${effectiveSparkPlainVersion.take(1)}-shaded:$uniffleVersion")
-
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
-
-    // Test dependencies
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
-    testImplementation("junit:junit:4.13.1")
 }

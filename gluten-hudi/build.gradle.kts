@@ -22,7 +22,6 @@ plugins {
 
 val scalaBinaryVersion: String by project
 val sparkVersion: String by project
-val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
 val effectiveHudiVersion: String? by rootProject.extra
 
@@ -57,39 +56,15 @@ sourceSets {
 }
 
 dependencies {
-    // Project dependencies
     implementation(project(":gluten-substrait"))
 
-    // Hudi (provided)
     compileOnly(
         "org.apache.hudi:hudi-spark$sparkVersion-bundle_$scalaBinaryVersion:$hudiVersion",
     )
 
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
-
-    // Test dependencies
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
-    testImplementation("junit:junit:4.13.1")
-
-    // Test JARs from other modules (WholeStageTransformerSuite etc.)
     testImplementation(project(":backends-velox", "testArtifacts"))
     testImplementation(project(":gluten-substrait", "testArtifacts"))
-
-    // Hudi for tests
     testImplementation(
         "org.apache.hudi:hudi-spark$sparkVersion-bundle_$scalaBinaryVersion:$hudiVersion",
     )
-
-    // Spark test JARs
-    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    if (effectiveSparkFullVersion.startsWith("4")) {
-        testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    }
 }

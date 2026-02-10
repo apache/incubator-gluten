@@ -27,7 +27,6 @@ checkstyle {
 }
 
 val scalaBinaryVersion: String by project
-val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
 val celebornVersion: String by project
 
@@ -60,21 +59,9 @@ sourceSets {
 }
 
 dependencies {
-    // Project dependencies
     implementation(project(":gluten-substrait"))
 
-    // Celeborn (provided)
     compileOnly(
         "org.apache.celeborn:celeborn-client-spark-${effectiveSparkPlainVersion.take(1)}-shaded_$scalaBinaryVersion:$celebornVersion",
     )
-
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
-
-    // Test dependencies
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
-    testImplementation("junit:junit:4.13.1")
 }

@@ -22,7 +22,6 @@ plugins {
 
 val scalaBinaryVersion: String by project
 val sparkVersion: String by project
-val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
 val effectiveDeltaVersion: String? by rootProject.extra
 val effectiveDeltaBinaryVersion: String? by rootProject.extra
@@ -73,41 +72,17 @@ sourceSets {
 }
 
 dependencies {
-    // Project dependencies
     implementation(project(":gluten-substrait"))
 
-    // Delta Lake (provided)
     compileOnly("io.delta:${deltaPackageName}_$scalaBinaryVersion:$deltaVersion") {
         exclude(group = "org.antlr")
         exclude(group = "org.scala-lang", module = "scala-library")
     }
 
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
-
-    // Test dependencies
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
-    testImplementation("junit:junit:4.13.1")
-
-    // Test JARs from other modules (WholeStageTransformerSuite etc.)
     testImplementation(project(":backends-velox", "testArtifacts"))
     testImplementation(project(":gluten-substrait", "testArtifacts"))
-
-    // Delta for tests
     testImplementation("io.delta:${deltaPackageName}_$scalaBinaryVersion:$deltaVersion") {
         exclude(group = "org.antlr")
         exclude(group = "org.scala-lang", module = "scala-library")
-    }
-
-    // Spark test JARs
-    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    if (effectiveSparkFullVersion.startsWith("4")) {
-        testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
     }
 }

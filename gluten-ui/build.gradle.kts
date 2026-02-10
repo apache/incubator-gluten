@@ -26,28 +26,16 @@ val effectiveSparkPlainVersion: String by rootProject.extra
 val effectiveFasterxmlVersion: String by rootProject.extra
 
 dependencies {
-    // Project dependencies
     compileOnly(project(":shims-common"))
     implementation(project(":shims-spark$effectiveSparkPlainVersion"))
 
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-kvstore_$scalaBinaryVersion:$effectiveSparkFullVersion")
 
-    // Servlet API (provided)
     compileOnly("javax.servlet:javax.servlet-api:3.1.0")
 
-    // Jackson (provided)
     compileOnly("com.fasterxml.jackson.core:jackson-databind:$effectiveFasterxmlVersion")
     compileOnly("com.fasterxml.jackson.core:jackson-annotations:$effectiveFasterxmlVersion")
     compileOnly("com.fasterxml.jackson.core:jackson-core:$effectiveFasterxmlVersion")
 
-    // Scala XML (provided)
     compileOnly("org.scala-lang.modules:scala-xml_$scalaBinaryVersion:2.2.0")
-
-    // Test dependencies
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
-    testImplementation("junit:junit:4.13.1")
 }

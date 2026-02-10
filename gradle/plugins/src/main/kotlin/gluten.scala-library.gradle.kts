@@ -17,14 +17,16 @@
 
 /**
  * Convention plugin for Scala library modules.
- * Adds version-specific source sets based on Spark version.
+ * Adds Spark version-specific source sets, common Spark/test dependencies,
+ * and test JAR publishing.
  */
 
 plugins {
     id("gluten.scala-conventions")
-    `java-library` // Provides 'api' configuration for transitive dependencies
+    `java-library`
 }
 
+val scalaBinaryVersion: String by project
 val sparkVersion: String by project
 val sparkPlainVersion = when (sparkVersion) {
     "3.3" -> "33"
@@ -33,6 +35,29 @@ val sparkPlainVersion = when (sparkVersion) {
     "4.0" -> "40"
     "4.1" -> "41"
     else -> "41"
+}
+
+val effectiveSparkFullVersion: String by rootProject.extra
+
+dependencies {
+    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
+    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
+    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
+    compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
+
+    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
+    testImplementation("junit:junit:4.13.1")
+
+    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+}
+
+if (effectiveSparkFullVersion.startsWith("4")) {
+    dependencies {
+        testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
+    }
 }
 
 // Add Spark version-specific source directories if they exist

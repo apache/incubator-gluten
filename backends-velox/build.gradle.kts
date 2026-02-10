@@ -46,12 +46,7 @@ dependencies {
     // Protobuf
     implementation("com.google.protobuf:protobuf-java:$protobufVersion")
 
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-network-common_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
 
     // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$effectiveHadoopVersion")
@@ -70,30 +65,18 @@ dependencies {
     // Jimfs for file system testing
     implementation("com.google.jimfs:jimfs:1.3.0")
 
-    // Test dependencies
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("org.scalacheck:scalacheck_$scalaBinaryVersion:1.17.0")
     testImplementation("org.mockito:mockito-core:2.23.4") {
         exclude(group = "net.bytebuddy", module = "byte-buddy")
     }
     testImplementation("net.bytebuddy:byte-buddy:1.9.3")
-    testImplementation("junit:junit:4.13.1")
     testImplementation("org.scalatestplus:scalatestplus-mockito_$scalaBinaryVersion:1.0.0-M2")
     testImplementation("org.scalatestplus:scalatestplus-scalacheck_$scalaBinaryVersion:3.1.0.0-RC2")
     testImplementation("com.github.javafaker:javafaker:1.0.2")
     testImplementation("com.vladsch.flexmark:flexmark-all:0.62.2")
 
-    // Spark test JARs
-    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+    // Spark test JARs (extra: spark-tags)
     testImplementation("org.apache.spark:spark-tags_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-
-    // Spark common-utils needed for SparkBuildInfo (Spark 4.0+)
-    if (effectiveSparkFullVersion.startsWith("4")) {
-        testImplementation("org.apache.spark:spark-common-utils_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    }
 
     // ScalaTest JUnit runner
     testRuntimeOnly("org.scalatestplus:junit-4-13_$scalaBinaryVersion:3.2.16.0")
