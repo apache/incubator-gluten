@@ -68,6 +68,7 @@ val sparkProperties =
                 "antlr4Version" to "4.8",
                 "hudiVersion" to "0.15.0",
                 "arrowVersion" to "15.0.0-gluten",
+                "fasterxmlVersion" to "2.15.0",
             )
         "3.4" ->
             mapOf(
@@ -81,6 +82,7 @@ val sparkProperties =
                 "antlr4Version" to "4.9.3",
                 "hudiVersion" to "0.15.0",
                 "arrowVersion" to "15.0.0-gluten",
+                "fasterxmlVersion" to "2.15.0",
             )
         "3.5" ->
             mapOf(
@@ -95,6 +97,7 @@ val sparkProperties =
                 "hudiVersion" to "0.15.0",
                 "hadoopVersion" to "3.3.4",
                 "arrowVersion" to "15.0.0-gluten",
+                "fasterxmlVersion" to "2.15.1",
             )
         "4.0" ->
             mapOf(
@@ -110,6 +113,7 @@ val sparkProperties =
                 "paimonVersion" to "1.3.0",
                 "hadoopVersion" to "3.4.1",
                 "arrowVersion" to "18.1.0",
+                "fasterxmlVersion" to "2.18.2",
             )
         // "4.1" and default
         else ->
@@ -126,6 +130,7 @@ val sparkProperties =
                 "paimonVersion" to "1.3.0",
                 "hadoopVersion" to "3.4.1",
                 "arrowVersion" to "18.1.0",
+                "fasterxmlVersion" to "2.18.2",
             )
     }
 
@@ -141,6 +146,12 @@ extra["effectiveIcebergVersion"] = sparkProperties["icebergVersion"]
 extra["effectiveIcebergBinaryVersion"] = sparkProperties["icebergBinaryVersion"]
 extra["effectiveHudiVersion"] = sparkProperties["hudiVersion"]
 extra["effectivePaimonVersion"] = sparkProperties["paimonVersion"]
+
+val antlr4Version: String by project
+extra["effectiveAntlr4Version"] = sparkProperties["antlr4Version"] ?: antlr4Version
+
+val fasterxmlVersion: String by project
+extra["effectiveFasterxmlVersion"] = sparkProperties["fasterxmlVersion"] ?: fasterxmlVersion
 
 // Detect OS and architecture
 val osName = System.getProperty("os.name").lowercase()
@@ -184,6 +195,8 @@ allprojects {
     extra["caffeineVersion"] = caffeineVersion
 }
 
+val protobufVersion: String by project
+
 subprojects {
     // jackson-bom:2.13.4.1 (pulled by Spark 3.3's jackson-databind:2.13.4.1) does not
     // exist on Maven Central. Substitute it with 2.13.5 which is the closest available version.
@@ -192,6 +205,10 @@ subprojects {
             if (requested.group == "com.fasterxml.jackson" && requested.name == "jackson-bom" && requested.version == "2.13.4.1") {
                 useVersion("2.13.5")
                 because("jackson-bom:2.13.4.1 does not exist on Maven Central")
+            }
+            if (requested.group == "com.google.protobuf" && requested.name == "protobuf-java") {
+                useVersion(protobufVersion)
+                because("Align protobuf-java version across all transitive dependencies")
             }
         }
     }
@@ -243,6 +260,7 @@ tasks.register("printConfig") {
             |Backend: $backend
             |Platform: $platform
             |Architecture: $arch
+            |Jackson/FasterXML: ${project.extra["effectiveFasterxmlVersion"]}
             |
             |Optional modules:
             |  delta: ${providers.gradleProperty("delta").getOrElse("false")}
@@ -251,6 +269,7 @@ tasks.register("printConfig") {
             |  paimon: ${providers.gradleProperty("paimon").getOrElse("false")}
             |  celeborn: ${providers.gradleProperty("celeborn").getOrElse("false")}
             |  uniffle: ${providers.gradleProperty("uniffle").getOrElse("false")}
+            |  kafka: ${providers.gradleProperty("kafka").getOrElse("false")}
             """.trimMargin(),
         )
     }

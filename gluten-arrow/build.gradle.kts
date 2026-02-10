@@ -25,6 +25,10 @@ val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
 val effectiveArrowVersion: String by rootProject.extra
 
+// Allow switching between arrow-memory-unsafe (default) and arrow-memory-netty
+// via -ParrowMemoryArtifact=arrow-memory-netty
+val arrowMemoryArtifact = providers.gradleProperty("arrowMemoryArtifact").getOrElse("arrow-memory-unsafe")
+
 dependencies {
     // Project dependencies - use api to expose transitive dependencies
     api(project(":gluten-substrait"))
@@ -34,7 +38,7 @@ dependencies {
     // Arrow dependencies - use api to expose transitively
     api("org.apache.arrow:arrow-vector:$effectiveArrowVersion")
     api("org.apache.arrow:arrow-memory-core:$effectiveArrowVersion")
-    implementation("org.apache.arrow:arrow-memory-unsafe:$effectiveArrowVersion")
+    implementation("org.apache.arrow:$arrowMemoryArtifact:$effectiveArrowVersion")
     api("org.apache.arrow:arrow-c-data:$effectiveArrowVersion")
     api("org.apache.arrow:arrow-dataset:$effectiveArrowVersion")
 

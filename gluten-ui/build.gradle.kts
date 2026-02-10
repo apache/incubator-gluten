@@ -23,6 +23,7 @@ plugins {
 val scalaBinaryVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
+val effectiveFasterxmlVersion: String by rootProject.extra
 
 dependencies {
     // Project dependencies
@@ -39,9 +40,9 @@ dependencies {
     compileOnly("javax.servlet:javax.servlet-api:3.1.0")
 
     // Jackson (provided)
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.18.2")
-    compileOnly("com.fasterxml.jackson.core:jackson-annotations:2.18.2")
-    compileOnly("com.fasterxml.jackson.core:jackson-core:2.18.2")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:$effectiveFasterxmlVersion")
+    compileOnly("com.fasterxml.jackson.core:jackson-annotations:$effectiveFasterxmlVersion")
+    compileOnly("com.fasterxml.jackson.core:jackson-core:$effectiveFasterxmlVersion")
 
     // Scala XML (provided)
     compileOnly("org.scala-lang.modules:scala-xml_$scalaBinaryVersion:2.2.0")

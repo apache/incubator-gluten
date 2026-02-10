@@ -19,18 +19,24 @@ plugins {
     id("gluten.scala-library")
     id("gluten.protobuf")
     id("gluten.spotless")
+    antlr
 }
 
 val scalaBinaryVersion: String by project
 val protobufVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveHadoopVersion: String by rootProject.extra
+val effectiveFasterxmlVersion: String by rootProject.extra
+val effectiveAntlr4Version: String by rootProject.extra
 
 // C++ build directories for ClickHouse
 val cppChBuildDir = file("../cpp-ch/build")
 val cppChReleasesDir = file("$cppChBuildDir/releases")
 
 dependencies {
+    // ANTLR4 tool (code generator)
+    antlr("org.antlr:antlr4:$effectiveAntlr4Version")
+
     // Project dependencies
     implementation(project(":gluten-substrait"))
 
@@ -49,10 +55,10 @@ dependencies {
     implementation("org.scala-lang.modules:scala-collection-compat_$scalaBinaryVersion:2.11.0")
 
     // Jackson (provided)
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.18.2")
-    compileOnly("com.fasterxml.jackson.core:jackson-annotations:2.18.2")
-    compileOnly("com.fasterxml.jackson.core:jackson-core:2.18.2")
-    compileOnly("com.fasterxml.jackson.module:jackson-module-scala_$scalaBinaryVersion:2.18.2")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:$effectiveFasterxmlVersion")
+    compileOnly("com.fasterxml.jackson.core:jackson-annotations:$effectiveFasterxmlVersion")
+    compileOnly("com.fasterxml.jackson.core:jackson-core:$effectiveFasterxmlVersion")
+    compileOnly("com.fasterxml.jackson.module:jackson-module-scala_$scalaBinaryVersion:$effectiveFasterxmlVersion")
 
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
@@ -69,8 +75,18 @@ dependencies {
     testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
 }
 
+// ANTLR4 grammar configuration
+tasks.generateGrammarSource {
+    arguments = arguments + listOf("-visitor")
+    outputDirectory = file("${layout.buildDirectory.get()}/generated-src/antlr/main/org/apache/gluten/sql/parser")
+}
+
+// Ensure ANTLR sources are on the compile classpath
 sourceSets {
     main {
+        java {
+            srcDir("${layout.buildDirectory.get()}/generated-src/antlr/main")
+        }
         proto {
             srcDir("src/main/resources/org/apache/gluten/proto")
         }

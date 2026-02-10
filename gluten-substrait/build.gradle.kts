@@ -27,6 +27,7 @@ val sparkVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
 val effectiveHadoopVersion: String by rootProject.extra
+val effectiveFasterxmlVersion: String by rootProject.extra
 
 dependencies {
     // Project dependencies - use api to expose transitive dependencies
@@ -58,10 +59,10 @@ dependencies {
     compileOnly("commons-io:commons-io:2.14.0")
 
     // Jackson
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.18.2")
-    compileOnly("com.fasterxml.jackson.core:jackson-annotations:2.18.2")
-    compileOnly("com.fasterxml.jackson.core:jackson-core:2.18.2")
-    compileOnly("com.fasterxml.jackson.module:jackson-module-scala_$scalaBinaryVersion:2.18.2")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:$effectiveFasterxmlVersion")
+    compileOnly("com.fasterxml.jackson.core:jackson-annotations:$effectiveFasterxmlVersion")
+    compileOnly("com.fasterxml.jackson.core:jackson-core:$effectiveFasterxmlVersion")
+    compileOnly("com.fasterxml.jackson.module:jackson-module-scala_$scalaBinaryVersion:$effectiveFasterxmlVersion")
 
     // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")

@@ -29,6 +29,8 @@ val protobufVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveHadoopVersion: String by rootProject.extra
 
+val backend: String by project
+
 dependencies {
     // Project dependencies - use api to expose transitive dependencies
     api(project(":gluten-ras-common"))
@@ -96,8 +98,11 @@ val generateBuildInfo by tasks.registering {
         propsFile.writeText(
             """
             |gluten_version=${project.version}
+            |backend_type=$backend
             |branch=${gitOutput("git", "rev-parse", "--abbrev-ref", "HEAD")}
             |revision=${gitOutput("git", "rev-parse", "HEAD")}
+            |revision_time=${gitOutput("git", "show", "-s", "--format=%ci", "HEAD")}
+            |url=${gitOutput("git", "config", "--get", "remote.origin.url")}
             |java_version=${System.getProperty("java.version")}
             |scala_version=$scalaVersion
             |spark_version=$effectiveSparkFullVersion
