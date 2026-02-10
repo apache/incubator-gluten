@@ -44,6 +44,12 @@ val testJvmArgs: String? = providers.gradleProperty("testJvmArgs").orNull
 tasks.withType<Test>().configureEach {
     maxParallelForks = 1  // ScalaTest may have issues with parallel execution
 
+    // Fork a new JVM for each test class to match Maven's scalatest-maven-plugin behavior.
+    // Spark tests leak JVM-global state (SparkContext, daemon threads, etc.) between suites.
+    // Without isolation, a leaked SparkContext from one suite causes NPEs in the next suite's
+    // BlockManager initialization.
+    forkEvery = 1
+
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
