@@ -53,6 +53,7 @@ dependencies {
         "paimon" to ":gluten-paimon",
         "celeborn" to ":gluten-celeborn",
         "uniffle" to ":gluten-uniffle",
+        "kafka" to ":gluten-kafka",
     ).forEach { (property, module) ->
         if (providers.gradleProperty(property).getOrElse("false").toBoolean()) {
             implementation(project(module))
