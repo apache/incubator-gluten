@@ -40,10 +40,9 @@ java {
 checkstyle {
     toolVersion = "8.29"
     configFile = rootProject.file("dev/checkstyle.xml")
-    // Point configDirectory at dev/ so checkstyle resolves ${config_loc} to the dev/ folder.
-    // This lets the suppressions file reference "${config_loc}/checkstyle-suppressions.xml"
-    // resolve correctly. Using dev/ (not the repo root) avoids Gradle's input/output overlap
-    // validation errors with tasks that write under the repo root.
+    // Set configDirectory to dev/ so Gradle auto-sets ${config_loc} to the dev/ directory.
+    // The checkstyle.xml uses "${config_loc}/checkstyle-suppressions.xml" to locate suppressions.
+    // Maven sets config_loc via <propertyExpansion> in pom.xml.
     configDirectory.set(rootProject.file("dev"))
     isIgnoreFailures = false
 }
