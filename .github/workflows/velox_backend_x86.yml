@@ -196,14 +196,13 @@ jobs:
           echo "JAVA_HOME: $JAVA_HOME"
           case "${{ matrix.spark }}" in
             spark-4.0|spark-4.1)
-              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -PglutenIt=true -DskipTests
               ;;
             *)
-              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -PglutenIt=true -DskipTests
               ;;
           esac
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
@@ -287,14 +286,12 @@ jobs:
           cd $GITHUB_WORKSPACE/
           case "${{ matrix.spark }}" in
             spark-4.0|spark-4.1)
-              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -DskipTests
+              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pscala-2.13 -Pbackends-velox -PglutenIt=true -DskipTests
               ;;
             *)
-              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+              bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -PglutenIt=true -DskipTests
               ;;
           esac
-          cd $GITHUB_WORKSPACE/tools/gluten-it
-          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H / TPC-DS
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
@@ -353,13 +350,11 @@ jobs:
             # Set environment variables
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
-            # Build gluten
-            bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
-            # Build gluten-it
-            cd /work/tools/gluten-it
-            /work/build/mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+            # Build gluten and gluten-it
+            bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -PglutenIt=true -DskipTests
 
             # Run TPC-H / TPC-DS
+            cd /work/tools/gluten-it
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
               --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
             GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
@@ -416,9 +411,8 @@ jobs:
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
-          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -PglutenIt=true -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.3 Q67/Q95 low memory, memory isolation off
         run: |
@@ -531,9 +525,8 @@ jobs:
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
-          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -PglutenIt=true -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.3 random kill tasks
         run: |
@@ -584,12 +577,11 @@ jobs:
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
+          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -Puniffle -PglutenIt=true -DskipTests
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3 with uniffle-${{ matrix.uniffle }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -Puniffle  && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
@@ -628,16 +620,15 @@ jobs:
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
-          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -Pceleborn -DskipTests
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3 with ${{ matrix.celeborn }}
-        run: |
           EXTRA_PROFILE=""
           if [ "${{ matrix.celeborn }}" = "celeborn-0.5.4" ]; then
             EXTRA_PROFILE="-Pceleborn-0.5"
           elif [ "${{ matrix.celeborn }}" = "celeborn-0.6.1" ]; then
             EXTRA_PROFILE="-Pceleborn-0.6"
           fi
-          echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
+          bash dev/ci-gradle-build.sh -P${{ matrix.spark }} -Pbackends-velox -Pceleborn ${EXTRA_PROFILE} -PglutenIt=true -DskipTests
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3 with ${{ matrix.celeborn }}
+        run: |
           if [ ! -e "/opt/apache-${{ matrix.celeborn }}-bin.tgz" ]; then
             echo "WARNING: please pre-install your required package in docker image since the downloading is throttled by this site."
             wget -nv https://www.apache.org/dyn/closer.lua/celeborn/${{ matrix.celeborn }}/apache-${{ matrix.celeborn }}-bin.tgz?action=download -O /opt/apache-${{ matrix.celeborn }}-bin.tgz
@@ -648,7 +639,7 @@ jobs:
           bash -c "echo -e 'CELEBORN_MASTER_MEMORY=8g\nCELEBORN_WORKER_MEMORY=8g\nCELEBORN_WORKER_OFFHEAP_MEMORY=16g' > ./conf/celeborn-env.sh" && \
           bash -c "echo -e 'celeborn.worker.commitFiles.threads 32\nceleborn.worker.sortPartition.threads 16' > ./conf/celeborn-defaults.conf" && \
           bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
-          cd $GITHUB_WORKSPACE/tools/gluten-it && $GITHUB_WORKSPACE/$MVN_CMD clean install -Pspark-3.3 -Pceleborn ${EXTRA_PROFILE} && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it && \
           GLUTEN_IT_JVM_ARGS=-Xmx16G sbin/gluten-it.sh queries-compare \
             --extra-conf=spark.celeborn.client.spark.shuffle.writer=${{ matrix.writer }} \
             --extra-conf=spark.sql.shuffle.partitions=16 \

@@ -47,6 +47,8 @@ for arg in "$@"; do
     -Phudi)       GRADLE_ARGS="$GRADLE_ARGS -Phudi=true" ;;
     -Ppaimon)     GRADLE_ARGS="$GRADLE_ARGS -Ppaimon=true" ;;
     -Pceleborn)   GRADLE_ARGS="$GRADLE_ARGS -Pceleborn=true" ;;
+    -Pceleborn-0.5) GRADLE_ARGS="$GRADLE_ARGS -Pceleborn=true -PcelebornVersion=0.5.4" ;;
+    -Pceleborn-0.6) GRADLE_ARGS="$GRADLE_ARGS -Pceleborn=true -PcelebornVersion=0.6.1" ;;
     -Puniffle)    GRADLE_ARGS="$GRADLE_ARGS -Puniffle=true" ;;
     -Pkafka)      GRADLE_ARGS="$GRADLE_ARGS -Pkafka=true" ;;
     -PglutenIt*)  GRADLE_ARGS="$GRADLE_ARGS $arg" ;;
