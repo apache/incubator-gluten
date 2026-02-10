@@ -102,7 +102,7 @@ function compile {
   # maintain compatibility, but it prints a diagnostic note about the unknown flag if a true warning
   # or error occurs.
   CXX_FLAGS='-Wno-error=stringop-overflow -Wno-error=cpp -Wno-missing-field-initializers \
-    -Wno-error=uninitialized -Wno-unknown-warning-option -Wno-deprecated-declarations'
+    -Wno-error=uninitialized -Wno-unknown-warning-option'
 
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF \
       -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON \
