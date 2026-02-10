@@ -1464,7 +1464,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       SPARK_TESTING: true
-    container: apache/gluten:centos-8-jdk17
+    container: apache/gluten:centos-9-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -1479,8 +1479,10 @@ jobs:
           path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
-          dnf module -y install python39 && \
-          alternatives --set python3 /usr/bin/python3.9 && \
+          dnf install -y python3.11 python3.11-pip python3.11-devel && \
+          ls -la /usr/bin/python3.11 && \
+          alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+          alternatives --set python3 /usr/bin/python3.11 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
@@ -1524,7 +1526,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       SPARK_TESTING: true
-    container: apache/gluten:centos-8-jdk17
+    container: apache/gluten:centos-9-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts

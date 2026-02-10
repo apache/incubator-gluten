@@ -46,6 +46,7 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
   using SubstraitFileFormatCase = ::substrait::ReadRel_LocalFiles_FileOrFiles::FileFormatCase;
 
   auto splitInfo = std::make_shared<SplitInfo>();
+  splitInfo->leafType = SplitInfo::LeafType::TABLE_SCAN;
   splitInfo->paths.reserve(fileList.size());
   splitInfo->starts.reserve(fileList.size());
   splitInfo->lengths.reserve(fileList.size());

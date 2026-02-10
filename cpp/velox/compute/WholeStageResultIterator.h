@@ -139,7 +139,7 @@ class WholeStageResultIterator : public SplitAwareColumnarBatchIterator {
   std::vector<std::shared_ptr<SplitInfo>> scanInfos_;
   std::vector<facebook::velox::core::PlanNodeId> streamIds_;
   std::vector<std::vector<facebook::velox::exec::Split>> splits_;
-  bool allSplitsAdded = false;
+  bool allSplitsAdded_ = false;
 
   int64_t loadLazyVectorTime_ = 0;
 };

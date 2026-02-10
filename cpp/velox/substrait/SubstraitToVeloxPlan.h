@@ -28,8 +28,17 @@ namespace gluten {
 class ResultIterator;
 
 struct SplitInfo {
-  /// Whether the split comes from arrow array stream node.
-  bool isStream = false;
+  enum class LeafType {
+    /// A streaming node that accepts iterator splits.
+    SPLIT_AWARE_STREAM = 0,
+    /// A table scan node that accepts scan splits.
+    TABLE_SCAN = 1,
+    /// A leaf node that doesn't rely on splits.
+    TRIVIAL_LEAF = 2
+  };
+
+  /// The type of the associated Velox leaf query plan node.
+  LeafType leafType = LeafType::TRIVIAL_LEAF;
 
   /// The Partition index.
   u_int32_t partitionIndex;

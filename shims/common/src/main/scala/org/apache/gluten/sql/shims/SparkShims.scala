@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, RaiseError, UnBase64}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, Partitioning}
@@ -368,4 +369,10 @@ trait SparkShims {
       plan: LogicalPlan): SparkPlan
 
   def isFinalAdaptivePlan(p: AdaptiveSparkPlanExec): Boolean
+
+  /**
+   * Checks if the given JoinType is LeftSingle. LeftSingle is a Spark 4.0+ join type, semantically
+   * similar to LeftOuter. Default implementation returns false for Spark 3.x compatibility.
+   */
+  def isLeftSingleJoinType(joinType: JoinType): Boolean = false
 }
