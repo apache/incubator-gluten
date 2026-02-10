@@ -39,6 +39,8 @@ for arg in "$@"; do
     -Pjava-*)     GRADLE_ARGS="$GRADLE_ARGS -PjavaVersion=${arg#-Pjava-}" ;;
     -Pscala-*)    GRADLE_ARGS="$GRADLE_ARGS -PscalaBinaryVersion=${arg#-Pscala-}" ;;
     -Pbackends-*) GRADLE_ARGS="$GRADLE_ARGS -Pbackend=${arg#-Pbackends-}" ;;
+    # Hadoop version profile
+    -Phadoop-*)   GRADLE_ARGS="$GRADLE_ARGS -PhadoopVersion=${arg#-Phadoop-}" ;;
     # Optional modules
     -Pdelta)      GRADLE_ARGS="$GRADLE_ARGS -Pdelta=true" ;;
     -Piceberg)    GRADLE_ARGS="$GRADLE_ARGS -Piceberg=true" ;;
@@ -46,6 +48,8 @@ for arg in "$@"; do
     -Ppaimon)     GRADLE_ARGS="$GRADLE_ARGS -Ppaimon=true" ;;
     -Pceleborn)   GRADLE_ARGS="$GRADLE_ARGS -Pceleborn=true" ;;
     -Puniffle)    GRADLE_ARGS="$GRADLE_ARGS -Puniffle=true" ;;
+    -Pkafka)      GRADLE_ARGS="$GRADLE_ARGS -Pkafka=true" ;;
+    -PglutenIt*)  GRADLE_ARGS="$GRADLE_ARGS $arg" ;;
     # Test control
     -DskipTests)  SKIP_TESTS="-x test" ;;
     # ScalaTest tag filtering

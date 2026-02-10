@@ -20,7 +20,13 @@ BASEDIR=$(dirname $0)
 
 LIB_DIR=$BASEDIR/../package/target/lib
 if [[ ! -d $LIB_DIR ]]; then
-  echo "Lib directory not found at $LIB_DIR. Please build gluten-it first. For example: mvn clean install"
+  # Fallback to Gradle build output layout
+  LIB_DIR=$BASEDIR/../package/build/lib
+fi
+if [[ ! -d $LIB_DIR ]]; then
+  echo "Lib directory not found. Please build gluten-it first. For example:"
+  echo "  Maven:  mvn clean install"
+  echo "  Gradle: ./gradlew :gluten-it-package:build -PglutenIt=true"
   exit 1
 fi
 
@@ -30,7 +36,7 @@ SPARK_JVM_OPTIONS=$($JAVA_HOME/bin/java -cp $JAR_PATH org.apache.gluten.integrat
 
 EMBEDDED_SPARK_HOME=$BASEDIR/../spark-home
 
-mkdir -p $EMBEDDED_SPARK_HOME && ln -snf ../package/target/lib $EMBEDDED_SPARK_HOME/jars
+mkdir -p $EMBEDDED_SPARK_HOME && ln -snf $(realpath $LIB_DIR) $EMBEDDED_SPARK_HOME/jars
 
 # We temporarily disallow setting these two variables by caller.
 SPARK_HOME=""

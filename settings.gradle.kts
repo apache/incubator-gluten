@@ -29,7 +29,16 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
-        mavenLocal()
+        // mavenLocal is needed for locally-published Gluten artifacts (e.g. custom Arrow builds).
+        // Scope it to Gluten/Arrow groups to prevent partial-cache issues where mavenLocal has
+        // a POM but not a classifier JAR (e.g. spark-hive:tests), which blocks fallthrough to
+        // Maven Central.
+        mavenLocal {
+            content {
+                includeGroup("org.apache.gluten")
+                includeGroup("org.apache.arrow")
+            }
+        }
         mavenCentral()
         maven {
             url = uri("https://maven-central.storage-download.googleapis.com/maven2/")
@@ -90,6 +99,7 @@ mapOf(
     "paimon" to "gluten-paimon",
     "celeborn" to "gluten-celeborn",
     "uniffle" to "gluten-uniffle",
+    "kafka" to "gluten-kafka",
 ).forEach { (property, module) ->
     if (providers.gradleProperty(property).getOrElse("false").toBoolean()) {
         include(module)
@@ -110,3 +120,15 @@ project(":gluten-ut-test").projectDir = file("gluten-ut/test")
 // Spark version-specific UT modules
 include("gluten-ut-spark$sparkPlainVersion")
 project(":gluten-ut-spark$sparkPlainVersion").projectDir = file("gluten-ut/spark$sparkPlainVersion")
+
+// Integration test modules (opt-in: -PglutenIt=true)
+if (providers.gradleProperty("glutenIt").getOrElse("false").toBoolean()) {
+    include("gluten-it-3rd")
+    project(":gluten-it-3rd").projectDir = file("tools/gluten-it/3rd")
+
+    include("gluten-it-common")
+    project(":gluten-it-common").projectDir = file("tools/gluten-it/common")
+
+    include("gluten-it-package")
+    project(":gluten-it-package").projectDir = file("tools/gluten-it/package")
+}
