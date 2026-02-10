@@ -179,7 +179,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 
 ## READ Properties
 
-| Property | Default | Description | Gluten Support Status |
+| Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
 | read.split.target-size | 134217728 (128 MB) | Target size when combining data input splits |  |
 | read.split.metadata-target-size | 33554432 (32 MB) | Target size when combining metadata input splits |  |
@@ -192,7 +192,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 
 ## WRITE Properties
 
-| Property | Default | Description | Gluten Support Status |
+| Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
 | write.format.default | parquet | Default file format for the table; parquet, avro, or orc |  |
 | write.delete.format.default | data file format | Default delete file format for the table; parquet, avro, or orc |  |
@@ -244,7 +244,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 
 ## COMMIT Properties
 
-| Property | Default | Description | Gluten Support Status |
+| Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
 | commit.retry.num-retries | 4 | Number of times to retry a commit before failing |  |
 | commit.retry.min-wait-ms | 100 | Minimum time in milliseconds to wait before retrying a commit |  |
@@ -260,7 +260,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 
 ## HISTORY Properties
 
-| Property | Default | Description | Gluten Support Status |
+| Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
 | history.expire.max-snapshot-age-ms | 432000000 (5 days) | Default max age of snapshots to keep on the table and all of its branches while expiring snapshots |  |
 | history.expire.min-snapshots-to-keep | 1 | Default min number of snapshots to keep on the table and all of its branches while expiring snapshots |  |
@@ -269,7 +269,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 
 ## COMPATIBILITY Properties
 
-| Property | Default | Description | Gluten Support Status |
+| Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
 | compatibility.snapshot-id-inheritance.enabled | false | Enables committing snapshots without explicit snapshot IDs (always true if the format version is > 1) |  |
 | catalog-impl | null | a custom Catalog implementation to use by an engine |  |
@@ -281,7 +281,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 
 ## CACHE Properties
 
-| Property | Default | Description | Gluten Support Status |
+| Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
 | cache.expiration-interval-ms | 30000 | How long catalog entries are locally cached, in milliseconds; 0 disables caching, negative values disable expiration |❌|
 | metrics-reporter-impl | org.apache.iceberg.metrics.LoggingMetricsReporter | Custom MetricsReporter implementation to use in a catalog. See the Metrics reporting section for additional details |❌|
@@ -289,7 +289,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 
 ## LOCK Properties
 
-| Property | Default | Description | Gluten Support Status |
+| Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
 | lock.table | null | an auxiliary table for locking, such as in AWS DynamoDB lock manager |  |
 | lock.acquire-interval-ms | 5000 (5 s) | the interval to wait between each attempt to acquire a lock |  |
@@ -299,7 +299,7 @@ extracted from https://iceberg.apache.org/docs/latest/configuration/
 
 ## ICEBERG Properties
 
-| Property | Default | Description | Gluten Support Status |
+| Property | Default | Description | Gluten Support |
 | --- | --- | --- | --- |
 | iceberg.hive.client-pool-size | 5 | The size of the Hive client pool when tracking tables in HMS |  |
 | iceberg.hive.lock-creation-timeout-ms | 180000 (3 min) | Maximum time in milliseconds to create a lock in the HMS |  |
