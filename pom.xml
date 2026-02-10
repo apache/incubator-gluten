@@ -629,11 +629,12 @@
             </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
             <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
+              <arg>-Wconf:any:e</arg>
+              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+              <arg>-Wconf:cat=deprecation:wv</arg>
               <arg>-Ywarn-unused:imports</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
-              <arg>-Wconf:cat=deprecation:wv,any:e</arg>
               <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
               <arg>-Ybackend-parallelism</arg>
               <arg>8</arg>
@@ -1026,7 +1027,8 @@
                   <arg>-feature</arg>
                   <arg>-explaintypes</arg>
                   <arg>-release:${java.version}</arg>
-                  <arg>-Wconf:cat=deprecation:wv,any:e</arg>
+                  <arg>-Wconf:any:e</arg>
+                  <arg>-Wconf:cat=deprecation:wv</arg>
                   <arg>-Wunused:imports</arg>
                   <!--
                     TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed
