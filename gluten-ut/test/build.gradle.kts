@@ -27,6 +27,7 @@ val backend: String by project
 dependencies {
     // Project dependencies
     implementation(project(":gluten-ut-common"))
+    testImplementation(project(":gluten-ut-common", "testArtifacts"))
 
     if (backend == "velox") {
         implementation(project(":backends-velox"))

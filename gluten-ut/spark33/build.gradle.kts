@@ -29,6 +29,7 @@ val sparkFullVersion = "3.3.1"
 dependencies {
     // Project dependencies
     implementation(project(":gluten-ut-common"))
+    testImplementation(project(":gluten-ut-common", "testArtifacts"))
     implementation(project(":gluten-ut-test"))
 
     if (backend == "velox") {
@@ -52,4 +53,13 @@ dependencies {
     testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$sparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$sparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$sparkFullVersion:tests")
+}
+
+// Add backend-specific test source directory
+sourceSets {
+    test {
+        scala {
+            srcDir("src/test/backends-$backend")
+        }
+    }
 }

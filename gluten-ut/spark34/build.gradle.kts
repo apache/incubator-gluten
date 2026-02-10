@@ -29,6 +29,7 @@ val sparkFullVersion = "3.4.4"
 dependencies {
     // Project dependencies
     implementation(project(":gluten-ut-common"))
+    testImplementation(project(":gluten-ut-common", "testArtifacts"))
     implementation(project(":gluten-ut-test"))
 
     if (backend == "velox") {

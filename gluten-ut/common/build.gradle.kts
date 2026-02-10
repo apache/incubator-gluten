@@ -37,10 +37,33 @@ dependencies {
     implementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     implementation("junit:junit:4.13.1")
     implementation("com.vladsch.flexmark:flexmark-all:0.62.2")
+    implementation("org.scalacheck:scalacheck_$scalaBinaryVersion:1.17.0")
+    implementation("org.scalatestplus:scalatestplus-scalacheck_$scalaBinaryVersion:3.1.0.0-RC2")
 
     // Spark test JARs
     implementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     implementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     implementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     implementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
+}
+
+// Create test JAR so downstream UT modules can access test utilities
+// (e.g. BackendTestUtils, GlutenTestsBaseTrait)
+val testJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("tests")
+    from(sourceSets.test.get().output)
+}
+
+artifacts {
+    add("archives", testJar)
+}
+
+configurations {
+    create("testArtifacts") {
+        extendsFrom(configurations.testRuntimeClasspath.get())
+    }
+}
+
+artifacts {
+    add("testArtifacts", testJar)
 }
