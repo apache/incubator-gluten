@@ -53,6 +53,12 @@ tasks.withType<Test>().configureEach {
     // Increase memory for tests
     maxHeapSize = "4g"
 
+    // Disable assertions to match Maven Surefire behavior.
+    // Spark's UnsafeRow has debug assertions (e.g. sizeInBytes % 8 == 0 in setTotalSize)
+    // that are not meant to be enforced at runtime. Gradle enables assertions by default
+    // while Maven does not, causing spurious test failures.
+    enableAssertions = false
+
     // ScalaTest tag filtering (maps to ScalaTest -n/-l flags)
     // The tags extension is provided by gradle-scalatest plugin
     if (tagsToInclude != null || tagsToExclude != null) {
