@@ -330,4 +330,18 @@ val createTestPathSymlinks by tasks.registering {
 tasks.withType<Test>().configureEach {
     dependsOn(createTestPathSymlinks)
     systemProperty("velox.udf.lib.path", "$cppBuildDir/velox/udf/examples/libmyudf.so,$cppBuildDir/velox/udf/examples/libmyudaf.so")
+
+    // Reorder test classpath so that project (shim) classes appear before external JARs.
+    // Spark 3.3's native write path requires the shim's FileFormatWriter to shadow Spark's
+    // own version. Maven achieves this via dependency declaration order (compile-scoped shim
+    // before provided-scoped Spark). Gradle's compileOnly→testImplementation inheritance
+    // places Spark JARs first. Fix by partitioning the classpath: project outputs first,
+    // then external JARs.
+    val rootPath = rootProject.projectDir.absolutePath
+    doFirst {
+        val (projectFiles, externalFiles) = classpath.partition {
+            it.absolutePath.startsWith(rootPath)
+        }
+        classpath = files(projectFiles, externalFiles)
+    }
 }

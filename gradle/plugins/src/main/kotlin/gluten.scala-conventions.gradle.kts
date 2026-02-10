@@ -67,7 +67,8 @@ tasks.withType<ScalaCompile>().configureEach {
                 "-Wconf:cat=deprecation&msg=procedure syntax is deprecated:e",
                 "-Wconf:cat=unchecked&msg=outer reference:s",
                 "-Wconf:cat=unchecked&msg=eliminated by erasure:s",
-                "-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s"
+                "-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s",
+                "-Wconf:cat=deprecation&msg=symbol literal is deprecated:s"
             ))
         } else {
             // Scala 2.12 specific arguments

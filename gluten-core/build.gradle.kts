@@ -77,6 +77,13 @@ val generateBuildInfo by tasks.registering {
     group = "build"
     description = "Generate Gluten build info properties file"
 
+    // Declare inputs so Gradle re-runs this task when build properties change
+    inputs.property("sparkVersion", effectiveSparkFullVersion)
+    inputs.property("scalaVersion", scalaVersion)
+    inputs.property("hadoopVersion", effectiveHadoopVersion)
+    inputs.property("backend", backend)
+    inputs.property("projectVersion", project.version)
+
     val outputDir = layout.buildDirectory.dir("generated-resources")
     outputs.dir(outputDir)
 
