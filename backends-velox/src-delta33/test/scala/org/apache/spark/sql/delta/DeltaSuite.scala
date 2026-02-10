@@ -1322,7 +1322,7 @@ class DeltaSuite
           .save(tempDir.toString)
 
         val deltaLog = DeltaLog.forTable(spark, tempDir)
-        assert(deltaLog.snapshot.metadata.partitionColumns === Seq("by4"))
+        assert(deltaLog.unsafeVolatileSnapshot.metadata.partitionColumns === Seq("by4"))
 
         spark.read
           .format("delta")
@@ -1333,7 +1333,7 @@ class DeltaSuite
           .mode(SaveMode.Overwrite)
           .save(tempDir.toString)
 
-        assert(deltaLog.snapshot.metadata.partitionColumns === Nil)
+        assert(deltaLog.unsafeVolatileSnapshot.metadata.partitionColumns === Nil)
     }
   }
 
@@ -1529,7 +1529,7 @@ class DeltaSuite
         spark.range(10).write.format("delta").save(tempDir.toString)
         val deltaLog = DeltaLog.forTable(spark, tempDir)
         val numParts = spark.sessionState.conf.getConf(DeltaSQLConf.DELTA_SNAPSHOT_PARTITIONS).get
-        assert(deltaLog.snapshot.stateDS.rdd.getNumPartitions == numParts)
+        assert(deltaLog.unsafeVolatileSnapshot.stateDS.rdd.getNumPartitions == numParts)
     }
   }
 
@@ -1550,7 +1550,7 @@ class DeltaSuite
         withSQLConf(("spark.databricks.delta.snapshotPartitions", "410")) {
           spark.range(10).write.format("delta").save(tempDir.toString)
           val deltaLog = DeltaLog.forTable(spark, tempDir)
-          assert(deltaLog.snapshot.stateDS.rdd.getNumPartitions == 410)
+          assert(deltaLog.unsafeVolatileSnapshot.stateDS.rdd.getNumPartitions == 410)
         }
     }
   }
@@ -1954,7 +1954,7 @@ class DeltaSuite
     withTempDir {
       tempDir =>
         val deltaLog = DeltaLog.forTable(spark, tempDir)
-        assert(deltaLog.snapshot.stateDS.rdd.getNumPartitions == 0)
+        assert(deltaLog.unsafeVolatileSnapshot.stateDS.rdd.getNumPartitions == 0)
     }
   }
 
@@ -1973,7 +1973,7 @@ class DeltaSuite
     try {
       withTempDir {
         tempDir =>
-          val files = DeltaLog.forTable(spark, tempDir).snapshot.stateDS.collect()
+          val files = DeltaLog.forTable(spark, tempDir).unsafeVolatileSnapshot.stateDS.collect()
           assert(files.isEmpty)
       }
       sparkContext.listenerBus.waitUntilEmpty(15000)
@@ -2186,7 +2186,7 @@ class DeltaSuite
 
     val deltaLog = DeltaLog.forTable(spark, tempDir)
     val hadoopConf = deltaLog.newDeltaHadoopConf()
-    val snapshot = deltaLog.snapshot
+    val snapshot = deltaLog.unsafeVolatileSnapshot
     val files = snapshot.allFiles.collect()
 
     // assign physical name to new schema
@@ -2428,7 +2428,7 @@ class DeltaSuite
         val deltaLog = DeltaLog.forTable(spark, testPath)
         // We need to drop default properties set by subclasses to make this test pass in them
         assert(
-          deltaLog.snapshot.metadata.configuration
+          deltaLog.unsafeVolatileSnapshot.metadata.configuration
             .filterKeys(!_.startsWith("delta.columnMapping."))
             .toMap ===
             Map("delta.logRetentionDuration" -> "123 days"))
@@ -3248,7 +3248,7 @@ class DeltaNameColumnMappingSuite extends DeltaSuite with DeltaColumnMappingEnab
             .mode("append")
             .save(tempDir.getCanonicalPath)
 
-          val protocol = DeltaLog.forTable(spark, tempDir).snapshot.protocol
+          val protocol = DeltaLog.forTable(spark, tempDir).unsafeVolatileSnapshot.protocol
           val (r, w) = if (protocol.supportsReaderFeatures || protocol.supportsWriterFeatures) {
             (
               TableFeatureProtocolUtils.TABLE_FEATURES_MIN_READER_VERSION,
