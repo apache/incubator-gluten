@@ -23,13 +23,13 @@ plugins {
 val scalaBinaryVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 
-// The Maven build of this module does not enable -Ywarn-unused:imports, so the source
-// code has imports that are conditionally used across Spark versions. Suppress the
-// unused-import error that the convention plugin enables.
+// The Maven build of this module does not enable strict Scala warnings, so the source
+// code has unused imports, deprecated procedure syntax, etc. Suppress the strict flags
+// that the convention plugin enables.
 tasks.withType<ScalaCompile>().configureEach {
     scalaCompileOptions.additionalParameters =
         scalaCompileOptions.additionalParameters?.filter {
-            it != "-Ywarn-unused:imports" && it != "-Wunused:imports"
+            it != "-Ywarn-unused:imports" && it != "-Wunused:imports" && !it.startsWith("-Wconf:")
         }
 }
 
