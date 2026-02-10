@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.integration.h
 
-import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableCreator}
+import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableAnalyzer, TableCreator}
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
 
@@ -45,6 +45,7 @@ class TpchSuite(
     val disableAqe: Boolean,
     val disableBhj: Boolean,
     val disableWscg: Boolean,
+    val enableCbo: Boolean,
     val shufflePartitions: Int,
     val scanPartitions: Int,
     val decimalAsDouble: Boolean,
@@ -64,6 +65,7 @@ class TpchSuite(
     disableAqe,
     disableBhj,
     disableWscg,
+    enableCbo,
     shufflePartitions,
     scanPartitions,
     decimalAsDouble,
@@ -103,7 +105,9 @@ class TpchSuite(
 
   override private[integration] def desc(): String = "TPC-H"
 
-  override def tableCreator(): TableCreator = TableCreator.discoverSchema()
+  override def tableCreator(): TableCreator = TableCreator.discoverFromFiles()
+
+  override def tableAnalyzer0(): TableAnalyzer = TableAnalyzer.analyzeAll()
 }
 
 object TpchSuite {

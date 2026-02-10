@@ -42,7 +42,7 @@ case class Queries(
       new QueryRunner(suite.dataSource(), suite.dataWritePath())
     val sessionSwitcher = suite.sessionSwitcher
     sessionSwitcher.useSession("test", "Run Queries")
-    runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+    runner.createTables(suite.tableCreator(), suite.tableAnalyzer(), sessionSwitcher.spark())
     val results = (0 until iterations).flatMap {
       iteration =>
         println(s"Running tests (iteration $iteration)...")
@@ -61,7 +61,10 @@ case class Queries(
             } finally {
               if (noSessionReuse) {
                 sessionSwitcher.renewSession()
-                runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+                runner.createTables(
+                  suite.tableCreator(),
+                  suite.tableAnalyzer(),
+                  sessionSwitcher.spark())
               }
             }
         }

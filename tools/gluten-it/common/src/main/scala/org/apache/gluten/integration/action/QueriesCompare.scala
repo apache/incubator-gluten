@@ -40,7 +40,7 @@ case class QueriesCompare(
     val sessionSwitcher = suite.sessionSwitcher
 
     sessionSwitcher.useSession("baseline", "Run Baseline Queries")
-    runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+    runner.createTables(suite.tableCreator(), suite.tableAnalyzer(), sessionSwitcher.spark())
     val baselineResults = (0 until iterations).flatMap {
       iteration =>
         querySet.queries.map {
@@ -56,14 +56,17 @@ case class QueriesCompare(
             } finally {
               if (noSessionReuse) {
                 sessionSwitcher.renewSession()
-                runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+                runner.createTables(
+                  suite.tableCreator(),
+                  suite.tableAnalyzer(),
+                  sessionSwitcher.spark())
               }
             }
         }
     }.toList
 
     sessionSwitcher.useSession("test", "Run Test Queries")
-    runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+    runner.createTables(suite.tableCreator(), suite.tableAnalyzer(), sessionSwitcher.spark())
     val testResults = (0 until iterations).flatMap {
       iteration =>
         querySet.queries.map {
@@ -79,7 +82,10 @@ case class QueriesCompare(
             } finally {
               if (noSessionReuse) {
                 sessionSwitcher.renewSession()
-                runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+                runner.createTables(
+                  suite.tableCreator(),
+                  suite.tableAnalyzer(),
+                  sessionSwitcher.spark())
               }
             }
         }

@@ -35,8 +35,9 @@ class QueryRunner(val source: String, val dataPath: String) {
     s"Data not found at $dataPath, try using command `<gluten-it> data-gen-only <options>` to generate it first.",
     Array(): _*)
 
-  def createTables(creator: TableCreator, spark: SparkSession): Unit = {
+  def createTables(creator: TableCreator, analyzer: TableAnalyzer, spark: SparkSession): Unit = {
     creator.create(spark, source, dataPath)
+    analyzer.analyze(spark)
   }
 
   def runQuery(

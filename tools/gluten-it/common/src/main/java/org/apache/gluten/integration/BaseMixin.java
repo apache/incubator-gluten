@@ -118,7 +118,7 @@ public class BaseMixin {
   private int hsUiPort;
 
   @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
-  SparkRunModes.Mode.Enumeration runModeEnumeration;
+  private SparkRunModes.Mode.Enumeration runModeEnumeration;
 
   @CommandLine.Option(
       names = {"--disable-aqe"},
@@ -137,6 +137,12 @@ public class BaseMixin {
       description = "Disable Spark SQL whole stage code generation",
       defaultValue = "false")
   private boolean disableWscg;
+
+  @CommandLine.Option(
+      names = {"--enable-cbo"},
+      description = "Enable Spark CBO and analyze all tables before running queries",
+      defaultValue = "false")
+  private boolean enableCbo;
 
   @CommandLine.Option(
       names = {"--shuffle-partitions"},
@@ -222,6 +228,7 @@ public class BaseMixin {
                 disableAqe,
                 disableBhj,
                 disableWscg,
+                enableCbo,
                 shufflePartitions,
                 scanPartitions,
                 decimalAsDouble,
@@ -249,6 +256,7 @@ public class BaseMixin {
                 disableAqe,
                 disableBhj,
                 disableWscg,
+                enableCbo,
                 shufflePartitions,
                 scanPartitions,
                 decimalAsDouble,
@@ -275,6 +283,7 @@ public class BaseMixin {
                 disableAqe,
                 disableBhj,
                 disableWscg,
+                enableCbo,
                 shufflePartitions,
                 scanPartitions,
                 decimalAsDouble,

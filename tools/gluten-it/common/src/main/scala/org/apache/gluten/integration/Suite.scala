@@ -45,6 +45,7 @@ abstract class Suite(
     private val disableAqe: Boolean,
     private val disableBhj: Boolean,
     private val disableWscg: Boolean,
+    private val enableCbo: Boolean,
     private val shufflePartitions: Int,
     private val scanPartitions: Int,
     private val decimalAsDouble: Boolean,
@@ -105,6 +106,19 @@ abstract class Suite(
     sessionSwitcher.addDefaultConf("spark.sql.codegen.wholeStage", "false")
   }
 
+  if (enableCbo) {
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.enabled", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.planStats.enabled", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.joinReorder.enabled", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.joinReorder.dp.threshold", "12")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.joinReorder.card.weight", "0.7")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.joinReorder.dp.star.filter", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.starSchemaDetection", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.starJoinFTRatio", "0.9")
+    sessionSwitcher.addDefaultConf("spark.sql.statistics.histogram.enabled", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.statistics.histogram.numBins", "254")
+  }
+
   if (scanPartitions != -1) {
     // Scan partition number.
     sessionSwitcher.addDefaultConf(
@@ -154,6 +168,15 @@ abstract class Suite(
   }
 
   def tableCreator(): TableCreator
+
+  final def tableAnalyzer(): TableAnalyzer = {
+    if (enableCbo) {
+      return tableAnalyzer0()
+    }
+    TableAnalyzer.noop()
+  }
+
+  protected def tableAnalyzer0(): TableAnalyzer
 
   private def resetLogLevel(): Unit = {
     System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, logLevel.toString)

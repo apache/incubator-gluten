@@ -132,7 +132,7 @@ class Parameterized(
       entry =>
         val coordinate = entry._1
         sessionSwitcher.useSession(coordinate.toString, "Parameterized %s".format(coordinate))
-        runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+        runner.createTables(suite.tableCreator(), suite.tableAnalyzer(), sessionSwitcher.spark())
 
         runQueryIds.flatMap {
           queryId =>
@@ -150,7 +150,10 @@ class Parameterized(
                 } finally {
                   if (noSessionReuse) {
                     sessionSwitcher.renewSession()
-                    runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+                    runner.createTables(
+                      suite.tableCreator(),
+                      suite.tableAnalyzer(),
+                      sessionSwitcher.spark())
                   }
                 }
             }
@@ -173,7 +176,10 @@ class Parameterized(
                   } finally {
                     if (noSessionReuse) {
                       sessionSwitcher.renewSession()
-                      runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+                      runner.createTables(
+                        suite.tableCreator(),
+                        suite.tableAnalyzer(),
+                        sessionSwitcher.spark())
                     }
                   }
                 TestResultLine.CoordMark(iteration, queryId, r)
