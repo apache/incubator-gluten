@@ -79,6 +79,13 @@ tasks.withType<ScalaCompile>().configureEach {
         }
 
         additionalParameters = commonArgs
+
+        forkOptions.apply {
+            memoryMaximumSize = "4g"
+            jvmArgs = (jvmArgs ?: mutableListOf()).apply {
+                add("-Xss4m")
+            }
+        }
     }
     // Set encoding for the forked javac process that compiles Java sources
     // during mixed Scala/Java compilation (zinc forks javac separately)

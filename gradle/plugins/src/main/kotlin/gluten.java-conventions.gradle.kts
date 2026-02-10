@@ -23,6 +23,7 @@
 plugins {
     java
     `maven-publish`
+    checkstyle
 }
 
 val javaVersion: String by project
@@ -34,6 +35,34 @@ java {
     targetCompatibility = JavaVersion.toVersion(javaVersionInt)
 
     withSourcesJar()
+}
+
+checkstyle {
+    toolVersion = "8.29"
+    configFile = rootProject.file("dev/checkstyle.xml")
+    // Point configDirectory at dev/ so checkstyle resolves ${config_loc} to the dev/ folder.
+    // This lets the suppressions file reference "${config_loc}/checkstyle-suppressions.xml"
+    // resolve correctly. Using dev/ (not the repo root) avoids Gradle's input/output overlap
+    // validation errors with tasks that write under the repo root.
+    configDirectory.set(rootProject.file("dev"))
+    isIgnoreFailures = false
+}
+
+// Exclude generated sources from checkstyle. Maven's checkstyle plugin explicitly limits
+// sourceDirectories to src/main/java and src/main/scala. Gradle's checkstyle scans the
+// entire source set, which includes protobuf/ANTLR generated files under build/.
+tasks.withType<Checkstyle>().configureEach {
+    // Only check hand-written sources under src/, not generated code under build/.
+    source = source.filter { file ->
+        !file.path.contains("/build/")
+    }.asFileTree
+}
+
+// Exclude logging implementations that leak in via Spark/Hadoop transitive deps.
+// Maven does this via global <exclusions> in the parent POM.
+configurations.all {
+    exclude(group = "org.slf4j", module = "slf4j-log4j12")
+    exclude(group = "log4j", module = "log4j")
 }
 
 // When the running JDK is newer than targetCompatibility (e.g. JDK 21 with target 17),
