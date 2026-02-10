@@ -35,6 +35,7 @@ EXTRA_JVM_ARGS=""
 for arg in "$@"; do
   case "$arg" in
     # Spark/Java/Scala version profiles
+    -Pspark-ut)   ;; # Maven-only test profile, ignore
     -Pspark-*)    GRADLE_ARGS="$GRADLE_ARGS -PsparkVersion=${arg#-Pspark-}" ;;
     -Pjava-*)     GRADLE_ARGS="$GRADLE_ARGS -PjavaVersion=${arg#-Pjava-}" ;;
     -Pscala-*)    GRADLE_ARGS="$GRADLE_ARGS -PscalaBinaryVersion=${arg#-Pscala-}" ;;
@@ -79,7 +80,7 @@ for arg in "$@"; do
       done
       ;;
     # Ignore Maven-specific flags that have no Gradle equivalent
-    -Pspark-ut|-Piceberg-test|-ntp|-pl|-am) ;;
+    -Piceberg-test|-ntp|-pl|-am) ;;
     -Dmaven.*|-Dtest=*|-DfailIfNoTests=*|-Dexec.skip) ;;
     *)
       echo "Warning: ignoring unknown argument: $arg" >&2
