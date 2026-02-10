@@ -90,8 +90,8 @@ class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
     private var batches: Seq[UnsafeByteArray],
     private var safeBroadcastMode: SafeBroadcastMode,
-    newBuildKeys: Seq[Expression],
-    offload: Boolean)
+    private var newBuildKeys: Seq[Expression],
+    private var offload: Boolean)
   extends BuildSideRelation
   with Externalizable
   with Logging
@@ -203,24 +203,32 @@ class UnsafeColumnarBuildSideRelation(
     out.writeObject(output)
     out.writeObject(safeBroadcastMode)
     out.writeObject(batches.toArray)
+    out.writeObject(newBuildKeys)
+    out.writeBoolean(offload)
   }
 
   override def write(kryo: Kryo, out: Output): Unit = Utils.tryOrIOException {
     kryo.writeObject(out, output.toList)
     kryo.writeClassAndObject(out, safeBroadcastMode)
     kryo.writeClassAndObject(out, batches.toArray)
+    kryo.writeClassAndObject(out, newBuildKeys)
+    out.writeBoolean(offload)
   }
 
   override def readExternal(in: ObjectInput): Unit = Utils.tryOrIOException {
     output = in.readObject().asInstanceOf[Seq[Attribute]]
     safeBroadcastMode = in.readObject().asInstanceOf[SafeBroadcastMode]
     batches = in.readObject().asInstanceOf[Array[UnsafeByteArray]].toSeq
+    newBuildKeys = in.readObject().asInstanceOf[Seq[Expression]]
+    offload = in.readBoolean()
   }
 
   override def read(kryo: Kryo, in: Input): Unit = Utils.tryOrIOException {
     output = kryo.readObject(in, classOf[List[_]]).asInstanceOf[Seq[Attribute]]
     safeBroadcastMode = kryo.readClassAndObject(in).asInstanceOf[SafeBroadcastMode]
     batches = kryo.readClassAndObject(in).asInstanceOf[Array[UnsafeByteArray]].toSeq
+    newBuildKeys = kryo.readClassAndObject(in).asInstanceOf[Seq[Expression]]
+    offload = in.readBoolean()
   }
 
   private def transformProjection: UnsafeProjection = safeBroadcastMode match {
