@@ -315,12 +315,12 @@ val createTestPathSymlinks by tasks.registering {
     doLast {
         // backends-velox/tools -> ../tools (for ../../../../tools/... from build/classes/scala/test/)
         if (!toolsLink.exists()) {
-            java.nio.file.Files.createSymbolicLink(toolsLink.toPath(), java.nio.file.Path.of("../tools"))
+            exec { commandLine("ln", "-s", "../tools", toolsLink.absolutePath) }
         }
         // backends-velox/build/src -> ../src (for ../../../src/test/resources from build/classes/scala/test/)
         buildSrcLink.parentFile.mkdirs()
         if (!buildSrcLink.exists()) {
-            java.nio.file.Files.createSymbolicLink(buildSrcLink.toPath(), java.nio.file.Path.of("../src"))
+            exec { commandLine("ln", "-s", "../src", buildSrcLink.absolutePath) }
         }
     }
 }
