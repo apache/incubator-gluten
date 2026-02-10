@@ -21,11 +21,12 @@ plugins {
 }
 
 val scalaBinaryVersion: String by project
+val sparkVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveSparkPlainVersion: String by rootProject.extra
 val effectiveHudiVersion: String? by rootProject.extra
 
-val hudiVersion = effectiveHudiVersion ?: "1.1.0"
+val hudiVersion = effectiveHudiVersion ?: "0.15.0"
 
 // Add Hudi-specific source directories
 sourceSets {
@@ -61,9 +62,7 @@ dependencies {
 
     // Hudi (provided)
     compileOnly(
-        "org.apache.hudi:hudi-spark${effectiveSparkPlainVersion.take(
-            1,
-        )}.${effectiveSparkPlainVersion.drop(1)}-bundle_$scalaBinaryVersion:$hudiVersion",
+        "org.apache.hudi:hudi-spark$sparkVersion-bundle_$scalaBinaryVersion:$hudiVersion",
     )
 
     // Spark (provided)
@@ -82,9 +81,7 @@ dependencies {
 
     // Hudi for tests
     testImplementation(
-        "org.apache.hudi:hudi-spark${effectiveSparkPlainVersion.take(
-            1,
-        )}.${effectiveSparkPlainVersion.drop(1)}-bundle_$scalaBinaryVersion:$hudiVersion",
+        "org.apache.hudi:hudi-spark$sparkVersion-bundle_$scalaBinaryVersion:$hudiVersion",
     )
 
     // Spark test JARs
