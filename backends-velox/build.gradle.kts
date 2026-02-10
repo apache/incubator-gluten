@@ -25,6 +25,7 @@ plugins {
 val scalaBinaryVersion: String by project
 val protobufVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
+val effectiveSparkPlainVersion: String by rootProject.extra
 val effectiveHadoopVersion: String by rootProject.extra
 val effectiveArrowVersion: String by rootProject.extra
 val effectiveFasterxmlVersion: String by rootProject.extra
@@ -107,6 +108,54 @@ sourceSets {
         proto {
             srcDir("src/main/resources/org/apache/gluten/proto")
         }
+    }
+}
+
+// Celeborn: add src-celeborn source dirs and dependencies when enabled
+if (providers.gradleProperty("celeborn").getOrElse("false").toBoolean()) {
+    val celebornVersion: String by project
+    val sparkMajorVersion = if (effectiveSparkFullVersion.startsWith("4.")) "4" else "3"
+    sourceSets {
+        main {
+            scala {
+                srcDir("src-celeborn/main/scala")
+                srcDir("src-celeborn/main/java")
+                srcDir("src-celeborn-spark$effectiveSparkPlainVersion/main/scala")
+                srcDir("src-celeborn-spark$effectiveSparkPlainVersion/main/java")
+            }
+            resources {
+                srcDir("src-celeborn/main/resources")
+                srcDir("src-celeborn-spark$effectiveSparkPlainVersion/main/resources")
+            }
+        }
+    }
+    dependencies {
+        implementation(project(":gluten-celeborn"))
+        compileOnly("org.apache.celeborn:celeborn-client-spark-${sparkMajorVersion}-shaded_$scalaBinaryVersion:$celebornVersion")
+    }
+}
+
+// Uniffle: add src-uniffle source dirs and dependencies when enabled
+if (providers.gradleProperty("uniffle").getOrElse("false").toBoolean()) {
+    val uniffleVersion: String by project
+    val sparkMajorVersion = if (effectiveSparkFullVersion.startsWith("4.")) "4" else "3"
+    sourceSets {
+        main {
+            scala {
+                srcDir("src-uniffle/main/scala")
+                srcDir("src-uniffle/main/java")
+                srcDir("src-uniffle-spark$effectiveSparkPlainVersion/main/scala")
+                srcDir("src-uniffle-spark$effectiveSparkPlainVersion/main/java")
+            }
+            resources {
+                srcDir("src-uniffle/main/resources")
+                srcDir("src-uniffle-spark$effectiveSparkPlainVersion/main/resources")
+            }
+        }
+    }
+    dependencies {
+        implementation(project(":gluten-uniffle"))
+        compileOnly("org.apache.uniffle:rss-client-spark${sparkMajorVersion}-shaded:$uniffleVersion")
     }
 }
 
@@ -252,7 +301,32 @@ tasks.processResources {
     }
 }
 
+// Bridge path differences between Maven and Gradle test output layouts.
+// Test code uses getClass.getResource("/").getPath + "../../../../tools/..." to locate
+// shared resources. Maven's classpath root is target/test-classes/ (2 levels deep),
+// so ../../../../ goes to project root. Gradle's is build/classes/scala/test/ (4 levels
+// deep), so ../../../../ only reaches the module root. Create symlinks so the traversal
+// resolves correctly from Gradle's deeper output directory.
+val createTestPathSymlinks by tasks.registering {
+    val toolsLink = file("tools")
+    val buildSrcLink = file("build/src")
+    outputs.file(toolsLink)
+    outputs.file(buildSrcLink)
+    doLast {
+        // backends-velox/tools -> ../tools (for ../../../../tools/... from build/classes/scala/test/)
+        if (!toolsLink.exists()) {
+            java.nio.file.Files.createSymbolicLink(toolsLink.toPath(), java.nio.file.Path.of("../tools"))
+        }
+        // backends-velox/build/src -> ../src (for ../../../src/test/resources from build/classes/scala/test/)
+        buildSrcLink.parentFile.mkdirs()
+        if (!buildSrcLink.exists()) {
+            java.nio.file.Files.createSymbolicLink(buildSrcLink.toPath(), java.nio.file.Path.of("../src"))
+        }
+    }
+}
+
 // Configure ScalaTest
 tasks.withType<Test>().configureEach {
+    dependsOn(createTestPathSymlinks)
     systemProperty("velox.udf.lib.path", "$cppBuildDir/velox/udf/examples/libmyudf.so,$cppBuildDir/velox/udf/examples/libmyudaf.so")
 }

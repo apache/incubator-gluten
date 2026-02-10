@@ -50,6 +50,8 @@ scalastyle-output.xml
 # Generated C++ benchmark data
 backends-velox/generated-native-benchmark/
 backends-velox/spark-warehouse/
+# Symlink created by Gradle build for test resource path compatibility
+backends-velox/tools
 # Generated C++ benchmark executables
 cpp/**/benchmarks/**/*
 !cpp/**/benchmarks/**/

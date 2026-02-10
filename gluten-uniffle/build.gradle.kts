@@ -58,7 +58,7 @@ dependencies {
     implementation(project(":gluten-substrait"))
 
     // Uniffle (provided)
-    compileOnly("org.apache.uniffle:rss-client-spark${effectiveSparkPlainVersion.take(1)}-shaded_$scalaBinaryVersion:$uniffleVersion")
+    compileOnly("org.apache.uniffle:rss-client-spark${effectiveSparkPlainVersion.take(1)}-shaded:$uniffleVersion")
 
     // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")

@@ -21,6 +21,7 @@ plugins {
 }
 
 val scalaBinaryVersion: String by project
+val sparkVersion: String by project
 val effectiveSparkFullVersion: String by rootProject.extra
 val effectivePaimonVersion: String? by rootProject.extra
 
@@ -53,7 +54,7 @@ dependencies {
     implementation(project(":gluten-substrait"))
 
     // Paimon (provided)
-    compileOnly("org.apache.paimon:paimon-spark_$scalaBinaryVersion:$paimonVersion")
+    compileOnly("org.apache.paimon:paimon-spark-${sparkVersion}:$paimonVersion")
 
     // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
@@ -70,7 +71,7 @@ dependencies {
     testImplementation(project(":gluten-substrait", "testArtifacts"))
 
     // Paimon for tests
-    testImplementation("org.apache.paimon:paimon-spark_$scalaBinaryVersion:$paimonVersion")
+    testImplementation("org.apache.paimon:paimon-spark-${sparkVersion}:$paimonVersion")
 
     // Spark test JARs
     testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
