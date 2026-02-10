@@ -97,7 +97,7 @@ echo "Gradle command: ./gradlew $GRADLE_TASK $SKIP_TESTS $GRADLE_ARGS --no-daemo
 
 # Pre-download Gradle distribution with retry to handle transient network failures.
 # This only retries the download, not the actual build/test execution.
-MAX_RETRIES=3
+MAX_RETRIES=5
 RETRY_DELAY=10
 for i in $(seq 1 $MAX_RETRIES); do
   if ./gradlew --version --no-daemon > /dev/null 2>&1; then
@@ -109,6 +109,7 @@ for i in $(seq 1 $MAX_RETRIES); do
   fi
   echo "Gradle distribution download failed (attempt $i/$MAX_RETRIES), retrying in ${RETRY_DELAY}s..." >&2
   sleep $RETRY_DELAY
+  RETRY_DELAY=$((RETRY_DELAY * 2))
 done
 
 # shellcheck disable=SC2086
