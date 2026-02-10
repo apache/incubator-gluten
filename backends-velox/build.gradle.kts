@@ -310,8 +310,9 @@ tasks.processResources {
 val createTestPathSymlinks by tasks.registering {
     val toolsLink = file("tools")
     val buildSrcLink = file("build/src")
-    outputs.file(toolsLink)
-    outputs.file(buildSrcLink)
+    // Use upToDateWhen instead of outputs — symlinks to directories can't be declared
+    // as @OutputFile or @OutputDirectory without confusing Gradle's validation.
+    outputs.upToDateWhen { toolsLink.exists() && buildSrcLink.exists() }
     doLast {
         // backends-velox/tools -> ../tools (for ../../../../tools/... from build/classes/scala/test/)
         if (!toolsLink.exists()) {
