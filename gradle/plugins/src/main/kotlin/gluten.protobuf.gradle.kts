@@ -16,6 +16,7 @@
  */
 
 import com.google.protobuf.gradle.*
+import java.time.Duration
 
 /**
  * Convention plugin for Protobuf compilation.
@@ -37,6 +38,14 @@ protobuf {
     protoc {
         artifact = "com.google.protobuf:protoc:$protobufVersion"
     }
+}
+
+// Fail fast if proto extraction blocks (e.g. due to network or lock issues).
+// The extractIncludeProto task scans the entire compile classpath for .proto files,
+// which can stall when dependencies cannot be resolved.
+tasks.withType<com.google.protobuf.gradle.ProtobufExtract>().configureEach {
+    @Suppress("UnstableApiUsage")
+    timeout = Duration.ofMinutes(5)
 }
 
 // Configure source sets to include generated protobuf sources
