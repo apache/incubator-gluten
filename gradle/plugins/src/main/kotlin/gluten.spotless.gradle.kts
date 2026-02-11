@@ -16,12 +16,21 @@
  */
 
 /**
- * Convention plugin for code formatting.
+ * Convention plugin for code formatting via Spotless.
  *
- * Spotless formatting is handled by the Maven spotless-maven-plugin (2.27.2),
- * which supports Java 8+ and is already configured in each module's pom.xml.
- * Run formatting via: ./build/mvn spotless:apply -N
+ * Skipped when the build JDK is below 11 because spotless-plugin-gradle requires Java 11+.
+ * For Java 11+ it configures:
+ *   - Java: google-java-format, import ordering, license headers
+ *   - Scala: scalafmt with .scalafmt.conf, license headers
  *
- * This Gradle plugin is intentionally a no-op to avoid pulling in
- * spotless-plugin-gradle which requires Java 11+.
+ * This mirrors the Maven spotless-maven-plugin configuration in pom.xml.
  */
+
+// No-op when JDK < 11.  The actual configuration is in GlutenSpotless.kt,
+// which is only compiled when spotless-plugin-gradle is on the classpath (JDK 11+).
+// We use reflection to avoid a compile-time dependency on the GlutenSpotless class.
+if (JavaVersion.current().isJava11Compatible) {
+    val clazz = Class.forName("GlutenSpotless")
+    val method = clazz.getMethod("apply", org.gradle.api.Project::class.java)
+    method.invoke(clazz.kotlin.objectInstance, project)
+}

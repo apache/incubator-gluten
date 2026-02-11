@@ -28,4 +28,19 @@ dependencies {
     implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.0")
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.4")
     implementation("com.github.maiflai:gradle-scalatest:0.32")
+    if (JavaVersion.current().isJava11Compatible) {
+        implementation("com.diffplug.spotless:spotless-plugin-gradle:6.25.0")
+    }
+}
+
+// When Spotless is not on the classpath (JDK < 11), exclude GlutenSpotless.kt
+// from compilation to avoid unresolved type references.
+if (!JavaVersion.current().isJava11Compatible) {
+    sourceSets {
+        main {
+            kotlin {
+                exclude("GlutenSpotless.kt")
+            }
+        }
+    }
 }
