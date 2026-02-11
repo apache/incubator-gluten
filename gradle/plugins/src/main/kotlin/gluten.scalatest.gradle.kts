@@ -17,17 +17,27 @@
 
 /**
  * Convention plugin for ScalaTest testing.
- * Configures ScalaTest framework for running Scala tests.
+ *
+ * Uses JUnit 5 Platform with ScalaTest's JUnit engine so that Gradle's built-in
+ * Test task handles test execution. This lets forkEvery work correctly — the old
+ * gradle-scalatest plugin replaced the Test task with a single javaexec() call
+ * that ran all suites in one JVM, ignoring forkEvery and causing SparkContext
+ * leaks between suites.
  */
 
 plugins {
-    id("com.github.maiflai.scalatest")
+    java
 }
 
 val scalaBinaryVersion: String by project
+val scalatestVersion: String by project
 
 dependencies {
-    // ScalaTest runner for Gradle
+    // ScalaTest JUnit 5 engine — registers as a JUnit Platform test engine
+    // so Gradle discovers and runs ScalaTest suites via useJUnitPlatform().
+    testRuntimeOnly("org.scalatestplus:junit-5-9_$scalaBinaryVersion:${scalatestVersion}.0")
+
+    // Flexmark is required by ScalaTest for HTML report generation
     testRuntimeOnly("com.vladsch.flexmark:flexmark-all:0.62.2")
 }
 
@@ -42,7 +52,23 @@ val sparkTestHome: String? = providers.gradleProperty("sparkTestHome").orNull
 val testJvmArgs: String? = providers.gradleProperty("testJvmArgs").orNull
 
 tasks.withType<Test>().configureEach {
-    maxParallelForks = 1  // ScalaTest may have issues with parallel execution
+    // Use JUnit 5 Platform with ScalaTest engine.
+    // This respects forkEvery because Gradle's Test task handles forking.
+    useJUnitPlatform {
+        includeEngines("scalatest")
+
+        // ScalaTest tag filtering (maps to JUnit 5 Platform includeTags/excludeTags)
+        tagsToInclude?.split(",")?.map { it.trim() }?.let { includeTags(*it.toTypedArray()) }
+        tagsToExclude?.split(",")?.map { it.trim() }?.let { excludeTags(*it.toTypedArray()) }
+    }
+
+    // Exclude abstract classes, traits, Scala companion objects, and inner classes.
+    // The ScalaTest JUnit 5 engine can't instantiate them and reports failures or
+    // produces noisy "discovered suite count: 0" logs.
+    exclude(AbstractClassExcludeSpec())
+    exclude("**/*\$*.class")
+
+    maxParallelForks = 1
 
     // Fork a new JVM for each test class to match Maven's scalatest-maven-plugin behavior.
     // Spark tests leak JVM-global state (SparkContext, daemon threads, etc.) between suites.
@@ -53,6 +79,7 @@ tasks.withType<Test>().configureEach {
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
+        showExceptions = true
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 
@@ -64,18 +91,6 @@ tasks.withType<Test>().configureEach {
     // that are not meant to be enforced at runtime. Gradle enables assertions by default
     // while Maven does not, causing spurious test failures.
     enableAssertions = false
-
-    // ScalaTest tag filtering (maps to ScalaTest -n/-l flags)
-    // The tags extension is provided by gradle-scalatest plugin
-    if (tagsToInclude != null || tagsToExclude != null) {
-        val tagsExt = extensions.getByName("tags") as PatternFilterable
-        tagsToInclude?.split(",")?.forEach { tag ->
-            tagsExt.include(tag.trim())
-        }
-        tagsToExclude?.split(",")?.forEach { tag ->
-            tagsExt.exclude(tag.trim())
-        }
-    }
 
     // Spark test home directory
     if (sparkTestHome != null) {
