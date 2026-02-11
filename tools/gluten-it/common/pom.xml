@@ -113,9 +113,11 @@
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
-        <version>4.8.0</version>
+        <!-- Hardcoded since gluten-it is a standalone third-party module
+             that doesn't inherit parent POM properties -->
+        <version>4.9.2</version>
         <configuration>
-          <recompileMode>all</recompileMode>
+          <recompileMode>incremental</recompileMode>
         </configuration>
         <executions>
           <execution>

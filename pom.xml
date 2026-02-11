@@ -97,7 +97,7 @@
     -->
     <os.full.name>unknown</os.full.name>
     <!-- To build built-in backend c++ codes -->
-    <scala.recompile.mode>all</scala.recompile.mode>
+    <scala.recompile.mode>incremental</scala.recompile.mode>
     <!-- For unit tests -->
     <fasterxml.version>2.15.0</fasterxml.version>
     <junit.version>4.13.1</junit.version>
@@ -140,7 +140,7 @@
 
     <!-- plugin version-->
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
-    <scala.compiler.version>4.8.0</scala.compiler.version>
+    <scala.compiler.version>4.9.2</scala.compiler.version>
     <maven.compiler.plugin>3.14.1</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
@@ -483,6 +483,57 @@
     </dependencies>
   </dependencyManagement>
 
+  <!-- Use Google Cloud Storage mirror for faster Maven Central downloads -->
+  <repositories>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>gcs-maven-central-mirror</id>
+      <name>GCS Maven Central mirror</name>
+      <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
+    </repository>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>Maven Central</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>gcs-maven-central-mirror</id>
+      <name>GCS Maven Central mirror</name>
+      <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
+    </pluginRepository>
+    <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>Maven Plugin Repository</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </pluginRepository>
+  </pluginRepositories>
+
   <build>
     <resources>
       <resource>
@@ -519,10 +570,11 @@
           <configuration>
             <encoding>UTF-8</encoding>
             <maxmem>1024m</maxmem>
-            <fork>true</fork>
-            <compilerArgs>
-              <arg>-Xlint:all,-serial,-path</arg>
-            </compilerArgs>
+            <!-- Skip javac entirely. In incremental mode (recompileMode=incremental),
+                 Zinc compiles both Scala and Java sources together, making
+                 maven-compiler-plugin redundant. Same approach as Apache Spark. -->
+            <skipMain>true</skipMain>
+            <skip>true</skip>
           </configuration>
         </plugin>
         <plugin>
@@ -577,12 +629,15 @@
             </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
             <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
+              <arg>-Wconf:any:e</arg>
+              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+              <arg>-Wconf:cat=deprecation:wv</arg>
               <arg>-Ywarn-unused:imports</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
-              <arg>-Wconf:cat=deprecation:wv,any:e</arg>
               <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+              <arg>-Ybackend-parallelism</arg>
+              <arg>8</arg>
             </args>
           </configuration>
           <executions>
@@ -850,7 +905,7 @@
         <plugin>
           <groupId>org.xolstice.maven.plugins</groupId>
           <artifactId>protobuf-maven-plugin</artifactId>
-          <version>0.5.1</version>
+          <version>0.6.1</version>
         </plugin>
         <plugin>
           <groupId>org.antlr</groupId>
@@ -972,7 +1027,8 @@
                   <arg>-feature</arg>
                   <arg>-explaintypes</arg>
                   <arg>-release:${java.version}</arg>
-                  <arg>-Wconf:cat=deprecation:wv,any:e</arg>
+                  <arg>-Wconf:any:e</arg>
+                  <arg>-Wconf:cat=deprecation:wv</arg>
                   <arg>-Wunused:imports</arg>
                   <!--
                     TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed
@@ -1006,6 +1062,8 @@
                   <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
                   <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
                   <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                  <arg>-Ybackend-parallelism</arg>
+                  <arg>8</arg>
                 </args>
               </configuration>
               <executions>

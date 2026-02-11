@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.expression.{AttributeReferenceTransformer, ExpressionConverter}
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
@@ -149,6 +150,10 @@ object JoinUtils {
       case LeftExistence(_) =>
         // LeftSemi | LeftAnti | ExistenceJoin.
         (leftOutput, Nil)
+      // LeftSingle is a Spark 4.0+ join type with same output schema as LeftOuter.
+      // The join will fallback to Spark execution because substraitJoinType returns UNRECOGNIZED.
+      case leftSingle if SparkShimLoader.getSparkShims.isLeftSingleJoinType(leftSingle) =>
+        (leftOutput, rightOutput.map(_.withNullability(true)))
       case x =>
         val joinClass = Option(callerClassName).getOrElse(this.getClass.getSimpleName)
         throw new IllegalArgumentException(s"$joinClass not take $x as the JoinType")

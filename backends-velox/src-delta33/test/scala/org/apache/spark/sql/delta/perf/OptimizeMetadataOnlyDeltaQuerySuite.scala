@@ -831,7 +831,7 @@ class OptimizeMetadataOnlyDeltaQuerySuite
         // Creates AddFile entries with non-existing files
         // The query should read only the delta log and not the parquet files
         val log = DeltaLog.forTable(spark, tempPath)
-        val txn = log.startTransaction()
+        val txn = log.startTransaction(catalogTableOpt = None)
         txn.commitManually(
           DeltaTestUtils.createTestAddFile(
             encodedPath = "1.parquet",

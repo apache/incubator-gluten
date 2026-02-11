@@ -127,7 +127,7 @@ if [ ! -f "${MVN_BIN}" ]; then
     exit 1
 fi
 
-_COMPILE_JVM_OPTS="-Xss128m -Xmx4g -XX:ReservedCodeCacheSize=1g"
+_COMPILE_JVM_OPTS="-Xss128m -Xmx4g -XX:ReservedCodeCacheSize=2g"
 # Set any `mvn` options if not already present
 export MAVEN_OPTS=${MAVEN_OPTS:-"$_COMPILE_JVM_OPTS"}
 

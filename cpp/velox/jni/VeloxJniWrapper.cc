@@ -219,6 +219,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateExpressi
     auto id = sFmap.function_anchor();
     auto name = sFmap.name();
     functionMappings.emplace(id, name);
+    env->DeleteLocalRef(mapping);
   }
 
   auto pool = defaultLeafVeloxMemoryPool().get();
@@ -475,6 +476,7 @@ Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_allSupportedByR
     if (!velox::filesystems::isPathSupportedByRegisteredFileSystems(path)) {
       return false;
     }
+    env->DeleteLocalRef(string);
   }
   return true;
   JNI_METHOD_END(false)

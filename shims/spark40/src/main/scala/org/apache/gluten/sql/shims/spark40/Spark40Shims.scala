@@ -33,12 +33,13 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.plans.{JoinType, LeftSingle}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, KeyGroupedShuffleSpec, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
-import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, InternalRowComparableWrapper, TimestampFormatter}
+import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, InternalRowComparableWrapper, MapData, TimestampFormatter}
 import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
 import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.connector.catalog.Table
@@ -733,8 +734,13 @@ class Spark40Shims extends SparkShims {
           if children.size == 2 && children.head.isInstanceOf[Literal]
             && children.head.asInstanceOf[Literal].value.toString == "errorMessage" =>
         Some(children(1))
-      case _ =>
-        None
+      case lit: Literal if lit.value.isInstanceOf[MapData] =>
+        // Constant-folded CreateMap: look up "errorMessage" in the MapData
+        val mapData = lit.value.asInstanceOf[MapData]
+        (0 until mapData.numElements())
+          .find(i => mapData.keyArray().getUTF8String(i).toString == "errorMessage")
+          .map(i => Literal(mapData.valueArray().getUTF8String(i), StringType))
+      case _ => None
     }
   }
 
@@ -770,5 +776,9 @@ class Spark40Shims extends SparkShims {
 
   override def isFinalAdaptivePlan(p: AdaptiveSparkPlanExec): Boolean = {
     p.isFinalPlan
+  }
+
+  override def isLeftSingleJoinType(joinType: JoinType): Boolean = {
+    joinType == LeftSingle
   }
 }
