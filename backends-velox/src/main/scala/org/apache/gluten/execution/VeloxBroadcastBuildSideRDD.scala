@@ -39,14 +39,14 @@ case class VeloxBroadcastBuildSideRDD(
         unsafe.isOffload
     }
     val output = if (isBNL || !offload) {
-      logInfo("VeloxBroadcastBuildSideRDD line 42 not offload")
+//      logInfo("VeloxBroadcastBuildSideRDD line 42 not offload")
       val relation = broadcasted.value.asReadOnlyCopy()
       Iterators
         .wrap(relation.deserialized)
         .recyclePayload(batch => batch.close())
         .create()
     } else {
-      logInfo("VeloxBroadcastBuildSideRDD line 49offload")
+//      logInfo("VeloxBroadcastBuildSideRDD line 49offload")
       VeloxBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadcastContext)
       Iterator.empty
     }
