@@ -56,10 +56,15 @@ tasks.withType<Test>().configureEach {
     // This respects forkEvery because Gradle's Test task handles forking.
     useJUnitPlatform {
         includeEngines("scalatest")
+    }
 
-        // ScalaTest tag filtering (maps to JUnit 5 Platform includeTags/excludeTags)
-        tagsToInclude?.split(",")?.map { it.trim() }?.let { includeTags(*it.toTypedArray()) }
-        tagsToExclude?.split(",")?.map { it.trim() }?.let { excludeTags(*it.toTypedArray()) }
+    // ScalaTest tag filtering — implemented at the Gradle level because the ScalaTest
+    // JUnit 5 engine does not support JUnit Platform's includeTags/excludeTags.
+    // TagExcludeSpec scans class file constant pools for annotation type descriptors.
+    val excludeSet = tagsToExclude?.split(",")?.map { it.trim() }?.toSet() ?: emptySet()
+    val includeSet = tagsToInclude?.split(",")?.map { it.trim() }?.toSet() ?: emptySet()
+    if (excludeSet.isNotEmpty() || includeSet.isNotEmpty()) {
+        exclude(TagExcludeSpec(excludeSet, includeSet))
     }
 
     // Exclude abstract classes, traits, Scala companion objects, and inner classes.

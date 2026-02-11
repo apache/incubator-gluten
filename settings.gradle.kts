@@ -110,16 +110,18 @@ mapOf(
 include("gluten-package")
 project(":gluten-package").projectDir = file("package")
 
-// Unit test modules
-include("gluten-ut-common")
-project(":gluten-ut-common").projectDir = file("gluten-ut/common")
+// Unit test modules (opt-in: -Pspark-ut=true, matches Maven's -Pspark-ut profile)
+if (providers.gradleProperty("spark-ut").getOrElse("false").toBoolean()) {
+    include("gluten-ut-common")
+    project(":gluten-ut-common").projectDir = file("gluten-ut/common")
 
-include("gluten-ut-test")
-project(":gluten-ut-test").projectDir = file("gluten-ut/test")
+    include("gluten-ut-test")
+    project(":gluten-ut-test").projectDir = file("gluten-ut/test")
 
-// Spark version-specific UT modules
-include("gluten-ut-spark$sparkPlainVersion")
-project(":gluten-ut-spark$sparkPlainVersion").projectDir = file("gluten-ut/spark$sparkPlainVersion")
+    // Spark version-specific UT modules
+    include("gluten-ut-spark$sparkPlainVersion")
+    project(":gluten-ut-spark$sparkPlainVersion").projectDir = file("gluten-ut/spark$sparkPlainVersion")
+}
 
 // Integration test modules (opt-in: -PglutenIt=true)
 if (providers.gradleProperty("glutenIt").getOrElse("false").toBoolean()) {

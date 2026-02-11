@@ -35,7 +35,7 @@ EXTRA_JVM_ARGS=""
 for arg in "$@"; do
   case "$arg" in
     # Spark/Java/Scala version profiles
-    -Pspark-ut)   ;; # Maven-only test profile, ignore
+    -Pspark-ut)   GRADLE_ARGS="$GRADLE_ARGS -Pspark-ut=true" ;;
     -Pspark-*)    GRADLE_ARGS="$GRADLE_ARGS -PsparkVersion=${arg#-Pspark-}" ;;
     -Pjava-*)     GRADLE_ARGS="$GRADLE_ARGS -PjavaVersion=${arg#-Pjava-}" ;;
     -Pscala-*)    GRADLE_ARGS="$GRADLE_ARGS -PscalaBinaryVersion=${arg#-Pscala-}" ;;
