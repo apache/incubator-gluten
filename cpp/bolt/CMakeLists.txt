@@ -186,12 +186,10 @@ if (BUILD_STATIC)
   add_library(${PROJECT_NAME}_static STATIC ${BOLT_SRCS})
 endif()
 
-if(ENABLE_GLUTEN_VCPKG)
-  # Hide symbols of static dependencies
+get_target_property(target_type ${PROJECT_NAME} TYPE)
+
+if (${target_type} STREQUAL "SHARED_LIBRARY")
   target_link_options(${PROJECT_NAME} PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
-  if (BUILD_STATIC)
-    target_link_options(${PROJECT_NAME}_static PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
-  endif()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
