@@ -129,6 +129,26 @@ sourceSets.test.get().output.setResourcesDir(
     sourceSets.test.get().scala.classesDirectory.get().asFile
 )
 
+// Bridge path differences between Maven and Gradle test output layouts.
+// Test code uses getClass.getResource("/").getPath + "../../../src/test/resources/..."
+// to locate source-tree resources. Maven's classpath root is target/test-classes/
+// (2 levels deep), so ../../../ reaches the project root. Gradle's is
+// build/classes/scala/test/ (4 levels deep), so ../../../ only reaches build/.
+// Create a symlink build/src -> ../src so the traversal resolves correctly.
+val createBuildSrcSymlink by tasks.registering {
+    val buildSrcLink = file("build/src")
+    outputs.upToDateWhen { buildSrcLink.exists() }
+    doLast {
+        buildSrcLink.parentFile.mkdirs()
+        if (!buildSrcLink.exists()) {
+            exec { commandLine("ln", "-s", "../src", buildSrcLink.absolutePath) }
+        }
+    }
+}
+tasks.withType<Test>().configureEach {
+    dependsOn(createBuildSrcSymlink)
+}
+
 // Handle potential duplicate class files
 tasks.withType<Jar>().configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

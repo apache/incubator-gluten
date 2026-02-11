@@ -288,23 +288,16 @@ tasks.processResources {
 // Test code uses getClass.getResource("/").getPath + "../../../../tools/..." to locate
 // shared resources. Maven's classpath root is target/test-classes/ (2 levels deep),
 // so ../../../../ goes to project root. Gradle's is build/classes/scala/test/ (4 levels
-// deep), so ../../../../ only reaches the module root. Create symlinks so the traversal
+// deep), so ../../../../ only reaches the module root. Create a symlink so the traversal
 // resolves correctly from Gradle's deeper output directory.
+// Note: build/src symlink is handled by gluten.scala-conventions plugin.
 val createTestPathSymlinks by tasks.registering {
     val toolsLink = file("tools")
-    val buildSrcLink = file("build/src")
-    // Use upToDateWhen instead of outputs — symlinks to directories can't be declared
-    // as @OutputFile or @OutputDirectory without confusing Gradle's validation.
-    outputs.upToDateWhen { toolsLink.exists() && buildSrcLink.exists() }
+    outputs.upToDateWhen { toolsLink.exists() }
     doLast {
         // backends-velox/tools -> ../tools (for ../../../../tools/... from build/classes/scala/test/)
         if (!toolsLink.exists()) {
             exec { commandLine("ln", "-s", "../tools", toolsLink.absolutePath) }
-        }
-        // backends-velox/build/src -> ../src (for ../../../src/test/resources from build/classes/scala/test/)
-        buildSrcLink.parentFile.mkdirs()
-        if (!buildSrcLink.exists()) {
-            exec { commandLine("ln", "-s", "../src", buildSrcLink.absolutePath) }
         }
     }
 }
