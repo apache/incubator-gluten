@@ -81,12 +81,6 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-arrow</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
       <groupId>org.scalacheck</groupId>
       <artifactId>scalacheck_${scala.binary.version}</artifactId>
       <version>1.17.0</version>
@@ -592,6 +586,20 @@
           <artifactId>paimon-spark-${sparkbundle.version}</artifactId>
           <version>${paimon.version}</version>
           <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>with-arrow</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-arrow</artifactId>
+          <version>${project.version}</version>
+          <scope>compile</scope>
         </dependency>
       </dependencies>
     </profile>
