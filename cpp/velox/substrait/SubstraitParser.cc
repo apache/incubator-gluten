@@ -291,8 +291,8 @@ bool SubstraitParser::configSetInOptimization(
 
 bool SubstraitParser::checkWindowFunction(
     const ::substrait::extensions::AdvancedExtension& extension,
-    const std::string& config,
     const std::string& targetFunction) {
+  const std::string config = "window_function=";
   if (extension.has_optimization()) {
     google::protobuf::StringValue msg;
     extension.optimization().UnpackTo(&msg);

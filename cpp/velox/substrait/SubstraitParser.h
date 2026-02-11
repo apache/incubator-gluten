@@ -101,7 +101,6 @@ class SubstraitParser {
   /// @return Whether the target function is correct.
   static bool checkWindowFunction(
       const ::substrait::extensions::AdvancedExtension&,
-      const std::string& config,
       const std::string& targetFunction);
 
   /// Extract input types from Substrait function signature.

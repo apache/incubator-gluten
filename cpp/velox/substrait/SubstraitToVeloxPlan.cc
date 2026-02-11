@@ -1171,7 +1171,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
 
   auto windowFunc = core::TopNRowNumberNode::RankFunction::kRowNumber;
   if (windowGroupLimitRel.has_advanced_extension()) {
-    if (SubstraitParser::checkWindowFunction(windowGroupLimitRel.advanced_extension(), "window_function=", "rank")){
+    if (SubstraitParser::checkWindowFunction(windowGroupLimitRel.advanced_extension(), "rank")){
         windowFunc = core::TopNRowNumberNode::RankFunction::kRank;
     } else {
         windowFunc = core::TopNRowNumberNode::RankFunction::kDenseRank;
