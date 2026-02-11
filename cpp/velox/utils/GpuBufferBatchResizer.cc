@@ -168,15 +168,39 @@ GpuBufferBatchResizer::GpuBufferBatchResizer(
     arrow::MemoryPool* arrowPool,
     facebook::velox::memory::MemoryPool* pool,
     int32_t minOutputBatchSize,
+    int64_t memLimit,
     std::unique_ptr<ColumnarBatchIterator> in)
-    : arrowPool_(arrowPool),
-      pool_(pool),
-      minOutputBatchSize_(minOutputBatchSize),
-      in_(std::move(in)) {
+    : arrowPool_(arrowPool), pool_(pool), minOutputBatchSize_(minOutputBatchSize), in_(std::move(in)) {
   VELOX_CHECK_GT(minOutputBatchSize_, 0, "minOutputBatchSize should be larger than 0");
+  queue_ = std::make_unique<CachedBufferQueue>(memLimit);
+  batchProducer_ = std::thread([this]() {
+    while (auto batch = nextBatch()) {
+      queue_->put(batch);
+    }
+    queue_->noMoreBatches();
+  });
+}
+
+GpuBufferBatchResizer::~GpuBufferBatchResizer() {
+  if (batchProducer_.joinable()) {
+    batchProducer_.join();
+  }
+  VELOX_CHECK_EQ(queue_->size(), 0);
 }
 
 std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
+  if (auto batch = queue_->get()) {
+    lockGpu();
+    return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_);
+  }
+  return nullptr;
+}
+
+int64_t GpuBufferBatchResizer::spillFixedSize(int64_t size) {
+  return in_->spillFixedSize(size);
+}
+
+std::shared_ptr<GpuBufferColumnarBatch> GpuBufferBatchResizer::nextBatch() {
   std::vector<std::shared_ptr<GpuBufferColumnarBatch>> cachedBatches;
   int32_t cachedRows = 0;
   while (cachedRows < minOutputBatchSize_) {
@@ -189,7 +213,7 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
     auto nextBatch = std::dynamic_pointer_cast<GpuBufferColumnarBatch>(nextCb);
     VELOX_CHECK_NOT_NULL(nextBatch);
     if (nextBatch->numRows() == 0) {
-        continue;
+      continue;
     }
 
     cachedRows += nextBatch->numRows();
@@ -200,15 +224,7 @@ std::shared_ptr<ColumnarBatch> GpuBufferBatchResizer::next() {
   }
 
   // Compose all cached batches into one
-  auto batch = GpuBufferColumnarBatch::compose(arrowPool_, cachedBatches, cachedRows);
-
-  lockGpu();
-
-  return makeCudfTable(batch->getRowType(), batch->numRows(), batch->buffers(), pool_);
-}
-
-int64_t GpuBufferBatchResizer::spillFixedSize(int64_t size) {
-  return in_->spillFixedSize(size);
+  return GpuBufferColumnarBatch::compose(arrowPool_, cachedBatches, cachedRows);
 }
 
 } // namespace gluten

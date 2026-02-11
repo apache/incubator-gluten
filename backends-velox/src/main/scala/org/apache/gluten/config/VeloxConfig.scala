@@ -82,6 +82,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def cudfBatchSize: Int = getConf(CUDF_BATCH_SIZE)
 
+  def cudfShuffleReaderMemoryPct: Double = getConf(CUDF_SHUFFLE_READER_MEMORY_PCT)
+
   def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
 
   def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
@@ -635,6 +637,12 @@ object VeloxConfig extends ConfigRegistry {
       .doc("The initial percent of GPU memory to allocate for memory resource for one thread.")
       .intConf
       .createWithDefault(50)
+
+  val CUDF_SHUFFLE_READER_MEMORY_PCT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.shuffle.readerMemoryPct")
+      .doc("The percentage of CPU memory to use for shuffle reader to buffer cudf batches.")
+      .doubleConf
+      .createWithDefault(0.5)
 
   val CUDF_ENABLE_TABLE_SCAN =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cudf.enableTableScan")

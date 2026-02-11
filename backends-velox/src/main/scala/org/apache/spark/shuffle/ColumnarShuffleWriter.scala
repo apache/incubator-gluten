@@ -29,7 +29,7 @@ import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_DISK_WRITE_BU
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, Utils}
+import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
 
@@ -122,12 +122,6 @@ class ColumnarShuffleWriter[K, V](
 
   private val taskContext: TaskContext = TaskContext.get()
 
-  private def availableOffHeapPerTask(): Long = {
-    val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
-    perTask
-  }
-
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
@@ -218,7 +212,7 @@ class ColumnarShuffleWriter[K, V](
           nativeShuffleWriter,
           rows,
           columnarBatchHandle,
-          availableOffHeapPerTask())
+          SparkMemoryUtil.availableOffHeapPerTask(conf))
         dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)

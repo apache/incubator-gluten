@@ -16,15 +16,14 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.backendsapi.velox.VeloxBatchType
 import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.ClosableIterator
-import org.apache.gluten.runtime.Runtimes
-import org.apache.gluten.utils.{GpuBufferBatchResizerJniWrapper, VeloxBatchResizer}
-import org.apache.gluten.vectorized.{ColumnarBatchInIterator, ColumnarBatchOutIterator}
+import org.apache.gluten.utils.VeloxBatchResizer
 
+import org.apache.spark.SparkEnv
+import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{GPUStageMode, SparkPlan, StageExecutionMode}
@@ -45,16 +44,16 @@ case class VeloxResizeBatchesExec(
     val veloxConfig = VeloxConfig.get
     executionMode match {
       case Some(GPUStageMode) =>
-        val runtime =
-          Runtimes.contextInstance(
-            BackendsApiManager.getBackendName,
-            "GpuBufferColumnarBatchResizer")
-        val outHandle = GpuBufferBatchResizerJniWrapper
-          .create(runtime)
-          .create(
+        VeloxBatchResizer
+          .createCudf(
             veloxConfig.cudfBatchSize,
-            new ColumnarBatchInIterator(BackendsApiManager.getBackendName, in.asJava))
-        new ColumnarBatchOutIterator(runtime, outHandle).asScala
+            Math
+              .floor(SparkMemoryUtil.availableOffHeapPerTask(
+                SparkEnv.get.conf) * veloxConfig.cudfShuffleReaderMemoryPct)
+              .toLong,
+            in.asJava
+          )
+          .asScala
       case _ =>
         val range = veloxConfig.veloxResizeBatchesShuffleInputOutputRange
         VeloxBatchResizer

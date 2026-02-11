@@ -14,27 +14,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils;
 
-import org.apache.gluten.runtime.Runtime;
-import org.apache.gluten.runtime.RuntimeAware;
-import org.apache.gluten.vectorized.ColumnarBatchInIterator;
+#pragma once
 
-public class GpuBufferBatchResizerJniWrapper implements RuntimeAware {
-  private final Runtime runtime;
+#include <folly/Synchronized.h>
 
-  private GpuBufferBatchResizerJniWrapper(Runtime runtime) {
-    this.runtime = runtime;
-  }
+#include <chrono>
+#include <condition_variable>
+#include <map>
+#include <mutex>
+#include <queue>
+#include <utility>
 
-  public static GpuBufferBatchResizerJniWrapper create(Runtime runtime) {
-    return new GpuBufferBatchResizerJniWrapper(runtime);
-  }
+namespace gluten {
 
-  @Override
-  public long rtHandle() {
-    return runtime.getHandle();
-  }
+class GpuBufferColumnarBatch;
 
-  public native long create(int minOutputBatchSize, long memLimit, ColumnarBatchInIterator itr);
-}
+class CachedBufferQueue {
+ public:
+  CachedBufferQueue(int64_t capacity) : capacity_(capacity) {}
+
+  void put(std::shared_ptr<GpuBufferColumnarBatch> batch);
+
+  std::shared_ptr<GpuBufferColumnarBatch> get();
+
+  void noMoreBatches();
+
+  int64_t size() const;
+
+  bool empty() const;
+
+ private:
+  int64_t capacity_;
+  int64_t totalSize_{0};
+  bool noMoreBatches_{false};
+
+  std::queue<std::shared_ptr<GpuBufferColumnarBatch>> queue_;
+
+  std::mutex m_;
+  std::condition_variable notEmpty_;
+  std::condition_variable notFull_;
+};
+
+} // namespace gluten

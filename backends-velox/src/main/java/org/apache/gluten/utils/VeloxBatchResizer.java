@@ -43,4 +43,18 @@ public final class VeloxBatchResizer {
                 new ColumnarBatchInIterator(BackendsApiManager.getBackendName(), in));
     return new ColumnarBatchOutIterator(runtime, outHandle);
   }
+
+  public static ColumnarBatchOutIterator createCudf(
+      int minOutputBatchSize, long memLimit, Iterator<ColumnarBatch> in) {
+    final Runtime runtime =
+        Runtimes.contextInstance(
+            BackendsApiManager.getBackendName(), "GpuBufferColumnarBatchResizer");
+    long outHandle =
+        GpuBufferBatchResizerJniWrapper.create(runtime)
+            .create(
+                minOutputBatchSize,
+                memLimit,
+                new ColumnarBatchInIterator(BackendsApiManager.getBackendName(), in));
+    return new ColumnarBatchOutIterator(runtime, outHandle);
+  }
 }

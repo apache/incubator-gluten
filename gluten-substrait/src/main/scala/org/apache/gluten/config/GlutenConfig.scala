@@ -55,7 +55,7 @@ case object RssSortShuffleWriterType extends ShuffleWriterType {
 
 case object GpuHashShuffleWriterType extends ShuffleWriterType {
   override val name: String = ReservedKeys.GLUTEN_GPU_HASH_SHUFFLE_WRITER
-  override val requiresResizingShuffleInput: Boolean = true
+  override val requiresResizingShuffleInput: Boolean = false
   override val requiresResizingShuffleOutput: Boolean = true
 }
 
