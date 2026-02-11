@@ -49,11 +49,10 @@ object GlutenSpotless {
     fun apply(project: Project) {
         project.pluginManager.apply("com.diffplug.spotless")
 
-        // Match Maven: google-java-format 1.7 for JDK 11, 1.17.0 for JDK 17+.
-        // Maven uses <jdk>21</jdk> activation for the java-21 profile which bumps the version.
-        // Spotless enforces minimum version 1.10.0 for JDK 17+.
-        val runtimeJdk = JavaVersion.current().majorVersion.toInt()
-        val googleJavaFormatVersion = if (runtimeJdk >= 17) "1.17.0" else "1.7"
+        // Use google-java-format 1.17.0 for all JDK 11+ builds. Spotless enforces
+        // minimum versions per JDK (1.8 for JDK 11, 1.10.0 for JDK 17), and 1.17.0
+        // satisfies all of them while producing consistent formatting across JDKs.
+        val googleJavaFormatVersion = "1.17.0"
 
         val spotless = project.extensions.getByType(SpotlessExtension::class.java)
         spotless.java {
