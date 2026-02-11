@@ -40,9 +40,26 @@ protobuf {
     }
 }
 
-// Fail fast if proto extraction blocks (e.g. due to network or lock issues).
-// The extractIncludeProto task scans the entire compile classpath for .proto files,
-// which can stall when dependencies cannot be resolved.
+// The protobuf plugin's extractInclude*Proto tasks scan the entire compile classpath
+// for .proto files (via the compileProtoPath configuration that extends compileOnly +
+// implementation). In Gluten this means scanning 600+ transitive Spark/Hadoop JARs,
+// none of which contain .proto files. This causes CI stalls when dependency resolution
+// blocks on network or lock contention.
+//
+// Fix: remove the extendsFrom relationships on compileProtoPath / testCompileProtoPath
+// so only explicitly declared protobuf dependencies are scanned.
+afterEvaluate {
+    listOf("compileProtoPath", "testCompileProtoPath").forEach { name ->
+        configurations.findByName(name)?.let { protoPath ->
+            protoPath.setExtendsFrom(emptyList())
+            // Re-add only protobuf-java so its bundled .proto files are available as imports.
+            protoPath.dependencies.add(
+                project.dependencies.create("com.google.protobuf:protobuf-java:$protobufVersion")
+            )
+        }
+    }
+}
+
 tasks.withType<com.google.protobuf.gradle.ProtobufExtract>().configureEach {
     @Suppress("UnstableApiUsage")
     timeout = Duration.ofMinutes(5)

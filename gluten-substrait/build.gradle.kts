@@ -18,6 +18,7 @@
 plugins {
     id("gluten.scala-library")
     id("gluten.protobuf")
+    id("gluten.scalatest")
     id("gluten.spotless")
 }
 
