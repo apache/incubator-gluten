@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.integration
 
-import org.apache.gluten.integration.metrics.MetricMapper
-import org.apache.gluten.integration.metrics.MetricMapper.SelfTimeMapper
+import org.apache.gluten.integration.metrics.{MetricMapper, MetricTag}
+import org.apache.gluten.integration.metrics.MetricMapper.SimpleMetricMapper
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.TypeUtils
@@ -78,7 +78,8 @@ object Constants {
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
     .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false")
 
-  val VANILLA_METRIC_MAPPER: MetricMapper = SelfTimeMapper(
+  val VANILLA_METRIC_MAPPER: MetricMapper = SimpleMetricMapper(
+    Seq(MetricTag.IsSelfTime),
     Map(
       "FileSourceScanExec" -> Set("metadataTime", "scanTime"),
       "HashAggregateExec" -> Set("aggTime"),
@@ -91,10 +92,12 @@ object Constants {
       "ShuffleExchangeExec" -> Set("fetchWaitTime", "shuffleWriteTime"),
       "ShuffledHashJoinExec" -> Set("buildTime"),
       "WindowGroupLimitExec" -> Set() // No available metrics provided by vanilla Spark.
-    ))
+    )
+  )
 
-  val VELOX_METRIC_MAPPER: MetricMapper = VANILLA_METRIC_MAPPER.and(
-    SelfTimeMapper(
+  val VELOX_METRIC_MAPPER: MetricMapper = VANILLA_METRIC_MAPPER
+    .and(SimpleMetricMapper(
+      Seq(MetricTag.IsSelfTime),
       Map(
         "FileSourceScanExecTransformer" -> Set("scanTime", "pruningTime", "remainingFilterTime"),
         "ProjectExecTransformer" -> Set("wallNanos"),
@@ -119,6 +122,30 @@ object Constants {
         "WindowGroupLimitExecTransformer" -> Set("wallNanos"),
         "VeloxBroadcastNestedLoopJoinExecTransformer" -> Set("wallNanos"),
         "ExpandExecTransformer" -> Set("wallNanos")
+      )
+    ))
+    .and(SimpleMetricMapper(
+      Seq(MetricTag.IsJoinProbeInputNumRows),
+      Map(
+        "BroadcastHashJoinExecTransformer" -> Set("hashProbeInputRows"),
+        "ShuffledHashJoinExecTransformer" -> Set("hashProbeInputRows"),
+        "BroadcastNestedLoopJoinExecTransformer" -> Set("nestedLoopJoinProbeInputRows")
+      )
+    ))
+    .and(SimpleMetricMapper(
+      Seq(MetricTag.IsJoinProbeOutputNumRows),
+      Map(
+        "BroadcastHashJoinExecTransformer" -> Set("hashProbeOutputRows"),
+        "ShuffledHashJoinExecTransformer" -> Set("hashProbeOutputRows"),
+        "BroadcastNestedLoopJoinExecTransformer" -> Set("nestedLoopJoinProbeOutputRows")
+      )
+    ))
+    .and(SimpleMetricMapper(
+      Seq(MetricTag.IsJoinOutputNumRows),
+      Map(
+        "BroadcastHashJoinExecTransformer" -> Set("numOutputRows"),
+        "ShuffledHashJoinExecTransformer" -> Set("numOutputRows"),
+        "BroadcastNestedLoopJoinExecTransformer" -> Set("numOutputRows")
       )
     ))
 
