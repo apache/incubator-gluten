@@ -38,7 +38,7 @@ public class VeloxBlockStripes extends BlockStripes {
       final byte[] headingRowByteArray = headingRowBytes[i];
       blockStripes[i] = new BlockStripe() {
         private final ColumnarBatch batch = ColumnarBatches.create(blockAddress);
-        private final UnsafeRow headingRow = new UnsafeRow(headingRowByteArray.length);
+        private final UnsafeRow headingRow = new UnsafeRow(originBlockNumColumns);
         {
           headingRow.pointTo(headingRowByteArray, headingRowByteArray.length);
         }
