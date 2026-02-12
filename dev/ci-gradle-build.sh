@@ -56,11 +56,6 @@ for arg in "$@"; do
     # Test control
     -DskipTests)  SKIP_TESTS="-x test" ;;
     # ScalaTest tag filtering
-    # Note: GenerateExample is a string-based ScalaTest Tag (not a @TagAnnotation),
-    # so it can't be filtered by TagExcludeSpec's constant pool scanning. Translate
-    # it to a --tests class filter instead.
-    -DtagsToInclude=*org.apache.gluten.tags.GenerateExample*)
-      GRADLE_ARGS="$GRADLE_ARGS --tests org.apache.gluten.benchmarks.NativeBenchmarkPlanGenerator" ;;
     -DtagsToInclude=*) GRADLE_ARGS="$GRADLE_ARGS -PtagsToInclude=${arg#-DtagsToInclude=}" ;;
     -DtagsToExclude=*) GRADLE_ARGS="$GRADLE_ARGS -PtagsToExclude=${arg#-DtagsToExclude=}" ;;
     # Spark test home and extra JVM args (extracted from -DargLine)

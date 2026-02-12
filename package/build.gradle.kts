@@ -32,7 +32,6 @@ val arch = rootProject.extra.get("arch") as String
 
 // Dynamic dependencies based on backend selection
 dependencies {
-    // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")

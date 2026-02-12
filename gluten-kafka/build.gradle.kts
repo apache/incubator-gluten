@@ -26,23 +26,12 @@ val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveHadoopVersion: String by rootProject.extra
 
 dependencies {
-    // Project dependencies (provided)
     compileOnly(project(":gluten-substrait"))
 
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-
-    // Spark Kafka connector (provided)
     compileOnly("org.apache.spark:spark-sql-kafka-0-10_$scalaBinaryVersion:$effectiveSparkFullVersion")
 
-    // Test dependencies
     testImplementation(project(":gluten-substrait", "testArtifacts"))
-    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
     testImplementation("org.apache.hadoop:hadoop-client:$effectiveHadoopVersion")
     testImplementation("com.google.protobuf:protobuf-java:$protobufVersion")
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
 }

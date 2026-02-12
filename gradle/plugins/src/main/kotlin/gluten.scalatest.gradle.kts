@@ -16,27 +16,25 @@
  */
 
 /**
- * Convention plugin for ScalaTest testing.
+ * Convention plugin for ScalaTest testing with per-suite JVM isolation.
  *
- * Uses JUnit 5 Platform with ScalaTest's JUnit engine so that Gradle's built-in
- * Test task handles test execution. This lets forkEvery work correctly — the old
- * gradle-scalatest plugin replaced the Test task with a single javaexec() call
- * that ran all suites in one JVM, ignoring forkEvery and causing SparkContext
- * leaks between suites.
+ * Applies the gradle-scalatest plugin to get ScalaTest's Runner on the classpath,
+ * then replaces its default action (which runs all suites in one JVM) with
+ * [ScalaTestPerSuiteAction] that invokes `Runner -s <Suite>` in a separate
+ * `javaexec` for each test suite class.
+ *
+ * This achieves per-suite JVM isolation without JUnit 5 Platform, preventing
+ * Spark's JVM-global state (SparkContext, daemon threads) from leaking between suites.
  */
 
 plugins {
     java
+    id("com.github.maiflai.scalatest")
 }
 
 val scalaBinaryVersion: String by project
-val scalatestVersion: String by project
 
 dependencies {
-    // ScalaTest JUnit 5 engine — registers as a JUnit Platform test engine
-    // so Gradle discovers and runs ScalaTest suites via useJUnitPlatform().
-    testRuntimeOnly("org.scalatestplus:junit-5-9_$scalaBinaryVersion:${scalatestVersion}.0")
-
     // Flexmark is required by ScalaTest for HTML report generation
     testRuntimeOnly("com.vladsch.flexmark:flexmark-all:0.62.2")
 }
@@ -52,41 +50,7 @@ val sparkTestHome: String? = providers.gradleProperty("sparkTestHome").orNull
 val testJvmArgs: String? = providers.gradleProperty("testJvmArgs").orNull
 
 tasks.withType<Test>().configureEach {
-    // Use JUnit 5 Platform with ScalaTest engine.
-    // This respects forkEvery because Gradle's Test task handles forking.
-    useJUnitPlatform {
-        includeEngines("scalatest")
-    }
-
-    // ScalaTest tag filtering — implemented at the Gradle level because the ScalaTest
-    // JUnit 5 engine does not support JUnit Platform's includeTags/excludeTags.
-    // TagExcludeSpec scans class file constant pools for annotation type descriptors.
-    val excludeSet = tagsToExclude?.split(",")?.map { it.trim() }?.toSet() ?: emptySet()
-    val includeSet = tagsToInclude?.split(",")?.map { it.trim() }?.toSet() ?: emptySet()
-    if (excludeSet.isNotEmpty() || includeSet.isNotEmpty()) {
-        exclude(TagExcludeSpec(excludeSet, includeSet))
-    }
-
-    // Exclude abstract classes, traits, Scala companion objects, and inner classes.
-    // The ScalaTest JUnit 5 engine can't instantiate them and reports failures or
-    // produces noisy "discovered suite count: 0" logs.
-    exclude(AbstractClassExcludeSpec())
-    exclude("**/*\$*.class")
-
     maxParallelForks = 1
-
-    // Fork a new JVM for each test class to match Maven's scalatest-maven-plugin behavior.
-    // Spark tests leak JVM-global state (SparkContext, daemon threads, etc.) between suites.
-    // Without isolation, a leaked SparkContext from one suite causes NPEs in the next suite's
-    // BlockManager initialization.
-    forkEvery = 1
-
-    testLogging {
-        events("passed", "skipped", "failed")
-        showStandardStreams = true
-        showExceptions = true
-        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-    }
 
     // Increase memory for tests
     maxHeapSize = "4g"
@@ -97,9 +61,18 @@ tasks.withType<Test>().configureEach {
     // while Maven does not, causing spurious test failures.
     enableAssertions = false
 
+    // Populate the gradle-scalatest plugin's `tags` extension from Gradle properties.
+    // The plugin registers a PatternSet named "tags" on each Test task.
+    // ScalaTestPerSuiteAction reads this extension to build -n/-l Runner flags.
+    val tags = extensions.findByName("tags") as? org.gradle.api.tasks.util.PatternSet
+    if (tags != null) {
+        tagsToInclude?.split(",")?.map { it.trim() }?.let { tags.include(it) }
+        tagsToExclude?.split(",")?.map { it.trim() }?.let { tags.exclude(it) }
+    }
+
     // Spark test home directory
     if (sparkTestHome != null) {
-        systemProperty("spark.test.home", sparkTestHome)
+        systemProperty("spark.test.home", sparkTestHome!!)
     }
 
     // Extra JVM args from CI (comma-separated -D flags)
@@ -129,4 +102,17 @@ tasks.withType<Test>().configureEach {
         "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
         "-Djdk.reflect.useDirectMethodHandle=false"
     )
+}
+
+// Replace the gradle-scalatest plugin's action with our per-suite action.
+// This must happen in afterEvaluate because the plugin sets its action during
+// project evaluation.
+afterEvaluate {
+    tasks.withType<Test>().configureEach {
+        val customAction = ScalaTestPerSuiteAction()
+        actions.clear()
+        doLast {
+            customAction.execute(this as Test)
+        }
+    }
 }

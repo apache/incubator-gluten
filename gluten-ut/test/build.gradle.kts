@@ -26,7 +26,6 @@ val effectiveSparkFullVersion: String by rootProject.extra
 val backend: String by project
 
 dependencies {
-    // Project dependencies
     implementation(project(":gluten-ut-common"))
     testImplementation(project(":gluten-ut-common", "testArtifacts"))
 
@@ -37,18 +36,15 @@ dependencies {
         implementation(project(":backends-clickhouse"))
     }
 
-    // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
 
-    // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("junit:junit:4.13.1")
     testImplementation("com.vladsch.flexmark:flexmark-all:0.62.2")
 
-    // Spark test JARs
     testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")

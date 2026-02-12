@@ -29,7 +29,6 @@ val backend: String by project
 val sparkFullVersion = "4.0.1"
 
 dependencies {
-    // Project dependencies
     implementation(project(":gluten-ut-common"))
     testImplementation(project(":gluten-ut-common", "testArtifacts"))
     implementation(project(":gluten-ut-test"))
@@ -39,18 +38,15 @@ dependencies {
         testImplementation(project(":backends-velox", "testArtifacts"))
     }
 
-    // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$sparkFullVersion")
     compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$sparkFullVersion")
     compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$sparkFullVersion")
     compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$sparkFullVersion")
 
-    // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("junit:junit:4.13.1")
     testImplementation("com.vladsch.flexmark:flexmark-all:0.62.2")
 
-    // Spark test JARs
     testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$sparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$sparkFullVersion:tests")
     testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$sparkFullVersion:tests")

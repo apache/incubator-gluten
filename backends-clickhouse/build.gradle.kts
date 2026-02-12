@@ -35,45 +35,25 @@ val cppChBuildDir = file("../cpp-ch/build")
 val cppChReleasesDir = file("$cppChBuildDir/releases")
 
 dependencies {
-    // ANTLR4 tool (code generator)
     antlr("org.antlr:antlr4:$effectiveAntlr4Version")
 
-    // Project dependencies
     implementation(project(":gluten-substrait"))
 
-    // Protobuf
     implementation("com.google.protobuf:protobuf-java:$protobufVersion")
 
-    // Spark (provided)
-    compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
-    compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
-
-    // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$effectiveHadoopVersion")
 
     implementation("org.scala-lang.modules:scala-collection-compat_$scalaBinaryVersion:2.11.0")
 
-    // Jackson (provided)
     compileOnly("com.fasterxml.jackson.core:jackson-databind:$effectiveFasterxmlVersion")
     compileOnly("com.fasterxml.jackson.core:jackson-annotations:$effectiveFasterxmlVersion")
     compileOnly("com.fasterxml.jackson.core:jackson-core:$effectiveFasterxmlVersion")
     compileOnly("com.fasterxml.jackson.module:jackson-module-scala_$scalaBinaryVersion:$effectiveFasterxmlVersion")
 
-    // Test dependencies
-    testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("org.scalacheck:scalacheck_$scalaBinaryVersion:1.17.0")
     testImplementation("org.mockito:mockito-core:2.23.4")
-    testImplementation("junit:junit:4.13.1")
     testImplementation("org.scalatestplus:scalatestplus-mockito_$scalaBinaryVersion:1.0.0-M2")
     testImplementation("org.scalatestplus:scalatestplus-scalacheck_$scalaBinaryVersion:3.1.0.0-RC2")
-
-    // Spark test JARs
-    testImplementation("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-    testImplementation("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
 }
 
 // ANTLR4 grammar configuration

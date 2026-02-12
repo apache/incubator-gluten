@@ -25,10 +25,8 @@ val scalaBinaryVersion: String by project
 val caffeineVersion: String by project
 
 dependencies {
-    // Caffeine for caching
     implementation("com.github.ben-manes.caffeine:caffeine:$caffeineVersion")
 
-    // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("junit:junit:4.13.1")
 }

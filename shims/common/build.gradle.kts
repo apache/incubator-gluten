@@ -25,16 +25,13 @@ val effectiveSparkFullVersion: String by rootProject.extra
 val effectiveHadoopVersion: String by rootProject.extra
 
 dependencies {
-    // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$effectiveSparkFullVersion")
     compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$effectiveSparkFullVersion")
 
-    // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$effectiveHadoopVersion")
 
-    // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("org.slf4j:slf4j-log4j12:1.7.30")
 }

@@ -35,34 +35,27 @@ val cppBuildDir = file("../cpp/build")
 val cppReleasesDir = file("$cppBuildDir/releases")
 
 dependencies {
-    // Project dependencies
     implementation(project(":gluten-substrait"))
     implementation(project(":gluten-arrow"))
 
-    // Test JARs from other modules
     testImplementation(project(":gluten-substrait", "testArtifacts"))
     testImplementation(project(":gluten-ras-common", "testArtifacts"))
 
-    // Protobuf
     implementation("com.google.protobuf:protobuf-java:$protobufVersion")
 
     compileOnly("org.apache.spark:spark-network-common_$scalaBinaryVersion:$effectiveSparkFullVersion")
 
-    // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$effectiveHadoopVersion")
 
     implementation("org.scala-lang.modules:scala-collection-compat_$scalaBinaryVersion:2.11.0")
 
-    // Jackson (provided)
     compileOnly("com.fasterxml.jackson.core:jackson-databind:$effectiveFasterxmlVersion")
     compileOnly("com.fasterxml.jackson.core:jackson-annotations:$effectiveFasterxmlVersion")
     compileOnly("com.fasterxml.jackson.core:jackson-core:$effectiveFasterxmlVersion")
     compileOnly("com.fasterxml.jackson.module:jackson-module-scala_$scalaBinaryVersion:$effectiveFasterxmlVersion")
 
-    // Commons IO (provided)
     compileOnly("commons-io:commons-io:2.14.0")
 
-    // Jimfs for file system testing
     implementation("com.google.jimfs:jimfs:1.3.0")
 
     testImplementation("org.scalacheck:scalacheck_$scalaBinaryVersion:1.17.0")
@@ -75,15 +68,7 @@ dependencies {
     testImplementation("com.github.javafaker:javafaker:1.0.2")
     testImplementation("com.vladsch.flexmark:flexmark-all:0.62.2")
 
-    // Spark test JARs (extra: spark-tags)
     testImplementation("org.apache.spark:spark-tags_$scalaBinaryVersion:$effectiveSparkFullVersion:tests")
-
-    // ScalaTest JUnit runner
-    testRuntimeOnly("org.scalatestplus:junit-4-13_$scalaBinaryVersion:3.2.16.0")
-
-    // JUnit 5 platform
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.3")
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.9.3")
 }
 
 sourceSets {

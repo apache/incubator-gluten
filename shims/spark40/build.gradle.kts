@@ -28,19 +28,15 @@ val sparkFullVersion = "4.0.1"
 val hadoopVersion = "3.4.1"
 
 dependencies {
-    // Shims common
     implementation(project(":shims-common"))
 
-    // Spark (provided)
     compileOnly("org.apache.spark:spark-sql_$scalaBinaryVersion:$sparkFullVersion")
     compileOnly("org.apache.spark:spark-core_$scalaBinaryVersion:$sparkFullVersion")
     compileOnly("org.apache.spark:spark-catalyst_$scalaBinaryVersion:$sparkFullVersion")
     compileOnly("org.apache.spark:spark-hive_$scalaBinaryVersion:$sparkFullVersion")
 
-    // Hadoop (provided)
     compileOnly("org.apache.hadoop:hadoop-client:$hadoopVersion")
 
-    // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
 }
 

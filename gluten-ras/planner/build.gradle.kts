@@ -24,7 +24,6 @@ plugins {
 val scalaBinaryVersion: String by project
 
 dependencies {
-    // Test dependencies
     testImplementation("org.scalatest:scalatest_$scalaBinaryVersion:3.2.16")
     testImplementation("junit:junit:4.13.1")
 }
