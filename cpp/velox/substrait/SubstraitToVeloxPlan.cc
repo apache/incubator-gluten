@@ -1173,7 +1173,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
   if (windowGroupLimitRel.has_advanced_extension()) {
     if (SubstraitParser::checkWindowFunction(windowGroupLimitRel.advanced_extension(), "rank")){
         windowFunc = core::TopNRowNumberNode::RankFunction::kRank;
-    } else {
+    } else if (SubstraitParser::checkWindowFunction(windowGroupLimitRel.advanced_extension(), "dense_rank")) {
         windowFunc = core::TopNRowNumberNode::RankFunction::kDenseRank;
     }
   }

@@ -28,7 +28,6 @@ import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, DenseRan
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.window.{GlutenFinal, GlutenPartial, GlutenWindowGroupLimitMode}
-import org.apache.spark.sql.internal.SQLConf
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.SortField
@@ -151,11 +150,6 @@ case class WindowGroupLimitExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (SQLConf.get.usePartitionEvaluator) {
-      return ValidationResult.failed(
-        "WindowGroupLimitExec does not support partition evaluator," +
-          " please set " + s"${SQLConf.get.usePartitionEvaluator} to false and try again.")
-    }
     if (!BackendsApiManager.getSettings.supportWindowGroupLimitExec(rankLikeFunction)) {
       return ValidationResult
         .failed(s"Found unsupported rank like function: $rankLikeFunction")
