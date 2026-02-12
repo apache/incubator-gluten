@@ -93,6 +93,66 @@ EOF
   "$HADOOP_HOME/bin/hdfs" dfs -ls /
 }
 
+function install_minio {
+  echo "Installing MinIO..."
+
+  apt-get update -y
+  apt-get install -y curl
+
+  curl -fsSL -o /usr/local/bin/minio https://dl.min.io/server/minio/release/linux-amd64/minio
+  chmod +x /usr/local/bin/minio
+
+  curl -fsSL -o /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc
+  chmod +x /usr/local/bin/mc
+
+  echo "MinIO installed successfully"
+}
+
+function setup_minio {
+  local spark_version="${1:-3.5}"
+  local spark_version_short=$(echo "${spark_version}" | cut -d '.' -f 1,2 | tr -d '.')
+
+  case "$spark_version" in
+    3.3) hadoop_aws_version="3.3.2"; aws_sdk_artifact="aws-java-sdk-bundle"; aws_sdk_version="1.12.262" ;;
+    3.4|3.5*) hadoop_aws_version="3.3.4"; aws_sdk_artifact="aws-java-sdk-bundle"; aws_sdk_version="1.12.262" ;;
+    4.0) hadoop_aws_version="3.4.0"; aws_sdk_artifact="bundle"; aws_sdk_version="2.25.11" ;;
+    4.1) hadoop_aws_version="3.4.1"; aws_sdk_artifact="bundle"; aws_sdk_version="2.25.11" ;;
+    *) hadoop_aws_version="3.3.4"; aws_sdk_artifact="aws-java-sdk-bundle"; aws_sdk_version="1.12.262" ;;
+  esac
+
+  local spark_jars_dir="${GITHUB_WORKSPACE:-$PWD}/tools/gluten-it/package/target/lib"
+  mkdir -p "$spark_jars_dir"
+
+  wget -nv https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${hadoop_aws_version}/hadoop-aws-${hadoop_aws_version}.jar -P "$spark_jars_dir" || return 1
+
+  if [ "$aws_sdk_artifact" == "aws-java-sdk-bundle" ]; then
+    wget -nv https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${aws_sdk_version}/aws-java-sdk-bundle-${aws_sdk_version}.jar -P "$spark_jars_dir" || return 1
+  else
+    wget -nv https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/${aws_sdk_version}/bundle-${aws_sdk_version}.jar -P "$spark_jars_dir" || return 1
+  fi
+
+  export MINIO_DATA_DIR="${RUNNER_TEMP:-/tmp}/minio-data"
+  mkdir -p "$MINIO_DATA_DIR"
+  export MINIO_ROOT_USER=admin
+  export MINIO_ROOT_PASSWORD=admin123
+
+  nohup minio server --address ":9100" --console-address ":9101" "$MINIO_DATA_DIR" > /tmp/minio.log 2>&1 &
+
+  for i in {1..60}; do
+    curl -sSf http://localhost:9100/minio/health/ready >/dev/null 2>&1 && break
+    sleep 1
+  done
+
+  if ! curl -sSf http://localhost:9100/minio/health/ready >/dev/null 2>&1; then
+    echo "MinIO failed to start"
+    cat /tmp/minio.log || true
+    exit 1
+  fi
+
+  mc alias set s3local http://localhost:9100 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+  mc mb -p s3local/gluten-it || true
+}
+
 # Installs Spark binary and source releases with:
 # 1 - spark version
 # 2 - hadoop version

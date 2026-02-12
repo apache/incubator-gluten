@@ -81,7 +81,7 @@ class TpcdsSuite(
       "non_partitioned"
     }
     val featureFlags = dataGenFeatures.map(feature => s"-$feature").mkString("")
-    if (dataDir.startsWith("hdfs://")) {
+    if (dataDir.startsWith("hdfs://") || dataDir.startsWith("s3a://")) {
       return s"$dataDir/$TPCDS_WRITE_RELATIVE_PATH-$dataScale-$dataSource-$partitionedFlag$featureFlags"
     }
     new File(dataDir).toPath
