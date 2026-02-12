@@ -144,6 +144,7 @@ class ScalaTestPerSuiteAction : Action<Test> {
                 classpath = task.classpath
                 args = runnerArgs
                 jvmArgs = task.allJvmArgs
+                environment = task.environment
                 isIgnoreExitValue = true
             }
 
