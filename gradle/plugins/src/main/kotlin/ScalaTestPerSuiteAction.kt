@@ -22,6 +22,9 @@ import org.gradle.api.tasks.util.PatternSet
 import java.io.DataInputStream
 import java.io.File
 import java.lang.reflect.Modifier
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Custom [Action] for Gradle's [Test] task that replaces the gradle-scalatest plugin's
@@ -31,7 +34,8 @@ import java.lang.reflect.Modifier
  *
  * This achieves per-suite JVM isolation without depending on JUnit 5 Platform,
  * preventing Spark's JVM-global state (SparkContext, daemon threads) from leaking
- * between suites.
+ * between suites. Suites run in parallel up to [Test.getMaxParallelForks] concurrent
+ * JVMs.
  *
  * Tag filtering is read from the gradle-scalatest plugin's `tags` extension
  * (a [PatternSet] registered on each Test task). `tags.includes` map to ScalaTest
@@ -70,40 +74,35 @@ class ScalaTestPerSuiteAction : Action<Test> {
         // Collect test filter patterns from --tests flag
         val filterPatterns = collectFilterPatterns(task)
 
-        val failedSuites = mutableListOf<String>()
-        var passedCount = 0
+        val parallelism = task.maxParallelForks.coerceAtLeast(1)
+        val failedSuites = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val passedCount = AtomicInteger(0)
 
-        for (suite in suites) {
-            task.logger.lifecycle("Running suite: $suite")
-
-            val runnerArgs = buildRunnerArgs(
-                task, suite, reportsDir, tagsToInclude, tagsToExclude, filterPatterns
-            )
-
+        if (parallelism == 1) {
+            // Sequential execution
+            for (suite in suites) {
+                runSuite(task, suite, reportsDir, tagsToInclude, tagsToExclude, filterPatterns,
+                    failedSuites, passedCount)
+            }
+        } else {
+            // Parallel execution with bounded thread pool
+            task.logger.lifecycle("Running suites with parallelism=$parallelism")
+            val executor = Executors.newFixedThreadPool(parallelism)
             try {
-                val result = task.project.javaexec {
-                    mainClass.set("org.scalatest.tools.Runner")
-                    classpath = task.classpath
-                    args = runnerArgs
-                    jvmArgs = task.allJvmArgs
-                    isIgnoreExitValue = true
+                val futures = suites.map { suite ->
+                    executor.submit {
+                        runSuite(task, suite, reportsDir, tagsToInclude, tagsToExclude,
+                            filterPatterns, failedSuites, passedCount)
+                    }
                 }
-
-                if (result.exitValue != 0) {
-                    failedSuites.add(suite)
-                    task.logger.error("FAILED: $suite (exit code ${result.exitValue})")
-                } else {
-                    passedCount++
-                    task.logger.lifecycle("PASSED: $suite")
-                }
-            } catch (e: Exception) {
-                failedSuites.add(suite)
-                task.logger.error("ERROR: $suite - ${e.message}")
+                futures.forEach { it.get() }
+            } finally {
+                executor.shutdown()
             }
         }
 
         task.logger.lifecycle(
-            "\nScalaTest results: ${passedCount} passed, ${failedSuites.size} failed, " +
+            "\nScalaTest results: ${passedCount.get()} passed, ${failedSuites.size} failed, " +
                 "${suites.size} total"
         )
 
@@ -121,6 +120,44 @@ class ScalaTestPerSuiteAction : Action<Test> {
     companion object {
         /** Matches class names that look like test suites (same heuristic as the plugin). */
         private val MAYBE_TEST = Regex("Spec|Test|Suite")
+    }
+
+    private fun runSuite(
+        task: Test,
+        suite: String,
+        reportsDir: File,
+        tagsToInclude: Set<String>,
+        tagsToExclude: Set<String>,
+        filterPatterns: List<String>,
+        failedSuites: MutableList<String>,
+        passedCount: AtomicInteger
+    ) {
+        task.logger.lifecycle("Running suite: $suite")
+
+        val runnerArgs = buildRunnerArgs(
+            task, suite, reportsDir, tagsToInclude, tagsToExclude, filterPatterns
+        )
+
+        try {
+            val result = task.project.javaexec {
+                mainClass.set("org.scalatest.tools.Runner")
+                classpath = task.classpath
+                args = runnerArgs
+                jvmArgs = task.allJvmArgs
+                isIgnoreExitValue = true
+            }
+
+            if (result.exitValue != 0) {
+                failedSuites.add(suite)
+                task.logger.error("FAILED: $suite (exit code ${result.exitValue})")
+            } else {
+                passedCount.incrementAndGet()
+                task.logger.lifecycle("PASSED: $suite")
+            }
+        } catch (e: Exception) {
+            failedSuites.add(suite)
+            task.logger.error("ERROR: $suite - ${e.message}")
+        }
     }
 
     /**

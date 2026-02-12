@@ -113,6 +113,11 @@ tasks.withType<Test>().configureEach {
 // This must happen in afterEvaluate because the plugin sets its action during project evaluation.
 val usePerSuiteForking = project.path.startsWith(":gluten-ut")
 if (usePerSuiteForking) {
+    tasks.withType<Test>().configureEach {
+        // Run up to 3 suite JVMs in parallel (GitHub Actions runner: 4 vCPUs, 16 GB RAM).
+        // Each suite JVM uses ~4 GB heap, so 3 parallel forks use ~12 GB leaving headroom.
+        maxParallelForks = 3
+    }
     afterEvaluate {
         tasks.withType<Test>().configureEach {
             val customAction = ScalaTestPerSuiteAction()
