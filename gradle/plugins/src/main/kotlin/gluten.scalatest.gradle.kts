@@ -16,15 +16,19 @@
  */
 
 /**
- * Convention plugin for ScalaTest testing with per-suite JVM isolation.
+ * Convention plugin for ScalaTest testing.
  *
- * Applies the gradle-scalatest plugin to get ScalaTest's Runner on the classpath,
- * then replaces its default action (which runs all suites in one JVM) with
- * [ScalaTestPerSuiteAction] that invokes `Runner -s <Suite>` in a separate
- * `javaexec` for each test suite class.
+ * Applies the gradle-scalatest plugin to get ScalaTest's Runner on the classpath and
+ * configures common test settings (JVM args, tag filtering, etc.).
  *
- * This achieves per-suite JVM isolation without JUnit 5 Platform, preventing
- * Spark's JVM-global state (SparkContext, daemon threads) from leaking between suites.
+ * Test execution mode depends on the module:
+ * - **gluten-ut modules**: Per-suite JVM isolation via [ScalaTestPerSuiteAction], which
+ *   invokes `Runner -s <Suite>` in a separate `javaexec` per test suite class. This
+ *   prevents Spark's JVM-global state (SparkContext, daemon threads) from leaking
+ *   between suites.
+ * - **All other modules**: Default gradle-scalatest plugin behavior (`Runner -R <dir>`),
+ *   running all suites in a single JVM. This matches Maven's scalatest-maven-plugin
+ *   behavior, where suites may share JVM state (e.g., native library loading).
  */
 
 plugins {
@@ -104,15 +108,18 @@ tasks.withType<Test>().configureEach {
     )
 }
 
-// Replace the gradle-scalatest plugin's action with our per-suite action.
-// This must happen in afterEvaluate because the plugin sets its action during
-// project evaluation.
-afterEvaluate {
-    tasks.withType<Test>().configureEach {
-        val customAction = ScalaTestPerSuiteAction()
-        actions.clear()
-        doLast {
-            customAction.execute(this as Test)
+// Replace the gradle-scalatest plugin's action with per-suite forking for gluten-ut modules.
+// Other modules keep the plugin's default single-JVM behavior (Runner -R <dir>), matching Maven.
+// This must happen in afterEvaluate because the plugin sets its action during project evaluation.
+val usePerSuiteForking = project.path.startsWith(":gluten-ut")
+if (usePerSuiteForking) {
+    afterEvaluate {
+        tasks.withType<Test>().configureEach {
+            val customAction = ScalaTestPerSuiteAction()
+            actions.clear()
+            doLast {
+                customAction.execute(this as Test)
+            }
         }
     }
 }
