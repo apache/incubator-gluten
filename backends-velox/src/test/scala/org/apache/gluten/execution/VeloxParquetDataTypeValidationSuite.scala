@@ -465,7 +465,7 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
     }
   }
 
-  test("Fallback for TimestampNTZ type scan") {
+  testWithMinSparkVersion("Fallback for TimestampNTZ type scan", "3.4") {
     withTempDir {
       dir =>
         val path = new File(dir, "ntz_data").toURI.getPath

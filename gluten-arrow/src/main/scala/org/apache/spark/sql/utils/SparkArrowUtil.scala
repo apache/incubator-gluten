@@ -50,7 +50,7 @@ object SparkArrowUtil {
       } else {
         new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC")
       }
-    case TimestampNTZType =>
+    case dt if dt.catalogString == "timestamp_ntz" =>
       new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
     case YearMonthIntervalType.DEFAULT =>
       new ArrowType.Interval(IntervalUnit.YEAR_MONTH)
@@ -75,7 +75,16 @@ object SparkArrowUtil {
     case d: ArrowType.Decimal => DecimalType(d.getPrecision, d.getScale)
     case date: ArrowType.Date if date.getUnit == DateUnit.DAY => DateType
     case ts: ArrowType.Timestamp if ts.getUnit == TimeUnit.MICROSECOND && ts.getTimezone == null =>
-      TimestampNTZType
+      // TimestampNTZType is only available in Spark 3.4+
+      try {
+        Class
+          .forName("org.apache.spark.sql.types.TimestampNTZType$")
+          .getField("MODULE$")
+          .get(null)
+          .asInstanceOf[DataType]
+      } catch {
+        case _: ClassNotFoundException => TimestampType
+      }
     case _: ArrowType.Timestamp => TimestampType
     case interval: ArrowType.Interval if interval.getUnit == IntervalUnit.YEAR_MONTH =>
       YearMonthIntervalType.DEFAULT

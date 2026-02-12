@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
 object Validators {
   implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
@@ -221,7 +221,7 @@ object Validators {
   private class FallbackByTimestampNTZ() extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
       def containsNTZ(dataType: DataType): Boolean = dataType match {
-        case TimestampNTZType => true
+        case dt if dt.catalogString == "timestamp_ntz" => true
         case st: StructType => st.exists(f => containsNTZ(f.dataType))
         case at: ArrayType => containsNTZ(at.elementType)
         case mt: MapType => containsNTZ(mt.keyType) || containsNTZ(mt.valueType)
