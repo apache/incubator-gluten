@@ -151,12 +151,12 @@ abstract class Suite(
   }
 
   def run(): Boolean = {
-    val succeed = actions.forall {
+    val succeeded = actions.forall {
       action =>
         resetLogLevel() // to prevent log level from being set by unknown external codes
         action.execute(this)
     }
-    succeed
+    succeeded
   }
 
   def close(): Unit = {
