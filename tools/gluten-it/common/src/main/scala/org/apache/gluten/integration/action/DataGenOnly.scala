@@ -55,7 +55,9 @@ case class DataGenOnly(strategy: DataGenOnly.Strategy) extends Action {
   }
 
   private def fs(suite: Suite): FileSystem = {
-    dataPath(suite).getFileSystem(new Configuration())
+    val configuration = new Configuration()
+    configuration.set("fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem")
+    dataPath(suite).getFileSystem(configuration)
   }
 
   private def markerPath(suite: Suite): Path =
