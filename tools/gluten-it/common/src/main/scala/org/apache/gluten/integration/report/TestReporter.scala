@@ -23,6 +23,7 @@ import java.time.format.DateTimeFormatter
 import scala.collection.mutable
 
 trait TestReporter {
+  def addMetadata(key: String, value: String): Unit
   def rootAppender(): TestReporter.Appender
   def actionAppender(actionName: String): TestReporter.Appender
   def write(out: OutputStream): Unit
@@ -42,13 +43,18 @@ object TestReporter {
     override val err: PrintStream = new PrintStream(errStream)
   }
 
-  def create(args: Array[String]): TestReporter = {
-    new Impl(System.currentTimeMillis(), args)
+  def create(): TestReporter = {
+    new Impl()
   }
 
-  private class Impl(timestamp: Long, args: Seq[String]) extends TestReporter {
+  private class Impl() extends TestReporter {
     private val rootAppenderName = "__ROOT__"
+    private val metadataMap = mutable.LinkedHashMap[String, String]()
     private val appenderMap = mutable.LinkedHashMap[String, AppenderImpl]()
+
+    override def addMetadata(key: String, value: String): Unit = {
+      metadataMap += key -> value
+    }
 
     override def rootAppender(): Appender = {
       appenderMap.getOrElseUpdate(rootAppenderName, new AppenderImpl)
@@ -61,13 +67,6 @@ object TestReporter {
 
     override def write(out: OutputStream): Unit = {
       val writer = new PrintWriter(out)
-
-      val formatter =
-        DateTimeFormatter
-          .ofPattern("yyyy-MM-dd HH:mm:ss")
-          .withZone(ZoneId.systemDefault())
-
-      val formattedTime = formatter.format(Instant.ofEpochMilli(timestamp))
 
       def line(): Unit =
         writer.println("========================================")
@@ -87,8 +86,10 @@ object TestReporter {
       line()
       writer.println("              TEST REPORT               ")
       line()
-      writer.println(s"Timestamp : $formattedTime")
-      writer.println(s"Arguments : ${args.mkString(" ")}")
+      metadataMap.foreach {
+        case (k, v) =>
+          writer.println(s"$k : $v")
+      }
       writer.println()
 
       // ---- ROOT (suite-level) ----

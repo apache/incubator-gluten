@@ -27,13 +27,16 @@ import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
 
+import org.apache.commons.io.output.{NullOutputStream, TeeOutputStream}
+import org.apache.commons.lang3.StringUtils
 import org.apache.log4j.{Level, LogManager}
 
-import java.io.File
+import java.io.{BufferedOutputStream, File, FileNotFoundException, FileOutputStream, OutputStream, PrintStream}
+import java.time.{Instant, ZoneId}
+import java.time.format.DateTimeFormatter
 import java.util.Scanner
 
 abstract class Suite(
-    private val reporter: TestReporter,
     private val masterUrl: String,
     private val actions: Array[Action],
     private val testConf: SparkConf,
@@ -52,10 +55,12 @@ abstract class Suite(
     private val scanPartitions: Int,
     private val decimalAsDouble: Boolean,
     private val baselineMetricMapper: MetricMapper,
-    private val testMetricMapper: MetricMapper) {
+    private val testMetricMapper: MetricMapper,
+    private val reportPath: String) {
 
   resetLogLevel()
 
+  private val reporter: TestReporter = TestReporter.create()
   private var hsUiBoundPort: Int = -1
 
   private[integration] val sessionSwitcher: SparkSessionSwitcher =
@@ -151,6 +156,47 @@ abstract class Suite(
   }
 
   def run(): Boolean = {
+    val formatter =
+      DateTimeFormatter
+        .ofPattern("yyyy-MM-dd HH:mm:ss")
+        .withZone(ZoneId.systemDefault())
+    val formattedTime = formatter.format(Instant.ofEpochMilli(System.currentTimeMillis()))
+    reporter.addMetadata("Timestamp", formattedTime)
+    reporter.addMetadata("Arguments", Cli.args().mkString(" "))
+
+    // Construct the output streams for writing test reports.
+    var fileOut: OutputStream = null
+    if (!StringUtils.isBlank(reportPath)) try {
+      val file = new File(reportPath)
+      if (file.isDirectory) throw new FileNotFoundException("Is a directory: " + reportPath)
+      println("Test report will be written to " + file.getAbsolutePath)
+      fileOut = new BufferedOutputStream(new FileOutputStream(file))
+    } catch {
+      case e: FileNotFoundException =>
+        throw new RuntimeException(e)
+    }
+    else fileOut = NullOutputStream.NULL_OUTPUT_STREAM
+    val combinedOut = new PrintStream(new TeeOutputStream(System.out, fileOut), true)
+    val combinedErr = new PrintStream(new TeeOutputStream(System.err, fileOut), true)
+
+    // Execute the suite.
+    val succeeded =
+      try {
+        runActions()
+      } catch {
+        case t: Exception =>
+          t.printStackTrace(reporter.rootAppender.err)
+          false
+      }
+    if (succeeded) {
+      reporter.write(combinedOut)
+    } else {
+      reporter.write(combinedErr)
+    }
+    succeeded
+  }
+
+  private def runActions(): Boolean = {
     val succeeded = actions.forall {
       action =>
         resetLogLevel() // to prevent log level from being set by unknown external codes

@@ -27,7 +27,6 @@ import org.apache.hadoop.fs.Path
 import org.apache.log4j.Level
 
 class TpcdsSuite(
-    val reporter: TestReporter,
     val masterUrl: String,
     val actions: Array[Action],
     val testConf: SparkConf,
@@ -51,9 +50,9 @@ class TpcdsSuite(
     val scanPartitions: Int,
     val decimalAsDouble: Boolean,
     val baselineMetricMapper: MetricMapper,
-    val testMetricMapper: MetricMapper)
+    val testMetricMapper: MetricMapper,
+    val reportPath: String)
   extends Suite(
-    reporter,
     masterUrl,
     actions,
     testConf,
@@ -72,7 +71,8 @@ class TpcdsSuite(
     scanPartitions,
     decimalAsDouble,
     baselineMetricMapper,
-    testMetricMapper
+    testMetricMapper,
+    reportPath
   ) {
   import TpcdsSuite._
 

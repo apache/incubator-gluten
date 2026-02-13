@@ -23,11 +23,7 @@ import org.apache.gluten.integration.command.SparkRunModes;
 import org.apache.gluten.integration.ds.TpcdsSuite;
 import org.apache.gluten.integration.h.TpchSuite;
 import org.apache.gluten.integration.metrics.MetricMapper;
-import org.apache.gluten.integration.report.TestReporter;
 
-import org.apache.commons.io.output.NullOutputStream;
-import org.apache.commons.io.output.TeeOutputStream;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.spark.SparkConf;
@@ -213,13 +209,12 @@ public class BaseMixin {
 
     final MetricMapper baselineMetricMapper = pickMetricMapper(baselinePreset);
     final MetricMapper testMetricMapper = pickMetricMapper(preset);
-    final TestReporter reporter = TestReporter.create(Cli.args());
+
     final Suite suite;
     switch (benchmarkType) {
       case "h":
         suite =
             new TpchSuite(
-                reporter,
                 runModeEnumeration.getSparkMasterUrl(),
                 actions,
                 testConf,
@@ -243,12 +238,12 @@ public class BaseMixin {
                 scanPartitions,
                 decimalAsDouble,
                 baselineMetricMapper,
-                testMetricMapper);
+                testMetricMapper,
+                reportPath);
         break;
       case "ds":
         suite =
             new TpcdsSuite(
-                reporter,
                 runModeEnumeration.getSparkMasterUrl(),
                 actions,
                 testConf,
@@ -272,12 +267,12 @@ public class BaseMixin {
                 scanPartitions,
                 decimalAsDouble,
                 baselineMetricMapper,
-                testMetricMapper);
+                testMetricMapper,
+                reportPath);
         break;
       case "clickbench":
         suite =
             new ClickBenchSuite(
-                reporter,
                 runModeEnumeration.getSparkMasterUrl(),
                 actions,
                 testConf,
@@ -300,42 +295,15 @@ public class BaseMixin {
                 scanPartitions,
                 decimalAsDouble,
                 baselineMetricMapper,
-                testMetricMapper);
+                testMetricMapper,
+                reportPath);
         break;
       default:
         throw new IllegalArgumentException("TPC benchmark type not found: " + benchmarkType);
     }
 
-    // Construct the output streams for writing test reports.
-    final OutputStream fileOut;
-    if (!StringUtils.isBlank(reportPath)) {
-      try {
-        final File file = new File(reportPath);
-        if (file.isDirectory()) {
-          throw new FileNotFoundException("Is a directory: " + reportPath);
-        }
-        System.out.println("Test report will be written to " + file.getAbsolutePath());
-        fileOut = new BufferedOutputStream(new FileOutputStream(file));
-      } catch (FileNotFoundException e) {
-        throw new RuntimeException(e);
-      }
-    } else {
-      fileOut = NullOutputStream.NULL_OUTPUT_STREAM;
-    }
-    final PrintStream combinedOut = new PrintStream(new TeeOutputStream(System.out, fileOut), true);
-    final PrintStream combinedErr = new PrintStream(new TeeOutputStream(System.err, fileOut), true);
-
-    final boolean succeed;
-    try {
-      succeed = suite.run();
-      reporter.write(combinedOut);
-    } catch (Throwable t) {
-      t.printStackTrace(reporter.rootAppender().err());
-      reporter.write(combinedErr);
-      throw t;
-    } finally {
-      suite.close();
-    }
+    // Execute the suite.
+    final boolean succeed = suite.run();
     if (!succeed) {
       return -1;
     }
