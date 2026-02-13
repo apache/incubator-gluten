@@ -156,6 +156,7 @@ abstract class Suite(
   }
 
   def run(): Boolean = {
+    // Report metadata.
     val formatter =
       DateTimeFormatter
         .ofPattern("yyyy-MM-dd HH:mm:ss")
