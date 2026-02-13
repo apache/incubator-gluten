@@ -2062,7 +2062,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "window function: multiple window expressions specified by range in a single expression")
     .excludeCH("Gluten - Filter on row number")
     .excludeCH("Gluten - Filter on rank")
-    .excludeCH("Gluten - Filter on dense rank")
+    .excludeCH("Gluten - Filter on dense_rank")
   enableSuite[GlutenSameResultSuite]
   enableSuite[GlutenSaveLoadSuite]
   enableSuite[GlutenScalaReflectionRelationSuite]
