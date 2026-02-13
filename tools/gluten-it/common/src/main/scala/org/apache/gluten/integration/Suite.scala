@@ -19,6 +19,7 @@ package org.apache.gluten.integration
 import org.apache.gluten.integration.Constants.TYPE_MODIFIER_DECIMAL_AS_DOUBLE
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
+import org.apache.gluten.integration.report.TestReporter
 
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
@@ -32,6 +33,7 @@ import java.io.File
 import java.util.Scanner
 
 abstract class Suite(
+    private val reporter: TestReporter,
     private val masterUrl: String,
     private val actions: Array[Action],
     private val testConf: SparkConf,
@@ -178,9 +180,8 @@ abstract class Suite(
 
   protected def tableAnalyzer0(): TableAnalyzer
 
-  private def resetLogLevel(): Unit = {
-    System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, logLevel.toString)
-    LogManager.getRootLogger.setLevel(logLevel)
+  def getReporter(): TestReporter = {
+    reporter
   }
 
   private[integration] def getBaselineConf(): SparkConf = {
@@ -218,6 +219,11 @@ abstract class Suite(
   private[integration] def allQueries(): QuerySet
 
   private[integration] def desc(): String
+
+  private def resetLogLevel(): Unit = {
+    System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, logLevel.toString)
+    LogManager.getRootLogger.setLevel(logLevel)
+  }
 }
 
 object Suite {}

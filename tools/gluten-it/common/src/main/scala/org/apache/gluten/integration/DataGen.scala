@@ -71,7 +71,7 @@ object DataGen {
 
   trait Feature extends Serializable {
     def name(): String
-    def run(spark: SparkSession, source: String)
+    def run(spark: SparkSession, source: String): Unit
   }
 
   object Feature {

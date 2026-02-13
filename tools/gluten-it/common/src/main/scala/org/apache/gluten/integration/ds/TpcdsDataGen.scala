@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.integration.ds
 
-import org.apache.gluten.integration.{DataGen, ShimUtils, TypeModifier}
+import org.apache.gluten.integration.{DataGen, TypeModifier}
+import org.apache.gluten.integration.shim.Shim
 
 import org.apache.spark.sql.{Column, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.types._
@@ -124,7 +125,7 @@ class TpcdsDataGen(
               val array: Array[String] = parentAndChildRow.get(0).asScala.toArray
               Row(array: _*)
           }
-      }(ShimUtils.getExpressionEncoder(stringSchema))
+      }(Shim.getExpressionEncoder(stringSchema))
       .select(columns: _*)
       .write
       .format(source)

@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.integration.h
 
-import org.apache.gluten.integration.{DataGen, ShimUtils, TypeModifier}
+import org.apache.gluten.integration.{DataGen, TypeModifier}
+import org.apache.gluten.integration.shim.Shim
 
 import org.apache.spark.sql.{Row, SaveMode, SparkSession}
 import org.apache.spark.sql.types._
@@ -341,7 +342,7 @@ class TpchDataGen(
               modifiedRow
           }
           rows
-      }(ShimUtils.getExpressionEncoder(modifiedSchema))
+      }(Shim.getExpressionEncoder(modifiedSchema))
       .write
       .format(source)
       .mode(SaveMode.Overwrite)

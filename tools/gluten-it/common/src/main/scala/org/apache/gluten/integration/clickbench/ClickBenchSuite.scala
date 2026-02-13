@@ -19,6 +19,7 @@ package org.apache.gluten.integration.clickbench
 import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableAnalyzer, TableCreator}
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
+import org.apache.gluten.integration.report.TestReporter
 
 import org.apache.spark.SparkConf
 
@@ -32,6 +33,7 @@ import java.io.File
  * See the project: https://github.com/ClickHouse/ClickBench Site: https://benchmark.clickhouse.com/
  */
 class ClickBenchSuite(
+    val reporter: TestReporter,
     val masterUrl: String,
     val actions: Array[Action],
     val testConf: SparkConf,
@@ -56,6 +58,7 @@ class ClickBenchSuite(
     val baselineMetricMapper: MetricMapper,
     val testMetricMapper: MetricMapper)
   extends Suite(
+    reporter,
     masterUrl,
     actions,
     testConf,

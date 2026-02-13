@@ -18,15 +18,19 @@ package org.apache.gluten.integration.h
 
 import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableAnalyzer, TableCreator}
 import org.apache.gluten.integration.action.Action
+import org.apache.gluten.integration.ds.TpcdsSuite.TPCDS_WRITE_RELATIVE_PATH
 import org.apache.gluten.integration.metrics.MetricMapper
+import org.apache.gluten.integration.report.TestReporter
 
 import org.apache.spark.SparkConf
 
+import org.apache.hadoop.fs.Path
 import org.apache.log4j.Level
 
 import java.io.File
 
 class TpchSuite(
+    val reporter: TestReporter,
     val masterUrl: String,
     val actions: Array[Action],
     val testConf: SparkConf,
@@ -52,6 +56,7 @@ class TpchSuite(
     val baselineMetricMapper: MetricMapper,
     val testMetricMapper: MetricMapper)
   extends Suite(
+    reporter,
     masterUrl,
     actions,
     testConf,
@@ -78,13 +83,9 @@ class TpchSuite(
 
   override private[integration] def dataWritePath(): String = {
     val featureFlags = dataGenFeatures.map(feature => s"-$feature").mkString("")
-    if (dataDir.startsWith("hdfs://") || dataDir.startsWith("s3a://")) {
-      return s"$dataDir/$TPCH_WRITE_RELATIVE_PATH-$dataScale-$dataSource$featureFlags"
-    }
-    new File(dataDir).toPath
-      .resolve(s"$TPCH_WRITE_RELATIVE_PATH-$dataScale-$dataSource$featureFlags")
-      .toFile
-      .getAbsolutePath
+    val relative =
+      s"$TPCH_WRITE_RELATIVE_PATH-$dataScale-$dataSource$featureFlags"
+    new Path(dataDir, relative).toString
   }
 
   override private[integration] def createDataGen(): DataGen = {

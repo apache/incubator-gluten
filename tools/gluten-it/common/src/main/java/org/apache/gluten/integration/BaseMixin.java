@@ -23,16 +23,18 @@ import org.apache.gluten.integration.command.SparkRunModes;
 import org.apache.gluten.integration.ds.TpcdsSuite;
 import org.apache.gluten.integration.h.TpchSuite;
 import org.apache.gluten.integration.metrics.MetricMapper;
+import org.apache.gluten.integration.report.TestReporter;
 
+import org.apache.commons.io.output.NullOutputStream;
+import org.apache.commons.io.output.TeeOutputStream;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.spark.SparkConf;
 import picocli.CommandLine;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.*;
+import java.util.*;
 
 public class BaseMixin {
 
@@ -169,6 +171,13 @@ public class BaseMixin {
           "Extra Spark config entries applying to generated Spark session. E.g. --extra-conf=k1=v1 --extra-conf=k2=v2")
   private Map<String, String> extraSparkConf = Collections.emptyMap();
 
+  @CommandLine.Option(
+      names = {"--report"},
+      description =
+          "The file path where the test report will be written. If not specified, the report will be printed to stdout only.",
+      defaultValue = "")
+  private String reportPath;
+
   private SparkConf pickSparkConf(String preset) {
     return Preset.get(preset).getConf();
   }
@@ -204,12 +213,13 @@ public class BaseMixin {
 
     final MetricMapper baselineMetricMapper = pickMetricMapper(baselinePreset);
     final MetricMapper testMetricMapper = pickMetricMapper(preset);
-
+    final TestReporter reporter = TestReporter.create(Cli.args());
     final Suite suite;
     switch (benchmarkType) {
       case "h":
         suite =
             new TpchSuite(
+                reporter,
                 runModeEnumeration.getSparkMasterUrl(),
                 actions,
                 testConf,
@@ -238,6 +248,7 @@ public class BaseMixin {
       case "ds":
         suite =
             new TpcdsSuite(
+                reporter,
                 runModeEnumeration.getSparkMasterUrl(),
                 actions,
                 testConf,
@@ -266,6 +277,7 @@ public class BaseMixin {
       case "clickbench":
         suite =
             new ClickBenchSuite(
+                reporter,
                 runModeEnumeration.getSparkMasterUrl(),
                 actions,
                 testConf,
@@ -293,11 +305,33 @@ public class BaseMixin {
       default:
         throw new IllegalArgumentException("TPC benchmark type not found: " + benchmarkType);
     }
+
+    // Construct the output streams for writing test reports.
+    final OutputStream fileOut;
+    if (!StringUtils.isBlank(reportPath)) {
+      try {
+        final File file = new File(reportPath);
+        if (file.isDirectory()) {
+          throw new FileNotFoundException("Is a directory: " + reportPath);
+        }
+        System.out.println("Test report will be written to " + file.getAbsolutePath());
+        fileOut = new BufferedOutputStream(new FileOutputStream(file));
+      } catch (FileNotFoundException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      fileOut = NullOutputStream.INSTANCE;
+    }
+    final PrintStream combinedOut = new PrintStream(new TeeOutputStream(System.out, fileOut), true);
+    final PrintStream combinedErr = new PrintStream(new TeeOutputStream(System.err, fileOut), true);
+
     final boolean succeed;
     try {
       succeed = suite.run();
+      reporter.write(combinedOut);
     } catch (Throwable t) {
-      t.printStackTrace();
+      t.printStackTrace(reporter.rootAppender().err());
+      reporter.write(combinedErr);
       throw t;
     } finally {
       suite.close();

@@ -29,7 +29,7 @@ case class DataGenOnly(strategy: DataGenOnly.Strategy) extends Action {
         val dataPath = suite.dataWritePath()
         val alreadyExists = new File(dataPath).exists()
         if (alreadyExists) {
-          println(s"Data already exists at $dataPath, skipping generating it.")
+          println(s"Test data already exists at $dataPath, skipping generating it.")
         } else {
           gen(suite)
         }
@@ -40,9 +40,12 @@ case class DataGenOnly(strategy: DataGenOnly.Strategy) extends Action {
   }
 
   private def gen(suite: Suite): Unit = {
+    val dataPath = suite.dataWritePath()
+    println(s"Generating test data to $dataPath...")
     suite.sessionSwitcher.useSession("baseline", "Data Gen")
     val dataGen = suite.createDataGen()
     dataGen.gen()
+    println(s"All test data successfully generated at $dataPath.")
   }
 }
 

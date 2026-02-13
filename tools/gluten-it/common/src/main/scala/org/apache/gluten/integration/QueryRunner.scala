@@ -68,10 +68,9 @@ class QueryRunner(val source: String, val dataPath: String) {
   }
 
   private def fileExists(datapath: String): Boolean = {
-    if (datapath.startsWith("hdfs:") || datapath.startsWith("s3a:")) {
-      val uri = URI.create(datapath)
-      FileSystem.get(uri, new Configuration()).exists(new Path(uri.getPath))
-    } else new File(datapath).exists()
+    val path = new Path(datapath)
+    val fs = path.getFileSystem(new Configuration())
+    fs.exists(path)
   }
 }
 

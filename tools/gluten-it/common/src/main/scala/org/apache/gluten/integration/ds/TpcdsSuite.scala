@@ -19,14 +19,15 @@ package org.apache.gluten.integration.ds
 import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableAnalyzer, TableCreator}
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
+import org.apache.gluten.integration.report.TestReporter
 
 import org.apache.spark.SparkConf
 
+import org.apache.hadoop.fs.Path
 import org.apache.log4j.Level
 
-import java.io.File
-
 class TpcdsSuite(
+    val reporter: TestReporter,
     val masterUrl: String,
     val actions: Array[Action],
     val testConf: SparkConf,
@@ -52,6 +53,7 @@ class TpcdsSuite(
     val baselineMetricMapper: MetricMapper,
     val testMetricMapper: MetricMapper)
   extends Suite(
+    reporter,
     masterUrl,
     actions,
     testConf,
@@ -83,13 +85,9 @@ class TpcdsSuite(
       "non_partitioned"
     }
     val featureFlags = dataGenFeatures.map(feature => s"-$feature").mkString("")
-    if (dataDir.startsWith("hdfs://") || dataDir.startsWith("s3a://")) {
-      return s"$dataDir/$TPCDS_WRITE_RELATIVE_PATH-$dataScale-$dataSource-$partitionedFlag$featureFlags"
-    }
-    new File(dataDir).toPath
-      .resolve(s"$TPCDS_WRITE_RELATIVE_PATH-$dataScale-$dataSource-$partitionedFlag$featureFlags")
-      .toFile
-      .getAbsolutePath
+    val relative =
+      s"$TPCDS_WRITE_RELATIVE_PATH-$dataScale-$dataSource-$partitionedFlag$featureFlags"
+    new Path(dataDir, relative).toString
   }
 
   override private[integration] def createDataGen(): DataGen = {
