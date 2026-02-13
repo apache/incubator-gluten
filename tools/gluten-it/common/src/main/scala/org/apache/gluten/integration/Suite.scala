@@ -19,6 +19,7 @@ package org.apache.gluten.integration
 import org.apache.gluten.integration.Constants.TYPE_MODIFIER_DECIMAL_AS_DOUBLE
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
+import org.apache.gluten.integration.report.TestReporter
 
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
@@ -26,9 +27,13 @@ import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
 
+import org.apache.commons.io.output.{NullOutputStream, TeeOutputStream}
+import org.apache.commons.lang3.StringUtils
 import org.apache.log4j.{Level, LogManager}
 
-import java.io.File
+import java.io.{BufferedOutputStream, File, FileNotFoundException, FileOutputStream, OutputStream, PrintStream}
+import java.time.{Instant, ZoneId}
+import java.time.format.DateTimeFormatter
 import java.util.Scanner
 
 abstract class Suite(
@@ -45,14 +50,17 @@ abstract class Suite(
     private val disableAqe: Boolean,
     private val disableBhj: Boolean,
     private val disableWscg: Boolean,
+    private val enableCbo: Boolean,
     private val shufflePartitions: Int,
     private val scanPartitions: Int,
     private val decimalAsDouble: Boolean,
     private val baselineMetricMapper: MetricMapper,
-    private val testMetricMapper: MetricMapper) {
+    private val testMetricMapper: MetricMapper,
+    private val reportPath: String) {
 
   resetLogLevel()
 
+  private val reporter: TestReporter = TestReporter.create()
   private var hsUiBoundPort: Int = -1
 
   private[integration] val sessionSwitcher: SparkSessionSwitcher =
@@ -105,6 +113,19 @@ abstract class Suite(
     sessionSwitcher.addDefaultConf("spark.sql.codegen.wholeStage", "false")
   }
 
+  if (enableCbo) {
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.enabled", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.planStats.enabled", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.joinReorder.enabled", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.joinReorder.dp.threshold", "12")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.joinReorder.card.weight", "0.7")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.joinReorder.dp.star.filter", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.starSchemaDetection", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.cbo.starJoinFTRatio", "0.9")
+    sessionSwitcher.addDefaultConf("spark.sql.statistics.histogram.enabled", "true")
+    sessionSwitcher.addDefaultConf("spark.sql.statistics.histogram.numBins", "254")
+  }
+
   if (scanPartitions != -1) {
     // Scan partition number.
     sessionSwitcher.addDefaultConf(
@@ -135,12 +156,54 @@ abstract class Suite(
   }
 
   def run(): Boolean = {
-    val succeed = actions.forall {
+    // Report metadata.
+    val formatter =
+      DateTimeFormatter
+        .ofPattern("yyyy-MM-dd HH:mm:ss")
+        .withZone(ZoneId.systemDefault())
+    val formattedTime = formatter.format(Instant.ofEpochMilli(System.currentTimeMillis()))
+    reporter.addMetadata("Timestamp", formattedTime)
+    reporter.addMetadata("Arguments", Cli.args().mkString(" "))
+
+    // Construct the output streams for writing test reports.
+    var fileOut: OutputStream = null
+    if (!StringUtils.isBlank(reportPath)) try {
+      val file = new File(reportPath)
+      if (file.isDirectory) throw new FileNotFoundException("Is a directory: " + reportPath)
+      println("Test report will be written to " + file.getAbsolutePath)
+      fileOut = new BufferedOutputStream(new FileOutputStream(file))
+    } catch {
+      case e: FileNotFoundException =>
+        throw new RuntimeException(e)
+    }
+    else fileOut = NullOutputStream.NULL_OUTPUT_STREAM
+    val combinedOut = new PrintStream(new TeeOutputStream(System.out, fileOut), true)
+    val combinedErr = new PrintStream(new TeeOutputStream(System.err, fileOut), true)
+
+    // Execute the suite.
+    val succeeded =
+      try {
+        runActions()
+      } catch {
+        case t: Exception =>
+          t.printStackTrace(reporter.rootAppender.err)
+          false
+      }
+    if (succeeded) {
+      reporter.write(combinedOut)
+    } else {
+      reporter.write(combinedErr)
+    }
+    succeeded
+  }
+
+  private def runActions(): Boolean = {
+    val succeeded = actions.forall {
       action =>
         resetLogLevel() // to prevent log level from being set by unknown external codes
         action.execute(this)
     }
-    succeed
+    succeeded
   }
 
   def close(): Unit = {
@@ -155,9 +218,17 @@ abstract class Suite(
 
   def tableCreator(): TableCreator
 
-  private def resetLogLevel(): Unit = {
-    System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, logLevel.toString)
-    LogManager.getRootLogger.setLevel(logLevel)
+  final def tableAnalyzer(): TableAnalyzer = {
+    if (enableCbo) {
+      return tableAnalyzer0()
+    }
+    TableAnalyzer.noop()
+  }
+
+  protected def tableAnalyzer0(): TableAnalyzer
+
+  def getReporter(): TestReporter = {
+    reporter
   }
 
   private[integration] def getBaselineConf(): SparkConf = {
@@ -195,6 +266,11 @@ abstract class Suite(
   private[integration] def allQueries(): QuerySet
 
   private[integration] def desc(): String
+
+  private def resetLogLevel(): Unit = {
+    System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, logLevel.toString)
+    LogManager.getRootLogger.setLevel(logLevel)
+  }
 }
 
 object Suite {}
