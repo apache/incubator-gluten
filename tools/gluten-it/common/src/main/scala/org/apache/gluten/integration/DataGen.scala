@@ -22,7 +22,7 @@ import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import scala.collection.mutable
 
 trait DataGen {
-  def gen(): Unit
+  def gen(spark: SparkSession): Unit
 }
 
 abstract class TypeModifier(val predicate: DataType => Boolean, val to: DataType)

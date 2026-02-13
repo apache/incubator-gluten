@@ -91,7 +91,6 @@ class TpchSuite(
   override private[integration] def createDataGen(): DataGen = {
     checkDataGenArgs(dataSource, dataScale, genPartitionedData)
     new TpchDataGen(
-      sessionSwitcher.spark(),
       dataScale,
       shufflePartitions,
       dataSource,

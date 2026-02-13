@@ -27,9 +27,9 @@ import java.io.File
 import scala.language.postfixOps
 import scala.sys.process._
 
-class ClickBenchDataGen(spark: SparkSession, dir: String) extends DataGen {
+class ClickBenchDataGen(dir: String) extends DataGen {
   import ClickBenchDataGen._
-  override def gen(): Unit = {
+  override def gen(spark: SparkSession): Unit = {
     println(s"Start to download ClickBench Parquet dataset from URL: $DATA_URL... ")
     // Directly download from official URL.
     val tempFile = new File(dir + File.separator + TMP_FILE_NAME)

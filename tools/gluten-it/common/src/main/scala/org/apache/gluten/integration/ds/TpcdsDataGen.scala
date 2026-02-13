@@ -29,7 +29,6 @@ import java.io.File
 import scala.collection.JavaConverters._
 
 class TpcdsDataGen(
-    spark: SparkSession,
     scale: Double,
     partitions: Int,
     source: String,
@@ -47,7 +46,7 @@ class TpcdsDataGen(
 
   private val features = featureNames.map(featureRegistry.getFeature)
 
-  def writeParquetTable(t: Table): Unit = {
+  def writeParquetTable(spark: SparkSession, t: Table): Unit = {
     val name = t.getName
     if (name.equals("dbgen_version")) {
       return
@@ -89,10 +88,11 @@ class TpcdsDataGen(
       }
     }
 
-    writeParquetTable(name, t, schema, partitionBy)
+    writeParquetTable(spark, name, t, schema, partitionBy)
   }
 
   private def writeParquetTable(
+      spark: SparkSession,
       tableName: String,
       t: Table,
       schema: StructType,
@@ -135,8 +135,8 @@ class TpcdsDataGen(
       .saveAsTable(tableName)
   }
 
-  override def gen(): Unit = {
-    Table.getBaseTables.forEach(t => writeParquetTable(t))
+  override def gen(spark: SparkSession): Unit = {
+    Table.getBaseTables.forEach(t => writeParquetTable(spark, t))
 
     features.foreach(feature => DataGen.Feature.run(spark, source, feature))
   }

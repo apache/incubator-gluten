@@ -89,7 +89,7 @@ class ClickBenchSuite(
 
   override private[integration] def createDataGen(): DataGen = {
     checkDataGenArgs(dataSource, dataScale, genPartitionedData)
-    new ClickBenchDataGen(sessionSwitcher.spark(), dataWritePath())
+    new ClickBenchDataGen(dataWritePath())
   }
 
   override private[integration] def allQueries(): QuerySet = {

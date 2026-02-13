@@ -30,10 +30,6 @@ import java.net.URI
 
 class QueryRunner(val source: String, val dataPath: String) {
   import QueryRunner._
-  Preconditions.checkState(
-    fileExists(dataPath),
-    s"Data not found at $dataPath, try using command `<gluten-it> data-gen-only <options>` to generate it first.",
-    Array(): _*)
 
   def createTables(creator: TableCreator, analyzer: TableAnalyzer, spark: SparkSession): Unit = {
     creator.create(spark, source, dataPath)
@@ -49,6 +45,13 @@ class QueryRunner(val source: String, val dataPath: String) {
       executorMetrics: Seq[String] = Nil,
       randomKillTasks: Boolean = false): QueryResult = {
     try {
+      val path = new Path(dataPath)
+      val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
+      Preconditions.checkState(
+        fs.exists(path),
+        s"Data not found at $dataPath, try using command `<gluten-it> data-gen-only <options>` to generate it first.",
+        Array(): _*)
+
       val r =
         SparkQueryRunner.runQuery(
           spark,
@@ -67,11 +70,6 @@ class QueryRunner(val source: String, val dataPath: String) {
     }
   }
 
-  private def fileExists(datapath: String): Boolean = {
-    val path = new Path(datapath)
-    val fs = path.getFileSystem(new Configuration())
-    fs.exists(path)
-  }
 }
 
 object QueryRunner {

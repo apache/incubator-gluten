@@ -18,21 +18,21 @@ package org.apache.gluten.integration.action
 
 import org.apache.gluten.integration.Suite
 
-import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 case class DataGenOnly(strategy: DataGenOnly.Strategy) extends Action {
 
   override def execute(suite: Suite): Boolean = {
+    val fs = this.fs(suite)
+    val markerPath = this.markerPath(suite)
+    suite.sessionSwitcher.useSession("baseline", "Data Gen")
+
     strategy match {
       case DataGenOnly.Skip =>
         ()
 
       case DataGenOnly.Once =>
-        val fs = this.fs(suite)
         val dataPath = this.dataPath(suite)
-        val markerPath = this.markerPath(suite)
-
         if (fs.exists(dataPath) && fs.exists(markerPath)) {
           println(s"Test data already generated at $dataPath. Skipping.")
         } else {
@@ -45,18 +45,21 @@ case class DataGenOnly(strategy: DataGenOnly.Strategy) extends Action {
           if (fs.exists(markerPath)) {
             fs.delete(markerPath, true)
           }
-          genAndMark(suite)
+          gen(suite)
+          // Create marker after successful generation.
+          fs.create(markerPath, false).close()
         }
 
       case DataGenOnly.Always =>
-        genAndMark(suite)
+        gen(suite)
+        // Create marker after successful generation.
+        fs.create(markerPath, false).close()
     }
     true
   }
 
   private def fs(suite: Suite): FileSystem = {
-    val configuration = new Configuration()
-    configuration.set("fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem")
+    val configuration = suite.sessionSwitcher.spark().sessionState.newHadoopConf()
     dataPath(suite).getFileSystem(configuration)
   }
 
@@ -66,20 +69,13 @@ case class DataGenOnly(strategy: DataGenOnly.Strategy) extends Action {
   private def dataPath(suite: Suite): Path =
     new Path(suite.dataWritePath())
 
-  private def genAndMark(suite: Suite): Unit = {
+  private def gen(suite: Suite): Unit = {
     val dataPath = suite.dataWritePath()
-    val marker = markerPath(suite)
-    val fileSystem = fs(suite)
 
     println(s"Generating test data to $dataPath...")
 
-    suite.sessionSwitcher.useSession("baseline", "Data Gen")
     val dataGen = suite.createDataGen()
-    dataGen.gen()
-
-    // Create marker only after successful generation
-    val out = fileSystem.create(marker, false)
-    out.close()
+    dataGen.gen(suite.sessionSwitcher.spark())
 
     println(s"All test data successfully generated at $dataPath.")
   }

@@ -30,7 +30,6 @@ import java.sql.Date
 import scala.collection.JavaConverters._
 
 class TpchDataGen(
-    spark: SparkSession,
     scale: Double,
     partitions: Int,
     source: String,
@@ -43,21 +42,22 @@ class TpchDataGen(
   private val featureRegistry = new DataGen.FeatureRegistry
   private val features = featureNames.map(featureRegistry.getFeature)
 
-  override def gen(): Unit = {
-    generate(dir, "lineitem", lineItemSchema, partitions, lineItemGenerator, lineItemParser)
-    generate(dir, "customer", customerSchema, partitions, customerGenerator, customerParser)
-    generate(dir, "orders", orderSchema, partitions, orderGenerator, orderParser)
+  override def gen(spark: SparkSession): Unit = {
+    generate(spark, dir, "lineitem", lineItemSchema, partitions, lineItemGenerator, lineItemParser)
+    generate(spark, dir, "customer", customerSchema, partitions, customerGenerator, customerParser)
+    generate(spark, dir, "orders", orderSchema, partitions, orderGenerator, orderParser)
     generate(
+      spark,
       dir,
       "partsupp",
       partSupplierSchema,
       partitions,
       partSupplierGenerator,
       partSupplierParser)
-    generate(dir, "supplier", supplierSchema, partitions, supplierGenerator, supplierParser)
-    generate(dir, "nation", nationSchema, nationGenerator, nationParser)
-    generate(dir, "part", partSchema, partitions, partGenerator, partParser)
-    generate(dir, "region", regionSchema, regionGenerator, regionParser)
+    generate(spark, dir, "supplier", supplierSchema, partitions, supplierGenerator, supplierParser)
+    generate(spark, dir, "nation", nationSchema, nationGenerator, nationParser)
+    generate(spark, dir, "part", partSchema, partitions, partGenerator, partParser)
+    generate(spark, dir, "region", regionSchema, regionGenerator, regionParser)
 
     features.foreach(feature => DataGen.Feature.run(spark, source, feature))
   }
@@ -295,12 +295,14 @@ class TpchDataGen(
 
   // gen tpc-h data
   private def generate[U](
+      spark: SparkSession,
       dir: String,
       tableName: String,
       schema: StructType,
       gen: () => java.lang.Iterable[U],
       parser: U => Row): Unit = {
     generate(
+      spark,
       dir,
       tableName,
       schema,
@@ -312,6 +314,7 @@ class TpchDataGen(
   }
 
   private def generate[U](
+      spark: SparkSession,
       dir: String,
       tableName: String,
       schema: StructType,

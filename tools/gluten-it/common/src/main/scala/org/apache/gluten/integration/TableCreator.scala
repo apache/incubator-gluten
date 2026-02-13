@@ -39,7 +39,7 @@ object TableCreator {
   private object DiscoverFromFiles extends TableCreator {
     override def create(spark: SparkSession, source: String, dataPath: String): Unit = {
       val uri = URI.create(dataPath)
-      val fs = FileSystem.get(uri, new Configuration())
+      val fs = FileSystem.get(uri, spark.sessionState.newHadoopConf())
 
       val basePath = new Path(dataPath)
       val statuses = fs.listStatus(basePath)
