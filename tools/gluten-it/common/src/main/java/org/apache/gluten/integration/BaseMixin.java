@@ -320,7 +320,7 @@ public class BaseMixin {
         throw new RuntimeException(e);
       }
     } else {
-      fileOut = NullOutputStream.INSTANCE;
+      fileOut = NullOutputStream.NULL_OUTPUT_STREAM;
     }
     final PrintStream combinedOut = new PrintStream(new TeeOutputStream(System.out, fileOut), true);
     final PrintStream combinedErr = new PrintStream(new TeeOutputStream(System.err, fileOut), true);
