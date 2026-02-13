@@ -23,9 +23,9 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 case class DataGenOnly(strategy: DataGenOnly.Strategy) extends Action {
 
   override def execute(suite: Suite): Boolean = {
+    suite.sessionSwitcher.useSession("baseline", "Data Gen")
     val fs = this.fs(suite)
     val markerPath = this.markerPath(suite)
-    suite.sessionSwitcher.useSession("baseline", "Data Gen")
 
     strategy match {
       case DataGenOnly.Skip =>
