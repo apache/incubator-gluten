@@ -30,8 +30,8 @@ case class DataGenOnly(strategy: DataGenOnly.Strategy) extends Action {
 
       case DataGenOnly.Once =>
         val fs = this.fs(suite)
-        val dataPath = dataPath(suite)
-        val markerPath = markerPath(suite)
+        val dataPath = this.dataPath(suite)
+        val markerPath = this.markerPath(suite)
 
         if (fs.exists(dataPath) && fs.exists(markerPath)) {
           println(s"Test data already generated at $dataPath. Skipping.")
