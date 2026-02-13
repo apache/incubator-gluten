@@ -303,7 +303,12 @@ public class BaseMixin {
     }
 
     // Execute the suite.
-    final boolean succeed = suite.run();
+    final boolean succeed;
+    try {
+      succeed = suite.run();
+    } finally {
+      suite.close();
+    }
     if (!succeed) {
       return -1;
     }
