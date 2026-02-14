@@ -1122,6 +1122,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]
   enableSuite[GlutenTableLocationSuite]
   enableSuite[GlutenRemoveRedundantWindowGroupLimitsSuite]
+    // rewrite with Gluten test
+    .exclude("remove redundant WindowGroupLimits")
   enableSuite[GlutenSQLCollectLimitExecSuite]
   // Generated suites for org.apache.spark.sql.execution.python
   // TODO: 4.x enableSuite[GlutenPythonDataSourceSuite]  // 1 failure

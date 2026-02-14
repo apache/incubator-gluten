@@ -1169,9 +1169,18 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
         childNode);
   }
 
+  auto windowFunc = core::TopNRowNumberNode::RankFunction::kRowNumber;
+  if (windowGroupLimitRel.has_advanced_extension()) {
+    if (SubstraitParser::checkWindowFunction(windowGroupLimitRel.advanced_extension(), "rank")){
+        windowFunc = core::TopNRowNumberNode::RankFunction::kRank;
+    } else if (SubstraitParser::checkWindowFunction(windowGroupLimitRel.advanced_extension(), "dense_rank")) {
+        windowFunc = core::TopNRowNumberNode::RankFunction::kDenseRank;
+    }
+  }
+
   return std::make_shared<core::TopNRowNumberNode>(
       nextPlanNodeId(),
-      core::TopNRowNumberNode::RankFunction::kRowNumber,
+      windowFunc,
       partitionKeys,
       sortingKeys,
       sortingOrders,

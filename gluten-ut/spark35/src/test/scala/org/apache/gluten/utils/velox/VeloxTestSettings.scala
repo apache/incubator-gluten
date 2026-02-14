@@ -960,6 +960,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]
   enableSuite[GlutenTableLocationSuite]
   enableSuite[GlutenRemoveRedundantWindowGroupLimitsSuite]
+    // rewrite with Gluten test
+    .exclude("remove redundant WindowGroupLimits")
   enableSuite[GlutenSQLCollectLimitExecSuite]
   enableSuite[GlutenBatchEvalPythonExecSuite]
     // Replaced with other tests that check for native operations

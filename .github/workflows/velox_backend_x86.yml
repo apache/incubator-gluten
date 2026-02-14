@@ -183,7 +183,15 @@ jobs:
           source .github/workflows/util/install-resources.sh
           install_hadoop
           setup_hdfs
+      - name: Install MinIO
+        if: matrix.os == 'ubuntu:22.04' && matrix.spark == 'spark-3.5' && matrix.java == 'java-8'
+        shell: bash
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
+          source .github/workflows/util/install-resources.sh
+          install_minio
       - name: Build and run TPC-H / TPC-DS
+        shell: bash
         run: |
           cd $GITHUB_WORKSPACE/
           export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
@@ -198,6 +206,14 @@ jobs:
           esac
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          # Setup S3 JARs after gluten-it build 
+          if [ "${{ matrix.os }}" = "ubuntu:22.04" ] && \
+            [ "${{ matrix.spark }}" = "spark-3.5" ] && \
+            [ "${{ matrix.java }}" = "java-8" ]; then
+            source $GITHUB_WORKSPACE/.github/workflows/util/install-resources.sh
+            SPARK_VERSION=$(echo "${{ matrix.spark }}" | sed 's/spark-//')
+            setup_minio "$SPARK_VERSION"
+          fi
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
@@ -208,6 +224,14 @@ jobs:
             GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
             --queries=q1 --data-dir="hdfs://localhost:9000/test"
+            GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+            --queries=q1 --data-dir="s3a://gluten-it/test" \
+            --extra-conf=spark.hadoop.fs.s3a.endpoint=http://localhost:9100 \
+            --extra-conf=spark.hadoop.fs.s3a.access.key=admin \
+            --extra-conf=spark.hadoop.fs.s3a.secret.key=admin123 \
+            --extra-conf=spark.hadoop.fs.s3a.path.style.access=true \
+            --extra-conf=spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
           fi
 
   tpc-test-centos8:
@@ -1308,7 +1332,7 @@ jobs:
           mkdir -p /work/.ccache
 
           cd /work
-          bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
+          #bash dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON --build_benchmarks=ON --enable_gpu=ON # TODO: re-enable tests with more disk space
           rm -rf ep/build-velox/build/velox_ep
           build/mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
           ccache -s

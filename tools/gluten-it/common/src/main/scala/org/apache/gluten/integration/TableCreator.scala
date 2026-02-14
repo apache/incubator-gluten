@@ -31,14 +31,15 @@ trait TableCreator {
 }
 
 object TableCreator {
-  def discoverSchema(): TableCreator = {
-    DiscoverSchema
+  def discoverFromFiles(): TableCreator = {
+    DiscoverFromFiles
   }
 
-  private object DiscoverSchema extends TableCreator {
+  /** Discover tables automatically from a given file system path. */
+  private object DiscoverFromFiles extends TableCreator {
     override def create(spark: SparkSession, source: String, dataPath: String): Unit = {
       val uri = URI.create(dataPath)
-      val fs = FileSystem.get(uri, new Configuration())
+      val fs = FileSystem.get(uri, spark.sessionState.newHadoopConf())
 
       val basePath = new Path(dataPath)
       val statuses = fs.listStatus(basePath)
@@ -57,7 +58,7 @@ object TableCreator {
           tableNames += tableName
       }
 
-      println("Creating catalog tables: " + tableNames.mkString(", "))
+      println("Creating catalog tables: " + tableNames.mkString(", ") + "...")
 
       tableDirs.foreach {
         tablePath =>
@@ -80,13 +81,13 @@ object TableCreator {
         return
       }
       if (existedTableNames.nonEmpty) {
-        println("Tables already exists: " + existedTableNames.mkString(", "))
+        println("Tables already exists: " + existedTableNames.mkString(", ") + ".")
       }
       if (createdTableNames.nonEmpty) {
-        println("Tables created: " + createdTableNames.mkString(", "))
+        println("Tables created: " + createdTableNames.mkString(", ") + ".")
       }
       if (recoveredPartitionTableNames.nonEmpty) {
-        println("Recovered partition tables: " + recoveredPartitionTableNames.mkString(", "))
+        println("Recovered partition tables: " + recoveredPartitionTableNames.mkString(", ") + ".")
       }
     }
   }

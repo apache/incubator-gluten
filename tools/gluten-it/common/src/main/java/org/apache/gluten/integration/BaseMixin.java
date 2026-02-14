@@ -29,10 +29,8 @@ import org.apache.log4j.LogManager;
 import org.apache.spark.SparkConf;
 import picocli.CommandLine;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.*;
+import java.util.*;
 
 public class BaseMixin {
 
@@ -118,7 +116,7 @@ public class BaseMixin {
   private int hsUiPort;
 
   @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
-  SparkRunModes.Mode.Enumeration runModeEnumeration;
+  private SparkRunModes.Mode.Enumeration runModeEnumeration;
 
   @CommandLine.Option(
       names = {"--disable-aqe"},
@@ -137,6 +135,12 @@ public class BaseMixin {
       description = "Disable Spark SQL whole stage code generation",
       defaultValue = "false")
   private boolean disableWscg;
+
+  @CommandLine.Option(
+      names = {"--enable-cbo"},
+      description = "Enable Spark CBO and analyze all tables before running queries",
+      defaultValue = "false")
+  private boolean enableCbo;
 
   @CommandLine.Option(
       names = {"--shuffle-partitions"},
@@ -162,6 +166,13 @@ public class BaseMixin {
       description =
           "Extra Spark config entries applying to generated Spark session. E.g. --extra-conf=k1=v1 --extra-conf=k2=v2")
   private Map<String, String> extraSparkConf = Collections.emptyMap();
+
+  @CommandLine.Option(
+      names = {"--report"},
+      description =
+          "The file path where the test report will be written. If not specified, the report will be printed to stdout only.",
+      defaultValue = "")
+  private String reportPath;
 
   private SparkConf pickSparkConf(String preset) {
     return Preset.get(preset).getConf();
@@ -222,11 +233,13 @@ public class BaseMixin {
                 disableAqe,
                 disableBhj,
                 disableWscg,
+                enableCbo,
                 shufflePartitions,
                 scanPartitions,
                 decimalAsDouble,
                 baselineMetricMapper,
-                testMetricMapper);
+                testMetricMapper,
+                reportPath);
         break;
       case "ds":
         suite =
@@ -249,11 +262,13 @@ public class BaseMixin {
                 disableAqe,
                 disableBhj,
                 disableWscg,
+                enableCbo,
                 shufflePartitions,
                 scanPartitions,
                 decimalAsDouble,
                 baselineMetricMapper,
-                testMetricMapper);
+                testMetricMapper,
+                reportPath);
         break;
       case "clickbench":
         suite =
@@ -275,21 +290,22 @@ public class BaseMixin {
                 disableAqe,
                 disableBhj,
                 disableWscg,
+                enableCbo,
                 shufflePartitions,
                 scanPartitions,
                 decimalAsDouble,
                 baselineMetricMapper,
-                testMetricMapper);
+                testMetricMapper,
+                reportPath);
         break;
       default:
         throw new IllegalArgumentException("TPC benchmark type not found: " + benchmarkType);
     }
+
+    // Execute the suite.
     final boolean succeed;
     try {
       succeed = suite.run();
-    } catch (Throwable t) {
-      t.printStackTrace();
-      throw t;
     } finally {
       suite.close();
     }
