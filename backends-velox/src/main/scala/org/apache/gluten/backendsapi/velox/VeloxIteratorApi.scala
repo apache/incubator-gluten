@@ -161,7 +161,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
               case _: DateType =>
                 DateFormatter.apply().format(pv.asInstanceOf[Integer])
               case _: DecimalType =>
-                pv.asInstanceOf[Decimal].toJavaBigInteger.toString
+                pv.asInstanceOf[Decimal].toJavaBigDecimal.unscaledValue().toString
               case _: TimestampType =>
                 TimestampFormatter
                   .getFractionFormatter(ZoneOffset.UTC)
