@@ -44,6 +44,12 @@ class SplitAwareColumnarBatchIterator : public ColumnarBatchIterator {
   /// Signal that no more splits will be added to this iterator.
   /// This must be called after all splits have been added to ensure proper task completion.
   virtual void noMoreSplits() = 0;
+
+  /// Request a barrier in task execution. This signals the task to finish processing
+  /// all currently queued splits and drain all stateful operators before continuing.
+  /// Enables task reuse and deterministic execution for streaming workloads.
+  /// @see https://facebookincubator.github.io/velox/develop/task-barrier.html
+  virtual void requestBarrier() = 0;
 };
 
 } // namespace gluten
