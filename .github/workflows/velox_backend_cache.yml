@@ -91,7 +91,7 @@ jobs:
         os: [ ubuntu-22.04, ubuntu-24.04-arm ]
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
