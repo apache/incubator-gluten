@@ -189,12 +189,18 @@ abstract class Suite(
           t.printStackTrace(reporter.rootAppender.err)
           false
       }
-    if (succeeded) {
-      reporter.write(combinedOut)
-    } else {
-      reporter.write(combinedErr)
+    try {
+      if (succeeded) {
+        reporter.write(combinedOut)
+        combinedOut.flush()
+      } else {
+        reporter.write(combinedErr)
+        combinedErr.flush()
+      }
+      succeeded
+    } finally {
+      fileOut.close()
     }
-    succeeded
   }
 
   private def runActions(): Boolean = {
