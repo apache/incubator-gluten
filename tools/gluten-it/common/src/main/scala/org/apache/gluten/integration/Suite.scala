@@ -166,17 +166,19 @@ abstract class Suite(
     reporter.addMetadata("Arguments", Cli.args().mkString(" "))
 
     // Construct the output streams for writing test reports.
-    var fileOut: OutputStream = null
-    if (!StringUtils.isBlank(reportPath)) try {
-      val file = new File(reportPath)
-      if (file.isDirectory) throw new FileNotFoundException("Is a directory: " + reportPath)
-      println("Test report will be written to " + file.getAbsolutePath)
-      fileOut = new BufferedOutputStream(new FileOutputStream(file))
-    } catch {
-      case e: FileNotFoundException =>
-        throw new RuntimeException(e)
-    }
-    else fileOut = NullOutputStream.NULL_OUTPUT_STREAM
+    val fileOut: OutputStream =
+      if (!StringUtils.isBlank(reportPath)) try {
+        val file = new File(reportPath)
+        if (file.isDirectory) throw new FileNotFoundException("Is a directory: " + reportPath)
+        println("Test report will be written to " + file.getAbsolutePath)
+        new BufferedOutputStream(new FileOutputStream(file))
+      } catch {
+        case e: FileNotFoundException =>
+          throw new RuntimeException(e)
+      }
+      else {
+        NullOutputStream.NULL_OUTPUT_STREAM
+      }
     val combinedOut = new PrintStream(new TeeOutputStream(System.out, fileOut), true)
     val combinedErr = new PrintStream(new TeeOutputStream(System.err, fileOut), true)
 
