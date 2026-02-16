@@ -637,7 +637,7 @@ arrow::Status VeloxHashShuffleWriter::splitBinaryType(
     auto& binaryBuf = dst[pid];
 
     // use 32bit offset
-    auto dstLengthBase = (StringLengthType*)(binaryBuf.lengthPtr) + partitionBufferBase_[pid];
+    auto dstLengthBase = reinterpret_cast<StringLengthType*>(binaryBuf.lengthPtr) + partitionBufferBase_[pid];
 
     auto valueOffset = binaryBuf.valueOffset;
     auto dstValuePtr = binaryBuf.valuePtr + valueOffset;
@@ -661,7 +661,7 @@ arrow::Status VeloxHashShuffleWriter::splitBinaryType(
       if (valueOffset >= capacity) {
         auto oldCapacity = capacity;
         (void)oldCapacity; // suppress warning
-        capacity = capacity + std::max((capacity >> multiply), (uint64_t)stringLen);
+        capacity = capacity + std::max((capacity >> multiply), static_cast<uint64_t>(stringLen));
         multiply = std::min(3, multiply + 1);
 
         const auto& valueBuffer = partitionBuffers_[fixedWidthColumnCount_ + binaryIdx][pid][kBinaryValueBufferIndex];
@@ -675,7 +675,7 @@ arrow::Status VeloxHashShuffleWriter::splitBinaryType(
         binaryBuf.valueCapacity = capacity;
         dstValuePtr = binaryBuf.valuePtr + valueOffset - stringLen;
         // Need to update dstLengthBase because lengthPtr can be updated if Reserve triggers spill.
-        dstLengthBase = (StringLengthType*)(binaryBuf.lengthPtr) + partitionBufferBase_[pid];
+        dstLengthBase = reinterpret_cast<StringLengthType*>(binaryBuf.lengthPtr) + partitionBufferBase_[pid];
       }
 
       // 2. copy value
