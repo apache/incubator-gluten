@@ -33,6 +33,7 @@ class HashTableBuilder {
       facebook::velox::core::JoinType joinType,
       bool nullAware,
       bool withFilter,
+      int64_t bloomFilterPushdownSize,
       const std::vector<facebook::velox::core::FieldAccessTypedExprPtr>& joinKeys,
       const facebook::velox::RowTypePtr& inputType,
       facebook::velox::memory::MemoryPool* pool);
@@ -94,6 +95,8 @@ class HashTableBuilder {
   folly::F14FastMap<column_index_t, column_index_t> keyChannelMap_;
 
   const facebook::velox::RowTypePtr& inputType_;
+
+  int64_t bloomFilterPushdownSize_;
 
   facebook::velox::memory::MemoryPool* pool_;
 };

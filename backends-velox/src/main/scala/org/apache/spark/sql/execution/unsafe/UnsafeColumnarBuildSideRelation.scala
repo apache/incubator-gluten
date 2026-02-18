@@ -185,7 +185,8 @@ class UnsafeColumnarBuildSideRelation(
             broadcastContext.hasMixedFiltCondition,
             broadcastContext.isExistenceJoin,
             SubstraitUtil.toNameStruct(newOutput).toByteArray,
-            broadcastContext.isNullAwareAntiJoin
+            broadcastContext.isNullAwareAntiJoin,
+            broadcastContext.bloomFilterPushdownSize
           )
 
         jniWrapper.close(serializeHandle)

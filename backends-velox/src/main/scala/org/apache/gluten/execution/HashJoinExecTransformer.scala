@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.VeloxConfig
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions._
@@ -143,6 +145,11 @@ case class BroadcastHashJoinExecTransformer(
     }
 
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
+    val bloomFilterPushdownSize = if (VeloxConfig.get.hashProbeDynamicFilterPushdownEnabled) {
+      VeloxConfig.get.hashProbeBloomFilterPushdownMaxSize
+    } else {
+      -1
+    }
     val context =
       BroadcastHashJoinContext(
         buildKeyExprs,
@@ -152,7 +159,8 @@ case class BroadcastHashJoinExecTransformer(
         joinType.isInstanceOf[ExistenceJoin],
         buildPlan.output,
         buildBroadcastTableId,
-        isNullAwareAntiJoin
+        isNullAwareAntiJoin,
+        bloomFilterPushdownSize
       )
     val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast, context)
     // FIXME: Do we have to make build side a RDD?
@@ -168,4 +176,5 @@ case class BroadcastHashJoinContext(
     isExistenceJoin: Boolean,
     buildSideStructure: Seq[Attribute],
     buildHashTableId: String,
-    isNullAwareAntiJoin: Boolean = false)
+    isNullAwareAntiJoin: Boolean = false,
+    bloomFilterPushdownSize: Long)

@@ -34,6 +34,7 @@
 #include "memory/AllocationListener.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
+#include "operators/hashjoin/HashTableBuilder.h"
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
 #include "utils/ObjectStore.h"
@@ -41,7 +42,6 @@
 #include "velox/common/base/BloomFilter.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/exec/HashTable.h"
-#include "operators/hashjoin/HashTableBuilder.h"
 
 #ifdef GLUTEN_ENABLE_GPU
 #include "cudf/CudfPlanValidator.h"
@@ -89,8 +89,7 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
   blockStripesConstructor = getMethodIdOrError(env, blockStripesClass, "<init>", "(J[J[II[[B)V");
 
-  batchWriteMetricsClass =
-    createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/BatchWriteMetrics;");
+  batchWriteMetricsClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/BatchWriteMetrics;");
   batchWriteMetricsConstructor = getMethodIdOrError(env, batchWriteMetricsClass, "<init>", "(JIJJ)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
@@ -190,8 +189,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT jboolean JNICALL
-Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateExpression( // NOLINT
+JNIEXPORT jboolean JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateExpression( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jbyteArray exprArray,
@@ -446,8 +444,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchResizerJniWrapper
   auto ctx = getRuntime(env, wrapper);
   auto pool = dynamic_cast<VeloxMemoryManager*>(ctx->memoryManager())->getLeafMemoryPool();
   auto iter = makeJniColumnarBatchIterator(env, jIter, ctx);
-  auto appender = std::make_shared<ResultIterator>(
-      std::make_unique<VeloxBatchResizer>(pool.get(), minOutputBatchSize, maxOutputBatchSize, preferredBatchBytes, std::move(iter)));
+  auto appender = std::make_shared<ResultIterator>(std::make_unique<VeloxBatchResizer>(
+      pool.get(), minOutputBatchSize, maxOutputBatchSize, preferredBatchBytes, std::move(iter)));
   return ctx->saveObject(appender);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
@@ -590,12 +588,15 @@ Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_splitBlockByPartitio
   const auto numRows = inputRowVector->size();
 
   connector::hive::PartitionIdGenerator idGen(
-      asRowType(inputRowVector->type()), partitionColIndicesVec, 65536, pool.get()
+      asRowType(inputRowVector->type()),
+      partitionColIndicesVec,
+      65536,
+      pool.get()
 #ifdef GLUTEN_ENABLE_ENHANCED_FEATURES
-      ,
+          ,
       true
-#endif    
-    );
+#endif
+  );
   raw_vector<uint64_t> partitionIds{};
   idGen.run(inputRowVector, partitionIds);
   GLUTEN_CHECK(partitionIds.size() == numRows, "Mismatched number of partition ids");
@@ -921,12 +922,12 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrappe
   auto writer = ObjectStore::retrieve<IcebergWriter>(writerHandle);
   auto writeStats = writer->writeStats();
   jobject writeMetrics = env->NewObject(
-    batchWriteMetricsClass,
-    batchWriteMetricsConstructor,
-    writeStats.numWrittenBytes,
-    writeStats.numWrittenFiles,
-    writeStats.writeIOTimeNs,
-    writeStats.writeWallNs);
+      batchWriteMetricsClass,
+      batchWriteMetricsConstructor,
+      writeStats.numWrittenBytes,
+      writeStats.numWrittenFiles,
+      writeStats.writeIOTimeNs,
+      writeStats.writeWallNs);
   return writeMetrics;
 
   JNI_METHOD_END(nullptr)
@@ -943,7 +944,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
     jboolean hasMixedJoinCondition,
     jboolean isExistenceJoin,
     jbyteArray namedStruct,
-    jboolean isNullAwareAntiJoin) {
+    jboolean isNullAwareAntiJoin,
+    jlong bloomFilterPushdownSize) {
   JNI_METHOD_START
   const auto hashTableId = jStringToCString(env, tableId);
   const auto hashJoinKey = jStringToCString(env, joinKey);
@@ -981,6 +983,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
       hasMixedJoinCondition,
       isExistenceJoin,
       isNullAwareAntiJoin,
+      bloomFilterPushdownSize,
       cb,
       defaultLeafVeloxMemoryPool());
   return gluten::hashTableObjStore->save(hashTableHandler);

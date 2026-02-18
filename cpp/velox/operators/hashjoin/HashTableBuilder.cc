@@ -60,6 +60,7 @@ HashTableBuilder::HashTableBuilder(
     facebook::velox::core::JoinType joinType,
     bool nullAware,
     bool withFilter,
+    int64_t bloomFilterPushdownSize,
     const std::vector<facebook::velox::core::FieldAccessTypedExprPtr>& joinKeys,
     const facebook::velox::RowTypePtr& inputType,
     facebook::velox::memory::MemoryPool* pool)
@@ -68,6 +69,7 @@ HashTableBuilder::HashTableBuilder(
       withFilter_(withFilter),
       keyChannelMap_(joinKeys.size()),
       inputType_(inputType),
+      bloomFilterPushdownSize_(bloomFilterPushdownSize),
       pool_(pool) {
   const auto numKeys = joinKeys.size();
   keyChannels_.reserve(numKeys);
@@ -155,7 +157,7 @@ void HashTableBuilder::setupTable() {
           needProbedFlag, // hasProbedFlag
           1'000, // operatorCtx_->driverCtx()->queryConfig().minTableRowsForParallelJoinBuild()
           pool_,
-          true);
+          bloomFilterPushdownSize_);
     }
   }
   analyzeKeys_ = table_->hashMode() != facebook::velox::exec::BaseHashTable::HashMode::kHash;
