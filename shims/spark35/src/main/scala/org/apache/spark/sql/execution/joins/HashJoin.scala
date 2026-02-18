@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.joins
 
+import org.apache.spark.SparkContext
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
 import org.apache.spark.sql.catalyst.analysis.CastSupport
 import org.apache.spark.sql.catalyst.expressions._
@@ -25,7 +26,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
-import org.apache.spark.sql.execution.{CodegenSupport, ExplainUtils, RowIterator}
+import org.apache.spark.sql.execution.{CodegenSupport, ExplainUtils, RowIterator, SQLExecution}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{BooleanType, IntegralType, LongType}
 
@@ -709,10 +710,27 @@ trait HashJoin extends JoinCodegenSupport {
 
 object HashJoin extends CastSupport with SQLConfHelper {
 
-  private def canRewriteAsLongType(keys: Seq[Expression]): Boolean = {
-    // TODO: support BooleanType, DateType and TimestampType
-    keys.forall(_.dataType.isInstanceOf[IntegralType]) &&
-    keys.map(_.dataType.defaultSize).sum <= 8 && false
+  def canRewriteAsLongType(keys: Seq[Expression]): Boolean = {
+    val sparkCanRewrite = keys.forall(_.dataType.isInstanceOf[IntegralType]) &&
+      keys.map(_.dataType.defaultSize).sum <= 8
+
+    if (!sparkCanRewrite) {
+      return false
+    }
+
+    // Try to get executionId from  SparkContext (on driver)
+    val (currentExecId, targetExecId) = if (SparkContext.getActive.isDefined) {
+      (
+        SparkContext.getActive.get.getLocalProperty(SQLExecution.EXECUTION_ID_KEY),
+        SparkContext.getActive.get.getLocalProperty("gluten.rewriteLong.executionId"))
+    } else {
+      (null, null)
+    }
+
+    val rewriteEnabled =
+      currentExecId != null && targetExecId != null && currentExecId == targetExecId
+
+    rewriteEnabled
   }
 
   /**
