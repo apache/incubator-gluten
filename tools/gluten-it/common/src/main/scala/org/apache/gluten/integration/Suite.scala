@@ -20,18 +20,17 @@ import org.apache.gluten.integration.Constants.TYPE_MODIFIER_DECIMAL_AS_DOUBLE
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
 import org.apache.gluten.integration.report.TestReporter
-
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
-
 import org.apache.commons.io.output.{NullOutputStream, TeeOutputStream}
 import org.apache.commons.lang3.StringUtils
+import org.apache.hadoop.fs.Path
 import org.apache.log4j.{Level, LogManager}
 
-import java.io.{BufferedOutputStream, File, FileNotFoundException, FileOutputStream, OutputStream, PrintStream}
+import java.io.{BufferedOutputStream, File, OutputStream, PrintStream}
 import java.time.{Instant, ZoneId}
 import java.time.format.DateTimeFormatter
 import java.util.Scanner
@@ -167,16 +166,22 @@ abstract class Suite(
 
     // Construct the output streams for writing test reports.
     val fileOut: OutputStream =
-      if (!StringUtils.isBlank(reportPath)) try {
-        val file = new File(reportPath)
-        if (file.isDirectory) throw new FileNotFoundException("Is a directory: " + reportPath)
-        println("Test report will be written to " + file.getAbsolutePath)
-        new BufferedOutputStream(new FileOutputStream(file))
-      } catch {
-        case e: FileNotFoundException =>
-          throw new RuntimeException(e)
-      }
-      else {
+      if (!StringUtils.isBlank(reportPath)) {
+        try {
+          sessionSwitcher.useSession("baseline", "Suite Initialization")
+          val conf = sessionSwitcher.spark().sessionState.newHadoopConf()
+          val path = new Path(reportPath)
+          val fs = path.getFileSystem(conf)
+          if (fs.exists(path) && fs.getFileStatus(path).isDirectory) {
+            throw new java.io.FileNotFoundException("Is a directory: " + reportPath)
+          }
+          println(s"Test report will be written to ${path.toString}")
+          new BufferedOutputStream(fs.create(path, true)) // overwrite = true
+        } catch {
+          case e: java.io.FileNotFoundException =>
+            throw new RuntimeException(e)
+        }
+      } else {
         NullOutputStream.NULL_OUTPUT_STREAM
       }
     val combinedOut = new PrintStream(new TeeOutputStream(System.out, fileOut), true)
