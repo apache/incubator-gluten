@@ -28,7 +28,14 @@ public class PaimonLocalFilesBuilder {
       List<Map<String, String>> partitionColumns,
       LocalFilesNode.ReadFileFormat fileFormat,
       List<String> preferredLocations,
-      Map<String, String> properties) {
+      Map<String, String> properties,
+      List<Integer> buckets,
+      List<Long> firstRowIds,
+      List<Long> maxSequenceNumbers,
+      List<Integer> splitGroups,
+      boolean useHiveSplit,
+      List<String> primaryKeys,
+      boolean allRawConvertible) {
     return new PaimonLocalFilesNode(
         index,
         paths,
@@ -37,6 +44,13 @@ public class PaimonLocalFilesBuilder {
         partitionColumns,
         fileFormat,
         preferredLocations,
-        properties);
+        properties,
+        buckets,
+        firstRowIds,
+        maxSequenceNumbers,
+        splitGroups,
+        useHiveSplit,
+        primaryKeys,
+        allRawConvertible);
   }
 }

@@ -16,11 +16,25 @@
  */
 package org.apache.gluten.substrait.rel;
 
+import org.apache.gluten.config.GlutenConfig;
+
+import io.substrait.proto.ReadRel;
+import io.substrait.proto.ReadRel.LocalFiles.FileOrFiles.OrcReadOptions;
+import io.substrait.proto.ReadRel.LocalFiles.FileOrFiles.PaimonReadOptions;
+import io.substrait.proto.ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class PaimonLocalFilesNode extends LocalFilesNode {
+  private final List<Integer> buckets;
+  private final List<Long> firstRowIds;
+  private final List<Long> maxSequenceNumbers;
+  private final List<Integer> splitGroups;
+  private final boolean useHiveSplit;
+  private final List<String> primaryKeys;
+  private final boolean allRawConvertible;
 
   public PaimonLocalFilesNode(
       Integer index,
@@ -30,7 +44,14 @@ public class PaimonLocalFilesNode extends LocalFilesNode {
       List<Map<String, String>> partitionColumns,
       ReadFileFormat fileFormat,
       List<String> preferredLocations,
-      Map<String, String> properties) {
+      Map<String, String> properties,
+      List<Integer> buckets,
+      List<Long> firstRowIds,
+      List<Long> maxSequenceNumbers,
+      List<Integer> splitGroups,
+      boolean useHiveSplit,
+      List<String> primaryKeys,
+      boolean allRawConvertible) {
     super(
         index,
         paths,
@@ -44,5 +65,45 @@ public class PaimonLocalFilesNode extends LocalFilesNode {
         preferredLocations,
         properties,
         new ArrayList<>());
+    this.buckets = buckets;
+    this.firstRowIds = firstRowIds;
+    this.maxSequenceNumbers = maxSequenceNumbers;
+    this.splitGroups = splitGroups;
+    this.useHiveSplit = useHiveSplit;
+    this.primaryKeys = primaryKeys;
+    this.allRawConvertible = allRawConvertible;
+  }
+
+  @Override
+  protected void processFileBuilder(ReadRel.LocalFiles.FileOrFiles.Builder fileBuilder, int index) {
+    Integer bucket = buckets.get(index);
+    Long firstRowId = firstRowIds.get(index);
+    Long maxSequenceNumber = maxSequenceNumbers.get(index);
+    Integer splitGroup = splitGroups.get(index);
+    PaimonReadOptions.Builder paimonBuilder = PaimonReadOptions.newBuilder();
+    paimonBuilder.setBucket(bucket);
+    paimonBuilder.setFirstRowId(firstRowId);
+    paimonBuilder.setMaxSequenceNumber(maxSequenceNumber);
+    paimonBuilder.setSplitGroup(splitGroup);
+    paimonBuilder.setUseHiveSplit(useHiveSplit);
+    paimonBuilder.addAllPrimaryKeys(primaryKeys);
+    paimonBuilder.setRawConvertible(allRawConvertible);
+
+    switch (fileFormat) {
+      case ParquetReadFormat:
+        ParquetReadOptions parquetReadOptions =
+            ParquetReadOptions.newBuilder()
+                .setEnableRowGroupMaxminIndex(GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
+                .build();
+        paimonBuilder.setParquet(parquetReadOptions);
+        break;
+      case OrcReadFormat:
+        paimonBuilder.setOrc(OrcReadOptions.newBuilder().build());
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported file format " + fileFormat.name() + " for paimon data file.");
+    }
+    fileBuilder.setPaimon(paimonBuilder);
   }
 }

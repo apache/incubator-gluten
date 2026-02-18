@@ -21,7 +21,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.extensions.ExtensionBuilder
+import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
@@ -106,6 +106,17 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
   }
 
+  def getAdvancedExtension: Option[AdvancedExtensionNode] = {
+    // used by CH backend
+    val optimizationContent =
+      s"isMergeTree=${if (this.fileFormat == ReadFileFormat.MergeTreeReadFormat) "1" else "0"}\n"
+
+    val optimization =
+      BackendsApiManager.getTransformerApiInstance.packPBMessage(
+        StringValue.newBuilder.setValue(optimizationContent).build)
+    Some(ExtensionBuilder.makeAdvancedExtension(optimization, null))
+  }
+
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
@@ -131,23 +142,15 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     val filterNodes = transformer.map(_.doTransform(context))
     val exprNode = filterNodes.orNull
 
-    // used by CH backend
-    val optimizationContent =
-      s"isMergeTree=${if (this.fileFormat == ReadFileFormat.MergeTreeReadFormat) "1" else "0"}\n"
-
-    val optimization =
-      BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder.setValue(optimizationContent).build)
-    val extensionNode = ExtensionBuilder.makeAdvancedExtension(optimization, null)
-
     val readNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
       columnTypeNodes,
       exprNode,
-      extensionNode,
+      getAdvancedExtension.getOrElse(ExtensionBuilder.makeAdvancedExtension(null)),
       context,
-      context.nextOperatorId(this.nodeName))
+      context.nextOperatorId(this.nodeName)
+    )
     getInputStats.foreach(
       inputStats => {
         // scalastyle:off println

@@ -122,6 +122,7 @@ set(BOLT_SRCS
     compute/TaskStatusListener.cc
     compute/WholeStageResultIterator.cc
     # compute/iceberg/IcebergPlanConverter.cc
+    compute/paimon/PaimonPlanUtils.cc
     jni/JniFileSystem.cc
     jni/JniUdf.cc
     jni/BoltJniWrapper.cc

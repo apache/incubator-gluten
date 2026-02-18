@@ -18,6 +18,7 @@
 #include "SubstraitToBoltPlan.h"
 #include <bolt/common/compression/Compression.h>
 
+#include "PaimonTableEnhancement.pb.h"
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
@@ -1335,6 +1336,25 @@ core::PlanNodePtr SubstraitToBoltPlanConverter::toBoltPlan(const ::substrait::Re
     SubstraitParser::parseColumnTypes(baseSchema, columnTypes);
   }
 
+  std::unordered_map<std::string, std::string> tableParameters;
+  if (readRel.has_advanced_extension()) {
+    const auto& ext = readRel.advanced_extension();
+    if (ext.has_enhancement()) {
+      gluten::PaimonTableEnhancement paimonParameters;
+      if (ext.enhancement().UnpackTo(&paimonParameters)) {
+        for (const auto& item : *(paimonParameters.mutable_table_properties())) {
+          tableParameters.emplace(item.first, item.second);
+        }
+      }
+    }
+    std::ostringstream paramstream;
+    for (const auto& item : tableParameters) {
+      paramstream << "[" << item.first << "=" << item.second << "];";
+    }
+    LOG(INFO) << "Adding table parameters: " << paramstream.str();
+  }
+
+
   // Bolt requires Filter Pushdown must being enabled.
   bool filterPushdownEnabled = true;
   auto names = colNameList;
@@ -1356,7 +1376,7 @@ core::PlanNodePtr SubstraitToBoltPlanConverter::toBoltPlan(const ::substrait::Re
   }
   bytedance::bolt::connector::hive::SubfieldFilters subfieldFilters;
   tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-      connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, tableSchema);
+      connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, tableSchema, tableParameters);
 
   // Get assignments and out names.
   std::vector<std::string> outNames;

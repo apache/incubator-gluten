@@ -19,6 +19,7 @@
 #include <filesystem>
 
 #include "compute/ResultIterator.h"
+#include "compute/paimon/PaimonPlanUtils.h"
 #include "config/GlutenConfig.h"
 // #include "iceberg/IcebergPlanConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
@@ -97,6 +98,9 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
       // case SubstraitFileFormatCase::kIceberg:
       //   splitInfo = IcebergPlanConverter::parseIcebergSplitInfo(file, std::move(splitInfo));
       //   break;
+      case SubstraitFileFormatCase::kPaimon:
+        splitInfo = gluten::paimon::PaimonPlanUtils::parsePaimonSplitInfo(file, std::move(splitInfo));
+        break;
       default:
         splitInfo->format = dwio::common::FileFormat::UNKNOWN;
         break;

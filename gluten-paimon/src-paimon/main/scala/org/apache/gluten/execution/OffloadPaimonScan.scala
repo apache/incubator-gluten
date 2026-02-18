@@ -23,8 +23,8 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
 case class OffloadPaimonScan() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case scan: BatchScanExec if PaimonScanTransformer.supportsBatchScan(scan.scan) =>
-      PaimonScanTransformer(scan)
+    case scan: BatchScanExec if AbstractPaimonScanTransformer.supportsBatchScan(scan.scan).ok() =>
+      AbstractPaimonScanTransformer(scan)
     case other => other
   }
 }

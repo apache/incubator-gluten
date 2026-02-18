@@ -14,8 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <fmt/ranges.h>
 #include "WholeStageResultIterator.h"
 #include <bolt/common/memory/sparksql/Spiller.h>
+#include <bolt/connectors/hive/PaimonConstants.h>
 #include <cstdint>
 #include <memory>
 #include "BoltBackend.h"
@@ -27,6 +29,8 @@
 #include "bolt/connectors/hive/HiveConnectorSplit.h"
 #include "bolt/exec/PlanNodeStats.h"
 #include "bolt/shuffle/sparksql/ShuffleWriterNode.h"
+#include "connectors/hive/PaimonConnectorSplit.h"
+#include "compute/paimon/PaimonPlanUtils.h"
 
 #ifdef GLUTEN_ENABLE_GPU
 #include <cudf/io/types.hpp>
@@ -220,8 +224,11 @@ void WholeStageResultIterator::initTask() {
     // Under the pre-condition that all the split infos has same partition column and format.
     [[maybe_unused]] const auto canUseCudfConnector = scanInfo->canUseCudfConnector();
 
+    std::unordered_map<uint32_t, std::vector<std::shared_ptr<bolt::connector::hive::HiveConnectorSplit>>> splitGroups{};
+
     std::vector<std::shared_ptr<bolt::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
+    auto connectorId = kHiveConnectorId;
     for (int idx = 0; idx < paths.size(); idx++) {
       const auto& metadataColumn = metadataColumns[idx];
       std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
@@ -230,8 +237,40 @@ void WholeStageResultIterator::initTask() {
         constructPartitionColumns(partitionKeys, partitionColumn);
       }
 
+
       std::shared_ptr<bolt::connector::ConnectorSplit> split;
-      // if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
+      if (auto paimonSplitInfo = std::dynamic_pointer_cast<paimon::PaimonSplitInfo>(scanInfo)) {
+        const auto& splitMetadata = paimonSplitInfo->metaAt(idx);
+        std::unordered_map<std::string, std::string> splitInfo = customSplitInfo;
+        splitInfo[bytedance::bolt::connector::paimon::kFileMetaFirstRowID] =
+        std::to_string(splitMetadata.firstRowId);
+        splitInfo[bytedance::bolt::connector::paimon::kFileMetaMaxSequenceNumber] =
+        std::to_string(splitMetadata.maxSequenceNumber);
+
+        auto split = std::make_shared<bolt::connector::hive::HiveConnectorSplit>(
+            kHiveConnectorId,
+            paths[idx],
+            splitMetadata.format,
+            starts[idx],
+            lengths[idx],
+            partitionKeys,
+            std::optional<int32_t>{splitMetadata.bucket},
+            nullptr,
+            std::move(splitInfo),
+            std::make_shared<std::string>(),
+            std::unordered_map<std::string, std::string>(),
+            properties[idx]->fileSize.value_or(0),
+            std::nullopt,
+            metadataColumn);
+        if (!splitMetadata.rawConvertible) {
+          LOG(INFO) << "Split is not rawConvertible, adding to group " << splitMetadata.splitGroup << " : " << split->toString();
+          splitGroups[splitMetadata.splitGroup].push_back(split);
+        } else {
+          LOG(INFO) << "Split is rawConvertible, adding single split: " << split->toString();
+          connectorSplits.emplace_back(split);
+        }
+      } else {
+      // } else if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
       //   // Set Iceberg split.
       //   std::unordered_map<std::string, std::string> customSplitInfo{{"table_format", "hive-iceberg"}};
       //   auto deleteFiles = icebergSplitInfo->deleteFilesVec[idx];
@@ -250,7 +289,6 @@ void WholeStageResultIterator::initTask() {
       //       std::unordered_map<std::string, std::string>(),
       //       properties[idx]);
       // } else {
-      auto connectorId = kHiveConnectorId;
 #ifdef GLUTEN_ENABLE_GPU
       if (canUseCudfConnector) {
         connectorId = kCudfHiveConnectorId;
@@ -292,9 +330,16 @@ void WholeStageResultIterator::initTask() {
 
       connectorSplits.emplace_back(split);
     }
+    }
+    for (const auto& [splitGroup, splits] : splitGroups) {
+      LOG(INFO) << "Adding PaimonConnectorSplit group " << splitGroup << " with " << splits.size() << " splits";
+      auto connectorSplit = std::make_shared<bytedance::bolt::connector::hive::PaimonConnectorSplit>(connectorId, std::move(splits));
+      connectorSplits.emplace_back(connectorSplit);
+    }
 
     std::vector<bolt::exec::Split> scanSplits;
     scanSplits.reserve(connectorSplits.size());
+    LOG(INFO) << "Adding " << connectorSplits.size() << " connector splits to task";
     for (const auto& connectorSplit : connectorSplits) {
       // Bucketed group id (-1 means 'none').
       int32_t groupId = -1;
@@ -302,7 +347,6 @@ void WholeStageResultIterator::initTask() {
     }
     splits_.emplace_back(scanSplits);
   }
-
   BOLT_CHECK_NOT_NULL(task_);
   BOLT_CHECK(!task_->isGroupedExecution(), "task-{} should be group executed", task_->taskId());
   if (isMultiThreadExecMode_) {
