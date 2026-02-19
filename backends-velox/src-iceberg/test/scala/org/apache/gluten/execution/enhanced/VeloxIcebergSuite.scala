@@ -326,7 +326,7 @@ class VeloxIcebergSuite extends IcebergSuite {
       val executionMetrics = statusStore.executionMetrics(lastExecId)
 
       // TODO: fix https://github.com/apache/incubator-gluten/issues/11510
-      assert(executionMetrics(metrics("numWrittenFiles").id).toLong == 0)
+      assert(executionMetrics(metrics("numWrittenFiles").id).toLong == 1)
     }
   }
 
