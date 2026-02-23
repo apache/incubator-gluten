@@ -118,7 +118,7 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("test plus_one in nested project lists") {
+  testWithMinSparkVersion("test plus_one in nested project lists", "3.4") {
     val sql = """
                 |select plus_one(col1) as col2, l_partkey from (
                 | select plus_one(l_orderkey) as col1, l_partkey from lineitem
