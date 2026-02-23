@@ -46,6 +46,7 @@
 #include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/BufferedInputBuilder.h"
 #include "velox/connectors/hive/HiveConnector.h"
+#include "velox/connectors/hive/iceberg/IcebergConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
 #include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.h" // @manual
@@ -317,7 +318,13 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
   }
   velox::connector::registerConnector(
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
-  
+  IcebergConnectorFactory icebergFactory;
+  auto icebergConnector = icebergFactory.newConnector(
+      kIcebergConnectorId,
+      hiveConf,
+      ioExecutor_.get());
+    connector::registerConnector(icebergConnector);
+
   // Register value-stream connector for runtime iterator-based inputs
   velox::connector::registerConnector(std::make_shared<ValueStreamConnector>(kIteratorConnectorId, hiveConf));
   
