@@ -38,6 +38,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Scanner
 
 abstract class Suite(
+    private val appName: String,
     private val masterUrl: String,
     private val actions: Array[Action],
     private val testConf: SparkConf,
@@ -65,7 +66,7 @@ abstract class Suite(
   private var hsUiBoundPort: Int = -1
 
   private[integration] val sessionSwitcher: SparkSessionSwitcher =
-    new SparkSessionSwitcher(masterUrl, logLevel.toString)
+    new SparkSessionSwitcher(appName, masterUrl, logLevel.toString)
 
   // define initial configs
   sessionSwitcher.addDefaultConf("spark.sql.sources.useV1SourceList", "")
