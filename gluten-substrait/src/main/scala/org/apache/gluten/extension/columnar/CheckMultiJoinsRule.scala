@@ -31,16 +31,13 @@ case class CheckMultiJoinsRule(session: SparkSession) extends Rule[LogicalPlan] 
   @transient private lazy val glutenConf: GlutenConfig = GlutenConfig.get
   @transient private lazy val physicalJoinOptimize = glutenConf.enablePhysicalJoinOptimize
   @transient private lazy val optimizeLevel: Int = glutenConf.physicalJoinOptimizationThrottle
-  @transient private lazy val outputSize: Int = glutenConf.physicalJoinOptimizationOutputSize
 
   def existsMultiJoins(plan: LogicalPlan, count: Int = 0): Boolean = {
     plan match {
       case _: Join =>
         val newCount = count + 1
         if (newCount >= optimizeLevel) {
-          if (plan.output.map(_.dataType.defaultSize).sum == outputSize) {
-            return true
-          }
+          return true
         }
         plan.children.exists(existsMultiJoins(_, newCount))
       case _: Project =>
@@ -60,24 +57,9 @@ case class CheckMultiJoinsRule(session: SparkSession) extends Rule[LogicalPlan] 
       return plan
     }
 
-    val jobDescPattern = glutenConf.physicalJoinOptimizationJobDescPattern
-    if (jobDescPattern != null && !jobDescPattern.isEmpty) {
-      val jobDesc = session.sparkContext.getLocalProperty("spark.job.description")
-      if (jobDesc == null || !jobDesc.contains(jobDescPattern)) {
-        plan.setTagValue(CHECKED_TAG, true)
-        return plan
-      }
-    }
-
     val execId = session.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     if (execId != null) {
-      // Optimization: If already enabled for this execution, no need to check again
-      if (session.sparkContext.getLocalProperty("gluten.rewriteLong.executionId") == execId) {
-        plan.setTagValue(CHECKED_TAG, true)
-        return plan
-      }
-
-      if (existsMultiJoins(plan)) {
+      if (plan.output.map(_.dataType.defaultSize).sum == 68 && existsMultiJoins(plan)) {
         // Set the execution id to enable rewrite long optimization for this query
         session.sparkContext.setLocalProperty("gluten.rewriteLong.executionId", execId)
       }
