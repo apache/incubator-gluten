@@ -68,7 +68,7 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     return token
   }
 
-  def useSession(token: String, appName: String = "gluten-app"): Unit = synchronized {
+  def useSession(token: String, appName: String): Unit = synchronized {
     useSession(SessionDesc(SessionToken(token), appName))
   }
 
