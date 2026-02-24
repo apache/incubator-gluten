@@ -67,9 +67,9 @@ const std::string kAbandonDedupHashMapMinRows = "spark.gluten.velox.abandonDedup
 const std::string kAbandonDedupHashMapMinPct = "spark.gluten.velox.abandonDedupHashMap.minPct";
 
 // execution
-const std::string kSparkBloomFilterExpectedNumItems = "spark.sql.optimizer.runtime.bloomFilter.expectedNumItems"
-const std::string kSparkBloomFilterNumBits = "spark.sql.optimizer.runtime.bloomFilter.numBits"
-const std::string kSparkBloomFilterMaxNumBits = "spark.sql.optimizer.runtime.bloomFilter.maxNumBits"
+const std::string kSparkBloomFilterExpectedNumItems = "spark.sql.optimizer.runtime.bloomFilter.expectedNumItems";
+const std::string kSparkBloomFilterNumBits = "spark.sql.optimizer.runtime.bloomFilter.numBits";
+const std::string kSparkBloomFilterMaxNumBits = "spark.sql.optimizer.runtime.bloomFilter.maxNumBits";
 const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems";
 const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
 const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
