@@ -155,8 +155,6 @@ WholeStageResultIterator::WholeStageResultIterator(
 
       std::shared_ptr<velox::connector::ConnectorSplit> split;
       if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
-        // Set Iceberg split.
-        std::unordered_map<std::string, std::string> customSplitInfo{{"table_format", "hive-iceberg"}};
         auto deleteFiles = icebergSplitInfo->deleteFilesVec[idx];
         split = std::make_shared<velox::connector::hive::iceberg::HiveIcebergSplit>(
             kIcebergConnectorId,
@@ -166,7 +164,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             lengths[idx],
             partitionKeys,
             std::nullopt,
-            customSplitInfo,
+            std::unordered_map<std::string, std::string>(),
             nullptr,
             true,
             deleteFiles,

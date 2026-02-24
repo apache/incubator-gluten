@@ -54,6 +54,16 @@ bool useCudfTableHandle(const std::vector<std::shared_ptr<SplitInfo>>& splitInfo
 #endif
 }
 
+bool isIcebergSplit(const std::vector<std::shared_ptr<SplitInfo>>& splitInfos) {
+  if (splitInfos.empty()) {
+    return false;
+  }
+  if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(splitInfos[0])) {
+    return true;
+  }
+  return false;
+}
+
 core::SortOrder toSortOrder(const ::substrait::SortField& sortField) {
   switch (sortField.direction()) {
     case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_FIRST:
@@ -1466,6 +1476,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     connectorId = kCudfHiveConnectorId;
 #endif
   }
+  if (isIcebergSplit(splitInfos_)) {
+    connectorId = kIcebergConnectorId;
+  }
+
   common::SubfieldFilters subfieldFilters;
   tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
       connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, tableSchema);
