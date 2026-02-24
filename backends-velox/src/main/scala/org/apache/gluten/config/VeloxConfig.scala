@@ -51,8 +51,6 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
     ResizeRange(minSize, Int.MaxValue)
   }
 
-  def veloxBloomFilterMaxNumBits: Long = getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
-
   def castFromVarcharAddTrimNode: Boolean = getConf(CAST_FROM_VARCHAR_ADD_TRIM_NODE)
 
   def enableVeloxFlushablePartialAggregation: Boolean =
@@ -427,30 +425,6 @@ object VeloxConfig extends ConfigRegistry {
           "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false.")
       .intConf
       .createWithDefault(100000)
-
-  val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
-      .doc(
-        "The default number of expected items for the velox bloomfilter: " +
-          "'spark.bloom_filter.expected_num_items'")
-      .longConf
-      .createWithDefault(1000000L)
-
-  val COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits")
-      .doc(
-        "The default number of bits to use for the velox bloom filter: " +
-          "'spark.bloom_filter.num_bits'")
-      .longConf
-      .createWithDefault(8388608L)
-
-  val COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits")
-      .doc(
-        "The max number of bits to use for the velox bloom filter: " +
-          "'spark.bloom_filter.max_num_bits'")
-      .longConf
-      .createWithDefault(4194304L)
 
   val HASH_PROBE_BLOOM_FILTER_PUSHDOWN_MAX_SIZE =
     buildConf("spark.gluten.sql.columnar.backend.velox.hashProbe.bloomFilterPushdown.maxSize")
