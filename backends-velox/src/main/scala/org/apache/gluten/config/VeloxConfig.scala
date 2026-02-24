@@ -428,6 +428,15 @@ object VeloxConfig extends ConfigRegistry {
       .intConf
       .createWithDefault(100000)
 
+  val CONTEXT_EXECUTOR_CPU_THREADS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.cpuExecutorThreads")
+      .doc(
+        "The number of CPU threads to execute Velox query. " +
+          "When the value is set to 0, the CPU executor will be disabled and all the tasks will " +
+          "be executed in the caller thread.")
+      .intConf
+      .createWithDefault(0)
+
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
       .doc(
