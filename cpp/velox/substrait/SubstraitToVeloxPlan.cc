@@ -27,6 +27,7 @@
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxWriterUtils.h"
 
+#include "compute/iceberg/IcebergPlanConverter.h"
 #include "config.pb.h"
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
