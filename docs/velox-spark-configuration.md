@@ -2562,21 +2562,21 @@ These configurations are handled by Spark and do not affect Gluten’s behavior.
     <td><code>spark.sql.optimizer.runtime.bloomFilter.enabled</code></td>
     <td>true</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>✅</td>
 </tr>
 
 <tr>
     <td><code>spark.sql.optimizer.runtime.bloomFilter.expectedNumItems</code></td>
     <td>1000000</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>✅</td>
 </tr>
 
 <tr>
     <td><code>spark.sql.optimizer.runtime.bloomFilter.maxNumBits</code></td>
     <td>67108864</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>✅</td>
 </tr>
 
 <tr>
@@ -2590,7 +2590,7 @@ These configurations are handled by Spark and do not affect Gluten’s behavior.
     <td><code>spark.sql.optimizer.runtime.bloomFilter.numBits</code></td>
     <td>8388608</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>✅</td>
 </tr>
 
 <tr>
@@ -3536,6 +3536,7 @@ These configurations are handled by Spark and do not affect Gluten’s behavior.
   <td></td>
 </tr>
 </table>
+
 
 
 
