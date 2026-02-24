@@ -653,9 +653,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     if (const auto opt = veloxCfg_->get<std::string>(kSparkBloomFilterNumBits)) {
       configs[velox::core::QueryConfig::kSparkBloomFilterNumBits] = opt.value();
     }
-    if (const auto opt = veloxCfg_->get<int64_t>(kSparkBloomFilterMaxNumBits)) {
-      VELOX_CHECK_LE(opt.value(), 4194304, "Can not exceed the value since Velox memory size class restriction");
-      configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] = std::to_string(opt.value());
+    if (const auto opt = veloxCfg_->get<std::string>(kSparkBloomFilterMaxNumBits)) {
+      // Velox will check memory cannot exceed 4194304.
+      configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] = opt.value();
     }
     // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
     // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
