@@ -1242,6 +1242,7 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <arrow.version>18.1.0</arrow.version>
         <arrow-gluten.version>18.1.0</arrow-gluten.version>
+        <scala.compiler.version>4.9.2</scala.compiler.version>
       </properties>
       <dependencies>
         <dependency>
@@ -1322,6 +1323,7 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <arrow.version>18.1.0</arrow.version>
         <arrow-gluten.version>18.1.0</arrow-gluten.version>
+        <scala.compiler.version>4.9.5</scala.compiler.version>
       </properties>
       <dependencies>
         <dependency>
