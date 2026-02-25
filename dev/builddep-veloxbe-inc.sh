@@ -16,7 +16,9 @@
 # limitations under the License.
 
 # Incremental C++ build for Gluten + Velox (no source reset, no Maven, no OS setup)
-# Usage: ./dev/inc-build-cpp.sh [--build_type=Debug|Release] [--update_vcpkg]
+# Designed for vibe coding: lets AI agents iterate on C++ code without full rebuilds.
+# Only applicable when vcpkg is enabled for static linking.
+# Usage: ./dev/builddep-veloxbe-inc.sh [--build_type=Debug|Release] [--update_vcpkg]
 
 set -eu
 
