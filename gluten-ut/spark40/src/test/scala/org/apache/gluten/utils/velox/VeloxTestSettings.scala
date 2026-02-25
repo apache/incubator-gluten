@@ -652,7 +652,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSQLJsonProtocolSuite]
   enableSuite[GlutenShufflePartitionsUtilSuite]
   enableSuite[GlutenSimpleSQLViewSuite]
-  // TODO: 4.x enableSuite[GlutenSparkPlanSuite]  // 1 failure
+  enableSuite[GlutenSparkPlanSuite]
+    // Rewrite to check Gluten node
+    .exclude("SPARK-37779: ColumnarToRowExec should be canonicalizable after being (de)serialized")
   enableSuite[GlutenSparkPlannerSuite]
   enableSuite[GlutenSparkScriptTransformationSuite]
   enableSuite[GlutenSparkSqlParserSuite]
@@ -769,7 +771,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenRuntimeConfigSuite]
   enableSuite[GlutenSSBQuerySuite]
   enableSuite[GlutenSessionStateSuite]
-  // TODO: 4.x enableSuite[GlutenSetCommandSuite]  // 1 failure
+  enableSuite[GlutenSetCommandSuite]
   // TODO: 4.x enableSuite[GlutenSingleLevelAggregateHashMapSuite]  // 1 failure
   enableSuite[GlutenSparkSessionBuilderSuite]
   // TODO: 4.x enableSuite[GlutenSparkSessionJobTaggingAndCancellationSuite]  // 1 failure
