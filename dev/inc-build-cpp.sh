@@ -123,31 +123,9 @@ BUILD_OPTIONS="$BUILD_OPTIONS --enable_gcs=$(extract_opt ENABLE_GCS)"
 BUILD_OPTIONS="$BUILD_OPTIONS --enable_abfs=$(extract_opt ENABLE_ABFS OFF)"
 
 if [ "$UPDATE_VCPKG" = "ON" ]; then
-    step 1 "Checking vcpkg dependencies"
-    VCPKG_DIR="$GLUTEN_DIR/dev/vcpkg/vcpkg_installed"
-    TS_FILE=$(mktemp)
-
-    # Save library timestamps before vcpkg install
-    if [ -d "$VCPKG_DIR" ]; then
-        find "$VCPKG_DIR" \( -name "*.a" -o -name "*.so" \) \
-            -exec stat -c "%Y %n" {} \; > "$TS_FILE" 2>/dev/null || true
-    fi
-
+    step 1 "Updating vcpkg dependencies"
     source "$GLUTEN_DIR/dev/vcpkg/env.sh" $BUILD_OPTIONS
-
-    # Restore timestamps for unchanged files
-    if [ -s "$TS_FILE" ]; then
-        while IFS=' ' read -r old_ts file; do
-            if [ -f "$file" ]; then
-                new_ts=$(stat -c "%Y" "$file" 2>/dev/null || echo "")
-                if [ -n "$new_ts" ] && [ "$new_ts" != "$old_ts" ]; then
-                    touch -d "@$old_ts" "$file" 2>/dev/null || true
-                fi
-            fi
-        done < "$TS_FILE"
-    fi
-    rm -f "$TS_FILE"
-    echo "[Step 1/4] vcpkg dependencies OK."
+    echo "[Step 1/4] vcpkg dependencies updated."
 else
     step 1 "Skipping vcpkg check (use --update_vcpkg to update)"
     VCPKG_ROOT="$GLUTEN_DIR/dev/vcpkg/.vcpkg"
