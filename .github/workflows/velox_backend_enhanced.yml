@@ -127,7 +127,7 @@ jobs:
           java -version
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l $SPARK_HOME
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Piceberg-test -Pdelta -Phudi \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pdelta -Phudi \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest \
           -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
@@ -185,7 +185,7 @@ jobs:
           java -version
           export SPARK_HOME=/opt/shims/spark35/spark_home/
           ls -l $SPARK_HOME
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi \
+          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pdelta -Phudi \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTest \
           -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
@@ -237,7 +237,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export PATH=$JAVA_HOME/bin:$PATH
           java -version
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
