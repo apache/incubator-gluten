@@ -18,7 +18,7 @@ set -exu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 VELOX_REPO=https://github.com/zhztheplayer/velox.git
-VELOX_BRANCH=wip-string-rtfilter
+VELOX_BRANCH=wip-probe-filter
 VELOX_ENHANCED_BRANCH=ibm-2026_02_24
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
