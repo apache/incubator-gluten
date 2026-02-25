@@ -20,6 +20,7 @@ import org.apache.gluten.backendsapi.SparkPlanExecApi
 import org.apache.gluten.config.{GlutenConfig, HashShuffleWriterType, ReservedKeys, RssSortShuffleWriterType, ShuffleWriterType, SortShuffleWriterType, VeloxConfig}
 import org.apache.gluten.exception.{GlutenExceptionUtil, GlutenNotSupportException}
 import org.apache.gluten.execution._
+import org.apache.gluten.execution.ColumnarRangeBaseExec
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension.columnar.FallbackTags
