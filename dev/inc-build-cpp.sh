@@ -145,7 +145,6 @@ fi
 
 # Step 2: Build Velox
 step 2 "Building Velox (incremental)"
-export simdjson_SOURCE=AUTO Arrow_SOURCE=AUTO
 cmake --build "$VELOX_BUILD_DIR" -j $NUM_THREADS
 echo "[Step 2/4] Velox build complete."
 
