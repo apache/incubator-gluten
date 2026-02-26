@@ -105,7 +105,7 @@ HashTableBuilder::HashTableBuilder(
 
 // Invoked to set up hash table to build.
 void HashTableBuilder::setupTable() {
-  VELOX_CHECK_NULL(table_);
+  VELOX_CHECK_NULL(uniqueTable_);
 
   const auto numKeys = keyChannels_.size();
   std::vector<std::unique_ptr<facebook::velox::exec::VectorHasher>> keyHashers;
@@ -122,7 +122,7 @@ void HashTableBuilder::setupTable() {
   }
   if (isRightJoin(joinType_) || isFullJoin(joinType_) || isRightSemiProjectJoin(joinType_)) {
     // Do not ignore null keys.
-    table_ = facebook::velox::exec::HashTable<false>::createForJoin(
+    uniqueTable_ = facebook::velox::exec::HashTable<false>::createForJoin(
         std::move(keyHashers),
         dependentTypes,
         true, // allowDuplicates
@@ -133,41 +133,41 @@ void HashTableBuilder::setupTable() {
   } else {
     // (Left) semi and anti join with no extra filter only needs to know whether
     // there is a match. Hence, no need to store entries with duplicate keys.
-    const bool dropDuplicates =
+    dropDuplicates_ =
         !withFilter_ && (isLeftSemiFilterJoin(joinType_) || isLeftSemiProjectJoin(joinType_) || isAntiJoin(joinType_));
     // Right semi join needs to tag build rows that were probed.
     const bool needProbedFlag = isRightSemiFilterJoin(joinType_);
     if (isLeftNullAwareJoinWithFilter(joinType_, nullAware_, withFilter_)) {
       // We need to check null key rows in build side in case of null-aware anti
       // or left semi project join with filter set.
-      table_ = facebook::velox::exec::HashTable<false>::createForJoin(
+      uniqueTable_ = facebook::velox::exec::HashTable<false>::createForJoin(
           std::move(keyHashers),
           dependentTypes,
-          !dropDuplicates, // allowDuplicates
+          !dropDuplicates_, // allowDuplicates
           needProbedFlag, // hasProbedFlag
           1'000, // operatorCtx_->driverCtx()->queryConfig().minTableRowsForParallelJoinBuild()
           pool_,
           true);
     } else {
       // Ignore null keys
-      table_ = facebook::velox::exec::HashTable<true>::createForJoin(
+      uniqueTable_ = facebook::velox::exec::HashTable<true>::createForJoin(
           std::move(keyHashers),
           dependentTypes,
-          !dropDuplicates, // allowDuplicates
+          !dropDuplicates_, // allowDuplicates
           needProbedFlag, // hasProbedFlag
           1'000, // operatorCtx_->driverCtx()->queryConfig().minTableRowsForParallelJoinBuild()
           pool_,
           bloomFilterPushdownSize_);
     }
   }
-  analyzeKeys_ = table_->hashMode() != facebook::velox::exec::BaseHashTable::HashMode::kHash;
+  analyzeKeys_ = uniqueTable_->hashMode() != facebook::velox::exec::BaseHashTable::HashMode::kHash;
 }
 
 void HashTableBuilder::addInput(facebook::velox::RowVectorPtr input) {
   activeRows_.resize(input->size());
   activeRows_.setAll();
 
-  auto& hashers = table_->hashers();
+  auto& hashers = uniqueTable_->hashers();
 
   for (auto i = 0; i < hashers.size(); ++i) {
     auto key = input->childAt(hashers[i]->channel())->loadedVector();
@@ -221,7 +221,7 @@ void HashTableBuilder::addInput(facebook::velox::RowVectorPtr input) {
       analyzeKeys_ = hasher->mayUseValueIds();
     }
   }
-  auto rows = table_->rows();
+  auto rows = uniqueTable_->rows();
   auto nextOffset = rows->nextOffset();
 
   activeRows_.applyToSelected([&](auto rowIndex) {

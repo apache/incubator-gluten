@@ -945,7 +945,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
     jboolean isExistenceJoin,
     jbyteArray namedStruct,
     jboolean isNullAwareAntiJoin,
-    jlong bloomFilterPushdownSize) {
+    jlong bloomFilterPushdownSize,
+    jint broadcastHashTableBuildThreads) {
   JNI_METHOD_START
   const auto hashTableId = jStringToCString(env, tableId);
   const auto hashJoinKey = jStringToCString(env, joinKey);
@@ -975,18 +976,77 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
     cb.push_back(ObjectStore::retrieve<ColumnarBatch>(handle));
   }
 
-  auto hashTableHandler = nativeHashTableBuild(
-      hashJoinKey,
-      names,
-      veloxTypeList,
-      joinType,
-      hasMixedJoinCondition,
-      isExistenceJoin,
-      isNullAwareAntiJoin,
-      bloomFilterPushdownSize,
-      cb,
-      defaultLeafVeloxMemoryPool());
-  return gluten::hashTableObjStore->save(hashTableHandler);
+  size_t maxThreads = broadcastHashTableBuildThreads > 0 ? (size_t)broadcastHashTableBuildThreads
+                                                         : (size_t)std::thread::hardware_concurrency();
+
+  // Heuristic: Each thread should process at least a certain number of batches to justify parallelism overhead.
+  constexpr size_t kMinBatchesPerThread = 4;
+  size_t numThreads = std::min(maxThreads, (handleCount + kMinBatchesPerThread - 1) / kMinBatchesPerThread);
+  numThreads = std::max((size_t)1, numThreads);
+
+  std::vector<std::thread> threads;
+
+  std::vector<std::shared_ptr<gluten::HashTableBuilder>> hashTableBuilders(numThreads);
+  std::vector<std::unique_ptr<facebook::velox::exec::BaseHashTable>> otherTables(numThreads);
+
+  for (size_t t = 0; t < numThreads; ++t) {
+    size_t start = (handleCount * t) / numThreads;
+    size_t end = (handleCount * (t + 1)) / numThreads;
+
+    threads.emplace_back([&, t, start, end]() {
+      std::vector<std::shared_ptr<gluten::ColumnarBatch>> threadBatches;
+      for (size_t i = start; i < end; ++i) {
+        threadBatches.push_back(cb[i]);
+      }
+
+      auto builder = nativeHashTableBuild(
+          hashJoinKey,
+          names,
+          veloxTypeList,
+          joinType,
+          hasMixedJoinCondition,
+          isExistenceJoin,
+          isNullAwareAntiJoin,
+          bloomFilterPushdownSize,
+          threadBatches,
+          defaultLeafVeloxMemoryPool());
+
+      hashTableBuilders[t] = std::move(builder);
+      otherTables[t] = std::move(hashTableBuilders[t]->uniqueTable());
+    });
+  }
+
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  auto mainTable = std::move(otherTables[0]);
+  std::vector<std::unique_ptr<facebook::velox::exec::BaseHashTable>> tables;
+  for (int i = 1; i < numThreads; ++i) {
+    tables.push_back(std::move(otherTables[i]));
+  }
+
+  // TODO: Get accurate signal if parallel join build is going to be applied
+  //  from hash table. Currently there is still a chance inside hash table that
+  //  it might decide it is not going to trigger parallel join build.
+  const bool allowParallelJoinBuild = !tables.empty();
+
+  mainTable->prepareJoinTable(
+      std::move(tables),
+      facebook::velox::exec::BaseHashTable::kNoSpillInputStartPartitionBit,
+      1'000'000,
+      hashTableBuilders[0]->dropDuplicates(),
+      allowParallelJoinBuild ? VeloxBackend::get()->executor() : nullptr);
+
+  for (int i = 1; i < numThreads; ++i) {
+    if (hashTableBuilders[i]->joinHasNullKeys()) {
+      hashTableBuilders[0]->setJoinHasNullKeys(true);
+      break;
+    }
+  }
+
+  hashTableBuilders[0]->setHashTable(std::move(mainTable));
+  return gluten::hashTableObjStore->save(hashTableBuilders[0]);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 

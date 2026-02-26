@@ -57,6 +57,10 @@ class VeloxBackend {
     return globalMemoryManager_.get();
   }
 
+  folly::Executor* executor() const {
+    return ioExecutor_.get();
+  }
+
   void tearDown();
 
  private:

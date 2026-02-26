@@ -160,7 +160,8 @@ case class BroadcastHashJoinExecTransformer(
         buildPlan.output,
         buildBroadcastTableId,
         isNullAwareAntiJoin,
-        bloomFilterPushdownSize
+        bloomFilterPushdownSize,
+        VeloxConfig.get.veloxBroadcastHashTableBuildThreads
       )
     val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast, context)
     // FIXME: Do we have to make build side a RDD?
@@ -177,4 +178,5 @@ case class BroadcastHashJoinContext(
     buildSideStructure: Seq[Attribute],
     buildHashTableId: String,
     isNullAwareAntiJoin: Boolean = false,
-    bloomFilterPushdownSize: Long)
+    bloomFilterPushdownSize: Long,
+    broadcastHashTableBuildThreads: Int)

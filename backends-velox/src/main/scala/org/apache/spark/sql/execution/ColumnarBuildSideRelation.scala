@@ -216,7 +216,8 @@ case class ColumnarBuildSideRelation(
             broadcastContext.isExistenceJoin,
             SubstraitUtil.toNameStruct(newOutput).toByteArray,
             broadcastContext.isNullAwareAntiJoin,
-            broadcastContext.bloomFilterPushdownSize
+            broadcastContext.bloomFilterPushdownSize,
+            broadcastContext.broadcastHashTableBuildThreads
           )
 
         jniWrapper.close(serializeHandle)
