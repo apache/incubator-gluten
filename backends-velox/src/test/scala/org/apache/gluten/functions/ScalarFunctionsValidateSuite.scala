@@ -1521,4 +1521,20 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("current_timestamp_offloaded") {
+    runQueryAndCompare("SELECT current_timestamp()") {
+      df =>
+        checkGlutenPlan[ProjectExecTransformer](df)
+        checkFallbackOperators(df, 0)
+    }
+  }
+
+  test("current_timestamp") {
+    runQueryAndCompare("SELECT current_timestamp() = current_timestamp()") {
+      df =>
+        checkGlutenPlan[ProjectExecTransformer](df)
+        checkFallbackOperators(df, 0)
+    }
+  }
 }
