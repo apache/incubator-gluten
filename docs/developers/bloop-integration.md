@@ -65,7 +65,7 @@ The `-Pbloop` profile automatically skips style checks during configuration gene
 ./dev/bloop-setup.sh -Pspark-3.5,scala-2.12,backends-velox
 
 # Manual invocation with profile
-./build/mvn generate-sources bloop:bloopInstall -Pspark-3.5,scala-2.12,backends-velox,bloop -DskipTests
+./build/mvn generate-sources bloop:bloopInstall -Pspark-3.5,scala-2.12,backends-velox,fast-build -DskipTests
 ```
 
 The bloop profile sets these properties automatically:

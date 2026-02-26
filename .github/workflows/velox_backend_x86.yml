@@ -1338,6 +1338,16 @@ jobs:
           ccache -s
           "
 
+  build-fast-build-test:
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk17
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with fast-build profile (Spark 4.0, Java 17)
+        run: |
+          cd $GITHUB_WORKSPACE/
+          $MVN_CMD clean test-compile -Pspark-4.0 -Pscala-2.13 -Pbackends-velox -Pspark-ut -Piceberg,iceberg-test,delta,paimon -Pfast-build
+
   spark-test-spark40:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-22.04

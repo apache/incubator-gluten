@@ -97,7 +97,7 @@
     -->
     <os.full.name>unknown</os.full.name>
     <!-- To build built-in backend c++ codes -->
-    <scala.recompile.mode>incremental</scala.recompile.mode>
+    <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
     <fasterxml.version>2.15.0</fasterxml.version>
     <junit.version>4.13.1</junit.version>
@@ -571,11 +571,6 @@
           <configuration>
             <encoding>UTF-8</encoding>
             <maxmem>1024m</maxmem>
-            <!-- Skip javac entirely. In incremental mode (recompileMode=incremental),
-                 Zinc compiles both Scala and Java sources together, making
-                 maven-compiler-plugin redundant. Same approach as Apache Spark. -->
-            <skipMain>true</skipMain>
-            <skip>true</skip>
           </configuration>
         </plugin>
         <plugin>
@@ -2147,18 +2142,37 @@
       </build>
     </profile>
     <profile>
-      <id>bloop</id>
+      <id>fast-build</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
       <properties>
-        <!-- Skip style checks during bloop configuration generation -->
+        <!-- Skip style checks for faster local builds -->
         <spotless.check.skip>true</spotless.check.skip>
         <scalastyle.skip>true</scalastyle.skip>
         <checkstyle.skip>true</checkstyle.skip>
         <maven.gitcommitid.skip>true</maven.gitcommitid.skip>
         <remoteresources.skip>true</remoteresources.skip>
+        <!-- Use incremental Scala compilation (Zinc state is warm in local/dev contexts) -->
+        <scala.recompile.mode>incremental</scala.recompile.mode>
       </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <configuration>
+                <!-- Skip javac entirely. In incremental mode (recompileMode=incremental),
+                     Zinc compiles both Scala and Java sources together, making
+                     maven-compiler-plugin redundant. Same approach as Apache Spark. -->
+                <skipMain>true</skipMain>
+                <skip>true</skip>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
     </profile>
 
     <!-- Profiles for different platforms -->
