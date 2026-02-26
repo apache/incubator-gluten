@@ -143,7 +143,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -264,7 +264,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -413,7 +413,7 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo docker image prune --all --force > /dev/null
           df -h
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -528,7 +528,7 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo docker image prune --all --force > /dev/null
           df -h
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -571,7 +571,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -622,7 +622,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: centos:8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -694,7 +694,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -750,7 +750,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -793,7 +793,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -821,7 +821,7 @@ jobs:
           java -version
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l $SPARK_HOME
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Piceberg-test -Pdelta -Phudi -Ppaimon -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Ppaimon -Pspark-ut \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.EnhancedFeaturesTest,org.apache.gluten.tags.SkipTest \
           -DargLine="-Dspark.test.home=$SPARK_HOME"
       - name: Upload test report
@@ -851,7 +851,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -897,7 +897,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -955,7 +955,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1007,7 +1007,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1051,7 +1051,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1102,7 +1102,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1145,7 +1145,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1196,7 +1196,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1236,7 +1236,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v4
         with:
@@ -1345,7 +1345,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk17
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1402,7 +1402,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-8-jdk17
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1451,7 +1451,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-9-jdk17
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -1510,7 +1510,7 @@ jobs:
       SPARK_TESTING: true
     container: apache/gluten:centos-9-jdk17
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:

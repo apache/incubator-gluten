@@ -557,7 +557,8 @@ log_step "Step 2: Getting JVM arguments from pom.xml..."
 
 TIMER_STEP2_START=$(timer_now)
 
-JVM_ARGS_RAW=$(${MVN_CMD} help:evaluate \
+# Always use build/mvn for help:evaluate (mvnd returns empty output for this goal)
+JVM_ARGS_RAW=$(./build/mvn help:evaluate \
   -Dexpression=extraJavaTestArgs \
   -q -DforceStdout \
   -P"${PROFILES}" 2>/dev/null || echo "")

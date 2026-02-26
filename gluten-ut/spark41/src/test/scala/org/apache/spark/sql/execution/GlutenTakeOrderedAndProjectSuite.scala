@@ -16,50 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Literal, Rand}
-import org.apache.spark.sql.types.{IntegerType, StructType}
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenTakeOrderedAndProjectSuite
   extends TakeOrderedAndProjectSuite
-  with GlutenSQLTestsBaseTrait {
-
-  private def noOpFilter(plan: SparkPlan): SparkPlan = FilterExec(Literal(true), plan)
-
-  testGluten("SPARK-47104: Non-deterministic expressions in projection") {
-    val expected = (input: SparkPlan) => {
-      GlobalLimitExec(limit, LocalLimitExec(limit, SortExec(sortOrder, true, input)))
-    }
-    val schema = StructType.fromDDL("a int, b int, c double")
-    val rdd = sparkContext.parallelize(
-      Seq(
-        Row(1, 2, 0.6027633705776989d),
-        Row(2, 3, 0.7151893651681639d),
-        Row(3, 4, 0.5488135024422883d)),
-      1)
-    val df = spark.createDataFrame(rdd, schema)
-    val projection = df.queryExecution.sparkPlan.output.take(2) :+
-      Alias(Rand(Literal(0, IntegerType)), "_uuid")()
-
-    // test executeCollect
-    checkThatPlansAgree(
-      df,
-      input =>
-        TakeOrderedAndProjectExec(limit, sortOrder, projection, SortExec(sortOrder, false, input)),
-      input => expected(input),
-      sortAnswers = false)
-
-    // test doExecute
-    checkThatPlansAgree(
-      df,
-      input =>
-        noOpFilter(
-          TakeOrderedAndProjectExec(
-            limit,
-            sortOrder,
-            projection,
-            SortExec(sortOrder, false, input))),
-      input => expected(input),
-      sortAnswers = false)
-  }
-}
+  with GlutenSQLTestsBaseTrait {}

@@ -29,8 +29,8 @@ class GlutenDirectBufferedInput : public facebook::velox::dwio::common::DirectBu
       facebook::velox::StringIdLease fileNum,
       std::shared_ptr<facebook::velox::cache::ScanTracker> tracker,
       facebook::velox::StringIdLease groupId,
-      std::shared_ptr<facebook::velox::io::IoStatistics> ioStats,
-      std::shared_ptr<facebook::velox::filesystems::File::IoStats> fsStats,
+      std::shared_ptr<facebook::velox::io::IoStatistics> ioStatistics,
+      std::shared_ptr<facebook::velox::IoStats> ioStats,
       folly::Executor* executor,
       const facebook::velox::io::ReaderOptions& readerOptions,
       folly::F14FastMap<std::string, std::string> fileReadOps = {})
@@ -40,8 +40,8 @@ class GlutenDirectBufferedInput : public facebook::velox::dwio::common::DirectBu
             std::move(fileNum),
             std::move(tracker),
             std::move(groupId),
+            std::move(ioStatistics),
             std::move(ioStats),
-            std::move(fsStats),
             executor,
             readerOptions,
             std::move(fileReadOps)) {}
