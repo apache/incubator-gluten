@@ -18,6 +18,8 @@ package org.apache.spark.sql.execution.ui
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config
+import org.apache.spark.rpc.{RpcAddress, RpcEndpointAddress, RpcEndpointRef, RpcEnv}
 import org.apache.spark.ui.{SparkUI, SparkUITab}
 
 class GlutenSQLTab(val sqlStore: GlutenSQLAppStatusStore, sparkUI: SparkUI)
@@ -31,5 +33,17 @@ class GlutenSQLTab(val sqlStore: GlutenSQLAppStatusStore, sparkUI: SparkUI)
   val parent = sparkUI
 
   attachPage(new GlutenAllExecutionsPage(this))
+  attachPage(new GlutenStackStatusPage(this))
   parent.attachTab(this)
+
+  /**
+   * Get the RPC endpoint reference of the Gluten driver endpoint.
+   */
+  def glutenDriverEndpointRef(rpcEnv: RpcEnv): RpcEndpointRef = {
+    val driverHost = conf.get(config.DRIVER_HOST_ADDRESS.key, "localhost")
+    val driverPort = conf.getInt(config.DRIVER_PORT.key, 7077)
+    val rpcAddress = RpcAddress(driverHost, driverPort)
+    val driverUrl = RpcEndpointAddress(rpcAddress, "GlutenDriverEndpoint").toString
+    rpcEnv.setupEndpointRefByURI(driverUrl)
+  }
 }
