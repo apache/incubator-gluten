@@ -57,6 +57,12 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
       totalRegisteredExecutors.addAndGet(-1)
       logTrace(s"Executor endpoint ref $executorId is removed.")
 
+    case GlutenNativeStackAsyncResult(requestId, success, message) =>
+      GlutenDriverEndpoint.handleAsyncResult(requestId, success, message)
+
+    case GlutenNativeStackAsyncChunk(requestId, chunk) =>
+      GlutenDriverEndpoint.appendStackAsyncMessage(requestId, chunk)
+
     case e =>
       logError(s"Received unexpected message. $e")
   }
@@ -88,6 +94,59 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
         context.reply(true)
       }
 
+    case GlutenStartNativeStackAsync(executorId) =>
+      val data = GlutenDriverEndpoint.executorDataMap.get(executorId)
+      if (data == null) {
+        context.sendFailure(
+          new IllegalArgumentException(s"Executor $executorId not registered or unavailable"))
+      } else {
+        try {
+          val reqId = java.util.UUID.randomUUID().toString
+          GlutenDriverEndpoint.putStackAsyncStatus(reqId, "running", "")
+          data.executorEndpointRef.send(GlutenDumpNativeStackAsyncRequest(reqId))
+          context.reply(reqId)
+        } catch {
+          case t: Throwable => context.sendFailure(t)
+        }
+      }
+
+    case GlutenQueryNativeStackStatus(requestId) =>
+      try {
+        def jsonEscape(s: String): String = {
+          if (s == null) {
+            ""
+          } else {
+            s
+              .replace("\\", "\\\\")
+              .replace("\"", "\\\"")
+              .replace("\n", "\\n")
+              .replace("\r", "\\r")
+              .replace("\t", "\\t")
+          }
+        }
+        val json = GlutenDriverEndpoint
+          .getStackAsyncStatus(requestId)
+          .map {
+            case (st, msg) =>
+              val safeMsg = jsonEscape(Option(msg).getOrElse(""))
+              s"""{"requestId":"$requestId", "status":"$st", "message":"$safeMsg"}"""
+          }
+          .getOrElse("""{"error":"invalid requestId"}""")
+        context.reply(json)
+      } catch {
+        case t: Throwable => context.sendFailure(t)
+      }
+
+    case GlutenQueryNativeStackRaw(requestId) =>
+      try {
+        val raw = GlutenDriverEndpoint
+          .getStackAsyncStatus(requestId)
+          .map { case (_, msg) => Option(msg).getOrElse("") }
+          .getOrElse("invalid requestId")
+        context.reply(raw)
+      } catch {
+        case t: Throwable => context.sendFailure(t)
+      }
   }
 
   override def onStart(): Unit = {
@@ -115,6 +174,41 @@ object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Se
       .expireAfterAccess(executionResourceExpiredTime, TimeUnit.SECONDS)
       .removalListener(this)
       .build[String, util.Set[String]]()
+
+  // Async C++ stack collection status: requestId -> (status, message)
+  private val stackAsyncStatus = new ConcurrentHashMap[String, (String, String)]()
+
+  def putStackAsyncStatus(requestId: String, status: String, message: String): Unit = {
+    stackAsyncStatus.put(requestId, (status, message))
+  }
+
+  def getStackAsyncStatus(requestId: String): Option[(String, String)] = {
+    Option(stackAsyncStatus.get(requestId))
+  }
+
+  def appendStackAsyncMessage(requestId: String, chunk: String): Unit = {
+    val prev = stackAsyncStatus.get(requestId)
+    val prevMsg = if (prev == null) "" else Option(prev._2).getOrElse("")
+    val nextMsg = if (chunk == null || chunk.isEmpty) prevMsg else prevMsg + chunk
+    val status = if (prev == null) "running" else prev._1
+    stackAsyncStatus.put(requestId, (status, nextMsg))
+    logInfo(
+      s"Async stack chunk appended: requestId=$requestId, " +
+        s"chunkLen=${Option(chunk).map(_.length).getOrElse(0)}, " +
+        s"totalLen=${nextMsg.length}")
+  }
+
+  def handleAsyncResult(requestId: String, success: Boolean, message: String): Unit = {
+    val st = if (success) "done" else "error"
+    val prev = stackAsyncStatus.get(requestId)
+    val prevMsg = if (prev == null) "" else Option(prev._2).getOrElse("")
+    val finalMsg = if (message == null || message.isEmpty) prevMsg else prevMsg + message
+    stackAsyncStatus.put(requestId, (st, finalMsg))
+    logInfo(
+      s"Async stack complete: requestId=$requestId, success=$success, totalLen=${Option(finalMsg)
+          .map(_.length)
+          .getOrElse(0)}")
+  }
 
   def collectResources(executionId: String, resourceId: String): Unit = {
     val resources = executionResourceRelation

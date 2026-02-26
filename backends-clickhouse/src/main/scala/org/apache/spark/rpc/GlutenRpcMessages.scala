@@ -50,4 +50,23 @@ object GlutenRpcMessages {
   case class GlutenFilesCacheLoad(files: Array[Byte]) extends GlutenRpcMessage
 
   case class GlutenFilesCacheLoadStatus(jobId: String)
+
+  /** Start async native stack collection; driver returns a `requestId` immediately */
+  case class GlutenStartNativeStackAsync(executorId: String) extends GlutenRpcMessage
+
+  /** Internal async dump request delivered to executor (no options) */
+  case class GlutenDumpNativeStackAsyncRequest(requestId: String) extends GlutenRpcMessage
+
+  /** Executor reports async dump result back to driver */
+  case class GlutenNativeStackAsyncResult(requestId: String, success: Boolean, message: String)
+    extends GlutenRpcMessage
+
+  /** Executor reports async dump partial chunk to driver */
+  case class GlutenNativeStackAsyncChunk(requestId: String, chunk: String) extends GlutenRpcMessage
+
+  /** Query async native stack status by requestId, driver returns JSON string */
+  case class GlutenQueryNativeStackStatus(requestId: String) extends GlutenRpcMessage
+
+  /** Query async native stack raw message by requestId, driver returns plain text */
+  case class GlutenQueryNativeStackRaw(requestId: String) extends GlutenRpcMessage
 }
