@@ -29,14 +29,16 @@ import org.apache.spark.sql.SparkSessionSwitcher
 
 import org.apache.commons.io.output.{NullOutputStream, TeeOutputStream}
 import org.apache.commons.lang3.StringUtils
+import org.apache.hadoop.fs.Path
 import org.apache.log4j.{Level, LogManager}
 
-import java.io.{BufferedOutputStream, File, FileNotFoundException, FileOutputStream, OutputStream, PrintStream}
+import java.io.{BufferedOutputStream, File, OutputStream, PrintStream}
 import java.time.{Instant, ZoneId}
 import java.time.format.DateTimeFormatter
 import java.util.Scanner
 
 abstract class Suite(
+    private val appName: String,
     private val masterUrl: String,
     private val actions: Array[Action],
     private val testConf: SparkConf,
@@ -64,7 +66,7 @@ abstract class Suite(
   private var hsUiBoundPort: Int = -1
 
   private[integration] val sessionSwitcher: SparkSessionSwitcher =
-    new SparkSessionSwitcher(masterUrl, logLevel.toString)
+    new SparkSessionSwitcher(appName, masterUrl, logLevel.toString)
 
   // define initial configs
   sessionSwitcher.addDefaultConf("spark.sql.sources.useV1SourceList", "")
@@ -166,17 +168,25 @@ abstract class Suite(
     reporter.addMetadata("Arguments", Cli.args().mkString(" "))
 
     // Construct the output streams for writing test reports.
-    var fileOut: OutputStream = null
-    if (!StringUtils.isBlank(reportPath)) try {
-      val file = new File(reportPath)
-      if (file.isDirectory) throw new FileNotFoundException("Is a directory: " + reportPath)
-      println("Test report will be written to " + file.getAbsolutePath)
-      fileOut = new BufferedOutputStream(new FileOutputStream(file))
-    } catch {
-      case e: FileNotFoundException =>
-        throw new RuntimeException(e)
-    }
-    else fileOut = NullOutputStream.NULL_OUTPUT_STREAM
+    val fileOut: OutputStream =
+      if (!StringUtils.isBlank(reportPath)) {
+        try {
+          sessionSwitcher.useSession("baseline", "Suite Initialization")
+          val conf = sessionSwitcher.spark().sessionState.newHadoopConf()
+          val path = new Path(reportPath)
+          val fs = path.getFileSystem(conf)
+          if (fs.exists(path) && fs.getFileStatus(path).isDirectory) {
+            throw new java.io.FileNotFoundException("Is a directory: " + reportPath)
+          }
+          println(s"Test report will be written to ${path.toString}")
+          new BufferedOutputStream(fs.create(path, true)) // overwrite = true
+        } catch {
+          case e: java.io.FileNotFoundException =>
+            throw new RuntimeException(e)
+        }
+      } else {
+        NullOutputStream.NULL_OUTPUT_STREAM
+      }
     val combinedOut = new PrintStream(new TeeOutputStream(System.out, fileOut), true)
     val combinedErr = new PrintStream(new TeeOutputStream(System.err, fileOut), true)
 
@@ -189,12 +199,18 @@ abstract class Suite(
           t.printStackTrace(reporter.rootAppender.err)
           false
       }
-    if (succeeded) {
-      reporter.write(combinedOut)
-    } else {
-      reporter.write(combinedErr)
+    try {
+      if (succeeded) {
+        reporter.write(combinedOut)
+        combinedOut.flush()
+      } else {
+        reporter.write(combinedErr)
+        combinedErr.flush()
+      }
+      succeeded
+    } finally {
+      fileOut.close()
     }
-    succeeded
   }
 
   private def runActions(): Boolean = {

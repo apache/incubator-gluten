@@ -30,6 +30,7 @@ import org.apache.log4j.Level
 import java.io.File
 
 class TpchSuite(
+    val appName: String,
     val masterUrl: String,
     val actions: Array[Action],
     val testConf: SparkConf,
@@ -56,6 +57,7 @@ class TpchSuite(
     val testMetricMapper: MetricMapper,
     val reportPath: String)
   extends Suite(
+    appName,
     masterUrl,
     actions,
     testConf,

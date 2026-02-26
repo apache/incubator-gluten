@@ -328,8 +328,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCSVParsingOptionsSuite]
   // Generated suites for org.apache.spark.sql.execution.datasources.json
   enableSuite[GlutenJsonParsingOptionsSuite]
-  // Generated suites for org.apache.spark.sql.execution.datasources.orc
-  enableSuite[GlutenOrcEncryptionSuite]
   // Generated suites for org.apache.spark.sql.execution.datasources.parquet
   enableSuite[GlutenParquetAvroCompatibilitySuite]
   enableSuite[GlutenParquetCommitterSuite]
@@ -363,94 +361,34 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenValidateRequirementsSuite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
+  enableSuite[GlutenOrcEncryptionSuite]
+    // Orc encryption not supported yet
+    .exclude("Write and read an encrypted file")
+    .exclude("Write and read an encrypted table")
+    .exclude("SPARK-35325: Write and read encrypted nested columns")
+    .exclude("SPARK-35992: Write and read fully-encrypted columns with default masking")
   enableSuite[GlutenOrcFilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcPartitionDiscoverySuite]
-    .exclude("read partitioned table - normal case")
-    .exclude("read partitioned table - with nulls")
   enableSuite[GlutenOrcV1PartitionDiscoverySuite]
-    .exclude("read partitioned table - normal case")
-    .exclude("read partitioned table - with nulls")
-    .exclude("read partitioned table - partition key included in orc file")
-    .exclude("read partitioned table - with nulls and partition keys are included in Orc file")
   enableSuite[GlutenOrcV1QuerySuite]
-    // For exception test.
+    // Expected exception org.apache.spark.sql.AnalysisException to be thrown
+    // , but no exception was thrown
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
-    .exclude("Read/write binary data")
-    .exclude("Read/write all types with non-primitive type")
-    .exclude("Creating case class RDD table")
-    .exclude("save and load case class RDD with `None`s as orc")
-    .exclude("SPARK-16610: Respect orc.compress (i.e., OrcConf.COMPRESS) when" +
-      " compression is unset")
-    .exclude("Compression options for writing to an ORC file (SNAPPY, ZLIB and NONE)")
-    .exclude("appending")
-    .exclude("nested data - struct with array field")
-    .exclude("nested data - array of struct")
-    .exclude("SPARK-9170: Don't implicitly lowercase of user-provided columns")
-    .exclude("SPARK-10623 Enable ORC PPD")
-    .exclude("SPARK-14962 Produce correct results on array type with isnotnull")
-    .exclude("SPARK-15198 Support for pushing down filters for boolean types")
-    .exclude("Support for pushing down filters for decimal types")
-    .exclude("Support for pushing down filters for timestamp types")
-    .exclude("column nullability and comment - write and then read")
-    .exclude("Empty schema does not read data from ORC file")
-    .exclude("read from multiple orc input paths")
+    // not supported ignoreCorruptFiles
     .exclude("Enabling/disabling ignoreCorruptFiles")
-    .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
-    .exclude("LZO compression options for writing to an ORC file")
-    .exclude("Schema discovery on empty ORC files")
-    .exclude("SPARK-21791 ORC should support column names with dot")
-    .exclude("SPARK-25579 ORC PPD should support column names with dot")
-    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
-    .exclude("SPARK-37728: Reading nested columns with ORC vectorized reader should not")
-    .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
-    .exclude("Read/write all timestamp types")
-    .exclude("SPARK-37463: read/write Timestamp ntz to Orc with different time zone")
-    .exclude("SPARK-39381: Make vectorized orc columar writer batch size configurable")
+    // Schema mismatch, From Kind: BIGINT, To Kind: VARCHAR
     .exclude("SPARK-39830: Reading ORC table that requires type promotion may throw AIOOBE")
   enableSuite[GlutenOrcV2QuerySuite]
-    .exclude("Read/write binary data")
-    .exclude("Read/write all types with non-primitive type")
-    // Rewrite to disable Spark's columnar reader.
-    .exclude("Simple selection form ORC table")
-    .exclude("Creating case class RDD table")
-    .exclude("save and load case class RDD with `None`s as orc")
-    .exclude("SPARK-16610: Respect orc.compress (i.e., OrcConf.COMPRESS) when compression is unset")
-    .exclude("Compression options for writing to an ORC file (SNAPPY, ZLIB and NONE)")
-    .exclude("appending")
-    .exclude("nested data - struct with array field")
-    .exclude("nested data - array of struct")
-    .exclude("SPARK-9170: Don't implicitly lowercase of user-provided columns")
-    .exclude("SPARK-10623 Enable ORC PPD")
-    .exclude("SPARK-14962 Produce correct results on array type with isnotnull")
-    .exclude("SPARK-15198 Support for pushing down filters for boolean types")
-    .exclude("Support for pushing down filters for decimal types")
-    .exclude("Support for pushing down filters for timestamp types")
-    .exclude("column nullability and comment - write and then read")
-    .exclude("Empty schema does not read data from ORC file")
-    .exclude("read from multiple orc input paths")
+    // feature not supported
     .exclude("Enabling/disabling ignoreCorruptFiles")
-    .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
-    .exclude("LZO compression options for writing to an ORC file")
-    .exclude("Schema discovery on empty ORC files")
-    .exclude("SPARK-21791 ORC should support column names with dot")
-    .exclude("SPARK-25579 ORC PPD should support column names with dot")
-    .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
-    .exclude("SPARK-37728: Reading nested columns with ORC vectorized reader should not")
-    .exclude("SPARK-36594: ORC vectorized reader should properly check maximal number of fields")
-    .exclude("Read/write all timestamp types")
-    .exclude("SPARK-37463: read/write Timestamp ntz to Orc with different time zone")
-    .exclude("SPARK-39381: Make vectorized orc columar writer batch size configurable")
+    // Schema mismatch, From Kind: BIGINT, To Kind: VARCHAR
     .exclude("SPARK-39830: Reading ORC table that requires type promotion may throw AIOOBE")
-    .exclude("simple select queries")
-    .exclude("overwriting")
-    .exclude("self-join")
-    .exclude("columns only referenced by pushed down filters should remain")
-    .exclude("SPARK-5309 strings stored using dictionary compression in orc")
     // For exception test.
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
   enableSuite[GlutenOrcSourceSuite]
-    // https://github.com/apache/incubator-gluten/issues/11218
+    // Rewrite to disable Spark's columnar reader.
+    // date result miss match
     .exclude("SPARK-31238: compatibility with Spark 2.4 in reading dates")
     .exclude("SPARK-31238, SPARK-31423: rebasing dates in write")
     // Ignored to disable vectorized reading check.
@@ -460,9 +398,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("appending insert")
     .exclude("overwrite insert")
     .exclude("SPARK-34897: Support reconcile schemas based on index after nested column pruning")
+    // date result miss match
     .excludeGlutenTest("SPARK-31238: compatibility with Spark 2.4 in reading dates")
     .excludeGlutenTest("SPARK-31238, SPARK-31423: rebasing dates in write")
-    .excludeGlutenTest("SPARK-34862: Support ORC vectorized reader for nested column")
     // exclude as struct not supported
     .exclude("SPARK-36663: OrcUtils.toCatalystSchema should correctly handle a column name which consists of only numbers")
     .exclude("SPARK-37812: Reuse result row when deserializing a struct")
@@ -470,6 +408,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-36931: Support reading and writing ANSI intervals (spark.sql.orc.enableVectorizedReader=true, spark.sql.orc.enableNestedColumnVectorizedReader=true)")
     .exclude("SPARK-36931: Support reading and writing ANSI intervals (spark.sql.orc.enableVectorizedReader=true, spark.sql.orc.enableNestedColumnVectorizedReader=false)")
   enableSuite[GlutenOrcV1FilterSuite]
+    // Expected exception org.apache.spark.SparkException to be thrown, but no exception was thrown
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
   enableSuite[GlutenOrcV2SchemaPruningSuite]
@@ -913,6 +852,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-41048: Improve output partitioning and ordering with AQE cache")
     // Rewrite this test since it checks the physical operator which is changed in Gluten
     .exclude("SPARK-27439: Explain result should match collected result after view change")
+    // https://github.com/apache/incubator-gluten/issues/11570
+    .exclude("getRows: binary")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
