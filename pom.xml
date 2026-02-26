@@ -145,6 +145,7 @@
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
+    <bloop-maven-plugin.version>2.0.3</bloop-maven-plugin.version>
     <argLine/>
     <!-- Required since there is extensive setting of spark home through argLine-->
     <extraJavaTestArgs>
@@ -917,6 +918,11 @@
           <artifactId>maven-enforcer-plugin</artifactId>
           <version>3.3.0</version>
         </plugin>
+        <plugin>
+          <groupId>ch.epfl.scala</groupId>
+          <artifactId>bloop-maven-plugin</artifactId>
+          <version>${bloop-maven-plugin.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
@@ -965,6 +971,10 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>ch.epfl.scala</groupId>
+        <artifactId>bloop-maven-plugin</artifactId>
       </plugin>
     </plugins>
     <extensions>
@@ -1242,6 +1252,7 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <arrow.version>18.1.0</arrow.version>
         <arrow-gluten.version>18.1.0</arrow-gluten.version>
+        <scala.compiler.version>4.9.2</scala.compiler.version>
       </properties>
       <dependencies>
         <dependency>
@@ -1322,6 +1333,7 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <arrow.version>18.1.0</arrow.version>
         <arrow-gluten.version>18.1.0</arrow-gluten.version>
+        <scala.compiler.version>4.9.5</scala.compiler.version>
       </properties>
       <dependencies>
         <dependency>
@@ -2133,6 +2145,20 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>bloop</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <!-- Skip style checks during bloop configuration generation -->
+        <spotless.check.skip>true</spotless.check.skip>
+        <scalastyle.skip>true</scalastyle.skip>
+        <checkstyle.skip>true</checkstyle.skip>
+        <maven.gitcommitid.skip>true</maven.gitcommitid.skip>
+        <remoteresources.skip>true</remoteresources.skip>
+      </properties>
     </profile>
 
     <!-- Profiles for different platforms -->

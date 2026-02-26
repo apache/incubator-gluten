@@ -14,15 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql
+package org.apache.spark.sql.execution.datasources.orc
 
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenGeneratorFunctionSuite extends GeneratorFunctionSuite with GlutenSQLTestsTrait {
-  testGluten("SPARK-45171: Handle evaluated nondeterministic expression") {
-    withSQLConf(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> "false") {
-      val df = sql("select explode(array(rand(0)))")
-      checkAnswer(df, Row(0.7604953758285915))
-    }
-  }
-}
+class GlutenOrcEncryptionSuite extends OrcEncryptionSuite with GlutenSQLTestsBaseTrait {}
