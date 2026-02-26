@@ -203,9 +203,8 @@ object VeloxConfig extends ConfigRegistry {
 
   val COLUMNAR_VELOX_BROADCAST_HASH_TABLE_BUILD_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.broadcastHashTableBuildThreads")
-      .doc(
-        "The number of threads used to build the broadcast hash table. " +
-          "If not set or set to 0, it will use the default number of threads (available processors).")
+      .doc("The number of threads used to build the broadcast hash table. " +
+        "If not set or set to 0, it will use the default number of threads (available processors).")
       .intConf
       .createWithDefault(1)
 
