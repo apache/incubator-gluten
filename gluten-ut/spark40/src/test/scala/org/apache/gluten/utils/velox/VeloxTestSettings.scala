@@ -770,7 +770,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSSBQuerySuite]
   enableSuite[GlutenSessionStateSuite]
   // TODO: 4.x enableSuite[GlutenSetCommandSuite]  // 1 failure
-  // TODO: 4.x enableSuite[GlutenSingleLevelAggregateHashMapSuite]  // 1 failure
   enableSuite[GlutenSparkSessionBuilderSuite]
   // TODO: 4.x enableSuite[GlutenSparkSessionJobTaggingAndCancellationSuite]  // 1 failure
   enableSuite[GlutenTPCDSCollationQueryTestSuite]
@@ -786,8 +785,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenTPCDSV2_7_PlanStabilityWithStatsSuite]
   enableSuite[GlutenTPCHPlanStabilitySuite]
   enableSuite[GlutenTPCHQuerySuite]
-  // TODO: 4.x enableSuite[GlutenTwoLevelAggregateHashMapSuite]  // 1 failure
-  // TODO: 4.x enableSuite[GlutenTwoLevelAggregateHashMapWithVectorizedMapSuite]  // 1 failure
   enableSuite[GlutenUDFSuite]
   enableSuite[GlutenUDTRegistrationSuite]
   enableSuite[GlutenUnsafeRowSuite]
@@ -832,7 +829,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
         " before using it",
       // Velox's collect_list / collect_set are by design declarative aggregate so plan check
-      // for ObjectHashAggregateExec will fail.
+      // for ObjectHashAggregateExec will fail. Overridden
       "SPARK-22223: ObjectHashAggregate should not introduce unnecessary shuffle",
       "SPARK-31620: agg with subquery (whole-stage-codegen = true)",
       "SPARK-31620: agg with subquery (whole-stage-codegen = false)"
