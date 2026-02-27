@@ -247,6 +247,7 @@
    ./backends-clickhouse/src-delta-33/main/scala/org/apache/spark/sql/delta/Snapshot.scala
    ./backends-clickhouse/src-delta-33/main/scala/org/apache/spark/sql/delta/commands/DMLWithDeletionVectorsHelper.scala
    ./backends-clickhouse/src-delta-33/main/scala/org/apache/spark/sql/delta/commands/VacuumCommand.scala
+   ./backends-clickhouse/src-delta-33/main/scala/org/apache/spark/sql/delta/commands/merge/MergeIntoMaterializeSource.scala
 
     The Velox Project(https://github.com/facebookincubator/velox)
    ./cpp/velox/udf/examples/MyUDAF.cc
