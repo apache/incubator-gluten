@@ -976,13 +976,40 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
     cb.push_back(ObjectStore::retrieve<ColumnarBatch>(handle));
   }
 
-  size_t maxThreads = broadcastHashTableBuildThreads > 0 ? (size_t)broadcastHashTableBuildThreads
-                                                         : (size_t)std::thread::hardware_concurrency();
+  size_t maxThreads = broadcastHashTableBuildThreads > 0
+      ? std::min((size_t)broadcastHashTableBuildThreads, (size_t)32)
+      : std::min((size_t)std::thread::hardware_concurrency(), (size_t)32);
 
   // Heuristic: Each thread should process at least a certain number of batches to justify parallelism overhead.
-  constexpr size_t kMinBatchesPerThread = 4;
+  // 32 batches is roughly 128k rows, which is a reasonable granularity for a single thread.
+  constexpr size_t kMinBatchesPerThread = 32;
   size_t numThreads = std::min(maxThreads, (handleCount + kMinBatchesPerThread - 1) / kMinBatchesPerThread);
   numThreads = std::max((size_t)1, numThreads);
+
+  if (numThreads <= 1) {
+    auto builder = nativeHashTableBuild(
+        hashJoinKey,
+        names,
+        veloxTypeList,
+        joinType,
+        hasMixedJoinCondition,
+        isExistenceJoin,
+        isNullAwareAntiJoin,
+        bloomFilterPushdownSize,
+        cb,
+        defaultLeafVeloxMemoryPool());
+
+    auto mainTable = builder->uniqueTable();
+    mainTable->prepareJoinTable(
+        {},
+        facebook::velox::exec::BaseHashTable::kNoSpillInputStartPartitionBit,
+        1'000'000,
+        builder->dropDuplicates(),
+        nullptr);
+    builder->setHashTable(std::move(mainTable));
+
+    return gluten::hashTableObjStore->save(builder);
+  }
 
   std::vector<std::thread> threads;
 
