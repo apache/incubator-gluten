@@ -19,6 +19,7 @@ package org.apache.gluten.backendsapi
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
@@ -91,6 +92,8 @@ trait BackendSettingsApi {
 
   def supportHashBuildJoinTypeOnRight: JoinType => Boolean = {
     case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
+    // LeftSingle is a Spark 4.0+ join type with same semantics as LeftOuter for build side.
+    case leftSingle if SparkShimLoader.getSparkShims.isLeftSingleJoinType(leftSingle) => true
     case _ => false
   }
 
@@ -163,6 +166,8 @@ trait BackendSettingsApi {
   def supportOverwriteByExpression(): Boolean = false
 
   def supportOverwritePartitionsDynamic(): Boolean = false
+
+  def supportWriteToDataSourceV2(): Boolean = false
 
   /** Whether the backend supports columnar shuffle with empty schema. */
   def supportEmptySchemaColumnarShuffle(): Boolean = true

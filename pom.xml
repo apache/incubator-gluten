@@ -24,7 +24,7 @@
   </parent>
   <groupId>org.apache.gluten</groupId>
   <artifactId>gluten-parent</artifactId>
-  <version>1.6.0-SNAPSHOT</version>
+  <version>1.7.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
@@ -78,6 +78,7 @@
     <delta.package.name>delta-spark</delta.package.name>
     <delta.version>3.3.2</delta.version>
     <delta.binary.version>33</delta.binary.version>
+    <aws-java-sdk-dynamodb.version>1.12.262</aws-java-sdk-dynamodb.version>
     <celeborn.version>0.6.1</celeborn.version>
     <uniffle.version>0.10.0</uniffle.version>
     <arrow.version>15.0.0</arrow.version>
@@ -96,12 +97,12 @@
     -->
     <os.full.name>unknown</os.full.name>
     <!-- To build built-in backend c++ codes -->
-    <scala.recompile.mode>all</scala.recompile.mode>
+    <scala.recompile.mode>incremental</scala.recompile.mode>
     <!-- For unit tests -->
     <fasterxml.version>2.15.0</fasterxml.version>
     <junit.version>4.13.1</junit.version>
     <!-- Maven version for build/mvn wrapper script -->
-    <maven.version>3.9.6</maven.version>
+    <maven.version>3.9.12</maven.version>
     <junit5.version>5.11.4</junit5.version>
     <flexmark.version>0.62.2</flexmark.version>
 
@@ -139,11 +140,12 @@
 
     <!-- plugin version-->
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
-    <scala.compiler.version>4.8.0</scala.compiler.version>
+    <scala.compiler.version>4.9.2</scala.compiler.version>
     <maven.compiler.plugin>3.14.1</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
+    <bloop-maven-plugin.version>2.0.3</bloop-maven-plugin.version>
     <argLine/>
     <!-- Required since there is extensive setting of spark home through argLine-->
     <extraJavaTestArgs>
@@ -482,6 +484,57 @@
     </dependencies>
   </dependencyManagement>
 
+  <!-- Use Google Cloud Storage mirror for faster Maven Central downloads -->
+  <repositories>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>gcs-maven-central-mirror</id>
+      <name>GCS Maven Central mirror</name>
+      <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
+    </repository>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>Maven Central</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>gcs-maven-central-mirror</id>
+      <name>GCS Maven Central mirror</name>
+      <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
+    </pluginRepository>
+    <pluginRepository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>Maven Plugin Repository</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </pluginRepository>
+  </pluginRepositories>
+
   <build>
     <resources>
       <resource>
@@ -518,10 +571,11 @@
           <configuration>
             <encoding>UTF-8</encoding>
             <maxmem>1024m</maxmem>
-            <fork>true</fork>
-            <compilerArgs>
-              <arg>-Xlint:all,-serial,-path</arg>
-            </compilerArgs>
+            <!-- Skip javac entirely. In incremental mode (recompileMode=incremental),
+                 Zinc compiles both Scala and Java sources together, making
+                 maven-compiler-plugin redundant. Same approach as Apache Spark. -->
+            <skipMain>true</skipMain>
+            <skip>true</skip>
           </configuration>
         </plugin>
         <plugin>
@@ -576,12 +630,15 @@
             </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
             <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
+              <arg>-Wconf:any:e</arg>
+              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+              <arg>-Wconf:cat=deprecation:wv</arg>
               <arg>-Ywarn-unused:imports</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
-              <arg>-Wconf:cat=deprecation:wv,any:e</arg>
               <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+              <arg>-Ybackend-parallelism</arg>
+              <arg>8</arg>
             </args>
           </configuration>
           <executions>
@@ -849,7 +906,7 @@
         <plugin>
           <groupId>org.xolstice.maven.plugins</groupId>
           <artifactId>protobuf-maven-plugin</artifactId>
-          <version>0.5.1</version>
+          <version>0.6.1</version>
         </plugin>
         <plugin>
           <groupId>org.antlr</groupId>
@@ -860,6 +917,11 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
           <version>3.3.0</version>
+        </plugin>
+        <plugin>
+          <groupId>ch.epfl.scala</groupId>
+          <artifactId>bloop-maven-plugin</artifactId>
+          <version>${bloop-maven-plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -909,6 +971,10 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>ch.epfl.scala</groupId>
+        <artifactId>bloop-maven-plugin</artifactId>
       </plugin>
     </plugins>
     <extensions>
@@ -971,7 +1037,8 @@
                   <arg>-feature</arg>
                   <arg>-explaintypes</arg>
                   <arg>-release:${java.version}</arg>
-                  <arg>-Wconf:cat=deprecation:wv,any:e</arg>
+                  <arg>-Wconf:any:e</arg>
+                  <arg>-Wconf:cat=deprecation:wv</arg>
                   <arg>-Wunused:imports</arg>
                   <!--
                     TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed
@@ -1005,6 +1072,8 @@
                   <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
                   <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
                   <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                  <arg>-Ybackend-parallelism</arg>
+                  <arg>8</arg>
                 </args>
               </configuration>
               <executions>
@@ -1069,39 +1138,6 @@
         <spotless.version>2.44.2</spotless.version>
         <googlejavaformat.version>1.17.0</googlejavaformat.version>
       </properties>
-    </profile>
-    <profile>
-      <id>spark-3.2</id>
-      <properties>
-        <sparkbundle.version>3.2</sparkbundle.version>
-        <spark.plain.version>32</spark.plain.version>
-        <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
-        <spark.version>3.2.2</spark.version>
-        <iceberg.version>1.3.1</iceberg.version>
-        <iceberg.binary.version>3</iceberg.binary.version>
-        <delta.package.name>delta-core</delta.package.name>
-        <delta.version>2.0.1</delta.version>
-        <delta.binary.version>20</delta.binary.version>
-        <antlr4.version>4.8</antlr4.version>
-        <hudi.version>0.15.0</hudi.version>
-        <slf4j.version>1.7.30</slf4j.version>
-        <log4j.version>1.2.17</log4j.version>
-        <commons.collections4.version>4.5.0</commons.collections4.version>
-      </properties>
-      <dependencies>
-        <dependency>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-          <version>${log4j.version}</version>
-          <scope>provided</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.commons</groupId>
-          <artifactId>commons-collections4</artifactId>
-          <version>${commons.collections4.version}</version>
-          <scope>compile</scope>
-        </dependency>
-      </dependencies>
     </profile>
     <profile>
       <id>spark-3.3</id>
@@ -1216,6 +1252,7 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <arrow.version>18.1.0</arrow.version>
         <arrow-gluten.version>18.1.0</arrow-gluten.version>
+        <scala.compiler.version>4.9.2</scala.compiler.version>
       </properties>
       <dependencies>
         <dependency>
@@ -1278,7 +1315,7 @@
       <properties>
         <sparkbundle.version>4.1</sparkbundle.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark41</sparkshim.artifactId>
-        <spark.version>4.1.0</spark.version>
+        <spark.version>4.1.1</spark.version>
         <iceberg.version>1.10.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
         <delta.version>4.0.0</delta.version>
@@ -1296,6 +1333,7 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <arrow.version>18.1.0</arrow.version>
         <arrow-gluten.version>18.1.0</arrow-gluten.version>
+        <scala.compiler.version>4.9.5</scala.compiler.version>
       </properties>
       <dependencies>
         <dependency>
@@ -2107,6 +2145,20 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>bloop</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <!-- Skip style checks during bloop configuration generation -->
+        <spotless.check.skip>true</spotless.check.skip>
+        <scalastyle.skip>true</scalastyle.skip>
+        <checkstyle.skip>true</checkstyle.skip>
+        <maven.gitcommitid.skip>true</maven.gitcommitid.skip>
+        <remoteresources.skip>true</remoteresources.skip>
+      </properties>
     </profile>
 
     <!-- Profiles for different platforms -->

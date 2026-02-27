@@ -219,6 +219,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateExpressi
     auto id = sFmap.function_anchor();
     auto name = sFmap.name();
     functionMappings.emplace(id, name);
+    env->DeleteLocalRef(mapping);
   }
 
   auto pool = defaultLeafVeloxMemoryPool().get();
@@ -475,6 +476,7 @@ Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_allSupportedByR
     if (!velox::filesystems::isPathSupportedByRegisteredFileSystems(path)) {
       return false;
     }
+    env->DeleteLocalRef(string);
   }
   return true;
   JNI_METHOD_END(false)
@@ -842,6 +844,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
     jint format,
     jstring directory,
     jstring codecJstr,
+    jint partitionId,
+    jlong taskId,
+    jstring operationId,
     jbyteArray partition,
     jbyteArray fieldBytes) {
   JNI_METHOD_START
@@ -863,6 +868,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_execution_IcebergWriteJniWrapper_
       format,
       jStringToCString(env, directory),
       facebook::velox::common::stringToCompressionKind(jStringToCString(env, codecJstr)),
+      partitionId,
+      taskId,
+      jStringToCString(env, operationId),
       spec,
       protoField,
       sparkConf));

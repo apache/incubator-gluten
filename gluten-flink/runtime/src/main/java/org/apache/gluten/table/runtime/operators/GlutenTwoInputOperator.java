@@ -172,16 +172,20 @@ public class GlutenTwoInputOperator<IN, OUT> extends AbstractStreamOperator<OUT>
   }
 
   @Override
+  public void processWatermark(Watermark mark) throws Exception {
+    task.notifyWatermark(mark.getTimestamp());
+    processElementInternal();
+  }
+
+  @Override
   public void processWatermark1(Watermark mark) throws Exception {
-    // TODO: implement it;
-    task.notifyWatermark(mark.getTimestamp(), 1);
+    task.notifyWatermark(mark.getTimestamp(), 0);
     processElementInternal();
   }
 
   @Override
   public void processWatermark2(Watermark mark) throws Exception {
-    // TODO: implement it;
-    task.notifyWatermark(mark.getTimestamp(), 2);
+    task.notifyWatermark(mark.getTimestamp(), 1);
     processElementInternal();
   }
 

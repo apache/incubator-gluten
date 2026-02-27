@@ -194,7 +194,7 @@ if [ "$ENABLE_VCPKG" = "ON" ]; then
 fi
 
 # Supported Spark versions
-SUPPORTED_SPARK_VERSIONS=("3.2" "3.3" "3.4" "3.5" "4.0" "4.1" "ALL")
+SUPPORTED_SPARK_VERSIONS=("3.3" "3.4" "3.5" "4.0" "4.1" "ALL")
 
 # Check if SPARK_VERSION is in the supported list
 pattern=" $SPARK_VERSION "
@@ -202,7 +202,7 @@ if [[ " ${SUPPORTED_SPARK_VERSIONS[*]} " =~ $pattern ]]; then
   echo "Building for Spark $SPARK_VERSION"
 else
   echo "Invalid Spark version: $SPARK_VERSION"
-  echo "Supported versions: ${SUPPORTED_SPARK_VERSIONS[*]}"
+  echo "Supported versions: 3.3 3.4 3.5 4.0 4.1 ALL"
   exit 1
 fi
 
@@ -258,8 +258,8 @@ function build_gluten_cpp {
     GLUTEN_CMAKE_OPTIONS+=" -DCMAKE_PREFIX_PATH=$INSTALL_PREFIX"
   fi
 
-  cmake $GLUTEN_CMAKE_OPTIONS ..
-  make -j $NUM_THREADS
+  cmake -G Ninja $GLUTEN_CMAKE_OPTIONS ..
+  ninja -j $NUM_THREADS
 }
 
 function build_velox_backend {

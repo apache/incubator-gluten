@@ -39,7 +39,7 @@ fi
 
 pushd $GLUTEN_HOME/release/
 
-SPARK_VERSIONS="3.2 3.3 3.4 3.5"
+SPARK_VERSIONS="3.3 3.4 3.5"
 
 for v in $SPARK_VERSIONS; do
   JAR="gluten-velox-bundle-spark${v}_2.12-linux_amd64-${RELEASE_VERSION}.jar"

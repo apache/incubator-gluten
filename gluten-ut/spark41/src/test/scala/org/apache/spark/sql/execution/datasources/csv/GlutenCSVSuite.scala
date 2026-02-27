@@ -36,7 +36,12 @@ class GlutenCSVSuite extends CSVSuite with GlutenSQLTestsBaseTrait {
 
   /** Returns full path to the given file in the resource folder */
   override protected def testFile(fileName: String): String = {
-    getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + fileName
+    "file://" + getWorkspaceFilePath(
+      "sql",
+      "core",
+      "src",
+      "test",
+      "resources").toString + "/" + fileName
   }
 }
 
@@ -75,7 +80,8 @@ class GlutenCSVv2Suite extends GlutenCSVSuite {
         assert(exception.getCause.isInstanceOf[GlutenException])
         assert(
           exception.getMessage.contains(
-            "[MALFORMED_RECORD_IN_PARSING] Malformed records are detected in record parsing: " +
+            "[MALFORMED_RECORD_IN_PARSING.WITHOUT_SUGGESTION] " +
+              "Malformed records are detected in record parsing: " +
               "[2015,Chevy,Volt,null,null]"))
     }
   }

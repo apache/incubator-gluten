@@ -23,12 +23,11 @@ import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
-import io.github.zhztheplayer.velox4j.connector.NexmarkTableHandle;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.plan.EmptyNode;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.ProjectNode;
 import io.github.zhztheplayer.velox4j.plan.StatefulPlanNode;
-import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.plan.WatermarkAssignerNode;
 
 import org.apache.flink.FlinkVersion;
@@ -140,17 +139,10 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
     io.github.zhztheplayer.velox4j.type.RowType outputType =
         (io.github.zhztheplayer.velox4j.type.RowType)
             LogicalTypeConverter.toVLType(getOutputType());
-    // This scan can be ignored, it's used only to make ProjectNode valid
-    PlanNode ignore =
-        new TableScanNode(
-            PlanNodeIdGenerator.newId(),
-            outputType,
-            new NexmarkTableHandle("connector-nexmark"),
-            List.of());
     ProjectNode project =
         new ProjectNode(
             PlanNodeIdGenerator.newId(),
-            List.of(ignore),
+            List.of(new EmptyNode(outputType)),
             List.of("TIMESTAMP"),
             List.of(watermarkExprs));
     PlanNode watermark =

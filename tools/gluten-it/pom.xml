@@ -20,7 +20,7 @@
 
   <groupId>org.apache.gluten</groupId>
   <artifactId>gluten-it</artifactId>
-  <version>1.6.0-SNAPSHOT</version>
+  <version>1.7.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <modules>
     <module>3rd</module>
@@ -40,7 +40,7 @@
     <delta.version>2.4.0</delta.version>
     <celeborn.version>0.6.1</celeborn.version>
     <uniffle.version>0.10.0</uniffle.version>
-    <gluten.version>1.6.0-SNAPSHOT</gluten.version>
+    <gluten.version>1.7.0-SNAPSHOT</gluten.version>
     <tpch.version>1.1</tpch.version>
     <tpcds.version>1.4</tpcds.version>
 
@@ -275,19 +275,6 @@
       </properties>
     </profile>
     <profile>
-      <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <properties>
-        <spark.version>3.2.2</spark.version>
-        <scala.version>2.12.15</scala.version>
-        <scala.binary.version>2.12</scala.binary.version>
-        <delta.package.name>delta-core</delta.package.name>
-        <delta.version>2.0.1</delta.version>
-      </properties>
-    </profile>
-    <profile>
       <id>spark-3.3</id>
       <properties>
         <spark.version>3.3.1</spark.version>
@@ -330,7 +317,7 @@
     <profile>
       <id>spark-4.1</id>
       <properties>
-        <spark.version>4.1.0</spark.version>
+        <spark.version>4.1.1</spark.version>
         <scala.version>2.13.17</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
         <delta.package.name>delta-spark</delta.package.name>

@@ -21,7 +21,7 @@
   <parent>
     <groupId>org.apache.gluten</groupId>
     <artifactId>gluten-parent</artifactId>
-    <version>1.6.0-SNAPSHOT</version>
+    <version>1.7.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -200,12 +200,6 @@
   </build>
 
   <profiles>
-    <profile>
-      <id>spark-3.2</id>
-      <modules>
-        <module>spark32</module>
-      </modules>
-    </profile>
     <profile>
       <id>spark-3.3</id>
       <modules>
