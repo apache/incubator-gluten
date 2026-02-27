@@ -1100,6 +1100,9 @@
       </activation>
       <properties>
         <java.version>1.8</java.version>
+        <!-- scala-maven-plugin 4.9.2 injects '-release 1.8' into scalac args,
+             which fails under JDK 8. Pin to 4.8.0 where this bug does not exist. -->
+        <scala.compiler.version>4.8.0</scala.compiler.version>
       </properties>
     </profile>
     <profile>
