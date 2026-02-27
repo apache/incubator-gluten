@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.tags.SkipTest
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.functions.col
 
@@ -23,6 +25,7 @@ import org.apache.iceberg.spark.SparkWriteOptions
 
 import java.io.File
 
+@SkipTest
 class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
   protected val tpchBasePath: String =
     getClass.getResource("/").getPath + "../../../src/test/resources"

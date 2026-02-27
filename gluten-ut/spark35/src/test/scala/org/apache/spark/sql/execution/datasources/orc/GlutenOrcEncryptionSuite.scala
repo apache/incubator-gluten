@@ -14,16 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql
+package org.apache.spark.sql.execution.datasources.orc
 
-class GlutenSingleLevelAggregateHashMapSuite
-  extends SingleLevelAggregateHashMapSuite
-  with GlutenTestsCommonTrait {}
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenTwoLevelAggregateHashMapSuite
-  extends TwoLevelAggregateHashMapSuite
-  with GlutenTestsCommonTrait {}
-
-class GlutenTwoLevelAggregateHashMapWithVectorizedMapSuite
-  extends TwoLevelAggregateHashMapWithVectorizedMapSuite
-  with GlutenTestsCommonTrait {}
+class GlutenOrcEncryptionSuite extends OrcEncryptionSuite with GlutenSQLTestsBaseTrait {}

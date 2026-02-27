@@ -83,8 +83,8 @@ EmitInfo getEmitInfo(const ::substrait::RelCommon& relCommon, const core::PlanNo
   const auto& emit = relCommon.emit();
   int emitSize = emit.output_mapping_size();
   EmitInfo emitInfo;
-  emitInfo.projectNames.reserve(emitSize);
-  emitInfo.expressions.reserve(emitSize);
+  emitInfo.projectNames.resize(emitSize);
+  emitInfo.expressions.resize(emitSize);
   const auto& outputType = node->outputType();
   for (int i = 0; i < emitSize; i++) {
     int32_t mapId = emit.output_mapping(i);
@@ -1169,9 +1169,18 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
         childNode);
   }
 
+  auto windowFunc = core::TopNRowNumberNode::RankFunction::kRowNumber;
+  if (windowGroupLimitRel.has_advanced_extension()) {
+    if (SubstraitParser::checkWindowFunction(windowGroupLimitRel.advanced_extension(), "rank")){
+        windowFunc = core::TopNRowNumberNode::RankFunction::kRank;
+    } else if (SubstraitParser::checkWindowFunction(windowGroupLimitRel.advanced_extension(), "dense_rank")) {
+        windowFunc = core::TopNRowNumberNode::RankFunction::kDenseRank;
+    }
+  }
+
   return std::make_shared<core::TopNRowNumberNode>(
       nextPlanNodeId(),
-      core::TopNRowNumberNode::RankFunction::kRowNumber,
+      windowFunc,
       partitionKeys,
       sortingKeys,
       sortingOrders,

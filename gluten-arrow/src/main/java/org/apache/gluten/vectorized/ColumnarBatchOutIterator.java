@@ -58,6 +58,8 @@ public class ColumnarBatchOutIterator extends ClosableIterator<ColumnarBatch>
 
   private native void nativeNoMoreSplits(long iterHandle);
 
+  private native void nativeRequestBarrier(long iterHandle);
+
   @Override
   public boolean hasNext0() throws IOException {
     return nativeHasNext(iterHandle);
@@ -97,7 +99,7 @@ public class ColumnarBatchOutIterator extends ClosableIterator<ColumnarBatch>
 
   /**
    * Signal that no more splits will be added to the iterator. This is required for proper task
-   * completion and is a prerequisite for barrier support.
+   * completion.
    *
    * @throws IllegalStateException if the iterator is closed
    */
@@ -106,6 +108,26 @@ public class ColumnarBatchOutIterator extends ClosableIterator<ColumnarBatch>
       throw new IllegalStateException("Cannot call noMoreSplits on a closed iterator");
     }
     nativeNoMoreSplits(iterHandle);
+  }
+
+  /**
+   * Request a barrier in the task execution. This signals the task to finish processing all
+   * currently queued splits and drain all stateful operators before continuing. After calling this
+   * method, continue calling next() to fetch results. When next() returns null and hasNext()
+   * returns false, the barrier has been reached.
+   *
+   * <p>This enables task reuse and deterministic execution for workloads like AI training data
+   * loading and real-time streaming processing.
+   *
+   * @throws IllegalStateException if the iterator is closed
+   * @see <a href="https://facebookincubator.github.io/velox/develop/task-barrier.html">Velox Task
+   *     Barrier Documentation</a>
+   */
+  public void requestBarrier() {
+    if (closed.get()) {
+      throw new IllegalStateException("Cannot call requestBarrier on a closed iterator");
+    }
+    nativeRequestBarrier(iterHandle);
   }
 
   @Override

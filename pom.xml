@@ -24,7 +24,7 @@
   </parent>
   <groupId>org.apache.gluten</groupId>
   <artifactId>gluten-parent</artifactId>
-  <version>1.6.0-SNAPSHOT</version>
+  <version>1.7.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
@@ -97,7 +97,7 @@
     -->
     <os.full.name>unknown</os.full.name>
     <!-- To build built-in backend c++ codes -->
-    <scala.recompile.mode>incremental</scala.recompile.mode>
+    <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
     <fasterxml.version>2.15.0</fasterxml.version>
     <junit.version>4.13.1</junit.version>
@@ -145,6 +145,7 @@
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
+    <bloop-maven-plugin.version>2.0.3</bloop-maven-plugin.version>
     <argLine/>
     <!-- Required since there is extensive setting of spark home through argLine-->
     <extraJavaTestArgs>
@@ -570,11 +571,6 @@
           <configuration>
             <encoding>UTF-8</encoding>
             <maxmem>1024m</maxmem>
-            <!-- Skip javac entirely. In incremental mode (recompileMode=incremental),
-                 Zinc compiles both Scala and Java sources together, making
-                 maven-compiler-plugin redundant. Same approach as Apache Spark. -->
-            <skipMain>true</skipMain>
-            <skip>true</skip>
           </configuration>
         </plugin>
         <plugin>
@@ -917,6 +913,11 @@
           <artifactId>maven-enforcer-plugin</artifactId>
           <version>3.3.0</version>
         </plugin>
+        <plugin>
+          <groupId>ch.epfl.scala</groupId>
+          <artifactId>bloop-maven-plugin</artifactId>
+          <version>${bloop-maven-plugin.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
@@ -965,6 +966,10 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>ch.epfl.scala</groupId>
+        <artifactId>bloop-maven-plugin</artifactId>
       </plugin>
     </plugins>
     <extensions>
@@ -1095,6 +1100,9 @@
       </activation>
       <properties>
         <java.version>1.8</java.version>
+        <!-- scala-maven-plugin 4.9.2 injects '-release 1.8' into scalac args,
+             which fails under JDK 8. Pin to 4.8.0 where this bug does not exist. -->
+        <scala.compiler.version>4.8.0</scala.compiler.version>
       </properties>
     </profile>
     <profile>
@@ -1242,6 +1250,7 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <arrow.version>18.1.0</arrow.version>
         <arrow-gluten.version>18.1.0</arrow-gluten.version>
+        <scala.compiler.version>4.9.2</scala.compiler.version>
       </properties>
       <dependencies>
         <dependency>
@@ -1322,6 +1331,7 @@
         <commons-lang3.version>3.17.0</commons-lang3.version>
         <arrow.version>18.1.0</arrow.version>
         <arrow-gluten.version>18.1.0</arrow-gluten.version>
+        <scala.compiler.version>4.9.5</scala.compiler.version>
       </properties>
       <dependencies>
         <dependency>
@@ -2132,6 +2142,39 @@
             </executions>
           </plugin>
         </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>fast-build</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <!-- Skip style checks for faster local builds -->
+        <spotless.check.skip>true</spotless.check.skip>
+        <scalastyle.skip>true</scalastyle.skip>
+        <checkstyle.skip>true</checkstyle.skip>
+        <maven.gitcommitid.skip>true</maven.gitcommitid.skip>
+        <remoteresources.skip>true</remoteresources.skip>
+        <!-- Use incremental Scala compilation (Zinc state is warm in local/dev contexts) -->
+        <scala.recompile.mode>incremental</scala.recompile.mode>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <configuration>
+                <!-- Skip javac entirely. In incremental mode (recompileMode=incremental),
+                     Zinc compiles both Scala and Java sources together, making
+                     maven-compiler-plugin redundant. Same approach as Apache Spark. -->
+                <skipMain>true</skipMain>
+                <skip>true</skip>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
       </build>
     </profile>
 
