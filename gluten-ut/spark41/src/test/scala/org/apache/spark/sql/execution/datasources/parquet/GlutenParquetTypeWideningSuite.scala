@@ -128,26 +128,19 @@ class GlutenParquetTypeWideningSuite extends ParquetTypeWideningSuite with Glute
       }
     }
 
-  // Velox rejects all Decimal->Decimal scale changes (convertType() requires
-  // scale == schemaElementScale). Override to set expectError = true for both reader configs.
+  // Velox rejects Decimal->Decimal narrowing and unsupported scale changes.
+  // Widening precision+scale where precisionIncrease >= scaleIncrease >= 0 is now supported.
+  // Override to set expectError = true for both reader configs.
   for {
     ((fromPrecision, fromScale), (toPrecision, toScale)) <-
-    // Widening precision and scale by the same amount.
+    // Narrowing precision and scale by the same amount.
     Seq(
-      (5, 2) -> (7, 4),
-      (5, 2) -> (10, 7),
-      (5, 2) -> (20, 17),
-      (10, 2) -> (12, 4),
-      (10, 2) -> (20, 12),
-      (20, 2) -> (22, 4)) ++
-      // Narrowing precision and scale by the same amount.
-      Seq(
-        (7, 4) -> (5, 2),
-        (10, 7) -> (5, 2),
-        (20, 17) -> (5, 2),
-        (12, 4) -> (10, 2),
-        (20, 17) -> (10, 2),
-        (22, 4) -> (20, 2)) ++
+      (7, 4) -> (5, 2),
+      (10, 7) -> (5, 2),
+      (20, 17) -> (5, 2),
+      (12, 4) -> (10, 2),
+      (20, 17) -> (10, 2),
+      (22, 4) -> (20, 2)) ++
       // Increasing precision and decreasing scale.
       Seq((10, 6) -> (12, 4), (20, 7) -> (22, 5)) ++
       // Decreasing precision and increasing scale.

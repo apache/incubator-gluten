@@ -375,12 +375,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("parquet decimal precision change Decimal(12, 2) -> Decimal(10, 2)")
     .exclude("parquet decimal precision change Decimal(20, 2) -> Decimal(10, 2)")
     .exclude("parquet decimal precision change Decimal(22, 2) -> Decimal(20, 2)")
-    .exclude("parquet decimal precision and scale change Decimal(5, 2) -> Decimal(7, 4)")
-    .exclude("parquet decimal precision and scale change Decimal(5, 2) -> Decimal(10, 7)")
-    .exclude("parquet decimal precision and scale change Decimal(5, 2) -> Decimal(20, 17)")
-    .exclude("parquet decimal precision and scale change Decimal(10, 2) -> Decimal(12, 4)")
-    .exclude("parquet decimal precision and scale change Decimal(10, 2) -> Decimal(20, 12)")
-    .exclude("parquet decimal precision and scale change Decimal(20, 2) -> Decimal(22, 4)")
     .exclude("parquet decimal precision and scale change Decimal(7, 4) -> Decimal(5, 2)")
     .exclude("parquet decimal precision and scale change Decimal(10, 7) -> Decimal(5, 2)")
     .exclude("parquet decimal precision and scale change Decimal(20, 17) -> Decimal(5, 2)")
@@ -394,6 +388,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("parquet decimal precision and scale change Decimal(5, 2) -> Decimal(6, 4)")
     .exclude("parquet decimal precision and scale change Decimal(10, 4) -> Decimal(12, 7)")
     .exclude("parquet decimal precision and scale change Decimal(20, 5) -> Decimal(22, 8)")
+    // Decimal(20,2)->Decimal(22,4): from precision > 18, stored as FIXED_LEN_BYTE_ARRAY.
+    // Spark 4.1 V2 writer uses DELTA_BYTE_ARRAY encoding for FLBA, not supported by Velox.
+    .exclude("parquet decimal precision and scale change Decimal(20, 2) -> Decimal(22, 4)")
     // Test only exercises parquet-mr reader (vectorized=false) for decimal narrowing overflow→null.
     // Spark vectorized reader rejects Decimal(5,2)→Decimal(3,2) in isDecimalTypeMatched()
     // (precisionIncrease < 0). Gluten always uses Velox native reader, cannot reproduce
