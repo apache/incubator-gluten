@@ -180,10 +180,6 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
     }
 
     loadLazyVectorTime += joinMetrics.asScala.last.loadLazyVectorTime
-    joinMetrics.asScala.foreach { m =>
-      valueStreamDynamicFiltersAccepted += m.numDynamicFiltersAccepted
-      valueStreamDynamicFilteredRows += m.numDynamicFilteredRows
-    }
   }
 }
 

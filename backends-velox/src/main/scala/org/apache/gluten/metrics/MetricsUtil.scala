@@ -298,6 +298,8 @@ object MetricsUtil extends Logging {
         curMetricsIdx
       }
 
+    val childStartMetricsIdx = newMetricsIdx
+
     mutNode.children.foreach {
       child =>
         val result = updateTransformerMetricsInternal(
@@ -310,6 +312,19 @@ object MetricsUtil extends Logging {
           aggParamsMap)
         newOperatorIdx = result._1
         newMetricsIdx = result._2
+    }
+
+    // Collect ValueStream dynamic filter metrics from child operators (scan nodes)
+    // since these stats are reported on the ValueStream/TableScan operator, not on
+    // the HashProbe/HashBuild operators that are part of the join's own metrics.
+    mutNode.updater match {
+      case hju: HashJoinMetricsUpdater =>
+        for (idx <- (newMetricsIdx + 1) to childStartMetricsIdx) {
+          val childOpMetrics = metrics.getOperatorMetrics(idx)
+          hju.valueStreamDynamicFiltersAccepted += childOpMetrics.numDynamicFiltersAccepted
+          hju.valueStreamDynamicFilteredRows += childOpMetrics.numDynamicFilteredRows
+        }
+      case _ =>
     }
 
     (newOperatorIdx, newMetricsIdx)

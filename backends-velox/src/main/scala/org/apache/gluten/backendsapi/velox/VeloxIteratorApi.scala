@@ -249,8 +249,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       materializeInput: Boolean,
       enableCudf: Boolean = false,
       disableValueStreamDynamicFilter: Boolean = false): Iterator[ColumnarBatch] = {
-    val extraConfMap = mutable.Map(
-      GlutenConfig.COLUMNAR_CUDF_ENABLED.key -> enableCudf.toString)
+    val extraConfMap = mutable.Map(GlutenConfig.COLUMNAR_CUDF_ENABLED.key -> enableCudf.toString)
     if (disableValueStreamDynamicFilter) {
       extraConfMap(VeloxConfig.VALUE_STREAM_DYNAMIC_FILTER_ENABLED.key) = "false"
     }

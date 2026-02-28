@@ -269,15 +269,15 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
    * Checks whether any HashJoin's probe (streamed) side contains non-deterministic expressions.
    * When true, ValueStream dynamic filter pushdown must be disabled because the dynamic filter
    * would be applied at the scan level (below the non-deterministic Project), changing how many
-   * times the non-deterministic expression is evaluated and thus altering its output sequence.
-   * See SPARK-10316.
+   * times the non-deterministic expression is evaluated and thus altering its output sequence. See
+   * SPARK-10316.
    */
   private def hasNonDeterministicExprInJoinProbe(plan: SparkPlan): Boolean = {
     plan match {
       case join: HashJoinLikeExecTransformer =>
         containsNonDeterministicExpr(join.streamedPlan) ||
-          hasNonDeterministicExprInJoinProbe(join.streamedPlan) ||
-          hasNonDeterministicExprInJoinProbe(join.buildPlan)
+        hasNonDeterministicExprInJoinProbe(join.streamedPlan) ||
+        hasNonDeterministicExprInJoinProbe(join.buildPlan)
       case other =>
         other.children.exists(hasNonDeterministicExprInJoinProbe)
     }
@@ -285,7 +285,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   private def containsNonDeterministicExpr(plan: SparkPlan): Boolean = {
     plan.expressions.exists(!_.deterministic) ||
-      plan.children.exists(containsNonDeterministicExpr)
+    plan.children.exists(containsNonDeterministicExpr)
   }
 
   def doWholeStageTransform(): WholeStageTransformContext = {
