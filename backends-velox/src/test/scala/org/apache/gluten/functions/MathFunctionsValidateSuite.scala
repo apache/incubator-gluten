@@ -302,6 +302,13 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithMinSparkVersion("randstr", "4.0") {
+    // randstr generates random strings, so we only verify native execution, not result equality.
+    runQueryAndCompare("SELECT randstr(5, 0) from lineitem limit 100", compareResult = false) {
+      checkGlutenPlan[ProjectExecTransformer]
+    }
+  }
+
   test("rint") {
     withTempPath {
       path =>
