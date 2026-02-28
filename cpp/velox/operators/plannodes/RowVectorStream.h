@@ -80,6 +80,7 @@ class ValueStreamDataSource : public facebook::velox::connector::DataSource {
       const std::shared_ptr<facebook::velox::common::Filter>& filter) override {
     if (dynamicFilterEnabled_) {
       dynamicFilters_[outputChannel] = filter;
+      numDynamicFiltersAccepted_++;
     }
   }
 
@@ -92,7 +93,12 @@ class ValueStreamDataSource : public facebook::velox::connector::DataSource {
   }
 
   std::unordered_map<std::string, facebook::velox::RuntimeMetric> getRuntimeStats() override {
-    return {};
+    std::unordered_map<std::string, facebook::velox::RuntimeMetric> stats;
+    stats["dynamicFiltersAccepted"] = facebook::velox::RuntimeMetric(numDynamicFiltersAccepted_);
+    if (dynamicFilteredRows_ > 0) {
+      stats["dynamicFilteredRows"] = facebook::velox::RuntimeMetric(dynamicFilteredRows_);
+    }
+    return stats;
   }
 
  private:
@@ -118,21 +124,31 @@ class ValueStreamDataSource : public facebook::velox::connector::DataSource {
   folly::F14FastMap<facebook::velox::column_index_t, std::shared_ptr<facebook::velox::common::Filter>> dynamicFilters_;
   const facebook::velox::common::SubfieldFilters emptyFilters_;
   bool dynamicFilterEnabled_{true};
+  uint64_t numDynamicFiltersAccepted_{0};
+  uint64_t dynamicFilteredRows_{0};
 };
 
 /// Table handle for iterator-based scans
 class ValueStreamTableHandle : public facebook::velox::connector::ConnectorTableHandle {
  public:
-  explicit ValueStreamTableHandle(std::string connectorId) : ConnectorTableHandle(connectorId) {}
+  explicit ValueStreamTableHandle(std::string connectorId, bool dynamicFilterEnabled = true)
+      : ConnectorTableHandle(connectorId), dynamicFilterEnabled_(dynamicFilterEnabled) {}
 
   const std::string& name() const override {
     static const std::string kName = "ValueStreamTableHandle";
     return kName;
   }
 
+  bool dynamicFilterEnabled() const {
+    return dynamicFilterEnabled_;
+  }
+
   folly::dynamic serialize() const override {
     VELOX_NYI();
   }
+
+ private:
+  bool dynamicFilterEnabled_;
 };
 
 /// Column handle for iterator-based scans

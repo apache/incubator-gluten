@@ -116,7 +116,7 @@ ValueStreamDataSource::ValueStreamDataSource(
     : outputType_(outputType),
       pool_(connectorQueryCtx->memoryPool()),
       dynamicFilterEnabled_(
-          connectorQueryCtx->sessionProperties()->get<bool>("value_stream_dynamic_filter_enabled", true)) {}
+          std::dynamic_pointer_cast<const ValueStreamTableHandle>(tableHandle)->dynamicFilterEnabled()) {}
 
 void ValueStreamDataSource::addSplit(std::shared_ptr<facebook::velox::connector::ConnectorSplit> split) {
   // Cast to IteratorConnectorSplit to extract the iterator
@@ -198,6 +198,7 @@ facebook::velox::RowVectorPtr ValueStreamDataSource::applyDynamicFilters(
     }
     applyFilterOnColumn(filter, input->childAt(channel), rows);
     if (!rows.hasSelections()) {
+      dynamicFilteredRows_ += numRows;
       return nullptr;
     }
   }
@@ -206,6 +207,8 @@ facebook::velox::RowVectorPtr ValueStreamDataSource::applyDynamicFilters(
   if (passedCount == numRows) {
     return input;
   }
+
+  dynamicFilteredRows_ += numRows - passedCount;
 
   BufferPtr indices = allocateIndices(passedCount, pool_);
   auto* rawIndices = indices->asMutable<vector_size_t>();

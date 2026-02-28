@@ -101,6 +101,11 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
 
   val bloomFilterBlocksByteSize: SQLMetric = metrics("bloomFilterBlocksByteSize")
 
+  val valueStreamDynamicFiltersAccepted: SQLMetric =
+    metrics("valueStreamDynamicFiltersAccepted")
+  val valueStreamDynamicFilteredRows: SQLMetric =
+    metrics("valueStreamDynamicFilteredRows")
+
   val streamPreProjectionCpuCount: SQLMetric = metrics("streamPreProjectionCpuCount")
   val streamPreProjectionWallNanos: SQLMetric = metrics("streamPreProjectionWallNanos")
 
@@ -175,6 +180,10 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
     }
 
     loadLazyVectorTime += joinMetrics.asScala.last.loadLazyVectorTime
+    joinMetrics.asScala.foreach { m =>
+      valueStreamDynamicFiltersAccepted += m.numDynamicFiltersAccepted
+      valueStreamDynamicFilteredRows += m.numDynamicFilteredRows
+    }
   }
 }
 

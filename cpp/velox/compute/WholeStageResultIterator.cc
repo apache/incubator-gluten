@@ -43,6 +43,7 @@ namespace {
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
+const std::string kDynamicFilteredRows = "dynamicFilteredRows";
 const std::string kFlushRowCount = "flushRowCount";
 const std::string kLoadedToValueHook = "loadedToValueHook";
 const std::string kBloomFilterBlocksByteSize = "bloomFilterSize";
@@ -492,6 +493,8 @@ void WholeStageResultIterator::collectMetrics() {
           runtimeMetric("sum", second->customStats, kDynamicFiltersAccepted);
       metrics_->get(Metrics::kNumReplacedWithDynamicFilterRows)[metricIndex] =
           runtimeMetric("sum", second->customStats, kReplacedWithDynamicFilterRows);
+      metrics_->get(Metrics::kNumDynamicFilteredRows)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kDynamicFilteredRows);
       metrics_->get(Metrics::kFlushRowCount)[metricIndex] = runtimeMetric("sum", second->customStats, kFlushRowCount);
       metrics_->get(Metrics::kLoadedToValueHook)[metricIndex] =
           runtimeMetric("sum", second->customStats, kLoadedToValueHook);
@@ -652,8 +655,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kHashProbeDynamicFilterPushdownEnabled, true));
     configs[velox::core::QueryConfig::kHashProbeBloomFilterPushdownMaxSize] =
         std::to_string(veloxCfg_->get<uint64_t>(kHashProbeBloomFilterPushdownMaxSize, 0));
-    configs["value_stream_dynamic_filter_enabled"] =
-        std::to_string(veloxCfg_->get<bool>(kValueStreamDynamicFilterEnabled, kValueStreamDynamicFilterEnabledDefault));
     // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
     // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
     configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =
