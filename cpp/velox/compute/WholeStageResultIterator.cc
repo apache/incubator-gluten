@@ -666,6 +666,14 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
     configs[velox::core::QueryConfig::kSparkPartitionId] = std::to_string(taskInfo_.partitionId);
 
+    // Disable expression deduplication for non-deterministic functions to
+    // match Spark semantics. Spark creates separate instances for each
+    // non-deterministic expression, each with independent state. Without
+    // this, Velox merges structurally identical non-deterministic calls
+    // (e.g. two monotonically_increasing_id() in the same query) into one
+    // shared instance, causing incorrect results.
+    configs[velox::core::QueryConfig::kExprDedupNonDeterministic] = "false";
+
     // Enable Spark legacy date formatter if spark.sql.legacy.timeParserPolicy is set to 'LEGACY'
     // or 'legacy'
     if (veloxCfg_->get<std::string>(kSparkLegacyTimeParserPolicy, "") == "LEGACY") {

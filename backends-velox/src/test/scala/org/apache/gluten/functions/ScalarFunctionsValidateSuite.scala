@@ -496,10 +496,15 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  // FIXME: Ignored: https://github.com/apache/incubator-gluten/issues/7600.
-  ignore("monotonically_increasintestg_id") {
+  test("monotonically_increasing_id") {
     runQueryAndCompare("""SELECT monotonically_increasing_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
+      checkGlutenPlan[ProjectExecTransformer]
+    }
+    // Multiple calls must produce independent results (issue #7628).
+    runQueryAndCompare(
+      """SELECT monotonically_increasing_id(), monotonically_increasing_id()
+        | from lineitem limit 100""".stripMargin) {
       checkGlutenPlan[ProjectExecTransformer]
     }
   }
