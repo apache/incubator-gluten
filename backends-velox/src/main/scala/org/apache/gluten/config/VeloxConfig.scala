@@ -477,7 +477,7 @@ object VeloxConfig extends ConfigRegistry {
         "Whether to apply dynamic filters pushed down from hash probe in the ValueStream" +
           " (shuffle reader) operator to filter rows before they reach the hash join.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled")
