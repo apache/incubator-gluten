@@ -334,11 +334,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetCommitterSuite]
   enableSuite[GlutenParquetFieldIdSchemaSuite]
   enableSuite[GlutenParquetTypeWideningSuite]
-    // OAP commit ef5610237 allows INT64->INT32 narrowing in ParquetReader.cpp convertType().
-    // Spark rejects LongType->IntegerType and LongType->DateType for both readers.
-    // Needs upstream Velox fix to restore BIGINT-only check in INT64 fallback.
-    .exclude("unsupported parquet conversion LongType -> IntegerType")
-    .exclude("unsupported parquet conversion LongType -> DateType")
     // Velox always uses native reader (= vectorized). Override tests in
     // GlutenParquetTypeWideningSuite set expectError = true for both reader configs.
     .exclude("unsupported parquet conversion ByteType -> DecimalType(1,0)")
@@ -357,14 +352,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("unsupported parquet conversion ShortType -> DecimalType(5,1)")
     .exclude("unsupported parquet conversion IntegerType -> DecimalType(10,1)")
     .exclude("unsupported parquet conversion LongType -> DecimalType(20,1)")
-    // Velox reads wrong data for Decimal->Decimal widening with same scale.
-    // convertType() passes the check (precision >= schemaElementPrecision && scale ==
-    // schemaElementScale) but the actual decimal value conversion is incorrect.
-    .exclude("parquet decimal precision change Decimal(5, 2) -> Decimal(7, 2)")
-    .exclude("parquet decimal precision change Decimal(5, 2) -> Decimal(10, 2)")
-    .exclude("parquet decimal precision change Decimal(5, 2) -> Decimal(20, 2)")
-    .exclude("parquet decimal precision change Decimal(10, 2) -> Decimal(12, 2)")
-    .exclude("parquet decimal precision change Decimal(10, 2) -> Decimal(20, 2)")
+    // Velox now supports Decimal->Decimal same-scale precision widening (Velox commit 3).
+    // Same-scale precision WIDENING: handled by upstream tests (not excluded).
     .exclude("parquet decimal precision change Decimal(20, 2) -> Decimal(22, 2)")
     // Override tests in GlutenParquetTypeWideningSuite set expectError = true for:
     // - Decimal narrowing (same scale): Velox rejects matching vectorized reader.
