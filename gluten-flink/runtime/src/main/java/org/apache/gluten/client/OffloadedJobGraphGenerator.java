@@ -22,6 +22,7 @@ import org.apache.gluten.table.runtime.keyselector.GlutenKeySelector;
 import org.apache.gluten.table.runtime.operators.GlutenOneInputOperator;
 import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 import org.apache.gluten.table.runtime.operators.GlutenTwoInputOperator;
+import org.apache.gluten.table.runtime.operators.WindowAggOperator;
 import org.apache.gluten.table.runtime.typeutils.GlutenStatefulRecordSerializer;
 import org.apache.gluten.util.Utils;
 
@@ -248,6 +249,21 @@ public class OffloadedJobGraphGenerator {
             inClass,
             outClass,
             sourceOperator.getDescription());
+    if (sourceOperator instanceof WindowAggOperator) {
+      WindowAggOperator<?, ?, ?> windowAggOperator = (WindowAggOperator<?, ?, ?>) sourceOperator;
+      newOneInputOp =
+          new WindowAggOperator<>(
+              planNode,
+              sourceOperator.getId(),
+              sourceOperator.getInputType(),
+              sourceOperator.getOutputTypes(),
+              inClass,
+              outClass,
+              sourceOperator.getDescription(),
+              windowAggOperator.getKeyTye(),
+              windowAggOperator.getAggregateNames(),
+              windowAggOperator.getAggregateTypes());
+    }
     offloadedOpConfig.setStreamOperator(newOneInputOp);
     if (supportsVectorOutput) {
       setOffloadedOutputSerializer(offloadedOpConfig, sourceOperator);
