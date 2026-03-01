@@ -29,7 +29,13 @@ std::unique_ptr<arrow::util::Codec>
 createCompressionCodec(arrow::Compression::type compressedType, CodecBackend codecBackend, int32_t compressionLevel) {
   std::unique_ptr<arrow::util::Codec> codec;
   switch (compressedType) {
+    case arrow::Compression::UNCOMPRESSED: {
+      return nullptr;
+    }
     case arrow::Compression::LZ4_FRAME: {
+      GLUTEN_ASSIGN_OR_THROW(codec, arrow::util::Codec::Create(compressedType));
+    } break;
+    case arrow::Compression::SNAPPY: {
       GLUTEN_ASSIGN_OR_THROW(codec, arrow::util::Codec::Create(compressedType));
     } break;
     case arrow::Compression::ZSTD: {
