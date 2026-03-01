@@ -39,6 +39,7 @@ std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
     bool hasMixedJoinCondition,
     bool isExistenceJoin,
     bool isNullAwareAntiJoin,
+    int64_t bloomFilterPushdownSize,
     std::vector<std::shared_ptr<ColumnarBatch>>& batches,
     std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool);
 

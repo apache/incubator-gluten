@@ -53,6 +53,7 @@ std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
     bool hasMixedJoinCondition,
     bool isExistenceJoin,
     bool isNullAwareAntiJoin,
+    int64_t bloomFilterPushdownSize,
     std::vector<std::shared_ptr<ColumnarBatch>>& batches,
     std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool) {
   auto rowType = std::make_shared<facebook::velox::RowType>(std::move(names), std::move(veloxTypeList));
@@ -108,15 +109,18 @@ std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
   }
 
   auto hashTableBuilder = std::make_shared<HashTableBuilder>(
-      vJoin, isNullAwareAntiJoin, hasMixedJoinCondition, joinKeyTypes, rowType, memoryPool.get());
+      vJoin,
+      isNullAwareAntiJoin,
+      hasMixedJoinCondition,
+      bloomFilterPushdownSize,
+      joinKeyTypes,
+      rowType,
+      memoryPool.get());
 
   for (auto i = 0; i < batches.size(); i++) {
     auto rowVector = VeloxColumnarBatch::from(memoryPool.get(), batches[i])->getRowVector();
     hashTableBuilder->addInput(rowVector);
   }
-
-  hashTableBuilder->hashTable()->prepareJoinTable(
-      {}, facebook::velox::exec::BaseHashTable::kNoSpillInputStartPartitionBit, 1'000'000);
 
   return hashTableBuilder;
 }
