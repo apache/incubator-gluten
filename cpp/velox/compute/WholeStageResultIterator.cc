@@ -155,18 +155,16 @@ WholeStageResultIterator::WholeStageResultIterator(
 
       std::shared_ptr<velox::connector::ConnectorSplit> split;
       if (auto icebergSplitInfo = std::dynamic_pointer_cast<IcebergSplitInfo>(scanInfo)) {
-        // Set Iceberg split.
-        std::unordered_map<std::string, std::string> customSplitInfo{{"table_format", "hive-iceberg"}};
         auto deleteFiles = icebergSplitInfo->deleteFilesVec[idx];
         split = std::make_shared<velox::connector::hive::iceberg::HiveIcebergSplit>(
-            kHiveConnectorId,
+            kIcebergConnectorId,
             paths[idx],
             format,
             starts[idx],
             lengths[idx],
             partitionKeys,
             std::nullopt,
-            customSplitInfo,
+            std::unordered_map<std::string, std::string>(),
             nullptr,
             true,
             deleteFiles,
@@ -213,6 +211,7 @@ WholeStageResultIterator::WholeStageResultIterator(
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createHiveConnectorSessionConfig(veloxCfg_);
+  connectorConfigs[kIcebergConnectorId] = connectorConfigs[kHiveConnectorId];
   std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(
       nullptr,
       facebook::velox::core::QueryConfig{getQueryContextConf()},
