@@ -78,6 +78,10 @@ const std::string kHashProbeDynamicFilterPushdownEnabled =
 const std::string kHashProbeBloomFilterPushdownMaxSize =
     "spark.gluten.sql.columnar.backend.velox.hashProbe.bloomFilterPushdown.maxSize";
 
+const std::string kValueStreamDynamicFilterEnabled =
+    "spark.gluten.sql.columnar.backend.velox.valueStream.dynamicFilter.enabled";
+const bool kValueStreamDynamicFilterEnabledDefault = true;
+
 const std::string kShowTaskMetricsWhenFinished = "spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished";
 const bool kShowTaskMetricsWhenFinishedDefault = false;
 

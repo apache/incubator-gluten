@@ -317,4 +317,41 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
       }
     }
   }
+
+  test("Value stream dynamic filter pushdown") {
+    withSQLConf(
+      "spark.sql.autoBroadcastJoinThreshold" -> "-1",
+      "spark.sql.adaptive.enabled" -> "false",
+      GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true",
+      VeloxConfig.VALUE_STREAM_DYNAMIC_FILTER_ENABLED.key -> "true"
+    ) {
+      withTable("vs_probe_table", "vs_build_table") {
+        spark.sql("""
+          CREATE TABLE vs_probe_table USING PARQUET
+          AS SELECT id as a FROM range(110001)
+        """)
+
+        spark.sql("""
+          CREATE TABLE vs_build_table USING PARQUET
+          AS SELECT id * 1000 as b FROM range(220002)
+        """)
+
+        runQueryAndCompare(
+          "SELECT a FROM vs_probe_table JOIN vs_build_table ON a = b"
+        ) {
+          df =>
+            val join = find(df.queryExecution.executedPlan) {
+              case _: ShuffledHashJoinExecTransformer => true
+              case _ => false
+            }
+            assert(join.isDefined)
+            val metrics = join.get.metrics
+            assert(metrics.contains("valueStreamDynamicFiltersAccepted"))
+            assert(metrics("valueStreamDynamicFiltersAccepted").value > 0)
+            assert(metrics.contains("valueStreamDynamicFilteredRows"))
+            assert(metrics("valueStreamDynamicFilteredRows").value > 0)
+        }
+      }
+    }
+  }
 }

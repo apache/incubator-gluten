@@ -90,6 +90,9 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def hashProbeDynamicFilterPushdownEnabled: Boolean =
     getConf(HASH_PROBE_DYNAMIC_FILTER_PUSHDOWN_ENABLED)
+
+  def valueStreamDynamicFilterEnabled: Boolean =
+    getConf(VALUE_STREAM_DYNAMIC_FILTER_ENABLED)
 }
 
 object VeloxConfig extends ConfigRegistry {
@@ -465,6 +468,14 @@ object VeloxConfig extends ConfigRegistry {
       .doc(
         "Whether hash probe can generate any dynamic filter (including Bloom filter) and push" +
           " down to upstream operators.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val VALUE_STREAM_DYNAMIC_FILTER_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.valueStream.dynamicFilter.enabled")
+      .doc(
+        "Whether to apply dynamic filters pushed down from hash probe in the ValueStream" +
+          " (shuffle reader) operator to filter rows before they reach the hash join.")
       .booleanConf
       .createWithDefault(true)
 
