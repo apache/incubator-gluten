@@ -47,5 +47,7 @@ public class HashJoinBuilder implements RuntimeAware {
       boolean hasMixedFiltCondition,
       boolean isExistenceJoin,
       byte[] namedStruct,
-      boolean isNullAwareAntiJoin);
+      boolean isNullAwareAntiJoin,
+      long bloomFilterPushdownSize,
+      int broadcastHashTableBuildThreads);
 }

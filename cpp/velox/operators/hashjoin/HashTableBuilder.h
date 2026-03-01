@@ -33,18 +33,34 @@ class HashTableBuilder {
       facebook::velox::core::JoinType joinType,
       bool nullAware,
       bool withFilter,
+      int64_t bloomFilterPushdownSize,
       const std::vector<facebook::velox::core::FieldAccessTypedExprPtr>& joinKeys,
       const facebook::velox::RowTypePtr& inputType,
       facebook::velox::memory::MemoryPool* pool);
 
   void addInput(facebook::velox::RowVectorPtr input);
 
+  void setHashTable(std::unique_ptr<facebook::velox::exec::BaseHashTable> uniqueHashTable) {
+    table_ = std::move(uniqueHashTable);
+  }
+
+  std::unique_ptr<facebook::velox::exec::BaseHashTable> uniqueTable() {
+    return std::move(uniqueTable_);
+  }
+
   std::shared_ptr<facebook::velox::exec::BaseHashTable> hashTable() {
     return table_;
+  }
+  void setJoinHasNullKeys(bool joinHasNullKeys) {
+    joinHasNullKeys_ = joinHasNullKeys;
   }
 
   bool joinHasNullKeys() {
     return joinHasNullKeys_;
+  }
+
+  bool dropDuplicates() {
+    return dropDuplicates_;
   }
 
  private:
@@ -61,6 +77,8 @@ class HashTableBuilder {
 
   // Container for the rows being accumulated.
   std::shared_ptr<facebook::velox::exec::BaseHashTable> table_;
+
+  std::unique_ptr<facebook::velox::exec::BaseHashTable> uniqueTable_;
 
   // Key channels in 'input_'
   std::vector<column_index_t> keyChannels_;
@@ -95,7 +113,11 @@ class HashTableBuilder {
 
   const facebook::velox::RowTypePtr& inputType_;
 
+  int64_t bloomFilterPushdownSize_;
+
   facebook::velox::memory::MemoryPool* pool_;
+
+  bool dropDuplicates_{false};
 };
 
 } // namespace gluten
