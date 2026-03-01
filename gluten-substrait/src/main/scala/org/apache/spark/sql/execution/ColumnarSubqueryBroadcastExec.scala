@@ -25,7 +25,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
-import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashJoin, LongHashedRelation}
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.IntegralType
 import org.apache.spark.util.ThreadUtils
@@ -90,25 +90,34 @@ case class ColumnarSubqueryBroadcastExec(
             relation match {
               case b: BuildSideRelation =>
                 val index = indices(0) // TODO(): fixme
-                // Transform columnar broadcast value to Array[InternalRow] by key.
-                if (canRewriteAsLongType(buildKeys)) {
-                  b.transform(HashJoin.extractKeyExprAt(buildKeys, index)).distinct
-                } else {
-                  b.transform(
-                    BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
-                    .distinct
-                }
+//                // Transform columnar broadcast value to Array[InternalRow] by key.
+//                if (canRewriteAsLongType(buildKeys)) {
+//                  b.transform(HashJoin.extractKeyExprAt(buildKeys, index)).distinct
+//                } else {
+//                  b.transform(
+//                    BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+//                    .distinct
+//                }
+                b.transform(
+                  BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+                  .distinct
               case h: HashedRelation =>
-                val (iter, exprs) = if (h.isInstanceOf[LongHashedRelation]) {
-                  (h.keys(), indices.map(idx => HashJoin.extractKeyExprAt(buildKeys, idx)))
-                } else {
-                  (
-                    h.keys(),
-                    indices.map {
-                      idx => BoundReference(idx, buildKeys(idx).dataType, buildKeys(idx).nullable)
-                    }
-                  )
-                }
+//                val (iter, exprs) = if (h.isInstanceOf[LongHashedRelation]) {
+//                  (h.keys(), indices.map(idx => HashJoin.extractKeyExprAt(buildKeys, idx)))
+//                } else {
+//                  (
+//                    h.keys(),
+//                    indices.map {
+//                      idx => BoundReference(idx, buildKeys(idx).dataType, buildKeys(idx).nullable)
+//                    }
+//                  )
+//                }
+                val (iter, exprs) = (
+                  h.keys(),
+                  indices.map {
+                    idx => BoundReference(idx, buildKeys(idx).dataType, buildKeys(idx).nullable)
+                  }
+                )
                 val proj = UnsafeProjection.create(exprs)
                 val keyIter = iter.map(proj).map(_.copy())
                 keyIter.toArray[InternalRow].distinct

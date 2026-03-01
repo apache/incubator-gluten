@@ -202,6 +202,12 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def physicalJoinOptimizationThrottle: Integer =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
 
+  def physicalJoinOptimizationOutputSize: Integer =
+    getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_OUTPUT_SIZE)
+
+  def physicalJoinOptimizationJobDescPattern: String =
+    getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_JOB_DESC_PATTERN)
+
   def enablePhysicalJoinOptimize: Boolean =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_ENABLED)
 
@@ -381,6 +387,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def maxBroadcastTableSize: Long =
     JavaUtils.byteStringAsBytes(conf.getConfString(SPARK_MAX_BROADCAST_TABLE_SIZE, "8GB"))
+
+  def broadcastThreshold: Long =
+    JavaUtils.byteStringAsBytes(conf.getConfString(SPARK_BROADCAST_THRESHOLD, "10MB"))
 }
 
 object GlutenConfig extends ConfigRegistry {
@@ -449,6 +458,7 @@ object GlutenConfig extends ConfigRegistry {
   val SPARK_SHUFFLE_SPILL_COMPRESS = "spark.shuffle.spill.compress"
   val SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT: Boolean = true
   val SPARK_MAX_BROADCAST_TABLE_SIZE = "spark.sql.maxBroadcastTableSize"
+  val SPARK_BROADCAST_THRESHOLD = "spark.sql.autoBroadcastJoinThreshold"
 
   def get: GlutenConfig = {
     new GlutenConfig(SQLConf.get)
@@ -998,11 +1008,26 @@ object GlutenConfig extends ConfigRegistry {
       .intConf
       .createWithDefault(12)
 
+  val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_OUTPUT_SIZE =
+    buildConf("spark.gluten.sql.columnar.physicalJoinOptimizationOutputSize")
+      .doc(
+        "Fallback to row operators if there are several continuous joins and matched output size.")
+      .intConf
+      .createWithDefault(52)
+
   val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_ENABLED =
     buildConf("spark.gluten.sql.columnar.physicalJoinOptimizeEnable")
       .doc("Enable or disable columnar physicalJoinOptimize.")
       .booleanConf
       .createWithDefault(false)
+
+  val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_JOB_DESC_PATTERN =
+    buildConf("spark.gluten.sql.columnar.physicalJoinOptimizeJobDescPattern")
+      .doc(
+        "Only enable columnar physicalJoinOptimize for queries whose job description " +
+          "contains this pattern.")
+      .stringConf
+      .createWithDefault("q72")
 
   val COLUMNAR_SCAN_ONLY_ENABLED =
     buildConf("spark.gluten.sql.columnar.scanOnly")
