@@ -34,6 +34,7 @@ class GlutenSQLTab(val sqlStore: GlutenSQLAppStatusStore, sparkUI: SparkUI)
 
   attachPage(new GlutenAllExecutionsPage(this))
   attachPage(new GlutenStackStatusPage(this))
+  attachPage(new GlutenStackSyncPage(this))
   parent.attachTab(this)
 
   /** Get the RPC endpoint reference of the Gluten driver endpoint. */

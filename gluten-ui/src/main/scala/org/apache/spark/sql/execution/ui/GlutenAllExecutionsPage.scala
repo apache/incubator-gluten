@@ -567,6 +567,8 @@ private[ui] class GlutenExecutorsPagedTable(
 
   override def row(s: ExecutorSummary): Seq[Node] = {
     val link = UIUtils.prependBaseUri(request, parent.basePath) + s"/gluten/?executorId=${s.id}"
+    val syncLink =
+      UIUtils.prependBaseUri(request, parent.basePath) + s"/gluten/stackSync?executorId=${s.id}"
     val statusText = if (s.isActive) "ACTIVE" else "DEAD"
     def fmtBytes(v: Long): String = {
       val abs = math.abs(v)
@@ -592,7 +594,11 @@ private[ui] class GlutenExecutorsPagedTable(
       if (s.id == "driver") {
         <td></td>
       } else {
-        <td><a href={link}>C++ Stack</a></td>
+        <td>
+            <a href={syncLink}>C++ Stack (Sync)</a>
+            <span> / </span>
+            <a href={link}>C++ Stack (Async)</a>
+          </td>
       }
     }
     </tr>

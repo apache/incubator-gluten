@@ -24,6 +24,11 @@ import org.apache.spark.rpc.GlutenRpcMessages._
 import org.apache.spark.rpc.RpcCallContext
 import org.apache.spark.util.{ExecutorManager, ThreadUtils, Utils}
 
+import java.io.RandomAccessFile
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util
+
 import scala.util.{Failure, Success}
 
 /** Gluten executor endpoint. */
@@ -96,58 +101,15 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
           }
           try {
             val pid = ExecutorManager.getProcessId()
-            def runCmd(cmd: String): Option[String] = {
-              try {
-                Some(Utils.executeAndGetOutput(Seq("bash", "-c", cmd)))
-              } catch { case _: Throwable => None }
-            }
-            def has(cmd: String): Boolean = {
-              try {
-                val out = Utils.executeAndGetOutput(
-                  Seq("bash", "-c", s"command -v $cmd >/dev/null 2>&1 && echo yes || echo no"))
-                out != null && out.trim == "yes"
-              } catch { case _: Throwable => false }
-            }
-            def tryInstallTools(): Unit = {
-              // Best-effort install for available package manager; may require root privileges.
-              val sudo = if (has("sudo")) "sudo " else ""
-              val cmdOpt = {
-                if (has("apt-get")) {
-                  val base = s"${sudo}apt-get update -y && ${sudo}apt-get install -y "
-                  Some(base + "gdb elfutils")
-                } else if (has("yum")) {
-                  Some(s"${sudo}yum install -y gdb elfutils")
-                } else if (has("dnf")) {
-                  Some(s"${sudo}dnf install -y gdb elfutils")
-                } else if (has("zypper")) {
-                  Some(s"${sudo}zypper -n install gdb elfutils")
-                } else {
-                  None
-                }
-              }
-              cmdOpt.foreach {
-                c =>
-                  try { Utils.executeCommand(Seq("bash", "-c", c)) }
-                  catch { case _: Throwable => () }
-              }
-            }
-            // Ensure gdb exists; best-effort install
-            if (!has("gdb")) { tryInstallTools() }
-            // Always use full-thread backtrace
-            val gdbCmdPrefix =
-              if (has("stdbuf")) "stdbuf -o0 -e0 gdb --batch-silent -q" else "gdb --batch-silent -q"
-            // Use gdb logging file to capture full output reliably, then segment and send
-            val tmpLog = java.nio.file.Files.createTempFile(s"gluten-bt-$requestId", ".log")
+            ensureGdbInstalled()
+            val gdbCmdPrefix = gdbPrefix()
+            val tmpLog = Files.createTempFile(s"gluten-bt-$requestId", ".log")
             val logPath = tmpLog.toAbsolutePath.toString
             val charset = StandardCharsets.UTF_8
-            val gdbWithLog = s"$gdbCmdPrefix -ex 'set pagination off' " +
-              s"-ex 'set print thread-events off' -ex 'set logging file $logPath' " +
-              s"-ex 'set logging overwrite on' -ex 'set logging on' " +
-              s"-ex 'thread apply all bt full' " +
-              s"-ex 'set logging off' -p $pid"
+            val gdbWithLog = buildGdbWithLogging(gdbCmdPrefix, logPath, pid)
             logInfo(
-              s"Starting async native stack collection: requestId=$requestId, pid=$pid, " +
-                s"cmd=$gdbWithLog")
+              s"Starting async native stack collection: " +
+                s"requestId=$requestId, pid=$pid, cmd=$gdbWithLog")
             val proc = new ProcessBuilder("bash", "-c", gdbWithLog).start()
             // Incrementally tail the log file and stream to driver while gdb runs
             val maxSegmentBytes = 64 * 1024
@@ -203,7 +165,7 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
               s"gdb process exit code: $exitCode for requestId=$requestId; " +
                 s"streamedBytes=$totalBytes, segments=$segments")
             // Cleanup temp file
-            try java.nio.file.Files.deleteIfExists(tmpLog)
+            try Files.deleteIfExists(tmpLog)
             catch { case _: Throwable => () }
 
             if (exitCode != 0) {
@@ -267,6 +229,81 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
       }
     case e =>
       logError(s"Received unexpected message. $e")
+  }
+
+  override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+    case GlutenDumpNativeStackSyncRequest =>
+      try {
+        val pid = ExecutorManager.getProcessId()
+        ensureGdbInstalled()
+        val gdbCmdPrefix = gdbPrefix()
+        val tmpLog = Files.createTempFile("gluten-bt-sync-", ".log")
+        val logPath = tmpLog.toAbsolutePath.toString
+        val charset = StandardCharsets.UTF_8
+        val gdbWithLog = buildGdbWithLogging(gdbCmdPrefix, logPath, pid)
+        logInfo(s"Starting sync native stack collection: pid=$pid, cmd=$gdbWithLog")
+        val proc = new ProcessBuilder("bash", "-c", gdbWithLog).start()
+        val exitCode = proc.waitFor()
+        val output =
+          try {
+            new String(Files.readAllBytes(tmpLog), charset)
+          } catch { case _: Throwable => "" }
+        try Files.deleteIfExists(tmpLog)
+        catch { case _: Throwable => () }
+        if (exitCode != 0 && (output == null || output.isEmpty)) {
+          context.reply(s"gdb exit code: $exitCode. Please check executor logs.")
+        } else {
+          context.reply(Option(output).getOrElse(""))
+        }
+      } catch {
+        case t: Throwable =>
+          logWarning("Sync native stack collection failed", t)
+          context.sendFailure(t)
+      }
+  }
+
+  private def has(cmd: String): Boolean = {
+    try {
+      val out = Utils.executeAndGetOutput(
+        Seq("bash", "-c", s"command -v $cmd >/dev/null 2>&1 && echo yes || echo no"))
+      out != null && out.trim == "yes"
+    } catch { case _: Throwable => false }
+  }
+
+  private def ensureGdbInstalled(): Unit = {
+    if (!has("gdb")) {
+      val sudo = if (has("sudo")) "sudo " else ""
+      val cmdOpt =
+        if (has("apt-get")) {
+          val base = s"${sudo}apt-get update -y && ${sudo}apt-get install -y "
+          Some(base + "gdb elfutils")
+        } else if (has("yum")) {
+          Some(s"${sudo}yum install -y gdb elfutils")
+        } else if (has("dnf")) {
+          Some(s"${sudo}dnf install -y gdb elfutils")
+        } else if (has("zypper")) {
+          Some(s"${sudo}zypper -n install gdb elfutils")
+        } else {
+          None
+        }
+      cmdOpt.foreach {
+        c =>
+          try { Utils.executeCommand(Seq("bash", "-c", c)) }
+          catch { case _: Throwable => () }
+      }
+    }
+  }
+
+  private def gdbPrefix(): String = {
+    if (has("stdbuf")) "stdbuf -o0 -e0 gdb --batch-silent -q" else "gdb --batch-silent -q"
+  }
+
+  private def buildGdbWithLogging(gdbCmdPrefix: String, logPath: String, pid: Long): String = {
+    s"$gdbCmdPrefix -ex 'set pagination off' " +
+      s"-ex 'set print thread-events off' -ex 'set logging file $logPath' " +
+      s"-ex 'set logging overwrite on' -ex 'set logging on' " +
+      s"-ex 'thread apply all bt full' " +
+      s"-ex 'set logging off' -p $pid"
   }
 }
 object GlutenExecutorEndpoint {

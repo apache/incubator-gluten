@@ -67,6 +67,9 @@ object GlutenRpcMessages {
   /** Query async native stack status by requestId, driver returns JSON string */
   case class GlutenQueryNativeStackStatus(requestId: String) extends GlutenRpcMessage
 
-  /** Query async native stack raw message by requestId, driver returns plain text */
-  case class GlutenQueryNativeStackRaw(requestId: String) extends GlutenRpcMessage
+  /** Synchronous: query native C++ stack of an executor; driver will block and return plain text */
+  case class GlutenQueryNativeStackSync(executorId: String) extends GlutenRpcMessage
+
+  /** Internal sync dump request delivered to executor; executor replies with full stack text */
+  case object GlutenDumpNativeStackSyncRequest extends GlutenRpcMessage
 }

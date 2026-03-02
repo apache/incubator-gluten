@@ -137,15 +137,18 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
         case t: Throwable => context.sendFailure(t)
       }
 
-    case GlutenQueryNativeStackRaw(requestId) =>
-      try {
-        val raw = GlutenDriverEndpoint
-          .getStackAsyncStatus(requestId)
-          .map { case (_, msg) => Option(msg).getOrElse("") }
-          .getOrElse("invalid requestId")
-        context.reply(raw)
-      } catch {
-        case t: Throwable => context.sendFailure(t)
+    case GlutenQueryNativeStackSync(executorId) =>
+      val data = GlutenDriverEndpoint.executorDataMap.get(executorId)
+      if (data == null) {
+        context.sendFailure(
+          new IllegalArgumentException(s"Executor $executorId not registered or unavailable"))
+      } else {
+        try {
+          val text = data.executorEndpointRef.askSync[String](GlutenDumpNativeStackSyncRequest)
+          context.reply(text)
+        } catch {
+          case t: Throwable => context.sendFailure(t)
+        }
       }
   }
 
