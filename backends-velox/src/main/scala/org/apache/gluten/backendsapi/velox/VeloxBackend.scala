@@ -501,7 +501,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
     (conf.isUseGlutenShuffleManager || conf.shuffleManagerSupportsColumnarShuffle)
   }
 
-  override def enableJoinKeysRewrite(): Boolean = false
+  override def enableJoinKeysRewrite(): Boolean = {
+    GlutenConfig.get.hashJoinKeysRewrite
+  }
 
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     t =>
