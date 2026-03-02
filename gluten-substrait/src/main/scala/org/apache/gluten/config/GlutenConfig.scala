@@ -381,8 +381,6 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def maxBroadcastTableSize: Long =
     JavaUtils.byteStringAsBytes(conf.getConfString(SPARK_MAX_BROADCAST_TABLE_SIZE, "8GB"))
-
-  def glutenPercentileFunctionFallback: Boolean = getConf(GLUTEN_PERCENTILE_FUNCTION_FALLBACK)
 }
 
 object GlutenConfig extends ConfigRegistry {
@@ -1587,14 +1585,4 @@ object GlutenConfig extends ConfigRegistry {
           "total size of small files is below this threshold.")
       .doubleConf
       .createWithDefault(0.5)
-
-  val GLUTEN_PERCENTILE_FUNCTION_FALLBACK =
-    buildConf("spark.gluten.sql.glutenPercentileFunctionStrategy")
-      .doc(
-        "Chooses whether percentile algorithm falls back " +
-          "for the percentile function. kll is provided by open-source velox, but " +
-          "we can always disable this function and fallback.")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
 }
