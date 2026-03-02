@@ -170,7 +170,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             nullptr,
             true,
             deleteFiles,
-            std::unordered_map<std::string, std::string>(),
+            metadataColumn,
             properties[idx]);
       } else {
         auto connectorId = kHiveConnectorId;
