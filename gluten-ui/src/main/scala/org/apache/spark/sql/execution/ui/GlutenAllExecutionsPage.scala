@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution.ui
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config
 import org.apache.spark.rpc.{RpcEndpointRef, RpcEnv}
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
 import org.apache.spark.sql.errors.QueryExecutionErrors
@@ -589,13 +588,13 @@ private[ui] class GlutenExecutorsPagedTable(
       <td sorttable_customkey={s.totalShuffleRead.toString}>{fmtBytes(s.totalShuffleRead)}</td>
       <td sorttable_customkey={s.totalShuffleWrite.toString}>{fmtBytes(s.totalShuffleWrite)}</td>
       {
-        // Hide C++ stack link for driver executor
-        if (s.id == "driver") {
-          <td></td>
-        } else {
-          <td><a href={link}>C++ Stack</a></td>
-        }
+      // Hide C++ stack link for driver executor
+      if (s.id == "driver") {
+        <td></td>
+      } else {
+        <td><a href={link}>C++ Stack</a></td>
       }
+    }
     </tr>
   }
 

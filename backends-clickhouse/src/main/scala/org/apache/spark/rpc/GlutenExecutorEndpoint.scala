@@ -139,7 +139,7 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
             // Use gdb logging file to capture full output reliably, then segment and send
             val tmpLog = java.nio.file.Files.createTempFile(s"gluten-bt-$requestId", ".log")
             val logPath = tmpLog.toAbsolutePath.toString
-            val charset = java.nio.charset.StandardCharsets.UTF_8
+            val charset = StandardCharsets.UTF_8
             val gdbWithLog = s"$gdbCmdPrefix -ex 'set pagination off' " +
               s"-ex 'set print thread-events off' -ex 'set logging file $logPath' " +
               s"-ex 'set logging overwrite on' -ex 'set logging on' " +
@@ -208,14 +208,14 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
 
             if (exitCode != 0) {
               sendResult(
-                GlutenRpcMessages.GlutenNativeStackAsyncResult(
+                GlutenNativeStackAsyncResult(
                   requestId,
                   success = false,
                   message =
                     s"Check executor logs for native C++ stack. gdb exit code: " + exitCode))
             } else {
               sendResult(
-                GlutenRpcMessages.GlutenNativeStackAsyncResult(
+                GlutenNativeStackAsyncResult(
                   requestId,
                   success = true,
                   message = ""
@@ -224,7 +224,7 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
           } catch {
             case t: Throwable =>
               sendResult(
-                GlutenRpcMessages.GlutenNativeStackAsyncResult(
+                GlutenNativeStackAsyncResult(
                   requestId,
                   success = false,
                   message = s"Async stack collection failed: ${t.getMessage}"))

@@ -36,9 +36,7 @@ class GlutenSQLTab(val sqlStore: GlutenSQLAppStatusStore, sparkUI: SparkUI)
   attachPage(new GlutenStackStatusPage(this))
   parent.attachTab(this)
 
-  /**
-   * Get the RPC endpoint reference of the Gluten driver endpoint.
-   */
+  /** Get the RPC endpoint reference of the Gluten driver endpoint. */
   def glutenDriverEndpointRef(rpcEnv: RpcEnv): RpcEndpointRef = {
     val driverHost = conf.get(config.DRIVER_HOST_ADDRESS.key, "localhost")
     val driverPort = conf.getInt(config.DRIVER_PORT.key, 7077)

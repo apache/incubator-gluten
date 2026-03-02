@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.ui
 
 import org.apache.spark.SparkEnv
-import org.apache.spark.internal.{config, Logging}
+import org.apache.spark.internal.Logging
 import org.apache.spark.rpc.{RpcEndpointRef, RpcEnv}
 import org.apache.spark.ui.{UIUtils, WebUIPage}
 
@@ -26,7 +26,7 @@ import org.json4s.jackson.JsonMethods
 
 import javax.servlet.http.HttpServletRequest
 
-import scala.xml.{Node, Text}
+import scala.xml.Node
 
 /** Status API for async C++ stack collection. Path: /gluten/stackStatus?requestId=xxxx */
 private[ui] class GlutenStackStatusPage(parent: GlutenSQLTab)
@@ -35,7 +35,7 @@ private[ui] class GlutenStackStatusPage(parent: GlutenSQLTab)
 
   override def renderJson(request: HttpServletRequest): JValue = {
     val reqIdOpt = Option(request.getParameter("requestId")).filter(_.nonEmpty)
-    reqIdOpt match {
+    val resultStr = reqIdOpt match {
       case Some(id) =>
         try {
           val rpcEnv: RpcEnv = SparkEnv.get.rpcEnv
@@ -43,14 +43,16 @@ private[ui] class GlutenStackStatusPage(parent: GlutenSQLTab)
           val msgClass =
             Class.forName("org.apache.spark.rpc.GlutenRpcMessages$GlutenQueryNativeStackStatus")
           val msg = msgClass.getConstructors.head.newInstance(id).asInstanceOf[AnyRef]
-          val resultStr = driverRef.askSync[String](msg)
-          parseJsonString(resultStr)
+          driverRef.askSync[String](msg)
         } catch {
           case t: Throwable =>
-            val resultStr = s"""{"status": "error", "message":"query failed: ${t.getMessage}"}"""
-            parseJsonString(resultStr)
+            s"""{"status": "error", "message":"query failed: ${t.getMessage}"}"""
         }
+      case None =>
+        s"""{"status": "error", "message":">Missing parameter: requestId"}"""
+
     }
+    parseJsonString(resultStr)
   }
 
   override def render(request: HttpServletRequest): Seq[Node] = {
@@ -58,7 +60,6 @@ private[ui] class GlutenStackStatusPage(parent: GlutenSQLTab)
     reqIdOpt match {
       case Some(id) =>
         val base = UIUtils.prependBaseUri(request, parent.basePath)
-        // Status API endpoint returning JSON text: `${base}/stackStatus?api=1`.
         val statusAPI = s"$base/gluten/stackStatus/json?requestId=$id"
         val content = Seq(
           <div>
