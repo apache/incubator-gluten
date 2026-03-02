@@ -463,10 +463,19 @@ object VeloxConfig extends ConfigRegistry {
   val HASH_PROBE_DYNAMIC_FILTER_PUSHDOWN_ENABLED =
     buildConf("spark.gluten.sql.columnar.backend.velox.hashProbe.dynamicFilterPushdown.enabled")
       .doc(
-        "Whether hash probe can generate any dynamic filter (including Bloom filter) and push" +
-          " down to upstream operators.")
+        "Whether hash probe can generate any dynamic filter (including Bloom filter) and push " +
+          "down to upstream operators.")
       .booleanConf
       .createWithDefault(true)
+
+  val HASH_PROBE_STRING_DYNAMIC_FILTER_PUSHDOWN_ENABLED =
+    buildConf(
+      "spark.gluten.sql.columnar.backend.velox.hashProbe.stringDynamicFilterPushdown.enabled")
+      .doc(
+        "Whether hash probe can generate any dynamic filter (including Bloom filter) for string " +
+          "types and push down to upstream operators.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled")
