@@ -75,7 +75,7 @@ case class VeloxApproximatePercentile(
 
   override def checkInputDataTypes(): TypeCheckResult = {
     // Delegate to Spark's ApproximatePercentile for validation
-    ApproximatePercentile(child, percentageExpression, accuracyExpression)
+    new ApproximatePercentile(child, percentageExpression, accuracyExpression)
       .checkInputDataTypes()
   }
 
