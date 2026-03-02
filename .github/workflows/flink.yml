@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk17
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Prepare
         run: |
           source /opt/rh/gcc-toolset-11/enable

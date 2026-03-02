@@ -21,7 +21,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarSubqueryBroadcastExec, InputIteratorTransformer}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec}
 
@@ -230,12 +230,12 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
         })
   }
 
-  test("pull out duplicate projections for HashProbe and FilterProject") {
+  test("duplicate projections") {
     withTable("t1", "t2", "t3") {
       Seq((1, 1), (2, 2)).toDF("c1", "c2").write.saveAsTable("t1")
       Seq(1, 2, 3).toDF("c1").write.saveAsTable("t2")
       Seq(1, 2, 3).toDF("c1").write.saveAsTable("t3")
-      // test HashProbe, pull out `c2 as a,c2 as b`.
+      // Test HashProbe.
       val q1 =
         """
           |select tt1.* from
@@ -260,50 +260,25 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
           |left join t3
           |on tt1.c1 = t3.c1
           |""".stripMargin
-      Seq(q1, q2, q3).foreach {
-        runQueryAndCompare(_) {
-          df =>
-            {
-              val executedPlan = getExecutedPlan(df)
-              val projects = executedPlan.collect {
-                case p @ ProjectExecTransformer(_, _: BroadcastHashJoinExecTransformer) => p
-              }
-              assert(projects.nonEmpty)
-              val aliases = projects.last.projectList.collect { case a: Alias => a }
-              assert(aliases.size == 2)
-            }
-        }
-      }
-
-      // test FilterProject, only pull out `c2 as b`.
       val q4 =
-        """
-          |select c1, c2, a, b from
-          |(select c1, c2, c2 as a, c2 as b, rand() as c from t1) tt1
-          |where c > -1 and b > 1
-          |""".stripMargin
-      runQueryAndCompare(q4) {
-        df =>
-          {
-            val executedPlan = getExecutedPlan(df)
-            val projects = executedPlan.collect {
-              case p @ ProjectExecTransformer(_, _: FilterExecTransformer) => p
-            }
-            assert(projects.nonEmpty)
-            val aliases = projects.last.projectList.collect { case a: Alias => a }
-            assert(aliases.size == 1)
-          }
-      }
-
-      // Test HashProbe operation when projecting a column multiple times without using an alias.
-      val q5 =
         """
           |select tt1.* from
           |(select c1, c2, c2 from t1) tt1
           |left join t2
           |on tt1.c1 = t2.c1
           |""".stripMargin
-      runQueryAndCompare(q5) { _ => }
+
+      // Test FilterProject.
+      val q5 =
+        """
+          |select c1, c2, a, b from
+          |(select c1, c2, c2 as a, c2 as b, rand() as c from t1) tt1
+          |where c > -1 and b > 1
+          |""".stripMargin
+
+      Seq(q1, q2, q3, q4, q5).foreach {
+        runQueryAndCompare(_) { _ => }
+      }
     }
   }
 

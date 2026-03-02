@@ -19,7 +19,6 @@ package org.apache.gluten.integration.ds
 import org.apache.gluten.integration.{DataGen, QuerySet, Suite, TableAnalyzer, TableCreator}
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
-import org.apache.gluten.integration.report.TestReporter
 
 import org.apache.spark.SparkConf
 
@@ -27,6 +26,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.log4j.Level
 
 class TpcdsSuite(
+    val appName: String,
     val masterUrl: String,
     val actions: Array[Action],
     val testConf: SparkConf,
@@ -53,6 +53,7 @@ class TpcdsSuite(
     val testMetricMapper: MetricMapper,
     val reportPath: String)
   extends Suite(
+    appName,
     masterUrl,
     actions,
     testConf,
