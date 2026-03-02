@@ -106,7 +106,7 @@ object VeloxValidatorApi {
   private def isPrimitiveType(dataType: DataType): Boolean = {
     dataType match {
       case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
-          StringType | BinaryType | _: DecimalType | DateType | TimestampType |
+          StringType | BinaryType | _: DecimalType | DateType | TimestampType | TimestampNTZType |
           YearMonthIntervalType.DEFAULT | NullType =>
         true
       case _ => false

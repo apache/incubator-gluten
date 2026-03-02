@@ -160,6 +160,8 @@ object ConverterUtils extends Logging {
         (StringType, isNullable(substraitType.getString.getNullability))
       case Type.KindCase.BINARY =>
         (BinaryType, isNullable(substraitType.getBinary.getNullability))
+      case Type.KindCase.TIMESTAMP =>
+        (TimestampNTZType, isNullable(substraitType.getTimestamp.getNullability))
       case Type.KindCase.TIMESTAMP_TZ =>
         (TimestampType, isNullable(substraitType.getTimestampTz.getNullability))
       case Type.KindCase.DATE =>
@@ -226,6 +228,8 @@ object ConverterUtils extends Logging {
         TypeBuilder.makeDecimal(nullable, precision, scale)
       case TimestampType =>
         TypeBuilder.makeTimestamp(nullable)
+      case TimestampNTZType =>
+        TypeBuilder.makeTimestampNTZ(nullable)
       case m: MapType =>
         TypeBuilder.makeMap(
           nullable,
@@ -399,6 +403,7 @@ object ConverterUtils extends Logging {
       case DoubleType => "fp64"
       case DateType => "date"
       case TimestampType => "ts"
+      case TimestampNTZType => "ts_ntz"
       case StringType => "str"
       case BinaryType => "vbin"
       case DecimalType() =>
