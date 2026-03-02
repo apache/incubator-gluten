@@ -211,10 +211,18 @@ WholeStageResultIterator::WholeStageResultIterator(
 }
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
+  int cpuThreads = veloxCfg_->get<int32_t>(kVeloxCpuExecutorThreads, kVeloxCpuExecutorThreadsDefault);
+  folly::Executor* executor = nullptr;
+  if (cpuThreads > 0) {
+    auto ctxExecutor = std::make_unique<folly::CPUThreadPoolExecutor>(cpuThreads);
+    executor = ctxExecutor.get();
+  }
+
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createHiveConnectorSessionConfig(veloxCfg_);
+
   std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(
-      nullptr,
+      executor,
       facebook::velox::core::QueryConfig{getQueryContextConf()},
       connectorConfigs,
       gluten::VeloxBackend::get()->getAsyncDataCache(),

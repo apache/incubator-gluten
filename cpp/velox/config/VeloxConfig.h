@@ -107,6 +107,9 @@ const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.
 
 const std::string kExprMaxCompiledRegexes = "spark.gluten.sql.columnar.backend.velox.maxCompiledRegexes";
 
+const std::string kVeloxCpuExecutorThreads = "spark.gluten.sql.columnar.backend.velox.cpuExecutorThreads";
+const int32_t kVeloxCpuExecutorThreadsDefault = 0; // 0 means disable
+
 // memory cache
 const std::string kVeloxMemCacheSize = "spark.gluten.sql.columnar.backend.velox.memCacheSize";
 const uint64_t kVeloxMemCacheSizeDefault = 1073741824; // 1G
