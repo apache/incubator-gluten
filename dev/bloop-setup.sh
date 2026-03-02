@@ -190,7 +190,7 @@ fi
 # Skip style checks for faster generation
 log_step "Running generate-sources + bloopInstall..."
 ./build/mvn generate-sources bloop:bloopInstall \
-  -P"${PROFILES}",bloop \
+  -P"${PROFILES}",fast-build \
   -DskipTests
 
 if [[ ! -d ".bloop" ]]; then
