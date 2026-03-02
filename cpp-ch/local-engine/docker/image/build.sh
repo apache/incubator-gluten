@@ -35,6 +35,7 @@ cmake -G Ninja  "-DCMAKE_C_COMPILER=$CC" "-DCMAKE_CXX_COMPILER=$CXX" \
           "-DENABLE_GWP_ASAN=OFF" \
           "-DENABLE_EXTERN_LOCAL_ENGINE=ON" \
           "-DENABLE_THINLTO=false" \
+          "-DENABLE_NUMACTL=OFF" \
           /clickhouse
 ninja
 
