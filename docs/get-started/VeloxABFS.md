@@ -10,7 +10,7 @@ ABFS is an important data store for big data users. This doc discusses config de
 
 ## Configuring ABFS Authentication Type
 
-The authentication mechanism for an Azure storage account is controlled by the following property. Replace `<storage-account>` with the name of your Azure Storage account.
+The authentication mechanism for an Azure storage account is controlled by the following property. Replace `<storage-account>` with the name of your Azure Storage account. Defaults to `SharedKey` if not set.
 
 ```sh
 spark.hadoop.fs.azure.account.auth.type.<storage-account>.dfs.core.windows.net  SharedKey
