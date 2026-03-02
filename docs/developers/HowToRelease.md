@@ -55,7 +55,7 @@ bash dev/release/build-release.sh
 ```bash
 cd /workspace
 mkdir -p release
-copy -R package/target/* release/
+cp -R package/target/* release/
 ```
 
 ### Package the release sources and binaries
@@ -124,7 +124,7 @@ All projects under the Apache umbrella must adhere to the [Apache Release Policy
 3. Sign the release artifacts with the GPG key.
 
 ```bash
-# create a GPG key, after executing this command, select the first one RSA 和 RSA
+# create a GPG key, after executing this command, select "RSA and RSA"
 $ gpg --full-generate-key
 
 # list the GPG keys
