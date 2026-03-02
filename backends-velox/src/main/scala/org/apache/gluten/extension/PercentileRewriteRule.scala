@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.aggregate.VeloxApproximatePercentile
 
 import org.apache.spark.sql.SparkSession
@@ -32,9 +31,6 @@ import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE, AGGREGATE_EXP
  */
 case class ApproxPercentileRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    if (GlutenConfig.get.glutenPercentileFunctionFallback) {
-      return plan
-    }
     plan.transformUpWithPruning(_.containsPattern(AGGREGATE)) {
       case a: Aggregate =>
         a.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
