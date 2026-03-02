@@ -83,7 +83,7 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
   }
 
   private def replaceEligibleAggregates(plan: SparkPlan)(
-      func: RegularHashAggregateExecTransformer => SparkPlan): SparkPlan = {
+      func: HashAggregateExecTransformer => SparkPlan): SparkPlan = {
     def transformDown: SparkPlan => SparkPlan = {
       case agg: RegularHashAggregateExecTransformer
           if !agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge) =>
@@ -97,6 +97,16 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
           if aggregatesNotSupportFlush(agg.aggregateExpressions) =>
         agg
       case agg: RegularHashAggregateExecTransformer =>
+        func(agg)
+      case agg: SortHashAggregateExecTransformer
+          if !agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge) =>
+        agg
+      case agg: SortHashAggregateExecTransformer if isAggInputAlreadyDistributedWithAggKeys(agg) =>
+        agg
+      case agg: SortHashAggregateExecTransformer
+          if aggregatesNotSupportFlush(agg.aggregateExpressions) =>
+        agg
+      case agg: SortHashAggregateExecTransformer =>
         func(agg)
       case p if !canPropagate(p) => p
       case other => other.withNewChildren(other.children.map(transformDown))
