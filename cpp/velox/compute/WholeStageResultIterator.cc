@@ -639,17 +639,22 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     } else {
       configs[velox::core::QueryConfig::kSpillCompressionKind] = "none";
     }
-    configs[velox::core::QueryConfig::kSparkBloomFilterExpectedNumItems] =
-        std::to_string(veloxCfg_->get<int64_t>(kBloomFilterExpectedNumItems, 1000000));
-    configs[velox::core::QueryConfig::kSparkBloomFilterNumBits] =
-        std::to_string(veloxCfg_->get<int64_t>(kBloomFilterNumBits, 8388608));
-    configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] =
-        std::to_string(veloxCfg_->get<int64_t>(kBloomFilterMaxNumBits, 4194304));
 
     configs[velox::core::QueryConfig::kHashProbeDynamicFilterPushdownEnabled] =
         std::to_string(veloxCfg_->get<bool>(kHashProbeDynamicFilterPushdownEnabled, true));
     configs[velox::core::QueryConfig::kHashProbeBloomFilterPushdownMaxSize] =
         std::to_string(veloxCfg_->get<uint64_t>(kHashProbeBloomFilterPushdownMaxSize, 0));
+
+    if (const auto opt = veloxCfg_->get<std::string>(kSparkBloomFilterExpectedNumItems)) {
+      configs[velox::core::QueryConfig::kSparkBloomFilterExpectedNumItems] = opt.value();
+    }
+    if (const auto opt = veloxCfg_->get<std::string>(kSparkBloomFilterNumBits)) {
+      configs[velox::core::QueryConfig::kSparkBloomFilterNumBits] = opt.value();
+    }
+    if (const auto opt = veloxCfg_->get<std::string>(kSparkBloomFilterMaxNumBits)) {
+      // Velox will check memory cannot exceed 4194304.
+      configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] = opt.value();
+    }
     // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
     // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
     configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =

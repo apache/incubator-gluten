@@ -3,9 +3,11 @@ title: Spark configurations status in Gluten Velox Backend
 nav_order: 17
 
 The file lists the if Spark configurations are hornored by Gluten velox backend or not. Table is from Spark4.0 configuration page. The status are:
-- H: hornored
-- P: Transparent to Gluten
-- I: ignored. Gluten doesn't use it.
+- ✅ Supported<br>
+- ❌ Not Supported<br>
+- ⚠️ Partial Support<br>
+- 🔄 In Progress<br>
+- 🚫 Not applied or transparent to Gluten<br>
 - `<blank>`: unknown yet
 
 
@@ -2548,49 +2550,49 @@ These configurations are handled by Spark and do not affect Gluten’s behavior.
     <td><code>spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold</code></td>
     <td>10GB</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>🚫</td>
 </tr>
 
 <tr>
     <td><code>spark.sql.optimizer.runtime.bloomFilter.creationSideThreshold</code></td>
     <td>10MB</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>🚫</td>
 </tr>
 
 <tr>
     <td><code>spark.sql.optimizer.runtime.bloomFilter.enabled</code></td>
     <td>true</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>✅</td>
 </tr>
 
 <tr>
     <td><code>spark.sql.optimizer.runtime.bloomFilter.expectedNumItems</code></td>
     <td>1000000</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>✅</td>
 </tr>
 
 <tr>
     <td><code>spark.sql.optimizer.runtime.bloomFilter.maxNumBits</code></td>
     <td>67108864</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>✅</td>
 </tr>
 
 <tr>
     <td><code>spark.sql.optimizer.runtime.bloomFilter.maxNumItems</code></td>
     <td>4000000</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>🔄</td>
 </tr>
 
 <tr>
     <td><code>spark.sql.optimizer.runtime.bloomFilter.numBits</code></td>
     <td>8388608</td>
     <td>3.3.0</td>
-    <td></td>
+    <td>✅</td>
 </tr>
 
 <tr>
@@ -3536,6 +3538,8 @@ These configurations are handled by Spark and do not affect Gluten’s behavior.
   <td></td>
 </tr>
 </table>
+
+
 
 
 
