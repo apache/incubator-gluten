@@ -327,6 +327,7 @@ object ExpressionMappings {
     Sig[Kurtosis](KURTOSIS),
     Sig[ApproximatePercentile](APPROX_PERCENTILE),
     Sig[HyperLogLogPlusPlus](APPROX_COUNT_DISTINCT),
+    Sig[ApproxCountDistinctForIntervals](APPROX_COUNT_DISTINCT_FOR_INTERVALS),
     Sig[Percentile](PERCENTILE)
   ) ++ SparkShimLoader.getSparkShims.aggregateExpressionMappings
 

@@ -1,6 +1,6 @@
 # Aggregate Functions Support Status
 
-**Out of 62 aggregate functions in Spark 3.5, Gluten currently fully supports 52 functions and partially supports 1 function.**
+**Out of 62 aggregate functions in Spark 3.5, Gluten currently fully supports 53 functions and partially supports 1 function.**
 
 ## Aggregate Functions
 
@@ -9,6 +9,7 @@
 | any                   | BoolOr                             | S        |                |
 | any_value             | AnyValue                           | S        |                |
 | approx_count_distinct | HyperLogLogPlusPlus                | S        |                |
+| approx_count_distinct_for_intervals | ApproxCountDistinctForIntervals | S | endpoints and relativeSD must be constant; endpoints can be numeric/date/timestamp/interval/decimal and don't need to match input |
 | approx_percentile     | ApproximatePercentile              |          |                |
 | array_agg             | CollectList                        | S        |                |
 | avg                   | Average                            | S        |                |
@@ -68,4 +69,3 @@
 | var_pop               | VariancePop                        | S        |                |
 | var_samp              | VarianceSamp                       | S        |                |
 | variance              | VarianceSamp                       | S        |                |
-
