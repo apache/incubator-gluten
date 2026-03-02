@@ -57,6 +57,10 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
     throw new UnsupportedOperationException("doValidate is not supported in Clickhouse Backend");
   }
 
+  public static boolean validateRegex(String pattern) {
+    return nativeValidateRegex(pattern);
+  }
+
   private static Map<String, String> getNativeBackendConf() {
     return GlutenConfig.getNativeBackendConf(
         BackendsApiManager.getBackendName(), SQLConf.get().getAllConfs());

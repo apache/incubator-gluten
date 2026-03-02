@@ -48,4 +48,6 @@ public class ExpressionEvaluatorJniWrapper {
       int partitionIndex);
 
   public static native void updateQueryRuntimeSettings(byte[] settings);
+
+  public static native boolean nativeValidateRegex(String pattern);
 }
