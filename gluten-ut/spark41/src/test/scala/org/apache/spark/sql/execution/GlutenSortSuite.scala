@@ -16,8 +16,10 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.SortExecTransformer
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{catalyst, GlutenQueryTestUtil, GlutenSQLTestsBaseTrait, Row}
 import org.apache.spark.sql.catalyst.analysis.{Resolver, UnresolvedAttribute}
 import org.apache.spark.sql.catalyst.expressions.{Length, SortOrder}
@@ -27,6 +29,11 @@ import org.apache.spark.sql.functions.length
 
 class GlutenSortSuite extends SortSuite with GlutenSQLTestsBaseTrait with AdaptiveSparkPlanHelper {
   import testImplicits._
+
+  override def sparkConf: SparkConf = {
+    val conf = super.sparkConf
+    conf.set(GlutenConfig.GLUTEN_ANSI_FALLBACK_ENABLED.key, "false")
+  }
 
   protected val resolver: Resolver = conf.resolver
 
@@ -47,8 +54,7 @@ class GlutenSortSuite extends SortSuite with GlutenSQLTestsBaseTrait with Adapti
     }
   }
 
-  // TODO: fix in Spark-4.0
-  ignore("post-project outputOrdering check") {
+  testGluten("post-project outputOrdering check") {
     val input = Seq(
       ("Hello", 4, 2.0),
       ("Hello Bob", 10, 1.0),

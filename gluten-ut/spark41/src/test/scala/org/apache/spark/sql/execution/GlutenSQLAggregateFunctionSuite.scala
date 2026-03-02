@@ -16,15 +16,21 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenSQLAggregateFunctionSuite extends GlutenSQLTestsTrait {
 
-  // TODO: fix in Spark-4.0
-  ignoreGluten("GLUTEN-4853: The result order is reversed for count and count distinct") {
+  override def sparkConf: SparkConf = {
+    val conf = super.sparkConf
+    conf.set(GlutenConfig.GLUTEN_ANSI_FALLBACK_ENABLED.key, "false")
+  }
+
+  testGluten("GLUTEN-4853: The result order is reversed for count and count distinct") {
     val query =
       """
         |select count(distinct if(sex = 'x', id, null)) as uv, count(if(sex = 'x', id, null)) as pv
@@ -36,8 +42,7 @@ class GlutenSQLAggregateFunctionSuite extends GlutenSQLTestsTrait {
     assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecBaseTransformer]) == 4)
   }
 
-  // TODO: fix in Spark-4.0
-  ignoreGluten("Return NaN or null when dividing by zero") {
+  testGluten("Return NaN or null when dividing by zero") {
     val query =
       """
         |select skewness(value), kurtosis(value)
@@ -47,18 +52,40 @@ class GlutenSQLAggregateFunctionSuite extends GlutenSQLTestsTrait {
     val df = sql(query)
 
     withSQLConf(
-      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key -> "true"
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key -> "true",
+      SQLConf.ANSI_ENABLED.key -> "false"
     ) {
       checkAnswer(df, Seq(Row(Double.NaN, Double.NaN)))
       assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecBaseTransformer]) == 2)
     }
 
     withSQLConf(
-      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key ->
-        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key -> "false"
+    ) {
+      val df = sql(query)
+      checkAnswer(df, Seq(Row(null, null)))
+      assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecBaseTransformer]) == 2)
+    }
+  }
+
+  // TODO: fix in Spark-4.0 once ANSI mode supported
+  ignoreGluten("Ignore LEGACY_STATISTICAL_AGGREGATE when ansi enabled") {
+    val query =
+      """
+        |select skewness(value), kurtosis(value)
+        |from values (1), (1)
+        |AS tab(value)
+        |""".stripMargin
+    val df = sql(query)
+
+    withSQLConf(
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key -> "true",
+      SQLConf.ANSI_ENABLED.key -> "true",
+      GlutenConfig.GLUTEN_ANSI_FALLBACK_ENABLED.key -> "false"
     ) {
       checkAnswer(df, Seq(Row(null, null)))
       assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecBaseTransformer]) == 2)
     }
+
   }
 }
