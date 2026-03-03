@@ -35,7 +35,7 @@ import java.util
  * intermediate data), this implementation uses KLL sketch with a 9-field StructType intermediate
  * that is fully compatible with Velox's approx_percentile accumulator layout:
  *
- * 0: percentiles - Array(Double) 1: percentilesIsArray - Boolean 2: accuracy - Double 3: k -
+ * 0: percentiles - Array(Double) 1: percentilesIsArray - Boolean 2: accuracy - Integer (Spark accuracy, e.g. 10000; Velox internally computes epsilon = 1.0/accuracy) 3: k -
  * Integer (KLL parameter) 4: n - Long (total count) 5: minValue - childType 6: maxValue - childType
  * 7: items - Array(childType) 8: levels - Array(Integer)
  *
@@ -61,9 +61,9 @@ case class VeloxApproximatePercentile(
   override def prettyName: String = "velox_approx_percentile"
 
   // Mark as lazy so that expressions are not evaluated during tree transformation.
-  private lazy val accuracy: Double = accuracyExpression.eval() match {
-    case null => ApproximatePercentile.DEFAULT_PERCENTILE_ACCURACY.toDouble
-    case num: Number => num.doubleValue()
+  private lazy val accuracy: Int = accuracyExpression.eval() match {
+    case null => ApproximatePercentile.DEFAULT_PERCENTILE_ACCURACY.toInt
+    case num: Number => num.intValue()
   }
 
   private lazy val (returnPercentileArray, percentages): (Boolean, Array[Double]) =
@@ -93,7 +93,7 @@ case class VeloxApproximatePercentile(
   private lazy val percentilesIsArrayBuf: AttributeReference =
     AttributeReference("percentilesIsArray", BooleanType)()
   private lazy val accuracyBuf: AttributeReference =
-    AttributeReference("accuracy", DoubleType)()
+    AttributeReference("accuracy", IntegerType)()
   private lazy val kBuf: AttributeReference =
     AttributeReference("k", IntegerType)()
   private lazy val nBuf: AttributeReference =
@@ -126,7 +126,7 @@ case class VeloxApproximatePercentile(
       Literal.create(null, ArrayType(DoubleType))
     } else {
       Literal.create(
-        new org.apache.spark.sql.catalyst.util.GenericArrayData(
+        new GenericArrayData(
           percentages.map(_.asInstanceOf[Any])),
         ArrayType(DoubleType))
     }
@@ -135,17 +135,17 @@ case class VeloxApproximatePercentile(
   override lazy val initialValues: Seq[Expression] = Seq(
     percentilesLiteral, // percentiles
     Literal.create(returnPercentileArray, BooleanType), // percentilesIsArray
-    Literal.create(accuracy, DoubleType), // accuracy
+    Literal.create(accuracy, IntegerType), // accuracy
     Literal.create(KllSketchFieldIndex.DEFAULT_K, IntegerType), // k
     Literal.create(0L, LongType), // n
     Literal.create(null, child.dataType), // minValue
     Literal.create(null, child.dataType), // maxValue
     Literal.create(
-      new org.apache.spark.sql.catalyst.util.GenericArrayData(Array.empty[Any]),
+      new GenericArrayData(Array.empty[Any]),
       ArrayType(child.dataType)
     ), // items
     Literal.create(
-      new org.apache.spark.sql.catalyst.util.GenericArrayData(Array(0, 0)),
+      new GenericArrayData(Array(0, 0)),
       ArrayType(IntegerType)
     ) // levels
   )
@@ -199,7 +199,7 @@ case class VeloxApproximatePercentile(
  * KLL sketch field indices matching Velox's ApproxPercentileIntermediateTypeChildIndex.
  *
  * The intermediate StructType has 9 fields: 0: percentiles - Array(Double) 1: percentilesIsArray -
- * Boolean 2: accuracy - Double 3: k - Integer (KLL parameter) 4: n - Long (total count) 5: minValue
+ * Boolean 2: accuracy - Integer (Spark accuracy) 3: k - Integer (KLL parameter) 4: n - Long (total count) 5: minValue
  * \- childType 6: maxValue - childType 7: items - Array(childType) 8: levels - Array(Integer)
  */
 object KllSketchFieldIndex {
@@ -219,7 +219,7 @@ object KllSketchFieldIndex {
     Array(
       StructField("percentiles", ArrayType(DoubleType), nullable = true),
       StructField("percentilesIsArray", BooleanType, nullable = true),
-      StructField("accuracy", DoubleType, nullable = true),
+      StructField("accuracy", IntegerType, nullable = true),
       StructField("k", IntegerType, nullable = true),
       StructField("n", LongType, nullable = true),
       StructField("minValue", childType, nullable = true),
@@ -260,7 +260,7 @@ object KllSketchHelper {
   def createEmpty(
       percentiles: ArrayData,
       isArray: Boolean,
-      accuracy: Double,
+      accuracy: Int,
       childType: DataType): InternalRow = {
     val k = KllSketchFieldIndex.DEFAULT_K
     InternalRow(
@@ -343,7 +343,7 @@ object KllSketchHelper {
     InternalRow(
       sketch.getArray(KllSketchFieldIndex.PERCENTILES),
       sketch.getBoolean(KllSketchFieldIndex.PERCENTILES_IS_ARRAY),
-      sketch.getDouble(KllSketchFieldIndex.ACCURACY),
+      sketch.getInt(KllSketchFieldIndex.ACCURACY),
       k,
       n + 1,
       fromDouble(oldMin, childType),
@@ -373,8 +373,6 @@ object KllSketchHelper {
     // Merge items: concatenate all items from both sketches
     val leftItems = left.getArray(KllSketchFieldIndex.ITEMS)
     val rightItems = right.getArray(KllSketchFieldIndex.ITEMS)
-    val leftLevels = left.getArray(KllSketchFieldIndex.LEVELS)
-    val rightLevels = right.getArray(KllSketchFieldIndex.LEVELS)
 
     val totalItemsSize = leftItems.numElements() + rightItems.numElements()
     val mergedItems = new Array[Any](totalItemsSize)
@@ -409,7 +407,7 @@ object KllSketchHelper {
     InternalRow(
       left.getArray(KllSketchFieldIndex.PERCENTILES),
       left.getBoolean(KllSketchFieldIndex.PERCENTILES_IS_ARRAY),
-      left.getDouble(KllSketchFieldIndex.ACCURACY),
+      left.getInt(KllSketchFieldIndex.ACCURACY),
       k,
       leftN + rightN,
       fromDouble(mergedMin, childType),
