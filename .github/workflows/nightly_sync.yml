@@ -23,22 +23,31 @@ on:
 jobs:
 
   script-change-test:
-    name: check Velox script change
+    name: check Velox script change and build docker image if needed
     runs-on: ubuntu-latest
     steps:
       - name: Check if scripts changed
         run: |
+          git clone --depth 10 --branch master https://github.com/facebookincubator/velox.git velox
+          cd velox
           if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep -E '(^|/)scripts/.*') ]]; then
             echo "Scripts changed, run gpu-docker-tests"
             exit 1
           else
             echo "No script changes, skip gpu-docker-tests"
           fi
-        
-  gpu-docker-tests:
-    needs: script-change-test
-    checkout:
-      uses: ./.github/workflows/docker_image.yml@master
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check CI Status
+        # Allow manual triggered workflows to circumvent the check
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run ./.github/workflows/docker_image.yml -f job_to_run=build-centos-9-jdk8-cudf
 
   upload_to_nightlies:
     if: ${{ startsWith(github.repository, 'apache/') }}
