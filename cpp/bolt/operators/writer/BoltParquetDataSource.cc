@@ -209,7 +209,7 @@ void BoltParquetDataSource::write(const std::shared_ptr<ColumnarBatch>& cb) {
         std::move(children));
   }
 
-  parquetWriter_->write(boltBatch->getFlattenedRowVector());
+  parquetWriter_->write(rowVector);
 }
 
 void BoltParquetDataSource::configureWriterOptions(const std::unordered_map<std::string, std::string>& sparkConfs) {
