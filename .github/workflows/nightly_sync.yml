@@ -32,9 +32,9 @@ jobs:
           cd velox
           if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep -E '(^|/)scripts/.*') ]]; then
             echo "Scripts changed, run gpu-docker-tests"
-            exit 1
           else
             echo "No script changes, skip gpu-docker-tests"
+            exit 0
           fi
       - name: Set up Git
         run: |
