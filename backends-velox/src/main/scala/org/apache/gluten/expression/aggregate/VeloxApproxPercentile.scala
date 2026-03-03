@@ -21,7 +21,7 @@ import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.ApproximatePercentile
 import org.apache.spark.sql.catalyst.expressions.aggregate.DeclarativeAggregate
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
 import org.apache.spark.sql.catalyst.trees.TernaryLike
 import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData}
 import org.apache.spark.sql.types._
@@ -452,8 +452,10 @@ object KllSketchHelper {
     i = 0
     while (i < numPercentiles) {
       val p = percentiles.getDouble(i)
-      val rank = math.min((p * numItems).toInt, numItems - 1)
-      results(i) = fromDouble(doubles(math.max(0, rank)), childType)
+      // Use "nearest rank" method to compute the percentile index, aligning with Spark's
+      // GK algorithm results: rank = ceil(p * n) - 1 (0-indexed), clamped to valid range
+      val rank = math.max(0, math.min(math.ceil(p * numItems).toInt - 1, numItems - 1))
+      results(i) = fromDouble(doubles(rank), childType)
       i += 1
     }
 
@@ -534,7 +536,8 @@ object KllSketchHelper {
  *   The data type of the value being aggregated
  */
 case class KllSketchAdd(sketch: Expression, value: Expression, childType: DataType)
-  extends BinaryExpression {
+  extends BinaryExpression
+  with CodegenFallback {
 
   override def left: Expression = sketch
   override def right: Expression = value
@@ -552,9 +555,6 @@ case class KllSketchAdd(sketch: Expression, value: Expression, childType: DataTy
     if (v == null) return sketchRow
     KllSketchHelper.add(sketchRow, v, childType)
   }
-
-  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode =
-    throw new UnsupportedOperationException("KllSketchAdd does not support codegen")
 }
 
 /**
@@ -569,7 +569,8 @@ case class KllSketchAdd(sketch: Expression, value: Expression, childType: DataTy
  *   The data type of the values being aggregated
  */
 case class KllSketchMerge(left: Expression, right: Expression, childType: DataType)
-  extends BinaryExpression {
+  extends BinaryExpression
+  with CodegenFallback {
 
   override def dataType: DataType = left.dataType
   override def nullable: Boolean = false
@@ -586,9 +587,6 @@ case class KllSketchMerge(left: Expression, right: Expression, childType: DataTy
     if (rightRow == null) return leftRow
     KllSketchHelper.merge(leftRow, rightRow, childType)
   }
-
-  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode =
-    throw new UnsupportedOperationException("KllSketchMerge does not support codegen")
 }
 
 /**
@@ -601,13 +599,16 @@ case class KllSketchMerge(left: Expression, right: Expression, childType: DataTy
  *   Whether to return an array of percentiles
  * @param resultType
  *   The result data type
+ * @param childType
+ *   The data type of values being aggregated
  */
 case class KllSketchEval(
     sketch: Expression,
     returnArray: Boolean,
     resultType: DataType,
     childType: DataType)
-  extends UnaryExpression {
+  extends UnaryExpression
+  with CodegenFallback {
 
   override def child: Expression = sketch
   override def dataType: DataType = resultType
@@ -621,7 +622,4 @@ case class KllSketchEval(
     if (sketchRow == null) return null
     KllSketchHelper.eval(sketchRow, childType)
   }
-
-  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode =
-    throw new UnsupportedOperationException("KllSketchEval does not support codegen")
 }
