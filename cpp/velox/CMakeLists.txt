@@ -304,9 +304,6 @@ if(BUILD_TESTS)
     facebook::velox::file_test_utils
     ${VELOX_BUILD_PATH}/velox/common/file/tests/libvelox_file_test_utils.a)
   import_library(
-    facebook::velox::temp_path
-    ${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_temp_path.a)
-  import_library(
     facebook::velox::exec_test_lib
     ${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_exec_test_lib.a)
   target_link_libraries(
