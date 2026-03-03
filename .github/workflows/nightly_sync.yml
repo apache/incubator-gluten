@@ -16,14 +16,14 @@
 name: Upload docs to apache nightly
 
 on:
-  push:
+  pull_request:
     paths:
       - 'docs/**'
       - '.github/workflows/nightly_sync.yml'
 jobs:
 
   gpu-docker-tests:
-    name: check Velox script change
+    name: check Velox script change and build docker image if changed
     runs-on: ubuntu-latest
     steps:
       - name: Check if scripts changed
