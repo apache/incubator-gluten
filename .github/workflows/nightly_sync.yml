@@ -22,8 +22,8 @@ on:
       - '.github/workflows/nightly_sync.yml'
 jobs:
 
-  gpu-docker-tests:
-    name: check Velox script change and build docker image if changed
+  script-change-test:
+    name: check Velox script change
     runs-on: ubuntu-latest
     steps:
       - name: Check if scripts changed
@@ -34,7 +34,12 @@ jobs:
           else
             echo "No script changes, skip gpu-docker-tests"
           fi
-
+        
+  gpu-docker-tests:
+    needs: script-change-test
+    name: check Velox script change and build docker image if changed
+    runs-on: ubuntu-latest
+    steps:
       - name: Run Docker Image build
         uses: apache/gluten/.github/workflows/docker_image.yml@master
         with:
