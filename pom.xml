@@ -99,7 +99,7 @@
     <!-- To build built-in backend c++ codes -->
     <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
-    <fasterxml.version>2.15.0</fasterxml.version>
+    <fasterxml.version>2.18.6</fasterxml.version>
     <junit.version>4.13.1</junit.version>
     <!-- Maven version for build/mvn wrapper script -->
     <maven.version>3.9.12</maven.version>
