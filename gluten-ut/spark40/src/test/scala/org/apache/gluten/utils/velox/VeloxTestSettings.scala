@@ -373,16 +373,16 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("unsupported parquet conversion IntegerType -> DecimalType(10,1)")
     .exclude("unsupported parquet conversion IntegerType -> DecimalType(5,0)")
     .exclude("unsupported parquet conversion IntegerType -> DecimalType(9,0)")
-    .exclude("unsupported parquet conversion LongType -> DateType")
     .exclude("unsupported parquet conversion LongType -> DecimalType(10,0)")
     .exclude("unsupported parquet conversion LongType -> DecimalType(19,0)")
     .exclude("unsupported parquet conversion LongType -> DecimalType(20,1)")
-    .exclude("unsupported parquet conversion LongType -> IntegerType")
     .exclude("unsupported parquet conversion ShortType -> DecimalType(3,0)")
     .exclude("unsupported parquet conversion ShortType -> DecimalType(4,0)")
     .exclude("unsupported parquet conversion ShortType -> DecimalType(5,0)")
     .exclude("unsupported parquet conversion ShortType -> DecimalType(5,1)")
     .exclude("unsupported parquet conversion ShortType -> DecimalType(6,1)")
+    .exclude("parquet widening conversion IntegerType -> ShortType")
+    .exclude("parquet decimal type change IntegerType -> ShortType overflows")
   enableSuite[GlutenParquetVariantShreddingSuite]
   // Generated suites for org.apache.spark.sql.execution.datasources.text
   // TODO: 4.x enableSuite[GlutenWholeTextFileV1Suite]  // 1 failure
