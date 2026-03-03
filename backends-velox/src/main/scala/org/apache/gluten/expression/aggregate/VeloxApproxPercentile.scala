@@ -35,9 +35,10 @@ import java.util
  * intermediate data), this implementation uses KLL sketch with a 9-field StructType intermediate
  * that is fully compatible with Velox's approx_percentile accumulator layout:
  *
- * 0: percentiles - Array(Double) 1: percentilesIsArray - Boolean 2: accuracy - Integer (Spark accuracy, e.g. 10000; Velox internally computes epsilon = 1.0/accuracy) 3: k -
- * Integer (KLL parameter) 4: n - Long (total count) 5: minValue - childType 6: maxValue - childType
- * 7: items - Array(childType) 8: levels - Array(Integer)
+ * 0: percentiles - Array(Double) 1: percentilesIsArray - Boolean 2: accuracy - Integer (Spark
+ * accuracy, e.g. 10000; Velox internally computes epsilon = 1.0/accuracy) 3: k - Integer (KLL
+ * parameter) 4: n - Long (total count) 5: minValue - childType 6: maxValue - childType 7: items -
+ * Array(childType) 8: levels - Array(Integer)
  *
  * Because aggBufferAttributes has 9 fields (> 1), the existing VeloxIntermediateData.Type default
  * branch (aggBufferAttributes.size > 1) will match automatically, meaning:
@@ -126,8 +127,7 @@ case class VeloxApproximatePercentile(
       Literal.create(null, ArrayType(DoubleType))
     } else {
       Literal.create(
-        new GenericArrayData(
-          percentages.map(_.asInstanceOf[Any])),
+        new GenericArrayData(percentages.map(_.asInstanceOf[Any])),
         ArrayType(DoubleType))
     }
   }
@@ -199,8 +199,9 @@ case class VeloxApproximatePercentile(
  * KLL sketch field indices matching Velox's ApproxPercentileIntermediateTypeChildIndex.
  *
  * The intermediate StructType has 9 fields: 0: percentiles - Array(Double) 1: percentilesIsArray -
- * Boolean 2: accuracy - Integer (Spark accuracy) 3: k - Integer (KLL parameter) 4: n - Long (total count) 5: minValue
- * \- childType 6: maxValue - childType 7: items - Array(childType) 8: levels - Array(Integer)
+ * Boolean 2: accuracy - Integer (Spark accuracy) 3: k - Integer (KLL parameter) 4: n - Long (total
+ * count) 5: minValue \- childType 6: maxValue - childType 7: items - Array(childType) 8: levels -
+ * Array(Integer)
  */
 object KllSketchFieldIndex {
   val PERCENTILES = 0
