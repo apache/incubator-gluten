@@ -37,13 +37,8 @@ jobs:
         
   gpu-docker-tests:
     needs: script-change-test
-    name: check Velox script change and build docker image if changed
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run Docker Image build
-        uses: apache/gluten/.github/workflows/docker_image.yml@master
-        with:
-          image_tag: ${{ inputs.RELEASE_VERSION }}
+    checkout:
+      uses: ./.github/workflows/docker_image.yml@master
 
   upload_to_nightlies:
     if: ${{ startsWith(github.repository, 'apache/') }}
