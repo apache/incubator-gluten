@@ -16,33 +16,67 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.expression.ExpressionMappings
 import org.apache.gluten.expression.aggregate.VeloxApproximatePercentile
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE, AGGREGATE_EXPRESSION}
 
+import scala.reflect.{classTag, ClassTag}
+
 /**
  * Rewrite Spark native ApproximatePercentile to VeloxApproximatePercentile:
- *   - Accuracy argument must be DOUBLE type (Velox requirement)
- *   - Only rewrite when all expressions are resolved
+ *   - Velox uses a 9-field StructType intermediate (KLL sketch), incompatible with Spark's
+ *     TypedImperativeAggregate (single BinaryType buffer).
+ *   - Accuracy is passed as-is (Spark's original integer value, e.g. 10000). Velox C++
+ *     SparkAccuracyPolicy internally computes epsilon = 1.0 / accuracy.
  */
 case class ApproxPercentileRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
+  import ApproxPercentileRewriteRule._
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    plan.transformUpWithPruning(_.containsPattern(AGGREGATE)) {
-      case a: Aggregate =>
-        a.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
-          case aggExpr @ AggregateExpression(sparkPercentile: ApproximatePercentile, _, _, _, _) =>
-            val veloxPercentile = VeloxApproximatePercentile(
-              child = sparkPercentile.child,
-              percentageExpression = sparkPercentile.percentageExpression,
-              accuracyExpression = sparkPercentile.accuracyExpression
-            )
+    if (!has[VeloxApproximatePercentile]) {
+      return plan
+    }
 
-            aggExpr.copy(aggregateFunction = veloxPercentile)
+    val newPlan = plan.transformUpWithPruning(_.containsPattern(AGGREGATE)) {
+      case node =>
+        replaceApproxPercentile(node)
+    }
+    if (newPlan.fastEquals(plan)) {
+      return plan
+    }
+    newPlan
+  }
+
+  private def replaceApproxPercentile(node: LogicalPlan): LogicalPlan = {
+    node match {
+      case agg: Aggregate =>
+        agg.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
+          case ToVeloxApproxPercentile(newAggExpr) =>
+            newAggExpr
         }
+      case other => other
     }
   }
+}
+
+object ApproxPercentileRewriteRule {
+  private object ToVeloxApproxPercentile {
+    def unapply(expr: Expression): Option[Expression] = expr match {
+      case aggExpr @ AggregateExpression(ap: ApproximatePercentile, _, _, _, _)
+          if has[VeloxApproximatePercentile] =>
+        val newAggExpr = aggExpr.copy(
+          aggregateFunction =
+            VeloxApproximatePercentile(ap.child, ap.percentageExpression, ap.accuracyExpression))
+        Some(newAggExpr)
+      case _ => None
+    }
+  }
+
+  private def has[T <: Expression: ClassTag]: Boolean =
+    ExpressionMappings.expressionsMap.contains(classTag[T].runtimeClass)
 }
