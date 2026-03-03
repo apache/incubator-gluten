@@ -33,6 +33,7 @@ import java.io.File
  * See the project: https://github.com/ClickHouse/ClickBench Site: https://benchmark.clickhouse.com/
  */
 class ClickBenchSuite(
+    val appName: String,
     val masterUrl: String,
     val actions: Array[Action],
     val testConf: SparkConf,
@@ -58,6 +59,7 @@ class ClickBenchSuite(
     val testMetricMapper: MetricMapper,
     val reportPath: String)
   extends Suite(
+    appName,
     masterUrl,
     actions,
     testConf,

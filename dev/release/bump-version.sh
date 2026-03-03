@@ -27,7 +27,7 @@ NEW_VERSION="${1:-}"; [[ -n "$NEW_VERSION" ]] || usage
 # Resolve script dir
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GLUTEN_HOME="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
-MVN_BIN="${MVN:-mvn}"
+MVN_BIN="${MVN:-${GLUTEN_HOME}/build/mvn}"
 
 bump() {
   local dir="$1"

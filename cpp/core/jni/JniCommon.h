@@ -99,6 +99,9 @@ static inline jmethodID getMethodId(JNIEnv* env, jclass thisClass, const char* n
 }
 
 static inline jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+  if (thisClass == nullptr) {
+    throw gluten::GlutenException("Unable to find class while looking up method " + std::string(name));
+  }
   jmethodID ret = getMethodId(env, thisClass, name, sig);
   if (ret == nullptr) {
     std::string errorMessage = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
@@ -376,6 +379,10 @@ class SparkAllocationListener final : public gluten::AllocationListener {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     jListenerGlobalRef_ = env->NewGlobalRef(jListenerLocalRef);
+    GLUTEN_CHECK(jListenerGlobalRef_ != nullptr, "Failed to create global reference for reservation listener.");
+    // Resolve JNI symbols on the creator thread to avoid first-touch initialization from IO threads.
+    (void)reserveMemoryMethod(env);
+    (void)unreserveMemoryMethod(env);
   }
 
   SparkAllocationListener(const SparkAllocationListener&) = delete;

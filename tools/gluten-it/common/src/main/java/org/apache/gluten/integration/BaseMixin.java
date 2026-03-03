@@ -55,10 +55,16 @@ public class BaseMixin {
   private String baselinePreset;
 
   @CommandLine.Option(
+      names = {"--app-name"},
+      description = "The name of Spark application started by the benchmark",
+      defaultValue = "Gluten Integration Test")
+  private String appName;
+
+  @CommandLine.Option(
       names = {"--log-level"},
-      description = "Set log level: 0 for DEBUG, 1 for INFO, 2 for WARN",
-      defaultValue = "2")
-  private int logLevel;
+      description = "Set log level: DEBUG, INFO, WARN, etc.",
+      defaultValue = "WARN")
+  private String logLevel;
 
   @CommandLine.Option(
       names = {"--error-on-memleak"},
@@ -183,20 +189,7 @@ public class BaseMixin {
   }
 
   public Integer runActions(Action[] actions) {
-    final Level level;
-    switch (logLevel) {
-      case 0:
-        level = Level.DEBUG;
-        break;
-      case 1:
-        level = Level.INFO;
-        break;
-      case 2:
-        level = Level.WARN;
-        break;
-      default:
-        throw new IllegalArgumentException("Log level not found: " + logLevel);
-    }
+    final Level level = Level.toLevel(logLevel);
     System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, level.toString());
     LogManager.getRootLogger().setLevel(level);
 
@@ -215,6 +208,7 @@ public class BaseMixin {
       case "h":
         suite =
             new TpchSuite(
+                appName,
                 runModeEnumeration.getSparkMasterUrl(),
                 actions,
                 testConf,
@@ -244,6 +238,7 @@ public class BaseMixin {
       case "ds":
         suite =
             new TpcdsSuite(
+                appName,
                 runModeEnumeration.getSparkMasterUrl(),
                 actions,
                 testConf,
@@ -273,6 +268,7 @@ public class BaseMixin {
       case "clickbench":
         suite =
             new ClickBenchSuite(
+                appName,
                 runModeEnumeration.getSparkMasterUrl(),
                 actions,
                 testConf,
