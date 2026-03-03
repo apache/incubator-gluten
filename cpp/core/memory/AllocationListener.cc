@@ -22,7 +22,6 @@ namespace gluten {
 class NoopAllocationListener : public gluten::AllocationListener {
  public:
   void allocationChanged(int64_t diff) override {
-    // no-op
   }
 };
 
