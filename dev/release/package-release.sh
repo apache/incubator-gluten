@@ -48,7 +48,7 @@ for v in $SPARK_VERSIONS; do
     exit 1
   fi
   echo "Packaging for Spark $v..."
-  tar -czf apache-gluten-${RELEASE_VERSION}-incubating-bin-spark-${v}.tar.gz \
+  tar -czf apache-gluten-${RELEASE_VERSION}-bin-spark-${v}.tar.gz \
       ${GLUTEN_HOME}/DISCLAIMER \
       $JAR
 done
@@ -62,7 +62,7 @@ unzip -q ${SRC_ZIP}
 
 # Rename folder to remove "rc*" for formal release.
 mv incubator-gluten-${TAG_VERSION} ${SRC_DIR}
-tar -czf apache-gluten-${RELEASE_VERSION}-incubating-src.tar.gz ${SRC_DIR}
+tar -czf apache-gluten-${RELEASE_VERSION}-src.tar.gz ${SRC_DIR}
 rm -r ${SRC_ZIP} ${SRC_DIR}
 
 popd
