@@ -25,25 +25,30 @@ jobs:
   script-change-test:
     name: check Velox script change and build docker image if needed
     runs-on: ubuntu-latest
+    outputs:
+      scripts_changed: ${{ steps.check_scripts.outputs.scripts_changed }}
     steps:
       - name: Check if scripts changed
+        id: check_scripts
         run: |
           git clone --depth 10 --branch main https://github.com/facebookincubator/velox.git velox
           cd velox
           if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep -E '(^|/)scripts/.*') ]]; then
             echo "Scripts changed, run gpu-docker-tests"
+            echo "::set-output name=scripts_changed::true"
           else
             echo "No script changes, skip gpu-docker-tests"
+            echo "::set-output name=scripts_changed::false"
             exit 0
           fi
       - name: Set up Git
+        if: steps.check_scripts.outputs.scripts_changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Check CI Status
-        # Allow manual triggered workflows to circumvent the check
-        if: ${{ github.event_name != 'workflow_dispatch' }}
+        if: steps.check_scripts.outputs.scripts_changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
