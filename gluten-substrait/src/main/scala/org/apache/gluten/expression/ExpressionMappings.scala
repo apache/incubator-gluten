@@ -23,6 +23,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.expressions.objects.AssertNotNull
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
 
@@ -294,6 +295,7 @@ object ExpressionMappings {
     Sig[WidthBucket](WIDTH_BUCKET),
     Sig[ReplicateRows](REPLICATE_ROWS),
     Sig[RaiseError](RAISE_ERROR),
+    Sig[AssertNotNull](ASSERT_NOT_NULL),
     Sig[SparkVersion](VERSION),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE),
