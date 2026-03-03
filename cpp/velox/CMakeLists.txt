@@ -419,6 +419,7 @@ if(BUILD_EXAMPLES)
 endif()
 
 if(ENABLE_GPU)
+  set(cudf_DIR "${VELOX_BUILD_PATH}/_deps/cudf-build")
   find_package(cudf CONFIG REQUIRED)
 
   import_library(
