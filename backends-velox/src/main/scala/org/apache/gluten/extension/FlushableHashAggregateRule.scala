@@ -84,9 +84,9 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
 
   /**
    * Walks the plan downward, applying func to each RegularHashAggregateExecTransformer or
-   * SortHashAggregateExecTransformer that is eligible for flushable conversion. An aggregate
-   * is eligible when all expressions are Partial/PartialMerge, input is not already
-   * partitioned by the grouping keys, and no aggregate function disallows flushing.
+   * SortHashAggregateExecTransformer that is eligible for flushable conversion. An aggregate is
+   * eligible when all expressions are Partial/PartialMerge, input is not already partitioned by the
+   * grouping keys, and no aggregate function disallows flushing.
    */
   private def replaceEligibleAggregates(plan: SparkPlan)(
       func: HashAggregateExecTransformer => SparkPlan): SparkPlan = {
