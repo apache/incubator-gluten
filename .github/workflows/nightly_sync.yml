@@ -28,7 +28,7 @@ jobs:
     steps:
       - name: Check if scripts changed
         run: |
-          git clone --depth 10 --branch master https://github.com/facebookincubator/velox.git velox
+          git clone --depth 10 --branch main https://github.com/facebookincubator/velox.git velox
           cd velox
           if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep -E '(^|/)scripts/.*') ]]; then
             echo "Scripts changed, run gpu-docker-tests"
