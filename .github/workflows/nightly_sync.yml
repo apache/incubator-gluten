@@ -21,6 +21,25 @@ on:
       - 'docs/**'
       - '.github/workflows/nightly_sync.yml'
 jobs:
+
+  gpu-docker-tests:
+    name: check Velox script change
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if scripts changed
+        run: |
+          if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep -E '(^|/)scripts/.*') ]]; then
+            echo "Scripts changed, run gpu-docker-tests"
+            exit 1
+          else
+            echo "No script changes, skip gpu-docker-tests"
+          fi
+
+      - name: Run Docker Image build
+        uses: apache/gluten/.github/workflows/docker_image.yml@master
+        with:
+          image_tag: ${{ inputs.RELEASE_VERSION }}
+
   upload_to_nightlies:
     if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
