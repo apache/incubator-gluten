@@ -93,26 +93,32 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
     def transformDown: SparkPlan => SparkPlan = {
       case agg: RegularHashAggregateExecTransformer
           if !agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge) =>
-        // Not a intermediate agg. Skip.
+        // Not an intermediate agg. Skip.
         agg
       case agg: RegularHashAggregateExecTransformer
           if isAggInputAlreadyDistributedWithAggKeys(agg) =>
-        // Data already grouped by aggregate keys, Skip.
+        // Data already grouped by aggregate keys. Skip.
         agg
       case agg: RegularHashAggregateExecTransformer
           if aggregatesNotSupportFlush(agg.aggregateExpressions) =>
+        // Aggregate uses a function that is unsafe to flush. Skip.
         agg
       case agg: RegularHashAggregateExecTransformer =>
+        // All guards passed; replace with the flushable variant.
         func(agg)
       case agg: SortHashAggregateExecTransformer
           if !agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge) =>
+        // Not an intermediate agg. Skip.
         agg
       case agg: SortHashAggregateExecTransformer if isAggInputAlreadyDistributedWithAggKeys(agg) =>
+        // Data already grouped by aggregate keys. Skip.
         agg
       case agg: SortHashAggregateExecTransformer
           if aggregatesNotSupportFlush(agg.aggregateExpressions) =>
+        // Aggregate uses a function that is unsafe to flush. Skip.
         agg
       case agg: SortHashAggregateExecTransformer =>
+        // All guards passed; replace with the flushable variant.
         func(agg)
       case p if !canPropagate(p) => p
       case other => other.withNewChildren(other.children.map(transformDown))
