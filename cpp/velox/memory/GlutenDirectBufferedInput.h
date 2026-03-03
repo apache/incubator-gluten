@@ -49,6 +49,11 @@ class GlutenDirectBufferedInput : public facebook::velox::dwio::common::DirectBu
   ~GlutenDirectBufferedInput() override {
     requests_.clear();
     for (auto& load : coalescedLoads_) {
+      if (load->state() == facebook::velox::cache::CoalescedLoad::State::kPlanned) {
+        load->cancel();
+      }
+    }
+    for (auto& load : coalescedLoads_) {
       if (load->state() == facebook::velox::cache::CoalescedLoad::State::kLoading) {
         folly::SemiFuture<bool> waitFuture(false);
         if (!load->loadOrFuture(&waitFuture)) {
@@ -56,7 +61,6 @@ class GlutenDirectBufferedInput : public facebook::velox::dwio::common::DirectBu
           std::move(waitFuture).via(&exec).wait();
         }
       }
-      load->cancel();
     }
     coalescedLoads_.clear();
   }
