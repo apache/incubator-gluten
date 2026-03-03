@@ -699,18 +699,16 @@ arrow::Status LocalPartitionWriter::writeMemoryPayload(uint32_t partitionId, std
     ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_->shuffleFileBufferSize));
   }
 
-  auto shouldCompress = codec_ != nullptr && payload->numRows() >= options_->compressionThreshold;
-
-  ARROW_ASSIGN_OR_RAISE(
-      auto block,
-      payload->toBlockPayload(shouldCompress ? Payload::kToBeCompressed : Payload::kUncompressed, payloadPool_.get(), codec_.get()));
-  
   ARROW_ASSIGN_OR_RAISE(int64_t startOffset, dataFileOs_->Tell());
-  uint8_t blockType = static_cast<uint8_t>(BlockType::kPlainPayload);
-  RETURN_NOT_OK(dataFileOs_->Write(&blockType, sizeof(blockType)));
-  RETURN_NOT_OK(block->serialize(dataFileOs_.get())); 
-  compressTime_ += block->getCompressTime();
-  writeTime_ += block->getWriteTime();
+  if (codec_ != nullptr) {
+    ARROW_ASSIGN_OR_RAISE(auto compressOs, ShuffleCompressedOutputStream::Make(codec_.get(), options_->compressionBufferSize, dataFileOs_, arrow::default_memory_pool()));
+    RETURN_NOT_OK(payload->serialize(compressOs.get()));
+    RETURN_NOT_OK(compressOs->Flush());
+    compressTime_ += compressOs->compressTime();
+    RETURN_NOT_OK(compressOs->Close());
+  } else {
+    RETURN_NOT_OK(payload->serialize(dataFileOs_.get()));
+  }
   ARROW_ASSIGN_OR_RAISE(int64_t endOffset, dataFileOs_->Tell());
   auto bytesWritten = endOffset - startOffset;
   partitionSegments_[partitionId].emplace_back(startOffset, bytesWritten);
