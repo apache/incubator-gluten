@@ -110,6 +110,10 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     throw GlutenException("Not implemented");
   }
 
+  virtual void requestBarrier(ResultIterator* iter) {
+    throw GlutenException("Not implemented");
+  }
+
   virtual std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) {
     throw GlutenException("Not implemented");
   }

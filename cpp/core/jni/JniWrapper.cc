@@ -699,6 +699,20 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterato
   JNI_METHOD_END()
 }
 
+JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterator_nativeRequestBarrier( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong iterHandle) {
+  JNI_METHOD_START
+  auto ctx = getRuntime(env, wrapper);
+  auto iter = ObjectStore::retrieve<ResultIterator>(iterHandle);
+  if (iter == nullptr) {
+    throw GlutenException("Invalid iterator handle for requestBarrier");
+  }
+  ctx->requestBarrier(iter.get());
+  JNI_METHOD_END()
+}
+
 JNIEXPORT jlong JNICALL
 Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToRowInit( // NOLINT
     JNIEnv* env,

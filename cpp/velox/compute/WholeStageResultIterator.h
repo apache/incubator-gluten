@@ -85,6 +85,12 @@ class WholeStageResultIterator : public SplitAwareColumnarBatchIterator {
   /// This is required for proper task completion and enables future barrier support.
   void noMoreSplits() override;
 
+  /// Request a barrier in the Velox task execution.
+  /// This signals the task to finish processing all currently queued splits
+  /// and drain all stateful operators before continuing.
+  /// @see https://facebookincubator.github.io/velox/develop/task-barrier.html
+  void requestBarrier() override;
+
  private:
   /// Get the Spark confs to Velox query context.
   std::unordered_map<std::string, std::string> getQueryContextConf();

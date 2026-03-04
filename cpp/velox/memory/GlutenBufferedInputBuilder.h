@@ -30,8 +30,8 @@ class GlutenBufferedInputBuilder : public facebook::velox::connector::hive::Buff
       const facebook::velox::FileHandle& fileHandle,
       const facebook::velox::dwio::common::ReaderOptions& readerOpts,
       const facebook::velox::connector::ConnectorQueryCtx* connectorQueryCtx,
-      std::shared_ptr<facebook::velox::io::IoStatistics> ioStats,
-      std::shared_ptr<facebook::velox::filesystems::File::IoStats> fsStats,
+      std::shared_ptr<facebook::velox::io::IoStatistics> ioStatistics,
+      std::shared_ptr<facebook::velox::IoStats> ioStats,
       folly::Executor* executor,
       const folly::F14FastMap<std::string, std::string>& fileReadOps = {}) override {
     if (connectorQueryCtx->cache()) {
@@ -42,8 +42,8 @@ class GlutenBufferedInputBuilder : public facebook::velox::connector::hive::Buff
           connectorQueryCtx->cache(),
           facebook::velox::connector::Connector::getTracker(connectorQueryCtx->scanId(), readerOpts.loadQuantum()),
           fileHandle.groupId,
-          ioStats,
-          std::move(fsStats),
+          std::move(ioStatistics),
+          std::move(ioStats),
           executor,
           readerOpts,
           fileReadOps);
@@ -54,8 +54,8 @@ class GlutenBufferedInputBuilder : public facebook::velox::connector::hive::Buff
         fileHandle.uuid,
         facebook::velox::connector::Connector::getTracker(connectorQueryCtx->scanId(), readerOpts.loadQuantum()),
         fileHandle.groupId,
+        std::move(ioStatistics),
         std::move(ioStats),
-        std::move(fsStats),
         executor,
         readerOpts,
         fileReadOps);

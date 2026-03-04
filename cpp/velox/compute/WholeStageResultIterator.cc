@@ -178,8 +178,6 @@ WholeStageResultIterator::WholeStageResultIterator(
         if (canUseCudfConnector && enableCudf_ &&
             veloxCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault)) {
           connectorId = kCudfHiveConnectorId;
-          VELOX_CHECK_EQ(starts[idx], 0, "Not support split file");
-          VELOX_CHECK_EQ(lengths[idx], scanInfo->properties[idx]->fileSize, "Not support split file");
         }
 #endif
         split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
@@ -392,6 +390,13 @@ void WholeStageResultIterator::noMoreSplits() {
     task_->noMoreSplits(streamId);
   }
   allSplitsAdded_ = true;
+}
+
+void WholeStageResultIterator::requestBarrier() {
+  if (task_ == nullptr) {
+    throw GlutenException("Cannot request barrier: task is null");
+  }
+  task_->requestBarrier();
 }
 
 void WholeStageResultIterator::collectMetrics() {

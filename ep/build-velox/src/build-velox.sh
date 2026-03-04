@@ -173,12 +173,6 @@ function compile {
         sudo cmake --install xsimd-build/
       fi
     fi
-    if [ -d cudf-build ]; then
-      echo "INSTALL cudf."
-      if [ $OS == 'Linux' ]; then
-        sudo cmake --install cudf-build/
-      fi
-    fi
     if [ -d googletest-build ]; then
       echo "INSTALL gtest."
       if [ $OS == 'Linux' ]; then

@@ -61,7 +61,7 @@ std::unique_ptr<WriterOptions> makeParquetWriteOption(const std::unordered_map<s
         auto parquetGzipWindowSizeStr = sparkConfs.find(kParquetGzipWindowSize)->second;
         if (parquetGzipWindowSizeStr == kGzipWindowSize4k) {
           auto codecOptions = std::make_shared<parquet::arrow::util::GZipCodecOptions>();
-          codecOptions->window_bits = kGzipWindowBits4k;
+          codecOptions->windowBits = kGzipWindowBits4k;
           writeOption->codecOptions = std::move(codecOptions);
         }
       }
@@ -77,7 +77,7 @@ std::unique_ptr<WriterOptions> makeParquetWriteOption(const std::unordered_map<s
       auto codecOptions = std::make_shared<parquet::arrow::util::CodecOptions>();
       auto it = sparkConfs.find(kParquetZSTDCompressionLevel);
       auto compressionLevel = it != sparkConfs.end() ? std::stoi(it->second) : kZSTDDefaultCompressionLevel;
-      codecOptions->compression_level = compressionLevel;
+      codecOptions->compressionLevel = compressionLevel;
       writeOption->codecOptions = std::move(codecOptions);
     } else if (boost::iequals(compressionCodecStr, "uncompressed")) {
       compressionCodec = CompressionKind::CompressionKind_NONE;
