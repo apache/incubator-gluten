@@ -62,6 +62,13 @@ unzip -q ${SRC_ZIP}
 
 # Rename folder to remove "rc*" for formal release.
 mv incubator-gluten-${TAG_VERSION} ${SRC_DIR}
+# Remove .git and .github and other unwanted files from the source dir.
+rm -rf ${SRC_DIR}/.git \
+       ${SRC_DIR}/.github \
+       ${SRC_DIR}/.gitattributes \
+       ${SRC_DIR}/.gitignore \
+       ${SRC_DIR}/.gitmodules \
+       ${SRC_DIR}/.idea
 tar -czf apache-gluten-${RELEASE_VERSION}-src.tar.gz ${SRC_DIR}
 rm -r ${SRC_ZIP} ${SRC_DIR}
 
