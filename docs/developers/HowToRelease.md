@@ -136,7 +136,7 @@ $ gpg --keyserver keyserver.ubuntu.com --send-key xxx
 
 # append the GPG key to the KEYS file the svn repository
 # [IMPORTANT] Don't replace the KEYS file, just append the GPG key to the KEYS file. 
-$ svn co https://dist.apache.org/repos/dist/release/incubator/gluten/
+$ svn co https://dist.apache.org/repos/dist/release/gluten/
 $ (gpg --list-sigs xxx@apache.org && gpg --export --armor xxx@apache.org) >> KEYS 
 $ svn ci -m "add gpg key" 
 
