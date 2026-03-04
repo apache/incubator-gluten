@@ -28,7 +28,7 @@
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
-  <description>Apache Gluten(incubating)</description>
+  <description>Apache Gluten</description>
   <url>https://github.com/apache/incubator-gluten.git</url>
 
   <organization>
