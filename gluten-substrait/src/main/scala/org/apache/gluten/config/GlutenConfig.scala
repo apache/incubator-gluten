@@ -614,8 +614,7 @@ object GlutenConfig extends ConfigRegistry {
       ("spark.gluten.velox.awsSdkLogLevel", "FATAL"),
       ("spark.gluten.velox.s3UseProxyFromEnv", "false"),
       ("spark.gluten.velox.s3PayloadSigningPolicy", "Never"),
-      (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString),
-      ("spark.gluten.sql.columnar.backend.velox.valueStream.dynamicFilter.enabled", "true")
+      (SQLConf.SESSION_LOCAL_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
     ).foreach { case (k, defaultValue) => nativeConfMap.put(k, conf.getOrElse(k, defaultValue)) }
 
     val keys = Set(

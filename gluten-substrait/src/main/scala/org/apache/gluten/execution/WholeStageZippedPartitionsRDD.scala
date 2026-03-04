@@ -55,7 +55,7 @@ class WholeStageZippedPartitionsRDD(
             split.index,
             materializeInput,
             resCtx.enableCudf,
-            resCtx.disableValueStreamDynamicFilter
+            resCtx.supportsValueStreamDynamicFilter
           )
     }
   }
