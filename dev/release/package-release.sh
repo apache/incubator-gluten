@@ -18,7 +18,7 @@
 # Note: Manually create $GLUTEN_HOME/release/ and place the release JARs inside.
 #       Provide the release tag (e.g., v1.5.0-rc0) as an argument to this script.
 
-set -eu
+set -euo pipefail
 
 usage() {
   echo "Usage: $0 <release_tag>  e.g., v1.5.0-rc0"
@@ -48,7 +48,7 @@ for v in $SPARK_VERSIONS; do
     exit 1
   fi
   echo "Packaging for Spark $v..."
-  tar -czf apache-gluten-${RELEASE_VERSION}-incubating-bin-spark-${v}.tar.gz \
+  tar -czf apache-gluten-${RELEASE_VERSION}-bin-spark-${v}.tar.gz \
       ${GLUTEN_HOME}/DISCLAIMER \
       $JAR
 done
@@ -62,7 +62,14 @@ unzip -q ${SRC_ZIP}
 
 # Rename folder to remove "rc*" for formal release.
 mv incubator-gluten-${TAG_VERSION} ${SRC_DIR}
-tar -czf apache-gluten-${RELEASE_VERSION}-incubating-src.tar.gz ${SRC_DIR}
+# Remove .git and .github and other unwanted files from the source dir.
+rm -rf ${SRC_DIR}/.git \
+       ${SRC_DIR}/.github \
+       ${SRC_DIR}/.gitattributes \
+       ${SRC_DIR}/.gitignore \
+       ${SRC_DIR}/.gitmodules \
+       ${SRC_DIR}/.idea
+tar -czf apache-gluten-${RELEASE_VERSION}-src.tar.gz ${SRC_DIR}
 rm -r ${SRC_ZIP} ${SRC_DIR}
 
 popd
