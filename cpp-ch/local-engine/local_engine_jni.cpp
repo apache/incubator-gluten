@@ -18,6 +18,8 @@
 #include <string>
 #include <jni.h>
 
+#include <re2/re2.h>
+
 #include <Builder/SerializedPlanBuilder.h>
 #include <Compression/CompressedReadBuffer.h>
 #include <DataTypes/DataTypeNullable.h>
@@ -234,6 +236,20 @@ Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_updateQueryRunti
     local_engine::updateSettings(query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
 
     LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+JNIEXPORT jboolean
+Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeValidateRegex(JNIEnv * env, jclass, jstring pattern)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    if (pattern == nullptr)
+        return false;
+    const std::string regex = jstring2string(env, pattern);
+    re2::RE2::Options options;
+    options.set_log_errors(false);
+    re2::RE2 re(regex, options);
+    return re.ok();
+    LOCAL_ENGINE_JNI_METHOD_END(env, false)
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
