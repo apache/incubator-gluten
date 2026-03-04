@@ -86,6 +86,6 @@ trait IteratorApi {
       partitionIndex: Int,
       materializeInput: Boolean = false,
       enableCudf: Boolean = false,
-      disableValueStreamDynamicFilter: Boolean = false): Iterator[ColumnarBatch]
+      supportsValueStreamDynamicFilter: Boolean = true): Iterator[ColumnarBatch]
   // scalastyle:on argcount
 }

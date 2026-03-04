@@ -52,7 +52,7 @@ case class WholeStageTransformContext(
     root: PlanNode,
     substraitContext: SubstraitContext = null,
     enableCudf: Boolean = false,
-    disableValueStreamDynamicFilter: Boolean = false)
+    supportsValueStreamDynamicFilter: Boolean = true)
 
 /** Base interface for a query plan that can be interpreted to Substrait representation. */
 trait TransformSupport extends ValidatablePlan {
@@ -262,15 +262,15 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       planNode,
       substraitContext,
       isCudf,
-      hasNonDeterministicExprInJoinProbe(child))
+      !hasNonDeterministicExprInJoinProbe(child))
   }
 
   /**
    * Checks whether any HashJoin's probe (streamed) side contains non-deterministic expressions.
-   * When true, ValueStream dynamic filter pushdown must be disabled because the dynamic filter
-   * would be applied at the scan level (below the non-deterministic Project), changing how many
-   * times the non-deterministic expression is evaluated and thus altering its output sequence. See
-   * SPARK-10316.
+   * When true, ValueStream dynamic filter pushdown must be disabled because if left enabled, the
+   * dynamic filter would filter rows at the ValueStream (below the non-deterministic Project),
+   * changing how many times the non-deterministic expression is evaluated and thus altering its
+   * output sequence. See SPARK-10316.
    */
   private def hasNonDeterministicExprInJoinProbe(plan: SparkPlan): Boolean = {
     plan match {
