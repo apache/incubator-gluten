@@ -317,4 +317,42 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
       }
     }
   }
+
+  test("Hash probe dynamic filter pushdown - string") {
+    withSQLConf(
+      VeloxConfig.HASH_PROBE_DYNAMIC_FILTER_PUSHDOWN_ENABLED.key -> "true",
+      VeloxConfig.HASH_PROBE_STRING_DYNAMIC_FILTER_PUSHDOWN_ENABLED.key -> "true"
+    ) {
+      withTable("probe_table_str", "build_table_str") {
+
+        spark.sql("""
+        CREATE TABLE probe_table_str USING PARQUET AS
+        SELECT CAST(id AS STRING) AS a
+        FROM range(100000)
+      """)
+
+        spark.sql("""
+        CREATE TABLE build_table_str USING PARQUET AS
+        SELECT CAST(id * 1000 AS STRING) AS b
+        FROM range(10)
+      """)
+
+        runQueryAndCompare(
+          "SELECT a FROM probe_table_str JOIN build_table_str ON a = b"
+        ) {
+          df =>
+            val join = find(df.queryExecution.executedPlan) {
+              case _: BroadcastHashJoinExecTransformer => true
+              case _ => false
+            }
+            assert(join.isDefined)
+
+            val metrics = join.get.metrics
+
+            assert(metrics.contains("hashProbeDynamicFiltersProduced"))
+            assert(metrics("hashProbeDynamicFiltersProduced").value == 1)
+        }
+      }
+    }
+  }
 }
