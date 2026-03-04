@@ -586,7 +586,12 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
           output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold)
       ) {
-        SortShuffleWriterType
+        // FIXME: Unified the useRssSort configuration for Celeborn and Uniffle
+        if (conf.isUseUniffleShuffleManager && conf.columnarShuffleUseRssSort) {
+          RssSortShuffleWriterType
+        } else {
+          SortShuffleWriterType
+        }
       } else {
         HashShuffleWriterType
       }

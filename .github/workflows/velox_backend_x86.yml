@@ -568,6 +568,7 @@ jobs:
         spark: [ "spark-3.3" ]
         uniffle: [ "0.10.0" ]
         hadoop: [ "2.8.5" ]
+        writer: ["sort", "rss_sort", "hash"]
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
@@ -607,9 +608,20 @@ jobs:
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
-          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -Puniffle  && \
-          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+          $GITHUB_WORKSPACE/$MVN_CMD clean install -P${{ matrix.spark }} -Puniffle
+          if [ "${{ matrix.writer }}" = "sort" ]; then
+            GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+                --extra-conf=spark.gluten.sql.columnar.shuffle.sort.partitions.threshold=0 \
+                --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+          elif [ "${{ matrix.writer }}" = "rss_sort" ]; then
+            GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+                --extra-conf=spark.gluten.sql.columnar.shuffle.sort.partitions.threshold=0 \
+                --extra-conf=spark.gluten.sql.columnar.shuffle.useRssSort=true \
+                --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+          else
+            GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+                --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
+          fi
 
   tpc-test-ubuntu-2204-celeborn:
     needs: build-native-lib-centos-7
