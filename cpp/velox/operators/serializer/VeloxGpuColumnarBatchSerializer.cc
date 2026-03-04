@@ -24,8 +24,8 @@
 #include "velox/common/memory/Memory.h"
 #include "velox/vector/FlatVector.h"
 #include "velox/vector/arrow/Bridge.h"
+#include "velox/experimental/cudf/exec/GpuResources.h"
 #include "velox/experimental/cudf/exec/VeloxCudfInterop.h"
-#include "velox/experimental/cudf/exec/Utilities.h"
 #include "velox/experimental/cudf/vector/CudfVector.h"
 
 #include <iostream>
