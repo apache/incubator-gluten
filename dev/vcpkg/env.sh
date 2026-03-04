@@ -27,6 +27,7 @@ SCRIPT_ROOT="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
 export VCPKG_ROOT="$SCRIPT_ROOT/.vcpkg"
 export VCPKG="$SCRIPT_ROOT/.vcpkg/vcpkg"
 export VCPKG_TRIPLET=$([ "${CPU_TARGET:-}" = "aarch64" ] && echo "arm64-linux-neon" || echo "x64-linux-avx")
+export VCPKG_TRIPLET=$([ "$(uname)" == "Darwin" ] && echo "arm64-osx-release" || echo ${VCPKG_TRIPLET})
 export VCPKG_TRIPLET_INSTALL_DIR=${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}
 
 ${SCRIPT_ROOT}/init.sh "$@"

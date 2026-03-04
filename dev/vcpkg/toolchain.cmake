@@ -38,8 +38,10 @@ set(CMAKE_PREFIX_PATH $ENV{CMAKE_PREFIX_PATH})
 
 include($ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
 
-set(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++ -static-libgcc")
-set(CMAKE_SHARED_LINKER_FLAGS "-static-libstdc++ -static-libgcc")
+if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+  set(CMAKE_EXE_LINKER_FLAGS "-static-libstdc++ -static-libgcc")
+  set(CMAKE_SHARED_LINKER_FLAGS "-static-libstdc++ -static-libgcc")
+endif()
 
 # Disable boost new version warning for FindBoost module
 set(Boost_NO_WARN_NEW_VERSIONS ON)
