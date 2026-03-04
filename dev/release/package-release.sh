@@ -18,7 +18,7 @@
 # Note: Manually create $GLUTEN_HOME/release/ and place the release JARs inside.
 #       Provide the release tag (e.g., v1.5.0-rc0) as an argument to this script.
 
-set -eu
+set -euo pipefail
 
 usage() {
   echo "Usage: $0 <release_tag>  e.g., v1.5.0-rc0"
