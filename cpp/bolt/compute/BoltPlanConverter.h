@@ -48,6 +48,7 @@ class BoltPlanConverter {
  private:
   bool validationMode_;
 
+  const bytedance::bolt::config::ConfigBase* boltCfg_;
   SubstraitToBoltPlanConverter substraitBoltPlanConverter_;
 };
 

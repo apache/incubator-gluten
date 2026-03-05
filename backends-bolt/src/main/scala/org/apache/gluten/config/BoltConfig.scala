@@ -114,6 +114,10 @@ class BoltConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def shuffleInsideBolt: Boolean =
     getConf(GLUTEN_SHUFFLE_INSIDE_BOLT)
+
+  def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
+
+  def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
 }
 
 object BoltConfig extends ConfigRegistry {
@@ -880,4 +884,16 @@ object BoltConfig extends ConfigRegistry {
     buildOrReplaceConf("spark.gluten.sql.columnar.maxBatchSize").intConf
       .checkValue(_ > 0, s"must be positive.")
       .createWithDefault(32768)
+
+  val ORC_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.bolt.orcUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for ORC files.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val PARQUET_USE_COLUMN_NAMES =
+    buildConf("spark.gluten.sql.columnar.backend.bolt.parquetUseColumnNames")
+      .doc("Maps table field names to file field names using names, not indices for Parquet files.")
+      .booleanConf
+      .createWithDefault(true)
 }

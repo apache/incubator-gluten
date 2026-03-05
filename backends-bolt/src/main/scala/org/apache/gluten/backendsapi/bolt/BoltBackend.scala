@@ -99,6 +99,7 @@ object BoltBackendSettings extends BackendSettingsApi {
   override def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
+      dataSchema: StructType,
       rootPaths: Seq[String],
       properties: Map[String, String],
       hadoopConf: Configuration): ValidationResult = {
@@ -117,9 +118,11 @@ object BoltBackendSettings extends BackendSettingsApi {
     }
 
     def validateFormat(): Option[String] = {
-      def validateTypes(validatorFunc: PartialFunction[StructField, String]): Option[String] = {
+      def validateTypes(
+          validatorFunc: PartialFunction[StructField, String],
+          fieldsToValidate: Array[StructField]): Option[String] = {
         // Collect unsupported types.
-        val unsupportedDataTypeReason = fields.collect(validatorFunc)
+        val unsupportedDataTypeReason = fieldsToValidate.collect(validatorFunc)
         if (unsupportedDataTypeReason.nonEmpty) {
           Some(
             s"Found unsupported data type in $format: ${unsupportedDataTypeReason.mkString(", ")}.")
@@ -152,7 +155,7 @@ object BoltBackendSettings extends BackendSettingsApi {
           if (!BoltConfig.get.boltOrcScanEnabled) {
             Some(s"Bolt ORC scan is turned off, ${BoltConfig.BOLT_ORC_SCAN_ENABLED.key}")
           } else {
-            val typeValidator: PartialFunction[StructField, String] = {
+            val fieldTypeValidator: PartialFunction[StructField, String] = {
               case StructField(_, arrayType: ArrayType, _, _)
                   if arrayType.elementType.isInstanceOf[StructType] =>
                 "StructType as element in ArrayType"
@@ -165,12 +168,15 @@ object BoltBackendSettings extends BackendSettingsApi {
               case StructField(_, mapType: MapType, _, _)
                   if mapType.valueType.isInstanceOf[ArrayType] =>
                 "ArrayType as Value in MapType"
+              case StructField(_, TimestampType, _, _) => "TimestampType"
+            }
+            val schemaTypeValidator: PartialFunction[StructField, String] = {
               case StructField(_, stringType: StringType, _, metadata)
                   if isCharType(stringType, metadata) =>
                 CharVarcharUtils.getRawTypeString(metadata) + "(force fallback)"
-              case StructField(_, TimestampType, _, _) => "TimestampType"
             }
-            validateTypes(typeValidator)
+            validateTypes(fieldTypeValidator, fields)
+              .orElse(validateTypes(schemaTypeValidator, dataSchema.fields))
           }
         case _ => Some(s"Unsupported file format $format.")
       }
@@ -193,10 +199,28 @@ object BoltBackendSettings extends BackendSettingsApi {
       }
     }
 
+    def validateDataSchema(): Option[String] = {
+      if (BoltConfig.get.parquetUseColumnNames && BoltConfig.get.orcUseColumnNames) {
+        return None
+      }
+
+      // If we are using column indices for schema evolution, we need to pass the table schema to
+      // Bolt. We need to ensure all types in the table schema are supported.
+      val validationResults =
+        dataSchema.fields.flatMap(field => BoltValidatorApi.validateSchema(field.dataType))
+      if (validationResults.nonEmpty) {
+        Some(s"""Found unsupported data type(s) in file
+                |schema: ${validationResults.mkString(", ")}.""".stripMargin)
+      } else {
+        None
+      }
+    }
+
     val validationChecks = Seq(
       validateScheme(),
       validateFormat(),
-      validateEncryption()
+      validateEncryption(),
+      validateDataSchema()
     )
 
     for (check <- validationChecks) {

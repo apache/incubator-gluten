@@ -961,6 +961,10 @@ std::shared_ptr<bolt::config::ConfigBase> WholeStageResultIterator::createConnec
   // configs[bolt::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
   // std::to_string(boltCfg_->get<bool>(kIgnoreMissingFiles, false));
   configs["ignore_missing_files"] = std::to_string(boltCfg_->get<bool>(kIgnoreMissingFiles, false));
+  configs[bolt::connector::hive::HiveConfig::kParquetUseColumnNamesSession] =
+      std::to_string(boltCfg_->get<bool>(kParquetUseColumnNames, true));
+  configs[bolt::connector::hive::HiveConfig::kOrcUseColumnNamesSession] =
+        std::to_string(boltCfg_->get<bool>(kOrcUseColumnNames, true));
   return std::make_shared<bolt::config::ConfigBase>(std::move(configs));
 }
 

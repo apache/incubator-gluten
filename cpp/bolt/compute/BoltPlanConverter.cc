@@ -36,12 +36,15 @@ BoltPlanConverter::BoltPlanConverter(
     const std::optional<std::string> writeFileName,
     bool validationMode)
     : validationMode_(validationMode),
+      boltCfg_(boltCfg),
       substraitBoltPlanConverter_(boltPool, boltCfg, writeFilesTempPath, writeFileName, validationMode) {
+  BOLT_USER_CHECK_NOT_NULL(boltCfg_);
   substraitBoltPlanConverter_.setInputIters(std::move(inputIters));
 }
 
 namespace {
 std::shared_ptr<SplitInfo> parseScanSplitInfo(
+    const bytedance::bolt::config::ConfigBase* boltCfg,
     const google::protobuf::RepeatedPtrField<substrait::ReadRel_LocalFiles_FileOrFiles>& fileList) {
   using SubstraitFileFormatCase = ::substrait::ReadRel_LocalFiles_FileOrFiles::FileFormatCase;
 
@@ -98,18 +101,43 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
         splitInfo->format = dwio::common::FileFormat::UNKNOWN;
         break;
     }
+
+     // The schema in file represents the table schema, it is set when the TableScan requires the
+    // table schema to be present, currently when the option is set to map columns by index rather
+    // than by name in Parquet or ORC files. Since the table schema should be the same for all
+    // files, we set it in the SplitInfo based on the first file we encounter with the schema set.
+    if (!splitInfo->tableSchema && file.has_schema()) {
+      const auto& schema = file.schema();
+
+      std::vector<std::string> names;
+      std::vector<TypePtr> types;
+      names.reserve(schema.names().size());
+
+      const bool asLowerCase = !boltCfg->get<bool>(kCaseSensitive, false);
+      for (const auto& name : schema.names()) {
+        std::string fieldName = name;
+        if (asLowerCase) {
+          folly::toLowerAscii(fieldName);
+        }
+        names.emplace_back(std::move(fieldName));
+      }
+      types = SubstraitParser::parseNamedStruct(schema, asLowerCase);
+
+      splitInfo->tableSchema = ROW(std::move(names), std::move(types));
+    }
   }
   return splitInfo;
 }
 
 void parseLocalFileNodes(
     SubstraitToBoltPlanConverter* planConverter,
+    const bytedance::bolt::config::ConfigBase* boltCfg,
     std::vector<::substrait::ReadRel_LocalFiles>& localFiles) {
   std::vector<std::shared_ptr<SplitInfo>> splitInfos;
   splitInfos.reserve(localFiles.size());
   for (const auto& localFile : localFiles) {
     const auto& fileList = localFile.items();
-    splitInfos.push_back(parseScanSplitInfo(fileList));
+    splitInfos.push_back(parseScanSplitInfo(boltCfg, fileList));
   }
 
   planConverter->setSplitInfos(std::move(splitInfos));
@@ -120,7 +148,7 @@ std::shared_ptr<const bytedance::bolt::core::PlanNode> BoltPlanConverter::toBolt
     const ::substrait::Plan& substraitPlan,
     std::vector<::substrait::ReadRel_LocalFiles> localFiles) {
   if (!validationMode_) {
-    parseLocalFileNodes(&substraitBoltPlanConverter_, localFiles);
+    parseLocalFileNodes(&substraitBoltPlanConverter_, boltCfg_, localFiles);
   }
 
   return substraitBoltPlanConverter_.toBoltPlan(substraitPlan);

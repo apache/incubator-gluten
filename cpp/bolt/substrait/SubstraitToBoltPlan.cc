@@ -1339,9 +1339,14 @@ core::PlanNodePtr SubstraitToBoltPlanConverter::toBoltPlan(const ::substrait::Re
   bool filterPushdownEnabled = true;
   auto names = colNameList;
   auto types = boltTypeList;
-  auto dataColumns = ROW(std::move(names), std::move(types));
+
+  // The columns we project from the file.
+  auto baseSchema = ROW(std::move(names), std::move(types));
+  // The columns present in the table, if not available default to the baseSchema.
+  auto tableSchema = splitInfo->tableSchema ? splitInfo->tableSchema : baseSchema;
+
   std::shared_ptr<connector::ConnectorTableHandle> tableHandle;
-  auto remainingFilter = readRel.has_filter() ? exprConverter_->toBoltExpr(readRel.filter(), dataColumns) : nullptr;
+  auto remainingFilter = readRel.has_filter() ? exprConverter_->toBoltExpr(readRel.filter(), baseSchema) : nullptr;
   auto connectorId = kHiveConnectorId;
   if (useCudfTableHandle(splitInfos_) && boltCfg_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
       boltCfg_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
@@ -1351,7 +1356,7 @@ core::PlanNodePtr SubstraitToBoltPlanConverter::toBoltPlan(const ::substrait::Re
   }
   bytedance::bolt::connector::hive::SubfieldFilters subfieldFilters;
   tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-      connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, dataColumns);
+      connectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter, tableSchema);
 
   // Get assignments and out names.
   std::vector<std::string> outNames;

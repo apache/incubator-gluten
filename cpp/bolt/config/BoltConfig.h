@@ -162,6 +162,9 @@ const std::string kCachePrefetchMinPct = "spark.gluten.sql.columnar.backend.bolt
 const std::string kMemoryPoolCapacityTransferAcrossTasks =
     "spark.gluten.sql.columnar.backend.bolt.memoryPoolCapacityTransferAcrossTasks";
 
+const std::string kOrcUseColumnNames = "spark.gluten.sql.columnar.backend.bolt.orcUseColumnNames";
+const std::string kParquetUseColumnNames = "spark.gluten.sql.columnar.backend.bolt.parquetUseColumnNames";
+
 // write fies
 const std::string kMaxPartitions = "spark.gluten.sql.columnar.backend.bolt.maxPartitionsPerWritersSession";
 
