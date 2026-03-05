@@ -173,14 +173,15 @@ class ValueStreamColumnHandle : public facebook::velox::connector::ColumnHandle 
 /// Connector implementation for iterator-based data sources
 class ValueStreamConnector : public facebook::velox::connector::Connector {
  public:
-  ValueStreamConnector(
+  explicit ValueStreamConnector(
       const std::string& id,
-      std::shared_ptr<const facebook::velox::config::ConfigBase> config,
-      bool dynamicFilterEnabled = false)
-      : Connector(id, config), dynamicFilterEnabled_(dynamicFilterEnabled) {}
+      std::shared_ptr<const facebook::velox::config::ConfigBase> config)
+      : Connector(id, config) {}
 
+  // Always return true so Velox routes dynamic filters to the DataSource.
+  // Per-query gating happens in ValueStreamDataSource::addDynamicFilter().
   bool canAddDynamicFilter() const override {
-    return dynamicFilterEnabled_;
+    return true;
   }
 
   std::unique_ptr<facebook::velox::connector::DataSource> createDataSource(
@@ -198,9 +199,6 @@ class ValueStreamConnector : public facebook::velox::connector::Connector {
       facebook::velox::connector::CommitStrategy commitStrategy) override {
     VELOX_UNSUPPORTED("ValueStreamConnector does not support data sinks");
   }
-
- private:
-  bool dynamicFilterEnabled_;
 };
 
 /// Factory for creating ValueStreamConnector instances

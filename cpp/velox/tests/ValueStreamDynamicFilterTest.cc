@@ -59,7 +59,7 @@ class ValueStreamDynamicFilterTest : public ::testing::Test, public VectorTestBa
       auto config = std::make_shared<config::ConfigBase>(
           std::unordered_map<std::string, std::string>());
       connector::registerConnector(std::make_shared<gluten::ValueStreamConnector>(
-          gluten::kIteratorConnectorId, config, /*dynamicFilterEnabled=*/true));
+          gluten::kIteratorConnectorId, config));
     }
   }
 

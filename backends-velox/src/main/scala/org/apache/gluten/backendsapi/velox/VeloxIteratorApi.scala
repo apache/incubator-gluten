@@ -35,6 +35,7 @@ import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -252,6 +253,10 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val extraConfMap = mutable.Map(GlutenConfig.COLUMNAR_CUDF_ENABLED.key -> enableCudf.toString)
     if (!supportsValueStreamDynamicFilter) {
       extraConfMap(VeloxConfig.VALUE_STREAM_DYNAMIC_FILTER_ENABLED.key) = "false"
+    } else {
+      val veloxConf = new VeloxConfig(SQLConf.get)
+      extraConfMap(VeloxConfig.VALUE_STREAM_DYNAMIC_FILTER_ENABLED.key) =
+        veloxConf.valueStreamDynamicFilterEnabled.toString
     }
     val extraConf = extraConfMap.asJava
     val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName, extraConf)
