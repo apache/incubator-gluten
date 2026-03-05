@@ -75,7 +75,8 @@ class VeloxMetricsApi extends MetricsApi with Logging {
 
     Map(
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "wallNanos" -> wallNanosMetric
+      "wallNanos" -> wallNanosMetric,
+      "cpuNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "cpu time")
     ) ++ outputMetrics
   }
 
