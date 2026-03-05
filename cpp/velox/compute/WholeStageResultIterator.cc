@@ -657,6 +657,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       // Velox will check memory cannot exceed 4194304.
       configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] = opt.value();
     }
+    if (const auto opt = veloxCfg_->get<std::string>(kSparkBloomFilterMaxNumItems)) {
+      configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumItems] = opt.value();
+    }
     // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
     // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
     configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =

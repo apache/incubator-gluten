@@ -2585,7 +2585,7 @@ These configurations are handled by Spark and do not affect Gluten’s behavior.
     <td><code>spark.sql.optimizer.runtime.bloomFilter.maxNumItems</code></td>
     <td>4000000</td>
     <td>3.3.0</td>
-    <td>🔄</td>
+    <td>✅</td>
 </tr>
 
 <tr>
