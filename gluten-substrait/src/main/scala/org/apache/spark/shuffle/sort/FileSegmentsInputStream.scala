@@ -72,7 +72,7 @@ class FileSegmentsInputStream(file: File, segments: Seq[(Long, Long)]) extends I
       throw new IOException("Stream is closed")
     }
 
-    var totalRead = 0
+    var totalRead = 0L
     var remaining = maxSize
     while (remaining > 0 && currentIndex < segments.length) {
       if (remainingInSegment == 0) {

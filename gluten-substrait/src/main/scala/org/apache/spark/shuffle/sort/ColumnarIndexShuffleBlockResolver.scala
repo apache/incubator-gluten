@@ -59,7 +59,7 @@ class ColumnarIndexShuffleBlockResolver(
       startId: Int,
       endId: Int): Seq[(Long, Long)] = {
     // New Index Format:
-    // To support a partiton index with multiple segments,
+    // To support a partition index with multiple segments,
     // the index file is composed of three parts:
     // 1) Partition Index: index_0, index_1, ... index_N
     //    Each index_i is an 8-byte long integer representing the byte offset in the file

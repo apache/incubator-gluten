@@ -30,7 +30,6 @@
 #include <filesystem>
 #include <random>
 #include <thread>
-#include "LocalPartitionWriter.h"
 
 namespace gluten {
 
@@ -671,7 +670,7 @@ arrow::Status LocalPartitionWriter::writeCachedPayloads(uint32_t partitionId, ar
   return arrow::Status::OK();
 }
 
-arrow::Status LocalPartitionWriter::flushCachedPlayloads() {
+arrow::Status LocalPartitionWriter::flushCachedPayloads() {
   if (payloadCache_ == nullptr) {
     return arrow::Status::OK();
   }
@@ -682,15 +681,15 @@ arrow::Status LocalPartitionWriter::flushCachedPlayloads() {
   for (auto pid = 0; pid < numPartitions_; ++pid) {
     auto startInDataFile = endInDataFile;
     ARROW_ASSIGN_OR_RAISE(int64_t spillWrittenBytes, mergeSpills(pid, dataFileOs_.get()));
-    ARROW_ASSIGN_OR_RAISE(bool cachePlayoadWritten, payloadCache_->writeIncremental(pid, dataFileOs_.get()));
-    if (spillWrittenBytes > 0 || cachePlayoadWritten) {
+    ARROW_ASSIGN_OR_RAISE(bool cachePayloadWritten, payloadCache_->writeIncremental(pid, dataFileOs_.get()));
+    if (spillWrittenBytes > 0 || cachePayloadWritten) {
       ARROW_ASSIGN_OR_RAISE(endInDataFile, dataFileOs_->Tell());
       auto bytesWritten = endInDataFile - startInDataFile;
       partitionSegments_[pid].emplace_back(startInDataFile, bytesWritten);
       partitionLengths_[pid] += bytesWritten;
     }
   }
-  spills_.clear();
+
   return arrow::Status::OK();
 }
 
@@ -726,7 +725,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics, int64_t&
   if (usePartitionMultipleSegments_) {
     RETURN_NOT_OK(finishSpill());
     RETURN_NOT_OK(finishMerger());
-    RETURN_NOT_OK(flushCachedPlayloads());
+    RETURN_NOT_OK(flushCachedPayloads());
     RETURN_NOT_OK(writeIndexFile());
   } else if (useSpillFileAsDataFile_) {
     ARROW_ASSIGN_OR_RAISE(auto spill, spiller_->finish());
@@ -872,7 +871,9 @@ arrow::Status LocalPartitionWriter::hashEvict(
     for (auto& payload : merged) {
       RETURN_NOT_OK(payloadCache_->cache(partitionId, std::move(payload)));
     }
-    RETURN_NOT_OK(flushCachedPlayloads());
+    if (usePartitionMultipleSegments_) {
+      RETURN_NOT_OK(flushCachedPayloads());
+    }
     merged.clear();
   }
   return arrow::Status::OK();

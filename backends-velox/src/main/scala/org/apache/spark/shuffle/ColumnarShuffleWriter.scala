@@ -58,12 +58,13 @@ class ColumnarShuffleWriter[K, V](
   shuffleBlockResolver match {
     case resolver: ColumnarIndexShuffleBlockResolver =>
       if (resolver.canUseNewFormat() && !GlutenConfig.get.columnarShuffleEnableDictionary) {
-        // For Dictionary encoding, the dict only finializes after all batches are processed,
+        // For Dictionary encoding, the dict only finalizes after all batches are processed,
         // and dict is required to saved at the head of the partition data.
         // So we cannot use multiple segments to save partition data incrementally.
         partitionUseMultipleSegments = true
         columnarShuffleBlockResolver = resolver
       }
+    case _ =>
   }
 
   protected val isSort: Boolean = dep.shuffleWriterType == SortShuffleWriterType

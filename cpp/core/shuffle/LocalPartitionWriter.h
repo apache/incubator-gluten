@@ -105,7 +105,7 @@ class LocalPartitionWriter : public PartitionWriter {
 
   arrow::Status writeCachedPayloads(uint32_t partitionId, arrow::io::OutputStream* os) const;
 
-  arrow::Status flushCachedPlayloads();
+  arrow::Status flushCachedPayloads();
 
   arrow::Status writeMemoryPayload(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload);
 

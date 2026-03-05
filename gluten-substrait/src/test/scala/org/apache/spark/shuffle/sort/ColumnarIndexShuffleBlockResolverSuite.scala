@@ -162,7 +162,7 @@ class ColumnarIndexShuffleBlockResolverSuite
     val buffer = resolver.getBlockData(blockId)
     val bytes = readManagedBuffer(buffer)
     // Partition 2 segments: (10,20), (100,50)
-    assert(bytes.length == 70, "Expected 70 bytes, got ${bytes.length}")
+    assert(bytes.length == 70, s"Expected 70 bytes, got ${bytes.length}")
     val expected = ((10 until 30) ++ (100 until 150)).map(_.toByte).toArray
     assert(
       bytes.sameElements(expected),

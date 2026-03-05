@@ -38,14 +38,16 @@ class FileSegmentsManagedBuffer(
   override def release(): ManagedBuffer = this
 
   override def nioByteBuffer(): ByteBuffer = {
-    val buffer = ByteBuffer.allocate(size().toInt)
+    val totalSize = size()
     val channel = new RandomAccessFile(file, "r").getChannel
     try {
-      if (conf != null && size() >= conf.memoryMapBytes() && segments.length == 1) {
+      if (conf != null && totalSize >= conf.memoryMapBytes() && segments.length == 1) {
         // zero-copy for single segment that is large enough
         val (offset, length) = segments.head
         return channel.map(FileChannel.MapMode.READ_ONLY, offset, length)
       }
+      val totalSizeInt = Math.toIntExact(totalSize)
+      val buffer = ByteBuffer.allocate(totalSizeInt)
       var destPos = 0
       segments.foreach {
         case (offset, length) =>
