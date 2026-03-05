@@ -73,10 +73,23 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       SQLMetrics.createNanoTimingMetric(sparkContext, "time of operator input")
     }
 
+    val dynamicFilterMetrics = if (forShuffle) {
+      Map(
+        "valueStreamDynamicFiltersAccepted" -> SQLMetrics.createMetric(
+          sparkContext,
+          "number of dynamic filters accepted by value stream"),
+        "valueStreamDynamicFilteredRows" -> SQLMetrics.createMetric(
+          sparkContext,
+          "number of rows filtered by value stream dynamic filter")
+      )
+    } else {
+      Map.empty[String, SQLMetric]
+    }
+
     Map(
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "wallNanos" -> wallNanosMetric
-    ) ++ outputMetrics
+    ) ++ outputMetrics ++ dynamicFilterMetrics
   }
 
   override def genInputIteratorTransformerMetricsUpdater(
@@ -628,12 +641,6 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
         sparkContext,
         "number of hash probe dynamic filters produced"),
-      "valueStreamDynamicFiltersAccepted" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of dynamic filters accepted by value stream"),
-      "valueStreamDynamicFilteredRows" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of rows filtered by value stream dynamic filter"),
       "bloomFilterBlocksByteSize" -> SQLMetrics.createSizeMetric(
         sparkContext,
         "bloom filter blocks byte size"),

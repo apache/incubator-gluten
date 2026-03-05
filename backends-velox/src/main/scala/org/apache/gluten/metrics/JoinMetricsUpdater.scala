@@ -101,11 +101,6 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
 
   val bloomFilterBlocksByteSize: SQLMetric = metrics("bloomFilterBlocksByteSize")
 
-  val valueStreamDynamicFiltersAccepted: SQLMetric =
-    metrics("valueStreamDynamicFiltersAccepted")
-  val valueStreamDynamicFilteredRows: SQLMetric =
-    metrics("valueStreamDynamicFilteredRows")
-
   val streamPreProjectionCpuCount: SQLMetric = metrics("streamPreProjectionCpuCount")
   val streamPreProjectionWallNanos: SQLMetric = metrics("streamPreProjectionWallNanos")
 
