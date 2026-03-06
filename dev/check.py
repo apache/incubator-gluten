@@ -24,7 +24,7 @@ import sys
 from util import attrdict
 import util
 
-EXTENSIONS = "cpp,h,inc,prolog"
+EXTENSIONS = "cc,cpp,h,inc,prolog"
 SCRIPTS = util.script_path()
 
 
