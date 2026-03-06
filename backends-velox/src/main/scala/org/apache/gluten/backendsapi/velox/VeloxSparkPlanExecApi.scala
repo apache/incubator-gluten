@@ -22,6 +22,7 @@ import org.apache.gluten.exception.{GlutenExceptionUtil, GlutenNotSupportExcepti
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
+import org.apache.gluten.extension.JoinKeysTag
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.shuffle.NeedCustomColumnarBatchSerializer
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -693,11 +694,29 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val (newChild, newOutput, newBuildKeys) =
       if (VeloxConfig.get.enableBroadcastBuildOncePerExecutor) {
 
-        val newBuildKeys =
-          if (SparkHashJoinUtils.canRewriteAsLongType(buildKeys) && buildKeys.size > 0) {
-            SparkHashJoinUtils.getOriginalKeysFromPacked(buildKeys.head)
-          } else {
-            buildKeys
+        // Try to lookup from TreeNodeTag using child's logical plan
+        // Need to recursively find logicalLink in case of AQE or other wrappers
+        @scala.annotation.tailrec
+        def findLogicalLink(
+            plan: SparkPlan): Option[org.apache.spark.sql.catalyst.plans.logical.LogicalPlan] = {
+          plan.logicalLink match {
+            case some @ Some(_) => some
+            case None =>
+              plan.children match {
+                case Seq(child) => findLogicalLink(child)
+                case _ => None
+              }
+          }
+        }
+
+        val newBuildKeys = findLogicalLink(child)
+          .flatMap(_.getTagValue(JoinKeysTag.ORIGINAL_JOIN_KEYS))
+          .getOrElse {
+            if (SparkHashJoinUtils.canRewriteAsLongType(buildKeys) && buildKeys.nonEmpty) {
+              SparkHashJoinUtils.getOriginalKeysFromPacked(buildKeys.head)
+            } else {
+              buildKeys
+            }
           }
 
         val noNeedPreOp = newBuildKeys.forall {

@@ -243,4 +243,83 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
       }
     }
   }
+
+  test("Broadcast join preserves original cast expression in join keys") {
+    withSQLConf(
+      ("spark.sql.autoBroadcastJoinThreshold", "10MB"),
+      ("spark.sql.adaptive.enabled", "false")
+    ) {
+      withTable("t1_int", "t2_long") {
+        // Create table with INT column
+        spark
+          .range(100)
+          .selectExpr("cast(id as int) as key", "id as value")
+          .write
+          .saveAsTable("t1_int")
+
+        // Create table with LONG column
+        spark.range(50).selectExpr("id as key", "id * 2 as value").write.saveAsTable("t2_long")
+
+        // Join INT with LONG - Spark will insert cast(int to long) in join keys
+        val query = """
+          SELECT t1.key, t1.value, t2.value as value2
+          FROM t1_int t1
+          JOIN t2_long t2 ON t1.key = t2.key
+          ORDER BY t1.key
+        """
+
+        runQueryAndCompare(query) {
+          df =>
+            // Check that broadcast join is used in Gluten execution
+            val plan = df.queryExecution.executedPlan
+            val broadcastJoins = plan.collect { case bhj: BroadcastHashJoinExecTransformer => bhj }
+            assert(broadcastJoins.nonEmpty, "Should use broadcast hash join")
+        }
+      }
+    }
+  }
+
+  test("Broadcast join with multiple cast expressions in join keys") {
+    withSQLConf(
+      ("spark.sql.autoBroadcastJoinThreshold", "10MB"),
+      ("spark.sql.adaptive.enabled", "false")
+    ) {
+      withTable("t1_mixed", "t2_mixed") {
+        // Create table with mixed types
+        spark
+          .range(100)
+          .selectExpr("cast(id as int) as key1", "cast(id as short) as key2", "id as value")
+          .write
+          .saveAsTable("t1_mixed")
+
+        // Create table with different types requiring casts
+        spark
+          .range(50)
+          .selectExpr("id as key1", "cast(id as int) as key2", "id * 2 as value")
+          .write
+          .saveAsTable("t2_mixed")
+
+        // Join with multiple keys requiring casts
+        // key1: cast(int to long), key2: cast(short to int)
+        val query = """
+          SELECT t1.key1, t1.key2, t1.value, t2.value as value2
+          FROM t1_mixed t1
+          JOIN t2_mixed t2 ON t1.key1 = t2.key1 AND t1.key2 = t2.key2
+          ORDER BY t1.key1, t1.key2
+        """
+
+        runQueryAndCompare(query) {
+          df =>
+            // Check that broadcast join is used in Gluten execution
+            val plan = df.queryExecution.executedPlan
+            val broadcastJoins = plan.collect { case bhj: BroadcastHashJoinExecTransformer => bhj }
+            assert(broadcastJoins.nonEmpty, "Should use broadcast hash join")
+
+            // Verify multiple join keys are handled correctly
+            assert(broadcastJoins.head.leftKeys.length == 2)
+            assert(broadcastJoins.head.rightKeys.length == 2)
+        }
+      }
+    }
+  }
 }
