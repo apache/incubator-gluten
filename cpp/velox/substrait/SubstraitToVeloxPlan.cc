@@ -1313,7 +1313,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
 
   // Create TableHandle
-  auto tableHandle = std::make_shared<ValueStreamTableHandle>(kIteratorConnectorId);
+  bool dynamicFilterEnabled =
+      veloxCfg_->get<bool>(kValueStreamDynamicFilterEnabled, kValueStreamDynamicFilterEnabledDefault);
+  auto tableHandle = std::make_shared<ValueStreamTableHandle>(kIteratorConnectorId, dynamicFilterEnabled);
 
   // Create column assignments
   connector::ColumnHandleMap assignments;

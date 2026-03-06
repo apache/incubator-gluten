@@ -319,7 +319,8 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
   
   // Register value-stream connector for runtime iterator-based inputs
-  velox::connector::registerConnector(std::make_shared<ValueStreamConnector>(kIteratorConnectorId, hiveConf));
+  velox::connector::registerConnector(
+      std::make_shared<ValueStreamConnector>(kIteratorConnectorId, hiveConf));
   
 #ifdef GLUTEN_ENABLE_GPU
   if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
