@@ -1,0 +1,85 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Cache M2 Repo (Weekly)
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "pom.xml"
+      - "**/pom.xml"
+      - ".mvn/**"
+      - "build/mvn"
+
+env:
+  MVN_CMD: "build/mvn -ntp -pl !gluten-arrow -P!with-arrow"
+
+jobs:
+  warm-m2:
+    strategy:
+      matrix:
+        os: [Ubuntu-20.04 , ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup java
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jdk wget
+          sudo apt remove openjdk-11* -y
+          
+          # Set Java 17 as default for subsequent steps
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+          echo "/usr/lib/jvm/java-17-openjdk-amd64/bin" >> $GITHUB_PATH
+
+      - name: Restore Maven cache
+        id: m2-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.m2/repository
+          # Unique key per week + pom hash to refresh when deps change
+          key: m2-cache-${{matrix.os}}-${{ hashFiles('**/pom.xml', 'build/mvn') }}-${{ github.run_number }}
+          restore-keys: |
+            m2-cache-${{ matrix.os }}
+
+      - name: Warm cache (download/compile)
+        shell: bash
+        run: |
+          cd $GITHUB_WORKSPACE/
+
+          $MVN_CMD -Pjava-17,spark-3.5,backends-velox,hadoop-3.3,spark-ut \
+            -Piceberg,iceberg-test,delta,paimon \
+            dependency:go-offline -DskipTests || true
+
+          $MVN_CMD -Pjava-17,spark-3.4,backends-velox,hadoop-3.3,spark-ut \
+            -Piceberg,iceberg-test,delta,paimon \
+            dependency:go-offline -DskipTests || true
+
+          $MVN_CMD -Pjava-17,spark-3.3,backends-velox,hadoop-3.3,spark-ut \
+            -Piceberg,delta,paimon \
+            dependency:go-offline -DskipTests || true
+
+      - name: Save Maven cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository
+          key: m2-cache-${{matrix.os}}-${{ hashFiles('**/pom.xml', 'build/mvn') }}-${{ github.run_number }}
