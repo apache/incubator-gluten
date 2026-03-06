@@ -201,7 +201,7 @@ void VeloxBackend::init(
     // serde, for spill
     facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();
   }
-  if (!isRegisteredNamedVectorSerde(facebook::velox::VectorSerde::Kind::kPresto)) {
+  if (!isRegisteredNamedVectorSerde("Presto")) {
     // RSS shuffle serde.
     facebook::velox::serializer::presto::PrestoVectorSerde::registerNamedVectorSerde();
   }
