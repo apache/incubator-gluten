@@ -505,4 +505,31 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("cast string to timestamp_ntz") {
+    withSQLConf("spark.sql.ansi.enabled" -> "false") {
+      val inputs: Seq[String] = Seq(
+        "1970-01-01",
+        "1970-01-01 00:00:00-02:00",
+        "1970-01-01 00:00:00 +02:00",
+        "2000-01-01",
+        "1970-01-01 00:00:00",
+        "2000-01-01 12:21:56",
+        "2015-03-18T12:03:17Z",
+        "2015-03-18 12:03:17",
+        "2015-03-18T12:03:17",
+        "2015-03-18 12:03:17.123",
+        "2015-03-18T12:03:17.123",
+        "2015-03-18T12:03:17.456",
+        "2015-03-18 12:03:17.456"
+      )
+
+      inputs.foreach { s =>
+        val query = s"select cast('$s' as timestamp_ntz)"
+        runQueryAndCompare(query) {
+          checkGlutenPlan[ProjectExecTransformer]
+        }
+      }
+    }
+  }
 }

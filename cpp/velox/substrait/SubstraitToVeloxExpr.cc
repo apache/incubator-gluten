@@ -17,10 +17,10 @@
 
 #include "SubstraitToVeloxExpr.h"
 #include "TypeUtils.h"
+#include "velox/functions/sparksql/types/TimestampNTZType.h"
+#include "velox/type/Timestamp.h"
 #include "velox/vector/FlatVector.h"
 #include "velox/vector/VariantToVector.h"
-
-#include "velox/type/Timestamp.h"
 
 using namespace facebook::velox;
 
@@ -133,6 +133,8 @@ TypePtr getScalarType(const ::substrait::Expression::Literal& literal) {
       return DATE();
     case ::substrait::Expression_Literal::LiteralTypeCase::kTimestampTz:
       return TIMESTAMP();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
+      return facebook::velox::functions::sparksql::TIMESTAMP_NTZ();
     case ::substrait::Expression_Literal::LiteralTypeCase::kString:
       return VARCHAR();
     case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar:
