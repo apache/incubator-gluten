@@ -60,7 +60,7 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "split"};
 
 const std::unordered_set<std::string> kBlackList =
-    {"split_part", "sequence", "approx_percentile", "map_from_arrays"};
+    {"split_part", "sequence", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
@@ -1290,6 +1290,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "bloom_filter_agg",
       "var_samp",
       "var_pop",
+      "approx_percentile",
       "bit_and",
       "bit_or",
       "bit_xor",
