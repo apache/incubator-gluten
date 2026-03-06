@@ -31,9 +31,9 @@ case class PartialProjectRule() extends Rule[SparkPlan] {
 
     // Wrap a WholeStageTransformer to check if the top node supports partial fallback.
     // It will be removed afterward.
-    val newPlan = WholeStageTransformer(plan)(-1)
+    val wrapped = WholeStageTransformer(plan)(-1)
 
-    newPlan
+    wrapped
       .transformUp {
         case parent: SparkPlan
             if parent.children.exists(_.isInstanceOf[ProjectExec]) &&

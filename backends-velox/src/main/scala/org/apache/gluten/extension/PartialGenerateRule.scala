@@ -31,8 +31,8 @@ case class PartialGenerateRule() extends Rule[SparkPlan] {
     }
     // Wrap a WholeStageTransformer to check if the top node supports partial fallback.
     // It will be removed afterward.
-    val newPlan = WholeStageTransformer(plan)(-1)
-    newPlan
+    val wrapped = WholeStageTransformer(plan)(-1)
+    wrapped
       .transformUp {
         case parent: SparkPlan
             if parent.children.exists(_.isInstanceOf[GenerateExec]) &&
