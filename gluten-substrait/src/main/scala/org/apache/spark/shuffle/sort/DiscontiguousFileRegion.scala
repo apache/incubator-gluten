@@ -36,18 +36,22 @@ class DiscontiguousFileRegion(
 ) extends AbstractReferenceCounted
   with FileRegion {
 
-  require(segments.nonEmpty, "Must provide at least one segment")
+  // segments may be empty to represent a valid zero-length region (e.g., an empty shuffle block)
 
   private val totalCount: Long = segments.map(_._2).sum
   private var bytesTransferred: Long = 0L
   private var fileChannel: FileChannel = null
   private var closed: Boolean = false
 
-  if (!lazyOpen) {
+  if (!lazyOpen && totalCount > 0) {
     ensureOpen()
   }
 
   private def ensureOpen(): Unit = {
+    // For zero-length regions, there's nothing to read; don't open the file.
+    if (totalCount == 0L) {
+      return
+    }
     if (closed) {
       throw new IOException("File is already closed")
     }

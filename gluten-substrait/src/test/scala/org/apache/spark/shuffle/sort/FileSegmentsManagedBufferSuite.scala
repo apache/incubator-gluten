@@ -50,6 +50,20 @@ class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll 
     override def close(): Unit = { open = false }
   }
 
+  private var tempFile: File = _
+  private val fileData: Array[Byte] = (0 until 100).map(_.toByte).toArray
+
+  override def beforeAll(): Unit = {
+    tempFile = Files.createTempFile("fsegments-test", ".bin").toFile
+    val fos = new FileOutputStream(tempFile)
+    fos.write(fileData)
+    fos.close()
+  }
+
+  override def afterAll(): Unit = {
+    if (tempFile != null && tempFile.exists()) tempFile.delete()
+  }
+
   test("convertToNetty returns FileRegion with correct count and content") {
     val conf = new FakeTransportConf()
     val segments = Seq((2L, 3L), (10L, 4L))
@@ -79,25 +93,18 @@ class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll 
     assert(target.toByteArray.sameElements(fileData.slice(5, 8)))
   }
 
-  private var tempFile: File = _
-  private val fileData: Array[Byte] = (0 until 100).map(_.toByte).toArray
-
-  override def beforeAll(): Unit = {
-    tempFile = Files.createTempFile("fsegments-test", ".bin").toFile
-    val fos = new FileOutputStream(tempFile)
-    fos.write(fileData)
-    fos.close()
-  }
-
-  override def afterAll(): Unit = {
-    if (tempFile != null && tempFile.exists()) tempFile.delete()
-  }
-
   test("size returns sum of segment lengths") {
     val conf = null.asInstanceOf[TransportConf]
     val segments = Seq((2L, 10L), (20L, 5L), (50L, 15L))
     val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
     assert(buf.size() == 10L + 5L + 15L)
+  }
+
+  test("empty segments returns zero size") {
+    val conf = null.asInstanceOf[TransportConf]
+    val segments = Seq.empty[(Long, Long)]
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    assert(buf.size() == 0L)
   }
 
   test("nioByteBuffer reads single segment correctly") {
@@ -132,6 +139,15 @@ class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll 
       buf.nioByteBuffer()
     }
     assert(thrown.getMessage.contains("EOF reached while reading segment"))
+  }
+
+  test("nioByteBuffer with empty segments returns empty buffer") {
+    val conf = null.asInstanceOf[TransportConf]
+    val segments = Seq.empty[(Long, Long)]
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val bb = buf.nioByteBuffer()
+    assert(bb.remaining() == 0)
+    assert(!bb.hasRemaining)
   }
 
   test("nioByteBuffer with mmap for a single segment") {
@@ -202,5 +218,29 @@ class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll 
       case t: Throwable =>
         fail(s"Unexpected exception: $t")
     }
+  }
+
+  test("createInputStream with empty segments returns EOF immediately") {
+    val conf = null.asInstanceOf[TransportConf]
+    val segments = Seq.empty[(Long, Long)]
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val in = buf.createInputStream()
+    assert(in.read() == -1)
+    val out = new Array[Byte](8)
+    assert(in.read(out) == -1)
+    in.close()
+  }
+
+  test("convertToNetty with empty segments has zero readable bytes") {
+    val conf = new FakeTransportConf()
+    val segments = Seq.empty[(Long, Long)]
+    val buf = new FileSegmentsManagedBuffer(conf, tempFile, segments)
+    val nettyObj = buf.convertToNetty()
+    assert(nettyObj.isInstanceOf[FileRegion])
+    val region = nettyObj.asInstanceOf[FileRegion]
+    assert(region.count() == 0L)
+    val target = new ByteArrayWritableChannel()
+    assert(region.transferTo(target, 0) == 0L)
+    assert(target.toByteArray.isEmpty)
   }
 }
