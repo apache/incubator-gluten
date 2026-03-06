@@ -17,6 +17,7 @@
 #include "operators/functions/RegistrationAllFunctions.h"
 
 #include "operators/functions/Arithmetic.h"
+#include "operators/functions/CastStringToBooleanAnsi.h"
 #include "operators/functions/RowConstructorWithNull.h"
 #include "operators/functions/RowFunctionWithNull.h"
 #include "velox/expression/SpecialFormRegistry.h"
@@ -56,6 +57,8 @@ void registerFunctionOverwrite() {
   velox::registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
   velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
+  velox::registerFunction<CastStringToBooleanAnsiFunction, bool, velox::Varchar>(
+      {"spark_cast_string_to_boolean_ansi"});
 
   auto kRowConstructorWithNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull;
   velox::exec::registerVectorFunction(
