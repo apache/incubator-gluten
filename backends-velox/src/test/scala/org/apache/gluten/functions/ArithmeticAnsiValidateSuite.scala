@@ -100,4 +100,46 @@ class ArithmeticAnsiValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("decimal add overflow") {
+    // Normal decimal add should succeed and match Spark results
+    runQueryAndCompare(
+      "SELECT CAST(1.0 AS DECIMAL(10,2)) + CAST(2.0 AS DECIMAL(10,2))") {
+      checkGlutenPlan[ProjectExecTransformer]
+    }
+
+    // Overflow: max DECIMAL(38,0) + 1 should throw in ANSI mode
+    if (isSparkVersionGE("4.0")) {
+      intercept[SparkException] {
+        sql("SELECT CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0)) + " +
+          "CAST(1 AS DECIMAL(38,0))").collect()
+      }
+    } else {
+      intercept[ArithmeticException] {
+        sql("SELECT CAST(99999999999999999999999999999999999999 AS DECIMAL(38,0)) + " +
+          "CAST(1 AS DECIMAL(38,0))").collect()
+      }
+    }
+  }
+
+  test("decimal subtract overflow") {
+    // Normal decimal subtract should succeed and match Spark results
+    runQueryAndCompare(
+      "SELECT CAST(5.0 AS DECIMAL(10,2)) - CAST(2.0 AS DECIMAL(10,2))") {
+      checkGlutenPlan[ProjectExecTransformer]
+    }
+
+    // Overflow: -max DECIMAL(38,0) - 1 should throw in ANSI mode
+    if (isSparkVersionGE("4.0")) {
+      intercept[SparkException] {
+        sql("SELECT CAST(-99999999999999999999999999999999999999 AS DECIMAL(38,0)) - " +
+          "CAST(1 AS DECIMAL(38,0))").collect()
+      }
+    } else {
+      intercept[ArithmeticException] {
+        sql("SELECT CAST(-99999999999999999999999999999999999999 AS DECIMAL(38,0)) - " +
+          "CAST(1 AS DECIMAL(38,0))").collect()
+      }
+    }
+  }
+
 }
