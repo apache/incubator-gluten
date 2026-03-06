@@ -83,9 +83,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val locations = filePartitions.flatMap(p => SoftAffinity.getFilePartitionLocations(p))
     val (paths, starts, lengths) = getPartitionedFileInfo(partitionFiles).unzip3
     val (fileSizes, modificationTimes) = partitionFiles
-      .map(f => SparkShimLoader.getSparkShims.getFileSizeAndModificationTime(f))
+      .map(f => (f.fileSize, f.modificationTime))
       .collect {
-        case (Some(size), Some(time)) =>
+        case (size, time) =>
           (JLong.valueOf(size), JLong.valueOf(time))
       }
       .unzip
@@ -161,7 +161,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
               case _: DateType =>
                 DateFormatter.apply().format(pv.asInstanceOf[Integer])
               case _: DecimalType =>
-                pv.asInstanceOf[Decimal].toJavaBigInteger.toString
+                pv.asInstanceOf[Decimal].toJavaBigDecimal.unscaledValue().toString
               case _: TimestampType =>
                 TimestampFormatter
                   .getFractionFormatter(ZoneOffset.UTC)

@@ -55,7 +55,7 @@ trait ColumnarShuffledJoin extends BaseJoinExec {
       // partitioning doesn't satisfy `HashClusteredDistribution`.
       UnspecifiedDistribution :: UnspecifiedDistribution :: Nil
     } else {
-      SparkShimLoader.getSparkShims.getDistribution(leftKeys, rightKeys)
+      ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
     }
   }
 
