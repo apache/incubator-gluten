@@ -274,6 +274,16 @@ object VeloxConfig extends ConfigRegistry {
       .checkValue(_ > 0, "must be a positive number")
       .createWithDefault(10000)
 
+  val MAX_TARGET_FILE_SIZE_SESSION =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxTargetFileSizeSession")
+      .doc(
+        "The target file size for each output file when writing data. " +
+          "0 means no limit on target file size, and the actual file size will be determined by " +
+          "other factors such as max partition number and shuffle batch size.")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(_ >= 0, "must be a non-negative number")
+      .createWithDefault(0)
+
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT =
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput")
       .doc(
