@@ -16,11 +16,64 @@
  */
 #include "operators/functions/SparkExprToSubfieldFilterParser.h"
 
+#include "velox/common/base/BloomFilter.h"
+#include "velox/expression/Expr.h"
+#include "velox/vector/ComplexVector.h"
+
 namespace gluten {
 
 using namespace facebook::velox;
 
 namespace {
+
+VectorPtr toConstant(const core::TypedExprPtr& expr, core::ExpressionEvaluator* evaluator) {
+  auto exprSet = evaluator->compile(expr);
+  if (!exprSet->exprs()[0]->isConstantExpr()) {
+    return nullptr;
+  }
+  RowVector input(evaluator->pool(), ROW({}, {}), nullptr, 1, std::vector<VectorPtr>{});
+  SelectivityVector rows(1);
+  VectorPtr result;
+  try {
+    evaluator->evaluate(exprSet.get(), rows, input, result);
+  } catch (const VeloxUserError&) {
+    return nullptr;
+  }
+  return result;
+}
+
+/// Filter backed by Velox's BloomFilter<> serialized data from bloom_filter_agg.
+class SparkBloomFilter final : public common::Filter {
+ public:
+  SparkBloomFilter(std::vector<char> serializedData, bool nullAllowed)
+      : Filter(true, nullAllowed, common::FilterKind::kBigintValuesUsingBloomFilter),
+        serializedData_(std::move(serializedData)) {}
+
+  bool testInt64(int64_t value) const final {
+    return BloomFilter<>::mayContain(serializedData_.data(), folly::hasher<int64_t>()(value));
+  }
+
+  bool testInt64Range(int64_t /*min*/, int64_t /*max*/, bool /*hasNull*/) const final {
+    return true;
+  }
+
+  std::unique_ptr<Filter> clone(std::optional<bool> nullAllowed) const override {
+    return std::make_unique<SparkBloomFilter>(serializedData_, nullAllowed.value_or(nullAllowed_));
+  }
+
+  bool testingEquals(const Filter& other) const override {
+    auto* otherFilter = dynamic_cast<const SparkBloomFilter*>(&other);
+    return otherFilter != nullptr && serializedData_ == otherFilter->serializedData_;
+  }
+
+  folly::dynamic serialize() const override {
+    VELOX_UNSUPPORTED("Serialization is not supported for SparkBloomFilter");
+  }
+
+ private:
+  std::vector<char> serializedData_;
+};
+
 std::optional<std::pair<facebook::velox::common::Subfield, std::unique_ptr<facebook::velox::common::Filter>>> combine(
     facebook::velox::common::Subfield& subfield,
     std::unique_ptr<facebook::velox::common::Filter>& filter) {
@@ -30,6 +83,7 @@ std::optional<std::pair<facebook::velox::common::Subfield, std::unique_ptr<faceb
 
   return std::nullopt;
 }
+
 } // namespace
 
 std::optional<std::pair<facebook::velox::common::Subfield, std::unique_ptr<facebook::velox::common::Filter>>>
@@ -92,6 +146,21 @@ SparkExprToSubfieldFilterParser::leafCallToSubfieldFilter(
         return std::make_pair(std::move(subfield), facebook::velox::exec::isNull());
       }
       return std::make_pair(std::move(subfield), facebook::velox::exec::isNotNull());
+    }
+  } else if (call.name() == "might_contain" && !negated) {
+    // might_contain(bloomFilter, value) — the column to filter is input[1].
+    if (call.inputs().size() >= 2) {
+      const auto* valueSide = call.inputs()[1].get();
+      if (toSubfield(valueSide, subfield)) {
+        auto bloomFilterValue = toConstant(call.inputs()[0], evaluator);
+        if (bloomFilterValue && !bloomFilterValue->isNullAt(0)) {
+          auto sv = bloomFilterValue->as<SimpleVector<StringView>>()->valueAt(0);
+          std::vector<char> data(sv.data(), sv.data() + sv.size());
+          std::unique_ptr<common::Filter> filter =
+              std::make_unique<SparkBloomFilter>(std::move(data), false /*nullAllowed*/);
+          return combine(subfield, filter);
+        }
+      }
     }
   }
   return std::nullopt;
