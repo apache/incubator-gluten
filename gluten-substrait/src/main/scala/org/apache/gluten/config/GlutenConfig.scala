@@ -293,6 +293,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def smallFileThreshold: Double = getConf(SMALL_FILE_THRESHOLD)
 
+  def hashJoinKeysRewrite: Boolean = getConf(HASHJOIN_KEY_REWRITE_ENABLED)
+
   def expressionBlacklist: Set[String] = {
     val blacklistSet = getConf(EXPRESSION_BLACK_LIST)
       .map(_.toLowerCase(Locale.ROOT).split(",").map(_.trim()).filter(_.nonEmpty).toSet)
@@ -1585,4 +1587,10 @@ object GlutenConfig extends ConfigRegistry {
           "total size of small files is below this threshold.")
       .doubleConf
       .createWithDefault(0.5)
+
+  val HASHJOIN_KEY_REWRITE_ENABLED =
+    buildConf("spark.gluten.sql.hashjoin.key.rewrite")
+      .doc("Enable or disable spark hash join key rewrite")
+      .booleanConf
+      .createWithDefault(false)
 }

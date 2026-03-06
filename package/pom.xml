@@ -277,6 +277,8 @@
                     <ignoreClass>org.apache.spark.memory.TaskMemoryManager</ignoreClass>
                     <!-- guava -->
                     <ignoreClass>com.google.thirdparty.publicsuffix*</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.joins.HashJoin*</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.joins.HashedRelationInfo*</ignoreClass>
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>
