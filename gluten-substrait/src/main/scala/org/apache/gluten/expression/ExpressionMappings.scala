@@ -290,6 +290,7 @@ object ExpressionMappings {
     Sig[MakeDecimal](MAKE_DECIMAL),
     Sig[PromotePrecision](PROMOTE_PRECISION),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
+    Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[AtLeastNNonNulls](AT_LEAST_N_NON_NULLS),
     Sig[WidthBucket](WIDTH_BUCKET),
     Sig[ReplicateRows](REPLICATE_ROWS),
