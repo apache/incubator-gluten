@@ -40,6 +40,7 @@ import org.apache.spark.sql.execution.metric.{GlutenCustomMetricsSuite, GlutenSQ
 import org.apache.spark.sql.execution.python._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.gluten.{GlutenFallbackStrategiesSuite, GlutenFallbackSuite}
+import org.apache.spark.sql.hive.{GlutenDynamicPartitionPruningHiveScanSuiteAEOff, GlutenDynamicPartitionPruningHiveScanSuiteAEOn}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.streaming._
@@ -898,6 +899,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningHiveScanSuiteAEOff]
+    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
+    .exclude("Make sure dynamic pruning works on uncorrelated queries")
+  enableSuite[GlutenDynamicPartitionPruningHiveScanSuiteAEOn]
+    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
+    .exclude("Make sure dynamic pruning works on uncorrelated queries")
   enableSuite[GlutenExpressionsSchemaSuite]
   enableSuite[GlutenExtraStrategiesSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]

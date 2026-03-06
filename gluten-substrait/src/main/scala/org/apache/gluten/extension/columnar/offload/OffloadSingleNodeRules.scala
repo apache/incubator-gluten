@@ -202,7 +202,6 @@ object OffloadOthers {
         case plan: FileSourceScanExec =>
           ScanTransformerFactory.createFileSourceScanTransformer(plan)
         case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
-          // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
           HiveTableScanExecTransformer(plan)
         case plan: CoalesceExec =>
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
