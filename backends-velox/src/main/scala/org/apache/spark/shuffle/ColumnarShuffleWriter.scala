@@ -175,7 +175,7 @@ class ColumnarShuffleWriter[K, V](
             blockManager.subDirsPerLocalDir,
             conf.get(SHUFFLE_FILE_BUFFER_SIZE).toInt,
             tempDataFile.getAbsolutePath,
-            if (tempIndexFile != null) tempIndexFile.getAbsolutePath else null,
+            if (tempIndexFile != null) tempIndexFile.getAbsolutePath else "",
             localDirs,
             GlutenConfig.get.columnarShuffleEnableDictionary
           )

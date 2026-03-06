@@ -192,7 +192,6 @@ class FileSegmentsManagedBufferSuite extends AnyFunSuite with BeforeAndAfterAll 
     while (n > 0 || total == 0) {
       n = in.read(out, total, out.length - total)
       if (n > 0) total += n
-      else if (total == 0) n = 1 // ensure loop runs at least once
     }
     assert(total == 9)
     assert(out.slice(0, 3).sameElements(fileData.slice(5, 8)))

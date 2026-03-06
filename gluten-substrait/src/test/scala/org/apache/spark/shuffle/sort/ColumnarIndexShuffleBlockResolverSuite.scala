@@ -30,6 +30,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption
@@ -125,28 +126,28 @@ class ColumnarIndexShuffleBlockResolverSuite
   }
 
   test("getSegmentsFromIndex returns correct segments for complex index file") {
-    val channel = FileChannel.open(indexFile.toPath, StandardOpenOption.READ)
+    val index = new RandomAccessFile(indexFile, "r")
     try {
       val method = classOf[ColumnarIndexShuffleBlockResolver].getDeclaredMethod(
         "getSegmentsFromIndex",
-        classOf[java.nio.channels.SeekableByteChannel],
+        classOf[java.io.RandomAccessFile],
         classOf[Int],
         classOf[Int])
       method.setAccessible(true)
       // Partition 0: 0 segments
       val segs0 =
-        method.invoke(resolver, channel, Int.box(0), Int.box(1)).asInstanceOf[Seq[(Long, Long)]]
+        method.invoke(resolver, index, Int.box(0), Int.box(1)).asInstanceOf[Seq[(Long, Long)]]
       assert(segs0.isEmpty)
       // Partition 1 - 2: 3 segment
       val segs1_2 =
-        method.invoke(resolver, channel, Int.box(1), Int.box(3)).asInstanceOf[Seq[(Long, Long)]]
+        method.invoke(resolver, index, Int.box(1), Int.box(3)).asInstanceOf[Seq[(Long, Long)]]
       assert(segs1_2 == Seq((0L, 10L), (10L, 20L), (100L, 50L)))
       // Partition 3: 2 segments, empty segment will be filter out
       val segs3 =
-        method.invoke(resolver, channel, Int.box(3), Int.box(4)).asInstanceOf[Seq[(Long, Long)]]
+        method.invoke(resolver, index, Int.box(3), Int.box(4)).asInstanceOf[Seq[(Long, Long)]]
       assert(segs3 == Seq((30L, 70L), (150L, 50L)))
     } finally {
-      channel.close()
+      index.close()
     }
   }
 

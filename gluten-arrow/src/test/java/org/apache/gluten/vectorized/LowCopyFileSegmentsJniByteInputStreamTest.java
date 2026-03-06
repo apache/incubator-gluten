@@ -72,19 +72,22 @@ public class LowCopyFileSegmentsJniByteInputStreamTest {
     ByteBuffer buffer = PlatformDependent.allocateDirectNoCleaner(bytes.length);
     long addr = PlatformDependent.directBufferAddress(buffer);
 
-    long firstRead = in.read(addr, 3);
-    long secondRead = in.read(addr + firstRead, bytes.length - firstRead);
-    long totalRead = firstRead + secondRead;
+    try {
+      long firstRead = in.read(addr, 3);
+      long secondRead = in.read(addr + firstRead, bytes.length - firstRead);
+      long totalRead = firstRead + secondRead;
 
-    Assert.assertEquals(bytes.length, totalRead);
-    Assert.assertEquals(bytes.length, in.tell());
+      Assert.assertEquals(bytes.length, totalRead);
+      Assert.assertEquals(bytes.length, in.tell());
 
-    buffer.limit(bytes.length);
-    byte[] out = new byte[bytes.length];
-    buffer.get(out);
-    Assert.assertArrayEquals(bytes, out);
-
-    in.close();
+      buffer.limit(bytes.length);
+      byte[] out = new byte[bytes.length];
+      buffer.get(out);
+      Assert.assertArrayEquals(bytes, out);
+    } finally {
+      PlatformDependent.freeDirectNoCleaner(buffer);
+      in.close();
+    }
   }
 
   @Test
@@ -106,17 +109,20 @@ public class LowCopyFileSegmentsJniByteInputStreamTest {
     ByteBuffer buffer = PlatformDependent.allocateDirectNoCleaner(8);
     long addr = PlatformDependent.directBufferAddress(buffer);
 
-    long read = in.read(addr, 8);
-    Assert.assertEquals(8, read);
-    Assert.assertEquals(8, in.tell());
+    try {
+      long read = in.read(addr, 8);
+      Assert.assertEquals(8, read);
+      Assert.assertEquals(8, in.tell());
 
-    buffer.limit(8);
-    byte[] out = new byte[8];
-    buffer.get(out);
-    // Expected: "cde12345"
-    Assert.assertArrayEquals("cde12345".getBytes(StandardCharsets.UTF_8), out);
-
-    in.close();
+      buffer.limit(8);
+      byte[] out = new byte[8];
+      buffer.get(out);
+      // Expected: "cde12345"
+      Assert.assertArrayEquals("cde12345".getBytes(StandardCharsets.UTF_8), out);
+    } finally {
+      PlatformDependent.freeDirectNoCleaner(buffer);
+      in.close();
+    }
   }
 
   private static Seq<Tuple2<Object, Object>> toScalaSeq(

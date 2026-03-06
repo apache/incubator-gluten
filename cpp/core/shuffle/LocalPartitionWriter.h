@@ -34,7 +34,7 @@ class LocalPartitionWriter : public PartitionWriter {
       const std::shared_ptr<LocalPartitionWriterOptions>& options,
       const std::string& dataFile,
       std::vector<std::string> localDirs,
-      const std::string& indexFile = nullptr);
+      const std::string& indexFile = "");
 
   arrow::Status hashEvict(
       uint32_t partitionId,

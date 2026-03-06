@@ -628,8 +628,9 @@ arrow::Status LocalPartitionWriter::writeIndexFile() {
     }
   }
 
-  // Write a ending char
-  RETURN_NOT_OK(indexFileOs->Write("", 1));
+  // Write an ending marker byte with value 1
+  const uint8_t marker = 1;
+  RETURN_NOT_OK(indexFileOs->Write(&marker, 1));
   RETURN_NOT_OK(indexFileOs->Close());
   return arrow::Status::OK();
 }
@@ -671,9 +672,6 @@ arrow::Status LocalPartitionWriter::writeCachedPayloads(uint32_t partitionId, ar
 }
 
 arrow::Status LocalPartitionWriter::flushCachedPayloads() {
-  if (payloadCache_ == nullptr) {
-    return arrow::Status::OK();
-  }
   if (dataFileOs_ == nullptr) {
     ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_->shuffleFileBufferSize));
   }

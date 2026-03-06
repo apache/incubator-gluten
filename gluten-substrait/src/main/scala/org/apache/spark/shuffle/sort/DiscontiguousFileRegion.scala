@@ -101,8 +101,6 @@ class DiscontiguousFileRegion(
         if (written == 0) {
           // Socket buffer full. Return what we have.
           return totalWritten
-        } else if (written == -1) {
-          throw new IOException("EOF encountered in underlying file")
         }
 
         // 4. Update state

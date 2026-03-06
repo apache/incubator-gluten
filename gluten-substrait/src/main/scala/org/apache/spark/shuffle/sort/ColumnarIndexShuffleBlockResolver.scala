@@ -23,12 +23,8 @@ import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.shuffle._
 import org.apache.spark.storage._
 
-import java.io.DataInputStream
 import java.io.File
-import java.nio.channels.Channels
-import java.nio.channels.FileChannel
-import java.nio.channels.SeekableByteChannel
-import java.nio.file.StandardOpenOption
+import java.io.RandomAccessFile
 
 class ColumnarIndexShuffleBlockResolver(
     conf: SparkConf,
@@ -55,7 +51,7 @@ class ColumnarIndexShuffleBlockResolver(
   }
 
   private def getSegmentsFromIndex(
-      channel: SeekableByteChannel,
+      index: RandomAccessFile,
       startId: Int,
       endId: Int): Seq[(Long, Long)] = {
     // New Index Format:
@@ -69,21 +65,20 @@ class ColumnarIndexShuffleBlockResolver(
     //    offset is the byte offset in the data file, size is the length in bytes of this segment.
     //    All segments for all partitions are stored sequentially after the partition index.
     // 3) One extra byte at the end to distinguish from old format.
-    channel.position(startId * 8L)
-    val in = new DataInputStream(Channels.newInputStream(channel))
-    var startOffset = in.readLong()
-    channel.position(endId * 8L)
-    val endOffset = in.readLong()
+    index.seek(startId * 8L)
+    var startOffset = index.readLong()
+    index.seek(endId * 8L)
+    val endOffset = index.readLong()
     if (endOffset < startOffset || (endOffset - startOffset) % 16 != 0) {
       throw new IllegalStateException(
         s"Index file: Invalid index to segments ($startOffset, $endOffset)")
     }
     val segmentCount = (endOffset - startOffset) / 16
     // Read segments
-    channel.position(startOffset)
+    index.seek(startOffset)
     val segments = for (i <- 0 until segmentCount.toInt) yield {
-      val offset = in.readLong()
-      val size = in.readLong()
+      val offset = index.readLong()
+      val size = index.readLong()
       (offset, size)
     }
     segments.filter(_._2 > 0) // filter out zero-size segments
@@ -100,7 +95,7 @@ class ColumnarIndexShuffleBlockResolver(
       throw new IllegalStateException(s"Index file $indexFile is not in the new format")
     }
 
-    var index = FileChannel.open(indexFile.toPath, StandardOpenOption.READ)
+    var index = new RandomAccessFile(indexFile, "r")
     var dataFileSize = dataFile.length()
     try {
       for (i <- 0 until numPartitions) {
@@ -154,7 +149,7 @@ class ColumnarIndexShuffleBlockResolver(
       return super.getBlockData(blockId, dirs)
     }
 
-    var index = FileChannel.open(indexFile.toPath, StandardOpenOption.READ)
+    var index = new RandomAccessFile(indexFile, "r")
     try {
       val segments = getSegmentsFromIndex(index, startReduceId, endReduceId)
       val dataFile = getDataFile(shuffleId, mapId, dirs)
