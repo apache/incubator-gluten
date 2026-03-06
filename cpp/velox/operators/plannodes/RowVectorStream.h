@@ -95,8 +95,8 @@ class ValueStreamDataSource : public facebook::velox::connector::DataSource {
   std::unordered_map<std::string, facebook::velox::RuntimeMetric> getRuntimeStats() override {
     std::unordered_map<std::string, facebook::velox::RuntimeMetric> stats;
     stats["dynamicFiltersAccepted"] = facebook::velox::RuntimeMetric(numDynamicFiltersAccepted_);
-    if (dynamicFilteredRows_ > 0) {
-      stats["dynamicFilteredRows"] = facebook::velox::RuntimeMetric(dynamicFilteredRows_);
+    if (dynamicFilterInputRows_ > 0) {
+      stats["dynamicFilterInputRows"] = facebook::velox::RuntimeMetric(dynamicFilterInputRows_);
     }
     return stats;
   }
@@ -125,7 +125,7 @@ class ValueStreamDataSource : public facebook::velox::connector::DataSource {
   const facebook::velox::common::SubfieldFilters emptyFilters_;
   bool dynamicFilterEnabled_{true};
   uint64_t numDynamicFiltersAccepted_{0};
-  uint64_t dynamicFilteredRows_{0};
+  uint64_t dynamicFilterInputRows_{0};
 };
 
 /// Table handle for iterator-based scans

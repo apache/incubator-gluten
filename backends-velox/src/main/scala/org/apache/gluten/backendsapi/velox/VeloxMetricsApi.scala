@@ -78,9 +78,9 @@ class VeloxMetricsApi extends MetricsApi with Logging {
         "valueStreamDynamicFiltersAccepted" -> SQLMetrics.createMetric(
           sparkContext,
           "number of dynamic filters accepted by value stream"),
-        "valueStreamDynamicFilteredRows" -> SQLMetrics.createMetric(
+        "valueStreamDynamicFilterInputRows" -> SQLMetrics.createMetric(
           sparkContext,
-          "number of rows filtered by value stream dynamic filter")
+          "number of input rows")
       )
     } else {
       Map.empty[String, SQLMetric]

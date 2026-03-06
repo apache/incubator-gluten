@@ -38,8 +38,8 @@ case class InputIteratorMetricsUpdater(metrics: Map[String, SQLMetric], forBroad
         metrics.get("valueStreamDynamicFiltersAccepted").foreach {
           _ += operatorMetrics.numDynamicFiltersAccepted
         }
-        metrics.get("valueStreamDynamicFilteredRows").foreach {
-          _ += operatorMetrics.numDynamicFilteredRows
+        metrics.get("valueStreamDynamicFilterInputRows").foreach {
+          _ += operatorMetrics.numDynamicFilterInputRows
         }
       }
     }

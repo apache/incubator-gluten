@@ -198,7 +198,7 @@ facebook::velox::RowVectorPtr ValueStreamDataSource::applyDynamicFilters(
     }
     applyFilterOnColumn(filter, input->childAt(channel), rows);
     if (!rows.hasSelections()) {
-      dynamicFilteredRows_ += numRows;
+      dynamicFilterInputRows_ += numRows;
       return nullptr;
     }
   }
@@ -208,7 +208,7 @@ facebook::velox::RowVectorPtr ValueStreamDataSource::applyDynamicFilters(
     return input;
   }
 
-  dynamicFilteredRows_ += numRows - passedCount;
+  dynamicFilterInputRows_ += numRows;
 
   BufferPtr indices = allocateIndices(passedCount, pool_);
   auto* rawIndices = indices->asMutable<vector_size_t>();
