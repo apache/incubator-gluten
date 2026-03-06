@@ -202,6 +202,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def physicalJoinOptimizationThrottle: Integer =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
 
+  def physicalJoinOptimizationOutputSize: Integer =
+    getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_OUTPUT_SIZE)
+
   def enablePhysicalJoinOptimize: Boolean =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_ENABLED)
 
@@ -997,6 +1000,13 @@ object GlutenConfig extends ConfigRegistry {
       .doc("Fallback to row operators if there are several continuous joins.")
       .intConf
       .createWithDefault(12)
+
+  val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_OUTPUT_SIZE =
+    buildConf("spark.gluten.sql.columnar.physicalJoinOptimizationOutputSize")
+      .doc(
+        "Fallback to row operators if there are several continuous joins and matched output size.")
+      .intConf
+      .createWithDefault(52)
 
   val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_ENABLED =
     buildConf("spark.gluten.sql.columnar.physicalJoinOptimizeEnable")

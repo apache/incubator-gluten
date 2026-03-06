@@ -19,12 +19,15 @@
 
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
+#include "jni/JniHashTable.h"
+#include "operators/hashjoin/HashTableBuilder.h"
 #include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/HiveDataSink.h"
 #include "velox/exec/TableWriter.h"
 #include "velox/type/Type.h"
 
 #include "utils/ConfigExtractor.h"
+#include "utils/ObjectStore.h"
 #include "utils/VeloxWriterUtils.h"
 
 #include "config.pb.h"
@@ -393,6 +396,43 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         rightNode,
         getJoinOutputType(leftNode, rightNode, joinType));
 
+  } else if (
+      sJoin.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(sJoin.advanced_extension(), "isBHJ=")) {
+    std::string hashTableId = sJoin.hashtableid();
+
+    std::shared_ptr<core::OpaqueHashTable> opaqueSharedHashTable = nullptr;
+    bool joinHasNullKeys = false;
+
+    try {
+      auto hashTableBuilder = ObjectStore::retrieve<gluten::HashTableBuilder>(getJoin(hashTableId));
+      joinHasNullKeys = hashTableBuilder->joinHasNullKeys();
+      auto originalShared = hashTableBuilder->hashTable();
+      opaqueSharedHashTable = std::shared_ptr<core::OpaqueHashTable>(
+          originalShared, reinterpret_cast<core::OpaqueHashTable*>(originalShared.get()));
+
+      LOG(INFO) << "Successfully retrieved and aliased HashTable for reuse. ID: " << hashTableId;
+    } catch (const std::exception& e) {
+      LOG(WARNING)
+          << "Error retrieving HashTable from ObjectStore: " << e.what()
+          << ". Falling back to building new table. To ensure correct results, please verify that spark.gluten.velox.buildHashTableOncePerExecutor.enabled is set to false.";
+      opaqueSharedHashTable = nullptr;
+    }
+
+    // Create HashJoinNode node
+    return std::make_shared<core::HashJoinNode>(
+        nextPlanNodeId(),
+        joinType,
+        isNullAwareAntiJoin,
+        leftKeys,
+        rightKeys,
+        filter,
+        leftNode,
+        rightNode,
+        getJoinOutputType(leftNode, rightNode, joinType),
+        false,
+        joinHasNullKeys,
+        opaqueSharedHashTable);
   } else {
     // Create HashJoinNode node
     return std::make_shared<core::HashJoinNode>(

@@ -61,6 +61,12 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def enableBroadcastBuildRelationInOffheap: Boolean =
     getConf(VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP)
 
+  def enableBroadcastBuildOncePerExecutor: Boolean =
+    getConf(VELOX_BROADCAST_BUILD_HASHTABLE_ONCE_PER_EXECUTOR)
+
+  def veloxBroadcastHashTableBuildThreads: Int =
+    getConf(COLUMNAR_VELOX_BROADCAST_HASH_TABLE_BUILD_THREADS)
+
   def veloxOrcScanEnabled: Boolean =
     getConf(VELOX_ORC_SCAN_ENABLED)
 
@@ -194,6 +200,13 @@ object VeloxConfig extends ConfigRegistry {
           "By default, the value is the same as the maximum task slots per Spark executor.")
       .intConf
       .createOptional
+
+  val COLUMNAR_VELOX_BROADCAST_HASH_TABLE_BUILD_THREADS =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.broadcastHashTableBuildThreads")
+      .doc("The number of threads used to build the broadcast hash table. " +
+        "If not set or set to 0, it will use the default number of threads (available processors).")
+      .intConf
+      .createWithDefault(1)
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
@@ -585,6 +598,16 @@ object VeloxConfig extends ConfigRegistry {
           "Value is integer based and range is [0, 100].")
       .intConf
       .createWithDefault(0)
+
+  val VELOX_BROADCAST_BUILD_HASHTABLE_ONCE_PER_EXECUTOR =
+    buildConf("spark.gluten.velox.buildHashTableOncePerExecutor.enabled")
+      .internal()
+      .doc(
+        "When enabled, the hash table is " +
+          "constructed once per executor. If not enabled, " +
+          "the hash table is rebuilt for each task.")
+      .booleanConf
+      .createWithDefault(true)
 
   val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
     .doc("Enable query tracing flag.")
