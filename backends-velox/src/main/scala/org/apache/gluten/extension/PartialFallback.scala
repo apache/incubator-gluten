@@ -16,7 +16,25 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.spark.sql.catalyst.rules.{Rule, RuleExecutor}
 import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
+import org.apache.spark.sql.internal.SQLConf
+
+case class PartialFallbackRules() extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = {
+    new PartialFallbackRuleExecutor().execute(plan)
+  }
+
+  private class PartialFallbackRuleExecutor extends RuleExecutor[SparkPlan] {
+    private def fixedPoint =
+      FixedPoint(
+        SQLConf.get.optimizerMaxIterations,
+        maxIterationsSetting = SQLConf.OPTIMIZER_MAX_ITERATIONS.key)
+
+    override protected def batches: Seq[Batch] = Seq(
+      Batch("PartialFallback", fixedPoint, PartialProjectRule(), PartialGenerateRule()))
+  }
+}
 
 object PartialFallback {
   def supportPartialFallback(plan: SparkPlan): Boolean = {
