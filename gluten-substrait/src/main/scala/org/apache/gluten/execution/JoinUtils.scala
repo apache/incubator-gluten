@@ -24,7 +24,7 @@ import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionB
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 import org.apache.gluten.utils.SubstraitUtil
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans._
 
 import com.google.protobuf.Any
@@ -41,10 +41,6 @@ object JoinUtils {
     } else {
       null
     }
-  }
-
-  def preProjectionNeeded(keyExprs: Seq[Expression]): Boolean = {
-    !keyExprs.forall(_.isInstanceOf[AttributeReference])
   }
 
   private def createJoinExtensionNode(

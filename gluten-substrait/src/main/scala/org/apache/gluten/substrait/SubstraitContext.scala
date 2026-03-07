@@ -21,12 +21,6 @@ import java.security.InvalidParameterException
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
 
 case class JoinParams() {
-  // Whether preProjection is needed in streamed side.
-  var streamPreProjectionNeeded = false
-
-  // Whether preProjection is needed in build side.
-  var buildPreProjectionNeeded = false
-
   // Whether postProjection is needed after Join.
   var postProjectionNeeded = true
 
