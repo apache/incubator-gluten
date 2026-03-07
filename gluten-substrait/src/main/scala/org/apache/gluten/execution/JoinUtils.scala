@@ -43,10 +43,6 @@ object JoinUtils {
     }
   }
 
-  def preProjectionNeeded(keyExprs: Seq[Expression]): Boolean = {
-    !keyExprs.forall(_.isInstanceOf[AttributeReference])
-  }
-
   private def createJoinExtensionNode(
       joinParameters: Any,
       output: Seq[Attribute]): AdvancedExtensionNode = {

@@ -101,12 +101,6 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
 
   val bloomFilterBlocksByteSize: SQLMetric = metrics("bloomFilterBlocksByteSize")
 
-  val streamPreProjectionCpuCount: SQLMetric = metrics("streamPreProjectionCpuCount")
-  val streamPreProjectionWallNanos: SQLMetric = metrics("streamPreProjectionWallNanos")
-
-  val buildPreProjectionCpuCount: SQLMetric = metrics("buildPreProjectionCpuCount")
-  val buildPreProjectionWallNanos: SQLMetric = metrics("buildPreProjectionWallNanos")
-
   val loadLazyVectorTime: SQLMetric = metrics("loadLazyVectorTime")
 
   override protected def updateJoinMetricsInternal(
@@ -148,17 +142,6 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
     hashBuildSpilledFiles += hashBuildMetrics.spilledFiles
     idx += 1
 
-    if (joinParams.buildPreProjectionNeeded) {
-      buildPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-      buildPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
-
-    if (joinParams.streamPreProjectionNeeded) {
-      streamPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-      streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
     if (TaskResources.inSparkTask()) {
       SparkMetricsUtil.incMemoryBytesSpilled(
         TaskResources.getLocalTaskContext().taskMetrics(),
@@ -185,11 +168,6 @@ class SortMergeJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
   val peakMemoryBytes: SQLMetric = metrics("peakMemoryBytes")
   val numMemoryAllocations: SQLMetric = metrics("numMemoryAllocations")
 
-  val streamPreProjectionCpuCount: SQLMetric = metrics("streamPreProjectionCpuCount")
-  val streamPreProjectionWallNanos: SQLMetric = metrics("streamPreProjectionWallNanos")
-  val bufferPreProjectionCpuCount: SQLMetric = metrics("bufferPreProjectionCpuCount")
-  val bufferPreProjectionWallNanos: SQLMetric = metrics("bufferPreProjectionWallNanos")
-
   override protected def updateJoinMetricsInternal(
       joinMetrics: util.ArrayList[OperatorMetrics],
       joinParams: JoinParams): Unit = {
@@ -200,17 +178,5 @@ class SortMergeJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
     peakMemoryBytes += smjMetrics.peakMemoryBytes
     numMemoryAllocations += smjMetrics.numMemoryAllocations
     idx += 1
-
-    if (joinParams.buildPreProjectionNeeded) {
-      bufferPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-      bufferPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
-
-    if (joinParams.streamPreProjectionNeeded) {
-      streamPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
-      streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
   }
 }

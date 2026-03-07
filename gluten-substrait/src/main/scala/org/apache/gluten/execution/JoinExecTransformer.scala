@@ -227,13 +227,6 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val joinParams = new JoinParams
-    if (JoinUtils.preProjectionNeeded(streamedKeyExprs)) {
-      joinParams.streamPreProjectionNeeded = true
-    }
-    if (JoinUtils.preProjectionNeeded(buildKeyExprs)) {
-      joinParams.buildPreProjectionNeeded = true
-    }
-
     if (condition.isDefined) {
       joinParams.isWithCondition = true
     }
