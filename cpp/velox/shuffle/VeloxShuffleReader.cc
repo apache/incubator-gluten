@@ -732,7 +732,7 @@ VeloxRssSortShuffleReaderDeserializer::VeloxRssSortShuffleReaderDeserializer(
       rowType_(rowType),
       batchSize_(batchSize),
       veloxCompressionType_(veloxCompressionType),
-      serde_(getNamedVectorSerde("presto")),
+      serde_(getNamedVectorSerde("Presto")),
       deserializeTime_(deserializeTime) {
   serdeOptions_ = {false, veloxCompressionType_};
 }
