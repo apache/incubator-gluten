@@ -780,7 +780,7 @@ class VeloxTestSettings extends BackendTestSettings {
   // Generated suites for org.apache.spark.sql
   enableSuite[GlutenCacheManagerSuite]
   enableSuite[GlutenDataFrameShowSuite]
-  // TODO: 4.x enableSuite[GlutenDataFrameSubquerySuite]  // 1 failure
+  enableSuite[GlutenDataFrameSubquerySuite]
   enableSuite[GlutenDataFrameTableValuedFunctionsSuite]
   enableSuite[GlutenDataFrameTransposeSuite]
   enableSuite[GlutenDeprecatedDatasetAggregatorSuite]

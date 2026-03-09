@@ -118,7 +118,6 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
         fromFields.length == toFields.length &&
         fromFields.zip(toFields).forall {
           case (l, r) =>
-            l.name.equalsIgnoreCase(r.name) &&
             sameType(l.dataType, r.dataType)
         }
 
