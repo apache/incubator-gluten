@@ -162,6 +162,48 @@ object ParquetMetadataUtils extends Logging {
     None
   }
 
+  /**
+   * Checks whether Parquet files contain variant logical type annotations that require fallback to
+   * vanilla Spark. This check is always performed (not gated by parquetMetadataValidationEnabled)
+   * because it is a correctness issue: Velox native reader does not check variant annotations.
+   */
+  def validateVariantAnnotation(
+      rootPaths: Seq[String],
+      hadoopConf: Configuration,
+      fileLimit: Int
+  ): Option[String] = {
+    rootPaths.foreach {
+      rootPath =>
+        val fs = new Path(rootPath).getFileSystem(hadoopConf)
+        try {
+          val filesIterator = fs.listFiles(new Path(rootPath), true)
+          var checkedFileCount = 0
+          while (filesIterator.hasNext && checkedFileCount < fileLimit) {
+            val fileStatus = filesIterator.next()
+            checkedFileCount += 1
+            try {
+              val footer = ParquetFooterReaderShim.readFooter(
+                hadoopConf,
+                fileStatus,
+                ParquetMetadataConverter.NO_FILTER)
+              if (
+                SparkShimLoader.getSparkShims
+                  .shouldFallbackForParquetVariantAnnotation(footer)
+              ) {
+                return Some("Variant annotation detected in Parquet file.")
+              }
+            } catch {
+              case _: Exception => // ignore
+            }
+          }
+        } catch {
+          case e: Exception =>
+            logWarning("Catch exception when checking variant annotation", e)
+        }
+    }
+    None
+  }
+
   private def isTimezoneFoundInMetadata(
       footer: ParquetMetadata,
       parquetOptions: ParquetOptions): Option[String] = {

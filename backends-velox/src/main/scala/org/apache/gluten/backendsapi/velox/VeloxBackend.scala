@@ -203,6 +203,14 @@ object VeloxBackendSettings extends BackendSettingsApi {
         return None
       }
       val fileLimit = GlutenConfig.get.parquetMetadataFallbackFileLimit
+      // Variant annotation check is always performed (not gated by
+      // parquetMetadataValidationEnabled) because it is a correctness issue.
+      val variantAnnotationResult =
+        ParquetMetadataUtils.validateVariantAnnotation(rootPaths, hadoopConf, fileLimit)
+      if (variantAnnotationResult.isDefined) {
+        return variantAnnotationResult.map(
+          reason => s"Detected unsupported metadata in parquet files: $reason")
+      }
       val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
       val parquetMetadataValidationResult =
         ParquetMetadataUtils.validateMetadata(rootPaths, hadoopConf, parquetOptions, fileLimit)
