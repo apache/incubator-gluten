@@ -18,8 +18,10 @@ package org.apache.spark.sql.hive
 
 import org.apache.gluten.execution.FileSourceScanExecTransformer
 
-import org.apache.spark.sql.{DataFrame, GlutenTestsBaseTrait}
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait, GlutenTestsBaseTrait}
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
+import org.apache.spark.sql.classic.SparkSession
 import org.apache.spark.sql.execution.{ColumnarSubqueryBroadcastExec, InSubqueryExec, ReusedSubqueryExec, SparkPlan, SubqueryExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, DisableAdaptiveExecutionSuite, EnableAdaptiveExecutionSuite}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExchangeExec}
@@ -28,6 +30,38 @@ import org.apache.spark.sql.hive.execution.HiveTableScanExec
 abstract class GlutenDynamicPartitionPruningHiveScanSuiteBase
   extends DynamicPartitionPruningHiveScanSuiteBase
   with GlutenTestsBaseTrait {
+
+  private var _spark: SparkSession = null
+
+  override protected def spark: SparkSession = _spark
+
+  override def sparkConf: SparkConf = {
+    GlutenSQLTestsBaseTrait.nativeSparkConf(super.sparkConf, warehouse)
+  }
+
+  override def beforeAll(): Unit = {
+    if (_spark == null) {
+      _spark = SparkSession.builder().config(sparkConf).enableHiveSupport().getOrCreate()
+    }
+    super.beforeAll()
+  }
+
+  override def afterAll(): Unit = {
+    try {
+      super.afterAll()
+    } finally {
+      try {
+        if (_spark != null) {
+          _spark.sessionState.catalog.reset()
+          _spark.stop()
+          _spark = null
+        }
+      } finally {
+        SparkSession.clearActiveSession()
+        SparkSession.clearDefaultSession()
+      }
+    }
+  }
 
   override protected def collectDynamicPruningExpressions(plan: SparkPlan): Seq[Expression] = {
     flatMap(plan) {
