@@ -26,13 +26,13 @@
 
 namespace gluten {
 
-inline static JavaVM* vm = nullptr;
+extern JavaVM* vm;
 
 inline static std::unique_ptr<ObjectStore> hashTableObjStore = ObjectStore::create();
 
 // Return the hash table builder address.
 std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
-    const std::string& joinKeys,
+    const std::vector<std::string>& joinKeys,
     std::vector<std::string> names,
     std::vector<facebook::velox::TypePtr> veloxTypeList,
     int joinType,
@@ -43,9 +43,9 @@ std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
     std::vector<std::shared_ptr<ColumnarBatch>>& batches,
     std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool);
 
-long getJoin(std::string hashTableId);
+long getJoin(const std::string& hashTableId);
 
-void initVeloxJniHashTable(JNIEnv* env);
+void initVeloxJniHashTable(JNIEnv* env, JavaVM* javaVm);
 
 void finalizeVeloxJniHashTable(JNIEnv* env);
 

@@ -80,7 +80,7 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   getJniErrorState()->ensureInitialized(env);
   initVeloxJniFileSystem(env);
   initVeloxJniUDF(env);
-  initVeloxJniHashTable(env);
+  initVeloxJniHashTable(env, vm);
 
   infoCls = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/validate/NativePlanValidationInfo;");
   infoClsInitMethod = getMethodIdOrError(env, infoCls, "<init>", "(ILjava/lang/String;)V");
@@ -93,8 +93,6 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   batchWriteMetricsConstructor = getMethodIdOrError(env, batchWriteMetricsClass, "<init>", "(JIJJ)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
-
-  gluten::vm = vm;
 
   return jniVersion;
 }
@@ -939,7 +937,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
     jclass,
     jstring tableId,
     jlongArray batchHandles,
-    jstring joinKey,
+    jobjectArray joinKeys,
     jint joinType,
     jboolean hasMixedJoinCondition,
     jboolean isExistenceJoin,
@@ -949,7 +947,19 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
     jint broadcastHashTableBuildThreads) {
   JNI_METHOD_START
   const auto hashTableId = jStringToCString(env, tableId);
-  const auto hashJoinKey = jStringToCString(env, joinKey);
+
+  // Convert Java String array to C++ vector<string>
+  std::vector<std::string> hashJoinKeys;
+  jsize joinKeysCount = env->GetArrayLength(joinKeys);
+  hashJoinKeys.reserve(joinKeysCount);
+  for (jsize i = 0; i < joinKeysCount; ++i) {
+    jstring jkey = (jstring)env->GetObjectArrayElement(joinKeys, i);
+    const char* keyChars = env->GetStringUTFChars(jkey, nullptr);
+    hashJoinKeys.emplace_back(keyChars);
+    env->ReleaseStringUTFChars(jkey, keyChars);
+    env->DeleteLocalRef(jkey);
+  }
+
   const auto inputType = gluten::getByteArrayElementsSafe(env, namedStruct);
   std::string structString{
       reinterpret_cast<const char*>(inputType.elems()), static_cast<std::string::size_type>(inputType.length())};
@@ -988,7 +998,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
 
   if (numThreads <= 1) {
     auto builder = nativeHashTableBuild(
-        hashJoinKey,
+        hashJoinKeys,
         names,
         veloxTypeList,
         joinType,
@@ -1027,7 +1037,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
       }
 
       auto builder = nativeHashTableBuild(
-          hashJoinKey,
+          hashJoinKeys,
           names,
           veloxTypeList,
           joinType,

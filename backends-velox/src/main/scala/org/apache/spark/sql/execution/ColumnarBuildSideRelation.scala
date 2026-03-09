@@ -197,20 +197,18 @@ case class ColumnarBuildSideRelation(
           )
         }
 
-        val joinKey = keys.asScala
-          .map {
-            key =>
-              val attr = ConverterUtils.getAttrFromExpr(key)
-              ConverterUtils.genColumnNameWithExprId(attr)
-          }
-          .mkString(",")
+        val joinKeys = keys.asScala.map {
+          key =>
+            val attr = ConverterUtils.getAttrFromExpr(key)
+            ConverterUtils.genColumnNameWithExprId(attr)
+        }.toArray
 
         // Build the hash table
         hashTableData = HashJoinBuilder
           .nativeBuild(
             broadcastContext.buildHashTableId,
             batchArray.toArray,
-            joinKey,
+            joinKeys,
             broadcastContext.substraitJoinType.ordinal(),
             broadcastContext.hasMixedFiltCondition,
             broadcastContext.isExistenceJoin,

@@ -29,6 +29,8 @@
 
 namespace gluten {
 
+JavaVM* vm = nullptr;
+
 static jclass jniVeloxBroadcastBuildSideCache = nullptr;
 static jmethodID jniGet = nullptr;
 
@@ -46,7 +48,7 @@ jlong callJavaGet(const std::string& id) {
 
 // Return the velox's hash table.
 std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
-    const std::string& joinKeys,
+    const std::vector<std::string>& joinKeys,
     std::vector<std::string> names,
     std::vector<facebook::velox::TypePtr> veloxTypeList,
     int joinType,
@@ -98,12 +100,9 @@ std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
       VELOX_NYI("Unsupported Join type: {}", std::to_string(sJoin));
   }
 
-  std::vector<std::string> joinKeyNames;
-  folly::split(',', joinKeys, joinKeyNames);
-
   std::vector<std::shared_ptr<const facebook::velox::core::FieldAccessTypedExpr>> joinKeyTypes;
-  joinKeyTypes.reserve(joinKeyNames.size());
-  for (const auto& name : joinKeyNames) {
+  joinKeyTypes.reserve(joinKeys.size());
+  for (const auto& name : joinKeys) {
     joinKeyTypes.emplace_back(
         std::make_shared<facebook::velox::core::FieldAccessTypedExpr>(rowType->findChild(name), name));
   }
@@ -125,14 +124,12 @@ std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
   return hashTableBuilder;
 }
 
-long getJoin(std::string hashTableId) {
+long getJoin(const std::string& hashTableId) {
   return callJavaGet(hashTableId);
 }
 
-void initVeloxJniHashTable(JNIEnv* env) {
-  if (env->GetJavaVM(&vm) != JNI_OK) {
-    throw gluten::GlutenException("Unable to get JavaVM instance");
-  }
+void initVeloxJniHashTable(JNIEnv* env, JavaVM* javaVm) {
+  vm = javaVm;
   const char* classSig = "Lorg/apache/gluten/execution/VeloxBroadcastBuildSideCache;";
   jniVeloxBroadcastBuildSideCache = createGlobalClassReferenceOrError(env, classSig);
   jniGet = getStaticMethodId(env, jniVeloxBroadcastBuildSideCache, "get", "(Ljava/lang/String;)J");
