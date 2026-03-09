@@ -26,6 +26,9 @@ using namespace facebook::velox;
 
 namespace {
 
+// Evaluates an expression as a constant. Returns nullptr if the expression is
+// not constant or evaluation fails. Errors are intentionally swallowed because
+// a non-evaluable expression simply means the filter cannot be pushed down.
 VectorPtr toConstant(const core::TypedExprPtr& expr, core::ExpressionEvaluator* evaluator) {
   auto exprSet = evaluator->compile(expr);
   if (!exprSet->exprs()[0]->isConstantExpr()) {
@@ -42,15 +45,16 @@ VectorPtr toConstant(const core::TypedExprPtr& expr, core::ExpressionEvaluator* 
   return result;
 }
 
-/// Filter backed by Velox's BloomFilter<> serialized data from bloom_filter_agg.
-class SparkBloomFilter final : public common::Filter {
+/// Subfield filter backed by Velox's BloomFilter from bloom_filter_agg / might_contain.
+class SparkMightContain final : public common::Filter {
  public:
-  SparkBloomFilter(std::vector<char> serializedData, bool nullAllowed)
-      : Filter(true, nullAllowed, common::FilterKind::kBigintValuesUsingBloomFilter),
-        serializedData_(std::move(serializedData)) {}
+  SparkMightContain(const char* serializedData, bool nullAllowed)
+      : Filter(true, nullAllowed, common::FilterKind::kBigintValuesUsingBloomFilter) {
+    bloomFilter_.merge(serializedData);
+  }
 
   bool testInt64(int64_t value) const final {
-    return BloomFilter<>::mayContain(serializedData_.data(), folly::hasher<int64_t>()(value));
+    return bloomFilter_.mayContain(folly::hasher<int64_t>()(value));
   }
 
   bool testInt64Range(int64_t /*min*/, int64_t /*max*/, bool /*hasNull*/) const final {
@@ -58,20 +62,21 @@ class SparkBloomFilter final : public common::Filter {
   }
 
   std::unique_ptr<Filter> clone(std::optional<bool> nullAllowed) const override {
-    return std::make_unique<SparkBloomFilter>(serializedData_, nullAllowed.value_or(nullAllowed_));
+    std::vector<char> data(bloomFilter_.serializedSize());
+    bloomFilter_.serialize(data.data());
+    return std::make_unique<SparkMightContain>(data.data(), nullAllowed.value_or(nullAllowed_));
   }
 
   bool testingEquals(const Filter& other) const override {
-    auto* otherFilter = dynamic_cast<const SparkBloomFilter*>(&other);
-    return otherFilter != nullptr && serializedData_ == otherFilter->serializedData_;
+    return dynamic_cast<const SparkMightContain*>(&other) != nullptr;
   }
 
   folly::dynamic serialize() const override {
-    VELOX_UNSUPPORTED("Serialization is not supported for SparkBloomFilter");
+    VELOX_UNSUPPORTED("Serialization is not supported for SparkMightContain");
   }
 
  private:
-  std::vector<char> serializedData_;
+  BloomFilter<> bloomFilter_;
 };
 
 std::optional<std::pair<facebook::velox::common::Subfield, std::unique_ptr<facebook::velox::common::Filter>>> combine(
@@ -155,9 +160,8 @@ SparkExprToSubfieldFilterParser::leafCallToSubfieldFilter(
         auto bloomFilterValue = toConstant(call.inputs()[0], evaluator);
         if (bloomFilterValue && !bloomFilterValue->isNullAt(0)) {
           auto sv = bloomFilterValue->as<SimpleVector<StringView>>()->valueAt(0);
-          std::vector<char> data(sv.data(), sv.data() + sv.size());
           std::unique_ptr<common::Filter> filter =
-              std::make_unique<SparkBloomFilter>(std::move(data), false /*nullAllowed*/);
+              std::make_unique<SparkMightContain>(sv.data(), false /*nullAllowed*/);
           return combine(subfield, filter);
         }
       }
