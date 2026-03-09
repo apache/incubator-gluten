@@ -35,13 +35,10 @@ abstract class GlutenDynamicPartitionPruningHiveScanSuiteBase
 
   override protected def spark: SparkSession = _spark
 
-  override def sparkConf: SparkConf = {
-    GlutenSQLTestsBaseTrait.nativeSparkConf(super.sparkConf, warehouse)
-  }
-
   override def beforeAll(): Unit = {
     if (_spark == null) {
-      _spark = SparkSession.builder().config(sparkConf).enableHiveSupport().getOrCreate()
+      val conf = GlutenSQLTestsBaseTrait.nativeSparkConf(new SparkConf(), warehouse)
+      _spark = SparkSession.builder().config(conf).enableHiveSupport().getOrCreate()
     }
     super.beforeAll()
   }
