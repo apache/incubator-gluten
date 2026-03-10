@@ -5,7 +5,7 @@ This document summarizes the current support status of **Delta Lake table featur
 | Feature | Delta minWriterVersion | Delta minReaderVersion | Iceberg format-version | Feature type | Supported by Gluten (Velox) |
 |---|---:|---:|---:|---|---|
 | Basic functionality | 2 | 1 | 1 | Writer | Yes |
-| CHECK constraints | 3 | 1 | N/A | Writer | Yes |
+| CHECK constraints | 3 | 1 | N/A | Writer | No |
 | Change data feed | 4 | 1 | N/A | Writer | Yes |
 | Generated columns | 4 | 1 | N/A | Writer | Partial |
 | Column mapping | 5 | 2 | N/A | Reader and writer | Yes |
