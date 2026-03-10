@@ -204,6 +204,8 @@ object TaskResources extends TaskListener with Logging {
       }
       val registry = new TaskResourceRegistry
       RESOURCE_REGISTRIES.put(tc, registry)
+      // TODO: Propose upstream Spark changes for resilient error logging when
+      // CompletionListener crashes. Using TaskErrorLogger as workaround
       tc.addTaskFailureListener(
         // in case of crashing in task completion listener, errors may be swallowed
         new TaskFailureListener {
