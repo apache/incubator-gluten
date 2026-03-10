@@ -18,10 +18,9 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.config.{GlutenConfig, GlutenCoreConfig, VeloxConfig}
 import org.apache.gluten.expression.VeloxDummyExpression
-import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
@@ -910,11 +909,11 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("Verify parquet field name with special character") {
-    withTable("t") {   
+    withTable("t") {
       sql("create table t using parquet as select sum(l_partkey) from lineitem")
       runQueryAndCompare("select * from t") {
         checkGlutenPlan[FileSourceScanExecTransformer]
-      }      
+      }
     }
   }
 
