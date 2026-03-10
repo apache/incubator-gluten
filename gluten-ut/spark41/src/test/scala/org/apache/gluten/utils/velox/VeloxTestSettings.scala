@@ -539,6 +539,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("SPARK-53535") // see https://issues.apache.org/jira/browse/SPARK-53535
     .excludeByPrefix("vectorized reader: missing all struct fields")
     .excludeByPrefix("SPARK-54220") // https://issues.apache.org/jira/browse/SPARK-54220
+    .exclude("SPARK-34817: Read UINT_64 as Decimal from parquet")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
@@ -554,6 +555,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite because the filter after datasource is not needed.
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
+    .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
   enableSuite[GlutenParquetV2QuerySuite]
     .exclude("row group skipping doesn't overflow when reading into larger type")
     // Unsupport spark.sql.files.ignoreCorruptFiles.
@@ -563,6 +565,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite because the filter after datasource is not needed.
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
+    .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
   enableSuite[GlutenParquetV1SchemaPruningSuite]
   enableSuite[GlutenParquetV2SchemaPruningSuite]
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
