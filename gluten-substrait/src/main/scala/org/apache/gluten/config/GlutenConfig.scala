@@ -424,6 +424,8 @@ object GlutenConfig extends ConfigRegistry {
   val SPARK_S3_CONNECTION_MAXIMUM: String = HADOOP_PREFIX + S3_CONNECTION_MAXIMUM
   val S3_ENDPOINT_REGION = "fs.s3a.endpoint.region"
   val SPARK_S3_ENDPOINT_REGION: String = HADOOP_PREFIX + S3_ENDPOINT_REGION
+  val S3_AWS_IMDS_ENABLED = "fs.s3a.aws.imds.enabled"
+  val SPARK_S3_AWS_IMDS_ENABLED: String = HADOOP_PREFIX + S3_AWS_IMDS_ENABLED
 
   // ABFS config
   val ABFS_PREFIX = "fs.azure."
@@ -470,6 +472,10 @@ object GlutenConfig extends ConfigRegistry {
     SQLConf.LEGACY_SIZE_OF_NULL.key,
     SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
     SQLConf.JSON_GENERATOR_IGNORE_NULL_FIELDS.key,
+    SQLConf.RUNTIME_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
+    SQLConf.RUNTIME_BLOOM_FILTER_NUM_BITS.key,
+    SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_BITS.key,
+    SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS.key,
     "spark.io.compression.codec",
     "spark.sql.decimalOperations.allowPrecisionLoss",
     "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
@@ -487,6 +493,7 @@ object GlutenConfig extends ConfigRegistry {
     SPARK_S3_RETRY_MAX_ATTEMPTS,
     SPARK_S3_CONNECTION_MAXIMUM,
     SPARK_S3_ENDPOINT_REGION,
+    SPARK_S3_AWS_IMDS_ENABLED,
     "spark.gluten.velox.fs.s3a.connect.timeout",
     "spark.gluten.velox.fs.s3a.retry.mode",
     "spark.gluten.velox.awsSdkLogLevel",
