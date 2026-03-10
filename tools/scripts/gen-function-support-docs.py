@@ -1260,7 +1260,13 @@ def run_test_suites(categories):
 
 def get_maven_project_version():
     result = subprocess.run(
-        ["./build/mvn", "help:evaluate", "-Dexpression=project.version", "-q", "-DforceStdout"],
+        [
+            "./build/mvn",
+            "help:evaluate",
+            "-Dexpression=project.version",
+            "-q",
+            "-DforceStdout",
+        ],
         capture_output=True,
         text=True,
         cwd=gluten_home,
