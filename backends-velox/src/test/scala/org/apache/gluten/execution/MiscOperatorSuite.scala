@@ -910,20 +910,11 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("Verify parquet field name with special character") {
-    withTable("t") {
-
-      // https://github.com/apache/spark/pull/35229 Spark remove parquet field name check after 3.2
-      if (!SparkShimLoader.getSparkVersion.startsWith("3.2")) {
-        sql("create table t using parquet as select sum(l_partkey) from lineitem")
-        runQueryAndCompare("select * from t") {
-          checkGlutenPlan[FileSourceScanExecTransformer]
-        }
-      } else {
-        val msg = intercept[AnalysisException] {
-          sql("create table t using parquet as select sum(l_partkey) from lineitem")
-        }.message
-        assert(msg.contains("contains invalid character"))
-      }
+    withTable("t") {   
+      sql("create table t using parquet as select sum(l_partkey) from lineitem")
+      runQueryAndCompare("select * from t") {
+        checkGlutenPlan[FileSourceScanExecTransformer]
+      }      
     }
   }
 
