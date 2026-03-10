@@ -19,7 +19,7 @@ package org.apache.spark.sql.hive
 import org.apache.gluten.execution.FileSourceScanExecTransformer
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DynamicPartitionPruningSuiteBase, DataFrame, GlutenSQLTestsTrait}
+import org.apache.spark.sql.{DataFrame, DynamicPartitionPruningSuiteBase, GlutenSQLTestsTrait}
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
 import org.apache.spark.sql.execution.{ColumnarSubqueryBroadcastExec, InSubqueryExec, ReusedSubqueryExec, SparkPlan, SubqueryExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, DisableAdaptiveExecutionSuite, EnableAdaptiveExecutionSuite}
