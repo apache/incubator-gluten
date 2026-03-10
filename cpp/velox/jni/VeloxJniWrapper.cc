@@ -106,6 +106,7 @@ void JNI_OnUnload(JavaVM* vm, void*) {
 
   finalizeVeloxJniUDF(env);
   finalizeVeloxJniFileSystem(env);
+  finalizeVeloxJniHashTable(env);
   getJniErrorState()->close();
   getJniCommonState()->close();
   google::ShutdownGoogleLogging();
@@ -954,10 +955,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
   hashJoinKeys.reserve(joinKeysCount);
   for (jsize i = 0; i < joinKeysCount; ++i) {
     jstring jkey = (jstring)env->GetObjectArrayElement(joinKeys, i);
-    const char* keyChars = env->GetStringUTFChars(jkey, nullptr);
-    hashJoinKeys.emplace_back(keyChars);
-    env->ReleaseStringUTFChars(jkey, keyChars);
-    env->DeleteLocalRef(jkey);
+    hashJoinKeys.emplace_back(jStringToCString(env, jkey));
   }
 
   const auto inputType = gluten::getByteArrayElementsSafe(env, namedStruct);
@@ -1018,7 +1016,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
         nullptr);
     builder->setHashTable(std::move(mainTable));
 
-    return gluten::hashTableObjStore->save(builder);
+    return gluten::getHashTableObjStore()->save(builder);
   }
 
   std::vector<std::thread> threads;
@@ -1083,7 +1081,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
   }
 
   hashTableBuilders[0]->setHashTable(std::move(mainTable));
-  return gluten::hashTableObjStore->save(hashTableBuilders[0]);
+  return gluten::getHashTableObjStore()->save(hashTableBuilders[0]);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
@@ -1093,7 +1091,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_cloneH
     jlong tableHandler) {
   JNI_METHOD_START
   auto hashTableHandler = ObjectStore::retrieve<gluten::HashTableBuilder>(tableHandler);
-  return gluten::hashTableObjStore->save(hashTableHandler);
+  return gluten::getHashTableObjStore()->save(hashTableHandler);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 

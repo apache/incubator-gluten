@@ -362,7 +362,6 @@ void VeloxBackend::tearDown() {
     filesystem->close();
   }
 #endif
-  gluten::hashTableObjStore.reset();
 
   // Destruct IOThreadPoolExecutor will join all threads.
   // On threads exit, thread local variables can be constructed with referencing global variables.

@@ -29,20 +29,28 @@
 
 namespace gluten {
 
-JavaVM* vm = nullptr;
+void JniHashTableContext::initialize(JNIEnv* env, JavaVM* javaVm) {
+  vm_ = javaVm;
+  const char* classSig = "Lorg/apache/gluten/execution/VeloxBroadcastBuildSideCache;";
+  jniVeloxBroadcastBuildSideCache_ = createGlobalClassReferenceOrError(env, classSig);
+  jniGet_ = getStaticMethodId(env, jniVeloxBroadcastBuildSideCache_, "get", "(Ljava/lang/String;)J");
+}
 
-static jclass jniVeloxBroadcastBuildSideCache = nullptr;
-static jmethodID jniGet = nullptr;
+void JniHashTableContext::finalize(JNIEnv* env) {
+  if (jniVeloxBroadcastBuildSideCache_ != nullptr) {
+    env->DeleteGlobalRef(jniVeloxBroadcastBuildSideCache_);
+    jniVeloxBroadcastBuildSideCache_ = nullptr;
+  }
+}
 
-jlong callJavaGet(const std::string& id) {
+jlong JniHashTableContext::callJavaGet(const std::string& id) const {
   JNIEnv* env;
-  if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
+  if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
     throw gluten::GlutenException("JNIEnv was not attached to current thread");
   }
 
   const jstring s = env->NewStringUTF(id.c_str());
-
-  auto result = env->CallStaticLongMethod(jniVeloxBroadcastBuildSideCache, jniGet, s);
+  auto result = env->CallStaticLongMethod(jniVeloxBroadcastBuildSideCache_, jniGet_, s);
   return result;
 }
 
@@ -125,18 +133,7 @@ std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
 }
 
 long getJoin(const std::string& hashTableId) {
-  return callJavaGet(hashTableId);
-}
-
-void initVeloxJniHashTable(JNIEnv* env, JavaVM* javaVm) {
-  vm = javaVm;
-  const char* classSig = "Lorg/apache/gluten/execution/VeloxBroadcastBuildSideCache;";
-  jniVeloxBroadcastBuildSideCache = createGlobalClassReferenceOrError(env, classSig);
-  jniGet = getStaticMethodId(env, jniVeloxBroadcastBuildSideCache, "get", "(Ljava/lang/String;)J");
-}
-
-void finalizeVeloxJniHashTable(JNIEnv* env) {
-  env->DeleteGlobalRef(jniVeloxBroadcastBuildSideCache);
+  return JniHashTableContext::getInstance().callJavaGet(hashTableId);
 }
 
 } // namespace gluten
