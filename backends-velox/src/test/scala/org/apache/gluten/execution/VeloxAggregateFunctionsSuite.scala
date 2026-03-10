@@ -1108,7 +1108,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               "SELECT approx_percentile(col, array(0.25, 0.5, 0.75)) FROM approx_pct_tmp") { _ => }
 
             // with group by
-            Seq((1, 10), (1, 20), (1, 30), (2, 5), (2, 15))
+            Seq((1, 10), (1, 20), (1, 30), (2, 5), (2, 10), (2, 15))
               .toDF("grp", "val")
               .createOrReplaceTempView("approx_pct_grp")
             runQueryAndCompare(
