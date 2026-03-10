@@ -12,7 +12,7 @@ This document summarizes the current support status of **Delta Lake table featur
 | Identity columns | 6 | 1 | N/A | Writer | Yes |
 | Row tracking | 7 | 1 | 3 | Writer | Partial |
 | Deletion vectors | 7 | 3 | 3 | Reader and writer | Partial |
-| TimestampNTZ | 7 | 3 | 1 | Reader and writer | Yes |
+| TimestampNTZ | 7 | 3 | 1 | Reader and writer | No |
 | Liquid clustering | 7 | 3 | 1 | Reader and writer | Yes |
 | Iceberg readers (UniForm) | 7 | 2 | N/A | Writer | Yes |
 | Type widening | 7 | 3 | N/A | Reader and writer | Partial |
