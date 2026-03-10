@@ -28,7 +28,7 @@ object SparkPlanUtil {
   }
 
   def isPlannedV1Write(plan: DataWritingCommandExec): Boolean = {
-    if (SparkVersionUtil.lteSpark33) {
+    if (SparkVersionUtil.eqSpark33) {
       return false
     }
 
