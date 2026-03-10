@@ -45,7 +45,7 @@ import org.apache.spark.sql.execution.SparkPlan
 trait GlutenPlan
   extends SparkPlan
   with Convention.KnownBatchType
-  with Convention.KnownRowTypeForSpark33OrLater
+  with Convention.KnownRowTypeWithDefault
   with GlutenPlan.SupportsRowBasedCompatible
   with ConventionReq.KnownChildConvention {
 

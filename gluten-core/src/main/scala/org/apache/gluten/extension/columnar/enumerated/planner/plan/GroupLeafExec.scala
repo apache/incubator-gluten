@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 case class GroupLeafExec(groupId: Int, metadata: GlutenMetadata, convReq: Conv.Req)
   extends LeafExecNode
   with Convention.KnownBatchType
-  with Convention.KnownRowTypeForSpark33OrLater
+  with Convention.KnownRowTypeWithDefault
   with GlutenPlan.SupportsRowBasedCompatible {
 
   private val frozen = new AtomicBoolean(false)

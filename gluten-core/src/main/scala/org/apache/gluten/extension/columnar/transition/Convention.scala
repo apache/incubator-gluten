@@ -166,7 +166,7 @@ object Convention {
     def rowType(): RowType
   }
 
-  trait KnownRowTypeForSpark33OrLater extends KnownRowType {
+  trait KnownRowTypeWithDefault extends KnownRowType {
     this: SparkPlan =>
 
     final override def rowType(): RowType = {
