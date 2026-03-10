@@ -19,45 +19,21 @@ package org.apache.spark.sql.hive
 import org.apache.gluten.execution.FileSourceScanExecTransformer
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait, GlutenTestsBaseTrait}
+import org.apache.spark.sql.{DynamicPartitionPruningSuiteBase, DataFrame, GlutenSQLTestsTrait}
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
-import org.apache.spark.sql.classic.SparkSession
 import org.apache.spark.sql.execution.{ColumnarSubqueryBroadcastExec, InSubqueryExec, ReusedSubqueryExec, SparkPlan, SubqueryExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, DisableAdaptiveExecutionSuite, EnableAdaptiveExecutionSuite}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExchangeExec}
 import org.apache.spark.sql.hive.execution.HiveTableScanExec
 
 abstract class GlutenDynamicPartitionPruningHiveScanSuiteBase
-  extends DynamicPartitionPruningHiveScanSuiteBase
-  with GlutenTestsBaseTrait {
+  extends DynamicPartitionPruningSuiteBase
+  with GlutenSQLTestsTrait {
 
-  private var _spark: SparkSession = null
+  override val tableFormat: String = "hive"
 
-  override protected def spark: SparkSession = _spark
-
-  override def beforeAll(): Unit = {
-    if (_spark == null) {
-      val conf = GlutenSQLTestsBaseTrait.nativeSparkConf(new SparkConf(), warehouse)
-      _spark = SparkSession.builder().config(conf).enableHiveSupport().getOrCreate()
-    }
-    super.beforeAll()
-  }
-
-  override def afterAll(): Unit = {
-    try {
-      super.afterAll()
-    } finally {
-      try {
-        if (_spark != null) {
-          _spark.sessionState.catalog.reset()
-          _spark.stop()
-          _spark = null
-        }
-      } finally {
-        SparkSession.clearActiveSession()
-        SparkSession.clearDefaultSession()
-      }
-    }
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set("spark.sql.catalogImplementation", "hive")
   }
 
   override protected def collectDynamicPruningExpressions(plan: SparkPlan): Seq[Expression] = {
