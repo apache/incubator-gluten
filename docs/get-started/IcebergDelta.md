@@ -14,7 +14,7 @@ This document summarizes the current support status of **Delta Lake table featur
 | Deletion vectors | 7 | 3 | 3 | Reader and writer | Partial |
 | TimestampNTZ | 7 | 3 | 1 | Reader and writer | No |
 | Liquid clustering | 7 | 3 | 1 | Reader and writer | Yes |
-| Iceberg readers (UniForm) | 7 | 2 | N/A | Writer | Yes |
+| Iceberg readers (UniForm) | 7 | 2 | N/A | Writer | Not tested |
 | Type widening | 7 | 3 | N/A | Reader and writer | Partial |
 | Variant | 7 | 3 | 3 | Reader and writer | Not tested |
 | Variant shredding | 7 | 3 | 3 | Reader and writer | Not tested |
