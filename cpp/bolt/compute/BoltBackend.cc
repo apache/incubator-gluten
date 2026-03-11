@@ -48,7 +48,7 @@
 #include "bolt/connectors/hive/HiveConnector.h"
 #include "bolt/connectors/hive/HiveDataSource.h"
 #include "bolt/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.h" // @manual
-#include "bolt/connectors/hive/storage_adapters/gcs/RegisterGCSFileSystem.h" // @manual
+#include "bolt/connectors/hive/storage_adapters/gcs/RegisterGcsFileSystem.h" // @manual
 #include "bolt/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "bolt/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h" // @manual
 #include "bolt/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h" // @manual
