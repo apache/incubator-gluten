@@ -30,6 +30,7 @@
 #include <filesystem>
 #include <random>
 #include <thread>
+#include <arpa/inet.h>
 
 namespace gluten {
 
@@ -45,6 +46,15 @@ arrow::Result<std::shared_ptr<arrow::io::OutputStream>> openFile(const std::stri
   // The `shuffleFileBufferSize` bytes is a temporary allocation and will be freed with file close.
   // Use default memory pool and count treat the memory as executor memory overhead to avoid unnecessary spill.
   return arrow::io::BufferedOutputStream::Create(bufferSize, arrow::default_memory_pool(), out);
+}
+
+// Helper for big-endian conversion (network order)
+static uint64_t htonll(uint64_t value) {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  return (((uint64_t)htonl(value & 0xFFFFFFFFULL)) << 32) | htonl(value >> 32);
+#else
+  return value;
+#endif
 }
 } // namespace
 
@@ -588,16 +598,6 @@ void LocalPartitionWriter::init() {
     usePartitionMultipleSegments_ = true;
     partitionSegments_.resize(numPartitions_);
   }
-}
-
-// Helper for big-endian conversion (network order)
-#include <arpa/inet.h>
-static uint64_t htonll(uint64_t value) {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-  return (((uint64_t)htonl(value & 0xFFFFFFFFULL)) << 32) | htonl(value >> 32);
-#else
-  return value;
-#endif
 }
 
 arrow::Status LocalPartitionWriter::writeIndexFile() {
