@@ -494,12 +494,14 @@ object GlutenQueryTest extends Assertions {
       df: DataFrame,
       expectedAnswer: Seq[Row],
       checkToRDD: Boolean = true): Option[String] = {
-    if (checkToRDD) {
+    val execId = if (checkToRDD) {
       val executionId = getNextExecutionId
       SQLExecution.withExecutionId(df.sparkSession, executionId) {
         df.rdd.count() // Also attempt to deserialize as an RDD [SPARK-15791]
       }
-      BackendsApiManager.getTransformerApiInstance.invalidateSQLExecutionResource(executionId)
+      executionId
+    } else {
+      ""
     }
 
     val sparkAnswer =
@@ -518,7 +520,7 @@ object GlutenQueryTest extends Assertions {
       }
 
     val sortedColIdxes = getOuterSortedColIdxes(df)
-    sameRows(expectedAnswer, sparkAnswer, sortedColIdxes, df.schema.length).map {
+    val res = sameRows(expectedAnswer, sparkAnswer, sortedColIdxes, df.schema.length).map {
       results =>
         s"""
            |Results do not match for query:
@@ -530,6 +532,12 @@ object GlutenQueryTest extends Assertions {
            |$results
        """.stripMargin
     }
+
+    if (execId.nonEmpty) {
+      BackendsApiManager.getTransformerApiInstance.invalidateSQLExecutionResource(execId)
+    }
+
+    res
   }
 
   def getNextExecutionId: String = {
