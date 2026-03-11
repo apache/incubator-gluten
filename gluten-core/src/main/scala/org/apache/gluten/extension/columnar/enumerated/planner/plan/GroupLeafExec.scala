@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 case class GroupLeafExec(groupId: Int, metadata: GlutenMetadata, convReq: Conv.Req)
   extends LeafExecNode
   with Convention.KnownBatchType
-  with Convention.KnownRowTypeWithDefault
+  with Convention.KnownRowType
   with GlutenPlan.SupportsRowBasedCompatible {
 
   private val frozen = new AtomicBoolean(false)
@@ -62,7 +62,7 @@ case class GroupLeafExec(groupId: Int, metadata: GlutenMetadata, convReq: Conv.R
     batchType != Convention.BatchType.None
   }
 
-  override val rowType0: Convention.RowType = {
+  override val rowType: Convention.RowType = {
     val out = convReq.req.requiredRowType match {
       case ConventionReq.RowType.Any => Convention.RowType.VanillaRowType
       case ConventionReq.RowType.Is(r) => r
@@ -71,7 +71,7 @@ case class GroupLeafExec(groupId: Int, metadata: GlutenMetadata, convReq: Conv.R
   }
 
   final override val supportsRowBased: Boolean = {
-    rowType() != Convention.RowType.None
+    rowType != Convention.RowType.None
   }
 
   private def ensureNotFrozen(): Unit = {

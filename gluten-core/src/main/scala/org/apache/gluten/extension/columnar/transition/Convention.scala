@@ -162,17 +162,7 @@ object Convention {
     def batchType(): BatchType
   }
 
-  sealed trait KnownRowType {
+  trait KnownRowType {
     def rowType(): RowType
-  }
-
-  trait KnownRowTypeWithDefault extends KnownRowType {
-    this: SparkPlan =>
-
-    final override def rowType(): RowType = {
-      rowType0()
-    }
-
-    def rowType0(): RowType
   }
 }
