@@ -138,9 +138,7 @@ class ColumnarIndexShuffleBlockResolver(
       case batchId: ShuffleBlockBatchId =>
         (batchId.shuffleId, batchId.mapId, batchId.startReduceId, batchId.endReduceId)
       case _ =>
-        throw SparkException.internalError(
-          s"unexpected shuffle block id format: $blockId",
-          category = "SHUFFLE")
+        throw new SparkException(s"SHUFFLE: unexpected shuffle block id format: $blockId")
     }
     val indexFile = getIndexFile(shuffleId, mapId, dirs)
 
