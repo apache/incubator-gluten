@@ -83,10 +83,11 @@ function install_git {
   # Remove an older version if present.
   dnf remove -y git
   wget_and_untar https://github.com/git/git/archive/v2.44.0.tar.gz git
-  cd git
-  make prefix=/usr/local all -j$(nproc)
-  make prefix=/usr/local install
-  cd ../
+  (
+    cd ${DEPENDENCY_DIR}/git
+    make prefix=/usr/local all -j$(nproc)
+    make prefix=/usr/local install
+  )
 }
 
 function install_gflags {
