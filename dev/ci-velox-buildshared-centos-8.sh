@@ -18,7 +18,5 @@
 set -e
 
 source /opt/rh/gcc-toolset-11/enable
-# Fixme: this is a hack to use new header, should upgrade folly instead.
-cp dev/HardwareConcurrency.h /usr/local/include/folly/system/HardwareConcurrency.h
 ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --build_tests=ON \
     --build_examples=ON --build_benchmarks=ON
