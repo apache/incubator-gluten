@@ -21,3 +21,14 @@ index 71213c80a..cd1852034 100644
 +}
 +
  } // namespace folly
+diff --git a/folly/system/HardwareConcurrency.h b/folly/system/HardwareConcurrency.h
+index 7c497634c..71dfb5db1 100644
+--- a/folly/system/HardwareConcurrency.h
++++ b/folly/system/HardwareConcurrency.h
+@@ -20,4 +20,6 @@ namespace folly {
+
+ unsigned int hardware_concurrency() noexcept;
+
++unsigned int available_concurrency() noexcept;
++
+ } // namespace folly
