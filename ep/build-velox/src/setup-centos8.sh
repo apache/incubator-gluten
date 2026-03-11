@@ -83,7 +83,10 @@ function install_git {
   # Remove an older version if present.
   dnf remove -y git
   wget_and_untar https://github.com/git/git/archive/v2.44.0.tar.gz git
-  cmake_install_dir git
+  cd git
+  make prefix=/usr/local all -j$(nproc)
+  make prefix=/usr/local install
+  cd ../
 }
 
 function install_gflags {
