@@ -60,15 +60,9 @@ option(ENABLE_ORC "Enable ORC" OFF)
 option(ENABLE_ABFS "Enable ABFS" OFF)
 option(ENABLE_GPU "Enable GPU" OFF)
 option(ENABLE_ENHANCED_FEATURES "Enable enhanced features" OFF)
-option(ENABLE_EXCEPTION_TRACE "Enable exception trace" ON)
 
 # TODO integrage with conan options
 set(BUILD_STATIC ON)
-
-if(ENABLE_EXCEPTION_TRACE)
-  add_link_options("-Wl,-wrap=__cxa_throw")
-endif()
-
 
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
