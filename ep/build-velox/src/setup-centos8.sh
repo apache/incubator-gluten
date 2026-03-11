@@ -90,6 +90,14 @@ function install_git {
   )
 }
 
+function install_xxhash {
+  wget_and_untar https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.1.tar.gz xxhash
+  (
+    cd ${DEPENDENCY_DIR}/xxhash
+    make && make install
+  )
+}
+
 function install_gflags {
   # Remove an older version if present.
   dnf remove -y gflags
