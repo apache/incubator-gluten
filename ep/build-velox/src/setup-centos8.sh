@@ -59,7 +59,7 @@ function install_build_prerequisites {
   dnf_install epel-release dnf-plugins-core # For ccache, ninja
   dnf config-manager --set-enabled powertools
   dnf update -y
-  dnf_install ninja-build curl ccache gcc-toolset-11 git wget which
+  dnf_install ninja-build curl ccache gcc-toolset-11 git wget which expat-devel gettext-devel
   dnf_install yasm
   dnf_install autoconf automake python39 python39-devel python39-pip libtool
   pip3.9 install cmake==3.28.3
