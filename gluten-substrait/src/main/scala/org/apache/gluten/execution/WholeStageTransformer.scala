@@ -60,7 +60,7 @@ trait TransformSupport extends ValidatablePlan {
     BackendsApiManager.getSettings.primaryBatchType
   }
 
-  override def rowType0(): Convention.RowType = {
+  override def rowType(): Convention.RowType = {
     Convention.RowType.None
   }
 
