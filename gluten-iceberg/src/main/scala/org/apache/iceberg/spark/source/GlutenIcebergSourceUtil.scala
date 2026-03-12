@@ -71,7 +71,7 @@ object GlutenIcebergSourceUtil {
         val tasks = partition.taskGroup[ScanTask]().tasks().asScala
         asFileScanTask(tasks.toList).foreach {
           task =>
-            val filePath = task.file().location().toString
+            val filePath = task.file().path().toString
             paths.add(BackendsApiManager.getTransformerApiInstance.encodeFilePathIfNeed(filePath))
             starts.add(task.start())
             lengths.add(task.length())
