@@ -56,6 +56,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceV2FunctionSuite]
   enableSuite[GlutenDataSourceV2SQLSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2SQLSuiteV1Filter]
+    // Velox assert_not_null throws VeloxUserError instead of SparkRuntimeException
+    .exclude("CreateTableAsSelect: nullable schema")
   enableSuite[GlutenDataSourceV2SQLSuiteV2Filter]
   enableSuite[GlutenDataSourceV2Suite]
     // Rewrite the following tests in GlutenDataSourceV2Suite.
@@ -751,6 +753,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFilteredScanSuite]
   enableSuite[GlutenFiltersSuite]
   enableSuite[GlutenInsertSuite]
+    // Velox assert_not_null throws VeloxUserError instead of SparkRuntimeException
+    .exclude("SPARK-24583 Wrong schema type in InsertIntoDataSourceCommand")
     // the native write staing dir is differnt with vanilla Spark for coustom partition paths
     .exclude("SPARK-35106: Throw exception when rename custom partition paths returns false")
     .exclude("Stop task set if FileAlreadyExistsException was thrown")
@@ -1089,21 +1093,39 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenBitmapExpressionsQuerySuite]
   enableSuite[GlutenEmptyInSuite]
   enableSuite[GlutenRuntimeNullChecksV2Writes]
+    // Velox assert_not_null throws VeloxUserError instead of SparkRuntimeException
+    .exclude("NOT NULL checks for atomic top-level fields (byName)")
+    .exclude("NOT NULL checks for atomic top-level fields (byPosition)")
+    .exclude("NOT NULL checks for nested struct fields (byName)")
+    .exclude("NOT NULL checks for nested struct fields (byPosition)")
+    .exclude("NOT NULL checks for nested structs, arrays, maps (byName)")
+    .exclude("NOT NULL checks for nullable array with required element (byPosition)")
+    .exclude("not null checks for fields inside nullable array (byPosition)")
   enableSuite[GlutenTableOptionsConstantFoldingSuite]
   enableSuite[GlutenDeltaBasedMergeIntoTableSuite]
     // Replaced by Gluten versions that handle wrapped exceptions
     .excludeByPrefix("merge cardinality check with")
+    // Velox assert_not_null throws VeloxUserError instead of SparkRuntimeException
+    .exclude("merge with NOT NULL checks")
   enableSuite[GlutenDeltaBasedMergeIntoTableUpdateAsDeleteAndInsertSuite]
     // Replaced by Gluten versions that handle wrapped exceptions
     .excludeByPrefix("merge cardinality check with")
+    // Velox assert_not_null throws VeloxUserError instead of SparkRuntimeException
+    .exclude("merge with NOT NULL checks")
   enableSuite[GlutenDeltaBasedUpdateAsDeleteAndInsertTableSuite]
     // FIXME: complex type result mismatch
     .exclude("update nested struct fields")
     .exclude("update char/varchar columns")
+    // Velox assert_not_null throws VeloxUserError instead of SparkRuntimeException
+    .exclude("update with NOT NULL checks")
   enableSuite[GlutenDeltaBasedUpdateTableSuite]
+    // Velox assert_not_null throws VeloxUserError instead of SparkRuntimeException
+    .exclude("update with NOT NULL checks")
   enableSuite[GlutenGroupBasedMergeIntoTableSuite]
     // Replaced by Gluten versions that handle wrapped exceptions
     .excludeByPrefix("merge cardinality check with")
+    // Velox assert_not_null throws VeloxUserError instead of SparkRuntimeException
+    .exclude("merge with NOT NULL checks")
   enableSuite[GlutenFileSourceCustomMetadataStructSuite]
   enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]
   enableSuite[GlutenTableLocationSuite]
