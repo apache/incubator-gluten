@@ -861,7 +861,7 @@ class VeloxTestSettings extends BackendTestSettings {
   // TODO: 4.x enableSuite[GlutenVariantShreddingSuite]  // 8 failures
   enableSuite[GlutenVariantSuite]
   enableSuite[GlutenVariantWriteShreddingSuite]
-  // TODO: 4.x enableSuite[GlutenXmlFunctionsSuite]  // 10 failures
+  enableSuite[GlutenXmlFunctionsSuite]
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenApproximatePercentileQuerySuite]
   enableSuite[GlutenCachedTableSuite]
