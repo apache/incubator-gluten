@@ -57,7 +57,6 @@ for v in $SPARK_VERSIONS; do
 
   echo "Packaging for Spark $v (Scala $SCALA)..."
   tar -czf apache-gluten-${RELEASE_VERSION}-bin-spark-${v}.tar.gz \
-      ${GLUTEN_HOME}/DISCLAIMER \
       $JAR
 done
 
