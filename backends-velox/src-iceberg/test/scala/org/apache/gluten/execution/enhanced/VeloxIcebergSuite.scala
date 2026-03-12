@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.enhanced
 
+import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.tags.EnhancedFeaturesTest
 
@@ -380,6 +381,141 @@ class VeloxIcebergSuite extends IcebergSuite {
             }
           }
 
+      }
+    }
+  }
+  test("iceberg max aggregate with nulls enhanced true") {
+    withSQLConf(VeloxConfig.ENABLE_ENHANCED_FEATURES.key -> "true") {
+      withTable("store_sales_test_nulls_enhanced_true") {
+        spark.sql("""
+                    |create table store_sales_test_nulls_enhanced_true (
+                    |  ss_item_sk int,
+                    |  ss_sales_price decimal(7,2)
+                    |) using iceberg
+                    |""".stripMargin)
+
+        spark.sql("""
+                    |insert into store_sales_test_nulls_enhanced_true values
+                    |(1, 200.00),
+                    |(2, 200.00),
+                    |(3, null),
+                    |(4, 199.98),
+                    |(5, 199.96)
+                    |""".stripMargin)
+
+        val result = spark
+          .sql("select max(ss_sales_price) from store_sales_test_nulls_enhanced_true")
+          .collect()
+
+        assert(result.length == 1, "Should return 1 row")
+        assert(result(0).get(0) != null, "MAX should not return NULL")
+        assert(
+          result(0).getDecimal(0).doubleValue() == 200.00,
+          s"MAX should return 200.00, but got ${result(0).get(0)}"
+        )
+      }
+    }
+  }
+
+  test("iceberg max aggregate without nulls enhanced true") {
+    withSQLConf(VeloxConfig.ENABLE_ENHANCED_FEATURES.key -> "true") {
+      withTable("store_sales_test_no_nulls_enhanced_true") {
+        spark.sql("""
+                    |create table store_sales_test_no_nulls_enhanced_true (
+                    |  ss_item_sk int,
+                    |  ss_sales_price decimal(7,2)
+                    |) using iceberg
+                    |""".stripMargin)
+
+        spark.sql("""
+                    |insert into store_sales_test_no_nulls_enhanced_true values
+                    |(1, 200.00),
+                    |(2, 200.00),
+                    |(3, 200.00),
+                    |(4, 199.98),
+                    |(5, 199.96),
+                    |(6, 199.96),
+                    |(7, 199.92),
+                    |(8, 199.92),
+                    |(9, 199.92),
+                    |(10, 199.90),
+                    |(11, null)
+                    |""".stripMargin)
+
+        val result = spark
+          .sql("select max(ss_sales_price) from store_sales_test_no_nulls_enhanced_true where ss_sales_price is not null")
+          .collect()
+
+        assert(result.length == 1, "Should return 1 row")
+        assert(result(0).get(0) != null, "MAX should not return NULL")
+        assert(
+          result(0).getDecimal(0).doubleValue() == 200.00,
+          s"MAX should return 200.00, but got ${result(0).get(0)}"
+        )
+      }
+    }
+  }
+
+  test("iceberg max aggregate with nulls enhanced false") {
+    withSQLConf(VeloxConfig.ENABLE_ENHANCED_FEATURES.key -> "false") {
+      withTable("store_sales_test_nulls_enhanced_false") {
+        spark.sql("""
+                    |create table store_sales_test_nulls_enhanced_false (
+                    |  ss_item_sk int,
+                    |  ss_sales_price decimal(7,2)
+                    |) using iceberg
+                    |""".stripMargin)
+
+        spark.sql("""
+                    |insert into store_sales_test_nulls_enhanced_false values
+                    |(1, 200.00),
+                    |(2, 199.98),
+                    |(3, null),
+                    |(4, 199.96)
+                    |""".stripMargin)
+
+        val result = spark
+          .sql("select max(ss_sales_price) from store_sales_test_nulls_enhanced_false")
+          .collect()
+
+        assert(result.length == 1, "Should return 1 row")
+        assert(result(0).get(0) != null, "MAX should not return NULL")
+        assert(
+          result(0).getDecimal(0).doubleValue() == 200.00,
+          s"MAX should return 200.00, but got ${result(0).get(0)}"
+        )
+      }
+    }
+  }
+
+  test("iceberg max aggregate without nulls enhanced false") {
+    withSQLConf(VeloxConfig.ENABLE_ENHANCED_FEATURES.key -> "false") {
+      withTable("store_sales_test_no_nulls_enhanced_false") {
+        spark.sql("""
+                    |create table store_sales_test_no_nulls_enhanced_false (
+                    |  ss_item_sk int,
+                    |  ss_sales_price decimal(7,2)
+                    |) using iceberg
+                    |""".stripMargin)
+
+        spark.sql("""
+                    |insert into store_sales_test_no_nulls_enhanced_false values
+                    |(1, 200.00),
+                    |(2, 199.98),
+                    |(3, 199.96),
+                    |(4, null)
+                    |""".stripMargin)
+
+        val result = spark
+          .sql("select max(ss_sales_price) from store_sales_test_no_nulls_enhanced_false where ss_sales_price is not null")
+          .collect()
+
+        assert(result.length == 1, "Should return 1 row")
+        assert(result(0).get(0) != null, "MAX should not return NULL")
+        assert(
+          result(0).getDecimal(0).doubleValue() == 200.00,
+          s"MAX should return 200.00, but got ${result(0).get(0)}"
+        )
       }
     }
   }
