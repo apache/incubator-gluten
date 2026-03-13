@@ -67,8 +67,8 @@ jobs:
             ccache-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          docker pull apache/gluten:vcpkg-centos-7
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+          docker pull apache/gluten:vcpkg-centos-9
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-9 bash -c "
             set -e
             yum install tzdata -y
             df -a
@@ -77,8 +77,10 @@ jobs:
             export CCACHE_MAXSIZE=1G
             mkdir -p /work/.ccache
             ccache -sz
-            bash dev/ci-velox-buildstatic-centos-7.sh
+            bash dev/ci-velox-buildstatic-centos-9.sh
             ccache -s
+            cp /work/dev/vcpkg/vcpkg_installed/x64-linux-avx/lib/libcrypto.so.3 cpp/build/releases/
+            cp /work/dev/vcpkg/vcpkg_installed/x64-linux-avx/lib/libssl.so.3 cpp/build/releases/
             mkdir -p /work/.m2/repository/org/apache/arrow/
             cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
           "
@@ -239,8 +241,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "centos:8" ]
-        spark: [ "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0", "spark-4.1" ]
+        os: [ "quay.io/centos/centos:stream9" ]
+        spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5", "spark-4.0", "spark-4.1" ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3.
         exclude:
@@ -275,6 +277,11 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Install libcrypto/libssl
+        run: |
+          cp cpp/build/releases/libcrypto.so.3 /usr/local/lib/ibcrypto.so
+          cp cpp/build/releases/libssl.so.3 /usr/local/lib/libssl.so 
+          ldconfig
       - name: Update mirror list
         run: |
           if [ "${{ matrix.os }}" = "centos:7" ] || [ "${{ matrix.os }}" = "centos:8" ]; then
@@ -284,11 +291,11 @@ jobs:
       - name: Setup java
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
-            yum update -y && yum install -y java-17-openjdk-devel wget
+            yum update -y && yum install -y java-17-openjdk-devel wget procps
           elif [ "${{ matrix.java }}" = "java-11" ]; then
-            yum update -y && yum install -y java-11-openjdk-devel wget
+            yum update -y && yum install -y java-11-openjdk-devel wget procps
           else
-            yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+            yum update -y && yum install -y java-1.8.0-openjdk-devel wget procps
           fi
       - name: Set environment variables
         run: |
