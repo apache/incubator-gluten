@@ -284,21 +284,21 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       expr: Expression,
       attributeSeq: Seq[Attribute],
       expressionsMap: Map[Class[_], String]): Option[ExpressionTransformer] = {
-    Option {
-      expr match {
-        case pythonUDF: PythonUDF =>
-          replacePythonUDFWithExpressionTransformer(pythonUDF, attributeSeq, expressionsMap)
-        case scalaUDF: ScalaUDF =>
-          replaceScalaUDFWithExpressionTransformer(scalaUDF, attributeSeq, expressionsMap)
-        case _ if HiveUDFTransformer.isHiveUDF(expr) =>
-          BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(expr, attributeSeq)
-        case staticInvoke: StaticInvoke =>
-          replaceStaticInvokeWithExpressionTransformer(staticInvoke, attributeSeq, expressionsMap)
-        case invoke: Invoke =>
-          replaceInvokeWithExpressionTransformer(invoke, attributeSeq, expressionsMap)
-        case _ =>
-          null
-      }
+    expr match {
+      case pythonUDF: PythonUDF =>
+        Some(replacePythonUDFWithExpressionTransformer(pythonUDF, attributeSeq, expressionsMap))
+      case scalaUDF: ScalaUDF =>
+        Some(replaceScalaUDFWithExpressionTransformer(scalaUDF, attributeSeq, expressionsMap))
+      case _ if HiveUDFTransformer.isHiveUDF(expr) =>
+        Some(
+          BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(expr, attributeSeq))
+      case staticInvoke: StaticInvoke =>
+        Some(
+          replaceStaticInvokeWithExpressionTransformer(staticInvoke, attributeSeq, expressionsMap))
+      case invoke: Invoke =>
+        Some(replaceInvokeWithExpressionTransformer(invoke, attributeSeq, expressionsMap))
+      case _ =>
+        None
     }
   }
 
