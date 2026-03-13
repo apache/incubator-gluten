@@ -621,17 +621,37 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
           expr)
-      case CheckOverflow(b: BinaryArithmetic, decimalType, _)
+      case CheckOverflow(b: BinaryArithmetic, decimalType, nullOnOverflow)
           if !BackendsApiManager.getSettings.transformCheckOverflow &&
             DecimalArithmeticUtil.isDecimalArithmetic(b) =>
-        val arithmeticExprName =
+        val baseExprName =
           BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
             getAndCheckSubstraitName(b, expressionsMap))
+        // When nullOnOverflow is false, it's ANSI mode - use checked_ prefix for overflow errors
+        val arithmeticExprName = if (!nullOnOverflow) {
+          "checked_" + baseExprName
+        } else {
+          baseExprName
+        }
         val left =
           replaceWithExpressionTransformer0(b.left, attributeSeq, expressionsMap)
         val right =
           replaceWithExpressionTransformer0(b.right, attributeSeq, expressionsMap)
         DecimalArithmeticExpressionTransformer(arithmeticExprName, left, right, decimalType, b)
+      // Velox path: ANSI mode decimal Add/Subtract uses checked_ variants
+      // that throw on overflow instead of returning null.
+      case c @ CheckOverflow(b: BinaryArithmetic, _, nullOnOverflow)
+          if BackendsApiManager.getSettings.transformCheckOverflow &&
+            DecimalArithmeticUtil.isDecimalArithmetic(b) &&
+            !nullOnOverflow &&
+            (b.isInstanceOf[Add] || b.isInstanceOf[Subtract]) =>
+        val baseExprName =
+          BackendsApiManager.getSparkPlanExecApiInstance.getDecimalArithmeticExprName(
+            getAndCheckSubstraitName(b, expressionsMap))
+        val checkedExprName = "checked_" + baseExprName
+        val childTransformer =
+          genRescaleDecimalTransformer(checkedExprName, b, attributeSeq, expressionsMap)
+        CheckOverflowTransformer(substraitExprName, childTransformer, c)
       case c: CheckOverflow =>
         CheckOverflowTransformer(
           substraitExprName,
