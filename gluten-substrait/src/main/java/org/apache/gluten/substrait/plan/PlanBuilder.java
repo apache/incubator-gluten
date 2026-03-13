@@ -21,7 +21,6 @@ import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
 import org.apache.gluten.substrait.extensions.ExtensionBuilder;
 import org.apache.gluten.substrait.extensions.FunctionMappingNode;
 import org.apache.gluten.substrait.rel.RelNode;
-import org.apache.gluten.substrait.type.TypeNode;
 
 import com.google.common.base.Preconditions;
 
@@ -39,21 +38,19 @@ public class PlanBuilder {
       List<FunctionMappingNode> mappingNodes,
       List<RelNode> relNodes,
       List<String> outNames,
-      TypeNode outputSchema,
       AdvancedExtensionNode extension) {
-    return new PlanNode(mappingNodes, relNodes, outNames, outputSchema, extension);
+    return new PlanNode(mappingNodes, relNodes, outNames, extension);
   }
 
   public static PlanNode makePlan(
       SubstraitContext subCtx, List<RelNode> relNodes, List<String> outNames) {
-    return makePlan(subCtx, relNodes, outNames, null, null);
+    return makePlan(subCtx, relNodes, outNames, null);
   }
 
   public static PlanNode makePlan(
       SubstraitContext subCtx,
       List<RelNode> relNodes,
       List<String> outNames,
-      TypeNode outputSchema,
       AdvancedExtensionNode extension) {
     Preconditions.checkNotNull(
         subCtx, "Cannot execute doTransform due to the SubstraitContext is null.");
@@ -64,7 +61,7 @@ public class PlanBuilder {
           ExtensionBuilder.makeFunctionMapping(entry.getKey(), entry.getValue());
       mappingNodes.add(mappingNode);
     }
-    return makePlan(mappingNodes, relNodes, outNames, outputSchema, extension);
+    return makePlan(mappingNodes, relNodes, outNames, extension);
   }
 
   public static PlanNode makePlan(SubstraitContext subCtx, ArrayList<RelNode> relNodes) {
