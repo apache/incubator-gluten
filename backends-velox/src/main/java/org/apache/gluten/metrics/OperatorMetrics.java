@@ -27,6 +27,7 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long outputBytes;
   public long cpuCount;
   public long wallNanos;
+  public long cpuNanos;
   public long scanTime;
   public long peakMemoryBytes;
   public long numMemoryAllocations;
@@ -73,6 +74,7 @@ public class OperatorMetrics implements IOperatorMetrics {
       long outputBytes,
       long cpuCount,
       long wallNanos,
+      long cpuNanos,
       long peakMemoryBytes,
       long numMemoryAllocations,
       long spilledInputBytes,
@@ -114,6 +116,7 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.outputBytes = outputBytes;
     this.cpuCount = cpuCount;
     this.wallNanos = wallNanos;
+    this.cpuNanos = cpuNanos;
     this.scanTime = scanTime;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;

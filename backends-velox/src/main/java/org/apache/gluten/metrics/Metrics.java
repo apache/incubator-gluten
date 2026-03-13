@@ -29,6 +29,7 @@ public class Metrics implements IMetrics {
   public long[] outputBytes;
   public long[] cpuCount;
   public long[] wallNanos;
+  public long[] cpuNanos;
   public long[] scanTime;
   public long[] peakMemoryBytes;
   public long[] numMemoryAllocations;
@@ -79,6 +80,7 @@ public class Metrics implements IMetrics {
       long[] outputBytes,
       long[] cpuCount,
       long[] wallNanos,
+      long[] cpuNanos,
       long veloxToArrow,
       long[] peakMemoryBytes,
       long[] numMemoryAllocations,
@@ -122,6 +124,7 @@ public class Metrics implements IMetrics {
     this.outputBytes = outputBytes;
     this.cpuCount = cpuCount;
     this.wallNanos = wallNanos;
+    this.cpuNanos = cpuNanos;
     this.scanTime = scanTime;
     this.singleMetric.veloxToArrow = veloxToArrow;
     this.peakMemoryBytes = peakMemoryBytes;
@@ -174,6 +177,7 @@ public class Metrics implements IMetrics {
         outputBytes[index],
         cpuCount[index],
         wallNanos[index],
+        cpuNanos[index],
         peakMemoryBytes[index],
         numMemoryAllocations[index],
         spilledInputBytes[index],

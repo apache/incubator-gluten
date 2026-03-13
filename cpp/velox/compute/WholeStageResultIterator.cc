@@ -457,6 +457,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kOutputBytes)[metricIndex] = 0;
       metrics_->get(Metrics::kCpuCount)[metricIndex] = 0;
       metrics_->get(Metrics::kWallNanos)[metricIndex] = 0;
+      metrics_->get(Metrics::kCpuNanos)[metricIndex] = 0;
       metrics_->get(Metrics::kPeakMemoryBytes)[metricIndex] = 0;
       metrics_->get(Metrics::kNumMemoryAllocations)[metricIndex] = 0;
       metricIndex += 1;
@@ -477,6 +478,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kOutputBytes)[metricIndex] = second->outputBytes;
       metrics_->get(Metrics::kCpuCount)[metricIndex] = second->cpuWallTiming.count;
       metrics_->get(Metrics::kWallNanos)[metricIndex] = second->cpuWallTiming.wallNanos;
+      metrics_->get(Metrics::kCpuNanos)[metricIndex] = second->cpuWallTiming.cpuNanos;
       metrics_->get(Metrics::kPeakMemoryBytes)[metricIndex] = second->peakMemoryBytes;
       metrics_->get(Metrics::kNumMemoryAllocations)[metricIndex] = second->numMemoryAllocations;
       metrics_->get(Metrics::kSpilledInputBytes)[metricIndex] = second->spilledInputBytes;

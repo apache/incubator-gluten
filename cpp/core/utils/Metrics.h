@@ -52,6 +52,7 @@ struct Metrics {
     // CpuWallTiming.
     kCpuCount,
     kWallNanos,
+    kCpuNanos,
 
     kPeakMemoryBytes,
     kNumMemoryAllocations,
