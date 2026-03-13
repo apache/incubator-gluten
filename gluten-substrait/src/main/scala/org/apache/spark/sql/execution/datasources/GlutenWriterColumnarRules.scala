@@ -79,20 +79,25 @@ object GlutenWriterColumnarRules {
       // So FakeRowAdaptor will always consumes columnar data,
       // thus avoiding the case of c2r->aqe->r2c->writer
       case aqe: AdaptiveSparkPlanExec =>
-        command.withNewChildren(
-          Array(
-            BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(
-              AdaptiveSparkPlanExec(
-                aqe.inputPlan,
-                aqe.context,
-                aqe.preprocessingRules,
-                aqe.isSubquery,
-                supportsColumnar = true
-              ))))
+        val newChild = BackendsApiManager.getSparkPlanExecApiInstance
+          .genColumnarToCarrierRow(aqe.inputPlan)
+        command.withNewChildren(Array(wrapAqeWithColumnarToRow(newChild, aqe)))
       case other =>
         command.withNewChildren(
           Array(BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(other)))
     }
+  }
+
+  private def wrapAqeWithColumnarToRow(
+      newChild: SparkPlan,
+      aqe: AdaptiveSparkPlanExec): AdaptiveSparkPlanExec = {
+    aqe.inputPlan.logicalLink.foreach(newChild.setLogicalLink)
+    AdaptiveSparkPlanExec(
+      newChild,
+      aqe.context,
+      aqe.preprocessingRules,
+      aqe.isSubquery,
+      supportsColumnar = false)
   }
 
   case class NativeWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
