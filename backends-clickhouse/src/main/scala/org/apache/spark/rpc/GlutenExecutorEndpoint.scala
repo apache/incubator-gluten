@@ -21,7 +21,13 @@ import org.apache.gluten.execution.{CHBroadcastBuildSideCache, CHNativeCacheMana
 import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.internal.{config, Logging}
 import org.apache.spark.rpc.GlutenRpcMessages._
-import org.apache.spark.util.ThreadUtils
+import org.apache.spark.rpc.RpcCallContext
+import org.apache.spark.util.{ExecutorManager, ThreadUtils, Utils}
+
+import java.io.RandomAccessFile
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util
 
 import scala.util.{Failure, Success}
 
@@ -66,6 +72,130 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
           resource_id => CHBroadcastBuildSideCache.invalidateBroadcastHashtable(resource_id))
       }
 
+    case GlutenDumpNativeStackAsyncRequest(requestId) =>
+      // Async collection: run in a separate thread and report result to driverEndpointRef
+      val runnable = new Runnable {
+        override def run(): Unit = {
+          def sendResult(msg: GlutenRpcMessage): Unit = {
+            var ref = driverEndpointRef
+            if (ref == null) {
+              try {
+                ref = rpcEnv.setupEndpointRefByURI(driverUrl)
+                driverEndpointRef = ref
+              } catch {
+                case t: Throwable =>
+                  logWarning("Resolve driverEndpointRef failed when reporting async result", t)
+              }
+            }
+            if (ref != null) {
+              try {
+                ref.send(msg)
+              } catch {
+                case t: Throwable => logWarning("Send async result to driver failed", t)
+              }
+            } else {
+              logError(
+                s"DriverEndpointRef unavailable; " +
+                  s"async stack result lost for requestId=$requestId")
+            }
+          }
+          try {
+            val pid = ExecutorManager.getProcessId()
+            ensureGdbInstalled()
+            val gdbCmdPrefix = gdbPrefix()
+            val tmpLog = Files.createTempFile(s"gluten-bt-$requestId", ".log")
+            val logPath = tmpLog.toAbsolutePath.toString
+            val charset = StandardCharsets.UTF_8
+            val gdbWithLog = buildGdbWithLogging(gdbCmdPrefix, logPath, pid)
+            logInfo(
+              s"Starting async native stack collection: " +
+                s"requestId=$requestId, pid=$pid, cmd=$gdbWithLog")
+            val proc = new ProcessBuilder("bash", "-c", gdbWithLog).start()
+            // Incrementally tail the log file and stream to driver while gdb runs
+            val maxSegmentBytes = 64 * 1024
+            var pos: Long = 0L
+            var segments = 0
+            var totalBytes = 0L
+            def streamBytes(bytes: Array[Byte]): Unit = {
+              var offset = 0
+              while (offset < bytes.length) {
+                val end = Math.min(bytes.length, offset + maxSegmentBytes)
+                val segStr = new String(Arrays.copyOfRange(bytes, offset, end), charset)
+                sendResult(GlutenRpcMessages.GlutenNativeStackAsyncChunk(requestId, segStr))
+                segments += 1
+                offset = end
+              }
+            }
+            // Tail loop: read any appended bytes every ~100ms
+            while (proc.isAlive) {
+              try {
+                val raf = new RandomAccessFile(logPath, "r")
+                val len = raf.length()
+                if (len > pos) {
+                  val toRead = (len - pos).toInt
+                  val buf = new Array[Byte](toRead)
+                  raf.seek(pos)
+                  raf.readFully(buf)
+                  pos = len
+                  totalBytes += toRead
+                  streamBytes(buf)
+                }
+                raf.close()
+              } catch { case _: Throwable => () }
+              try Thread.sleep(100)
+              catch { case _: Throwable => () }
+            }
+            // After gdb exits, flush any remaining content
+            try {
+              val raf = new RandomAccessFile(logPath, "r")
+              val len = raf.length()
+              if (len > pos) {
+                val toRead = (len - pos).toInt
+                val buf = new Array[Byte](toRead)
+                raf.seek(pos)
+                raf.readFully(buf)
+                pos = len
+                totalBytes += toRead
+                streamBytes(buf)
+              }
+              raf.close()
+            } catch { case _: Throwable => () }
+            val exitCode = proc.waitFor()
+            logInfo(
+              s"gdb process exit code: $exitCode for requestId=$requestId; " +
+                s"streamedBytes=$totalBytes, segments=$segments")
+            // Cleanup temp file
+            try Files.deleteIfExists(tmpLog)
+            catch { case _: Throwable => () }
+
+            if (exitCode != 0) {
+              sendResult(
+                GlutenNativeStackAsyncResult(
+                  requestId,
+                  success = false,
+                  message =
+                    s"Check executor logs for native C++ stack. gdb exit code: " + exitCode))
+            } else {
+              sendResult(
+                GlutenNativeStackAsyncResult(
+                  requestId,
+                  success = true,
+                  message = ""
+                ))
+            }
+          } catch {
+            case t: Throwable =>
+              sendResult(
+                GlutenNativeStackAsyncResult(
+                  requestId,
+                  success = false,
+                  message = s"Async stack collection failed: ${t.getMessage}"))
+          }
+        }
+      }
+      // Use executor RPC env to run asynchronously
+      new Thread(runnable, s"gluten-stack-async-$requestId").start()
+
     case e =>
       logError(s"Received unexpected message. $e")
   }
@@ -99,6 +229,81 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
       }
     case e =>
       logError(s"Received unexpected message. $e")
+  }
+
+  override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+    case GlutenDumpNativeStackSyncRequest =>
+      try {
+        val pid = ExecutorManager.getProcessId()
+        ensureGdbInstalled()
+        val gdbCmdPrefix = gdbPrefix()
+        val tmpLog = Files.createTempFile("gluten-bt-sync-", ".log")
+        val logPath = tmpLog.toAbsolutePath.toString
+        val charset = StandardCharsets.UTF_8
+        val gdbWithLog = buildGdbWithLogging(gdbCmdPrefix, logPath, pid)
+        logInfo(s"Starting sync native stack collection: pid=$pid, cmd=$gdbWithLog")
+        val proc = new ProcessBuilder("bash", "-c", gdbWithLog).start()
+        val exitCode = proc.waitFor()
+        val output =
+          try {
+            new String(Files.readAllBytes(tmpLog), charset)
+          } catch { case _: Throwable => "" }
+        try Files.deleteIfExists(tmpLog)
+        catch { case _: Throwable => () }
+        if (exitCode != 0 && (output == null || output.isEmpty)) {
+          context.reply(s"gdb exit code: $exitCode. Please check executor logs.")
+        } else {
+          context.reply(Option(output).getOrElse(""))
+        }
+      } catch {
+        case t: Throwable =>
+          logWarning("Sync native stack collection failed", t)
+          context.sendFailure(t)
+      }
+  }
+
+  private def has(cmd: String): Boolean = {
+    try {
+      val out = Utils.executeAndGetOutput(
+        Seq("bash", "-c", s"command -v $cmd >/dev/null 2>&1 && echo yes || echo no"))
+      out != null && out.trim == "yes"
+    } catch { case _: Throwable => false }
+  }
+
+  private def ensureGdbInstalled(): Unit = {
+    if (!has("gdb")) {
+      val sudo = if (has("sudo")) "sudo " else ""
+      val cmdOpt =
+        if (has("apt-get")) {
+          val base = s"${sudo}apt-get update -y && ${sudo}apt-get install -y "
+          Some(base + "gdb elfutils")
+        } else if (has("yum")) {
+          Some(s"${sudo}yum install -y gdb elfutils")
+        } else if (has("dnf")) {
+          Some(s"${sudo}dnf install -y gdb elfutils")
+        } else if (has("zypper")) {
+          Some(s"${sudo}zypper -n install gdb elfutils")
+        } else {
+          None
+        }
+      cmdOpt.foreach {
+        c =>
+          try { Utils.executeCommand(Seq("bash", "-c", c)) }
+          catch { case _: Throwable => () }
+      }
+    }
+  }
+
+  private def gdbPrefix(): String = {
+    if (has("stdbuf")) "stdbuf -o0 -e0 gdb --batch-silent -q" else "gdb --batch-silent -q"
+  }
+
+  private def buildGdbWithLogging(gdbCmdPrefix: String, logPath: String, pid: Long): String = {
+    s"$gdbCmdPrefix -ex 'set pagination off' " +
+      s"-ex 'set print thread-events off' -ex 'set logging file $logPath' " +
+      s"-ex 'set logging overwrite on' -ex 'set logging on' " +
+      s"-ex 'thread apply all bt full' " +
+      s"-ex 'set logging off' -p $pid"
   }
 }
 object GlutenExecutorEndpoint {
