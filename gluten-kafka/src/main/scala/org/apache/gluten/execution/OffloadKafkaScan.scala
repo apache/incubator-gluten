@@ -23,7 +23,7 @@ import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, MicroBatchScanExec}
+import org.apache.spark.sql.execution.datasources.v2.MicroBatchScanExec
 
 case class OffloadKafkaScan() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
