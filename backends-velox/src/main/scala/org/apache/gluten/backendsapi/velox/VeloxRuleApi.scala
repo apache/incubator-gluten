@@ -66,6 +66,11 @@ object VeloxRuleApi {
     injector.injectOptimizerRule(CollapseGetJsonObjectExpressionRule.apply)
     injector.injectOptimizerRule(RewriteCastFromArray.apply)
     injector.injectOptimizerRule(RewriteUnboundedWindow.apply)
+
+    if (!BackendsApiManager.getSettings.enableJoinKeysRewrite()) {
+      injector.injectPlannerStrategy(_ => org.apache.gluten.extension.GlutenJoinKeysCapture())
+    }
+
     if (BackendsApiManager.getSettings.supportAppendDataExec()) {
       injector.injectPlannerStrategy(SparkShimLoader.getSparkShims.getRewriteCreateTableAsSelect(_))
     }
@@ -113,8 +118,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
     injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => UnionTransformerRule())
-    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
-    injector.injectPostTransform(_ => PartialGenerateRule())
+    injector.injectPostTransform(_ => PartialFallbackRules())
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(_ => PushDownFilterToScan)
     injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
@@ -218,8 +222,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => GpuBufferBatchResizeForShuffleInputOutput())
     injector.injectPostTransform(_ => RemoveTransitions)
     injector.injectPostTransform(_ => UnionTransformerRule())
-    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
-    injector.injectPostTransform(_ => PartialGenerateRule())
+    injector.injectPostTransform(_ => PartialFallbackRules())
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(_ => PushDownFilterToScan)
     injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)

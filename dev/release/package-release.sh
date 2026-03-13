@@ -39,29 +39,36 @@ fi
 
 pushd $GLUTEN_HOME/release/
 
-SPARK_VERSIONS="3.3 3.4 3.5"
+SPARK_VERSIONS="3.3 3.4 3.5 4.0"
 
 for v in $SPARK_VERSIONS; do
-  JAR="gluten-velox-bundle-spark${v}_2.12-linux_amd64-${RELEASE_VERSION}.jar"
+  if [[ "$v" == "4.0" ]]; then
+    SCALA="2.13"
+  else
+    SCALA="2.12"
+  fi
+
+  JAR="gluten-velox-bundle-spark${v}_${SCALA}-linux_amd64-${RELEASE_VERSION}.jar"
+
   if [[ ! -f "$JAR" ]]; then
     echo "Missing Gluten release JAR under $GLUTEN_HOME/release/ for Spark $v: $JAR"
     exit 1
   fi
-  echo "Packaging for Spark $v..."
+
+  echo "Packaging for Spark $v (Scala $SCALA)..."
   tar -czf apache-gluten-${RELEASE_VERSION}-bin-spark-${v}.tar.gz \
-      ${GLUTEN_HOME}/DISCLAIMER \
       $JAR
 done
 
 SRC_ZIP="${TAG}.zip"
-SRC_DIR="incubator-gluten-${RELEASE_VERSION}"
+SRC_DIR="gluten-${RELEASE_VERSION}"
 
 echo "Packaging source code..."
-wget https://github.com/apache/incubator-gluten/archive/refs/tags/${SRC_ZIP}
+wget https://github.com/apache/gluten/archive/refs/tags/${SRC_ZIP}
 unzip -q ${SRC_ZIP}
 
 # Rename folder to remove "rc*" for formal release.
-mv incubator-gluten-${TAG_VERSION} ${SRC_DIR}
+mv gluten-${TAG_VERSION} ${SRC_DIR}
 # Remove .git and .github and other unwanted files from the source dir.
 rm -rf ${SRC_DIR}/.git \
        ${SRC_DIR}/.github \
