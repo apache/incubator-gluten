@@ -138,7 +138,7 @@ function compile {
         -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc"
   fi
   if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=shared"
   fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"

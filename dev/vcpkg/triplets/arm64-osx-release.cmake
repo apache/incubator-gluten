@@ -11,3 +11,10 @@ set(VCPKG_BUILD_TYPE release)
 set(VCPKG_C_FLAGS "")
 set(VCPKG_CXX_FLAGS "-std=c++20 -Wno-missing-template-arg-list-after-template-kw")
 
+if(PORT MATCHES "glog")
+    set(VCPKG_LIBRARY_LINKAGE dynamic)
+endif()
+
+if(PORT MATCHES "gflags")
+    set(VCPKG_LIBRARY_LINKAGE dynamic)
+endif()
