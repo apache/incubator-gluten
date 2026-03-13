@@ -51,11 +51,14 @@ std::vector<char> GpuBufferColumnarBatch::toUnsafeRow(int32_t rowId) const {
 }
 
 int64_t GpuBufferColumnarBatch::numBytes() {
-  int64_t numBytes = 0;
-  for (const auto& buffer : buffers_) {
-    numBytes += buffer->size();
+  if (!numBytes_.has_value()) {
+    int64_t bytes = 0;
+    for (const auto& buffer : buffers_) {
+      bytes += buffer->size();
+    }
+    numBytes_ = bytes;
   }
-  return numBytes;
+  return numBytes_.value();
 }
 
 // Optimize to release the previous buffer after merge it.
