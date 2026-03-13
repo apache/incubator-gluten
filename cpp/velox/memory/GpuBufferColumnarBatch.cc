@@ -54,7 +54,9 @@ int64_t GpuBufferColumnarBatch::numBytes() {
   if (!numBytes_.has_value()) {
     int64_t bytes = 0;
     for (const auto& buffer : buffers_) {
-      bytes += buffer->size();
+      if (buffer) {
+        bytes += buffer->size();
+      }
     }
     numBytes_ = bytes;
   }
