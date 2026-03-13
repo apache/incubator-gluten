@@ -23,7 +23,6 @@ import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
 
-import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.util.SparkReflectionUtil
 
 class VeloxHudiComponent extends Component {
@@ -37,7 +36,6 @@ class VeloxHudiComponent extends Component {
 
   override def injectRules(injector: Injector): Unit = {
     val legacy = injector.gluten.legacy
-    val ras = injector.gluten.ras
     legacy.injectTransform {
       c =>
         val offload = Seq(OffloadHudiScan()).map(_.toStrcitRule())
