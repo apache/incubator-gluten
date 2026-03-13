@@ -39,7 +39,7 @@ class ColumnarShuffleManager(conf: SparkConf)
   import ColumnarShuffleManager._
 
   private lazy val shuffleExecutorComponents = loadShuffleExecutorComponents(conf)
-  override val shuffleBlockResolver = new IndexShuffleBlockResolver(conf)
+  override val shuffleBlockResolver = new ColumnarIndexShuffleBlockResolver(conf)
 
   /** A mapping from shuffle ids to the number of mappers producing output for those shuffles. */
   private[this] val taskIdMapsForShuffle = new ConcurrentHashMap[Int, OpenHashSet[Long]]()

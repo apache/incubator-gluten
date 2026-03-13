@@ -30,6 +30,7 @@
 #include <filesystem>
 #include <random>
 #include <thread>
+#include <arpa/inet.h>
 
 namespace gluten {
 
@@ -45,6 +46,15 @@ arrow::Result<std::shared_ptr<arrow::io::OutputStream>> openFile(const std::stri
   // The `shuffleFileBufferSize` bytes is a temporary allocation and will be freed with file close.
   // Use default memory pool and count treat the memory as executor memory overhead to avoid unnecessary spill.
   return arrow::io::BufferedOutputStream::Create(bufferSize, arrow::default_memory_pool(), out);
+}
+
+// Helper for big-endian conversion (network order)
+static uint64_t htonll(uint64_t value) {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  return (((uint64_t)htonl(value & 0xFFFFFFFFULL)) << 32) | htonl(value >> 32);
+#else
+  return value;
+#endif
 }
 } // namespace
 
@@ -356,6 +366,25 @@ class LocalPartitionWriter::PayloadCache {
     return arrow::Status::OK();
   }
 
+  arrow::Result<bool> writeIncremental(uint32_t partitionId, arrow::io::OutputStream *os) {
+    GLUTEN_CHECK(!enableDictionary_, "Incremental write is not supported when dictionary is enabled.");
+    if ((partitionInUse_.has_value() && partitionInUse_.value() == partitionId) || !hasCachedPayloads(partitionId)) {
+      return false;
+    }
+
+    auto& payloads = partitionCachedPayload_[partitionId];
+    while (!payloads.empty()) {
+      const auto payload = std::move(payloads.front());
+      payloads.pop_front();
+      uint8_t blockType = static_cast<uint8_t>(BlockType::kPlainPayload);
+      RETURN_NOT_OK(os->Write(&blockType, sizeof(blockType)));
+      RETURN_NOT_OK(payload->serialize(os));
+      compressTime_ += payload->getCompressTime();
+      writeTime_ += payload->getWriteTime();
+    }
+    return true;
+  }
+
   bool canSpill() {
     for (auto pid = 0; pid < numPartitions_; ++pid) {
       if (partitionInUse_.has_value() && partitionInUse_.value() == pid) {
@@ -506,10 +535,12 @@ LocalPartitionWriter::LocalPartitionWriter(
     MemoryManager* memoryManager,
     const std::shared_ptr<LocalPartitionWriterOptions>& options,
     const std::string& dataFile,
-    std::vector<std::string> localDirs)
+    std::vector<std::string> localDirs,
+    const std::string& indexFile)
     : PartitionWriter(numPartitions, std::move(codec), memoryManager),
       options_(options),
       dataFile_(dataFile),
+      indexFile_(indexFile),
       localDirs_(std::move(localDirs)) {
   init();
 }
@@ -562,6 +593,46 @@ void LocalPartitionWriter::init() {
   std::default_random_engine engine(rd());
   std::shuffle(localDirs_.begin(), localDirs_.end(), engine);
   subDirSelection_.assign(localDirs_.size(), 0);
+
+  if (!indexFile_.empty()) {
+    usePartitionMultipleSegments_ = true;
+    partitionSegments_.resize(numPartitions_);
+  }
+}
+
+arrow::Status LocalPartitionWriter::writeIndexFile() {
+  if (!usePartitionMultipleSegments_) {
+    return arrow::Status::OK();
+  }
+
+  ARROW_ASSIGN_OR_RAISE(auto indexFileOs, openFile(indexFile_, options_->shuffleFileBufferSize));
+
+  uint64_t segmentOffset = (numPartitions_ + 1) * sizeof(int64_t);
+  // write segment index of each partition in big-endian
+  for (uint32_t pid = 0; pid < numPartitions_; ++pid) {
+    uint64_t beOffset = htonll(segmentOffset);
+    RETURN_NOT_OK(indexFileOs->Write(reinterpret_cast<const uint8_t*>(&beOffset), sizeof(beOffset)));
+    const auto& segments = partitionSegments_[pid];
+    segmentOffset += (segments.size() * 2 * sizeof(int64_t));
+  }
+  uint64_t beOffset = htonll(segmentOffset);
+  RETURN_NOT_OK(indexFileOs->Write(reinterpret_cast<const uint8_t*>(&beOffset), sizeof(beOffset)));
+  // Write partition segments info in big-endian
+  for (uint32_t pid = 0; pid < numPartitions_; ++pid) {
+    const auto& segments = partitionSegments_[pid];
+    for (const auto& segment : segments) {
+      uint64_t beFirst = htonll(segment.first);
+      uint64_t beSecond = htonll(segment.second);
+      RETURN_NOT_OK(indexFileOs->Write(reinterpret_cast<const uint8_t*>(&beFirst), sizeof(beFirst)));
+      RETURN_NOT_OK(indexFileOs->Write(reinterpret_cast<const uint8_t*>(&beSecond), sizeof(beSecond)));
+    }
+  }
+
+  // Write an ending marker byte with value 1
+  const uint8_t marker = 1;
+  RETURN_NOT_OK(indexFileOs->Write(&marker, 1));
+  RETURN_NOT_OK(indexFileOs->Close());
+  return arrow::Status::OK();
 }
 
 arrow::Result<int64_t> LocalPartitionWriter::mergeSpills(uint32_t partitionId, arrow::io::OutputStream* os) {
@@ -600,13 +671,61 @@ arrow::Status LocalPartitionWriter::writeCachedPayloads(uint32_t partitionId, ar
   return arrow::Status::OK();
 }
 
+arrow::Status LocalPartitionWriter::flushCachedPayloads() {
+  if (dataFileOs_ == nullptr) {
+    ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_->shuffleFileBufferSize));
+  }
+  ARROW_ASSIGN_OR_RAISE(int64_t endInDataFile, dataFileOs_->Tell());
+  for (auto pid = 0; pid < numPartitions_; ++pid) {
+    auto startInDataFile = endInDataFile;
+    ARROW_ASSIGN_OR_RAISE(int64_t spillWrittenBytes, mergeSpills(pid, dataFileOs_.get()));
+    ARROW_ASSIGN_OR_RAISE(bool cachePayloadWritten, payloadCache_->writeIncremental(pid, dataFileOs_.get()));
+    if (spillWrittenBytes > 0 || cachePayloadWritten) {
+      ARROW_ASSIGN_OR_RAISE(endInDataFile, dataFileOs_->Tell());
+      auto bytesWritten = endInDataFile - startInDataFile;
+      partitionSegments_[pid].emplace_back(startInDataFile, bytesWritten);
+      partitionLengths_[pid] += bytesWritten;
+    }
+  }
+
+  return arrow::Status::OK();
+}
+
+arrow::Status LocalPartitionWriter::writeMemoryPayload(uint32_t partitionId, std::unique_ptr<InMemoryPayload> payload) {
+  if (dataFileOs_ == nullptr) {
+    ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_->shuffleFileBufferSize));
+  }
+
+  ARROW_ASSIGN_OR_RAISE(int64_t startOffset, dataFileOs_->Tell());
+  if (codec_ != nullptr) {
+    ARROW_ASSIGN_OR_RAISE(auto compressOs, ShuffleCompressedOutputStream::Make(codec_.get(), options_->compressionBufferSize, dataFileOs_, arrow::default_memory_pool()));
+    RETURN_NOT_OK(payload->serialize(compressOs.get()));
+    RETURN_NOT_OK(compressOs->Flush());
+    compressTime_ += compressOs->compressTime();
+    RETURN_NOT_OK(compressOs->Close());
+  } else {
+    RETURN_NOT_OK(payload->serialize(dataFileOs_.get()));
+  }
+  ARROW_ASSIGN_OR_RAISE(int64_t endOffset, dataFileOs_->Tell());
+  auto bytesWritten = endOffset - startOffset;
+  partitionSegments_[partitionId].emplace_back(startOffset, bytesWritten);
+  partitionLengths_[partitionId] += bytesWritten;
+ 
+  return arrow::Status::OK();
+}
+
 arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics, int64_t& evictBytes) {
   if (stopped_) {
     return arrow::Status::OK();
   }
   stopped_ = true;
 
-  if (useSpillFileAsDataFile_) {
+  if (usePartitionMultipleSegments_) {
+    RETURN_NOT_OK(finishSpill());
+    RETURN_NOT_OK(finishMerger());
+    RETURN_NOT_OK(flushCachedPayloads());
+    RETURN_NOT_OK(writeIndexFile());
+  } else if (useSpillFileAsDataFile_) {
     ARROW_ASSIGN_OR_RAISE(auto spill, spiller_->finish());
 
     // Merge the remaining partitions from spills.
@@ -750,6 +869,9 @@ arrow::Status LocalPartitionWriter::hashEvict(
     for (auto& payload : merged) {
       RETURN_NOT_OK(payloadCache_->cache(partitionId, std::move(payload)));
     }
+    if (usePartitionMultipleSegments_) {
+      RETURN_NOT_OK(flushCachedPayloads());
+    }
     merged.clear();
   }
   return arrow::Status::OK();
@@ -758,6 +880,12 @@ arrow::Status LocalPartitionWriter::hashEvict(
 arrow::Status
 LocalPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal, int64_t& evictBytes) {
   rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
+
+  if (usePartitionMultipleSegments_) {
+    // If multiple segments per partition is enabled, write directly to the final data file.
+    RETURN_NOT_OK(writeMemoryPayload(partitionId, std::move(inMemoryPayload)));
+    return arrow::Status::OK();
+  }
 
   if (lastEvictPid_ != -1 && (partitionId < lastEvictPid_ || (isFinal && !dataFileOs_))) {
     lastEvictPid_ = -1;

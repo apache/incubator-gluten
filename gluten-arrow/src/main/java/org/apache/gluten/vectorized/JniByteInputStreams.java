@@ -53,6 +53,9 @@ public final class JniByteInputStreams {
     if (LowCopyFileSegmentJniByteInputStream.isSupported(unwrapped)) {
       return new LowCopyFileSegmentJniByteInputStream(in);
     }
+    if (LowCopyFileSegmentsJniByteInputStream.isSupported(unwrapped)) {
+      return new LowCopyFileSegmentsJniByteInputStream(in);
+    }
     return new OnHeapJniByteInputStream(in);
   }
 

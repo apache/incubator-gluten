@@ -239,6 +239,9 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
   def columnarShuffleEnableDictionary: Boolean =
     getConf(SHUFFLE_ENABLE_DICTIONARY)
 
+  def columnarShuffleEnableMultiSegments: Boolean =
+    getConf(SHUFFLE_ENABLE_MULTI_SEGMENTS)
+
   def maxBatchSize: Int = getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def shuffleWriterBufferSize: Int = getConf(SHUFFLE_WRITER_BUFFER_SIZE)
@@ -1079,6 +1082,14 @@ object GlutenConfig extends ConfigRegistry {
   val SHUFFLE_ENABLE_DICTIONARY =
     buildConf("spark.gluten.sql.columnar.shuffle.dictionary.enabled")
       .doc("Enable dictionary in hash-based shuffle.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val SHUFFLE_ENABLE_MULTI_SEGMENTS =
+    buildConf("spark.gluten.sql.columnar.shuffle.multiSegments.enabled")
+      .doc(
+        "Enable multi segments per partition in shuffle," +
+          " support incremental flushing shuffle data and improve spill performance.")
       .booleanConf
       .createWithDefault(false)
 
