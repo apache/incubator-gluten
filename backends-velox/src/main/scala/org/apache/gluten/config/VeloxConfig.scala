@@ -86,6 +86,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def cudfBatchSize: Int = getConf(CUDF_BATCH_SIZE)
 
+  def cudfShuffleMaxPrefetchBytes: Long = getConf(CUDF_SHUFFLE_MAX_PREFETCH_BYTES)
+
   def orcUseColumnNames: Boolean = getConf(ORC_USE_COLUMN_NAMES)
 
   def parquetUseColumnNames: Boolean = getConf(PARQUET_USE_COLUMN_NAMES)
@@ -684,6 +686,13 @@ object VeloxConfig extends ConfigRegistry {
       .doc("Cudf input batch size after shuffle reader")
       .intConf
       .createWithDefault(Integer.MAX_VALUE)
+
+  val CUDF_SHUFFLE_MAX_PREFETCH_BYTES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.cudf.shuffleMaxPrefetchBytes")
+      .doc("Maximum bytes to prefetch in CPU memory during GPU shuffle read while waiting" +
+        "for GPU available.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1028MB")
 
   val MEMORY_DUMP_ON_EXIT =
     buildConf("spark.gluten.monitor.memoryDumpOnExit")
