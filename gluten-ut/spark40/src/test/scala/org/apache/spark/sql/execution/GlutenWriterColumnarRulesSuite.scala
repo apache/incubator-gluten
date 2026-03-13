@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
+
 import org.apache.spark.sql.{Dataset, GlutenSQLTestsBaseTrait, QueryTest, SaveMode}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.v2.OverwriteByExpressionExec
@@ -24,7 +25,10 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.util.QueryExecutionListener
 
-class GlutenWriterColumnarRulesSuite extends QueryTest with SharedSparkSession with GlutenSQLTestsBaseTrait {
+class GlutenWriterColumnarRulesSuite
+  extends QueryTest
+  with SharedSparkSession
+  with GlutenSQLTestsBaseTrait {
 
   override protected def shouldRun(testName: String): Boolean = true
 
@@ -47,7 +51,10 @@ class GlutenWriterColumnarRulesSuite extends QueryTest with SharedSparkSession w
 
         assert(capturedPlan != null, "Plan should have been captured by the listener")
         capturedPlan match {
-          case OverwriteByExpressionExec(AdaptiveSparkPlanExec(_: VeloxColumnarToCarrierRowExec, _, _, _ ,_), _, _) =>
+          case OverwriteByExpressionExec(
+                AdaptiveSparkPlanExec(_: VeloxColumnarToCarrierRowExec, _, _, _, _),
+                _,
+                _) =>
           case _ =>
             fail("Expected AdaptiveSparkPlanExec to be accessible in the plan structure")
         }
