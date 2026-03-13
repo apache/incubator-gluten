@@ -70,6 +70,7 @@ case class ColumnarCollectLimitExec(
 
           if (rowsToSkip >= batchSize) {
             rowsToSkip -= batchSize
+            batch.close()
           } else {
             val startIndex = rowsToSkip
             val leftoverAfterSkip = batchSize - startIndex
@@ -82,7 +83,9 @@ case class ColumnarCollectLimitExec(
                 ColumnarBatches.retain(batch)
                 batch
               } else {
-                VeloxColumnarBatches.slice(batch, startIndex, needed)
+                val sliced = VeloxColumnarBatches.slice(batch, startIndex, needed)
+                batch.close()
+                sliced
               }
 
             rowsToCollect -= needed
