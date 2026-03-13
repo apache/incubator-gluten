@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.extension.columnar.validator.Validators
@@ -44,15 +43,6 @@ object OffloadKafkaScan {
           Validators.newValidator(new GlutenConfig(c.sqlConf), offload),
           offload
         )
-    }
-
-    // Inject RAS rule.
-    injector.gluten.ras.injectRasRule {
-      c =>
-        RasOffload.Rule(
-          RasOffload.from[BatchScanExec](OffloadKafkaScan()),
-          Validators.newValidator(new GlutenConfig(c.sqlConf)),
-          Nil)
     }
   }
 }

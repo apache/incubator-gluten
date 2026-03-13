@@ -664,10 +664,6 @@ object GlutenConfig extends ConfigRegistry {
 
   val GLUTEN_ENABLED = GlutenCoreConfig.GLUTEN_ENABLED
 
-  val RAS_ENABLED = GlutenCoreConfig.RAS_ENABLED
-
-  val RAS_COST_MODEL = GlutenCoreConfig.RAS_COST_MODEL
-
   val GLUTEN_UI_ENABLED = buildStaticConf("spark.gluten.ui.enabled")
     .doc(
       "Whether to enable the gluten web UI, If true, attach the gluten UI page " +

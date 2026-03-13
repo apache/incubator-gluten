@@ -49,7 +49,6 @@
     <module>gluten-ui</module>
     <module>package</module>
     <module>shims</module>
-    <module>gluten-ras</module>
   </modules>
 
   <scm>
