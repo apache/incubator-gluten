@@ -39,6 +39,7 @@
 #include "jni/JniFileSystem.h"
 #include "memory/GlutenBufferedInputBuilder.h"
 #include "operators/functions/SparkExprToSubfieldFilterParser.h"
+#include "operators/plannodes/RowVectorStream.h"
 #include "shuffle/ArrowShuffleDictionaryWriter.h"
 #include "udf/UdfLoader.h"
 #include "utils/Exception.h"
@@ -47,7 +48,6 @@
 #include "velox/connectors/hive/BufferedInputBuilder.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
-#include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/gcs/RegisterGcsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
@@ -56,6 +56,7 @@
 #include "velox/dwio/orc/reader/OrcReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/dwio/parquet/RegisterParquetWriter.h"
+#include "velox/functions/sparksql/types/TimestampNTZRegistration.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
@@ -194,6 +195,7 @@ void VeloxBackend::init(
   velox::orc::registerOrcReaderFactory();
   velox::exec::ExprToSubfieldFilterParser::registerParser(std::make_unique<SparkExprToSubfieldFilterParser>());
   velox::connector::hive::BufferedInputBuilder::registerBuilder(std::make_shared<GlutenBufferedInputBuilder>());
+  velox::functions::sparksql::registerTimestampNTZType();
 
   // Register Velox functions
   registerAllFunctions();
@@ -317,10 +319,10 @@ void VeloxBackend::initConnector(const std::shared_ptr<velox::config::ConfigBase
   }
   velox::connector::registerConnector(
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
-  
+
   // Register value-stream connector for runtime iterator-based inputs
   velox::connector::registerConnector(std::make_shared<ValueStreamConnector>(kIteratorConnectorId, hiveConf));
-  
+
 #ifdef GLUTEN_ENABLE_GPU
   if (backendConf_->get<bool>(kCudfEnableTableScan, kCudfEnableTableScanDefault) &&
       backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
