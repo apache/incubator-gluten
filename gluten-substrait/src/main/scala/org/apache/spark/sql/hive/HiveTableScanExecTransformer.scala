@@ -76,8 +76,21 @@ case class HiveTableScanExecTransformer(
   override def getPartitionWithReadFileFormats: Seq[(Partition, ReadFileFormat)] =
     partitionWithReadFileFormats
 
-  override def getDistinctPartitionReadFileFormats: Set[ReadFileFormat] =
-    distinctReadFileFormats
+  override def getDistinctPartitionReadFileFormats: Set[ReadFileFormat] = {
+    if (!relation.isPartitioned) {
+      Set(fileFormat)
+    } else {
+      // Use statically pruned partitions from the relation instead of prunedPartitions
+      // to avoid triggering DPP (Dynamic Partition Pruning) subquery evaluation during
+      // validation, when those subqueries have not yet been executed.
+      relation.prunedPartitions match {
+        case Some(partitions) if partitions.nonEmpty =>
+          partitions.map(p => getReadFileFormat(p.storage)).toSet
+        case _ =>
+          Set(fileFormat)
+      }
+    }
+  }
 
   override def getPartitionSchema: StructType = relation.tableMeta.partitionSchema
 
