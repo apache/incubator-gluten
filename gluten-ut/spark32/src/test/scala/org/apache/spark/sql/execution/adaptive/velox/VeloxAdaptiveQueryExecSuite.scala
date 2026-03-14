@@ -1259,8 +1259,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
         assert(
           childPlan
             .asInstanceOf[AdaptiveSparkPlanExec]
-            .children
-            .head
+            .inputPlan
             .isInstanceOf[ColumnarToCarrierRowExecBase])
 
         spark.listenerManager.unregister(listener)
