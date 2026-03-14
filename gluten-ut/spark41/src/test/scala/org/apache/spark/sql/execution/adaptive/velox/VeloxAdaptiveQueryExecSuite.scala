@@ -1218,12 +1218,13 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
         sparkContext.listenerBus.waitUntilEmpty()
         assert(plan.isInstanceOf[V2TableWriteExec])
         val childPlan = plan.asInstanceOf[V2TableWriteExec].child
-        assert(childPlan.isInstanceOf[ColumnarToCarrierRowExecBase])
+        assert(childPlan.isInstanceOf[AdaptiveSparkPlanExec])
         assert(
           childPlan
-            .asInstanceOf[ColumnarToCarrierRowExecBase]
-            .child
-            .isInstanceOf[AdaptiveSparkPlanExec])
+            .asInstanceOf[AdaptiveSparkPlanExec]
+            .children
+            .head
+            .isInstanceOf[ColumnarToCarrierRowExecBase])
 
         spark.listenerManager.unregister(listener)
       }
