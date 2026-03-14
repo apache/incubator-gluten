@@ -18,7 +18,8 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
 
-import org.apache.spark.sql.{Dataset, GlutenSQLTestsBaseTrait, QueryTest, SaveMode}
+import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, QueryTest, SaveMode}
+import org.apache.spark.sql.classic.Dataset
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.v2.OverwriteByExpressionExec
 import org.apache.spark.sql.internal.SQLConf
