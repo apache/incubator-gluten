@@ -140,6 +140,41 @@ class GlutenClickhouseFunctionSuite extends ParquetSuite {
     }
   }
 
+  test("regex unsupported by RE2 should fallback") {
+    val sql = "select rlike('abc', '(?=a)a')"
+    runQueryAndCompare(sql, noFallBack = false)(_ => ())
+  }
+
+  test("regexp_replace with lookbehind should fallback") {
+    val sql = "select regexp_replace('abc', '(?<=a)b', 'x')"
+    runQueryAndCompare(sql, noFallBack = false)(_ => ())
+  }
+
+  test("regexp_extract with backreference should fallback") {
+    val sql = "select regexp_extract('aba', '(a)\\1', 0)"
+    runQueryAndCompare(sql, noFallBack = false)(_ => ())
+  }
+
+  test("split with lookahead should fallback") {
+    val sql = "select split('a1b2', '(?=\\d)')"
+    runQueryAndCompare(sql, noFallBack = false)(_ => ())
+  }
+
+  test("regexp_extract_all with lookahead should fallback") {
+    val sql = "select regexp_extract_all('a1b2', '(?=\\d)', 0)"
+    runQueryAndCompare(sql, noFallBack = false)(_ => ())
+  }
+
+  test("rlike with negative lookbehind should fallback") {
+    val sql = "select rlike('abc', '(?<!a)b')"
+    runQueryAndCompare(sql, noFallBack = false)(_ => ())
+  }
+
+  test("regexp_replace with lookahead should fallback") {
+    val sql = "select regexp_replace('a1b2', '(?=\\d)', 'x')"
+    runQueryAndCompare(sql, noFallBack = false)(_ => ())
+  }
+
   test("Fix arrayDistinct(Array(Nullable(Decimal))) core dump") {
     withTable("json_t1") {
       val create_sql =
