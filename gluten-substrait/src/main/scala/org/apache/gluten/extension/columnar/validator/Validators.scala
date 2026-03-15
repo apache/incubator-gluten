@@ -26,6 +26,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
+import org.apache.spark.util.Utils
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, BatchScanExec, OverwriteByExpressionExec, OverwritePartitionsDynamicExec, ReplaceDataExec, WriteToDataSourceV2Exec}
@@ -39,6 +40,17 @@ object Validators {
   implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
     private val conf = GlutenConfig.get
     private val settings = BackendsApiManager.getSettings
+
+    // Get VeloxConfig
+    private val veloxConf: Option[Any] = {
+      try {
+        val veloxConfigClass = Utils.classForName("org.apache.gluten.config.VeloxConfig")
+        val getMethod = veloxConfigClass.getMethod("get")
+        Some(getMethod.invoke(null))
+      } catch {
+        case _: Exception => None
+      }
+    }
 
     /** Fails validation if a plan node was already tagged with TRANSFORM_UNSUPPORTED. */
     def fallbackByHint(): Validator.Builder = {
@@ -81,7 +93,7 @@ object Validators {
 
     /** Fails validation if a plan node's input or output schema contains TimestampNTZType. */
     def fallbackByTimestampNTZ(): Validator.Builder = {
-      builder.add(new FallbackByTimestampNTZ())
+      builder.add(new FallbackByTimestampNTZ(veloxConf))
     }
 
     /**
@@ -218,8 +230,25 @@ object Validators {
     }
   }
 
-  private class FallbackByTimestampNTZ() extends Validator {
+  private class FallbackByTimestampNTZ(veloxConf: Option[Any]) extends Validator {
+    // Check if TimestampNTZ validation is enabled via VeloxConfig
+    private val enableValidation: Boolean = veloxConf match {
+      case Some(config) =>
+        try {
+          val enableMethod = config.getClass.getMethod("enableTimestampNtzValidation")
+          enableMethod.invoke(config).asInstanceOf[Boolean]
+        } catch {
+          case _: Exception => true
+        }
+      case None => true
+    }
+
     override def validate(plan: SparkPlan): Validator.OutCome = {
+      if (!enableValidation) {
+        // Validation is disabled, allow TimestampNTZ
+        return pass()
+      }
+
       def containsNTZ(dataType: DataType): Boolean = dataType match {
         case dt if dt.catalogString == "timestamp_ntz" => true
         case st: StructType => st.exists(f => containsNTZ(f.dataType))

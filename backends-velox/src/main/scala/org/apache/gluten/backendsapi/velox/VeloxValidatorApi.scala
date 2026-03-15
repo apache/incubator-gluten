@@ -104,10 +104,17 @@ class VeloxValidatorApi extends ValidatorApi {
 
 object VeloxValidatorApi {
   private def isPrimitiveType(dataType: DataType): Boolean = {
+    val enableTimestampNtzValidation = VeloxConfig.get.enableTimestampNtzValidation
     dataType match {
       case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
           StringType | BinaryType | _: DecimalType | DateType | TimestampType |
           YearMonthIntervalType.DEFAULT | NullType =>
+        true
+      case dt
+          if !enableTimestampNtzValidation &&
+            dt.getClass.getSimpleName == "TimestampNTZType" =>
+        // Allow TimestampNTZ when validation is disabled (for development/testing)
+        // Use reflection to avoid compile-time dependency on Spark 3.4+ TimestampNTZType
         true
       case _ => false
     }
