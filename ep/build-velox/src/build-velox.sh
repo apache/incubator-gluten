@@ -102,7 +102,7 @@ function compile {
   # maintain compatibility, but it prints a diagnostic note about the unknown flag if a true warning
   # or error occurs.
   CXX_FLAGS='-Wno-error=stringop-overflow -Wno-error=cpp -Wno-missing-field-initializers \
-    -Wno-error=uninitialized -Wno-unknown-warning-option -Wno-deprecated-declarations'
+    -Wno-error=uninitialized -Wno-unknown-warning-option -Wno-macro-redefined -Wno-deprecated-declarations -Wno-inconsistent-missing-override'
 
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF \
       -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON \
@@ -137,8 +137,8 @@ function compile {
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_CUDF=ON -DCMAKE_CUDA_ARCHITECTURES=75 \
         -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc"
   fi
-  if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
+  if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $OS != "Darwin" ]; then
+      COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
   fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
