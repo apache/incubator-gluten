@@ -137,7 +137,7 @@ function compile {
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_CUDF=ON -DCMAKE_CUDA_ARCHITECTURES=75 \
         -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc"
   fi
-  if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ] && [ "${CMAKE_SYSTEM_NAME:-}" != "Darwin" ]; then
+  if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $OS != "Darwin" ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
   fi
 
