@@ -198,13 +198,6 @@ abstract class SortMergeJoinExecTransformerBase(
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val joinParams = new JoinParams
-    if (JoinUtils.preProjectionNeeded(leftKeys)) {
-      joinParams.streamPreProjectionNeeded = true
-    }
-    if (JoinUtils.preProjectionNeeded(rightKeys)) {
-      joinParams.buildPreProjectionNeeded = true
-    }
-
     val joinRel = JoinUtils.createJoinRel(
       streamedKeys,
       bufferedKeys,
