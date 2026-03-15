@@ -97,7 +97,7 @@ class ArrowCsvScanWithTableCacheSuite extends ArrowCsvScanSuiteBase {
   }
 
   /**
-   * Test for GLUTEN-8453: https://github.com/apache/incubator-gluten/issues/8453. To make sure no
+   * Test for GLUTEN-8453: https://github.com/apache/gluten/issues/8453. To make sure no
    * error is thrown when caching an Arrow Java query plan.
    */
   test("csv scan v1 with table cache") {
@@ -107,7 +107,7 @@ class ArrowCsvScanWithTableCacheSuite extends ArrowCsvScanSuiteBase {
   }
 }
 
-/** Since https://github.com/apache/incubator-gluten/pull/5850. */
+/** Since https://github.com/apache/gluten/pull/5850. */
 @Ignore
 abstract class ArrowCsvScanSuite extends ArrowCsvScanSuiteBase {
 
