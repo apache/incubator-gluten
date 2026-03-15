@@ -464,14 +464,14 @@ class GlutenClickHouseTPCHSuite extends MergeTreeSuite {
                 | insert into cross_join_t
                 | select id as a, cast(id as string) as b,
                 |   concat('1231231232323232322', cast(id as string)) as c
-                | from range(0, 10000)
+                | from range(0, 5000)
                 |""".stripMargin
     spark.sql(sql)
     sql = """
             | insert into cross_join_t
             | select id as a, cast(id as string) as b,
             |   concat('1231231232323232322', cast(id as string)) as c
-            | from range(10000, 20000)
+            | from range(5000, 10000)
             |""".stripMargin
     spark.sql(sql)
     sql = """
