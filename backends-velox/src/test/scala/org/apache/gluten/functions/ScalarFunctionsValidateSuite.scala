@@ -1507,4 +1507,27 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+  test("test_current_timestamp") {
+    val df = spark.sql("SELECT l_orderkey, current_timestamp() from lineitem limit 1")
+    val optimizedPlan = df.queryExecution.optimizedPlan.toString()
+    assert(
+      !optimizedPlan.contains("CurrentTimestamp"),
+      s"Expected CurrentTimestamp to be folded to a literal, but got: $optimizedPlan"
+    )
+    checkGlutenPlan[ProjectExecTransformer](df)
+    checkFallbackOperators(df, 0)
+    df.collect()
+  }
+
+  test("test_now") {
+    val df = spark.sql("SELECT l_orderkey, now() from lineitem limit 1")
+    val optimizedPlan = df.queryExecution.optimizedPlan.toString()
+    assert(
+      !optimizedPlan.contains("Now"),
+      s"Expected Now to be folded to a literal, but got: $optimizedPlan"
+    )
+    checkGlutenPlan[ProjectExecTransformer](df)
+    checkFallbackOperators(df, 0)
+    df.collect()
+  }
 }
