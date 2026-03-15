@@ -81,14 +81,14 @@ object GlutenWriterColumnarRules {
       case aqe: AdaptiveSparkPlanExec =>
         val newChild = BackendsApiManager.getSparkPlanExecApiInstance
           .genColumnarToCarrierRow(aqe.inputPlan)
-        command.withNewChildren(Array(wrapAqeWithColumnarToRow(newChild, aqe)))
+        command.withNewChildren(Array(wrapColumnarToRowWithAqe(newChild, aqe)))
       case other =>
         command.withNewChildren(
           Array(BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(other)))
     }
   }
 
-  private def wrapAqeWithColumnarToRow(
+  private def wrapColumnarToRowWithAqe(
       newChild: SparkPlan,
       aqe: AdaptiveSparkPlanExec): AdaptiveSparkPlanExec = {
     aqe.inputPlan.logicalLink.foreach(newChild.setLogicalLink)
